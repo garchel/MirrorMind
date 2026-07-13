@@ -13,10 +13,15 @@ type TooltipState = {
   y: number
 }
 
-const INITIAL_POSITION = { x: 24, y: 24 }
+function getInitialPosition() {
+  return {
+    x: Math.max(12, window.innerWidth - 238),
+    y: 12,
+  }
+}
 
 export function BuilderModeControl({ enabled, onEnabledChange }: BuilderModeControlProps) {
-  const [position, setPosition] = useState(INITIAL_POSITION)
+  const [position, setPosition] = useState(getInitialPosition)
   const [isDragging, setIsDragging] = useState(false)
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
   const dragOrigin = useRef<{ x: number; y: number } | null>(null)
@@ -67,7 +72,7 @@ export function BuilderModeControl({ enabled, onEnabledChange }: BuilderModeCont
       movedDuringDrag.current = true
     }
 
-    const nextX = Math.max(12, Math.min(window.innerWidth - 154, event.clientX - 64))
+    const nextX = Math.max(12, Math.min(window.innerWidth - 226, event.clientX - 104))
     const nextY = Math.max(12, Math.min(window.innerHeight - 44, event.clientY - 18))
     setPosition({ x: nextX, y: nextY })
   }
@@ -92,10 +97,9 @@ export function BuilderModeControl({ enabled, onEnabledChange }: BuilderModeCont
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         aria-pressed={enabled}
-        aria-label="Alternar Builder Mode"
+        aria-label={`Friendly Names - ${enabled ? 'ON' : 'OFF'}`}
       >
-        <span aria-hidden="true">Build</span>
-        <span>{enabled ? 'Builder ligado' : 'Builder desligado'}</span>
+        <span>Friendly Names - {enabled ? 'ON' : 'OFF'}</span>
       </button>
 
       {tooltip?.name ? (

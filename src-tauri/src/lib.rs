@@ -2,10 +2,11 @@ use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
-  collections::HashSet,
+  collections::{HashMap, HashSet},
   fs,
   path::{Path, PathBuf},
   sync::Mutex,
+  time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
@@ -19,6 +20,11 @@ const NOTE_PREVIEW_LIMIT: usize = 8;
 const RECENT_VAULT_FILE: &str = "recent-vault.json";
 const HISTORY_FILE: &str = "history.json";
 const HISTORY_LIMIT: usize = 100;
+const TRASH_DIR: &str = "trash";
+const TRASH_FILE: &str = "trash.json";
+const TRASH_RETENTION_DAYS: u64 = 30;
+const ATTACHMENTS_DIR: &str = "attachments";
+const TEMPLATES_FILE: &str = "templates.json";
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -39,6 +45,25 @@ struct HistoryState {
 struct HistoryStatus {
   can_undo: bool,
   can_redo: bool,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TrashEntry {
+  id: String,
+  original_relative_path: String,
+  trashed_name: String,
+  item_type: String,
+  #[serde(default = "today_day")]
+  deleted_at_day: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Attachment {
+  name: String,
+  relative_path: String,
+  is_image: bool,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -82,6 +107,30 @@ struct NoteDocument {
   relative_path: String,
   content: String,
 }
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Backlink {
+  name: String,
+  relative_path: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TagSummary {
+  tag: String,
+  note_paths: Vec<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NoteSearchResult { name: String, relative_path: String, excerpt: String }
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NoteTemplate { id: String, name: String, content: String }
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewPlan { relative_path: String, interval_days: u32, repetitions: u32, due_day: u64 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -208,6 +257,107 @@ fn list_notes(path: String, authorized_paths: State<AuthorizedPaths>) -> Result<
 }
 
 #[tauri::command]
+fn list_templates(path: String, authorized_paths: State<AuthorizedPaths>) -> Result<Vec<NoteTemplate>, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths.ensure_authorized_vault_root(&root).map_err(|error| error.to_string())?;
+  read_templates(&root).map_err(|error| error.to_string())
+}
+
+fn read_templates(root: &Path) -> Result<Vec<NoteTemplate>> {
+  ensure_metadata_layout(root)?;
+  Ok(serde_json::from_str(&fs::read_to_string(root.join(METADATA_DIR).join(TEMPLATES_FILE))?).unwrap_or_default())
+}
+
+fn review_plan_path(root: &Path, relative_path: &str) -> PathBuf { root.join(METADATA_DIR).join(REVIEW_PLANS_DIR).join(format!("{}.json", relative_path.replace(['/', '\\', '.'], "_"))) }
+fn today_day() -> u64 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() / 86_400 }
+
+#[tauri::command]
+fn review_note(path: String, relative_path: String, quality: u8, authorized_paths: State<AuthorizedPaths>) -> Result<ReviewPlan, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths.ensure_authorized_vault_root(&root).map_err(|error| error.to_string())?;
+  let note = resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+  if !note.exists() { return Err("A nota nao existe mais.".to_string()); }
+  ensure_metadata_layout(&root).map_err(|error| error.to_string())?;
+  let plan_path = review_plan_path(&root, &relative_path);
+  let old: ReviewPlan = fs::read_to_string(&plan_path).ok().and_then(|data| serde_json::from_str(&data).ok()).unwrap_or(ReviewPlan { relative_path: relative_path.clone(), interval_days: 1, repetitions: 0, due_day: today_day() });
+  let interval_days = if quality <= 1 { 1 } else if quality == 2 { old.interval_days.max(1) * 2 } else { old.interval_days.max(1) * 3 };
+  let plan = ReviewPlan { relative_path, interval_days, repetitions: old.repetitions + 1, due_day: today_day() + interval_days as u64 };
+  let serialized = serde_json::to_string_pretty(&plan).map_err(|error| error.to_string())?;
+  fs::write(plan_path, serialized).map_err(|error| error.to_string())?;
+  Ok(plan)
+}
+
+#[tauri::command]
+fn search_notes(path: String, query: String, authorized_paths: State<AuthorizedPaths>) -> Result<Vec<NoteSearchResult>, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths.ensure_authorized_vault_root(&root).map_err(|error| error.to_string())?;
+  search_notes_in_root(&root, &query).map_err(|error| error.to_string())
+}
+
+fn search_notes_in_root(root: &Path, query: &str) -> Result<Vec<NoteSearchResult>> {
+  let normalized = query.trim().to_ascii_lowercase();
+  if normalized.is_empty() { return Ok(Vec::new()); }
+  let mut results = Vec::new();
+  for note_path in collect_markdown_files(root)? {
+    let relative_path = to_relative_display(root, &note_path);
+    let content = fs::read_to_string(&note_path)?;
+    let haystack = format!("{relative_path}\n{content}").to_ascii_lowercase();
+    if !haystack.contains(&normalized) { continue; }
+    let excerpt = content.lines().find(|line| line.to_ascii_lowercase().contains(&normalized)).unwrap_or("Correspondencia no titulo ou caminho.").trim();
+    results.push(NoteSearchResult { name: note_path.file_name().and_then(|name| name.to_str()).unwrap_or_default().to_string(), relative_path, excerpt: excerpt.chars().take(140).collect() });
+  }
+  results.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+  Ok(results)
+}
+
+#[tauri::command]
+fn list_favorites(path: String, authorized_paths: State<AuthorizedPaths>) -> Result<Vec<String>, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths.ensure_authorized_vault_root(&root).map_err(|error| error.to_string())?;
+  read_favorites(&root).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn toggle_favorite(path: String, relative_path: String, authorized_paths: State<AuthorizedPaths>) -> Result<Vec<String>, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths.ensure_authorized_vault_root(&root).map_err(|error| error.to_string())?;
+  let note = resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+  if !note.exists() { return Err("A nota nao existe mais.".to_string()); }
+  let mut favorites = read_favorites(&root).map_err(|error| error.to_string())?;
+  let path = to_relative_display(&root, &note);
+  if favorites.contains(&path) { favorites.retain(|item| item != &path); } else { favorites.push(path); favorites.sort(); }
+  write_favorites(&root, &favorites).map_err(|error| error.to_string())?;
+  Ok(favorites)
+}
+
+fn read_favorites(root: &Path) -> Result<Vec<String>> {
+  ensure_metadata_layout(root)?;
+  let value: serde_json::Value = serde_json::from_str(&fs::read_to_string(root.join(METADATA_DIR).join(CONFIG_FILE))?).unwrap_or_else(|_| json!({}));
+  Ok(value.get("favorites").and_then(|entry| entry.as_array()).map(|items| items.iter().filter_map(|item| item.as_str().map(str::to_string)).collect()).unwrap_or_default())
+}
+
+fn write_favorites(root: &Path, favorites: &[String]) -> Result<()> {
+  ensure_metadata_layout(root)?;
+  let path = root.join(METADATA_DIR).join(CONFIG_FILE);
+  let mut value: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path)?).unwrap_or_else(|_| json!({}));
+  value["favorites"] = json!(favorites);
+  fs::write(path, serde_json::to_string_pretty(&value)?)?;
+  Ok(())
+}
+
+#[tauri::command]
+fn list_folders(path: String, authorized_paths: State<AuthorizedPaths>) -> Result<Vec<String>, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths
+    .ensure_authorized_vault_root(&root)
+    .map_err(|error| error.to_string())?;
+
+  collect_folders(&root)
+    .map(|folders| folders.iter().map(|folder| to_relative_display(&root, folder)).collect())
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn read_note(
   path: String,
   relative_path: String,
@@ -232,6 +382,106 @@ fn read_note(
     relative_path: to_relative_display(&root, &note_path),
     content,
   })
+}
+
+#[tauri::command]
+fn get_backlinks(
+  path: String,
+  relative_path: String,
+  authorized_paths: State<AuthorizedPaths>,
+) -> Result<Vec<Backlink>, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths
+    .ensure_authorized_vault_root(&root)
+    .map_err(|error| error.to_string())?;
+  get_backlinks_in_root(&root, &relative_path).map_err(|error| error.to_string())
+}
+
+fn get_backlinks_in_root(root: &Path, relative_path: &str) -> Result<Vec<Backlink>> {
+  let target = resolve_note_path(root, relative_path)?;
+  let target_relative_path = to_relative_display(root, &target);
+  let mut backlinks = Vec::new();
+  for note_path in collect_markdown_files(root)? {
+    let note_relative_path = to_relative_display(root, &note_path);
+    if note_relative_path == target_relative_path {
+      continue;
+    }
+    let content = fs::read_to_string(&note_path)
+      .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
+    if extract_wiki_links(&content).iter().any(|link| link == &target_relative_path) {
+      backlinks.push(Backlink {
+        name: note_path.file_name().and_then(|name| name.to_str()).unwrap_or_default().to_string(),
+        relative_path: note_relative_path,
+      });
+    }
+  }
+  backlinks.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+  Ok(backlinks)
+}
+
+#[tauri::command]
+fn get_tag_index(path: String, authorized_paths: State<AuthorizedPaths>) -> Result<Vec<TagSummary>, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths.ensure_authorized_vault_root(&root).map_err(|error| error.to_string())?;
+  get_tag_index_in_root(&root).map_err(|error| error.to_string())
+}
+
+fn get_tag_index_in_root(root: &Path) -> Result<Vec<TagSummary>> {
+  let mut tags: HashMap<String, Vec<String>> = HashMap::new();
+  for note_path in collect_markdown_files(root)? {
+    let content = fs::read_to_string(&note_path)
+      .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
+    let relative_path = to_relative_display(root, &note_path);
+    for tag in extract_tags(&content) {
+      tags.entry(tag).or_default().push(relative_path.clone());
+    }
+  }
+  let mut summaries = tags
+    .into_iter()
+    .map(|(tag, mut note_paths)| {
+      note_paths.sort();
+      TagSummary { tag, note_paths }
+    })
+    .collect::<Vec<_>>();
+  summaries.sort_by(|left, right| left.tag.cmp(&right.tag));
+  Ok(summaries)
+}
+
+fn extract_tags(content: &str) -> Vec<String> {
+  let characters = content.chars().collect::<Vec<_>>();
+  let mut tags = HashSet::new();
+  for (index, character) in characters.iter().enumerate() {
+    if *character != '#' || index > 0 && (characters[index - 1].is_alphanumeric() || characters[index - 1] == '_') {
+      continue;
+    }
+    let tag = characters[index + 1..]
+      .iter()
+      .take_while(|value| value.is_alphanumeric() || **value == '_' || **value == '-')
+      .collect::<String>();
+    if !tag.is_empty() {
+      tags.insert(tag.to_ascii_lowercase());
+    }
+  }
+  let mut result = tags.into_iter().collect::<Vec<_>>();
+  result.sort();
+  result
+}
+
+fn extract_wiki_links(content: &str) -> Vec<String> {
+  let mut links = Vec::new();
+  let mut remaining = content;
+  while let Some(start) = remaining.find("[[") {
+    let after_start = &remaining[start + 2..];
+    let Some(end) = after_start.find("]]" ) else { break };
+    let raw_target = &after_start[..end];
+    let target = raw_target.split('|').next().unwrap_or_default().split('#').next().unwrap_or_default().trim();
+    if !target.is_empty() && !target.contains("..") {
+      let normalized = target.replace('\\', "/");
+      links.push(if normalized.to_ascii_lowercase().ends_with(".md") { normalized } else { format!("{normalized}.md") });
+    }
+    remaining = &after_start[end + 2..];
+  }
+  links
 }
 
 #[tauri::command]
@@ -316,6 +566,329 @@ fn create_note(
     relative_path: to_relative_display(&root, &note_path),
     content: initial_content,
   })
+}
+
+#[tauri::command]
+fn create_folder(
+  path: String,
+  relative_path: String,
+  authorized_paths: State<AuthorizedPaths>,
+) -> Result<(), String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths
+    .ensure_authorized_vault_root(&root)
+    .map_err(|error| error.to_string())?;
+  let folder_path = resolve_folder_path(&root, &relative_path).map_err(|error| error.to_string())?;
+  if folder_path.exists() {
+    return Err(format!("A pasta '{}' ja existe.", folder_path.display()));
+  }
+  fs::create_dir_all(&folder_path)
+    .with_context(|| format!("Nao foi possivel criar '{}'.", folder_path.display()))
+    .map_err(|error| error.to_string())?;
+  Ok(())
+}
+
+#[tauri::command]
+fn rename_vault_item(
+  path: String,
+  relative_path: String,
+  new_name: String,
+  item_type: String,
+  authorized_paths: State<AuthorizedPaths>,
+) -> Result<(), String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths
+    .ensure_authorized_vault_root(&root)
+    .map_err(|error| error.to_string())?;
+
+  rename_vault_item_in_root(&root, &relative_path, &new_name, &item_type)
+    .map_err(|error| error.to_string())
+}
+
+fn rename_vault_item_in_root(root: &Path, relative_path: &str, new_name: &str, item_type: &str) -> Result<()> {
+  let is_note = match item_type {
+    "note" => true,
+    "folder" => false,
+    _ => bail!("Tipo de item invalido."),
+  };
+  let source = if is_note {
+    resolve_note_path(&root, &relative_path)
+  } else {
+    resolve_folder_path(&root, &relative_path)
+  }?;
+  if !source.exists() {
+    bail!("O item que voce deseja renomear nao existe mais.");
+  }
+
+  let destination_name = validate_item_name(new_name, is_note)?;
+  let parent = source.parent().ok_or_else(|| anyhow::anyhow!("Nao foi possivel encontrar a pasta do item."))?;
+  let destination = parent.join(destination_name);
+  if destination.exists() {
+    bail!("Ja existe um item com esse nome nessa pasta.");
+  }
+
+  fs::rename(&source, &destination)
+    .with_context(|| format!("Nao foi possivel renomear '{}'.", source.display()))
+    ?;
+  Ok(())
+}
+
+#[tauri::command]
+fn move_vault_item(
+  path: String,
+  relative_path: String,
+  destination_folder: String,
+  item_type: String,
+  authorized_paths: State<AuthorizedPaths>,
+) -> Result<(), String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths
+    .ensure_authorized_vault_root(&root)
+    .map_err(|error| error.to_string())?;
+
+  move_vault_item_in_root(&root, &relative_path, &destination_folder, &item_type)
+    .map_err(|error| error.to_string())
+}
+
+fn move_vault_item_in_root(root: &Path, relative_path: &str, destination_folder: &str, item_type: &str) -> Result<()> {
+  let is_note = match item_type {
+    "note" => true,
+    "folder" => false,
+    _ => bail!("Tipo de item invalido."),
+  };
+  let source = if is_note {
+    resolve_note_path(root, relative_path)
+  } else {
+    resolve_folder_path(root, relative_path)
+  }?;
+  if !source.exists() {
+    bail!("O item que voce deseja mover nao existe mais.");
+  }
+
+  let destination = if destination_folder.trim().is_empty() {
+    root.to_path_buf()
+  } else {
+    resolve_folder_path(root, destination_folder)?
+  };
+  if !destination.is_dir() {
+    bail!("A pasta de destino nao existe.");
+  }
+  if !is_note && destination.canonicalize()?.starts_with(source.canonicalize()?) {
+    bail!("Uma pasta nao pode ser movida para dentro dela mesma.");
+  }
+
+  let source_name = source.file_name().ok_or_else(|| anyhow::anyhow!("O item nao possui um nome valido."))?;
+  let target = destination.join(source_name);
+  if target.exists() {
+    bail!("Ja existe um item com esse nome na pasta de destino.");
+  }
+  fs::rename(&source, &target)
+    .with_context(|| format!("Nao foi possivel mover '{}'.", source.display()))?;
+  Ok(())
+}
+
+#[tauri::command]
+fn delete_vault_item(
+  path: String,
+  relative_path: String,
+  item_type: String,
+  authorized_paths: State<AuthorizedPaths>,
+) -> Result<(), String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths
+    .ensure_authorized_vault_root(&root)
+    .map_err(|error| error.to_string())?;
+
+  delete_vault_item_in_root(&root, &relative_path, &item_type).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn list_trash(path: String, authorized_paths: State<AuthorizedPaths>) -> Result<Vec<TrashEntry>, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths
+    .ensure_authorized_vault_root(&root)
+    .map_err(|error| error.to_string())?;
+  list_trash_in_root(&root).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn restore_trash_item(
+  path: String,
+  id: String,
+  authorized_paths: State<AuthorizedPaths>,
+) -> Result<(), String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths
+    .ensure_authorized_vault_root(&root)
+    .map_err(|error| error.to_string())?;
+  restore_trash_item_in_root(&root, &id).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn permanently_delete_trash_item(
+  path: String,
+  id: String,
+  authorized_paths: State<AuthorizedPaths>,
+) -> Result<(), String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths
+    .ensure_authorized_vault_root(&root)
+    .map_err(|error| error.to_string())?;
+  permanently_delete_trash_item_in_root(&root, &id).map_err(|error| error.to_string())
+}
+
+fn delete_vault_item_in_root(root: &Path, relative_path: &str, item_type: &str) -> Result<()> {
+  let is_note = match item_type {
+    "note" => true,
+    "folder" => false,
+    _ => bail!("Tipo de item invalido."),
+  };
+  let source = if is_note {
+    resolve_note_path(root, relative_path)
+  } else {
+    resolve_folder_path(root, relative_path)
+  }?;
+  if !source.exists() {
+    bail!("O item que voce deseja excluir nao existe mais.");
+  }
+
+  let id = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis().to_string();
+  let source_name = source.file_name().ok_or_else(|| anyhow::anyhow!("O item nao possui um nome valido."))?.to_string_lossy();
+  let trashed_name = format!("{id}-{source_name}");
+  let trash_root = trash_root(root);
+  fs::create_dir_all(&trash_root)?;
+  let trash_path = trash_root.join(&trashed_name);
+  fs::rename(&source, &trash_path)
+    .with_context(|| format!("Nao foi possivel mover '{}' para a lixeira.", source.display()))?;
+
+  let entry = TrashEntry {
+    id,
+    original_relative_path: relative_path.to_string(),
+    trashed_name,
+    item_type: item_type.to_string(),
+    deleted_at_day: today_day(),
+  };
+  let mut entries = read_trash_entries(root)?;
+  entries.push(entry);
+  if let Err(error) = write_trash_entries(root, &entries) {
+    let _ = fs::rename(&trash_path, &source);
+    return Err(error);
+  }
+  Ok(())
+}
+
+fn restore_trash_item_in_root(root: &Path, id: &str) -> Result<()> {
+  let mut entries = read_trash_entries(root)?;
+  let index = entries.iter().position(|entry| entry.id == id).ok_or_else(|| anyhow::anyhow!("Item nao encontrado na lixeira."))?;
+  let entry = entries[index].clone();
+  let source = trash_item_path(root, &entry.trashed_name)?;
+  if !source.exists() {
+    bail!("O arquivo da lixeira nao existe mais.");
+  }
+  let destination = match entry.item_type.as_str() {
+    "note" => resolve_note_path(root, &entry.original_relative_path)?,
+    "folder" => resolve_folder_path(root, &entry.original_relative_path)?,
+    _ => bail!("Tipo de item invalido na lixeira."),
+  };
+  if destination.exists() {
+    bail!("Ja existe um item no local original. Renomeie ou mova esse item antes de restaurar.");
+  }
+  if let Some(parent) = destination.parent() {
+    fs::create_dir_all(parent)?;
+  }
+  fs::rename(&source, &destination)
+    .with_context(|| format!("Nao foi possivel restaurar '{}'.", entry.original_relative_path))?;
+  entries.remove(index);
+  if let Err(error) = write_trash_entries(root, &entries) {
+    let _ = fs::rename(&destination, &source);
+    return Err(error);
+  }
+  Ok(())
+}
+
+fn permanently_delete_trash_item_in_root(root: &Path, id: &str) -> Result<()> {
+  let mut entries = read_trash_entries(root)?;
+  let index = entries
+    .iter()
+    .position(|entry| entry.id == id)
+    .ok_or_else(|| anyhow::anyhow!("Item nao encontrado na lixeira."))?;
+  let entry = entries[index].clone();
+  let source = trash_item_path(root, &entry.trashed_name)?;
+
+  if source.is_dir() {
+    fs::remove_dir_all(&source)
+      .with_context(|| format!("Nao foi possivel excluir '{}' permanentemente.", entry.original_relative_path))?;
+  } else if source.exists() {
+    fs::remove_file(&source)
+      .with_context(|| format!("Nao foi possivel excluir '{}' permanentemente.", entry.original_relative_path))?;
+  }
+
+  entries.remove(index);
+  write_trash_entries(root, &entries)
+}
+
+#[tauri::command]
+fn import_attachment(
+  path: String,
+  source_path: String,
+  note_relative_path: String,
+  authorized_paths: State<AuthorizedPaths>,
+) -> Result<Attachment, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths
+    .ensure_authorized_vault_root(&root)
+    .map_err(|error| error.to_string())?;
+  import_attachment_in_root(&root, Path::new(&source_path), &note_relative_path).map_err(|error| error.to_string())
+}
+
+fn import_attachment_in_root(root: &Path, source_path: &Path, note_relative_path: &str) -> Result<Attachment> {
+  if !source_path.is_file() {
+    bail!("Selecione um arquivo valido para anexar.");
+  }
+  let source_name = source_path
+    .file_name()
+    .and_then(|name| name.to_str())
+    .ok_or_else(|| anyhow::anyhow!("O arquivo nao possui um nome valido."))?;
+  let attachments_root = attachment_directory_for_note(root, note_relative_path)?;
+  fs::create_dir_all(&attachments_root)?;
+  let destination = unique_attachment_path(&attachments_root, source_name)?;
+  fs::copy(source_path, &destination)
+    .with_context(|| format!("Nao foi possivel copiar '{}'.", source_path.display()))?;
+
+  Ok(Attachment {
+    name: destination.file_name().and_then(|name| name.to_str()).unwrap_or(source_name).to_string(),
+    relative_path: to_relative_display(root, &destination),
+    is_image: is_image_path(&destination),
+  })
+}
+
+fn attachment_directory_for_note(root: &Path, note_relative_path: &str) -> Result<PathBuf> {
+  if note_relative_path.trim().is_empty() {
+    return Ok(root.join(ATTACHMENTS_DIR));
+  }
+  let note_path = resolve_note_path(root, note_relative_path)?;
+  let note_parent = note_path.parent().ok_or_else(|| anyhow::anyhow!("Nao foi possivel encontrar a pasta da nota."))?;
+  let relative_parent = note_parent.strip_prefix(root).map_err(|_| anyhow::anyhow!("A nota precisa ficar dentro do vault atual."))?;
+  Ok(root.join(ATTACHMENTS_DIR).join(relative_parent))
+}
+
+fn unique_attachment_path(attachments_root: &Path, source_name: &str) -> Result<PathBuf> {
+  let initial = attachments_root.join(source_name);
+  if !initial.exists() {
+    return Ok(initial);
+  }
+  let stem = Path::new(source_name).file_stem().and_then(|name| name.to_str()).unwrap_or("anexo");
+  let extension = Path::new(source_name).extension().and_then(|value| value.to_str());
+  let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+  let name = extension.map(|extension| format!("{stem}-{timestamp}.{extension}")).unwrap_or_else(|| format!("{stem}-{timestamp}"));
+  Ok(attachments_root.join(name))
+}
+
+fn is_image_path(path: &Path) -> bool {
+  matches!(
+    path.extension().and_then(|extension| extension.to_str()).map(|extension| extension.to_ascii_lowercase()).as_deref(),
+    Some("avif" | "bmp" | "gif" | "jpeg" | "jpg" | "png" | "svg" | "webp")
+  )
 }
 
 #[tauri::command]
@@ -512,6 +1085,54 @@ fn collect_markdown_files(root: &Path) -> Result<Vec<PathBuf>> {
   Ok(notes)
 }
 
+fn collect_folders(root: &Path) -> Result<Vec<PathBuf>> {
+  let canonical_root = canonicalize_directory(root)?;
+  let mut folders = Vec::new();
+  let mut visited_directories = HashSet::new();
+  visit_folders(&canonical_root, &canonical_root, &mut visited_directories, &mut folders);
+  folders.sort();
+  Ok(folders)
+}
+
+fn visit_folders(
+  directory: &Path,
+  canonical_root: &Path,
+  visited_directories: &mut HashSet<PathBuf>,
+  folders: &mut Vec<PathBuf>,
+) {
+  let canonical_directory = match directory.canonicalize() {
+    Ok(path) => path,
+    Err(error) => {
+      log::warn!("skipping unreadable directory '{}': {error}", directory.display());
+      return;
+    }
+  };
+  if !canonical_directory.starts_with(canonical_root) || !visited_directories.insert(canonical_directory) {
+    return;
+  }
+
+  let entries = match fs::read_dir(directory) {
+    Ok(entries) => entries,
+    Err(error) => {
+      log::warn!("skipping directory '{}': {error}", directory.display());
+      return;
+    }
+  };
+  for entry in entries.flatten() {
+    let path = entry.path();
+    let Ok(file_type) = entry.file_type() else { continue };
+    if file_type.is_symlink() || !file_type.is_dir() {
+      continue;
+    }
+    let Some(name) = path.file_name().and_then(|segment| segment.to_str()) else { continue };
+    if name == METADATA_DIR || name.starts_with('.') {
+      continue;
+    }
+    folders.push(path.clone());
+    visit_folders(&path, canonical_root, visited_directories, folders);
+  }
+}
+
 fn visit_directory(
   directory: &Path,
   canonical_root: &Path,
@@ -666,6 +1287,38 @@ fn resolve_note_path(root: &Path, relative_path: &str) -> Result<PathBuf> {
   Ok(resolved)
 }
 
+fn resolve_folder_path(root: &Path, relative_path: &str) -> Result<PathBuf> {
+  let trimmed = relative_path.trim().trim_matches(['/', '\\']);
+  if trimmed.is_empty() { bail!("Defina um nome para a pasta."); }
+  let candidate = Path::new(trimmed);
+  if candidate.is_absolute() || candidate.components().any(|component| matches!(component, std::path::Component::ParentDir)) {
+    bail!("A pasta precisa usar um caminho relativo dentro do vault.");
+  }
+  if candidate.components().any(|component| component.as_os_str() == METADATA_DIR) {
+    bail!("A pasta .mirmind e reservada para metadados do app.");
+  }
+  let resolved = root.join(candidate);
+  let existing_ancestor = resolved.ancestors().find(|ancestor| ancestor.exists())
+    .ok_or_else(|| anyhow::anyhow!("Nao foi possivel encontrar a pasta de destino."))?;
+  if !existing_ancestor.canonicalize()?.starts_with(root) {
+    bail!("A pasta precisa ficar dentro do vault atual.");
+  }
+  Ok(resolved)
+}
+
+fn validate_item_name(name: &str, is_note: bool) -> Result<String> {
+  let trimmed = name.trim();
+  if trimmed.is_empty() || trimmed == "." || trimmed == ".." {
+    bail!("Defina um nome valido.");
+  }
+  if trimmed.chars().any(|character| character == '/' || character == '\\') {
+    bail!("Use apenas o novo nome, sem caminho.");
+  }
+  let without_extension = if is_note { trimmed.strip_suffix(".md").unwrap_or(trimmed) } else { trimmed };
+  validate_vault_name(without_extension)?;
+  Ok(if is_note { format!("{without_extension}.md") } else { without_extension.to_string() })
+}
+
 fn display_note_title(path: &Path) -> String {
   path
     .file_stem()
@@ -676,6 +1329,68 @@ fn display_note_title(path: &Path) -> String {
 
 fn history_path(root: &Path) -> PathBuf {
   root.join(METADATA_DIR).join(HISTORY_FILE)
+}
+
+fn trash_root(root: &Path) -> PathBuf {
+  root.join(METADATA_DIR).join(TRASH_DIR)
+}
+
+fn trash_manifest_path(root: &Path) -> PathBuf {
+  root.join(METADATA_DIR).join(TRASH_FILE)
+}
+
+fn read_trash_entries(root: &Path) -> Result<Vec<TrashEntry>> {
+  let path = trash_manifest_path(root);
+  if !path.exists() {
+    return Ok(Vec::new());
+  }
+  Ok(serde_json::from_str::<Vec<TrashEntry>>(&fs::read_to_string(path)?) .unwrap_or_default())
+}
+
+fn list_trash_in_root(root: &Path) -> Result<Vec<TrashEntry>> {
+  prune_expired_trash_items_in_root(root)
+}
+
+fn prune_expired_trash_items_in_root(root: &Path) -> Result<Vec<TrashEntry>> {
+  let entries = read_trash_entries(root)?;
+  let entry_count = entries.len();
+  let today = today_day();
+  let mut retained = Vec::with_capacity(entries.len());
+
+  for entry in entries {
+    if today.saturating_sub(entry.deleted_at_day) >= TRASH_RETENTION_DAYS {
+      let path = trash_item_path(root, &entry.trashed_name)?;
+      if path.is_dir() {
+        fs::remove_dir_all(&path)
+          .with_context(|| format!("Nao foi possivel limpar '{}' da lixeira.", entry.original_relative_path))?;
+      } else if path.exists() {
+        fs::remove_file(&path)
+          .with_context(|| format!("Nao foi possivel limpar '{}' da lixeira.", entry.original_relative_path))?;
+      }
+    } else {
+      retained.push(entry);
+    }
+  }
+
+  if retained.len() != entry_count {
+    write_trash_entries(root, &retained)?;
+  }
+
+  Ok(retained)
+}
+
+fn write_trash_entries(root: &Path, entries: &[TrashEntry]) -> Result<()> {
+  fs::create_dir_all(root.join(METADATA_DIR))?;
+  fs::write(trash_manifest_path(root), serde_json::to_string(entries)?)?;
+  Ok(())
+}
+
+fn trash_item_path(root: &Path, trashed_name: &str) -> Result<PathBuf> {
+  let candidate = Path::new(trashed_name);
+  if candidate.components().count() != 1 || candidate.file_name().is_none() {
+    bail!("Item invalido na lixeira.");
+  }
+  Ok(trash_root(root).join(candidate))
 }
 
 fn read_history(root: &Path) -> Result<HistoryState> {
@@ -752,6 +1467,16 @@ fn ensure_metadata_layout(root: &Path) -> Result<()> {
       .with_context(|| format!("Nao foi possivel escrever '{}'.", config_path.display()))?;
   }
 
+  let templates_path = metadata_root.join(TEMPLATES_FILE);
+  if !templates_path.exists() {
+    let templates = vec![
+      NoteTemplate { id: "blank".to_string(), name: "Em branco".to_string(), content: "".to_string() },
+      NoteTemplate { id: "study".to_string(), name: "Nota de estudo".to_string(), content: "# Conceito\n\n## Explicacao\n\n## Exemplos\n\n## Duvidas\n".to_string() },
+      NoteTemplate { id: "meeting".to_string(), name: "Reuniao".to_string(), content: "# Objetivo\n\n## Participantes\n\n## Decisoes\n\n## Proximos passos\n".to_string() },
+    ];
+    fs::write(templates_path, serde_json::to_string_pretty(&templates)?)?;
+  }
+
   Ok(())
 }
 
@@ -826,10 +1551,26 @@ pub fn run() {
       initialize_vault_metadata,
       create_vault,
       list_notes,
+      list_templates,
+      review_note,
+      search_notes,
+      list_favorites,
+      toggle_favorite,
       read_note,
       save_note,
-      create_note
-      ,undo_last_command,
+      create_note,
+      create_folder,
+      list_folders,
+      rename_vault_item,
+      move_vault_item,
+      delete_vault_item,
+      list_trash,
+      restore_trash_item,
+      permanently_delete_trash_item,
+      import_attachment,
+      get_backlinks,
+      get_tag_index,
+      undo_last_command,
       redo_last_command,
       get_history_status
     ])
@@ -850,10 +1591,10 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
   use super::{
-    apply_history_command, collect_markdown_files, ensure_metadata_layout, inspect_metadata,
-    record_history, resolve_note_path, HistoryCommand, read_history,
+    apply_history_command, attachment_directory_for_note, collect_folders, collect_markdown_files, delete_vault_item_in_root, ensure_metadata_layout, extract_tags, extract_wiki_links, get_backlinks_in_root, get_tag_index_in_root, import_attachment_in_root, inspect_metadata, search_notes_in_root,
+    list_trash_in_root, move_vault_item_in_root, permanently_delete_trash_item_in_root, read_trash_entries, record_history, rename_vault_item_in_root, resolve_folder_path, resolve_note_path, restore_trash_item_in_root, write_trash_entries, HistoryCommand, read_history,
     validate_vault_name, RecentVaultPreference,
-    ASSESSMENTS_DIR, CONFIG_FILE, METADATA_DIR, REVIEW_PLANS_DIR, SESSIONS_DIR,
+    ASSESSMENTS_DIR, ATTACHMENTS_DIR, CONFIG_FILE, METADATA_DIR, REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
   };
   use std::fs;
   use tempfile::tempdir;
@@ -883,6 +1624,24 @@ mod tests {
       .collect::<Vec<_>>();
 
     assert_eq!(collected, vec!["nested/nested-note.md", "root-note.md"]);
+  }
+
+  #[test]
+  fn collect_folders_includes_empty_folders_and_ignores_internal_ones() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path();
+    let canonical_root = root.canonicalize().expect("canonical root");
+    fs::create_dir_all(root.join("projetos").join("vazios")).expect("create folders");
+    fs::create_dir_all(root.join(METADATA_DIR).join("interno")).expect("create metadata folder");
+    fs::create_dir_all(root.join(".obsidian")).expect("create obsidian folder");
+
+    let folders = collect_folders(root).expect("collect folders");
+    let collected = folders
+      .iter()
+      .map(|path| path.strip_prefix(&canonical_root).expect("relative path").to_string_lossy().replace('\\', "/"))
+      .collect::<Vec<_>>();
+
+    assert_eq!(collected, vec!["projetos", "projetos/vazios"]);
   }
 
   #[test]
@@ -930,6 +1689,162 @@ mod tests {
     assert!(resolve_note_path(&root, "../segredo.md").is_err());
     assert!(resolve_note_path(&root, ".mirmind/interna.md").is_err());
     assert!(resolve_note_path(&root, "area/nova-nota").is_ok());
+  }
+
+  #[test]
+  fn resolve_folder_path_rejects_unsafe_paths() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+
+    assert!(resolve_folder_path(&root, "../segredo").is_err());
+    assert!(resolve_folder_path(&root, ".mirmind/interna").is_err());
+    assert_eq!(
+      resolve_folder_path(&root, "area/subarea").expect("safe folder path"),
+      root.join("area/subarea")
+    );
+  }
+
+  #[test]
+  fn rename_vault_item_renames_notes_and_folders() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+    fs::create_dir_all(root.join("materias")).expect("create source folder");
+    fs::write(root.join("materias").join("aula.md"), "# Aula").expect("write source note");
+
+    rename_vault_item_in_root(&root, "materias/aula.md", "resumo", "note").expect("rename note");
+    rename_vault_item_in_root(&root, "materias", "estudos", "folder").expect("rename folder");
+
+    assert!(root.join("estudos").join("resumo.md").is_file());
+    assert!(!root.join("materias").exists());
+    assert!(rename_vault_item_in_root(&root, "estudos", "../fora", "folder").is_err());
+  }
+
+  #[test]
+  fn move_vault_item_moves_notes_and_rejects_recursive_folder_moves() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+    fs::create_dir_all(root.join("origem").join("filha")).expect("create source folder");
+    fs::create_dir_all(root.join("destino")).expect("create destination folder");
+    fs::write(root.join("origem").join("aula.md"), "# Aula").expect("write source note");
+
+    move_vault_item_in_root(&root, "origem/aula.md", "destino", "note").expect("move note");
+
+    assert!(root.join("destino").join("aula.md").is_file());
+    assert!(move_vault_item_in_root(&root, "origem", "origem/filha", "folder").is_err());
+  }
+
+  #[test]
+  fn delete_and_restore_vault_item_uses_the_local_trash() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+    fs::create_dir_all(root.join("materias")).expect("create source folder");
+    fs::write(root.join("materias").join("aula.md"), "# Aula").expect("write source note");
+
+    delete_vault_item_in_root(&root, "materias/aula.md", "note").expect("move note to trash");
+    let entries = read_trash_entries(&root).expect("read trash entries");
+
+    assert_eq!(entries.len(), 1);
+    assert!(!root.join("materias").join("aula.md").exists());
+    restore_trash_item_in_root(&root, &entries[0].id).expect("restore note");
+    assert!(root.join("materias").join("aula.md").is_file());
+    assert!(read_trash_entries(&root).expect("read empty trash").is_empty());
+  }
+
+  #[test]
+  fn permanently_deleting_a_trash_item_removes_its_file_and_manifest_entry() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+    fs::write(root.join("temporary.md"), "# Temporary").expect("write source note");
+
+    delete_vault_item_in_root(&root, "temporary.md", "note").expect("move note to trash");
+    let entry = read_trash_entries(&root).expect("read trash entry").pop().expect("entry");
+
+    permanently_delete_trash_item_in_root(&root, &entry.id).expect("permanently delete item");
+
+    assert!(!root.join(METADATA_DIR).join(TRASH_DIR).join(entry.trashed_name).exists());
+    assert!(read_trash_entries(&root).expect("read empty trash").is_empty());
+  }
+
+  #[test]
+  fn listing_trash_permanently_removes_items_after_thirty_days() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+    fs::write(root.join("expired.md"), "# Expired").expect("write source note");
+
+    delete_vault_item_in_root(&root, "expired.md", "note").expect("move note to trash");
+    let mut entries = read_trash_entries(&root).expect("read trash entry");
+    let entry = entries.first_mut().expect("entry");
+    entry.deleted_at_day = 0;
+    let trashed_name = entry.trashed_name.clone();
+    write_trash_entries(&root, &entries).expect("write expired trash entry");
+
+    assert!(list_trash_in_root(&root).expect("prune expired trash").is_empty());
+    assert!(!root.join(METADATA_DIR).join(TRASH_DIR).join(trashed_name).exists());
+    assert!(read_trash_entries(&root).expect("read empty trash").is_empty());
+  }
+
+  #[test]
+  fn import_attachment_copies_file_into_the_vault() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let source_directory = tempdir().expect("source dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+    let source = source_directory.path().join("diagrama.png");
+    fs::write(&source, "image bytes").expect("write attachment");
+
+    let attachment = import_attachment_in_root(&root, &source, "escola/portugues/aula.md").expect("import attachment");
+
+    assert_eq!(attachment.relative_path, "attachments/escola/portugues/diagrama.png");
+    assert!(attachment.is_image);
+    assert_eq!(fs::read(root.join(&attachment.relative_path)).expect("read copied attachment"), b"image bytes");
+  }
+
+  #[test]
+  fn attachments_for_new_notes_use_the_vault_attachment_root() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+
+    assert_eq!(attachment_directory_for_note(&root, "").expect("attachment root"), root.join(ATTACHMENTS_DIR));
+  }
+
+  #[test]
+  fn backlinks_find_notes_using_wiki_links_with_aliases() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+    fs::create_dir_all(root.join("escola")).expect("create folder");
+    fs::write(root.join("escola").join("portugues.md"), "# Portugues").expect("write target");
+    fs::write(root.join("historia.md"), "Veja [[escola/portugues|a aula de portugues]].").expect("write backlink");
+
+    let backlinks = get_backlinks_in_root(&root, "escola/portugues.md").expect("get backlinks");
+
+    assert_eq!(backlinks.len(), 1);
+    assert_eq!(backlinks[0].relative_path, "historia.md");
+    assert_eq!(extract_wiki_links("[[nota#secao]]"), vec!["nota.md"]);
+  }
+
+  #[test]
+  fn tag_index_extracts_unique_tags_and_their_notes() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+    fs::write(root.join("aula.md"), "# Titulo\n#portugues #Revisao").expect("write first note");
+    fs::write(root.join("resumo.md"), "#portugues").expect("write second note");
+
+    let tags = get_tag_index_in_root(&root).expect("tag index");
+
+    assert_eq!(extract_tags("#tag #tag #outra-tag"), vec!["outra-tag", "tag"]);
+    assert_eq!(tags.len(), 2);
+    assert_eq!(tags[0].tag, "portugues");
+    assert_eq!(tags[0].note_paths, vec!["aula.md", "resumo.md"]);
+  }
+
+  #[test]
+  fn search_notes_finds_content_and_returns_an_excerpt() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+    fs::write(root.join("historia.md"), "# Historia\nImperio Romano e #revisao").expect("write note");
+    let results = search_notes_in_root(&root, "romano").expect("search notes");
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].relative_path, "historia.md");
+    assert!(results[0].excerpt.contains("Romano"));
   }
 
   #[test]

@@ -197,9 +197,31 @@ export function formatNoteTitleAsPath(title: string) {
   return `${sanitized}.md`
 }
 
-export function buildNoteTree(notes: NotePreview[]) {
+export function buildNoteTree(notes: NotePreview[], folders: string[] = []) {
   type MutableNode = NoteTreeNode & { children?: MutableNode[] }
   const root: MutableNode[] = []
+
+  function ensureFolder(segments: string[]) {
+    let currentLevel = root
+    segments.forEach((segment, index) => {
+      const accumulatedPath = segments.slice(0, index + 1).join('/')
+      let existing = currentLevel.find((node) => node.name === segment && node.type === 'folder')
+      if (!existing) {
+        existing = {
+          id: accumulatedPath,
+          name: segment,
+          path: accumulatedPath,
+          type: 'folder',
+          children: [],
+        }
+        currentLevel.push(existing)
+      }
+      existing.children ??= []
+      currentLevel = existing.children
+    })
+  }
+
+  folders.forEach((folder) => ensureFolder(folder.split('/').filter(Boolean)))
 
   for (const note of notes) {
     const segments = note.relativePath.split('/').filter(Boolean)

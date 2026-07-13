@@ -11,6 +11,7 @@ import {
   parseVaultSummary,
 } from './vault'
 import { formatShortcut, matchesShortcut } from './keyboard-shortcuts'
+import { extractMarkdownTags, formatMarkdownSelection, renderWikiLinksAsMarkdown, splitMarkdownBlocks } from './markdown'
 
 describe('vault helpers', () => {
   it('formats and matches configurable keyboard shortcuts', () => {
@@ -18,6 +19,32 @@ describe('vault helpers', () => {
 
     expect(formatShortcut(keyboardEvent)).toBe('Ctrl+N')
     expect(matchesShortcut(keyboardEvent, 'ctrl+n')).toBe(true)
+  })
+
+  it('splits Markdown into editable mixed-mode blocks', () => {
+    expect(splitMarkdownBlocks('# Titulo\n\nTexto\n\n## Secao')).toEqual([
+      '# Titulo',
+      'Texto',
+      '## Secao',
+    ])
+  })
+
+  it('formats the selected Markdown text', () => {
+    expect(formatMarkdownSelection('texto', 0, 5, 'bold')).toBe('**texto**')
+    expect(formatMarkdownSelection('texto', 0, 5, 'heading1')).toBe('# texto')
+    expect(formatMarkdownSelection('texto', 0, 5, 'orderedList')).toBe('1. texto')
+    expect(formatMarkdownSelection('texto', 0, 5, 'quote')).toBe('> texto')
+    expect(formatMarkdownSelection('texto', 0, 5, 'codeBlock')).toBe('```\ntexto\n```')
+  })
+
+  it('renders wiki links as safe internal Markdown links', () => {
+    expect(renderWikiLinksAsMarkdown('Leia [[escola/portugues|Portugues]].')).toBe(
+      'Leia [Portugues](https://mirrormind.local/note/escola%2Fportugues.md).',
+    )
+  })
+
+  it('extracts unique Markdown tags', () => {
+    expect(extractMarkdownTags('#Portugues #revisao #portugues')).toEqual(['portugues', 'revisao'])
   })
   it('rejects invalid vault names', () => {
     expect(formatVaultNameError('')).toBeTruthy()
@@ -110,5 +137,12 @@ describe('vault helpers', () => {
       type: 'note',
       name: 'root.md',
     })
+  })
+
+  it('keeps empty folders in the explorer tree', () => {
+    const tree = buildNoteTree([], ['projetos', 'projetos/rascunhos'])
+
+    expect(tree[0]).toMatchObject({ type: 'folder', name: 'projetos' })
+    expect(tree[0].children?.[0]).toMatchObject({ type: 'folder', name: 'rascunhos' })
   })
 })
