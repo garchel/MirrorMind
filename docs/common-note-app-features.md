@@ -63,26 +63,56 @@ Legenda:
 
 Estas tasks acompanham a evolucao do editor atual para uma experiencia compativel com o editor Markdown do Obsidian. O status deve ser atualizado a cada entrega.
 
+**Regra obrigatoria para todas as tasks deste bloco:** toda funcionalidade de edicao deve ser implementada e testada nos modos **Edicao** e **Misto**. Os dois modos compartilham o mesmo comportamento, atalhos, cursor, selecao, historico e salvamento. A unica diferenca permitida e visual: no modo Misto, somente o bloco em foco exibe o Markdown editavel; os demais blocos mostram o resultado renderizado.
+
 | Task | Estado | Criterio de conclusao |
 | --- | --- | --- |
-| Migrar o editor para CodeMirror 6 | Parcial | O modo Edicao ja usa CodeMirror com documento, cursor, selecao e rolagem por nota. O historico independente por aba entra na proxima etapa. |
-| Historico de texto por nota | Planejado | `Desfazer` e `Refazer` restauram texto, cursor e selecao da nota ativa. |
-| Autosave com debounce | Planejado | Salva alteracoes sem flicker, perda de foco ou chamadas concorrentes. |
-| Live Preview por bloco | Planejado | A sintaxe Markdown aparece apenas no bloco em foco; os demais blocos ficam renderizados. |
-| Markdown completo | Planejado | Titulos, listas, checklists, tabelas, citacoes, codigo, links, imagens e divisores funcionam no editor. |
-| Frontmatter YAML | Parcial | `description` ja existe; faltam propriedades editaveis, validacao e exibicao consistente. |
-| Atalhos de edicao | Planejado | Inclui negrito, italico, listas, tabulacao, continuidade de listas e saida de blocos. |
-| Autocomplete contextual | Planejado | Sugestoes para `[[links]]`, `#tags`, anexos e comandos iniciados com `/`. |
-| Busca e substituicao na nota | Planejado | Localiza, navega e substitui texto dentro da nota ativa. |
-| Operacoes de linhas e blocos | Planejado | Duplicar, mover, selecionar e excluir linhas/blocos pelo teclado. |
-| Drag and drop no editor | Planejado | Aceita texto, imagens e arquivos; converte arquivos em anexos Markdown. |
-| Integridade de links | Planejado | Renomear notas atualiza links internos e identifica links quebrados. |
-| Preview de links internos | Planejado | Hover em `[[links]]` mostra um resumo da nota vinculada. |
-| Atualizacao externa de arquivos | Planejado | Detecta mudancas no `.md` fora do app e oferece resolucao de conflito para rascunhos. |
-| Preferencias de leitura | Planejado | Fonte, largura de leitura, quebra de linha e corretor ortografico configuraveis. |
-| Acessibilidade do editor | Planejado | Fluxos completos por teclado e suporte adequado a leitores de tela. |
-| Testes de regressao do editor | Planejado | Cobrem edicao, autosave, cursor, atalhos, links e anexos. |
-| Notas diarias | Planejado | |
+| Migrar o editor para CodeMirror 6 | Implementado | Os modos Edicao e Misto usam CodeMirror, preservam documento, cursor, selecao, rolagem e historico por nota/bloco e destacam Markdown e linguagens de blocos de codigo. |
+| Historico de texto por nota | Implementado | Cada nota aberta preserva seu proprio historico de desfazer/refazer, texto, cursor e selecao nos modos Edicao e Misto. |
+| Autosave com debounce | Implementado | Salva apos 650 ms de pausa, preserva foco/cursor nos modos Edicao e Misto e mantem edicoes feitas durante uma gravacao para o proximo ciclo. |
+| Live Preview por bloco | Implementado | No modo Misto, somente o bloco em foco mostra Markdown editavel; os demais ficam renderizados. |
+| Markdown completo | Implementado | Titulos, listas/checklists aninhadas, citacoes, links, codigo com realce por linguagem, anexos/imagens, divisores e tabelas GFM com navegacao e controles de linhas/colunas funcionam nos modos Edicao e Misto. |
+| Frontmatter YAML | Implementado | Editor YAML completo no cabecalho, com validacao e preservacao de valores, listas, objetos e estruturas aninhadas. |
+| Atalhos de edicao | Implementado | `Ctrl+B` e `Ctrl+I` alternam negrito/italico; `Ctrl+Shift+8`, `Ctrl+Shift+7` e `Ctrl+Shift+9` alternam listas, listas numeradas e checklists. `Tab`, `Shift+Tab` e `Enter` cuidam de recuo, navegacao de tabelas, continuidade e saida de blocos. |
+| Autocomplete contextual | Implementado | Sugestoes filtradas para `[[links]]`, `#tags`, embeds `![[attachments/...]]` e comandos iniciados com `/`, nos modos Edicao e Misto. |
+| Busca e substituicao na nota | Implementado | `Ctrl+F` e o botao de busca abrem o painel nativo do CodeMirror para localizar, navegar e substituir texto. No modo Misto, a busca abre a nota inteira em Edicao. |
+| Operacoes de linhas e blocos | Implementado | Atalhos nativos do CodeMirror: `Alt+Seta` move, `Shift+Alt+Seta` duplica, `Alt+L` seleciona e `Ctrl+Shift+K` exclui as linhas selecionadas. |
+| Drag and drop no editor | Implementado | Arquivos soltos no painel pelo evento nativo do Tauri sao copiados para `attachments/` e inseridos como Markdown; texto continua aceito pelo CodeMirror. |
+| Integridade de links | Implementado | Renomear ou mover notas atualiza links internos por caminho, preservando aliases e headings. A nota aberta tambem sinaliza links wiki que nao resolvem para um arquivo Markdown do Vault. |
+| Preview de links internos | Implementado | Hover em `[[links]]` carrega um tooltip com titulo e resumo da nota vinculada; o clique continua abrindo a nota. |
+| Atualizacao externa de arquivos | Implementado | A nota aberta e verificada periodicamente. Mudancas externas atualizam notas sem rascunho; com rascunho local, o usuario escolhe carregar o arquivo externo ou manter sua versao. |
+| Preferencias de leitura | Implementado | Fonte, largura e quebra de linha sao configuraveis no modo Leitura; o corretor ortografico nativo pode ser ativado ou desativado nos modos Edicao e Misto. |
+| Acessibilidade do editor | Implementado | Atalho para pular ao conteudo, foco visivel, abas semanticas, regioes rotuladas, alertas anunciados e rotulos explicitos para o CodeMirror nos modos Edicao e Misto. |
+| Testes de regressao do editor | Implementado | A suite de workspace cobre criacao de nota, nota diaria, navegacao por links internos e autosave. A suite CodeMirror cobre cursor/selecao, historico, atalhos, busca e autocomplete de links, tags e anexos. |
+| Notas diarias | Implementado | A Command Palette cria ou abre a nota do dia em `Diarias/AAAA-MM-DD.md`. |
+
+**Lembrete apos concluir o Bloco 7:** executar `cargo fmt` em um commit exclusivo de formatacao e repetir `cargo test`.
+
+## Bloco V2: Evolucoes Futuras
+
+| Task | Estado | Criterio de conclusao |
+| --- | --- | --- |
+| Observacao completa do Vault | Planejado | Detecta criacoes, edicoes, renomeacoes, movimentacoes e exclusoes externas em toda a arvore do Vault, atualizando o explorador e oferecendo resolucao de conflitos para notas abertas. |
+
+## Bloco 8: Compatibilidade com Vaults Obsidian
+
+Objetivo: um usuario deve conseguir abrir um Vault do Obsidian, navegar e editar notas suportadas sem perda ou alteracao involuntaria de dados. Recursos nativos nao suportados devem ser preservados literalmente e sinalizados, nunca removidos ou reformatados silenciosamente.
+
+| Task | Estado | Criterio de conclusao |
+| --- | --- | --- |
+| Contrato de compatibilidade V1 | Planejado | Define sintaxes suportadas, preservadas e explicitamente fora de escopo, com exemplos de entrada e saida. |
+| Suite de Vaults de compatibilidade | Planejado | Vaults de fixture reais cobrem Markdown, YAML, wikilinks, embeds, anexos, tags, callouts e nomes de arquivo complexos. |
+| Preservacao sem perdas do frontmatter | Planejado | Editar uma propriedade nao remove comentarios, ordem, aspas, anchors, aliases, tags, valores desconhecidos ou estilos de YAML existentes. |
+| Preservacao de Markdown nao suportado | Planejado | Callouts, blocos especiais, HTML, sintaxes de plugins e extensoes desconhecidas permanecem byte-equivalentes quando nao sao editadas. |
+| Wikilinks completos | Planejado | Suporta caminhos, aliases, headings, block references e links com caracteres especiais, seguindo a resolucao do Obsidian. |
+| Embeds e transclusoes | Planejado | Renderiza e edita `![[nota]]`, `![[imagem.png]]`, PDFs e recortes por heading/bloco sem quebrar o Markdown original. |
+| Tags compativeis | Planejado | Indexa tags no corpo e no frontmatter, incluindo tags aninhadas, caracteres Unicode e filtros equivalentes. |
+| Anexos compativeis | Planejado | Respeita caminhos relativos, nomes duplicados, extensoes e convencoes da pasta de anexos configurada no Vault. |
+| Arquivos e configuracoes `.obsidian/` | Planejado | Ignora arquivos internos com seguranca e le configuracoes relevantes sem sobrescreve-las. |
+| Plugins e arquivos especiais | Planejado | Preserva dados de plugins, Canvas, Excalidraw e arquivos desconhecidos; informa limitacoes de visualizacao sem modifica-los. |
+| Deteccao de mudancas externas | Planejado | Atualizacoes feitas no Obsidian ou no sistema sao detectadas, com comparacao e resolucao de conflitos. |
+| Renomeacao compativel | Planejado | Renomear ou mover notas atualiza apenas links reconhecidos e preserva aliases, embeds e referencias de bloco. |
+| Matriz de regressao Obsidian | Planejado | Cada release executa testes de abertura, edicao e reabertura dos Vaults de fixture sem perda de dados. |
 
 ## Bloco 5: Revisao e aprendizado
 

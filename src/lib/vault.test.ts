@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildNoteTree,
   buildVaultPathPreview,
+  formatDailyNotePath,
   formatNoteTitleAsPath,
   formatVaultNameError,
   getVaultModeLabel,
@@ -119,6 +120,10 @@ describe('vault helpers', () => {
   it('formats note titles into markdown paths', () => {
     expect(formatNoteTitleAsPath('Minha Nota Nova')).toBe('minha-nota-nova.md')
     expect(formatNoteTitleAsPath('')).toBeNull()
+  })
+
+  it('creates daily note paths using the local calendar date', () => {
+    expect(formatDailyNotePath(new Date(2026, 6, 13, 12))).toBe('Diarias/2026-07-13.md')
   })
 
   it('builds a folder tree from note paths', () => {

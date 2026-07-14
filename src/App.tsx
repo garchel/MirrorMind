@@ -1,14 +1,17 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import type { CSSProperties, DragEvent, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+import type { EditorState } from '@codemirror/state'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
-import { Bold, CheckSquare, ChevronDown, Code2, Eye, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, Link, List, ListFilter, ListOrdered, Minus, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Star, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
+import { getCurrentWindow } from '@tauri-apps/api/window'
+import { Bold, CheckSquare, ChevronDown, Code2, Eye, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, Link, List, ListFilter, ListOrdered, Minus, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Star, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { CiStickyNote } from 'react-icons/ci'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { BuilderModeControl } from './components/BuilderModeControl'
 import { MarkdownCodeEditor } from './components/MarkdownCodeEditor'
-import type { MarkdownCodeEditorHandle, MarkdownEditorSession } from './components/MarkdownCodeEditor'
+import type { MarkdownCodeEditorHandle, MarkdownEditorHistoryStatus, MarkdownEditorSession } from './components/MarkdownCodeEditor'
 import {
   DEFAULT_WORKSPACE_SHORTCUTS,
   formatShortcut,
@@ -28,6 +31,7 @@ import type {
 import {
   buildNoteTree,
   buildVaultPathPreview,
+  formatDailyNotePath,
   formatNoteTitleAsPath,
   formatVaultNameError,
   getVaultModeLabel,
@@ -39,7 +43,7 @@ import {
   suggestVaultName,
 } from './lib/vault'
 import './App.css'
-import { extractMarkdownTags, formatMarkdownSelection, getMarkdownBody, getMarkdownDescription, renderWikiLinksAsMarkdown, replaceMarkdownBody, setMarkdownDescription, splitMarkdownBlocks, type MarkdownFormat } from './lib/markdown'
+import { extractMarkdownTags, formatMarkdownSelection, getMarkdownBody, getMarkdownDescription, getMarkdownFrontmatterProperties, getMarkdownFrontmatterSource, getMarkdownPreviewText, parseFrontmatterPropertiesInput, renderWikiLinksAsMarkdown, replaceMarkdownBody, setMarkdownDescription, setMarkdownFrontmatterProperties, splitMarkdownBlocks, toggleChecklistAtLine, transformMarkdownTable, type FrontmatterValue, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
 
 type TrashItem = {
   id: string
@@ -60,6 +64,26 @@ type Backlink = {
   relativePath: string
 }
 
+type BrokenLink = {
+  target: string
+  sourceName: string
+  sourceRelativePath: string
+}
+
+type WikiLinkPreview = {
+  relativePath: string
+  title: string
+  summary: string
+}
+
+type ExternalNoteConflict = {
+  externalNote: NoteDocument
+  localContent: string
+}
+
+type ReadingFont = 'sans' | 'serif' | 'mono'
+type ReadingWidth = 'compact' | 'comfortable' | 'wide'
+
 type TagSummary = {
   tag: string
   notePaths: string[]
@@ -72,6 +96,8 @@ type ExplorerContextMenu = {
   y: number
   target: { path: string; name: string; type: 'note' | 'folder' }
 }
+
+const AUTO_SAVE_DELAY_MS = 650
 
 function formatTrashDate(day: number) {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(day * 86_400_000))
@@ -93,6 +119,10 @@ function findMarkdownCaretOffset(markdown: string, renderedText: string, rendere
   return markdownOffset
 }
 
+function mixedEditorDocumentKey(relativePath: string, blockIndex: number) {
+  return `${relativePath}::mixed-block::${blockIndex}`
+}
+
 function App() {
   const [vault, setVault] = useState<VaultSummary | null>(null)
   const [notes, setNotes] = useState<NotePreview[]>([])
@@ -100,23 +130,31 @@ function App() {
   const [activeNote, setActiveNote] = useState<NoteDocument | null>(null)
   const [isInlineTitleEditing, setInlineTitleEditing] = useState(false)
   const [inlineTitle, setInlineTitle] = useState('')
+  const [isFrontmatterEditorOpen, setFrontmatterEditorOpen] = useState(false)
+  const [frontmatterDraft, setFrontmatterDraft] = useState('')
+  const [frontmatterError, setFrontmatterError] = useState<string | null>(null)
   const [openTabs, setOpenTabs] = useState<string[]>([])
   const [draftContent, setDraftContent] = useState('')
   const [isNewNoteDraft, setIsNewNoteDraft] = useState(false)
   const [editorMode, setEditorMode] = useState<'mixed' | 'edit' | 'read'>('mixed')
+  const [markdownHistoryStatus, setMarkdownHistoryStatus] = useState<MarkdownEditorHistoryStatus>({ canUndo: false, canRedo: false })
   const [editorSessionsByPath, setEditorSessionsByPath] = useState<Record<string, MarkdownEditorSession>>({})
   const [isMarkdownToolsOpen, setMarkdownToolsOpen] = useState(false)
   const [markdownToolsOrientation, setMarkdownToolsOrientation] = useState<'horizontal' | 'vertical'>('horizontal')
   const [markdownToolsPosition, setMarkdownToolsPosition] = useState({ x: 24, y: 24 })
   const [mixedFocusedBlock, setMixedFocusedBlock] = useState<number | null>(null)
-  const markdownTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const [searchRequestId, setSearchRequestId] = useState(0)
   const markdownCodeEditorRef = useRef<MarkdownCodeEditorHandle | null>(null)
   const tagFilterDropdownRef = useRef<HTMLDivElement | null>(null)
   const suppressNoteClickRef = useRef(false)
   const saveInFlightRef = useRef(false)
-  const mixedCaretOffsetRef = useRef(0)
+  const activeNoteRef = useRef<NoteDocument | null>(null)
+  const draftContentRef = useRef('')
+  const markdownEditorStateCacheRef = useRef(new Map<string, EditorState>())
   const markdownToolsRef = useRef<HTMLDivElement | null>(null)
   const editorContentRef = useRef<HTMLDivElement | null>(null)
+  const wikiLinkPreviewCacheRef = useRef(new Map<string, WikiLinkPreview>())
+  const hoveredWikiLinkPathRef = useRef<string | null>(null)
   const inlineTitleRenameQueueRef = useRef<Promise<void>>(Promise.resolve())
   const inlineTitleRenamePathRef = useRef<string | null>(null)
   const [draftsByPath, setDraftsByPath] = useState<Record<string, string>>({})
@@ -151,6 +189,18 @@ function App() {
   const [tabHoverTextColor, setTabHoverTextColor] = useState(
     () => localStorage.getItem('mirrormind.tab-hover-text-color') ?? '#fbfaf6',
   )
+  const [readingFont, setReadingFont] = useState<ReadingFont>(
+    () => (localStorage.getItem('mirrormind.reading-font') as ReadingFont | null) ?? 'sans',
+  )
+  const [readingWidth, setReadingWidth] = useState<ReadingWidth>(
+    () => (localStorage.getItem('mirrormind.reading-width') as ReadingWidth | null) ?? 'comfortable',
+  )
+  const [isReadingLineWrapEnabled, setReadingLineWrapEnabled] = useState(
+    () => localStorage.getItem('mirrormind.reading-line-wrap') !== 'false',
+  )
+  const [isSpellCheckEnabled, setSpellCheckEnabled] = useState(
+    () => localStorage.getItem('mirrormind.spell-check') !== 'false',
+  )
   const [skipSoftDeleteConfirmation, setSkipSoftDeleteConfirmation] = useState(
     () => localStorage.getItem('mirrormind.skip-soft-delete-confirmation') === 'true',
   )
@@ -172,9 +222,13 @@ function App() {
   const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<TrashItem | null>(null)
   const [trashItems, setTrashItems] = useState<TrashItem[]>([])
   const [backlinks, setBacklinks] = useState<Backlink[]>([])
+  const [brokenLinks, setBrokenLinks] = useState<BrokenLink[]>([])
+  const [wikiLinkPreview, setWikiLinkPreview] = useState<WikiLinkPreview | null>(null)
+  const [externalNoteConflict, setExternalNoteConflict] = useState<ExternalNoteConflict | null>(null)
   const [showNoteLinkDialog, setShowNoteLinkDialog] = useState(false)
   const [noteLinkQuery, setNoteLinkQuery] = useState('')
   const [tagIndex, setTagIndex] = useState<TagSummary[]>([])
+  const [attachments, setAttachments] = useState<string[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [tagFilterQuery, setTagFilterQuery] = useState('')
   const [showTagFilterDialog, setShowTagFilterDialog] = useState(false)
@@ -185,6 +239,7 @@ function App() {
   const [historyStatus, setHistoryStatus] = useState<HistoryStatus>({ canUndo: false, canRedo: false })
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [autoSaveState, setAutoSaveState] = useState<'idle' | 'pending' | 'saving' | 'saved'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState('Escolha um vault existente ou crie um do zero.')
   const [createForm, setCreateForm] = useState<CreateVaultForm>({
@@ -197,7 +252,23 @@ function App() {
 
   const isDirty = activeNote !== null && draftContent !== activeNote.content
   const noteDescription = getMarkdownDescription(draftContent)
+  const frontmatterProperties = getMarkdownFrontmatterProperties(draftContent)
+  const visibleFrontmatterProperties = Object.entries(frontmatterProperties).filter(([key]) => key !== 'description')
   const noteBody = getMarkdownBody(draftContent)
+  const canUndoActiveEditor = editorMode === 'edit'
+    ? markdownHistoryStatus.canUndo
+    : editorMode === 'mixed'
+      ? markdownHistoryStatus.canUndo
+      : historyStatus.canUndo
+  const canRedoActiveEditor = editorMode === 'edit'
+    ? markdownHistoryStatus.canRedo
+    : editorMode === 'mixed'
+      ? markdownHistoryStatus.canRedo
+      : historyStatus.canRedo
+  const readingStyle = {
+    '--reading-font': readingFont === 'serif' ? 'Georgia, serif' : readingFont === 'mono' ? 'var(--mono)' : 'var(--sans)',
+    '--reading-max-width': readingWidth === 'compact' ? '640px' : readingWidth === 'wide' ? '1040px' : '820px',
+  } as CSSProperties
   const handleVaultSelection = useEffectEvent(async (selectedVault: VaultSummary) => {
     await refreshNotes(selectedVault.path)
   })
@@ -213,6 +284,10 @@ function App() {
       setShowTagFilterDialog(true)
       return
     }
+    if (event.target instanceof HTMLElement && event.target.closest('.cm-content')) {
+      return
+    }
+
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
       if (event.target instanceof HTMLTextAreaElement && (event.ctrlKey || event.metaKey)) {
         const format = event.key.toLowerCase() === 'b' ? 'bold' : event.key.toLowerCase() === 'i' ? 'italic' : null
@@ -274,7 +349,38 @@ function App() {
     }
   })
   const runAutoSave = useEffectEvent(() => {
-    void saveActiveNote()
+    void saveActiveNote(true)
+  })
+  const handleNativeAttachmentDrop = useEffectEvent((sourcePath: string) => {
+    void importAttachmentFromPath(sourcePath)
+  })
+  const checkExternalNoteChange = useEffectEvent(async () => {
+    if (!vault || isNewNoteDraft || saveInFlightRef.current || externalNoteConflict) return
+    const currentNote = activeNoteRef.current
+    if (!currentNote) return
+
+    try {
+      const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath: currentNote.relativePath })
+      const externalNote = parseNoteDocument(payload)
+      if (externalNote.content === currentNote.content || activeNoteRef.current?.relativePath !== currentNote.relativePath) return
+
+      if (draftContentRef.current === currentNote.content) {
+        setActiveNote(externalNote)
+        setDraftContent(externalNote.content)
+        setDraftsByPath((drafts) => {
+          const { [currentNote.relativePath]: _discardedDraft, ...remainingDrafts } = drafts
+          return remainingDrafts
+        })
+        void loadBacklinks(externalNote.relativePath, vault.path)
+        void loadBrokenLinks(externalNote.relativePath, vault.path)
+        setStatus(`Nota atualizada a partir de uma alteracao externa: ${externalNote.relativePath}`)
+        return
+      }
+
+      setExternalNoteConflict({ externalNote, localContent: draftContentRef.current })
+    } catch {
+      // The note may be temporarily unavailable while another application writes it.
+    }
   })
 
   useEffect(() => {
@@ -286,7 +392,11 @@ function App() {
       setDraftContent('')
       setDraftsByPath({})
       setBacklinks([])
+      setBrokenLinks([])
+      setWikiLinkPreview(null)
+      setExternalNoteConflict(null)
       setTagIndex([])
+      setAttachments([])
       setSelectedTags([])
       setTagFilterQuery('')
       return
@@ -349,6 +459,22 @@ function App() {
   }, [tabHoverTextColor])
 
   useEffect(() => {
+    localStorage.setItem('mirrormind.reading-font', readingFont)
+  }, [readingFont])
+
+  useEffect(() => {
+    localStorage.setItem('mirrormind.reading-width', readingWidth)
+  }, [readingWidth])
+
+  useEffect(() => {
+    localStorage.setItem('mirrormind.reading-line-wrap', String(isReadingLineWrapEnabled))
+  }, [isReadingLineWrapEnabled])
+
+  useEffect(() => {
+    localStorage.setItem('mirrormind.spell-check', String(isSpellCheckEnabled))
+  }, [isSpellCheckEnabled])
+
+  useEffect(() => {
     localStorage.setItem('mirrormind.skip-soft-delete-confirmation', String(skipSoftDeleteConfirmation))
   }, [skipSoftDeleteConfirmation])
 
@@ -359,15 +485,35 @@ function App() {
   }, [activeNote, draftContent])
 
   useEffect(() => {
-    if (
-      isAutoSaveEnabled &&
-      activeNote &&
-      isDirty &&
-      !saving &&
-      (!isNewNoteDraft || Boolean(formatNoteTitleAsPath(createNoteForm.title)))
-    ) {
-      runAutoSave()
+    activeNoteRef.current = activeNote
+    draftContentRef.current = draftContent
+  }, [activeNote, draftContent])
+
+  useEffect(() => {
+    setExternalNoteConflict(null)
+  }, [activeNote?.relativePath])
+
+  useEffect(() => {
+    if (!vault || !activeNote || isNewNoteDraft) return
+    const interval = window.setInterval(() => void checkExternalNoteChange(), 2_500)
+    return () => window.clearInterval(interval)
+  }, [activeNote, isNewNoteDraft, vault])
+
+  useEffect(() => {
+    const canAutoSave = isAutoSaveEnabled
+      && activeNote
+      && isDirty
+      && !saving
+      && (!isNewNoteDraft || Boolean(formatNoteTitleAsPath(createNoteForm.title)))
+
+    if (!canAutoSave) {
+      if (!isAutoSaveEnabled || !activeNote) setAutoSaveState('idle')
+      return
     }
+
+    setAutoSaveState('pending')
+    const timeout = window.setTimeout(() => runAutoSave(), AUTO_SAVE_DELAY_MS)
+    return () => window.clearTimeout(timeout)
   }, [
     activeNote,
     createNoteForm.title,
@@ -379,22 +525,28 @@ function App() {
   ])
 
   useEffect(() => {
-    if (editorMode !== 'mixed' || mixedFocusedBlock === null) return
-
-    const frame = window.requestAnimationFrame(() => {
-      const textarea = markdownTextareaRef.current
-      if (!textarea) return
-      const offset = Math.min(mixedCaretOffsetRef.current, textarea.value.length)
-      textarea.focus()
-      textarea.setSelectionRange(offset, offset)
-    })
-
-    return () => window.cancelAnimationFrame(frame)
-  }, [editorMode, mixedFocusedBlock])
+    markdownEditorStateCacheRef.current.clear()
+    setMarkdownHistoryStatus({ canUndo: false, canRedo: false })
+  }, [vault?.path])
 
   useEffect(() => {
     if (editorMode === 'read') setMarkdownToolsOpen(false)
   }, [editorMode])
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+    void getCurrentWindow().onDragDropEvent((event) => {
+      if (event.payload.type !== 'drop' || editorMode === 'read' || !vault) return
+      const editor = editorContentRef.current
+      if (!editor) return
+      const bounds = editor.getBoundingClientRect()
+      const { x, y } = event.payload.position
+      if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) return
+      const sourcePath = event.payload.paths[0]
+      if (sourcePath) handleNativeAttachmentDrop(sourcePath)
+    }).then((stop) => { unlisten = stop }).catch(() => undefined)
+    return () => unlisten?.()
+  }, [editorMode, vault])
 
   async function chooseExistingVault() {
     setError(null)
@@ -568,11 +720,13 @@ function App() {
       const nextNotes = parseNoteList(notePayload)
       const nextFolders = await invoke<string[]>('list_folders', { path: vaultPath })
       const nextTagIndex = await invoke<TagSummary[]>('get_tag_index', { path: vaultPath })
+      const nextAttachments = await invoke<string[]>('list_attachments', { path: vaultPath })
       const nextFavorites = await invoke<string[]>('list_favorites', { path: vaultPath })
       const nextTemplates = await invoke<NoteTemplate[]>('list_templates', { path: vaultPath })
       setNotes(nextNotes)
       setFolders(nextFolders)
       setTagIndex(nextTagIndex)
+      setAttachments(nextAttachments)
       setFavorites(nextFavorites)
       setTemplates(nextTemplates)
 
@@ -608,6 +762,7 @@ function App() {
   }
 
   async function undoLastCommand() {
+    if (editorMode !== 'read' && markdownCodeEditorRef.current?.undo()) return
     if (!vault || !historyStatus.canUndo) return
     const payload = await invoke<unknown>('undo_last_command', { path: vault.path })
     setHistoryStatus(parseHistoryStatus(payload))
@@ -628,6 +783,7 @@ function App() {
   function runPaletteCommand(command: PaletteCommand) {
     setShowCommandPalette(false)
     if (command.id === 'new-note') startNewNote()
+    if (command.id === 'daily-note') void openDailyNote()
     if (command.id === 'open-note') { setShowNoteSearch(true); setNoteSearchQuery('') }
     if (command.id === 'search-content') { setShowNoteSearch(true); setNoteSearchQuery('') }
     if (command.id === 'filter-tags') setShowTagFilterDialog(true)
@@ -639,6 +795,7 @@ function App() {
   }
 
   async function redoLastCommand() {
+    if (editorMode !== 'read' && markdownCodeEditorRef.current?.redo()) return
     if (!vault || !historyStatus.canRedo) return
     const payload = await invoke<unknown>('redo_last_command', { path: vault.path })
     setHistoryStatus(parseHistoryStatus(payload))
@@ -697,6 +854,9 @@ function App() {
       setRenameName('')
       setStatus(`${target.type === 'note' ? 'Nota' : 'Pasta'} renomeada.`)
       await refreshNotes(vault.path, remapPath(activeNote?.relativePath ?? ''))
+      if (target.type === 'note' && activeNote?.relativePath === target.path) {
+        void loadBrokenLinks(destinationPath, vault.path)
+      }
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel renomear o item.')
     } finally {
@@ -752,6 +912,7 @@ function App() {
             : currentNote)
           setError(null)
           setStatus(`Nota renomeada para ${destinationName.replace(/\.md$/i, '')}.`)
+          void loadBrokenLinks(destinationPath, vaultPath)
           void refreshHistoryStatus(vaultPath)
         } catch (caughtError) {
           setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel renomear a nota.')
@@ -794,6 +955,9 @@ function App() {
       setMoveDestination('')
       setStatus(`${target.type === 'note' ? 'Nota' : 'Pasta'} movida.`)
       await refreshNotes(vault.path, remapPath(activeNote?.relativePath ?? ''))
+      if (target.type === 'note' && activeNote?.relativePath === target.path) {
+        void loadBrokenLinks(destinationPath, vault.path)
+      }
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel mover o item.')
     } finally {
@@ -813,6 +977,9 @@ function App() {
       setActiveNote((note) => note?.relativePath === relativePath ? { ...note, relativePath: destinationPath } : note)
       setStatus('Nota movida por arrastar e soltar.')
       await refreshNotes(vault.path, activeNote?.relativePath === relativePath ? destinationPath : undefined)
+      if (activeNote?.relativePath === relativePath) {
+        void loadBrokenLinks(destinationPath, vault.path)
+      }
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel mover a nota.')
     } finally {
@@ -975,6 +1142,7 @@ function App() {
       )
       setDraftContent(draftsByPath[parsedNote.relativePath] ?? parsedNote.content)
       void loadBacklinks(parsedNote.relativePath, targetVaultPath)
+      void loadBrokenLinks(parsedNote.relativePath, targetVaultPath)
       setStatus(`Editando ${parsedNote.relativePath}`)
     } catch (caughtError) {
       const message =
@@ -995,11 +1163,22 @@ function App() {
     }
   }
 
-  async function saveActiveNote() {
+  async function loadBrokenLinks(relativePath: string, vaultPath: string) {
+    try {
+      const items = await invoke<BrokenLink[]>('get_broken_links', { path: vaultPath })
+      setBrokenLinks(items.filter((link) => link.sourceRelativePath === relativePath))
+    } catch {
+      setBrokenLinks([])
+    }
+  }
+
+  async function saveActiveNote(isAutomatic = false) {
     if (!vault || !activeNote || saveInFlightRef.current) {
       return
     }
     saveInFlightRef.current = true
+    const notePath = activeNote.relativePath
+    const contentToSave = draftContent
 
     if (isNewNoteDraft) {
       const relativePath = formatNoteTitleAsPath(createNoteForm.title)
@@ -1016,7 +1195,7 @@ function App() {
         const savedPayload = await invoke<unknown>('save_note', {
           path: vault.path,
           relativePath: createdNote.relativePath,
-          content: draftContent,
+          content: contentToSave,
         })
         const savedNote = parseNoteDocument(savedPayload)
         setActiveNote(savedNote)
@@ -1027,29 +1206,46 @@ function App() {
       } finally {
         saveInFlightRef.current = false
         setSaving(false)
+        if (isAutomatic) setAutoSaveState('saved')
       }
       return
     }
 
     setSaving(true)
+    if (isAutomatic) setAutoSaveState('saving')
     setError(null)
-    setStatus(`Salvando ${activeNote.relativePath}...`)
+    setStatus(`Salvando ${notePath}...`)
 
     try {
+      const latestPayload = await invoke<unknown>('read_note', {
+        path: vault.path,
+        relativePath: notePath,
+      })
+      const latestNote = parseNoteDocument(latestPayload)
+      if (latestNote.content !== activeNote.content) {
+        setExternalNoteConflict({ externalNote: latestNote, localContent: contentToSave })
+        setStatus('Alteracao externa detectada antes de salvar. Escolha qual versao manter.')
+        return
+      }
+
       const notePayload = await invoke<unknown>('save_note', {
         path: vault.path,
-        relativePath: activeNote.relativePath,
-        content: draftContent,
+        relativePath: notePath,
+        content: contentToSave,
       })
       const parsedNote = parseNoteDocument(notePayload)
-      setActiveNote(parsedNote)
-      setDraftContent(parsedNote.content)
-      setDraftsByPath((currentDrafts) => {
-        const { [parsedNote.relativePath]: _discardedDraft, ...remainingDrafts } = currentDrafts
-        return remainingDrafts
-      })
-      setStatus(`Nota salva: ${parsedNote.relativePath}`)
+      const hasNewerDraft = draftContentRef.current !== contentToSave
+      const isStillActive = activeNoteRef.current?.relativePath === notePath
+      if (isStillActive) setActiveNote(parsedNote)
+      if (!hasNewerDraft) {
+        setDraftsByPath((currentDrafts) => {
+          const { [parsedNote.relativePath]: _discardedDraft, ...remainingDrafts } = currentDrafts
+          return remainingDrafts
+        })
+      }
+      if (isStillActive) setStatus(`Nota salva: ${parsedNote.relativePath}`)
       void loadBacklinks(parsedNote.relativePath, vault.path)
+      void loadBrokenLinks(parsedNote.relativePath, vault.path)
       void refreshHistoryStatus(vault.path)
       void invoke<TagSummary[]>('get_tag_index', { path: vault.path })
         .then(setTagIndex)
@@ -1062,7 +1258,36 @@ function App() {
     } finally {
       saveInFlightRef.current = false
       setSaving(false)
+      if (isAutomatic) setAutoSaveState(draftContentRef.current === contentToSave ? 'saved' : 'pending')
     }
+  }
+
+  function loadExternalNoteVersion() {
+    if (!externalNoteConflict) return
+    const { externalNote } = externalNoteConflict
+    markdownEditorStateCacheRef.current.delete(externalNote.relativePath)
+    setEditorSessionsByPath((sessions) => {
+      const { [externalNote.relativePath]: _discardedSession, ...remainingSessions } = sessions
+      return remainingSessions
+    })
+    setActiveNote(externalNote)
+    setDraftContent(externalNote.content)
+    setDraftsByPath((drafts) => {
+      const { [externalNote.relativePath]: _discardedDraft, ...remainingDrafts } = drafts
+      return remainingDrafts
+    })
+    setExternalNoteConflict(null)
+    setStatus(`Alteracao externa carregada: ${externalNote.relativePath}`)
+  }
+
+  function keepLocalNoteVersion() {
+    if (!externalNoteConflict) return
+    const { externalNote, localContent } = externalNoteConflict
+    setActiveNote(externalNote)
+    setDraftContent(localContent)
+    setDraftsByPath((drafts) => ({ ...drafts, [externalNote.relativePath]: localContent }))
+    setExternalNoteConflict(null)
+    setStatus('Rascunho local mantido. Salve a nota para aplicar sua versao.')
   }
 
   function startNewNote() {
@@ -1070,6 +1295,7 @@ function App() {
     setWorkspacePage('notes')
     setCreateNoteForm({ title: '' })
     setSelectedTemplateId('blank')
+    setMarkdownHistoryStatus({ canUndo: false, canRedo: false })
     setActiveNote({ name: 'Nova nota', relativePath: '__new_note__', content: '' })
     setOpenTabs((tabs) => (tabs.includes('__new_note__') ? tabs : [...tabs, '__new_note__']))
     setDraftContent('')
@@ -1078,25 +1304,61 @@ function App() {
     requestAnimationFrame(() => document.getElementById('note-title-input')?.focus())
   }
 
+  async function openDailyNote() {
+    if (!vault) return
+
+    const relativePath = formatDailyNotePath(new Date())
+    let created = false
+    setLoading(true)
+    setError(null)
+
+    try {
+      try {
+        await invoke('read_note', { path: vault.path, relativePath })
+      } catch {
+        try {
+          await invoke('create_note', { path: vault.path, relativePath })
+          created = true
+        } catch {
+          // Another request may have created today's note after the initial read.
+          await invoke('read_note', { path: vault.path, relativePath })
+        }
+      }
+
+      setWorkspacePage('notes')
+      await refreshNotes(vault.path, relativePath)
+      setStatus(created ? `Nota diaria criada: ${relativePath}` : `Nota diaria aberta: ${relativePath}`)
+    } catch (caughtError) {
+      const message = caughtError instanceof Error
+        ? caughtError.message
+        : 'Nao foi possivel abrir a nota diaria.'
+      setError(message)
+      setStatus('Falha ao abrir a nota diaria.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   function applyTemplate(templateId: string) {
     setSelectedTemplateId(templateId)
     setDraftContent(templates.find((template) => template.id === templateId)?.content ?? '')
   }
 
   function getActiveEditorSelection() {
-    if (editorMode === 'edit') return markdownCodeEditorRef.current?.getSelection() ?? null
-    const textarea = markdownTextareaRef.current
-    if (!textarea) return null
-    return {
-      value: textarea.value,
-      selectionStart: textarea.selectionStart,
-      selectionEnd: textarea.selectionEnd,
-    }
+    if (editorMode !== 'read') return markdownCodeEditorRef.current?.getSelection() ?? null
+    return null
   }
 
   function focusActiveEditor() {
-    if (editorMode === 'edit') markdownCodeEditorRef.current?.focus()
-    else markdownTextareaRef.current?.focus()
+    markdownCodeEditorRef.current?.focus()
+  }
+
+  function openNoteSearch() {
+    if (editorMode === 'mixed') {
+      setMixedFocusedBlock(null)
+      setEditorMode('edit')
+    }
+    setSearchRequestId((requestId) => requestId + 1)
   }
 
   function applyMarkdownFormat(format: MarkdownFormat) {
@@ -1144,6 +1406,28 @@ function App() {
     setDraftContent((currentContent) => setMarkdownDescription(currentContent, description))
   }
 
+  function formatFrontmatterPropertyValue(value: FrontmatterValue) {
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
+    if (value === null) return 'null'
+    return JSON.stringify(value)
+  }
+
+  function openFrontmatterEditor() {
+    setFrontmatterDraft(getMarkdownFrontmatterSource(draftContent))
+    setFrontmatterError(null)
+    setFrontmatterEditorOpen(true)
+  }
+
+  function saveFrontmatterProperties() {
+    const parsed = parseFrontmatterPropertiesInput(frontmatterDraft)
+    if (parsed.error || !parsed.properties) {
+      setFrontmatterError(parsed.error ?? 'Propriedades invalidas.')
+      return
+    }
+      setDraftContent((currentContent) => setMarkdownFrontmatterProperties(currentContent, parsed.properties))
+    setFrontmatterEditorOpen(false)
+  }
+
   function startMixedBlockEditing(event: MouseEvent<HTMLElement>, index: number, block: string) {
     const clickRange = document.caretRangeFromPoint?.(event.clientX, event.clientY)
     let renderedOffset = 0
@@ -1155,12 +1439,37 @@ function App() {
       renderedOffset = leadingRange.toString().length
     }
 
-    mixedCaretOffsetRef.current = findMarkdownCaretOffset(block, event.currentTarget.textContent ?? '', renderedOffset)
+    if (!activeNote) return
+    const documentKey = mixedEditorDocumentKey(activeNote.relativePath, index)
+    const selectionStart = findMarkdownCaretOffset(block, event.currentTarget.textContent ?? '', renderedOffset)
+    setEditorSessionsByPath((currentSessions) => currentSessions[documentKey]
+      ? currentSessions
+      : {
+          ...currentSessions,
+          [documentKey]: { selectionStart, selectionEnd: selectionStart, scrollTop: 0 },
+        })
     setMixedFocusedBlock(index)
   }
 
   function selectMarkdownTool(format: MarkdownFormat) {
     applyMarkdownFormat(format)
+  }
+
+  function applyMarkdownTableAction(action: MarkdownTableAction) {
+    const selection = getActiveEditorSelection()
+    if (!selection) return
+
+    if (editorMode === 'mixed') {
+      if (mixedFocusedBlock === null) return
+      setDraftContent((currentContent) => {
+        const blocks = splitMarkdownBlocks(getMarkdownBody(currentContent))
+        blocks[mixedFocusedBlock] = transformMarkdownTable(blocks[mixedFocusedBlock] ?? '', selection.selectionStart, action)
+        return replaceMarkdownBody(currentContent, blocks.join('\n\n'))
+      })
+    } else {
+      setDraftContent((currentContent) => transformMarkdownTable(currentContent, selection.selectionStart, action))
+    }
+    requestAnimationFrame(focusActiveEditor)
   }
 
   function clampMarkdownToolsPosition(position: { x: number; y: number }) {
@@ -1207,15 +1516,8 @@ function App() {
     })
   }
 
-  async function insertAttachment() {
+  async function importAttachmentFromPath(sourcePath: string) {
     if (!vault || editorMode === 'read') return
-    const sourcePath = await open({
-      multiple: false,
-      directory: false,
-      filters: [{ name: 'Arquivos', extensions: ['avif', 'bmp', 'gif', 'jpeg', 'jpg', 'md', 'pdf', 'png', 'svg', 'txt', 'webp'] }],
-    })
-    if (!sourcePath || Array.isArray(sourcePath)) return
-
     const selection = getActiveEditorSelection()
     if (!selection) return
     setLoading(true)
@@ -1230,6 +1532,9 @@ function App() {
       const markup = attachment.isImage ? `![${label}](${attachment.relativePath})` : `[${label}](${attachment.relativePath})`
       const leadingBreak = selection.selectionStart > 0 && !selection.value.slice(0, selection.selectionStart).endsWith('\n\n') ? '\n\n' : ''
       replaceEditorSelection(`${leadingBreak}${markup}`)
+      setAttachments((currentAttachments) => currentAttachments.includes(attachment.relativePath)
+        ? currentAttachments
+        : [...currentAttachments, attachment.relativePath].sort())
       setStatus(`Anexo inserido: ${attachment.name}`)
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel anexar o arquivo.')
@@ -1238,15 +1543,69 @@ function App() {
     }
   }
 
-  function renderMarkdown(content: string) {
+  async function insertAttachment() {
+    if (!vault || editorMode === 'read') return
+    const sourcePath = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: 'Arquivos', extensions: ['avif', 'bmp', 'gif', 'jpeg', 'jpg', 'md', 'pdf', 'png', 'svg', 'txt', 'webp'] }],
+    })
+    if (!sourcePath || Array.isArray(sourcePath)) return
+    await importAttachmentFromPath(sourcePath)
+  }
+
+  async function showWikiLinkPreview(relativePath: string) {
+    if (!vault) return
+    hoveredWikiLinkPathRef.current = relativePath
+    const cacheKey = `${vault.path}::${relativePath}`
+    const cachedPreview = wikiLinkPreviewCacheRef.current.get(cacheKey)
+    if (cachedPreview) {
+      setWikiLinkPreview(cachedPreview)
+      return
+    }
+
+    try {
+      const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath })
+      const note = parseNoteDocument(payload)
+      const preview = {
+        relativePath,
+        title: note.name.replace(/\.md$/i, ''),
+        summary: getMarkdownPreviewText(note.content),
+      }
+      wikiLinkPreviewCacheRef.current.set(cacheKey, preview)
+      if (hoveredWikiLinkPathRef.current === relativePath) setWikiLinkPreview(preview)
+    } catch {
+      if (hoveredWikiLinkPathRef.current === relativePath) setWikiLinkPreview(null)
+    }
+  }
+
+  function hideWikiLinkPreview(relativePath: string) {
+    if (hoveredWikiLinkPathRef.current !== relativePath) return
+    hoveredWikiLinkPathRef.current = null
+    setWikiLinkPreview(null)
+  }
+
+  function renderMarkdown(content: string, onToggleChecklist?: (lineNumber: number) => void) {
     return (
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         components={{
           a: ({ href, children }) => {
             const internalPrefix = 'https://mirrormind.local/note/'
             if (href?.startsWith(internalPrefix)) {
               const relativePath = decodeURIComponent(href.slice(internalPrefix.length))
-              return <button type="button" className="wiki-link" onClick={() => void openNote(relativePath)}>{children}</button>
+              const preview = wikiLinkPreview?.relativePath === relativePath ? wikiLinkPreview : null
+              return (
+                <span className="wiki-link-preview-anchor" onMouseEnter={() => void showWikiLinkPreview(relativePath)} onMouseLeave={() => hideWikiLinkPreview(relativePath)}>
+                  <button type="button" className="wiki-link" onClick={() => void openNote(relativePath)}>{children}</button>
+                  {preview ? (
+                    <span className="wiki-link-preview" role="tooltip">
+                      <strong>{preview.title}</strong>
+                      <small>{preview.summary || 'Esta nota ainda nao possui conteudo.'}</small>
+                    </span>
+                  ) : null}
+                </span>
+              )
             }
             return <a href={href}>{children}</a>
           },
@@ -1256,6 +1615,13 @@ function App() {
               ? convertFileSrc(`${vault.path}${vault.path.includes('\\') ? '\\' : '/'}${src}`)
               : src
             return <img src={assetUrl} alt={alt ?? ''} />
+          },
+          input: ({ checked, node, ...inputProps }) => {
+            if (inputProps.type !== 'checkbox') return <input {...inputProps} />
+            const lineNumber = node?.position?.start.line
+            return <input {...inputProps} type="checkbox" checked={Boolean(checked)} onChange={() => {
+              if (lineNumber) onToggleChecklist?.(lineNumber)
+            }} />
           },
         }}
       >
@@ -1388,17 +1754,23 @@ function App() {
       note.relativePath !== activeNote?.relativePath && note.relativePath.toLowerCase().includes(noteLinkQuery.trim().toLowerCase()),
     )
     const activeTags = extractMarkdownTags(draftContent)
+    const markdownAutocompleteData = {
+      attachments,
+      notePaths: notes.map((note) => note.relativePath),
+      tags: tagIndex.map((entry) => entry.tag),
+    }
     const favoriteNotes = notes.filter((note) => favorites.includes(note.relativePath))
     const matchingTagSuggestions = tagIndex.filter((entry) =>
       !selectedTags.includes(entry.tag) && entry.tag.includes(tagFilterQuery.trim().replace(/^#/, '').toLowerCase()),
     )
     const paletteCommands: PaletteCommand[] = [
       { id: 'new-note', label: 'Criar nova nota', description: 'Abre uma nova nota com foco no titulo.' },
+      { id: 'daily-note', label: 'Abrir nota diaria', description: 'Cria ou abre a nota de hoje em Diarias.' },
       { id: 'open-note', label: 'Abrir nota', description: 'Pesquisa notas por nome, conteudo ou tags.' },
       { id: 'filter-tags', label: 'Filtrar por tags', description: 'Abre o filtro completo de tags.' },
       { id: 'favorite', label: favorites.includes(activeNote?.relativePath ?? '') ? 'Remover dos favoritos' : 'Adicionar aos favoritos', description: 'Fixa ou remove a nota atual.', disabled: !activeNote || isNewNoteDraft },
-      { id: 'undo', label: 'Desfazer', description: 'Reverte a ultima alteracao salva.', disabled: !historyStatus.canUndo },
-      { id: 'redo', label: 'Refazer', description: 'Refaz a ultima alteracao.', disabled: !historyStatus.canRedo },
+      { id: 'undo', label: 'Desfazer', description: 'Reverte a ultima alteracao da nota ou do vault.', disabled: !canUndoActiveEditor },
+      { id: 'redo', label: 'Refazer', description: 'Refaz a ultima alteracao da nota ou do vault.', disabled: !canRedoActiveEditor },
       { id: 'settings', label: 'Abrir configuracoes', description: 'Vai para as configuracoes do workspace.' },
       { id: 'shortcuts', label: 'Abrir atalhos', description: 'Configura atalhos do workspace.' },
     ]
@@ -1417,6 +1789,7 @@ function App() {
         } as CSSProperties}
         data-builder-name="workspace-shell"
       >
+        <a className="skip-link" href="#workspace-content">Pular para o conteudo da nota</a>
         <aside className="workspace-rail" aria-label="Ferramentas do workspace" data-builder-name="workspace-rail">
           <button
             type="button"
@@ -1497,7 +1870,7 @@ function App() {
           <span>{status}</span>
         </div>
 
-        {error ? <p className="error-banner">{error}</p> : null}
+        {error ? <p className="error-banner" role="alert">{error}</p> : null}
 
         <section className="workspace-grid">
           <aside className="notes-sidebar" data-builder-name="notes-sidebar">
@@ -1583,10 +1956,10 @@ function App() {
             </footer>
           </aside>
 
-          <section className="editor-surface" data-builder-name="workspace-content-panel">
+          <section id="workspace-content" className="editor-surface" role="region" aria-label="Conteudo do workspace" tabIndex={-1} data-builder-name="workspace-content-panel">
             {workspacePage === 'notes' ? (
               <>
-            <div className="tab-strip" data-builder-name="tab-strip">
+            <div className="tab-strip" role="tablist" aria-label="Notas abertas" data-builder-name="tab-strip">
               {openTabs.length > 0 ? (
                 openTabs.map((tabPath) => {
                   const tabName = tabPath === '__new_note__' ? 'Nova nota' : notes.find((note) => note.relativePath === tabPath)?.name ?? tabPath
@@ -1600,6 +1973,9 @@ function App() {
                         className="tab-select"
                         onClick={() => void openNote(tabPath)}
                         disabled={loading || saving}
+                        role="tab"
+                        aria-selected={tabPath === activeNote?.relativePath}
+                        aria-controls="note-editor"
                       >
                         {tabName}
                       </button>
@@ -1685,6 +2061,22 @@ function App() {
                         aria-label="Descricao da nota"
                       />
                     </label>
+                    <div className="note-properties" aria-label="Propriedades da nota">
+                      {visibleFrontmatterProperties.map(([key, value]) => <span key={key}><strong>{key}</strong> {formatFrontmatterPropertyValue(value)}</span>)}
+                      <button type="button" className="secondary-button" onClick={openFrontmatterEditor}>Propriedades</button>
+                    </div>
+                    {isFrontmatterEditorOpen ? (
+                      <div className="frontmatter-editor">
+                        <label htmlFor="frontmatter-properties">Propriedades YAML</label>
+                        <textarea id="frontmatter-properties" value={frontmatterDraft} onChange={(event) => setFrontmatterDraft(event.target.value)} placeholder={'source: livro\ntags:\n  - estudo\nreview:\n  interval: 7'} spellCheck={false} />
+                        <small>Use YAML completo: valores, listas, objetos e estruturas aninhadas sao preservados.</small>
+                        {frontmatterError ? <p className="field-error">{frontmatterError}</p> : null}
+                        <div>
+                          <button type="button" className="secondary-button" onClick={() => setFrontmatterEditorOpen(false)}>Cancelar</button>
+                          <button type="button" onClick={saveFrontmatterProperties}>Aplicar</button>
+                        </div>
+                      </div>
+                    ) : null}
                     {activeTags.length > 0 ? (
                       <div className="note-tag-list" aria-label="Tags da nota">
                         {activeTags.map((tag) => <span key={tag}>#{tag}</span>)}
@@ -1698,12 +2090,23 @@ function App() {
                         ))}
                       </div>
                     ) : null}
+                    {!isNewNoteDraft && brokenLinks.length > 0 ? (
+                      <div className="backlink-list broken-link-list" aria-label="Links quebrados">
+                        <span>Links quebrados</span>
+                        {brokenLinks.map((link) => <code key={link.target}>{`[[${link.target.replace(/\.md$/i, '')}]]`}</code>)}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="editor-actions">
                     <div className="history-actions" aria-label="Historico de edicao">
-                      <button type="button" className="secondary-button" onClick={() => void undoLastCommand()} disabled={!historyStatus.canUndo || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
-                      <button type="button" className="secondary-button" onClick={() => void redoLastCommand()} disabled={!historyStatus.canRedo || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
+                      <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void undoLastCommand()} disabled={!canUndoActiveEditor || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
+                      <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void redoLastCommand()} disabled={!canRedoActiveEditor || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
                     </div>
+                    {isAutoSaveEnabled && !isNewNoteDraft ? (
+                      <span className={`autosave-indicator is-${autoSaveState}`} aria-live="polite">
+                        {autoSaveState === 'pending' ? 'Alteracoes pendentes' : autoSaveState === 'saving' ? 'Salvando...' : autoSaveState === 'saved' ? 'Salvo' : 'Auto Save'}
+                      </span>
+                    ) : null}
                     {!isNewNoteDraft ? <button type="button" className={`secondary-button favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></button> : null}
                     <label className="editor-mode-control" title="Escolha como o Markdown sera exibido: Misto mostra a edicao no bloco ativo, Edicao mostra o Markdown e Leitura mostra a nota formatada.">
                       <Eye size={15} strokeWidth={1.5} aria-hidden="true" />
@@ -1713,6 +2116,9 @@ function App() {
                         <option value="read">Leitura</option>
                       </select>
                     </label>
+                    {editorMode !== 'read' ? (
+                      <button type="button" className="secondary-button" onClick={openNoteSearch} title="Buscar e substituir (Ctrl+F)" aria-label="Buscar e substituir"><Search size={15} strokeWidth={1.5} aria-hidden="true" /></button>
+                    ) : null}
                     {editorMode !== 'read' ? (
                       <button
                         type="button"
@@ -1731,12 +2137,18 @@ function App() {
                   </button>
                 </div>
 
-                <div className="editor-content" ref={editorContentRef}>
+                <div id="note-editor" className="editor-content" ref={editorContentRef}>
                 {editorMode === 'edit' ? (
                   <MarkdownCodeEditor
                     ref={markdownCodeEditorRef}
+                    ariaLabel={`Editor Markdown da nota ${activeNote.name.replace(/\.md$/i, '')}`}
                     documentKey={activeNote.relativePath}
+                    spellCheck={isSpellCheckEnabled}
+                    stateCache={markdownEditorStateCacheRef.current}
+                    autocompleteData={markdownAutocompleteData}
+                    searchRequestId={searchRequestId}
                     value={draftContent}
+                    onHistoryChange={setMarkdownHistoryStatus}
                     session={editorSessionsByPath[activeNote.relativePath]}
                     onChange={setDraftContent}
                     onSessionChange={(session) => {
@@ -1747,22 +2159,44 @@ function App() {
                     }}
                   />
                 ) : editorMode === 'read' ? (
-                  <article className="markdown-reading">{renderMarkdown(noteBody)}</article>
+                  <article className={`markdown-reading${isReadingLineWrapEnabled ? '' : ' is-line-wrap-disabled'}`} style={readingStyle}>{renderMarkdown(noteBody, (lineNumber) => setDraftContent((currentContent) => replaceMarkdownBody(currentContent, toggleChecklistAtLine(noteBody, lineNumber))))}</article>
                 ) : (
                   <section className="markdown-mixed">
                     {(splitMarkdownBlocks(noteBody).length ? splitMarkdownBlocks(noteBody) : ['']).map((block, index, blocks) =>
                       mixedFocusedBlock === index ? (
-                        <textarea
+                        <MarkdownCodeEditor
                           key={index}
-                          ref={markdownTextareaRef}
+                          ref={markdownCodeEditorRef}
+                          ariaLabel={`Editor Markdown, bloco ${index + 1} da nota ${activeNote.name.replace(/\.md$/i, '')}`}
                           autoFocus
+                          documentKey={mixedEditorDocumentKey(activeNote.relativePath, index)}
+                          spellCheck={isSpellCheckEnabled}
+                          stateCache={markdownEditorStateCacheRef.current}
+                          autocompleteData={markdownAutocompleteData}
+                          onSearchRequest={openNoteSearch}
                           value={block}
-                          onChange={(event) => setDraftContent((currentContent) => replaceMarkdownBody(currentContent, blocks.map((item, itemIndex) => itemIndex === index ? event.target.value : item).join('\n\n')))}
-                          onBlur={() => setMixedFocusedBlock(null)}
+                          onChange={(value) => setDraftContent((currentContent) => replaceMarkdownBody(currentContent, blocks.map((item, itemIndex) => itemIndex === index ? value : item).join('\n\n')))}
+                          onHistoryChange={setMarkdownHistoryStatus}
+                          onSessionChange={(session) => {
+                            const documentKey = mixedEditorDocumentKey(activeNote.relativePath, index)
+                            setEditorSessionsByPath((currentSessions) => ({
+                              ...currentSessions,
+                              [documentKey]: session,
+                            }))
+                          }}
+                          session={editorSessionsByPath[mixedEditorDocumentKey(activeNote.relativePath, index)]}
+                          onBlur={() => {
+                            setMixedFocusedBlock(null)
+                            setMarkdownHistoryStatus({ canUndo: false, canRedo: false })
+                          }}
                         />
                       ) : (
                         <article key={index} onClick={(event) => startMixedBlockEditing(event, index, block)}>
-                          {renderMarkdown(block)}
+                          {renderMarkdown(block, (lineNumber) => setDraftContent((currentContent) => {
+                            const blocks = splitMarkdownBlocks(getMarkdownBody(currentContent))
+                            blocks[index] = toggleChecklistAtLine(block, lineNumber)
+                            return replaceMarkdownBody(currentContent, blocks.join('\n\n'))
+                          }))}
                         </article>
                       ),
                     )}
@@ -1797,6 +2231,13 @@ function App() {
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('list')} title="Lista"><List size={16} /></button>
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('orderedList')} title="Lista numerada"><ListOrdered size={16} /></button>
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('checklist')} title="Checklist"><CheckSquare size={16} /></button>
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('table')} title="Inserir tabela"><Table2 size={16} /></button>
+                    </div>
+                    <div className="markdown-toolbar-group" aria-label="Tabela">
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('addRow')} title="Adicionar linha a tabela" aria-label="Adicionar linha a tabela"><Plus size={16} /></button>
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('removeRow')} title="Remover linha da tabela" aria-label="Remover linha da tabela"><Minus size={16} /></button>
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('addColumn')} title="Adicionar coluna a tabela" aria-label="Adicionar coluna a tabela"><Plus size={14} /><Table2 size={13} /></button>
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('removeColumn')} title="Remover coluna da tabela" aria-label="Remover coluna da tabela"><Minus size={14} /><Table2 size={13} /></button>
                     </div>
                     <div className="markdown-toolbar-group" aria-label="Blocos">
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('code')} title="Codigo inline"><Code2 size={16} /></button>
@@ -1926,11 +2367,11 @@ function App() {
               <section className="workspace-page" data-builder-name="settings-page">
                 <p className="card-kicker">Configuracoes</p>
                 <h2>Configuracoes do vault</h2>
-                <p>Opcoes do vault e do sistema de revisao aparecerao aqui.</p>
+                <p>Personalize a escrita, a leitura e o comportamento do workspace.</p>
                 <label className="settings-toggle">
                   <span>
                     <strong>Auto Save</strong>
-                    <small>Salva a nota automaticamente a cada alteracao.</small>
+                    <small>Salva apos uma breve pausa na digitacao, sem interromper a edicao.</small>
                   </span>
                   <input
                     type="checkbox"
@@ -1974,11 +2415,50 @@ function App() {
                     aria-label="Cor do texto no hover das abas"
                   />
                 </label>
+                <div className="settings-section" aria-labelledby="reading-preferences-title">
+                  <p className="card-kicker" id="reading-preferences-title">Leitura</p>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Fonte de leitura</strong>
+                      <small>Aplica a familia tipografica escolhida no modo Leitura.</small>
+                    </span>
+                    <select className="settings-select" value={readingFont} onChange={(event) => setReadingFont(event.target.value as ReadingFont)} aria-label="Fonte de leitura">
+                      <option value="sans">Sans serif</option>
+                      <option value="serif">Serif</option>
+                      <option value="mono">Monoespacada</option>
+                    </select>
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Largura da leitura</strong>
+                      <small>Controla a medida da coluna de conteudo no modo Leitura.</small>
+                    </span>
+                    <select className="settings-select" value={readingWidth} onChange={(event) => setReadingWidth(event.target.value as ReadingWidth)} aria-label="Largura da leitura">
+                      <option value="compact">Compacta</option>
+                      <option value="comfortable">Confortavel</option>
+                      <option value="wide">Ampla</option>
+                    </select>
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Quebra de linha</strong>
+                      <small>Desative para manter linhas longas em uma unica linha no modo Leitura.</small>
+                    </span>
+                    <input type="checkbox" checked={isReadingLineWrapEnabled} onChange={(event) => setReadingLineWrapEnabled(event.target.checked)} />
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Corretor ortografico</strong>
+                      <small>Usa o corretor nativo do sistema nos modos Edicao e Misto.</small>
+                    </span>
+                    <input type="checkbox" checked={isSpellCheckEnabled} onChange={(event) => setSpellCheckEnabled(event.target.checked)} />
+                  </label>
+                </div>
               </section>
             )}
           </section>
           </section>
-          {explorerContextMenu ? (
+        {explorerContextMenu ? (
             <div className="explorer-context-menu-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setExplorerContextMenu(null) }} onContextMenu={(event) => event.preventDefault()}>
               <div className="explorer-context-menu" role="menu" aria-label={`Acoes para ${explorerContextMenu.target.name}`} style={{ left: explorerContextMenu.x, top: explorerContextMenu.y }}>
                 {explorerContextMenu.target.type === 'note' ? (
@@ -2003,6 +2483,21 @@ function App() {
               </div>
             </div>
           ) : null}
+        {externalNoteConflict ? (
+          <div className="note-search-backdrop external-change-backdrop" role="presentation">
+            <section className="note-search-modal external-change-modal" role="dialog" aria-modal="true" aria-label="Alteracao externa detectada">
+              <div className="move-item-heading">
+                <strong>Alteracao externa detectada</strong>
+                <span>A nota <b>{externalNoteConflict.externalNote.name.replace(/\.md$/i, '')}</b> foi modificada fora do MirrorMind enquanto voce tinha um rascunho local.</span>
+              </div>
+              <p>Escolha qual versao deve permanecer no editor. Nenhuma versao sera sobrescrita automaticamente.</p>
+              <div className="folder-dialog-actions">
+                <button type="button" className="secondary-button" onClick={loadExternalNoteVersion}>Carregar arquivo externo</button>
+                <button type="button" onClick={keepLocalNoteVersion}>Manter meu rascunho</button>
+              </div>
+            </section>
+          </div>
+        ) : null}
         {showCommandPalette ? (
           <div className="note-search-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowCommandPalette(false) }}>
             <section className="note-search-modal command-palette" role="dialog" aria-modal="true" aria-label="Command Palette">

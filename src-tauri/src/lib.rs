@@ -117,6 +117,14 @@ struct Backlink {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+struct BrokenLink {
+  target: String,
+  source_name: String,
+  source_relative_path: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct TagSummary {
   tag: String,
   note_paths: Vec<String>,
@@ -358,6 +366,18 @@ fn list_folders(path: String, authorized_paths: State<AuthorizedPaths>) -> Resul
 }
 
 #[tauri::command]
+fn list_attachments(path: String, authorized_paths: State<AuthorizedPaths>) -> Result<Vec<String>, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths
+    .ensure_authorized_vault_root(&root)
+    .map_err(|error| error.to_string())?;
+
+  collect_attachment_files(&root)
+    .map(|attachments| attachments.iter().map(|attachment| to_relative_display(&root, attachment)).collect())
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn read_note(
   path: String,
   relative_path: String,
@@ -420,6 +440,34 @@ fn get_backlinks_in_root(root: &Path, relative_path: &str) -> Result<Vec<Backlin
 }
 
 #[tauri::command]
+fn get_broken_links(path: String, authorized_paths: State<AuthorizedPaths>) -> Result<Vec<BrokenLink>, String> {
+  let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+  authorized_paths.ensure_authorized_vault_root(&root).map_err(|error| error.to_string())?;
+  get_broken_links_in_root(&root).map_err(|error| error.to_string())
+}
+
+fn get_broken_links_in_root(root: &Path) -> Result<Vec<BrokenLink>> {
+  let mut broken_links = Vec::new();
+  for note_path in collect_markdown_files(root)? {
+    let content = fs::read_to_string(&note_path)
+      .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
+    for target in extract_wiki_links(&content) {
+      if !root.join(&target).is_file() {
+        broken_links.push(BrokenLink {
+          target,
+          source_name: note_path.file_name().and_then(|name| name.to_str()).unwrap_or_default().to_string(),
+          source_relative_path: to_relative_display(root, &note_path),
+        });
+      }
+    }
+  }
+  broken_links.sort_by(|left, right| {
+    left.source_relative_path.cmp(&right.source_relative_path).then(left.target.cmp(&right.target))
+  });
+  Ok(broken_links)
+}
+
+#[tauri::command]
 fn get_tag_index(path: String, authorized_paths: State<AuthorizedPaths>) -> Result<Vec<TagSummary>, String> {
   let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
   authorized_paths.ensure_authorized_vault_root(&root).map_err(|error| error.to_string())?;
@@ -467,6 +515,14 @@ fn extract_tags(content: &str) -> Vec<String> {
   result
 }
 
+fn normalize_wiki_link_target(target: &str) -> Option<String> {
+  let normalized = target.trim().replace('\\', "/");
+  if normalized.is_empty() || normalized.contains("..") || normalized.starts_with('/') || Path::new(&normalized).is_absolute() {
+    return None;
+  }
+  Some(if normalized.to_ascii_lowercase().ends_with(".md") { normalized } else { format!("{normalized}.md") })
+}
+
 fn extract_wiki_links(content: &str) -> Vec<String> {
   let mut links = Vec::new();
   let mut remaining = content;
@@ -474,14 +530,69 @@ fn extract_wiki_links(content: &str) -> Vec<String> {
     let after_start = &remaining[start + 2..];
     let Some(end) = after_start.find("]]" ) else { break };
     let raw_target = &after_start[..end];
-    let target = raw_target.split('|').next().unwrap_or_default().split('#').next().unwrap_or_default().trim();
-    if !target.is_empty() && !target.contains("..") {
-      let normalized = target.replace('\\', "/");
-      links.push(if normalized.to_ascii_lowercase().ends_with(".md") { normalized } else { format!("{normalized}.md") });
+    let target = raw_target.split('|').next().unwrap_or_default().split('#').next().unwrap_or_default();
+    if let Some(target) = normalize_wiki_link_target(target) {
+      links.push(target);
     }
     remaining = &after_start[end + 2..];
   }
   links
+}
+
+fn rewrite_wiki_links(content: &str, source_relative_path: &str, target_relative_path: &str) -> String {
+  let source = source_relative_path.replace('\\', "/");
+  let target = target_relative_path.replace('\\', "/");
+  let mut rewritten = String::with_capacity(content.len());
+  let mut remaining = content;
+
+  while let Some(start) = remaining.find("[[") {
+    rewritten.push_str(&remaining[..start + 2]);
+    let after_start = &remaining[start + 2..];
+    let Some(end) = after_start.find("]]" ) else {
+      rewritten.push_str(after_start);
+      return rewritten;
+    };
+    let raw_link = &after_start[..end];
+    let (target_and_heading, alias) = raw_link.split_once('|').unwrap_or((raw_link, ""));
+    let (raw_target, heading) = target_and_heading.split_once('#').unwrap_or((target_and_heading, ""));
+
+    if normalize_wiki_link_target(raw_target).as_deref() == Some(source.as_str()) {
+      let replacement = if raw_target.trim().to_ascii_lowercase().ends_with(".md") {
+        target.clone()
+      } else {
+        target.trim_end_matches(".md").to_string()
+      };
+      rewritten.push_str(&replacement);
+      if !heading.is_empty() {
+        rewritten.push('#');
+        rewritten.push_str(heading);
+      }
+      if !alias.is_empty() {
+        rewritten.push('|');
+        rewritten.push_str(alias);
+      }
+    } else {
+      rewritten.push_str(raw_link);
+    }
+    rewritten.push_str("]]" );
+    remaining = &after_start[end + 2..];
+  }
+
+  rewritten.push_str(remaining);
+  rewritten
+}
+
+fn update_wiki_links_for_note_path_change(root: &Path, source_relative_path: &str, target_relative_path: &str) -> Result<()> {
+  for note_path in collect_markdown_files(root)? {
+    let content = fs::read_to_string(&note_path)
+      .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
+    let updated_content = rewrite_wiki_links(&content, source_relative_path, target_relative_path);
+    if updated_content != content {
+      fs::write(&note_path, updated_content)
+        .with_context(|| format!("Nao foi possivel atualizar links em '{}'.", note_path.display()))?;
+    }
+  }
+  Ok(())
 }
 
 #[tauri::command]
@@ -627,9 +738,14 @@ fn rename_vault_item_in_root(root: &Path, relative_path: &str, new_name: &str, i
     bail!("Ja existe um item com esse nome nessa pasta.");
   }
 
+  let source_relative_path = is_note.then(|| to_relative_display(root, &source));
+
   fs::rename(&source, &destination)
     .with_context(|| format!("Nao foi possivel renomear '{}'.", source.display()))
     ?;
+  if let Some(source_relative_path) = source_relative_path {
+    update_wiki_links_for_note_path_change(root, &source_relative_path, &to_relative_display(root, &destination))?;
+  }
   Ok(())
 }
 
@@ -682,8 +798,12 @@ fn move_vault_item_in_root(root: &Path, relative_path: &str, destination_folder:
   if target.exists() {
     bail!("Ja existe um item com esse nome na pasta de destino.");
   }
+  let source_relative_path = is_note.then(|| to_relative_display(root, &source));
   fs::rename(&source, &target)
     .with_context(|| format!("Nao foi possivel mover '{}'.", source.display()))?;
+  if let Some(source_relative_path) = source_relative_path {
+    update_wiki_links_for_note_path_change(root, &source_relative_path, &to_relative_display(root, &target))?;
+  }
   Ok(())
 }
 
@@ -1085,6 +1205,20 @@ fn collect_markdown_files(root: &Path) -> Result<Vec<PathBuf>> {
   Ok(notes)
 }
 
+fn collect_attachment_files(root: &Path) -> Result<Vec<PathBuf>> {
+  let canonical_root = canonicalize_directory(root)?;
+  let attachments_root = canonical_root.join(ATTACHMENTS_DIR);
+  if !attachments_root.is_dir() {
+    return Ok(Vec::new());
+  }
+
+  let mut attachments = Vec::new();
+  let mut visited_directories = HashSet::new();
+  visit_attachment_directory(&attachments_root, &canonical_root, &mut visited_directories, &mut attachments);
+  attachments.sort();
+  Ok(attachments)
+}
+
 fn collect_folders(root: &Path) -> Result<Vec<PathBuf>> {
   let canonical_root = canonicalize_directory(root)?;
   let mut folders = Vec::new();
@@ -1196,6 +1330,44 @@ fn visit_directory(
       .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
     {
       notes.push(path);
+    }
+  }
+}
+
+fn visit_attachment_directory(
+  directory: &Path,
+  canonical_root: &Path,
+  visited_directories: &mut HashSet<PathBuf>,
+  attachments: &mut Vec<PathBuf>,
+) {
+  let canonical_directory = match directory.canonicalize() {
+    Ok(path) => path,
+    Err(error) => {
+      log::warn!("skipping unreadable attachment directory '{}': {error}", directory.display());
+      return;
+    }
+  };
+  if !canonical_directory.starts_with(canonical_root) || !visited_directories.insert(canonical_directory) {
+    return;
+  }
+
+  let entries = match fs::read_dir(directory) {
+    Ok(entries) => entries,
+    Err(error) => {
+      log::warn!("skipping attachment directory '{}': {error}", directory.display());
+      return;
+    }
+  };
+  for entry in entries.flatten() {
+    let path = entry.path();
+    let Ok(file_type) = entry.file_type() else { continue };
+    if file_type.is_symlink() {
+      continue;
+    }
+    if file_type.is_dir() {
+      visit_attachment_directory(&path, canonical_root, visited_directories, attachments);
+    } else if file_type.is_file() {
+      attachments.push(path);
     }
   }
 }
@@ -1561,6 +1733,7 @@ pub fn run() {
       create_note,
       create_folder,
       list_folders,
+      list_attachments,
       rename_vault_item,
       move_vault_item,
       delete_vault_item,
@@ -1569,6 +1742,7 @@ pub fn run() {
       permanently_delete_trash_item,
       import_attachment,
       get_backlinks,
+      get_broken_links,
       get_tag_index,
       undo_last_command,
       redo_last_command,
@@ -1591,7 +1765,7 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
   use super::{
-    apply_history_command, attachment_directory_for_note, collect_folders, collect_markdown_files, delete_vault_item_in_root, ensure_metadata_layout, extract_tags, extract_wiki_links, get_backlinks_in_root, get_tag_index_in_root, import_attachment_in_root, inspect_metadata, search_notes_in_root,
+    apply_history_command, attachment_directory_for_note, collect_attachment_files, collect_folders, collect_markdown_files, delete_vault_item_in_root, ensure_metadata_layout, extract_tags, extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root, get_tag_index_in_root, import_attachment_in_root, inspect_metadata, search_notes_in_root,
     list_trash_in_root, move_vault_item_in_root, permanently_delete_trash_item_in_root, read_trash_entries, record_history, rename_vault_item_in_root, resolve_folder_path, resolve_note_path, restore_trash_item_in_root, write_trash_entries, HistoryCommand, read_history,
     validate_vault_name, RecentVaultPreference,
     ASSESSMENTS_DIR, ATTACHMENTS_DIR, CONFIG_FILE, METADATA_DIR, REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
@@ -1624,6 +1798,18 @@ mod tests {
       .collect::<Vec<_>>();
 
     assert_eq!(collected, vec!["nested/nested-note.md", "root-note.md"]);
+  }
+
+  #[test]
+  fn collect_attachment_files_lists_nested_files_and_ignores_metadata() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+    fs::create_dir_all(root.join(ATTACHMENTS_DIR).join("curso")).expect("create attachment folder");
+    fs::write(root.join(ATTACHMENTS_DIR).join("curso").join("imagem.png"), "image").expect("write attachment");
+    fs::create_dir_all(root.join(METADATA_DIR).join(ATTACHMENTS_DIR)).expect("create metadata folder");
+    fs::write(root.join(METADATA_DIR).join(ATTACHMENTS_DIR).join("ignored.png"), "ignored").expect("write metadata file");
+
+    assert_eq!(collect_attachment_files(&root).expect("list attachments"), vec![root.join(ATTACHMENTS_DIR).join("curso").join("imagem.png")]);
   }
 
   #[test]
@@ -1717,6 +1903,33 @@ mod tests {
     assert!(root.join("estudos").join("resumo.md").is_file());
     assert!(!root.join("materias").exists());
     assert!(rename_vault_item_in_root(&root, "estudos", "../fora", "folder").is_err());
+  }
+
+  #[test]
+  fn changing_a_note_path_updates_matching_wiki_links_and_finds_broken_ones() {
+    let temporary_directory = tempdir().expect("temp dir");
+    let root = temporary_directory.path().canonicalize().expect("canonical root");
+    fs::create_dir_all(root.join("origem")).expect("create source folder");
+    fs::create_dir_all(root.join("destino")).expect("create destination folder");
+    fs::write(root.join("origem").join("aula.md"), "# Aula").expect("write target note");
+    fs::write(
+      root.join("referencias.md"),
+      "[[origem/aula|Aula]]\n[[origem/aula#Resumo]]\n[[origem/aula.md]]\n[[nota-ausente]]",
+    )
+    .expect("write reference note");
+
+    rename_vault_item_in_root(&root, "origem/aula.md", "resumo", "note").expect("rename note");
+    move_vault_item_in_root(&root, "origem/resumo.md", "destino", "note").expect("move note");
+
+    let references = fs::read_to_string(root.join("referencias.md")).expect("read references");
+    assert!(references.contains("[[destino/resumo|Aula]]"));
+    assert!(references.contains("[[destino/resumo#Resumo]]"));
+    assert!(references.contains("[[destino/resumo.md]]"));
+
+    let broken_links = get_broken_links_in_root(&root).expect("get broken links");
+    assert_eq!(broken_links.len(), 1);
+    assert_eq!(broken_links[0].source_relative_path, "referencias.md");
+    assert_eq!(broken_links[0].target, "nota-ausente.md");
   }
 
   #[test]
