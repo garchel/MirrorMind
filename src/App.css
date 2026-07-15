@@ -1141,6 +1141,107 @@ button:disabled {
   padding: 16px;
 }
 
+.workspace-shell .special-files-button {
+  position: relative;
+}
+
+.workspace-shell .special-files-button > span {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  place-items: center;
+  border: 1px solid #d4c8a8;
+  border-radius: 999px;
+  background: #fbf3db;
+  color: #72541c;
+  font: 9px/1 var(--mono);
+}
+
+.workspace-shell .special-files-modal {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.workspace-shell .special-files-list {
+  display: grid;
+  max-height: min(440px, calc(100vh - 210px));
+  overflow: auto;
+  border-top: 1px solid #e3e1d9;
+}
+
+.workspace-shell .special-files-limit-notice {
+  margin: 0;
+  padding: 10px 14px;
+  border-top: 1px solid #e3d5b3;
+  background: #fbf3db;
+  color: #72541c;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workspace-shell .special-file-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 14px;
+  padding: 13px 14px;
+  border-bottom: 1px solid #e3e1d9;
+}
+
+.workspace-shell .special-file-row > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.workspace-shell .special-file-row strong,
+.workspace-shell .special-file-row code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .special-file-row strong {
+  color: #282824;
+  font: 600 13px/1.3 var(--sans);
+}
+
+.workspace-shell .special-file-row code {
+  color: #77766f;
+  font: 10px/1.35 var(--mono);
+}
+
+.workspace-shell .special-file-row p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #62615b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workspace-shell .special-file-kind {
+  align-self: start;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f0efea;
+  color: #55544e;
+  font: 9px/1 var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workspace-shell .special-file-kind.is-canvas {
+  background: #e1f3fe;
+  color: #1f6c9f;
+}
+
+.workspace-shell .special-file-kind.is-excalidraw {
+  background: #edf3ec;
+  color: #346538;
+}
+
 /* Vault selection shares the notebook workspace language. */
 .vault-selection-shell {
   --selection-paper: #fbfaf6;
@@ -2280,6 +2381,205 @@ button:disabled {
   gap: 14px;
 }
 
+.workspace-shell .graph-page {
+  gap: 16px;
+}
+
+.workspace-shell .graph-page-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  width: min(100%, 1080px);
+}
+
+.workspace-shell .graph-page-header > div {
+  display: grid;
+  gap: 8px;
+}
+
+.workspace-shell .graph-page-header p {
+  margin: 0;
+}
+
+.workspace-shell .graph-page-header .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.workspace-shell .graph-summary {
+  display: flex;
+  gap: 7px;
+  color: #66665f;
+  font-size: 12px;
+}
+
+.workspace-shell .graph-summary span {
+  padding: 4px 7px;
+  border: 1px solid #ddd9d0;
+  border-radius: 999px;
+  background: #f7f5ef;
+}
+
+.workspace-shell .graph-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  width: min(100%, 1080px);
+}
+
+.workspace-shell .graph-controls input[type='text'],
+.workspace-shell .graph-controls > input,
+.workspace-shell .graph-controls select {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid #d8d6cf;
+  border-radius: 5px;
+  background: #fffef9;
+  color: #3d3d38;
+  font: 12px var(--sans);
+}
+
+.workspace-shell .graph-controls > input { min-width: 170px; }
+.workspace-shell .graph-controls label { display: inline-flex; align-items: center; gap: 5px; color: #5f5f58; font-size: 12px; }
+.workspace-shell .graph-controls .secondary-button { min-height: 32px; padding: 0 9px; }
+
+.workspace-shell .graph-detail-panel {
+  display: grid;
+  gap: 10px;
+  width: min(100%, 1080px);
+  padding: 13px 14px;
+  border: 1px solid #d8d6cf;
+  border-left: 3px solid #738979;
+  border-radius: 7px;
+  background: #fffef9;
+}
+
+.workspace-shell .graph-detail-panel h3,
+.workspace-shell .graph-detail-panel p { margin: 0; }
+.workspace-shell .graph-detail-panel h3 { color: #303f33; font-size: 15px; }
+.workspace-shell .graph-detail-panel p { margin-top: 3px; color: #73736d; font-size: 12px; }
+.workspace-shell .graph-detail-metrics,
+.workspace-shell .graph-detail-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.workspace-shell .graph-detail-metrics span { padding: 3px 6px; border-radius: 4px; background: #edf3eb; color: #4c624f; font-size: 11px; }
+
+.workspace-shell .graph-orphan-panel { display: grid; gap: 10px; width: min(100%, 1080px); padding: 13px 14px; border: 1px solid #e0d8c9; border-left: 3px solid #a9844a; border-radius: 7px; background: #fffdf7; }
+.workspace-shell .graph-orphan-panel h3, .workspace-shell .graph-orphan-panel p { margin: 0; }
+.workspace-shell .graph-orphan-list { display: grid; gap: 4px; max-width: 520px; }
+.workspace-shell .graph-orphan-list > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; padding-left: 8px; border-bottom: 1px solid #eee8dc; color: #514b40; font-size: 12px; }
+
+.workspace-shell .note-graph {
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 1080px);
+  min-height: min(62vh, 620px);
+  overflow: hidden;
+  border: 1px solid #dedcd5;
+  border-radius: 10px;
+  background-color: #faf9f4;
+  background-image: radial-gradient(#d9d7ce 0.75px, transparent 0.75px);
+  background-size: 16px 16px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.workspace-shell .note-graph:active { cursor: grabbing; }
+
+.workspace-shell .note-graph-world {
+  position: absolute;
+  inset: 0;
+  transform-origin: top left;
+  will-change: transform;
+}
+
+.workspace-shell .note-graph-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.workspace-shell .note-graph-links line {
+  stroke: #9bac9d;
+  stroke-width: 0.35;
+  vector-effect: non-scaling-stroke;
+}
+
+.workspace-shell .note-graph-links line.is-focused { stroke: #52715a; stroke-width: 0.7; }
+
+.workspace-shell .note-graph-node {
+  position: absolute;
+  z-index: 1;
+  min-width: 84px;
+  max-width: 150px;
+  min-height: 34px;
+  padding: 7px 10px;
+  transform: translate(-50%, -50%);
+  border: 1px solid #aab9ac;
+  border-radius: 6px;
+  background: #fffef9;
+  box-shadow: 0 3px 9px rgba(44, 54, 45, 0.08);
+  color: #36513b;
+  font: 600 12px/1.25 var(--sans);
+  text-align: center;
+}
+
+.workspace-shell .note-graph-node span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .note-graph-node:hover,
+.workspace-shell .note-graph-node:focus-visible {
+  z-index: 2;
+  border-color: #5d7664;
+  background: #e5eee5;
+  outline: none;
+}
+
+.workspace-shell .note-graph-node:active {
+  transform: translate(-50%, -50%);
+}
+
+.workspace-shell .note-graph-node.is-focused { border-color: #52715a; background: #e5eee5; }
+
+.workspace-shell .note-graph-node.is-current {
+  border-color: #5d7664;
+  box-shadow: 0 0 0 3px #dce6dc;
+}
+
+.workspace-shell .graph-empty-state {
+  max-width: 640px;
+  margin: 4px 0;
+  color: #73736d;
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .workspace-shell .graph-page-header {
+    display: grid;
+  }
+
+  .workspace-shell .note-graph {
+    min-height: 460px;
+  }
+
+  .workspace-shell .note-graph-node {
+    min-width: 68px;
+    max-width: 104px;
+    font-size: 11px;
+  }
+
+  .workspace-shell .graph-controls > input,
+  .workspace-shell .graph-controls select { flex: 1 1 140px; min-width: 0; }
+}
+
 .workspace-shell .trash-table-wrap {
   width: min(100%, 920px);
   overflow-x: auto;
@@ -3042,6 +3342,206 @@ button:disabled {
   background: #cfdccc;
 }
 
+.workspace-shell .obsidian-note-embed {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid #d9d6ce;
+  border-left: 3px solid #8d9b88;
+  border-radius: 5px;
+  background: #faf9f3;
+}
+
+.workspace-shell .obsidian-note-embed > :first-child {
+  margin-top: 0;
+}
+
+.workspace-shell .obsidian-note-embed > :last-child {
+  margin-bottom: 0;
+}
+
+.workspace-shell .obsidian-note-embed.is-loading,
+.workspace-shell .obsidian-note-embed.is-missing {
+  color: #73736d;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.workspace-shell .obsidian-pdf-embed {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid #d9d6ce;
+  border-radius: 6px;
+  background: #f4f2eb;
+  color: #343532;
+}
+
+.workspace-shell .obsidian-pdf-embed > header,
+.workspace-shell .obsidian-pdf-embed > nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-shell .obsidian-pdf-embed > header strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.workspace-shell .obsidian-pdf-embed > header span {
+  flex: none;
+  color: #66675f;
+  font-size: 11px;
+}
+
+.workspace-shell .obsidian-pdf-canvas-frame {
+  min-height: 180px;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid #d3d0c7;
+  background: #dedbd2;
+  text-align: center;
+}
+
+.workspace-shell .obsidian-pdf-canvas-frame[aria-busy="true"] {
+  background: #e7e4db;
+}
+
+.workspace-shell .obsidian-pdf-canvas-frame[aria-busy="true"] canvas {
+  visibility: hidden;
+}
+
+.workspace-shell .obsidian-pdf-canvas-frame canvas {
+  display: block;
+  max-width: none;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 6px 20px rgba(54, 55, 50, 0.16);
+}
+
+.workspace-shell .obsidian-pdf-embed > nav {
+  justify-content: flex-end;
+}
+
+.workspace-shell .obsidian-pdf-embed > nav button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #cbc8bf;
+  border-radius: 5px;
+  background: #ebe9e1;
+  color: #3e403b;
+  font-size: 11px;
+}
+
+.workspace-shell .obsidian-pdf-embed.is-loading,
+.workspace-shell .obsidian-pdf-embed.is-error,
+.workspace-shell .obsidian-pdf-embed.is-limited {
+  color: #686962;
+  font-size: 12px;
+}
+
+.workspace-shell .obsidian-pdf-embed.is-error {
+  border-color: #d3b7ae;
+  background: #f5eae6;
+  color: #7d3f30;
+}
+
+.workspace-shell .markdown-preservation-notice {
+  margin: 8px 0 0;
+  color: #6b654c;
+  font-size: 11px;
+  font-style: italic;
+}
+
+.workspace-shell .obsidian-callout {
+  --callout-accent: #455f75;
+  --callout-surface: #edf2f4;
+  display: block;
+  margin: 14px 0;
+  border: 1px solid color-mix(in srgb, var(--callout-accent) 35%, #dedbd2);
+  border-left: 4px solid var(--callout-accent);
+  border-radius: 4px;
+  background: var(--callout-surface);
+  color: #2d3031;
+  overflow: hidden;
+}
+
+.workspace-shell .obsidian-callout[data-callout="tip"],
+.workspace-shell .obsidian-callout[data-callout="hint"],
+.workspace-shell .obsidian-callout[data-callout="important"] {
+  --callout-accent: #685820;
+  --callout-surface: #f5f0df;
+}
+
+.workspace-shell .obsidian-callout[data-callout="success"],
+.workspace-shell .obsidian-callout[data-callout="check"],
+.workspace-shell .obsidian-callout[data-callout="done"] {
+  --callout-accent: #3f6748;
+  --callout-surface: #eaf2e9;
+}
+
+.workspace-shell .obsidian-callout[data-callout="warning"],
+.workspace-shell .obsidian-callout[data-callout="caution"],
+.workspace-shell .obsidian-callout[data-callout="attention"] {
+  --callout-accent: #7a4e26;
+  --callout-surface: #f6ede2;
+}
+
+.workspace-shell .obsidian-callout[data-callout="danger"],
+.workspace-shell .obsidian-callout[data-callout="error"],
+.workspace-shell .obsidian-callout[data-callout="bug"] {
+  --callout-accent: #743b36;
+  --callout-surface: #f6e9e7;
+}
+
+.workspace-shell .obsidian-callout[data-callout="quote"],
+.workspace-shell .obsidian-callout[data-callout="cite"] {
+  --callout-accent: #57544f;
+  --callout-surface: #efede8;
+}
+
+.workspace-shell .obsidian-callout summary,
+.workspace-shell .obsidian-callout-header {
+  padding: 9px 11px;
+  color: var(--callout-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.workspace-shell .obsidian-callout summary {
+  cursor: pointer;
+}
+
+.workspace-shell .obsidian-callout-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.workspace-shell .obsidian-callout-content {
+  padding: 0 12px 11px;
+}
+
+.workspace-shell .obsidian-callout-content > :first-child {
+  margin-top: 0;
+}
+
+.workspace-shell .obsidian-callout-content > :last-child {
+  margin-bottom: 0;
+}
+
+.workspace-shell .markdown-preserved-raw {
+  max-width: 100%;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .workspace-shell .broken-link-list {
   color: #8a4b39;
 }
@@ -3063,6 +3563,24 @@ button:disabled {
   color: #65655f;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.recovered-note-path-field {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+  color: #65655f;
+  font-size: 11px;
+}
+
+.recovered-note-path-field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.external-removed-note-actions {
+  margin: 0 -16px -16px;
+  flex-wrap: wrap;
 }
 
 .folder-dialog-actions {
@@ -3151,11 +3669,18 @@ button:disabled {
   margin-top: 8px;
 }
 
-.workspace-shell .note-properties span {
+.workspace-shell .note-property-chip {
   padding: 3px 6px;
   border: 1px solid #ddd9d0;
+  background: #f7f5ef;
   color: #66665f;
   font-size: 11px;
+}
+
+.workspace-shell .note-property-chip:hover {
+  border-color: #aaa79e;
+  background: #ebe8df;
+  color: #252521;
 }
 
 .workspace-shell .note-properties .secondary-button {
@@ -3179,13 +3704,28 @@ button:disabled {
   font-weight: 600;
 }
 
-.workspace-shell .frontmatter-editor textarea {
+.workspace-shell .frontmatter-editor textarea,
+.workspace-shell .frontmatter-editor input {
   min-height: 96px;
   padding: 8px;
   border: 1px solid #d8d6cf;
   background: #fffefa;
   font-family: var(--mono);
   resize: vertical;
+}
+
+.workspace-shell .frontmatter-editor input {
+  min-height: 34px;
+  resize: none;
+}
+
+.workspace-shell .frontmatter-editor input:disabled {
+  color: #4c4c47;
+  background: #efede6;
+}
+
+.workspace-shell .frontmatter-property-editor > div .danger-button {
+  margin-right: auto;
 }
 
 .workspace-shell .frontmatter-editor small {

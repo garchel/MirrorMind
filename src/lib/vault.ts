@@ -23,7 +23,21 @@ export type VaultSummary = {
   noteCount: number
   notePreviews: NotePreview[]
   isObsidianVault: boolean
+  obsidianPreferences: ObsidianPreferences | null
   metadata: VaultMetadata
+}
+
+export type ObsidianPreferences = {
+  newFileLocation: string | null
+  newFileFolderPath: string | null
+  attachmentFolderPath: string | null
+  newLinkFormat: string | null
+  useMarkdownLinks: boolean | null
+  alwaysUpdateLinks: boolean | null
+  showUnsupportedFiles: boolean | null
+  promptDelete: boolean | null
+  trashOption: string | null
+  userIgnoreFilters: string[]
 }
 
 export type CreateVaultForm = {
@@ -50,6 +64,35 @@ export type NoteTreeNode = {
   children?: NoteTreeNode[]
 }
 
+export type VaultFileSystemChange = {
+  kind: 'create' | 'modify' | 'remove' | 'rename' | 'rescan'
+  paths: string[]
+}
+
+export type SpecialVaultFile = {
+  name: string
+  relativePath: string
+  kind: 'canvas' | 'excalidraw' | 'unknown'
+}
+
+export type SpecialVaultInventory = {
+  files: SpecialVaultFile[]
+  truncated: boolean
+}
+
+const obsidianPreferencesSchema = z.object({
+  newFileLocation: z.string().max(1024).nullable(),
+  newFileFolderPath: z.string().max(1024).nullable(),
+  attachmentFolderPath: z.string().max(1024).nullable(),
+  newLinkFormat: z.string().max(1024).nullable(),
+  useMarkdownLinks: z.boolean().nullable(),
+  alwaysUpdateLinks: z.boolean().nullable(),
+  showUnsupportedFiles: z.boolean().nullable(),
+  promptDelete: z.boolean().nullable(),
+  trashOption: z.string().max(1024).nullable(),
+  userIgnoreFilters: z.array(z.string().max(1024)).max(256),
+})
+
 const vaultSummarySchema = z.object({
   name: z.string(),
   path: z.string(),
@@ -61,6 +104,7 @@ const vaultSummarySchema = z.object({
     }),
   ),
   isObsidianVault: z.boolean(),
+  obsidianPreferences: obsidianPreferencesSchema.nullish().transform((preferences) => preferences ?? null),
   metadata: z.object({
     isInitialized: z.boolean(),
     rootPath: z.string(),
@@ -77,6 +121,29 @@ const noteDocumentSchema = z.object({
 const notePreviewSchema = z.object({
   name: z.string(),
   relativePath: z.string(),
+})
+
+const specialVaultFileSchema = z.object({
+  name: z.string().min(1),
+  relativePath: z.string().min(1).refine(
+    (path) => {
+      const segments = path.split(/[\\/]/)
+      const firstSegment = segments[0]?.toLowerCase()
+      return !path.startsWith('/')
+        && !path.startsWith('\\\\')
+        && !/^[a-z]:[\\/]/i.test(path)
+        && !segments.includes('..')
+        && firstSegment !== '.obsidian'
+        && firstSegment !== '.mirmind'
+    },
+    'O arquivo especial precisa permanecer dentro do vault.',
+  ),
+  kind: z.enum(['canvas', 'excalidraw', 'unknown']),
+})
+
+const specialVaultInventorySchema = z.object({
+  files: z.array(specialVaultFileSchema).max(500),
+  truncated: z.boolean(),
 })
 
 const recentVaultPreferenceSchema = z.object({
@@ -177,6 +244,10 @@ export function parseNoteList(payload: unknown) {
   return z.array(notePreviewSchema).parse(payload)
 }
 
+export function parseSpecialVaultInventory(payload: unknown): SpecialVaultInventory {
+  return specialVaultInventorySchema.parse(payload)
+}
+
 export function parseRecentVaultPreference(payload: unknown) {
   return recentVaultPreferenceSchema.parse(payload)
 }
@@ -203,6 +274,33 @@ export function formatNoteTitleAsPath(title: string) {
   }
 
   return `${sanitized}.md`
+}
+
+export function normalizeVaultRelativePath(path: string) {
+  return path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+}
+
+export function remapVaultPath(path: string, sourcePath: string, destinationPath: string) {
+  const current = normalizeVaultRelativePath(path)
+  const source = normalizeVaultRelativePath(sourcePath)
+  const destination = normalizeVaultRelativePath(destinationPath)
+  if (current === source) return destination
+  if (source && current.startsWith(`${source}/`)) {
+    return `${destination}${current.slice(source.length)}`
+  }
+  return current
+}
+
+export function isVaultPathAffected(path: string, changedPath: string) {
+  const current = normalizeVaultRelativePath(path)
+  const changed = normalizeVaultRelativePath(changedPath)
+  return current === changed || Boolean(changed && current.startsWith(`${changed}/`))
+}
+
+export function normalizeRecoveredNotePath(path: string) {
+  const normalized = normalizeVaultRelativePath(path.trim())
+  if (!normalized) return null
+  return /\.md$/i.test(normalized) ? normalized : `${normalized}.md`
 }
 
 export function buildNoteTree(notes: NotePreview[], folders: string[] = []) {

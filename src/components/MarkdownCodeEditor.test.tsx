@@ -200,10 +200,11 @@ describe('MarkdownCodeEditor', () => {
   })
 
   it('resolve sugestoes de notas, tags, anexos e comandos', () => {
-    const data = { attachments: ['attachments/curso/diagrama.png'], notePaths: ['projetos/plano.md'], tags: ['revisao'] }
+    const data = { attachments: ['attachments/curso/diagrama.png'], notePaths: ['projetos/plano.md'], tags: ['revisao', 'estudo/portugues'] }
 
     expect(getMarkdownAutocompleteResult('[[pla', 5, data)?.options[0].label).toBe('projetos/plano')
     expect(getMarkdownAutocompleteResult('#rev', 4, data)?.options[0].label).toBe('revisao')
+    expect(getMarkdownAutocompleteResult('#estudo/por', 11, data)?.options[0].label).toBe('estudo/portugues')
     expect(getMarkdownAutocompleteResult('![[dia', 6, data)?.options[0].label).toBe('attachments/curso/diagrama.png')
     expect(getMarkdownAutocompleteResult('/tab', 4, data)?.options[0].label).toBe('/tabela')
   })

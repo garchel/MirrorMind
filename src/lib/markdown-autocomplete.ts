@@ -29,7 +29,7 @@ export function getMarkdownAutocompleteResult(document: string, position: number
     return options.length ? { from: position - noteMatch[1].length, options } : null
   }
 
-  const tagMatch = beforeCursor.match(/(?:^|\s)#([\p{L}\p{N}_-]*)$/u)
+  const tagMatch = beforeCursor.match(/(?:^|\s)#([\p{L}\p{M}\p{N}_-]+(?:\/[\p{L}\p{M}\p{N}_-]*)*)$/u)
   if (tagMatch) {
     const query = tagMatch[1].toLowerCase()
     const options: Completion[] = data.tags

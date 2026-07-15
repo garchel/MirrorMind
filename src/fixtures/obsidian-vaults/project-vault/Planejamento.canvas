@@ -1,0 +1,6 @@
+{
+  "nodes": [
+    { "id": "n1", "type": "text", "text": "MirrorMind V1", "x": 0, "y": 0, "width": 240, "height": 100 }
+  ],
+  "edges": []
+}

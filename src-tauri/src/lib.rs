@@ -1,15 +1,24 @@
 use anyhow::{bail, Context, Result};
+use notify::{
+    event::ModifyKind, Event as NotifyEvent, EventKind as NotifyEventKind, RecommendedWatcher,
+    RecursiveMode, Watcher,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
     collections::{HashMap, HashSet},
-    fs,
+    fs::{self, OpenOptions},
+    io::{self, Read, Write},
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Mutex,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
+use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
 const METADATA_DIR: &str = ".mirmind";
 const CONFIG_FILE: &str = "config.json";
@@ -24,7 +33,24 @@ const TRASH_DIR: &str = "trash";
 const TRASH_FILE: &str = "trash.json";
 const TRASH_RETENTION_DAYS: u64 = 30;
 const ATTACHMENTS_DIR: &str = "attachments";
+const MAX_OBSIDIAN_APP_CONFIG_BYTES: u64 = 1024 * 1024;
+const MAX_OBSIDIAN_PREFERENCE_UTF16_UNITS: usize = 1024;
+const MAX_OBSIDIAN_IGNORE_FILTERS: usize = 256;
+const SUPPORTED_ATTACHMENT_EXTENSIONS: &[&str] = &[
+    "avif", "bmp", "flac", "gif", "jpeg", "jpg", "m4a", "mkv", "mov", "mp3", "mp4", "ogg", "pdf",
+    "png", "svg", "wav", "webm", "webp",
+];
 const TEMPLATES_FILE: &str = "templates.json";
+const MAX_PDF_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
+const MAX_TAG_FRONTMATTER_BYTES: usize = 256 * 1024;
+const MAX_TAG_INDEX_BYTES: u64 = 64 * 1024 * 1024;
+const MAX_TAG_INDEX_ENTRIES: usize = 10_000;
+const MAX_TAG_INDEX_NOTES: usize = 10_000;
+const MAX_TAG_LENGTH: usize = 128;
+const MAX_TAG_NOTE_BYTES: u64 = 2 * 1024 * 1024;
+const MAX_TAGS_PER_NOTE: usize = 256;
+static NEXT_VAULT_WATCHER_ID: AtomicU64 = AtomicU64::new(1);
+static NEXT_LINK_TRANSACTION_ID: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -97,7 +123,24 @@ struct VaultSummary {
     note_count: usize,
     note_previews: Vec<NotePreview>,
     is_obsidian_vault: bool,
+    obsidian_preferences: Option<ObsidianPreferences>,
     metadata: VaultMetadata,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ObsidianPreferences {
+    new_file_location: Option<String>,
+    new_file_folder_path: Option<String>,
+    attachment_folder_path: Option<String>,
+    new_link_format: Option<String>,
+    use_markdown_links: Option<bool>,
+    always_update_links: Option<bool>,
+    show_unsupported_files: Option<bool>,
+    prompt_delete: Option<bool>,
+    trash_option: Option<String>,
+    #[serde(default)]
+    user_ignore_filters: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -135,6 +178,31 @@ struct BrokenLink {
 struct TagSummary {
     tag: String,
     note_paths: Vec<String>,
+}
+
+const MAX_SPECIAL_VAULT_FILES: usize = 500;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum SpecialVaultFileKind {
+    Canvas,
+    Excalidraw,
+    Unknown,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SpecialVaultFile {
+    name: String,
+    relative_path: String,
+    kind: SpecialVaultFileKind,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SpecialVaultInventory {
+    files: Vec<SpecialVaultFile>,
+    truncated: bool,
 }
 
 #[derive(Serialize)]
@@ -527,6 +595,81 @@ fn list_attachments(
 }
 
 #[tauri::command]
+fn read_pdf_attachment(
+    path: String,
+    relative_path: String,
+    authorized_paths: State<AuthorizedPaths>,
+) -> Result<tauri::ipc::Response, String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    read_pdf_attachment_in_root(&root, &relative_path)
+        .map(tauri::ipc::Response::new)
+        .map_err(|error| error.to_string())
+}
+
+fn read_pdf_attachment_in_root(root: &Path, relative_path: &str) -> Result<Vec<u8>> {
+    let canonical_root = canonicalize_directory(root)?;
+    let normalized = relative_path.trim().replace('\\', "/");
+    let candidate = Path::new(&normalized);
+    if normalized.is_empty()
+        || candidate.is_absolute()
+        || candidate.components().any(|component| match component {
+            std::path::Component::Normal(segment) => segment.to_string_lossy().starts_with('.'),
+            _ => true,
+        })
+        || !candidate
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"))
+    {
+        bail!("Escolha um PDF valido do inventario de anexos.");
+    }
+
+    let requested = canonical_root.join(candidate);
+    if fs::symlink_metadata(&requested).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+        bail!("Links simbolicos nao podem ser usados como anexos PDF.");
+    }
+    let canonical_requested = requested
+        .canonicalize()
+        .with_context(|| "O PDF incorporado nao foi encontrado.")?;
+    if !canonical_requested.starts_with(&canonical_root) {
+        bail!("O PDF precisa ficar dentro do Vault atual.");
+    }
+
+    let is_inventoried = collect_attachment_files(&canonical_root)?
+        .into_iter()
+        .any(|attachment| {
+            attachment
+                .canonicalize()
+                .is_ok_and(|path| path == canonical_requested)
+        });
+    if !is_inventoried {
+        bail!("O PDF nao faz parte do inventario de anexos do Vault.");
+    }
+
+    let metadata = fs::metadata(&canonical_requested)?;
+    if metadata.len() > MAX_PDF_ATTACHMENT_BYTES {
+        bail!("O PDF excede o limite de 25 MB para visualizacao interna.");
+    }
+    fs::read(canonical_requested).context("Nao foi possivel ler o PDF incorporado.")
+}
+
+#[tauri::command]
+fn list_special_files(
+    path: String,
+    authorized_paths: State<AuthorizedPaths>,
+) -> Result<SpecialVaultInventory, String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+
+    collect_special_vault_files(&root).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn read_note(
     path: String,
     relative_path: String,
@@ -570,17 +713,22 @@ fn get_backlinks_in_root(root: &Path, relative_path: &str) -> Result<Vec<Backlin
     let target = resolve_note_path(root, relative_path)?;
     let target_relative_path = to_relative_display(root, &target);
     let mut backlinks = Vec::new();
-    for note_path in collect_markdown_files(root)? {
+    let note_paths = collect_markdown_files(root)?;
+    let available_paths = note_paths
+        .iter()
+        .map(|path| to_relative_display(root, path))
+        .collect::<Vec<_>>();
+    for note_path in note_paths {
         let note_relative_path = to_relative_display(root, &note_path);
         if note_relative_path == target_relative_path {
             continue;
         }
         let content = fs::read_to_string(&note_path)
             .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
-        if extract_wiki_links(&content)
-            .iter()
-            .any(|link| link == &target_relative_path)
-        {
+        if extract_wiki_link_targets(&content).iter().any(|link| {
+            resolve_wiki_link_target(&link.path, &note_relative_path, &available_paths).as_deref()
+                == Some(target_relative_path.as_str())
+        }) {
             backlinks.push(Backlink {
                 name: note_path
                     .file_name()
@@ -609,11 +757,48 @@ fn get_broken_links(
 
 fn get_broken_links_in_root(root: &Path) -> Result<Vec<BrokenLink>> {
     let mut broken_links = Vec::new();
-    for note_path in collect_markdown_files(root)? {
+    let mut seen = HashSet::new();
+    let note_paths = collect_markdown_files(root)?;
+    let available_paths = note_paths
+        .iter()
+        .map(|path| to_relative_display(root, path))
+        .collect::<Vec<_>>();
+    for note_path in note_paths {
+        let source_relative_path = to_relative_display(root, &note_path);
         let content = fs::read_to_string(&note_path)
             .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
-        for target in extract_wiki_links(&content) {
-            if !root.join(&target).is_file() {
+        for raw_target in extract_wiki_link_targets(&content) {
+            let resolved_target =
+                resolve_wiki_link_target(&raw_target.path, &source_relative_path, &available_paths);
+            let fragment_exists = if let (Some(target_path), Some(fragment)) =
+                (resolved_target.as_ref(), raw_target.fragment.as_ref())
+            {
+                let target_content =
+                    fs::read_to_string(root.join(target_path)).with_context(|| {
+                        format!("Nao foi possivel ler o destino '{}'.", target_path)
+                    })?;
+                markdown_fragment_exists(&target_content, fragment)
+            } else {
+                true
+            };
+            if resolved_target.is_none() || !fragment_exists {
+                let normalized_path = if raw_target.path.is_empty() {
+                    source_relative_path.clone()
+                } else {
+                    let Some(target) = normalize_wiki_link_target(&raw_target.path) else {
+                        continue;
+                    };
+                    target
+                };
+                let target = raw_target
+                    .fragment
+                    .as_ref()
+                    .map_or(normalized_path.clone(), |fragment| {
+                        format!("{normalized_path}#{fragment}")
+                    });
+                if !seen.insert((source_relative_path.clone(), target.clone())) {
+                    continue;
+                }
                 broken_links.push(BrokenLink {
                     target,
                     source_name: note_path
@@ -621,7 +806,7 @@ fn get_broken_links_in_root(root: &Path) -> Result<Vec<BrokenLink>> {
                         .and_then(|name| name.to_str())
                         .unwrap_or_default()
                         .to_string(),
-                    source_relative_path: to_relative_display(root, &note_path),
+                    source_relative_path: source_relative_path.clone(),
                 });
             }
         }
@@ -648,12 +833,29 @@ fn get_tag_index(
 
 fn get_tag_index_in_root(root: &Path) -> Result<Vec<TagSummary>> {
     let mut tags: HashMap<String, Vec<String>> = HashMap::new();
-    for note_path in collect_markdown_files(root)? {
+    let note_paths = collect_markdown_files(root)?;
+    if note_paths.len() > MAX_TAG_INDEX_NOTES {
+        bail!("O Vault excede o limite seguro de notas para indexacao de tags.");
+    }
+    let mut indexed_bytes = 0_u64;
+    for note_path in note_paths {
+        let note_bytes = fs::metadata(&note_path)
+            .with_context(|| format!("Nao foi possivel inspecionar '{}'.", note_path.display()))?
+            .len();
+        if note_bytes > MAX_TAG_NOTE_BYTES
+            || indexed_bytes.saturating_add(note_bytes) > MAX_TAG_INDEX_BYTES
+        {
+            bail!("O Vault excede o limite seguro de dados para indexacao de tags.");
+        }
+        indexed_bytes += note_bytes;
         let content = fs::read_to_string(&note_path)
             .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
         let relative_path = to_relative_display(root, &note_path);
-        for tag in extract_tags(&content) {
+        for tag in extract_tags(&content)? {
             tags.entry(tag).or_default().push(relative_path.clone());
+            if tags.len() > MAX_TAG_INDEX_ENTRIES {
+                bail!("O Vault excede o limite seguro de tags unicas.");
+            }
         }
     }
     let mut summaries = tags
@@ -667,27 +869,237 @@ fn get_tag_index_in_root(root: &Path) -> Result<Vec<TagSummary>> {
     Ok(summaries)
 }
 
-fn extract_tags(content: &str) -> Vec<String> {
-    let characters = content.chars().collect::<Vec<_>>();
+fn extract_tags(content: &str) -> Result<Vec<String>> {
+    let (frontmatter, body) = split_frontmatter_for_tags(content).unwrap_or(("", content));
     let mut tags = HashSet::new();
-    for (index, character) in characters.iter().enumerate() {
-        if *character != '#'
-            || index > 0
-                && (characters[index - 1].is_alphanumeric() || characters[index - 1] == '_')
-        {
-            continue;
-        }
-        let tag = characters[index + 1..]
-            .iter()
-            .take_while(|value| value.is_alphanumeric() || **value == '_' || **value == '-')
-            .collect::<String>();
-        if !tag.is_empty() {
-            tags.insert(tag.to_ascii_lowercase());
-        }
+    collect_markdown_body_tags(body, &mut tags);
+
+    for tag in extract_frontmatter_tags(frontmatter) {
+        tags.insert(tag);
     }
+
+    if tags.len() > MAX_TAGS_PER_NOTE {
+        bail!("Uma nota excede o limite seguro de tags.");
+    }
+
     let mut result = tags.into_iter().collect::<Vec<_>>();
     result.sort();
-    result
+    Ok(result)
+}
+
+fn collect_markdown_body_tags(body: &str, tags: &mut HashSet<String>) {
+    let mut fence: Option<(u8, usize)> = None;
+    let mut html_block: Option<(String, isize)> = None;
+    let mut in_html_comment = false;
+    let mut in_obsidian_comment = false;
+
+    for line in body.split_inclusive('\n') {
+        let line = line.strip_suffix('\n').unwrap_or(line);
+        let markdown_line = line.strip_suffix('\r').unwrap_or(line);
+        if let Some((tag, depth)) = html_block.as_mut() {
+            *depth += markdown_html_tag_depth_delta(markdown_line, tag);
+            if *depth <= 0 || markdown_line.trim().is_empty() {
+                html_block = None;
+            }
+            continue;
+        }
+        if let Some((marker, minimum_length)) = fence {
+            if markdown_fence_closes(markdown_line, marker, minimum_length) {
+                fence = None;
+            }
+            continue;
+        }
+        if let Some(marker) = markdown_fence_marker(markdown_line) {
+            fence = Some(marker);
+            continue;
+        }
+        if markdown_line.starts_with("    ") || markdown_line.starts_with('\t') {
+            continue;
+        }
+        if let Some(tag) = markdown_html_block_tag(markdown_line) {
+            let depth = markdown_html_tag_depth_delta(markdown_line, &tag);
+            if depth > 0 {
+                html_block = Some((tag, depth));
+            }
+            continue;
+        }
+        collect_tags_in_markdown_line(
+            markdown_line,
+            tags,
+            &mut in_html_comment,
+            &mut in_obsidian_comment,
+        );
+    }
+}
+
+fn collect_tags_in_markdown_line(
+    line: &str,
+    tags: &mut HashSet<String>,
+    in_html_comment: &mut bool,
+    in_obsidian_comment: &mut bool,
+) {
+    let characters = line.chars().collect::<Vec<_>>();
+    let mut inline_code: Option<usize> = None;
+    let mut index = 0;
+    while index < characters.len() {
+        if *in_html_comment {
+            if characters[index..].starts_with(&['-', '-', '>']) {
+                *in_html_comment = false;
+                index += 3;
+            } else {
+                index += 1;
+            }
+            continue;
+        }
+        if *in_obsidian_comment {
+            if characters[index..].starts_with(&['%', '%']) {
+                *in_obsidian_comment = false;
+                index += 2;
+            } else {
+                index += 1;
+            }
+            continue;
+        }
+        if characters[index..].starts_with(&['<', '!', '-', '-']) {
+            *in_html_comment = true;
+            index += 4;
+            continue;
+        }
+        if characters[index..].starts_with(&['%', '%']) {
+            *in_obsidian_comment = true;
+            index += 2;
+            continue;
+        }
+        if characters[index] == '`' {
+            let run_length = characters[index..]
+                .iter()
+                .take_while(|character| **character == '`')
+                .count();
+            match inline_code {
+                Some(opening_length) if run_length == opening_length => inline_code = None,
+                None => inline_code = Some(run_length),
+                _ => {}
+            }
+            index += run_length;
+            continue;
+        }
+        if inline_code.is_some() || characters[index] != '#' {
+            index += 1;
+            continue;
+        }
+        if index > 0 {
+            let previous = characters[index - 1];
+            if previous.is_alphanumeric()
+                || is_combining_mark(previous)
+                || matches!(previous, '_' | '#' | '/' | '\\')
+            {
+                index += 1;
+                continue;
+            }
+        }
+        let end = index
+            + 1
+            + characters[index + 1..]
+                .iter()
+                .take_while(|character| {
+                    character.is_alphanumeric()
+                        || is_combining_mark(**character)
+                        || matches!(**character, '_' | '-' | '/')
+                })
+                .count();
+        if let Some(tag) = normalize_tag(&characters[index + 1..end].iter().collect::<String>()) {
+            tags.insert(tag);
+        }
+        index = end.max(index + 1);
+    }
+}
+
+fn split_frontmatter_for_tags(content: &str) -> Option<(&str, &str)> {
+    let content = content.strip_prefix('\u{feff}').unwrap_or(content);
+    let (remaining, delimiter) = content
+        .strip_prefix("---\r\n")
+        .map(|remaining| (remaining, "\r\n---"))
+        .or_else(|| {
+            content
+                .strip_prefix("---\n")
+                .map(|remaining| (remaining, "\n---"))
+        })?;
+    let (frontmatter, after_delimiter) = remaining.split_once(delimiter)?;
+    let body = after_delimiter
+        .strip_prefix("\r\n")
+        .or_else(|| after_delimiter.strip_prefix('\n'))
+        .unwrap_or(after_delimiter);
+    Some((frontmatter, body))
+}
+
+fn extract_frontmatter_tags(frontmatter: &str) -> Vec<String> {
+    if frontmatter.len() > MAX_TAG_FRONTMATTER_BYTES {
+        return Vec::new();
+    }
+    let Ok(properties) = serde_yaml_ng::from_str::<TagFrontmatter>(frontmatter) else {
+        return Vec::new();
+    };
+    let mut tags = Vec::new();
+    if let Some(value) = properties.tags.as_ref() {
+        collect_frontmatter_tag_values(value, &mut tags);
+    }
+    tags.sort();
+    tags.dedup();
+    tags
+}
+
+#[derive(Deserialize)]
+struct TagFrontmatter {
+    tags: Option<FrontmatterTagValue>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum FrontmatterTagValue {
+    Text(String),
+    Sequence(Vec<FrontmatterTagValue>),
+    Unsupported(serde::de::IgnoredAny),
+}
+
+fn collect_frontmatter_tag_values(value: &FrontmatterTagValue, tags: &mut Vec<String>) {
+    match value {
+        FrontmatterTagValue::Text(value) => {
+            for candidate in value.split(',') {
+                if let Some(tag) = normalize_tag(candidate) {
+                    tags.push(tag);
+                }
+            }
+        }
+        FrontmatterTagValue::Sequence(values) => {
+            for value in values {
+                collect_frontmatter_tag_values(value, tags);
+            }
+        }
+        FrontmatterTagValue::Unsupported(_) => {}
+    }
+}
+
+fn normalize_tag(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    let tag = trimmed
+        .strip_prefix('#')
+        .unwrap_or(trimmed)
+        .nfc()
+        .collect::<String>();
+    if tag.is_empty()
+        || tag.chars().count() > MAX_TAG_LENGTH
+        || tag.starts_with('/')
+        || tag.ends_with('/')
+        || tag.contains("//")
+        || !tag.chars().all(|character| {
+            character.is_alphanumeric()
+                || is_combining_mark(character)
+                || matches!(character, '_' | '-' | '/')
+        })
+    {
+        return None;
+    }
+    Some(tag.to_lowercase())
 }
 
 fn normalize_wiki_link_target(target: &str) -> Option<String> {
@@ -706,99 +1118,1164 @@ fn normalize_wiki_link_target(target: &str) -> Option<String> {
     })
 }
 
-fn extract_wiki_links(content: &str) -> Vec<String> {
+#[derive(Debug, PartialEq)]
+struct WikiLinkTarget {
+    path: String,
+    fragment: Option<String>,
+}
+
+fn extract_wiki_link_targets(content: &str) -> Vec<WikiLinkTarget> {
     let mut links = Vec::new();
-    let mut remaining = content;
-    while let Some(start) = remaining.find("[[") {
-        let after_start = &remaining[start + 2..];
-        let Some(end) = after_start.find("]]") else {
-            break;
-        };
-        let raw_target = &after_start[..end];
-        let target = raw_target
-            .split('|')
-            .next()
-            .unwrap_or_default()
-            .split('#')
-            .next()
-            .unwrap_or_default();
-        if let Some(target) = normalize_wiki_link_target(target) {
-            links.push(target);
+    let mut fence: Option<(u8, usize)> = None;
+    let mut in_html_comment = false;
+    let mut in_obsidian_comment = false;
+    let mut html_block: Option<String> = None;
+
+    for line in content.lines() {
+        let lower_line = line.to_lowercase();
+        if let Some(tag) = html_block.as_ref() {
+            if lower_line.contains(&format!("</{tag}")) {
+                html_block = None;
+            }
+            continue;
         }
-        remaining = &after_start[end + 2..];
+        if let Some((marker, minimum_length)) = fence {
+            if markdown_fence_closes(line, marker, minimum_length) {
+                fence = None;
+            }
+            continue;
+        }
+
+        if let Some(marker) = markdown_fence_marker(line) {
+            fence = Some(marker);
+            continue;
+        }
+
+        if line.starts_with("    ") || line.starts_with('\t') {
+            continue;
+        }
+
+        if let Some(tag) = markdown_html_block_tag(line) {
+            if !lower_line.contains(&format!("</{tag}")) {
+                html_block = Some(tag);
+            }
+            continue;
+        }
+
+        extract_wiki_link_targets_from_line(
+            line,
+            &mut in_html_comment,
+            &mut in_obsidian_comment,
+            &mut links,
+        );
     }
     links
 }
 
-fn rewrite_wiki_links(
-    content: &str,
-    source_relative_path: &str,
-    target_relative_path: &str,
-) -> String {
-    let source = source_relative_path.replace('\\', "/");
-    let target = target_relative_path.replace('\\', "/");
-    let mut rewritten = String::with_capacity(content.len());
-    let mut remaining = content;
-
-    while let Some(start) = remaining.find("[[") {
-        rewritten.push_str(&remaining[..start + 2]);
-        let after_start = &remaining[start + 2..];
-        let Some(end) = after_start.find("]]") else {
-            rewritten.push_str(after_start);
-            return rewritten;
-        };
-        let raw_link = &after_start[..end];
-        let (target_and_heading, alias) = raw_link.split_once('|').unwrap_or((raw_link, ""));
-        let (raw_target, heading) = target_and_heading
-            .split_once('#')
-            .unwrap_or((target_and_heading, ""));
-
-        if normalize_wiki_link_target(raw_target).as_deref() == Some(source.as_str()) {
-            let replacement = if raw_target.trim().to_ascii_lowercase().ends_with(".md") {
-                target.clone()
-            } else {
-                target.trim_end_matches(".md").to_string()
-            };
-            rewritten.push_str(&replacement);
-            if !heading.is_empty() {
-                rewritten.push('#');
-                rewritten.push_str(heading);
-            }
-            if !alias.is_empty() {
-                rewritten.push('|');
-                rewritten.push_str(alias);
-            }
-        } else {
-            rewritten.push_str(raw_link);
-        }
-        rewritten.push_str("]]");
-        remaining = &after_start[end + 2..];
+fn markdown_fence_marker(line: &str) -> Option<(u8, usize)> {
+    let line = markdown_container_content(line);
+    let indentation = line.bytes().take_while(|byte| *byte == b' ').count();
+    if indentation > 3 {
+        return None;
     }
 
-    rewritten.push_str(remaining);
+    let bytes = line.as_bytes();
+    let marker = *bytes.get(indentation)?;
+    if marker != b'`' && marker != b'~' {
+        return None;
+    }
+    let length = bytes[indentation..]
+        .iter()
+        .take_while(|byte| **byte == marker)
+        .count();
+    (length >= 3).then_some((marker, length))
+}
+
+fn markdown_fence_closes(line: &str, marker: u8, minimum_length: usize) -> bool {
+    let line = markdown_container_content(line);
+    let indentation = line.bytes().take_while(|byte| *byte == b' ').count();
+    let Some((candidate, length)) = markdown_fence_marker(line) else {
+        return false;
+    };
+    candidate == marker
+        && length >= minimum_length
+        && line[indentation + length..].trim().is_empty()
+}
+
+fn markdown_container_content(mut line: &str) -> &str {
+    loop {
+        let indentation = line.bytes().take_while(|byte| *byte == b' ').count();
+        if indentation > 3 {
+            return line;
+        }
+        let candidate = &line[indentation..];
+        if let Some(after_quote) = candidate.strip_prefix('>') {
+            line = after_quote.strip_prefix(' ').unwrap_or(after_quote);
+            continue;
+        }
+        let list_marker_length = if candidate.starts_with("- ")
+            || candidate.starts_with("* ")
+            || candidate.starts_with("+ ")
+        {
+            Some(2)
+        } else {
+            candidate
+                .find(['.', ')'])
+                .filter(|index| *index > 0 && *index <= 9)
+                .filter(|index| {
+                    candidate[..*index]
+                        .chars()
+                        .all(|character| character.is_ascii_digit())
+                })
+                .filter(|index| candidate.as_bytes().get(index + 1) == Some(&b' '))
+                .map(|index| index + 2)
+        };
+        if let Some(marker_length) = list_marker_length {
+            line = &candidate[marker_length..];
+            continue;
+        }
+        return line;
+    }
+}
+
+fn markdown_html_block_tag(line: &str) -> Option<String> {
+    const BLOCK_TAGS: &[&str] = &[
+        "address",
+        "article",
+        "aside",
+        "base",
+        "basefont",
+        "body",
+        "blockquote",
+        "caption",
+        "center",
+        "col",
+        "colgroup",
+        "dd",
+        "details",
+        "dialog",
+        "dir",
+        "div",
+        "dl",
+        "dt",
+        "fieldset",
+        "figcaption",
+        "figure",
+        "footer",
+        "form",
+        "frame",
+        "frameset",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "head",
+        "header",
+        "hr",
+        "html",
+        "iframe",
+        "legend",
+        "li",
+        "link",
+        "main",
+        "menu",
+        "menuitem",
+        "nav",
+        "noframes",
+        "ol",
+        "optgroup",
+        "option",
+        "p",
+        "param",
+        "pre",
+        "search",
+        "script",
+        "section",
+        "style",
+        "summary",
+        "table",
+        "tbody",
+        "td",
+        "tfoot",
+        "th",
+        "thead",
+        "textarea",
+        "title",
+        "tr",
+        "track",
+        "ul",
+    ];
+    let trimmed = line.trim_start().to_lowercase();
+    BLOCK_TAGS.iter().find_map(|tag| {
+        let opening = format!("<{tag}");
+        if !trimmed.starts_with(&opening) {
+            return None;
+        }
+        trimmed
+            .as_bytes()
+            .get(opening.len())
+            .is_none_or(|next| next.is_ascii_whitespace() || matches!(*next, b'>' | b'/'))
+            .then(|| (*tag).to_string())
+    })
+}
+
+fn markdown_html_tag_depth_delta(line: &str, tag: &str) -> isize {
+    let lower = line.to_lowercase();
+    let bytes = lower.as_bytes();
+    let tag_bytes = tag.as_bytes();
+    let mut delta = 0;
+    let mut index = 0;
+    while index < bytes.len() {
+        let Some(relative_start) = bytes[index..].iter().position(|byte| *byte == b'<') else {
+            break;
+        };
+        index += relative_start + 1;
+        let is_closing = bytes.get(index) == Some(&b'/');
+        if is_closing {
+            index += 1;
+        }
+        if bytes[index..].starts_with(tag_bytes) {
+            let boundary = bytes.get(index + tag_bytes.len());
+            if boundary
+                .is_none_or(|byte| byte.is_ascii_whitespace() || matches!(*byte, b'>' | b'/'))
+            {
+                delta += if is_closing { -1 } else { 1 };
+            }
+        }
+    }
+    delta
+}
+
+fn markdown_code_line_mask(lines: &[&str]) -> Vec<bool> {
+    let mut mask = vec![false; lines.len()];
+    let mut fence: Option<(u8, usize)> = None;
+    for (index, line) in lines.iter().enumerate() {
+        if let Some((marker, minimum_length)) = fence {
+            mask[index] = true;
+            if markdown_fence_closes(line, marker, minimum_length) {
+                fence = None;
+            }
+            continue;
+        }
+        if let Some(marker) = markdown_fence_marker(line) {
+            mask[index] = true;
+            fence = Some(marker);
+        } else if line.starts_with("    ") || line.starts_with('\t') {
+            mask[index] = true;
+        }
+    }
+    mask
+}
+
+fn normalize_markdown_heading(value: &str) -> String {
+    let characters = value.chars().collect::<Vec<_>>();
+    let mut visible = String::new();
+    let mut index = 0;
+    while index < characters.len() {
+        let image_offset = usize::from(characters[index] == '!');
+        if characters.get(index + image_offset) == Some(&'[') {
+            if let Some(label_end_offset) = characters[index + image_offset + 1..]
+                .iter()
+                .position(|character| *character == ']')
+            {
+                let label_start = index + image_offset + 1;
+                let label_end = label_start + label_end_offset;
+                if characters.get(label_end + 1) == Some(&'(') {
+                    if let Some(destination_end_offset) = characters[label_end + 2..]
+                        .iter()
+                        .position(|character| *character == ')')
+                    {
+                        visible.extend(characters[label_start..label_end].iter());
+                        index = label_end + 3 + destination_end_offset;
+                        continue;
+                    }
+                }
+            }
+        }
+        if characters[index..].starts_with(&['[', '[']) {
+            if let Some(link_end_offset) = characters[index + 2..]
+                .windows(2)
+                .position(|window| window == [']', ']'])
+            {
+                let link_end = index + 2 + link_end_offset;
+                let link_text = characters[index + 2..link_end].iter().collect::<String>();
+                visible.push_str(
+                    link_text
+                        .rsplit_once('|')
+                        .map_or(&link_text, |(_, alias)| alias),
+                );
+                index = link_end + 2;
+                continue;
+            }
+        }
+        visible.push(characters[index]);
+        index += 1;
+    }
+
+    let decoded = html_escape::decode_html_entities(&visible);
+
+    let mut unescaped = String::new();
+    let mut decoded_characters = decoded.chars().peekable();
+    while let Some(character) = decoded_characters.next() {
+        if character == '\\'
+            && decoded_characters
+                .peek()
+                .is_some_and(|next| next.is_ascii_punctuation())
+        {
+            unescaped.push(decoded_characters.next().unwrap_or_default());
+        } else {
+            unescaped.push(character);
+        }
+    }
+
+    let mut normalized = String::new();
+    let mut in_html_tag = false;
+    for character in unescaped.chars() {
+        match character {
+            '<' => in_html_tag = true,
+            '>' if in_html_tag => in_html_tag = false,
+            '`' | '*' | '_' | '~' if !in_html_tag => {}
+            _ if !in_html_tag => normalized.push(character),
+            _ => {}
+        }
+    }
+    normalized
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+fn markdown_fragment_exists(content: &str, fragment: &str) -> bool {
+    let lines = content.lines().collect::<Vec<_>>();
+    let code_lines = markdown_code_line_mask(&lines);
+    if let Some(block_id) = fragment.strip_prefix('^') {
+        let suffix = format!("^{block_id}");
+        return lines.iter().enumerate().any(|(index, line)| {
+            if code_lines[index] {
+                return false;
+            }
+            let trimmed = line.trim_end();
+            let Some(prefix) = trimmed.strip_suffix(&suffix) else {
+                return false;
+            };
+            prefix.is_empty() || prefix.chars().last().is_some_and(char::is_whitespace)
+        });
+    }
+
+    let target_path = fragment
+        .split('#')
+        .map(normalize_markdown_heading)
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+    if target_path.is_empty() {
+        return false;
+    }
+
+    let mut hierarchy = Vec::<String>::new();
+    for (index, line) in lines.iter().enumerate() {
+        if code_lines[index] {
+            continue;
+        }
+        let trimmed = line.trim_start();
+        let marker_length = trimmed.bytes().take_while(|byte| *byte == b'#').count();
+        let atx = (1..=6).contains(&marker_length)
+            && trimmed
+                .as_bytes()
+                .get(marker_length)
+                .is_some_and(u8::is_ascii_whitespace);
+        let setext_marker = lines
+            .get(index + 1)
+            .filter(|_| !code_lines.get(index + 1).copied().unwrap_or(true))
+            .map(|next| next.trim())
+            .filter(|next| {
+                !next.is_empty()
+                    && (next.bytes().all(|byte| byte == b'=')
+                        || next.bytes().all(|byte| byte == b'-'))
+            });
+        if !atx && setext_marker.is_none() {
+            continue;
+        }
+
+        let level = if atx {
+            marker_length
+        } else if setext_marker.is_some_and(|marker| marker.starts_with('=')) {
+            1
+        } else {
+            2
+        };
+        let title = if atx {
+            trimmed[marker_length..].trim().trim_end_matches('#').trim()
+        } else {
+            line.trim()
+        };
+        hierarchy.truncate(level.saturating_sub(1));
+        hierarchy.push(normalize_markdown_heading(title));
+        let title_matches = target_path.len() == 1 && hierarchy.last() == target_path.last();
+        let path_matches = hierarchy.len() >= target_path.len()
+            && hierarchy[hierarchy.len() - target_path.len()..] == target_path;
+        if title_matches || path_matches {
+            return true;
+        }
+    }
+    false
+}
+
+fn extract_wiki_link_targets_from_line(
+    line: &str,
+    in_html_comment: &mut bool,
+    in_obsidian_comment: &mut bool,
+    links: &mut Vec<WikiLinkTarget>,
+) {
+    let bytes = line.as_bytes();
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if *in_html_comment {
+            let Some(comment_end) = line[index..].find("-->") else {
+                return;
+            };
+            index += comment_end + 3;
+            *in_html_comment = false;
+            continue;
+        }
+
+        if bytes[index..].starts_with(b"<!--") {
+            *in_html_comment = true;
+            index += 4;
+            continue;
+        }
+
+        if *in_obsidian_comment {
+            let Some(comment_end) = line[index..].find("%%") else {
+                return;
+            };
+            index += comment_end + 2;
+            *in_obsidian_comment = false;
+            continue;
+        }
+
+        if bytes[index..].starts_with(b"%%") && !is_escaped_at(bytes, index) {
+            *in_obsidian_comment = true;
+            index += 2;
+            continue;
+        }
+
+        if bytes[index] == b'`' {
+            let delimiter_length = bytes[index..]
+                .iter()
+                .take_while(|byte| **byte == b'`')
+                .count();
+            let mut closing_index = index + delimiter_length;
+            let mut closing_delimiter = None;
+            while closing_index < bytes.len() {
+                if bytes[closing_index] == b'`' {
+                    let candidate_length = bytes[closing_index..]
+                        .iter()
+                        .take_while(|byte| **byte == b'`')
+                        .count();
+                    if candidate_length == delimiter_length {
+                        closing_delimiter = Some(closing_index + candidate_length);
+                        break;
+                    }
+                    closing_index += candidate_length;
+                } else {
+                    closing_index += 1;
+                }
+            }
+            index = closing_delimiter.unwrap_or(index + delimiter_length);
+            continue;
+        }
+
+        if bytes[index] == b'<' {
+            if let Some(tag_end) = bytes[index..].iter().position(|byte| *byte == b'>') {
+                index += tag_end + 1;
+                continue;
+            }
+        }
+
+        if bytes[index..].starts_with(b"[[") && !is_escaped_at(bytes, index) {
+            let content_start = index + 2;
+            let Some(relative_end) = line[content_start..].find("]]") else {
+                return;
+            };
+            let content_end = content_start + relative_end;
+            let raw_link = &line[content_start..content_end];
+            let target_and_fragment = raw_link.split('|').next().unwrap_or_default();
+            let mut parts = target_and_fragment.splitn(2, '#');
+            let target = parts.next().unwrap_or_default().trim().replace('\\', "/");
+            let fragment = parts
+                .next()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string);
+            if !target.is_empty() || target_and_fragment.trim_start().starts_with('#') {
+                links.push(WikiLinkTarget {
+                    path: target,
+                    fragment,
+                });
+            }
+            index = content_end + 2;
+            continue;
+        }
+
+        index += 1;
+    }
+}
+
+fn is_escaped_at(bytes: &[u8], index: usize) -> bool {
+    let preceding_backslashes = bytes[..index]
+        .iter()
+        .rev()
+        .take_while(|byte| **byte == b'\\')
+        .count();
+    preceding_backslashes % 2 == 1
+}
+
+fn resolve_wiki_link_target(
+    raw_target: &str,
+    source_relative_path: &str,
+    available_paths: &[String],
+) -> Option<String> {
+    let normalize = |value: &str| value.replace('\\', "/").to_lowercase();
+    let source = normalize(source_relative_path);
+    if raw_target.trim().is_empty() {
+        return available_paths
+            .iter()
+            .find(|path| normalize(path) == source)
+            .cloned();
+    }
+
+    let link = normalize_wiki_link_target(raw_target)?;
+    let normalized_link = normalize(&link);
+    let exact_root = available_paths
+        .iter()
+        .find(|path| normalize(path) == normalized_link)
+        .cloned();
+    if normalized_link.contains('/') {
+        return exact_root;
+    }
+
+    let source_folder = source
+        .rsplit_once('/')
+        .map(|(folder, _)| folder)
+        .unwrap_or("");
+    let relative_candidate = if source_folder.is_empty() {
+        normalized_link.clone()
+    } else {
+        format!("{source_folder}/{normalized_link}")
+    };
+    if let Some(relative_match) = available_paths
+        .iter()
+        .find(|path| normalize(path) == relative_candidate)
+    {
+        return Some(relative_match.clone());
+    }
+    if exact_root.is_some() {
+        return exact_root;
+    }
+
+    let source_segments = source_folder.split('/').collect::<Vec<_>>();
+    let mut basename_matches = available_paths
+        .iter()
+        .filter(|path| normalize(path).rsplit('/').next() == Some(normalized_link.as_str()))
+        .cloned()
+        .collect::<Vec<_>>();
+    basename_matches.sort_by(|left, right| {
+        let shared_prefix = |path: &str| {
+            normalize(path)
+                .split('/')
+                .zip(source_segments.iter())
+                .take_while(|(left_segment, right_segment)| *left_segment == **right_segment)
+                .count()
+        };
+        shared_prefix(right)
+            .cmp(&shared_prefix(left))
+            .then_with(|| left.cmp(right))
+    });
+    basename_matches.into_iter().next()
+}
+
+#[cfg(test)]
+fn extract_wiki_links(content: &str) -> Vec<String> {
+    extract_wiki_link_targets(content)
+        .into_iter()
+        .filter_map(|target| normalize_wiki_link_target(&target.path))
+        .collect()
+}
+
+fn rewrite_wiki_links(
+    content: &str,
+    reference_note_path_before_change: &str,
+    reference_note_path_after_change: &str,
+    path_changes: &[(String, String)],
+    available_paths_before_change: &[String],
+    available_paths_after_change: &[String],
+) -> String {
+    let mut rewritten = String::with_capacity(content.len());
+    let mut fence: Option<(u8, usize)> = None;
+    let mut in_html_comment = false;
+    let mut in_obsidian_comment = false;
+    let mut html_block: Option<(String, isize)> = None;
+
+    for line in content.split_inclusive('\n') {
+        let line_without_newline = line.strip_suffix('\n').unwrap_or(line);
+        let markdown_line = line_without_newline
+            .strip_suffix('\r')
+            .unwrap_or(line_without_newline);
+        let lower_line = markdown_line.to_lowercase();
+
+        if html_block.is_some() {
+            let should_close = {
+                let (tag, depth) = html_block.as_mut().expect("checked HTML block");
+                *depth += markdown_html_tag_depth_delta(markdown_line, tag);
+                *depth <= 0 || markdown_line.trim().is_empty()
+            };
+            rewritten.push_str(line);
+            if should_close {
+                html_block = None;
+            }
+            continue;
+        }
+        if let Some((marker, minimum_length)) = fence {
+            rewritten.push_str(line);
+            if markdown_fence_closes(markdown_line, marker, minimum_length) {
+                fence = None;
+            }
+            continue;
+        }
+        if let Some(marker) = markdown_fence_marker(markdown_line) {
+            fence = Some(marker);
+            rewritten.push_str(line);
+            continue;
+        }
+        if markdown_line.starts_with("    ") || markdown_line.starts_with('\t') {
+            rewritten.push_str(line);
+            continue;
+        }
+        if let Some(tag) = markdown_html_block_tag(markdown_line) {
+            let depth = markdown_html_tag_depth_delta(&lower_line, &tag);
+            const VOID_TAGS: &[&str] = &[
+                "base", "basefont", "col", "hr", "link", "menuitem", "param", "track",
+            ];
+            if depth > 0 && !VOID_TAGS.contains(&tag.as_str()) {
+                html_block = Some((tag, depth));
+            }
+            rewritten.push_str(line);
+            continue;
+        }
+
+        rewritten.push_str(&rewrite_wiki_links_in_line(
+            line,
+            reference_note_path_before_change,
+            reference_note_path_after_change,
+            path_changes,
+            available_paths_before_change,
+            available_paths_after_change,
+            &mut in_html_comment,
+            &mut in_obsidian_comment,
+        ));
+    }
     rewritten
+}
+
+fn rewrite_wiki_links_in_line(
+    line: &str,
+    reference_note_path_before_change: &str,
+    reference_note_path_after_change: &str,
+    path_changes: &[(String, String)],
+    available_paths_before_change: &[String],
+    available_paths_after_change: &[String],
+    in_html_comment: &mut bool,
+    in_obsidian_comment: &mut bool,
+) -> String {
+    let bytes = line.as_bytes();
+    let mut rewritten = String::with_capacity(line.len());
+    let mut copied_until = 0;
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if *in_html_comment {
+            let Some(comment_end) = line[index..].find("-->") else {
+                break;
+            };
+            index += comment_end + 3;
+            *in_html_comment = false;
+            continue;
+        }
+        if bytes[index..].starts_with(b"<!--") {
+            *in_html_comment = true;
+            index += 4;
+            continue;
+        }
+        if *in_obsidian_comment {
+            let Some(comment_end) = line[index..].find("%%") else {
+                break;
+            };
+            index += comment_end + 2;
+            *in_obsidian_comment = false;
+            continue;
+        }
+        if bytes[index..].starts_with(b"%%") && !is_escaped_at(bytes, index) {
+            *in_obsidian_comment = true;
+            index += 2;
+            continue;
+        }
+        if bytes[index] == b'`' {
+            let delimiter_length = bytes[index..]
+                .iter()
+                .take_while(|byte| **byte == b'`')
+                .count();
+            let mut closing_index = index + delimiter_length;
+            let mut closing_delimiter = None;
+            while closing_index < bytes.len() {
+                if bytes[closing_index] == b'`' {
+                    let candidate_length = bytes[closing_index..]
+                        .iter()
+                        .take_while(|byte| **byte == b'`')
+                        .count();
+                    if candidate_length == delimiter_length {
+                        closing_delimiter = Some(closing_index + candidate_length);
+                        break;
+                    }
+                    closing_index += candidate_length;
+                } else {
+                    closing_index += 1;
+                }
+            }
+            index = closing_delimiter.unwrap_or(index + delimiter_length);
+            continue;
+        }
+        if bytes[index] == b'<' {
+            if let Some(tag_end) = bytes[index..].iter().position(|byte| *byte == b'>') {
+                index += tag_end + 1;
+                continue;
+            }
+        }
+        if bytes[index..].starts_with(b"[[") && !is_escaped_at(bytes, index) {
+            let content_start = index + 2;
+            let Some(relative_end) = line[content_start..].find("]]") else {
+                break;
+            };
+            let content_end = content_start + relative_end;
+            let raw_link = &line[content_start..content_end];
+            let path_end = raw_link.find(['#', '|']).unwrap_or(raw_link.len());
+            let raw_target = &raw_link[..path_end];
+            let trimmed_target = raw_target.trim();
+            let previous_target = (!trimmed_target.is_empty())
+                .then(|| {
+                    resolve_wiki_link_target(
+                        trimmed_target,
+                        reference_note_path_before_change,
+                        available_paths_before_change,
+                    )
+                })
+                .flatten();
+            let desired_target = previous_target.map(|resolved| {
+                path_changes
+                    .iter()
+                    .find(|(source, _)| resolved.replace('\\', "/").eq_ignore_ascii_case(source))
+                    .map(|(_, target)| target.clone())
+                    .unwrap_or(resolved)
+            });
+            let current_target = (!trimmed_target.is_empty())
+                .then(|| {
+                    resolve_wiki_link_target(
+                        trimmed_target,
+                        reference_note_path_after_change,
+                        available_paths_after_change,
+                    )
+                })
+                .flatten();
+            let requires_rewrite = desired_target.as_ref().is_some_and(|desired| {
+                current_target.as_ref().is_none_or(|current| {
+                    !current
+                        .replace('\\', "/")
+                        .eq_ignore_ascii_case(&desired.replace('\\', "/"))
+                })
+            });
+
+            if requires_rewrite {
+                let leading_whitespace = raw_target.len() - raw_target.trim_start().len();
+                let trailing_start = raw_target.trim_end().len();
+                let desired_target = desired_target.expect("rewrite requires a resolved target");
+                let replacement = if trimmed_target.to_ascii_lowercase().ends_with(".md") {
+                    desired_target.as_str()
+                } else {
+                    desired_target.trim_end_matches(".md")
+                };
+                rewritten.push_str(&line[copied_until..content_start]);
+                rewritten.push_str(&raw_target[..leading_whitespace]);
+                rewritten.push_str(replacement);
+                rewritten.push_str(&raw_target[trailing_start..]);
+                rewritten.push_str(&raw_link[path_end..]);
+                copied_until = content_end;
+            }
+            index = content_end + 2;
+            continue;
+        }
+        index += 1;
+    }
+
+    rewritten.push_str(&line[copied_until..]);
+    rewritten
+}
+
+struct PlannedWikiLinkUpdate {
+    original_content: Vec<u8>,
+    path_after_change: PathBuf,
+    updated_content: Vec<u8>,
+}
+
+fn prepare_wiki_link_updates(
+    root: &Path,
+    path_changes: &[(String, String)],
+    available_paths_before_change: &[String],
+) -> Result<Vec<PlannedWikiLinkUpdate>> {
+    let available_paths_after_change = available_paths_before_change
+        .iter()
+        .map(|path| {
+            path_changes
+                .iter()
+                .find(|(source, _)| path.eq_ignore_ascii_case(source))
+                .map(|(_, target)| target.clone())
+                .unwrap_or_else(|| path.clone())
+        })
+        .collect::<Vec<_>>();
+    let mut updates = Vec::new();
+    for note_relative_path in available_paths_before_change {
+        let note_path = resolve_note_path(root, note_relative_path)?;
+        let note_path_after_change = path_changes
+            .iter()
+            .find(|(source, _)| note_relative_path.eq_ignore_ascii_case(source))
+            .map(|(_, target)| target.as_str())
+            .unwrap_or(note_relative_path);
+        let reference_note_path_before_change = path_changes
+            .iter()
+            .find(|(source, _)| note_relative_path.eq_ignore_ascii_case(source))
+            .map(|(source, _)| source.as_str())
+            .unwrap_or(note_relative_path);
+        let original_content = fs::read(&note_path)
+            .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
+        let content = std::str::from_utf8(&original_content).with_context(|| {
+            format!(
+                "A nota '{}' nao esta codificada como UTF-8 e impede a atualizacao segura dos links.",
+                note_path.display()
+            )
+        })?;
+        let updated_content = rewrite_wiki_links(
+            content,
+            reference_note_path_before_change,
+            note_path_after_change,
+            path_changes,
+            available_paths_before_change,
+            &available_paths_after_change,
+        );
+        if updated_content != content {
+            updates.push(PlannedWikiLinkUpdate {
+                original_content,
+                path_after_change: root.join(note_path_after_change),
+                updated_content: updated_content.into_bytes(),
+            });
+        }
+    }
+    Ok(updates)
+}
+
+struct StagedWikiLinkUpdate {
+    staged_path: PathBuf,
+    target_path: PathBuf,
+}
+
+struct LinkUpdateBackup {
+    backup_path: PathBuf,
+    original_content: Vec<u8>,
+    target_path: PathBuf,
+    updated_content: Vec<u8>,
+}
+
+fn temporary_sibling_path(target: &Path, extension: &str) -> Result<PathBuf> {
+    let parent = target
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("A nota nao possui uma pasta valida."))?;
+    let file_name = target
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("note");
+    let id = NEXT_LINK_TRANSACTION_ID.fetch_add(1, Ordering::Relaxed);
+    Ok(parent.join(format!(".{file_name}.mirmind-{id}.{extension}")))
+}
+
+fn restore_link_update_backups(backups: &[LinkUpdateBackup]) -> Result<()> {
+    let mut failures = Vec::new();
+    for backup in backups.iter().rev() {
+        if backup.target_path.exists() {
+            match fs::read(&backup.target_path) {
+                Ok(content) if content == backup.updated_content => {
+                    if let Err(error) = fs::remove_file(&backup.target_path) {
+                        failures.push(format!(
+                            "remover '{}': {error}",
+                            backup.target_path.display()
+                        ));
+                        continue;
+                    }
+                }
+                Ok(_) | Err(_) => match temporary_sibling_path(&backup.target_path, "conflict") {
+                    Ok(conflict_path) => {
+                        if let Err(error) = fs::rename(&backup.target_path, &conflict_path) {
+                            failures.push(format!(
+                                "preservar conflito de '{}': {error}",
+                                backup.target_path.display()
+                            ));
+                            continue;
+                        }
+                    }
+                    Err(error) => {
+                        failures.push(error.to_string());
+                        continue;
+                    }
+                },
+            }
+        }
+        if let Err(error) = fs::rename(&backup.backup_path, &backup.target_path) {
+            failures.push(format!(
+                "restaurar '{}': {error}",
+                backup.target_path.display()
+            ));
+        }
+    }
+    if !failures.is_empty() {
+        bail!("Rollback incompleto: {}", failures.join("; "));
+    }
+    Ok(())
+}
+
+fn cleanup_staged_link_updates(staged_updates: &[StagedWikiLinkUpdate]) {
+    for staged in staged_updates {
+        if staged.staged_path.exists() {
+            let _ = fs::remove_file(&staged.staged_path);
+        }
+    }
+}
+
+fn abort_link_update_transaction(
+    error: anyhow::Error,
+    backups: &[LinkUpdateBackup],
+    staged_updates: &[StagedWikiLinkUpdate],
+) -> anyhow::Error {
+    let rollback_result = restore_link_update_backups(backups);
+    cleanup_staged_link_updates(staged_updates);
+    match rollback_result {
+        Ok(()) => error,
+        Err(rollback_error) => anyhow::anyhow!("{error}. {rollback_error}"),
+    }
+}
+
+fn verify_link_update_path(root: &Path, path: &Path) -> Result<()> {
+    let metadata = fs::symlink_metadata(path)
+        .with_context(|| format!("Nao foi possivel verificar '{}'.", path.display()))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        bail!(
+            "A nota '{}' nao e um arquivo regular seguro.",
+            path.display()
+        );
+    }
+    let canonical = path
+        .canonicalize()
+        .with_context(|| format!("Nao foi possivel verificar '{}'.", path.display()))?;
+    if !canonical.starts_with(root) {
+        bail!("A nota '{}' aponta para fora do Vault.", path.display());
+    }
+    Ok(())
 }
 
 fn update_wiki_links_for_note_path_change(
     root: &Path,
-    source_relative_path: &str,
-    target_relative_path: &str,
+    updates: &[PlannedWikiLinkUpdate],
 ) -> Result<()> {
-    for note_path in collect_markdown_files(root)? {
-        let content = fs::read_to_string(&note_path)
-            .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
-        let updated_content =
-            rewrite_wiki_links(&content, source_relative_path, target_relative_path);
-        if updated_content != content {
-            fs::write(&note_path, updated_content).with_context(|| {
-                format!(
-                    "Nao foi possivel atualizar links em '{}'.",
-                    note_path.display()
-                )
-            })?;
+    update_wiki_links_for_note_path_change_with_hook(root, updates, |_| Ok(()))
+}
+
+fn update_wiki_links_for_note_path_change_with_hook<F>(
+    root: &Path,
+    updates: &[PlannedWikiLinkUpdate],
+    mut after_commit: F,
+) -> Result<()>
+where
+    F: FnMut(usize) -> Result<()>,
+{
+    for update in updates {
+        verify_link_update_path(root, &update.path_after_change)?;
+        let current_content = fs::read(&update.path_after_change).with_context(|| {
+            format!(
+                "Nao foi possivel verificar '{}'.",
+                update.path_after_change.display()
+            )
+        })?;
+        if current_content != update.original_content {
+            bail!(
+                "A nota '{}' foi alterada por outro aplicativo durante a renomeacao. Nenhum link foi sobrescrito.",
+                update.path_after_change.display()
+            );
         }
     }
+
+    let mut staged_updates: Vec<StagedWikiLinkUpdate> = Vec::new();
+    for update in updates {
+        let staged_path = temporary_sibling_path(&update.path_after_change, "tmp")?;
+        let stage_result = (|| -> Result<()> {
+            let mut staged_file = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&staged_path)
+                .with_context(|| {
+                    format!("Nao foi possivel preparar '{}'.", staged_path.display())
+                })?;
+            staged_file.write_all(&update.updated_content)?;
+            staged_file.sync_all()?;
+            let permissions = fs::metadata(&update.path_after_change)?.permissions();
+            fs::set_permissions(&staged_path, permissions)?;
+            Ok(())
+        })();
+        if let Err(error) = stage_result {
+            let _ = fs::remove_file(&staged_path);
+            for staged in &staged_updates {
+                let _ = fs::remove_file(&staged.staged_path);
+            }
+            return Err(error);
+        }
+        staged_updates.push(StagedWikiLinkUpdate {
+            staged_path,
+            target_path: update.path_after_change.clone(),
+        });
+    }
+
+    for update in updates {
+        let current_content = match fs::read(&update.path_after_change) {
+            Ok(content) => content,
+            Err(error) => {
+                cleanup_staged_link_updates(&staged_updates);
+                return Err(error.into());
+            }
+        };
+        if current_content != update.original_content {
+            cleanup_staged_link_updates(&staged_updates);
+            bail!(
+                "A nota '{}' foi alterada durante a preparacao. Nenhum link foi sobrescrito.",
+                update.path_after_change.display()
+            );
+        }
+    }
+
+    let mut backups: Vec<LinkUpdateBackup> = Vec::new();
+    for (index, (update, staged)) in updates.iter().zip(&staged_updates).enumerate() {
+        let commit_result = (|| -> Result<()> {
+            verify_link_update_path(root, &staged.target_path)?;
+            let backup_path = temporary_sibling_path(&staged.target_path, "bak")?;
+            fs::hard_link(&staged.target_path, &backup_path).with_context(|| {
+                format!(
+                    "Nao foi possivel reservar backup de '{}'.",
+                    staged.target_path.display()
+                )
+            })?;
+            if let Err(error) = fs::remove_file(&staged.target_path) {
+                let _ = fs::remove_file(&backup_path);
+                return Err(error.into());
+            }
+            backups.push(LinkUpdateBackup {
+                backup_path: backup_path.clone(),
+                original_content: update.original_content.clone(),
+                target_path: staged.target_path.clone(),
+                updated_content: update.updated_content.clone(),
+            });
+            if fs::read(&backup_path)? != update.original_content {
+                bail!(
+                    "A nota '{}' foi alterada durante a substituicao.",
+                    staged.target_path.display()
+                );
+            }
+            fs::hard_link(&staged.staged_path, &staged.target_path).with_context(|| {
+                format!(
+                    "O destino '{}' foi ocupado durante a substituicao.",
+                    staged.target_path.display()
+                )
+            })?;
+            fs::remove_file(&staged.staged_path)?;
+            after_commit(index)?;
+            Ok(())
+        })();
+        if let Err(error) = commit_result {
+            return Err(abort_link_update_transaction(
+                error,
+                &backups,
+                &staged_updates,
+            ));
+        }
+    }
+
+    for backup in &backups {
+        let backup_content = match fs::read(&backup.backup_path) {
+            Ok(content) => content,
+            Err(error) => {
+                return Err(abort_link_update_transaction(
+                    error.into(),
+                    &backups,
+                    &staged_updates,
+                ));
+            }
+        };
+        if backup_content != backup.original_content {
+            return Err(abort_link_update_transaction(
+                anyhow::anyhow!(
+                    "A nota '{}' recebeu uma edicao concorrente durante a substituicao.",
+                    backup.target_path.display()
+                ),
+                &backups,
+                &staged_updates,
+            ));
+        }
+    }
+
+    for backup in backups {
+        if let Err(error) = fs::remove_file(&backup.backup_path) {
+            log::warn!(
+                "could not remove completed link-update backup '{}': {error}",
+                backup.backup_path.display()
+            );
+        }
+    }
+    cleanup_staged_link_updates(&staged_updates);
     Ok(())
+}
+
+fn note_path_changes_for_item(
+    root: &Path,
+    source: &Path,
+    target: &Path,
+    is_note: bool,
+) -> Result<(Vec<String>, Vec<(String, String)>)> {
+    let available_paths = collect_markdown_files_strict(root)?
+        .iter()
+        .map(|path| to_relative_display(root, path))
+        .collect::<Vec<_>>();
+    let source_relative = to_relative_display(root, source);
+    let target_relative = to_relative_display(root, target);
+    let path_changes = if is_note {
+        vec![(source_relative, target_relative)]
+    } else {
+        let source_prefix = format!("{}/", source_relative.trim_end_matches('/'));
+        let target_prefix = format!("{}/", target_relative.trim_end_matches('/'));
+        available_paths
+            .iter()
+            .filter_map(|path| {
+                path.strip_prefix(&source_prefix)
+                    .map(|suffix| (path.clone(), format!("{target_prefix}{suffix}")))
+            })
+            .collect()
+    };
+    Ok((available_paths, path_changes))
 }
 
 #[tauri::command]
@@ -813,24 +2290,25 @@ fn save_note(
         .ensure_authorized_vault_root(&root)
         .map_err(|error| error.to_string())?;
 
-    let note_path = resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+    save_note_in_root(&root, &relative_path, &content).map_err(|error| error.to_string())
+}
+
+fn save_note_in_root(root: &Path, relative_path: &str, content: &str) -> Result<NoteDocument> {
+    let note_path = resolve_note_path(root, relative_path)?;
     let before_content = fs::read_to_string(&note_path)
-        .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))
-        .map_err(|error| error.to_string())?;
+        .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
     fs::write(&note_path, content.as_bytes())
-        .with_context(|| format!("Nao foi possivel salvar '{}'.", note_path.display()))
-        .map_err(|error| error.to_string())?;
+        .with_context(|| format!("Nao foi possivel salvar '{}'.", note_path.display()))?;
 
     if before_content != content {
         record_history(
-            &root,
+            root,
             HistoryCommand::SaveNote {
-                relative_path: relative_path.clone(),
+                relative_path: relative_path.to_string(),
                 before_content,
-                after_content: content.clone(),
+                after_content: content.to_string(),
             },
-        )
-        .map_err(|error| error.to_string())?;
+        )?;
     }
 
     Ok(NoteDocument {
@@ -839,8 +2317,8 @@ fn save_note(
             .and_then(|segment| segment.to_str())
             .unwrap_or_default()
             .to_string(),
-        relative_path: to_relative_display(&root, &note_path),
-        content,
+        relative_path: to_relative_display(root, &note_path),
+        content: content.to_string(),
     })
 }
 
@@ -867,9 +2345,7 @@ fn create_note(
     }
 
     let initial_content = format!("# {}\n\n", display_note_title(&note_path));
-    fs::write(&note_path, initial_content.as_bytes())
-        .with_context(|| format!("Nao foi possivel criar '{}'.", note_path.display()))
-        .map_err(|error| error.to_string())?;
+    write_new_file(&note_path, initial_content.as_bytes()).map_err(|error| error.to_string())?;
 
     record_history(
         &root,
@@ -891,6 +2367,75 @@ fn create_note(
     })
 }
 
+fn write_new_file(path: &Path, content: &[u8]) -> Result<()> {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .with_context(|| format!("Nao foi possivel criar '{}'.", path.display()))?;
+    file.write_all(content)
+        .with_context(|| format!("Nao foi possivel escrever '{}'.", path.display()))
+}
+
+fn recover_note_in_root(root: &Path, relative_path: &str, content: &str) -> Result<NoteDocument> {
+    let note_path = resolve_note_path(root, relative_path)?;
+    if let Some(parent) = note_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Nao foi possivel criar '{}'.", parent.display()))?;
+    }
+
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&note_path)
+        .with_context(|| {
+            format!(
+                "Nao foi possivel recuperar '{}'; o caminho pode ja existir.",
+                note_path.display()
+            )
+        })?;
+    if let Err(error) = file.write_all(content.as_bytes()) {
+        drop(file);
+        let _ = fs::remove_file(&note_path);
+        return Err(error)
+            .with_context(|| format!("Nao foi possivel recuperar '{}'.", note_path.display()));
+    }
+
+    if let Err(error) = record_history(
+        root,
+        HistoryCommand::CreateNote {
+            relative_path: relative_path.to_string(),
+            content: content.to_string(),
+        },
+    ) {
+        log::warn!("A nota foi recuperada, mas nao entrou no historico: {error}");
+    }
+
+    Ok(NoteDocument {
+        name: note_path
+            .file_name()
+            .and_then(|segment| segment.to_str())
+            .unwrap_or_default()
+            .to_string(),
+        relative_path: to_relative_display(root, &note_path),
+        content: content.to_string(),
+    })
+}
+
+#[tauri::command]
+fn recover_note(
+    path: String,
+    relative_path: String,
+    content: String,
+    authorized_paths: State<AuthorizedPaths>,
+) -> Result<NoteDocument, String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    recover_note_in_root(&root, &relative_path, &content).map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 fn create_folder(
     path: String,
@@ -909,6 +2454,71 @@ fn create_folder(
     fs::create_dir_all(&folder_path)
         .with_context(|| format!("Nao foi possivel criar '{}'.", folder_path.display()))
         .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn move_vault_path_without_overwrite(source: &Path, target: &Path, is_note: bool) -> Result<()> {
+    if !is_note {
+        #[cfg(unix)]
+        {
+            fs::create_dir(target)
+                .with_context(|| format!("O destino seguro '{}' ja existe.", target.display()))?;
+            let rename_result = fs::rename(source, target).with_context(|| {
+                format!(
+                    "Nao foi possivel mover '{}' para '{}'.",
+                    source.display(),
+                    target.display()
+                )
+            });
+            if rename_result.is_err() {
+                let _ = fs::remove_dir(target);
+            }
+            return rename_result;
+        }
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::ffi::OsStrExt;
+            use windows_sys::Win32::Storage::FileSystem::MoveFileExW;
+
+            let source_wide = source
+                .as_os_str()
+                .encode_wide()
+                .chain(Some(0))
+                .collect::<Vec<_>>();
+            let target_wide = target
+                .as_os_str()
+                .encode_wide()
+                .chain(Some(0))
+                .collect::<Vec<_>>();
+            let moved = unsafe { MoveFileExW(source_wide.as_ptr(), target_wide.as_ptr(), 0) };
+            if moved == 0 {
+                return Err(std::io::Error::last_os_error()).with_context(|| {
+                    format!(
+                        "Nao foi possivel mover '{}' para '{}' sem sobrescrever o destino.",
+                        source.display(),
+                        target.display()
+                    )
+                });
+            }
+            return Ok(());
+        }
+
+        #[cfg(not(any(unix, windows)))]
+        bail!("Movimentacao segura de pastas nao suportada nesta plataforma.");
+    }
+
+    fs::hard_link(source, target).with_context(|| {
+        format!(
+            "Nao foi possivel reservar o destino seguro '{}'.",
+            target.display()
+        )
+    })?;
+    if let Err(error) = fs::remove_file(source) {
+        let _ = fs::remove_file(target);
+        return Err(error)
+            .with_context(|| format!("Nao foi possivel remover '{}'.", source.display()));
+    }
     Ok(())
 }
 
@@ -958,16 +2568,21 @@ fn rename_vault_item_in_root(
         bail!("Ja existe um item com esse nome nessa pasta.");
     }
 
-    let source_relative_path = is_note.then(|| to_relative_display(root, &source));
+    let (available_paths_before_change, path_changes) =
+        note_path_changes_for_item(root, &source, &destination, is_note)?;
+    let planned_link_updates =
+        prepare_wiki_link_updates(root, &path_changes, &available_paths_before_change)?;
 
-    fs::rename(&source, &destination)
+    move_vault_path_without_overwrite(&source, &destination, is_note)
         .with_context(|| format!("Nao foi possivel renomear '{}'.", source.display()))?;
-    if let Some(source_relative_path) = source_relative_path {
-        update_wiki_links_for_note_path_change(
-            root,
-            &source_relative_path,
-            &to_relative_display(root, &destination),
-        )?;
+    if let Err(error) = update_wiki_links_for_note_path_change(root, &planned_link_updates) {
+        move_vault_path_without_overwrite(&destination, &source, is_note).with_context(|| {
+            format!(
+                "A atualizacao dos links falhou e tambem nao foi possivel restaurar '{}'.",
+                source.display()
+            )
+        })?;
+        return Err(error);
     }
     Ok(())
 }
@@ -1032,15 +2647,20 @@ fn move_vault_item_in_root(
     if target.exists() {
         bail!("Ja existe um item com esse nome na pasta de destino.");
     }
-    let source_relative_path = is_note.then(|| to_relative_display(root, &source));
-    fs::rename(&source, &target)
+    let (available_paths_before_change, path_changes) =
+        note_path_changes_for_item(root, &source, &target, is_note)?;
+    let planned_link_updates =
+        prepare_wiki_link_updates(root, &path_changes, &available_paths_before_change)?;
+    move_vault_path_without_overwrite(&source, &target, is_note)
         .with_context(|| format!("Nao foi possivel mover '{}'.", source.display()))?;
-    if let Some(source_relative_path) = source_relative_path {
-        update_wiki_links_for_note_path_change(
-            root,
-            &source_relative_path,
-            &to_relative_display(root, &target),
-        )?;
+    if let Err(error) = update_wiki_links_for_note_path_change(root, &planned_link_updates) {
+        move_vault_path_without_overwrite(&target, &source, is_note).with_context(|| {
+            format!(
+                "A atualizacao dos links falhou e tambem nao foi possivel restaurar '{}'.",
+                source.display()
+            )
+        })?;
+        return Err(error);
     }
     Ok(())
 }
@@ -1243,10 +2863,22 @@ fn import_attachment_in_root(
         .and_then(|name| name.to_str())
         .ok_or_else(|| anyhow::anyhow!("O arquivo nao possui um nome valido."))?;
     let attachments_root = attachment_directory_for_note(root, note_relative_path)?;
-    fs::create_dir_all(&attachments_root)?;
-    let destination = unique_attachment_path(&attachments_root, source_name)?;
-    fs::copy(source_path, &destination)
-        .with_context(|| format!("Nao foi possivel copiar '{}'.", source_path.display()))?;
+    create_confined_attachment_directory(root, &attachments_root)?;
+    let (destination, mut destination_file) =
+        unique_attachment_path(&attachments_root, source_name)?;
+    let copy_result = (|| -> Result<()> {
+        let mut source_file = fs::File::open(source_path)
+            .with_context(|| format!("Nao foi possivel abrir '{}'.", source_path.display()))?;
+        io::copy(&mut source_file, &mut destination_file)
+            .with_context(|| format!("Nao foi possivel copiar '{}'.", source_path.display()))?;
+        destination_file.sync_all()?;
+        Ok(())
+    })();
+    if let Err(error) = copy_result {
+        drop(destination_file);
+        let _ = fs::remove_file(&destination);
+        return Err(error);
+    }
 
     Ok(Attachment {
         name: destination
@@ -1259,7 +2891,40 @@ fn import_attachment_in_root(
     })
 }
 
+fn create_confined_attachment_directory(root: &Path, directory: &Path) -> Result<()> {
+    let canonical_root = canonicalize_directory(root)?;
+    if !directory.starts_with(root) {
+        bail!("A pasta de anexos precisa ficar dentro do Vault atual.");
+    }
+    let existing_ancestor = directory
+        .ancestors()
+        .find(|ancestor| ancestor.exists())
+        .ok_or_else(|| anyhow::anyhow!("Nao foi possivel encontrar o Vault atual."))?;
+    let canonical_ancestor = existing_ancestor.canonicalize().with_context(|| {
+        format!(
+            "Nao foi possivel verificar '{}'.",
+            existing_ancestor.display()
+        )
+    })?;
+    if !canonical_ancestor.starts_with(&canonical_root) {
+        bail!("A pasta de anexos precisa ficar dentro do Vault atual.");
+    }
+
+    fs::create_dir_all(directory)?;
+    let canonical_directory = directory
+        .canonicalize()
+        .with_context(|| format!("Nao foi possivel verificar '{}'.", directory.display()))?;
+    if !canonical_directory.starts_with(&canonical_root) {
+        bail!("A pasta de anexos precisa ficar dentro do Vault atual.");
+    }
+    Ok(())
+}
+
 fn attachment_directory_for_note(root: &Path, note_relative_path: &str) -> Result<PathBuf> {
+    if let Some(configured_directory) = obsidian_attachment_directory(root, note_relative_path)? {
+        return Ok(configured_directory);
+    }
+
     if note_relative_path.trim().is_empty() {
         return Ok(root.join(ATTACHMENTS_DIR));
     }
@@ -1273,11 +2938,115 @@ fn attachment_directory_for_note(root: &Path, note_relative_path: &str) -> Resul
     Ok(root.join(ATTACHMENTS_DIR).join(relative_parent))
 }
 
-fn unique_attachment_path(attachments_root: &Path, source_name: &str) -> Result<PathBuf> {
-    let initial = attachments_root.join(source_name);
-    if !initial.exists() {
-        return Ok(initial);
+fn obsidian_attachment_directory(root: &Path, note_relative_path: &str) -> Result<Option<PathBuf>> {
+    let Some(configured_path) =
+        read_obsidian_preferences(root).and_then(|preferences| preferences.attachment_folder_path)
+    else {
+        return Ok(None);
+    };
+    let configured_path = configured_path.trim().replace('\\', "/");
+
+    if configured_path.is_empty() || configured_path == "/" {
+        return Ok(Some(root.to_path_buf()));
     }
+
+    let is_note_relative =
+        configured_path == "." || configured_path == "./" || configured_path.starts_with("./");
+    if is_note_relative
+        && Path::new(note_relative_path)
+            .components()
+            .any(|component| match component {
+                std::path::Component::Normal(segment) => segment.to_string_lossy().starts_with('.'),
+                _ => false,
+            })
+    {
+        bail!("A pasta de anexos relativa nao pode usar diretorios internos do Vault.");
+    }
+    let relative_value = if configured_path == "." || configured_path == "./" {
+        ""
+    } else if is_note_relative {
+        configured_path.trim_start_matches("./")
+    } else {
+        configured_path.as_str()
+    };
+    let relative_path = Path::new(relative_value);
+    if relative_path.is_absolute()
+        || relative_path.components().any(|component| match component {
+            std::path::Component::Normal(segment) => segment.to_string_lossy().starts_with('.'),
+            std::path::Component::CurDir => false,
+            _ => true,
+        })
+    {
+        bail!(
+            "A configuracao de anexos do Obsidian precisa apontar para uma pasta segura do Vault."
+        );
+    }
+
+    let base = if is_note_relative && !note_relative_path.trim().is_empty() {
+        resolve_note_path(root, note_relative_path)?
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("Nao foi possivel encontrar a pasta da nota."))?
+            .to_path_buf()
+    } else {
+        root.to_path_buf()
+    };
+    Ok(Some(base.join(relative_path)))
+}
+
+fn read_obsidian_preferences(root: &Path) -> Option<ObsidianPreferences> {
+    let canonical_root = root.canonicalize().ok()?;
+    let config_path = root.join(".obsidian").join("app.json");
+    let link_metadata = fs::symlink_metadata(&config_path).ok()?;
+    if link_metadata.file_type().is_symlink() || !link_metadata.is_file() {
+        return None;
+    }
+    let canonical_config = config_path.canonicalize().ok()?;
+    if !canonical_config.starts_with(&canonical_root) {
+        return None;
+    }
+
+    let mut file = fs::File::open(canonical_config).ok()?;
+    let metadata = file.metadata().ok()?;
+    if !metadata.is_file() || metadata.len() > MAX_OBSIDIAN_APP_CONFIG_BYTES {
+        return None;
+    }
+    let mut bytes = Vec::with_capacity(metadata.len() as usize);
+    Read::by_ref(&mut file)
+        .take(MAX_OBSIDIAN_APP_CONFIG_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    if bytes.len() as u64 > MAX_OBSIDIAN_APP_CONFIG_BYTES {
+        return None;
+    }
+    let content = String::from_utf8(bytes).ok()?;
+    let mut preferences = serde_json::from_str::<ObsidianPreferences>(&content).ok()?;
+
+    fn bounded(value: &mut Option<String>) {
+        if value
+            .as_ref()
+            .is_some_and(|text| text.encode_utf16().count() > MAX_OBSIDIAN_PREFERENCE_UTF16_UNITS)
+        {
+            *value = None;
+        }
+    }
+    bounded(&mut preferences.new_file_location);
+    bounded(&mut preferences.new_file_folder_path);
+    bounded(&mut preferences.attachment_folder_path);
+    bounded(&mut preferences.new_link_format);
+    bounded(&mut preferences.trash_option);
+    preferences
+        .user_ignore_filters
+        .retain(|filter| filter.encode_utf16().count() <= MAX_OBSIDIAN_PREFERENCE_UTF16_UNITS);
+    preferences
+        .user_ignore_filters
+        .truncate(MAX_OBSIDIAN_IGNORE_FILTERS);
+    Some(preferences)
+}
+
+fn unique_attachment_path(
+    attachments_root: &Path,
+    source_name: &str,
+) -> Result<(PathBuf, fs::File)> {
     let stem = Path::new(source_name)
         .file_stem()
         .and_then(|name| name.to_str())
@@ -1286,10 +3055,31 @@ fn unique_attachment_path(attachments_root: &Path, source_name: &str) -> Result<
         .extension()
         .and_then(|value| value.to_str());
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
-    let name = extension
-        .map(|extension| format!("{stem}-{timestamp}.{extension}"))
-        .unwrap_or_else(|| format!("{stem}-{timestamp}"));
-    Ok(attachments_root.join(name))
+    for attempt in 0..10_000_u32 {
+        let name = if attempt == 0 {
+            source_name.to_string()
+        } else {
+            let suffix = if attempt == 1 {
+                timestamp.to_string()
+            } else {
+                format!("{timestamp}-{attempt}")
+            };
+            extension
+                .map(|extension| format!("{stem}-{suffix}.{extension}"))
+                .unwrap_or_else(|| format!("{stem}-{suffix}"))
+        };
+        let destination = attachments_root.join(name);
+        match OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&destination)
+        {
+            Ok(file) => return Ok((destination, file)),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    bail!("Nao foi possivel reservar um nome unico para o anexo.")
 }
 
 fn is_image_path(path: &Path) -> bool {
@@ -1443,6 +3233,7 @@ fn inspect_vault_path(root: &Path) -> Result<VaultSummary> {
         note_count: note_paths.len(),
         note_previews: previews,
         is_obsidian_vault: canonical_root.join(".obsidian").is_dir(),
+        obsidian_preferences: read_obsidian_preferences(&canonical_root),
         metadata: inspect_metadata(&canonical_root),
     })
 }
@@ -1523,23 +3314,210 @@ fn collect_markdown_files(root: &Path) -> Result<Vec<PathBuf>> {
     Ok(notes)
 }
 
-fn collect_attachment_files(root: &Path) -> Result<Vec<PathBuf>> {
-    let canonical_root = canonicalize_directory(root)?;
-    let attachments_root = canonical_root.join(ATTACHMENTS_DIR);
-    if !attachments_root.is_dir() {
-        return Ok(Vec::new());
+fn collect_markdown_files_strict(root: &Path) -> Result<Vec<PathBuf>> {
+    fn visit(
+        directory: &Path,
+        canonical_root: &Path,
+        visited_directories: &mut HashSet<PathBuf>,
+        notes: &mut Vec<PathBuf>,
+    ) -> Result<()> {
+        let canonical_directory = directory.canonicalize().with_context(|| {
+            format!(
+                "Nao foi possivel verificar o diretorio '{}'.",
+                directory.display()
+            )
+        })?;
+        if !canonical_directory.starts_with(canonical_root) {
+            bail!("Um diretorio do Vault aponta para fora da raiz autorizada.");
+        }
+        if !visited_directories.insert(canonical_directory) {
+            return Ok(());
+        }
+        for entry in fs::read_dir(directory)
+            .with_context(|| format!("Nao foi possivel listar '{}'.", directory.display()))?
+        {
+            let entry = entry.with_context(|| {
+                format!(
+                    "Nao foi possivel ler uma entrada em '{}'.",
+                    directory.display()
+                )
+            })?;
+            let path = entry.path();
+            let file_type = entry
+                .file_type()
+                .with_context(|| format!("Nao foi possivel verificar '{}'.", path.display()))?;
+            if file_type.is_symlink() {
+                continue;
+            }
+            if file_type.is_dir() {
+                if path
+                    .file_name()
+                    .and_then(|segment| segment.to_str())
+                    .is_some_and(|name| name == METADATA_DIR || name.starts_with('.'))
+                {
+                    continue;
+                }
+                visit(&path, canonical_root, visited_directories, notes)?;
+                continue;
+            }
+            let file_name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or_default();
+            if file_type.is_file()
+                && path
+                    .extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+                && !file_name.to_lowercase().ends_with(".excalidraw.md")
+            {
+                notes.push(path);
+            }
+        }
+        Ok(())
     }
 
+    let canonical_root = canonicalize_directory(root)?;
+    let mut notes = Vec::new();
+    let mut visited_directories = HashSet::new();
+    visit(
+        &canonical_root,
+        &canonical_root,
+        &mut visited_directories,
+        &mut notes,
+    )?;
+    notes.sort();
+    Ok(notes)
+}
+
+fn collect_attachment_files(root: &Path) -> Result<Vec<PathBuf>> {
+    let canonical_root = canonicalize_directory(root)?;
     let mut attachments = Vec::new();
     let mut visited_directories = HashSet::new();
     visit_attachment_directory(
-        &attachments_root,
+        &canonical_root,
         &canonical_root,
         &mut visited_directories,
         &mut attachments,
     );
     attachments.sort();
     Ok(attachments)
+}
+
+fn collect_special_vault_files(root: &Path) -> Result<SpecialVaultInventory> {
+    let canonical_root = root.canonicalize()?;
+    let mut visited_directories = HashSet::new();
+    let mut files = Vec::new();
+    visit_special_vault_directory(
+        &canonical_root,
+        &canonical_root,
+        &mut visited_directories,
+        &mut files,
+    );
+    files.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+    let truncated = files.len() > MAX_SPECIAL_VAULT_FILES;
+    files.truncate(MAX_SPECIAL_VAULT_FILES);
+    Ok(SpecialVaultInventory { files, truncated })
+}
+
+fn special_vault_file_kind(path: &Path) -> Option<SpecialVaultFileKind> {
+    let name = path.file_name()?.to_string_lossy().to_lowercase();
+    if name.starts_with('.') {
+        return None;
+    }
+    if name.ends_with(".excalidraw.md") || name.ends_with(".excalidraw") {
+        return Some(SpecialVaultFileKind::Excalidraw);
+    }
+    if name.ends_with(".canvas") {
+        return Some(SpecialVaultFileKind::Canvas);
+    }
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_lowercase);
+    if extension.as_deref() == Some("md")
+        || extension
+            .as_deref()
+            .is_some_and(|extension| SUPPORTED_ATTACHMENT_EXTENSIONS.contains(&extension))
+    {
+        return None;
+    }
+    Some(SpecialVaultFileKind::Unknown)
+}
+
+fn visit_special_vault_directory(
+    directory: &Path,
+    canonical_root: &Path,
+    visited_directories: &mut HashSet<PathBuf>,
+    files: &mut Vec<SpecialVaultFile>,
+) {
+    if files.len() > MAX_SPECIAL_VAULT_FILES {
+        return;
+    }
+    let canonical_directory = match directory.canonicalize() {
+        Ok(path) => path,
+        Err(error) => {
+            log::warn!(
+                "skipping unreadable special-file directory '{}': {error}",
+                directory.display()
+            );
+            return;
+        }
+    };
+    if !canonical_directory.starts_with(canonical_root)
+        || !visited_directories.insert(canonical_directory)
+    {
+        return;
+    }
+
+    let entries = match fs::read_dir(directory) {
+        Ok(entries) => entries,
+        Err(error) => {
+            log::warn!(
+                "skipping unreadable special-file directory '{}': {error}",
+                directory.display()
+            );
+            return;
+        }
+    };
+    for entry in entries.flatten() {
+        if files.len() > MAX_SPECIAL_VAULT_FILES {
+            return;
+        }
+        let path = entry.path();
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if file_type.is_symlink() {
+            continue;
+        }
+        if file_type.is_dir() {
+            if path
+                .file_name()
+                .and_then(|segment| segment.to_str())
+                .is_some_and(|name| name == METADATA_DIR || name.starts_with('.'))
+            {
+                continue;
+            }
+            visit_special_vault_directory(&path, canonical_root, visited_directories, files);
+            continue;
+        }
+        if !file_type.is_file() {
+            continue;
+        }
+        let Some(kind) = special_vault_file_kind(&path) else {
+            continue;
+        };
+        files.push(SpecialVaultFile {
+            name: path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string(),
+            relative_path: to_relative_display(canonical_root, &path),
+            kind,
+        });
+    }
 }
 
 fn collect_folders(root: &Path) -> Result<Vec<PathBuf>> {
@@ -1663,7 +3641,11 @@ fn visit_directory(
         }
 
         if file_type.is_dir() {
-            if path.file_name().and_then(|segment| segment.to_str()) == Some(METADATA_DIR) {
+            if path
+                .file_name()
+                .and_then(|segment| segment.to_str())
+                .is_some_and(|name| name == METADATA_DIR || name.starts_with('.'))
+            {
                 continue;
             }
 
@@ -1671,11 +3653,16 @@ fn visit_directory(
             continue;
         }
 
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default();
         if file_type.is_file()
             && path
                 .extension()
                 .and_then(|extension| extension.to_str())
                 .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+            && !file_name.to_lowercase().ends_with(".excalidraw.md")
         {
             notes.push(path);
         }
@@ -1723,8 +3710,24 @@ fn visit_attachment_directory(
             continue;
         }
         if file_type.is_dir() {
+            if path
+                .file_name()
+                .and_then(|segment| segment.to_str())
+                .is_some_and(|name| name == METADATA_DIR || name.starts_with('.'))
+            {
+                continue;
+            }
             visit_attachment_directory(&path, canonical_root, visited_directories, attachments);
-        } else if file_type.is_file() {
+        } else if file_type.is_file()
+            && path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| {
+                    SUPPORTED_ATTACHMENT_EXTENSIONS
+                        .iter()
+                        .any(|supported| extension.eq_ignore_ascii_case(supported))
+                })
+        {
             attachments.push(path);
         }
     }
@@ -1797,6 +3800,9 @@ fn resolve_note_path(root: &Path, relative_path: &str) -> Result<PathBuf> {
     };
 
     let resolved = root.join(normalized);
+    if fs::symlink_metadata(&resolved).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+        bail!("Links simbolicos nao podem ser usados como notas.");
+    }
     if let Some(parent) = resolved.parent() {
         let parent_path = if parent.exists() {
             parent
@@ -2084,6 +4090,129 @@ struct AuthorizedPaths {
     parent_directories: Mutex<HashSet<PathBuf>>,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VaultFileSystemChange {
+    kind: String,
+    paths: Vec<String>,
+}
+
+struct ActiveVaultWatcher {
+    id: u64,
+    _watcher: RecommendedWatcher,
+}
+
+#[derive(Default)]
+struct VaultWatcherState {
+    active: Mutex<Option<ActiveVaultWatcher>>,
+}
+
+fn is_internal_vault_path(relative_path: &str) -> bool {
+    relative_path == METADATA_DIR || relative_path.starts_with(&format!("{METADATA_DIR}/"))
+}
+
+fn classify_vault_file_system_change(
+    root: &Path,
+    event: &NotifyEvent,
+) -> Option<VaultFileSystemChange> {
+    if matches!(event.kind, NotifyEventKind::Access(_)) {
+        return None;
+    }
+
+    let all_paths = event
+        .paths
+        .iter()
+        .filter_map(|path| path.strip_prefix(root).ok())
+        .map(|path| path.to_string_lossy().replace('\\', "/"))
+        .collect::<Vec<_>>();
+    let paths = all_paths
+        .iter()
+        .filter(|path| !is_internal_vault_path(path))
+        .cloned()
+        .collect::<Vec<_>>();
+    if paths.is_empty() {
+        return None;
+    }
+
+    let kind = match &event.kind {
+        NotifyEventKind::Create(_) => "create",
+        NotifyEventKind::Remove(_) => "remove",
+        NotifyEventKind::Modify(ModifyKind::Name(_)) if paths.len() >= 2 => "rename",
+        NotifyEventKind::Modify(ModifyKind::Name(_)) if all_paths.len() >= 2 => {
+            let first_is_internal = is_internal_vault_path(&all_paths[0]);
+            if first_is_internal {
+                "create"
+            } else {
+                "remove"
+            }
+        }
+        NotifyEventKind::Modify(ModifyKind::Name(_)) => "rescan",
+        NotifyEventKind::Modify(_) => "modify",
+        _ => "rescan",
+    };
+
+    Some(VaultFileSystemChange {
+        kind: kind.to_string(),
+        paths,
+    })
+}
+
+#[tauri::command]
+fn watch_vault(
+    path: String,
+    app: AppHandle,
+    authorized_paths: State<AuthorizedPaths>,
+    watcher_state: State<VaultWatcherState>,
+) -> Result<u64, String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+
+    let callback_root = root.clone();
+    let mut watcher = notify::recommended_watcher(move |result: notify::Result<NotifyEvent>| {
+        let Ok(event) = result else {
+            return;
+        };
+        let Some(change) = classify_vault_file_system_change(&callback_root, &event) else {
+            return;
+        };
+        if let Err(error) = app.emit("vault-file-system-change", change) {
+            log::warn!("Nao foi possivel emitir uma mudanca do vault: {error}");
+        }
+    })
+    .map_err(|error| format!("Nao foi possivel iniciar a observacao do vault: {error}"))?;
+    watcher
+        .watch(&root, RecursiveMode::Recursive)
+        .map_err(|error| format!("Nao foi possivel observar '{}': {error}", root.display()))?;
+
+    let mut active = watcher_state
+        .active
+        .lock()
+        .map_err(|_| "Nao foi possivel atualizar o observador do vault.".to_string())?;
+    let watcher_id = NEXT_VAULT_WATCHER_ID.fetch_add(1, Ordering::Relaxed);
+    *active = Some(ActiveVaultWatcher {
+        id: watcher_id,
+        _watcher: watcher,
+    });
+    Ok(watcher_id)
+}
+
+#[tauri::command]
+fn unwatch_vault(watcher_id: u64, watcher_state: State<VaultWatcherState>) -> Result<(), String> {
+    let mut active = watcher_state
+        .active
+        .lock()
+        .map_err(|_| "Nao foi possivel encerrar o observador do vault.".to_string())?;
+    if active
+        .as_ref()
+        .is_some_and(|watcher| watcher.id == watcher_id)
+    {
+        *active = None;
+    }
+    Ok(())
+}
+
 impl AuthorizedPaths {
     fn authorize_vault_root(&self, path: &Path) -> Result<()> {
         let mut roots = self
@@ -2133,6 +4262,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AuthorizedPaths::default())
+        .manage(VaultWatcherState::default())
         .invoke_handler(tauri::generate_handler![
             select_existing_vault,
             get_recent_vault_preference,
@@ -2150,9 +4280,12 @@ pub fn run() {
             read_note,
             save_note,
             create_note,
+            recover_note,
             create_folder,
             list_folders,
             list_attachments,
+            read_pdf_attachment,
+            list_special_files,
             rename_vault_item,
             move_vault_item,
             delete_vault_item,
@@ -2165,7 +4298,9 @@ pub fn run() {
             get_tag_index,
             undo_last_command,
             redo_last_command,
-            get_history_status
+            get_history_status,
+            watch_vault,
+            unwatch_vault
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -2184,18 +4319,247 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_history_command, attachment_directory_for_note, collect_attachment_files,
-        collect_folders, collect_markdown_files, delete_vault_item_in_root, ensure_metadata_layout,
+        apply_history_command, attachment_directory_for_note, classify_vault_file_system_change,
+        collect_attachment_files, collect_folders, collect_markdown_files,
+        collect_special_vault_files, delete_vault_item_in_root, ensure_metadata_layout,
         extract_tags, extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root,
-        get_tag_index_in_root, import_attachment_in_root, inspect_metadata, list_trash_in_root,
-        move_vault_item_in_root, permanently_delete_trash_item_in_root, read_history,
-        read_trash_entries, record_history, rename_vault_item_in_root, resolve_folder_path,
-        resolve_note_path, restore_trash_item_in_root, search_notes_in_root, validate_vault_name,
-        write_trash_entries, HistoryCommand, RecentVaultPreference, ASSESSMENTS_DIR,
-        ATTACHMENTS_DIR, CONFIG_FILE, METADATA_DIR, REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
+        get_tag_index_in_root, import_attachment_in_root, inspect_metadata, inspect_vault_path,
+        list_trash_in_root, move_vault_item_in_root, move_vault_path_without_overwrite,
+        permanently_delete_trash_item_in_root, prepare_wiki_link_updates, read_history,
+        read_pdf_attachment_in_root, read_trash_entries, record_history, recover_note_in_root,
+        rename_vault_item_in_root, resolve_folder_path, resolve_note_path,
+        restore_trash_item_in_root, save_note_in_root, search_notes_in_root, to_relative_display,
+        update_wiki_links_for_note_path_change, update_wiki_links_for_note_path_change_with_hook,
+        validate_vault_name, write_new_file, write_trash_entries, HistoryCommand,
+        PlannedWikiLinkUpdate, RecentVaultPreference, SpecialVaultFileKind, ASSESSMENTS_DIR,
+        ATTACHMENTS_DIR, CONFIG_FILE, MAX_PDF_ATTACHMENT_BYTES, MAX_SPECIAL_VAULT_FILES,
+        METADATA_DIR, REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
     };
-    use std::fs;
+    use notify::{
+        event::{CreateKind, ModifyKind, RenameMode},
+        Event as NotifyEvent, EventKind as NotifyEventKind,
+    };
+    use std::{fs, path::Path};
     use tempfile::tempdir;
+
+    struct ObsidianRegressionScenario {
+        name: &'static str,
+        fixture_directory: &'static str,
+        indexed_notes: &'static [&'static str],
+        editable_note: &'static str,
+    }
+
+    fn inventory_fixture_tree(scenario_name: &str, fixture_root: &Path) -> Vec<(String, Vec<u8>)> {
+        fn visit(
+            scenario_name: &str,
+            fixture_root: &Path,
+            directory: &Path,
+            files: &mut Vec<(String, Vec<u8>)>,
+        ) {
+            let mut entries = fs::read_dir(directory)
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "{scenario_name}: inventory fixture directory {}: {error}",
+                        directory.display()
+                    )
+                })
+                .map(|entry| {
+                    entry.unwrap_or_else(|error| {
+                        panic!(
+                            "{scenario_name}: read fixture entry in {}: {error}",
+                            directory.display()
+                        )
+                    })
+                })
+                .collect::<Vec<_>>();
+            entries.sort_by_key(|entry| entry.path());
+
+            for entry in entries {
+                let path = entry.path();
+                if path.is_dir() {
+                    visit(scenario_name, fixture_root, &path, files);
+                    continue;
+                }
+                let relative_path = path
+                    .strip_prefix(fixture_root)
+                    .unwrap_or_else(|error| {
+                        panic!(
+                            "{scenario_name}: make fixture path {} relative: {error}",
+                            path.display()
+                        )
+                    })
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                let content = fs::read(&path).unwrap_or_else(|error| {
+                    panic!(
+                        "{scenario_name}: read fixture file {}: {error}",
+                        path.display()
+                    )
+                });
+                files.push((relative_path, content));
+            }
+        }
+
+        let mut files = Vec::new();
+        visit(scenario_name, fixture_root, fixture_root, &mut files);
+        files
+    }
+
+    fn run_obsidian_regression_scenario(scenario: &ObsidianRegressionScenario) {
+        let temporary_directory = tempdir()
+            .unwrap_or_else(|error| panic!("{}: create temporary vault: {error}", scenario.name));
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .unwrap_or_else(|error| {
+                panic!("{}: canonicalize temporary vault: {error}", scenario.name)
+            });
+
+        let fixture_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join(scenario.fixture_directory);
+        let fixture_files = inventory_fixture_tree(scenario.name, &fixture_root);
+        assert!(
+            !fixture_files.is_empty(),
+            "{}: fixture vault must contain files",
+            scenario.name
+        );
+
+        for (relative_path, content) in &fixture_files {
+            let path = root.join(relative_path);
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).unwrap_or_else(|error| {
+                    panic!(
+                        "{}: create parent for fixture {}: {error}",
+                        scenario.name, relative_path
+                    )
+                });
+            }
+            fs::write(&path, content).unwrap_or_else(|error| {
+                panic!(
+                    "{}: materialize fixture {}: {error}",
+                    scenario.name, relative_path
+                )
+            });
+        }
+
+        let indexed_before = collect_markdown_files(&root)
+            .unwrap_or_else(|error| panic!("{}: open and index vault: {error}", scenario.name))
+            .iter()
+            .map(|path| to_relative_display(&root, path))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            indexed_before, scenario.indexed_notes,
+            "{}: opening must index only the expected Markdown notes",
+            scenario.name
+        );
+
+        let original_note =
+            fs::read_to_string(root.join(scenario.editable_note)).unwrap_or_else(|error| {
+                panic!("{}: read editable fixture note: {error}", scenario.name)
+            });
+        let edit_marker = format!("\nRegression edit for {}.\n", scenario.name);
+        let edited_note = format!("{original_note}{edit_marker}");
+
+        save_note_in_root(&root, scenario.editable_note, &edited_note)
+            .unwrap_or_else(|error| panic!("{}: edit fixture note: {error}", scenario.name));
+
+        let reopened_note = fs::read_to_string(root.join(scenario.editable_note))
+            .unwrap_or_else(|error| panic!("{}: reopen edited note: {error}", scenario.name));
+        assert_eq!(
+            reopened_note, edited_note,
+            "{}: reopening must return the exact edited Markdown",
+            scenario.name
+        );
+        let indexed_after = collect_markdown_files(&root)
+            .unwrap_or_else(|error| panic!("{}: reindex reopened vault: {error}", scenario.name))
+            .iter()
+            .map(|path| to_relative_display(&root, path))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            indexed_after, scenario.indexed_notes,
+            "{}: editing and reopening must not change the indexed note set",
+            scenario.name
+        );
+
+        for (relative_path, original_content) in fixture_files
+            .iter()
+            .filter(|(relative_path, _)| relative_path != scenario.editable_note)
+        {
+            let reopened = fs::read(root.join(relative_path)).unwrap_or_else(|error| {
+                panic!(
+                    "{}: reopen untouched fixture {}: {error}",
+                    scenario.name, relative_path
+                )
+            });
+            assert_eq!(
+                reopened, *original_content,
+                "{}: untouched file {} changed byte-for-byte",
+                scenario.name, relative_path
+            );
+        }
+    }
+
+    #[test]
+    fn vault_watcher_reports_relative_rename_paths() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let event = NotifyEvent::new(NotifyEventKind::Modify(ModifyKind::Name(RenameMode::Both)))
+            .add_path(root.join("origem").join("nota.md"))
+            .add_path(root.join("destino").join("nota.md"));
+
+        let change = classify_vault_file_system_change(root, &event).expect("watcher change");
+
+        assert_eq!(change.kind, "rename");
+        assert_eq!(change.paths, ["origem/nota.md", "destino/nota.md"]);
+    }
+
+    #[test]
+    fn vault_watcher_ignores_internal_metadata_changes() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let event = NotifyEvent::new(NotifyEventKind::Create(CreateKind::Any))
+            .add_path(root.join(METADATA_DIR).join(CONFIG_FILE));
+
+        assert!(classify_vault_file_system_change(root, &event).is_none());
+    }
+
+    #[test]
+    fn vault_watcher_treats_a_move_to_metadata_as_a_removal() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let event = NotifyEvent::new(NotifyEventKind::Modify(ModifyKind::Name(RenameMode::Both)))
+            .add_path(root.join("nota.md"))
+            .add_path(root.join(METADATA_DIR).join(TRASH_DIR).join("nota.md"));
+
+        let change = classify_vault_file_system_change(root, &event).expect("watcher change");
+
+        assert_eq!(change.kind, "remove");
+        assert_eq!(change.paths, ["nota.md"]);
+    }
+
+    #[test]
+    fn recovering_a_note_preserves_content_and_never_overwrites() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+
+        let recovered = recover_note_in_root(&root, "recuperadas/aula.md", "# Rascunho\n")
+            .expect("recover note");
+
+        assert_eq!(recovered.relative_path, "recuperadas/aula.md");
+        assert_eq!(
+            fs::read_to_string(root.join(&recovered.relative_path)).unwrap(),
+            "# Rascunho\n"
+        );
+        assert!(recover_note_in_root(&root, "recuperadas/aula.md", "sobrescrever").is_err());
+        assert_eq!(
+            fs::read_to_string(root.join(&recovered.relative_path)).unwrap(),
+            "# Rascunho\n"
+        );
+    }
 
     #[test]
     fn collect_markdown_files_ignores_metadata_directory() {
@@ -2226,6 +4590,152 @@ mod tests {
     }
 
     #[test]
+    fn collect_markdown_files_ignores_obsidian_configuration() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        fs::write(root.join("nota.md"), "# Nota").expect("write note");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian folder");
+        fs::write(root.join(".obsidian").join("template.md"), "# Interno")
+            .expect("write internal note");
+
+        let notes = collect_markdown_files(root).expect("collect notes");
+        let names = notes
+            .iter()
+            .map(|path| path.file_name().unwrap().to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+
+        assert_eq!(names, vec!["nota.md"]);
+    }
+
+    #[test]
+    fn obsidian_compatibility_fixture_opens_without_indexing_internal_files() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let fixture = include_str!("../../src/fixtures/obsidian-vault/compatibility.md");
+        fs::write(root.join("compatibility.md"), fixture).expect("write compatibility fixture");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian folder");
+        fs::write(root.join(".obsidian").join("internal.md"), "# Interno")
+            .expect("write internal file");
+
+        let notes = collect_markdown_files(root).expect("collect compatibility fixture");
+        let note_paths = notes
+            .iter()
+            .map(|path| path.file_name().unwrap().to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+
+        assert_eq!(note_paths, vec!["compatibility.md"]);
+        assert_eq!(
+            extract_tags(fixture).expect("extract tags"),
+            vec!["estudo/portugues"]
+        );
+        assert!(fs::read_to_string(root.join("compatibility.md"))
+            .expect("reopen fixture")
+            .contains("[!info] Callout do Obsidian"));
+    }
+
+    #[test]
+    fn obsidian_regression_matrix_study_vault() {
+        run_obsidian_regression_scenario(&ObsidianRegressionScenario {
+            name: "study vault",
+            fixture_directory: "src/fixtures/obsidian-vaults/study-vault",
+            indexed_notes: &["Notas/Indice.md", "Notas/Quimica.md"],
+            editable_note: "Notas/Quimica.md",
+        });
+    }
+
+    #[test]
+    fn obsidian_regression_matrix_project_vault() {
+        run_obsidian_regression_scenario(&ObsidianRegressionScenario {
+            name: "project vault",
+            fixture_directory: "src/fixtures/obsidian-vaults/project-vault",
+            indexed_notes: &["Diarias/2026-07-14.md", "Projetos/Roadmap.md"],
+            editable_note: "Projetos/Roadmap.md",
+        });
+    }
+
+    #[test]
+    fn special_vault_files_are_read_only_and_excluded_from_note_indexing() {
+        let temporary_directory = tempdir().expect("special files vault");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical special files vault");
+        let canvas = br#"{"nodes":[],"edges":[]}"#;
+        let excalidraw = b"excalidraw source";
+        let excalidraw_markdown = b"---\nexcalidraw-plugin: parsed\n---\n# Drawing";
+        let unknown = b"plugin-specific bytes";
+
+        fs::write(root.join("nota.md"), "# Nota").expect("write regular note");
+        fs::write(root.join("Planejamento.canvas"), canvas).expect("write canvas");
+        fs::write(root.join("desenho.excalidraw"), excalidraw).expect("write excalidraw");
+        fs::write(root.join("quadro.excalidraw.md"), excalidraw_markdown)
+            .expect("write excalidraw markdown");
+        fs::write(root.join("dados.plugin-cache"), unknown).expect("write unknown file");
+        fs::write(root.join("imagem.png"), b"supported attachment").expect("write attachment");
+        fs::create_dir_all(root.join(".obsidian").join("plugins")).expect("create obsidian data");
+        fs::write(root.join(".obsidian/plugins/data.json"), "secret")
+            .expect("write obsidian plugin data");
+        fs::create_dir_all(root.join(".hidden")).expect("create hidden directory");
+        fs::write(root.join(".hidden/ignored.cache"), "hidden").expect("write hidden data");
+        fs::create_dir_all(root.join(METADATA_DIR)).expect("create metadata directory");
+        fs::write(root.join(METADATA_DIR).join("ignored.cache"), "metadata")
+            .expect("write metadata data");
+
+        let notes = collect_markdown_files(&root).expect("index regular notes");
+        assert_eq!(
+            notes
+                .iter()
+                .map(|path| to_relative_display(&root, path))
+                .collect::<Vec<_>>(),
+            ["nota.md"]
+        );
+
+        let inventory = collect_special_vault_files(&root).expect("list special files");
+        assert!(!inventory.truncated);
+        assert_eq!(
+            inventory
+                .files
+                .iter()
+                .map(|file| (file.relative_path.as_str(), file.kind))
+                .collect::<Vec<_>>(),
+            [
+                ("Planejamento.canvas", SpecialVaultFileKind::Canvas),
+                ("dados.plugin-cache", SpecialVaultFileKind::Unknown),
+                ("desenho.excalidraw", SpecialVaultFileKind::Excalidraw),
+                ("quadro.excalidraw.md", SpecialVaultFileKind::Excalidraw),
+            ]
+        );
+        assert_eq!(fs::read(root.join("Planejamento.canvas")).unwrap(), canvas);
+        assert_eq!(
+            fs::read(root.join("desenho.excalidraw")).unwrap(),
+            excalidraw
+        );
+        assert_eq!(
+            fs::read(root.join("quadro.excalidraw.md")).unwrap(),
+            excalidraw_markdown
+        );
+        assert_eq!(fs::read(root.join("dados.plugin-cache")).unwrap(), unknown);
+    }
+
+    #[test]
+    fn special_vault_inventory_stops_after_the_safe_limit() {
+        let temporary_directory = tempdir().expect("large special files vault");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical large special files vault");
+
+        for index in 0..=MAX_SPECIAL_VAULT_FILES {
+            fs::write(root.join(format!("unknown-{index:04}.cache")), b"preserved")
+                .expect("write special file");
+        }
+
+        let inventory = collect_special_vault_files(&root).expect("collect bounded inventory");
+        assert!(inventory.truncated);
+        assert_eq!(inventory.files.len(), MAX_SPECIAL_VAULT_FILES);
+    }
+
+    #[test]
     fn collect_attachment_files_lists_nested_files_and_ignores_metadata() {
         let temporary_directory = tempdir().expect("temp dir");
         let root = temporary_directory
@@ -2253,6 +4763,55 @@ mod tests {
             collect_attachment_files(&root).expect("list attachments"),
             vec![root.join(ATTACHMENTS_DIR).join("curso").join("imagem.png")]
         );
+    }
+
+    #[test]
+    fn collect_attachment_files_finds_supported_files_across_the_visible_vault() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join("Notas").join("media")).expect("create note media folder");
+        fs::write(
+            root.join("Notas").join("media").join("diagrama.png"),
+            "image",
+        )
+        .expect("write attachment");
+        fs::write(root.join("Notas").join("rascunho.txt"), "unsupported")
+            .expect("write unsupported file");
+
+        assert_eq!(
+            collect_attachment_files(&root).expect("list attachments"),
+            vec![root.join("Notas").join("media").join("diagrama.png")]
+        );
+    }
+
+    #[test]
+    fn read_pdf_attachment_only_reads_inventoried_pdf_files_within_the_size_limit() {
+        let directory = tempdir().expect("create temp directory");
+        let root = directory.path().join("vault");
+        fs::create_dir_all(root.join(ATTACHMENTS_DIR)).expect("create attachments folder");
+        fs::create_dir_all(root.join(".obsidian").join("plugins")).expect("create hidden folder");
+        fs::write(root.join(ATTACHMENTS_DIR).join("manual.pdf"), b"%PDF-safe")
+            .expect("write safe pdf");
+        fs::write(
+            root.join(".obsidian").join("plugins").join("secret.pdf"),
+            b"%PDF-secret",
+        )
+        .expect("write hidden pdf");
+
+        assert_eq!(
+            read_pdf_attachment_in_root(&root, "attachments/manual.pdf").expect("read safe pdf"),
+            b"%PDF-safe".to_vec()
+        );
+        assert!(read_pdf_attachment_in_root(&root, ".obsidian/plugins/secret.pdf").is_err());
+
+        let oversized = root.join(ATTACHMENTS_DIR).join("oversized.pdf");
+        let file = fs::File::create(&oversized).expect("create oversized pdf");
+        file.set_len(MAX_PDF_ATTACHMENT_BYTES + 1)
+            .expect("extend oversized pdf");
+        assert!(read_pdf_attachment_in_root(&root, "attachments/oversized.pdf").is_err());
     }
 
     #[test]
@@ -2332,6 +4891,46 @@ mod tests {
         assert!(resolve_note_path(&root, "area/nova-nota").is_ok());
     }
 
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn resolve_note_path_rejects_a_symbolic_link_as_the_final_note() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let outside = temporary_directory.path().join("outside.txt");
+        fs::write(&outside, "secret").expect("write outside file");
+        let link = root.join("linked.md");
+
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&outside, &link).expect("create file symlink");
+        #[cfg(windows)]
+        if let Err(error) = std::os::windows::fs::symlink_file(&outside, &link) {
+            if error.kind() == std::io::ErrorKind::PermissionDenied
+                || error.raw_os_error() == Some(1314)
+            {
+                return;
+            }
+            panic!("create file symlink: {error}");
+        }
+
+        assert!(resolve_note_path(&root, "linked.md").is_err());
+    }
+
+    #[test]
+    fn write_new_file_never_overwrites_an_existing_note() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let note_path = temporary_directory.path().join("existing.md");
+        fs::write(&note_path, "original").expect("write original note");
+
+        assert!(write_new_file(&note_path, b"replacement").is_err());
+        assert_eq!(
+            fs::read_to_string(&note_path).expect("read original note"),
+            "original"
+        );
+    }
+
     #[test]
     fn resolve_folder_path_rejects_unsafe_paths() {
         let temporary_directory = tempdir().expect("temp dir");
@@ -2376,7 +4975,8 @@ mod tests {
             .expect("canonical root");
         fs::create_dir_all(root.join("origem")).expect("create source folder");
         fs::create_dir_all(root.join("destino")).expect("create destination folder");
-        fs::write(root.join("origem").join("aula.md"), "# Aula").expect("write target note");
+        fs::write(root.join("origem").join("aula.md"), "# Aula\n\n## Resumo")
+            .expect("write target note");
         fs::write(
             root.join("referencias.md"),
             "[[origem/aula|Aula]]\n[[origem/aula#Resumo]]\n[[origem/aula.md]]\n[[nota-ausente]]",
@@ -2395,6 +4995,256 @@ mod tests {
         assert_eq!(broken_links.len(), 1);
         assert_eq!(broken_links[0].source_relative_path, "referencias.md");
         assert_eq!(broken_links[0].target, "nota-ausente.md");
+    }
+
+    #[test]
+    fn compatible_note_rename_preserves_wikilink_semantics_and_ignored_regions() {
+        let temporary_directory = tempdir().expect("compatible rename vault");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical compatible rename vault");
+        fs::create_dir_all(root.join("curso")).expect("create source folder");
+        fs::create_dir_all(root.join("outro")).expect("create duplicate folder");
+        fs::create_dir_all(root.join("destino")).expect("create destination folder");
+        fs::write(
+            root.join("curso/aula.md"),
+            "# Aula\r\n\r\n[[#Resumo]]\r\n[[#^bloco]]\r\n\r\n## Resumo\r\n\r\nTexto ^bloco\r\n",
+        )
+        .expect("write target note");
+        fs::write(root.join("outro/aula.md"), "# Outra aula\r\n").expect("write duplicate note");
+
+        let reference_source = concat!(
+            "[[aula|Alias preservado]]\r\n",
+            "![[aula#Resumo|Trecho incorporado]]\r\n",
+            "[[aula#^bloco]]\r\n",
+            "[[curso/aula.md#Resumo|Caminho completo]]\r\n",
+            "[[outro/aula|Duplicata]]\r\n",
+            "`[[curso/aula]]`\r\n",
+            "```md\r\n[[curso/aula]]\r\n```\r\n",
+            "<!-- [[curso/aula]] -->\r\n",
+            "<div>[[curso/aula]]</div>\r\n",
+            "\\[[curso/aula]]\r\n",
+            "%% [[curso/aula]] %%\r\n",
+            "%% comentario\r\n[[curso/aula]]\r\n%%\r\n",
+            "```md\r\n```nao-fecha\r\n[[curso/aula]]\r\n```\r\n",
+            "<div>\r\n<div>interno</div>\r\n[[curso/aula]]\r\n</div>\r\n",
+            "<hr>\r\n[[curso/aula]]\r\n",
+            "<p>bloco HTML\r\n\r\n[[curso/aula]]\r\n",
+        );
+        fs::write(root.join("curso/referencias.md"), reference_source)
+            .expect("write reference note");
+
+        rename_vault_item_in_root(&root, "curso/aula.md", "resumo", "note")
+            .expect("rename compatible note");
+        move_vault_item_in_root(&root, "curso/resumo.md", "destino", "note")
+            .expect("move compatible note");
+
+        let references =
+            fs::read_to_string(root.join("curso/referencias.md")).expect("read references");
+        assert_eq!(
+            references,
+            concat!(
+                "[[destino/resumo|Alias preservado]]\r\n",
+                "![[destino/resumo#Resumo|Trecho incorporado]]\r\n",
+                "[[destino/resumo#^bloco]]\r\n",
+                "[[destino/resumo.md#Resumo|Caminho completo]]\r\n",
+                "[[outro/aula|Duplicata]]\r\n",
+                "`[[curso/aula]]`\r\n",
+                "```md\r\n[[curso/aula]]\r\n```\r\n",
+                "<!-- [[curso/aula]] -->\r\n",
+                "<div>[[curso/aula]]</div>\r\n",
+                "\\[[curso/aula]]\r\n",
+                "%% [[curso/aula]] %%\r\n",
+                "%% comentario\r\n[[curso/aula]]\r\n%%\r\n",
+                "```md\r\n```nao-fecha\r\n[[curso/aula]]\r\n```\r\n",
+                "<div>\r\n<div>interno</div>\r\n[[curso/aula]]\r\n</div>\r\n",
+                "<hr>\r\n[[destino/resumo]]\r\n",
+                "<p>bloco HTML\r\n\r\n[[destino/resumo]]\r\n",
+            )
+        );
+
+        let moved_note =
+            fs::read_to_string(root.join("destino/resumo.md")).expect("read moved note");
+        assert!(moved_note.contains("[[#Resumo]]\r\n[[#^bloco]]"));
+    }
+
+    #[test]
+    fn moving_a_note_preserves_the_targets_of_its_outgoing_links() {
+        let temporary_directory = tempdir().expect("outgoing links vault");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical outgoing links vault");
+        fs::create_dir_all(root.join("curso")).expect("create source folder");
+        fs::create_dir_all(root.join("destino")).expect("create destination folder");
+        fs::write(root.join("curso/topico.md"), "[[material|Material]]")
+            .expect("write moving note");
+        fs::write(root.join("curso/material.md"), "# Material correto")
+            .expect("write original neighbor");
+        fs::write(root.join("destino/material.md"), "# Material homonimo")
+            .expect("write destination neighbor");
+
+        move_vault_item_in_root(&root, "curso/topico.md", "destino", "note")
+            .expect("move note preserving outgoing links");
+
+        assert_eq!(
+            fs::read_to_string(root.join("destino/topico.md")).expect("read moved note"),
+            "[[curso/material|Material]]"
+        );
+    }
+
+    #[test]
+    fn renaming_and_moving_a_folder_updates_links_for_all_contained_notes() {
+        let temporary_directory = tempdir().expect("folder links vault");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical folder links vault");
+        fs::create_dir_all(root.join("curso/sub")).expect("create source tree");
+        fs::create_dir_all(root.join("arquivo")).expect("create destination tree");
+        fs::write(
+            root.join("curso/aula.md"),
+            "[[curso/sub/material|Material]]",
+        )
+        .expect("write source note");
+        fs::write(root.join("curso/sub/material.md"), "# Material").expect("write nested note");
+        fs::write(
+            root.join("indice.md"),
+            "[[curso/aula|Aula]]\n![[curso/sub/material]]",
+        )
+        .expect("write root index");
+
+        rename_vault_item_in_root(&root, "curso", "estudos", "folder")
+            .expect("rename linked folder");
+        move_vault_item_in_root(&root, "estudos", "arquivo", "folder").expect("move linked folder");
+
+        assert_eq!(
+            fs::read_to_string(root.join("indice.md")).expect("read root index"),
+            "[[arquivo/estudos/aula|Aula]]\n![[arquivo/estudos/sub/material]]"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("arquivo/estudos/aula.md")).expect("read contained note"),
+            "[[arquivo/estudos/sub/material|Material]]"
+        );
+    }
+
+    #[test]
+    fn failed_link_rewrite_leaves_the_note_and_references_unchanged() {
+        let temporary_directory = tempdir().expect("failed rename vault");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical failed rename vault");
+        fs::write(root.join("aula.md"), "# Aula").expect("write target note");
+        fs::write(root.join("referencias.md"), "[[aula]]").expect("write reference note");
+        fs::write(root.join("z-invalida.md"), [0xff, 0xfe, 0xfd])
+            .expect("write invalid UTF-8 note");
+
+        assert!(rename_vault_item_in_root(&root, "aula.md", "resumo", "note").is_err());
+        assert!(root.join("aula.md").is_file());
+        assert!(!root.join("resumo.md").exists());
+        assert_eq!(
+            fs::read_to_string(root.join("referencias.md")).expect("read unchanged reference"),
+            "[[aula]]"
+        );
+    }
+
+    #[test]
+    fn link_rewrite_refuses_to_overwrite_a_concurrent_external_edit() {
+        let temporary_directory = tempdir().expect("concurrent edit vault");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical concurrent edit vault");
+        fs::write(root.join("aula.md"), "# Aula").expect("write target note");
+        fs::write(root.join("referencias.md"), "[[aula]]").expect("write reference note");
+        let changes = vec![("aula.md".to_string(), "resumo.md".to_string())];
+        let available = vec!["aula.md".to_string(), "referencias.md".to_string()];
+        let updates =
+            prepare_wiki_link_updates(&root, &changes, &available).expect("prepare link updates");
+
+        fs::rename(root.join("aula.md"), root.join("resumo.md")).expect("rename target note");
+        fs::write(
+            root.join("referencias.md"),
+            "Edicao externa mais recente\n[[aula]]",
+        )
+        .expect("write concurrent edit");
+
+        assert!(update_wiki_links_for_note_path_change(&root, &updates).is_err());
+        assert_eq!(
+            fs::read_to_string(root.join("referencias.md")).expect("read concurrent edit"),
+            "Edicao externa mais recente\n[[aula]]"
+        );
+    }
+
+    #[test]
+    fn link_rewrite_rolls_back_every_file_after_a_partial_commit_failure() {
+        let temporary_directory = tempdir().expect("rollback vault");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical rollback vault");
+        fs::write(root.join("primeira.md"), "original 1").expect("write first note");
+        fs::write(root.join("segunda.md"), "original 2").expect("write second note");
+        let updates = vec![
+            PlannedWikiLinkUpdate {
+                original_content: b"original 1".to_vec(),
+                path_after_change: root.join("primeira.md"),
+                updated_content: b"atualizada 1".to_vec(),
+            },
+            PlannedWikiLinkUpdate {
+                original_content: b"original 2".to_vec(),
+                path_after_change: root.join("segunda.md"),
+                updated_content: b"atualizada 2".to_vec(),
+            },
+        ];
+
+        let result =
+            update_wiki_links_for_note_path_change_with_hook(&root, &updates, |committed_index| {
+                if committed_index == 0 {
+                    anyhow::bail!("falha injetada depois do primeiro commit");
+                }
+                Ok(())
+            });
+
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read_to_string(root.join("primeira.md")).expect("read restored first note"),
+            "original 1"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("segunda.md")).expect("read untouched second note"),
+            "original 2"
+        );
+        assert!(fs::read_dir(&root)
+            .expect("list rollback vault")
+            .all(|entry| !entry
+                .expect("read rollback entry")
+                .file_name()
+                .to_string_lossy()
+                .contains(".mirmind-")));
+    }
+
+    #[test]
+    fn moving_a_folder_never_overwrites_an_existing_destination() {
+        let temporary_directory = tempdir().expect("folder collision vault");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical folder collision vault");
+        fs::create_dir(root.join("origem")).expect("create source folder");
+        fs::write(root.join("origem/nota.md"), "# Nota").expect("write source note");
+        fs::create_dir(root.join("destino")).expect("create destination folder");
+
+        assert!(move_vault_path_without_overwrite(
+            &root.join("origem"),
+            &root.join("destino"),
+            false,
+        )
+        .is_err());
+        assert!(root.join("origem/nota.md").is_file());
+        assert!(root.join("destino").is_dir());
     }
 
     #[test]
@@ -2532,6 +5382,345 @@ mod tests {
     }
 
     #[test]
+    fn obsidian_attachment_folder_configuration_is_respected() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let source_directory = tempdir().expect("source dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+        fs::write(
+            root.join(".obsidian").join("app.json"),
+            r#"{"attachmentFolderPath":"media"}"#,
+        )
+        .expect("write obsidian config");
+        let source = source_directory.path().join("diagrama.png");
+        fs::write(&source, "image bytes").expect("write attachment");
+
+        let attachment =
+            import_attachment_in_root(&root, &source, "aula.md").expect("import attachment");
+
+        assert_eq!(attachment.relative_path, "media/diagrama.png");
+        assert_eq!(
+            collect_attachment_files(&root).expect("list attachments"),
+            vec![root.join("media").join("diagrama.png")]
+        );
+    }
+
+    #[test]
+    fn vault_summary_reads_supported_obsidian_preferences_without_modifying_app_json() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+        let app_json = br#"{
+  "newFileLocation": "folder",
+  "newFileFolderPath": "Notas",
+  "attachmentFolderPath": "./media",
+  "newLinkFormat": "relative",
+  "useMarkdownLinks": true,
+  "alwaysUpdateLinks": false,
+  "showUnsupportedFiles": true,
+  "promptDelete": false,
+  "trashOption": "local",
+  "userIgnoreFilters": ["Arquivo/", "Temporario\\.md$"],
+  "pluginOwnedSetting": { "mustRemain": true }
+}"#;
+        let config_path = root.join(".obsidian").join("app.json");
+        fs::write(&config_path, app_json).expect("write obsidian config");
+
+        let summary = inspect_vault_path(&root).expect("inspect vault");
+        let preferences = summary
+            .obsidian_preferences
+            .expect("read supported obsidian preferences");
+
+        assert_eq!(preferences.new_file_location.as_deref(), Some("folder"));
+        assert_eq!(preferences.new_file_folder_path.as_deref(), Some("Notas"));
+        assert_eq!(
+            preferences.attachment_folder_path.as_deref(),
+            Some("./media")
+        );
+        assert_eq!(preferences.new_link_format.as_deref(), Some("relative"));
+        assert_eq!(preferences.use_markdown_links, Some(true));
+        assert_eq!(preferences.always_update_links, Some(false));
+        assert_eq!(preferences.show_unsupported_files, Some(true));
+        assert_eq!(preferences.prompt_delete, Some(false));
+        assert_eq!(preferences.trash_option.as_deref(), Some("local"));
+        assert_eq!(
+            preferences.user_ignore_filters,
+            vec!["Arquivo/", "Temporario\\.md$"]
+        );
+        assert_eq!(
+            fs::read(&config_path).expect("reread obsidian config"),
+            app_json
+        );
+    }
+
+    #[test]
+    fn vault_summary_tolerates_invalid_or_missing_obsidian_app_configuration() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+
+        assert!(inspect_vault_path(&root)
+            .expect("inspect markdown vault")
+            .obsidian_preferences
+            .is_none());
+
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+        fs::write(root.join(".obsidian").join("app.json"), "{ invalid")
+            .expect("write invalid obsidian config");
+        assert!(inspect_vault_path(&root)
+            .expect("inspect invalid obsidian vault")
+            .obsidian_preferences
+            .is_none());
+    }
+
+    #[test]
+    fn vault_summary_limits_obsidian_configuration_and_preference_strings() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+        let config_path = root.join(".obsidian").join("app.json");
+
+        fs::write(
+            &config_path,
+            vec![b' '; super::MAX_OBSIDIAN_APP_CONFIG_BYTES as usize + 1],
+        )
+        .expect("write oversized obsidian config");
+        assert!(inspect_vault_path(&root)
+            .expect("inspect oversized obsidian config")
+            .obsidian_preferences
+            .is_none());
+
+        let long_ascii = "a".repeat(super::MAX_OBSIDIAN_PREFERENCE_UTF16_UNITS + 1);
+        let astral_filter = "😀".repeat(600);
+        let filters = std::iter::once(astral_filter)
+            .chain((0..258).map(|index| format!("filtro-{index}")))
+            .collect::<Vec<_>>();
+        fs::write(
+            &config_path,
+            serde_json::to_vec(&serde_json::json!({
+                "newFileLocation": long_ascii,
+                "attachmentFolderPath": "media",
+                "userIgnoreFilters": filters,
+            }))
+            .expect("serialize bounded preferences"),
+        )
+        .expect("write bounded preferences");
+
+        let preferences = inspect_vault_path(&root)
+            .expect("inspect bounded preferences")
+            .obsidian_preferences
+            .expect("read bounded preferences");
+        assert_eq!(preferences.new_file_location, None);
+        assert_eq!(preferences.attachment_folder_path.as_deref(), Some("media"));
+        assert_eq!(preferences.user_ignore_filters.len(), 256);
+        assert_eq!(preferences.user_ignore_filters.first().unwrap(), "filtro-0");
+        assert_eq!(
+            preferences.user_ignore_filters.last().unwrap(),
+            "filtro-255"
+        );
+    }
+
+    #[test]
+    fn vault_summary_rejects_symlinked_obsidian_app_configuration() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let outside_directory = tempdir().expect("outside dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+        let outside = outside_directory.path().join("app.json");
+        fs::write(&outside, r#"{"attachmentFolderPath":"outside"}"#)
+            .expect("write outside obsidian config");
+        let link = root.join(".obsidian").join("app.json");
+
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&outside, &link).expect("create obsidian config symlink");
+        #[cfg(windows)]
+        if let Err(error) = std::os::windows::fs::symlink_file(&outside, &link) {
+            if error.kind() == std::io::ErrorKind::PermissionDenied
+                || error.raw_os_error() == Some(1314)
+            {
+                return;
+            }
+            panic!("create obsidian config symlink: {error}");
+        }
+
+        assert!(inspect_vault_path(&root)
+            .expect("inspect symlinked obsidian config")
+            .obsidian_preferences
+            .is_none());
+    }
+
+    #[test]
+    fn obsidian_note_relative_attachment_locations_are_respected() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+
+        fs::write(
+            root.join(".obsidian").join("app.json"),
+            r#"{"attachmentFolderPath":"./"}"#,
+        )
+        .expect("write same-folder config");
+        assert_eq!(
+            attachment_directory_for_note(&root, "Projetos/Roadmap.md").expect("same note folder"),
+            root.join("Projetos")
+        );
+
+        fs::write(
+            root.join(".obsidian").join("app.json"),
+            r#"{"attachmentFolderPath":"./media"}"#,
+        )
+        .expect("write note-subfolder config");
+        assert_eq!(
+            attachment_directory_for_note(&root, "Projetos/Roadmap.md").expect("note subfolder"),
+            root.join("Projetos").join("media")
+        );
+
+        fs::write(
+            root.join(".obsidian").join("app.json"),
+            r#"{"attachmentFolderPath":"/"}"#,
+        )
+        .expect("write vault-root config");
+        assert_eq!(
+            attachment_directory_for_note(&root, "Projetos/Roadmap.md").expect("vault root"),
+            root
+        );
+    }
+
+    #[test]
+    fn attachment_locations_match_the_real_obsidian_vault_fixtures() {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("src")
+            .join("fixtures")
+            .join("obsidian-vaults")
+            .canonicalize()
+            .expect("canonical fixture root");
+        let project_vault = fixtures.join("project-vault");
+        let study_vault = fixtures.join("study-vault");
+
+        assert_eq!(
+            attachment_directory_for_note(&project_vault, "Projetos/Roadmap.md")
+                .expect("project fixture attachment folder"),
+            project_vault.join("Projetos")
+        );
+        assert_eq!(
+            attachment_directory_for_note(&study_vault, "Notas/Quimica.md")
+                .expect("study fixture attachment folder"),
+            study_vault.join("assets")
+        );
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn import_attachment_rejects_a_configured_directory_outside_the_vault() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let source_directory = tempdir().expect("source dir");
+        let root = temporary_directory.path().join("vault");
+        let outside = temporary_directory.path().join("outside");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+        fs::create_dir_all(&outside).expect("create outside folder");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&outside, root.join("media")).expect("create directory symlink");
+        #[cfg(windows)]
+        if let Err(error) = std::os::windows::fs::symlink_dir(&outside, root.join("media")) {
+            if error.kind() == std::io::ErrorKind::PermissionDenied
+                || error.raw_os_error() == Some(1314)
+            {
+                return;
+            }
+            panic!("create directory symlink: {error}");
+        }
+        fs::write(
+            root.join(".obsidian").join("app.json"),
+            r#"{"attachmentFolderPath":"media/subpasta"}"#,
+        )
+        .expect("write obsidian config");
+        let source = source_directory.path().join("diagrama.png");
+        fs::write(&source, "image bytes").expect("write attachment");
+
+        assert!(import_attachment_in_root(&root, &source, "aula.md").is_err());
+        assert!(!outside.join("subpasta").exists());
+        assert!(!outside.join("diagrama.png").exists());
+    }
+
+    #[test]
+    fn concurrent_attachment_imports_never_overwrite_each_other() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let first_source_directory = tempdir().expect("first source dir");
+        let second_source_directory = tempdir().expect("second source dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let first_source = first_source_directory.path().join("diagrama.png");
+        let second_source = second_source_directory.path().join("diagrama.png");
+        fs::write(&first_source, "first image").expect("write first attachment");
+        fs::write(&second_source, "second image").expect("write second attachment");
+
+        let first_root = root.clone();
+        let first = std::thread::spawn(move || {
+            import_attachment_in_root(&first_root, &first_source, "aula.md")
+        });
+        let second_root = root.clone();
+        let second = std::thread::spawn(move || {
+            import_attachment_in_root(&second_root, &second_source, "aula.md")
+        });
+        let first_attachment = first
+            .join()
+            .expect("join first import")
+            .expect("first import");
+        let second_attachment = second
+            .join()
+            .expect("join second import")
+            .expect("second import");
+
+        assert_ne!(
+            first_attachment.relative_path,
+            second_attachment.relative_path
+        );
+        let mut contents = [
+            fs::read_to_string(root.join(first_attachment.relative_path))
+                .expect("read first imported attachment"),
+            fs::read_to_string(root.join(second_attachment.relative_path))
+                .expect("read second imported attachment"),
+        ];
+        contents.sort();
+        assert_eq!(contents, ["first image", "second image"]);
+    }
+
+    #[test]
+    fn note_relative_attachment_location_rejects_internal_vault_directories() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path().join("vault");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+        fs::write(
+            root.join(".obsidian").join("app.json"),
+            r#"{"attachmentFolderPath":"./"}"#,
+        )
+        .expect("write obsidian config");
+
+        assert!(attachment_directory_for_note(&root, ".obsidian/interna.md").is_err());
+        assert!(attachment_directory_for_note(&root, ".mirmind/interna.md").is_err());
+    }
+
+    #[test]
     fn backlinks_find_notes_using_wiki_links_with_aliases() {
         let temporary_directory = tempdir().expect("temp dir");
         let root = temporary_directory
@@ -2551,6 +5740,81 @@ mod tests {
         assert_eq!(backlinks.len(), 1);
         assert_eq!(backlinks[0].relative_path, "historia.md");
         assert_eq!(extract_wiki_links("[[nota#secao]]"), vec!["nota.md"]);
+        assert_eq!(
+            extract_wiki_links("%% [[ignorada]] %%\n%% bloco\n[[tambem-ignorada]]\n%%\n[[nota]]"),
+            vec!["nota.md"]
+        );
+    }
+
+    #[test]
+    fn wikilinks_resolve_local_notes_root_paths_and_nearest_duplicate_names() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join("projetos")).expect("create projects");
+        fs::create_dir_all(root.join("arquivo")).expect("create archive");
+        fs::write(root.join("projetos").join("aula.md"), "# Aula\n\n## Resumo")
+            .expect("write near note");
+        fs::write(root.join("arquivo").join("aula.md"), "# Aula antiga")
+            .expect("write duplicate note");
+        fs::write(
+            root.join("projetos").join("referencias.md"),
+            "# Secao local\n\n[[aula#Resumo|Aula atual]]\n[[arquivo/aula]]\n[[#Secao local]]\n[[nota-ausente]]\n\
+             `[[inline-ausente]]`\n\
+             \\[[escapado-ausente]]\n\
+             <!-- [[comentario-ausente]] -->\n\
+             ```md\n[[codigo-ausente]]\n```",
+        )
+        .expect("write references");
+
+        let backlinks =
+            get_backlinks_in_root(&root, "projetos/aula.md").expect("get nearest backlinks");
+        assert_eq!(backlinks.len(), 1);
+        assert_eq!(backlinks[0].relative_path, "projetos/referencias.md");
+
+        let archive_backlinks =
+            get_backlinks_in_root(&root, "arquivo/aula.md").expect("get root path backlinks");
+        assert_eq!(archive_backlinks.len(), 1);
+        assert_eq!(
+            archive_backlinks[0].relative_path,
+            "projetos/referencias.md"
+        );
+
+        let broken_links = get_broken_links_in_root(&root).expect("get broken links");
+        assert_eq!(broken_links.len(), 1);
+        assert_eq!(broken_links[0].target, "nota-ausente.md");
+    }
+
+    #[test]
+    fn broken_wikilinks_validate_fragments_unicode_and_ignore_html_regions() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::write(
+            root.join("Árvore.md"),
+            "**API** `v2`\n-\n\n   ### [Guia](https://example.com)\n\n### C\\+\\+ &amp; R\n\n### Caf&eacute;\n\nConteudo. ^real\n\n```md\nCodigo. ^falso\n```",
+        )
+        .expect("write unicode target");
+        fs::write(
+            root.join("referencias.md"),
+            "[[árvore#API v2]]\n[[Árvore#Guia]]\n[[Árvore#C++ & R]]\n[[Árvore#Café]]\n[[Árvore#^real]]\n[[Árvore#Ausente]]\n[[Árvore#Ausente]]\n\
+             [[Árvore#^falso]]\n<div data-note=\"[[fantasma]]\">[[tambem-fantasma]]</div>\n\
+             <span data-note=\"[[atributo]]\">[[Árvore]]</span>",
+        )
+        .expect("write references");
+
+        let backlinks = get_backlinks_in_root(&root, "Árvore.md").expect("get unicode backlinks");
+        assert_eq!(backlinks.len(), 1);
+        assert_eq!(backlinks[0].relative_path, "referencias.md");
+
+        let broken_links = get_broken_links_in_root(&root).expect("get fragment failures");
+        assert_eq!(broken_links.len(), 2);
+        assert_eq!(broken_links[0].target, "Árvore.md#Ausente");
+        assert_eq!(broken_links[1].target, "Árvore.md#^falso");
     }
 
     #[test]
@@ -2560,18 +5824,76 @@ mod tests {
             .path()
             .canonicalize()
             .expect("canonical root");
-        fs::write(root.join("aula.md"), "# Titulo\n#portugues #Revisao").expect("write first note");
+        fs::write(
+            root.join("aula.md"),
+            "---\ntags:\n  - estudo/portugues\n  - ação\n---\n\n# Titulo\n#portugues #Revisao",
+        )
+        .expect("write first note");
         fs::write(root.join("resumo.md"), "#portugues").expect("write second note");
 
         let tags = get_tag_index_in_root(&root).expect("tag index");
 
         assert_eq!(
-            extract_tags("#tag #tag #outra-tag"),
-            vec!["outra-tag", "tag"]
+            extract_tags("#tag #tag #outra-tag #estudo/portugues").expect("extract tags"),
+            vec!["estudo/portugues", "outra-tag", "tag"]
         );
-        assert_eq!(tags.len(), 2);
-        assert_eq!(tags[0].tag, "portugues");
-        assert_eq!(tags[0].note_paths, vec!["aula.md", "resumo.md"]);
+        assert_eq!(tags.len(), 4);
+        assert_eq!(tags[1].tag, "estudo/portugues");
+        assert_eq!(tags[2].tag, "portugues");
+        assert_eq!(tags[2].note_paths, vec!["aula.md", "resumo.md"]);
+    }
+
+    #[test]
+    fn tag_index_supports_complex_obsidian_frontmatter_values() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let content = "\u{feff}---\r\nshared: &shared\r\n  - Estudo/Quimica\r\n  - \"#Ação\"\r\ntags:\r\n  - *shared\r\n  - Revisão\r\n  - on\r\n  - off\r\n  - yes\r\n  - no\r\n---\r\n\r\n#Corpo #ac\u{327}a\u{303}o #pai/ #pai//filho café#privado\r\n\r\n`#codigo-inline`\r\n\r\n```\r\n#codigo-bloco\r\n```\r\n\r\n<!-- #comentario-html -->\r\n%% #comentario-obsidian %%\r\nhttps://exemplo.test/#fragmento";
+        fs::write(root.join("complexa.md"), content).expect("write note");
+
+        let tags = get_tag_index_in_root(&root).expect("tag index");
+
+        assert_eq!(
+            tags.into_iter()
+                .map(|summary| (summary.tag, summary.note_paths))
+                .collect::<Vec<_>>(),
+            vec![
+                ("ação".to_string(), vec!["complexa.md".to_string()]),
+                ("corpo".to_string(), vec!["complexa.md".to_string()]),
+                (
+                    "estudo/quimica".to_string(),
+                    vec!["complexa.md".to_string()]
+                ),
+                ("no".to_string(), vec!["complexa.md".to_string()]),
+                ("off".to_string(), vec!["complexa.md".to_string()]),
+                ("on".to_string(), vec!["complexa.md".to_string()]),
+                ("revisão".to_string(), vec!["complexa.md".to_string()]),
+                ("yes".to_string(), vec!["complexa.md".to_string()]),
+            ]
+        );
+    }
+
+    #[test]
+    fn tag_index_rejects_notes_above_the_resource_budget() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::write(
+            root.join("grande.md"),
+            vec![b'a'; super::MAX_TAG_NOTE_BYTES as usize + 1],
+        )
+        .expect("write oversized note");
+
+        let error = match get_tag_index_in_root(&root) {
+            Ok(_) => panic!("oversized note should be rejected"),
+            Err(error) => error,
+        };
+
+        assert!(error.to_string().contains("limite seguro"));
     }
 
     #[test]

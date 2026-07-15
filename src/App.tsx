@@ -1,16 +1,23 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { Fragment, useEffect, useEffectEvent, useRef, useState } from 'react'
 import type { CSSProperties, DragEvent, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import type { EditorState } from '@codemirror/state'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { Bold, CheckSquare, ChevronDown, Code2, Eye, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, Link, List, ListFilter, ListOrdered, Minus, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Star, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
+import { Bold, CheckSquare, ChevronDown, Code2, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, Link, List, ListFilter, ListOrdered, Minus, Network, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Star, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { CiStickyNote } from 'react-icons/ci'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { BuilderModeControl } from './components/BuilderModeControl'
 import { MarkdownCodeEditor } from './components/MarkdownCodeEditor'
+import { ObsidianCallout } from './components/ObsidianCallout'
+import { ObsidianNoteEmbed } from './components/ObsidianNoteEmbed'
+import { ObsidianPdfEmbed } from './components/ObsidianPdfEmbed'
+import { remarkObsidianCallouts } from './lib/remarkObsidianCallouts'
 import type { MarkdownCodeEditorHandle, MarkdownEditorHistoryStatus, MarkdownEditorSession } from './components/MarkdownCodeEditor'
 import {
   DEFAULT_WORKSPACE_SHORTCUTS,
@@ -26,6 +33,8 @@ import type {
   NotePreview,
   NoteTreeNode,
   RecentVaultPreference,
+  SpecialVaultFile,
+  VaultFileSystemChange,
   VaultSummary,
 } from './lib/vault'
 import {
@@ -35,15 +44,19 @@ import {
   formatNoteTitleAsPath,
   formatVaultNameError,
   getVaultModeLabel,
+  isVaultPathAffected,
+  normalizeRecoveredNotePath,
   parseNoteDocument,
   parseNoteList,
   parseHistoryStatus,
   parseRecentVaultPreference,
+  parseSpecialVaultInventory,
   parseVaultSummary,
+  remapVaultPath,
   suggestVaultName,
 } from './lib/vault'
 import './App.css'
-import { extractMarkdownTags, formatMarkdownSelection, getMarkdownBody, getMarkdownDescription, getMarkdownFrontmatterProperties, getMarkdownFrontmatterSource, getMarkdownPreviewText, parseFrontmatterPropertiesInput, renderWikiLinksAsMarkdown, replaceMarkdownBody, setMarkdownDescription, setMarkdownFrontmatterProperties, splitMarkdownBlocks, toggleChecklistAtLine, transformMarkdownTable, type FrontmatterValue, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
+import { detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBlockRanges, getMarkdownBody, getMarkdownDescription, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownFrontmatterSource, getMarkdownPreviewText, normalizeMarkdownTag, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderWikiLinksAsMarkdown, replaceMarkdownBlock, replaceMarkdownBody, resolveObsidianAttachmentPath, resolveObsidianWikiLinkPath, setMarkdownDescription, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable, type FrontmatterValue, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
 
 type TrashItem = {
   id: string
@@ -57,6 +70,18 @@ type Attachment = {
   name: string
   relativePath: string
   isImage: boolean
+}
+
+const SPECIAL_FILE_LABELS: Record<SpecialVaultFile['kind'], string> = {
+  canvas: 'Canvas',
+  excalidraw: 'Excalidraw',
+  unknown: 'Formato desconhecido',
+}
+
+const SPECIAL_FILE_LIMITATIONS: Record<SpecialVaultFile['kind'], string> = {
+  canvas: 'O Canvas ainda nao possui visualizador no MirrorMind.',
+  excalidraw: 'O desenho Excalidraw ainda nao possui editor no MirrorMind.',
+  unknown: 'Este formato nao possui visualizacao ou edicao no MirrorMind.',
 }
 
 type Backlink = {
@@ -81,6 +106,12 @@ type ExternalNoteConflict = {
   localContent: string
 }
 
+type ExternalRemovedNote = {
+  relativePath: string
+  content: string
+  wasActive: boolean
+}
+
 type ReadingFont = 'sans' | 'serif' | 'mono'
 type ReadingWidth = 'compact' | 'comfortable' | 'wide'
 
@@ -91,16 +122,112 @@ type TagSummary = {
 type NoteSearchResult = { name: string; relativePath: string; excerpt: string }
 type NoteTemplate = { id: string; name: string; content: string }
 type PaletteCommand = { id: string; label: string; description: string; disabled?: boolean }
+type FrontmatterPropertyEditor = { originalKey: string | null; key: string; value: string }
 type ExplorerContextMenu = {
   x: number
   y: number
   target: { path: string; name: string; type: 'note' | 'folder' }
 }
 
+type GraphDocument = Pick<NoteDocument, 'name' | 'relativePath' | 'content'>
+type NoteGraphLink = { source: string; target: string }
+type GraphPosition = { x: number; y: number }
+type GraphViewport = { scale: number; x: number; y: number }
+type GraphMode = 'global' | 'local'
+
+function buildNoteGraphLinks(documents: GraphDocument[], availablePaths: string[]) {
+  return documents.flatMap((document) => {
+    const targets = new Set<string>()
+    for (const link of extractObsidianWikiLinks(document.content)) {
+      const targetPath = resolveObsidianWikiLinkPath(link.path, document.relativePath, availablePaths)
+      if (targetPath !== document.relativePath && documents.some((candidate) => candidate.relativePath === targetPath)) targets.add(targetPath)
+    }
+    return [...targets].map((target) => ({ source: document.relativePath, target }))
+  })
+}
+
+function createForceGraphLayout(documents: GraphDocument[], links: NoteGraphLink[]) {
+  const positions = documents.reduce<Record<string, GraphPosition>>((result, document, index) => {
+    const angle = (Math.PI * 2 * index) / Math.max(documents.length, 1) - Math.PI / 2
+    result[document.relativePath] = { x: 50 + Math.cos(angle) * 34, y: 50 + Math.sin(angle) * 34 }
+    return result
+  }, {})
+
+  for (let iteration = 0; iteration < 100; iteration += 1) {
+    const displacement = documents.reduce<Record<string, GraphPosition>>((result, document) => ({ ...result, [document.relativePath]: { x: 0, y: 0 } }), {})
+    for (let left = 0; left < documents.length; left += 1) {
+      for (let right = left + 1; right < documents.length; right += 1) {
+        const source = positions[documents[left].relativePath]
+        const target = positions[documents[right].relativePath]
+        const deltaX = source.x - target.x || 0.01
+        const deltaY = source.y - target.y || 0.01
+        const distanceSquared = Math.max(deltaX * deltaX + deltaY * deltaY, 1)
+        const force = 180 / distanceSquared
+        displacement[documents[left].relativePath].x += deltaX * force
+        displacement[documents[left].relativePath].y += deltaY * force
+        displacement[documents[right].relativePath].x -= deltaX * force
+        displacement[documents[right].relativePath].y -= deltaY * force
+      }
+    }
+    for (const link of links) {
+      const source = positions[link.source]
+      const target = positions[link.target]
+      if (!source || !target) continue
+      const deltaX = target.x - source.x
+      const deltaY = target.y - source.y
+      const distance = Math.max(Math.hypot(deltaX, deltaY), 1)
+      const force = (distance - 22) * 0.035
+      displacement[link.source].x += (deltaX / distance) * force
+      displacement[link.source].y += (deltaY / distance) * force
+      displacement[link.target].x -= (deltaX / distance) * force
+      displacement[link.target].y -= (deltaY / distance) * force
+    }
+    for (const document of documents) {
+      const position = positions[document.relativePath]
+      const movement = displacement[document.relativePath]
+      position.x = Math.max(7, Math.min(93, position.x + movement.x * 0.14 + (50 - position.x) * 0.006))
+      position.y = Math.max(9, Math.min(91, position.y + movement.y * 0.14 + (50 - position.y) * 0.006))
+    }
+  }
+  return positions
+}
+
 const AUTO_SAVE_DELAY_MS = 650
+const MAX_CALLOUT_DEPTH = 24
+const MAX_EMBED_DEPTH = 4
+const MAX_EMBEDS_PER_NOTE_RENDER = 16
+const MAX_PDF_EMBEDS_PER_NOTE_RENDER = 4
+const MAX_RICH_MARKDOWN_LENGTH = 1_000_000
+const MARKDOWN_SANITIZE_SCHEMA = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    blockquote: [
+      ...(defaultSchema.attributes?.blockquote ?? []),
+      'dataCalloutFold',
+      'dataCalloutTitle',
+      'dataCalloutType',
+    ],
+  },
+}
+
+const LIMITED_MARKDOWN_FEATURE_LABELS: Record<string, string> = {
+  html: 'HTML sanitizado',
+  'obsidian-comment': 'comentario Obsidian',
+  'plugin-block': 'bloco de plugin',
+  'plugin-inline': 'sintaxe inline de plugin',
+}
 
 function formatTrashDate(day: number) {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(day * 86_400_000))
+}
+
+function safeDecodeURIComponent(value: string) {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return null
+  }
 }
 
 function findMarkdownCaretOffset(markdown: string, renderedText: string, renderedOffset: number) {
@@ -133,6 +260,7 @@ function App() {
   const [isFrontmatterEditorOpen, setFrontmatterEditorOpen] = useState(false)
   const [frontmatterDraft, setFrontmatterDraft] = useState('')
   const [frontmatterError, setFrontmatterError] = useState<string | null>(null)
+  const [frontmatterPropertyEditor, setFrontmatterPropertyEditor] = useState<FrontmatterPropertyEditor | null>(null)
   const [openTabs, setOpenTabs] = useState<string[]>([])
   const [draftContent, setDraftContent] = useState('')
   const [isNewNoteDraft, setIsNewNoteDraft] = useState(false)
@@ -149,14 +277,29 @@ function App() {
   const suppressNoteClickRef = useRef(false)
   const saveInFlightRef = useRef(false)
   const activeNoteRef = useRef<NoteDocument | null>(null)
+  const notesRef = useRef<NotePreview[]>([])
+  const foldersRef = useRef<string[]>([])
+  const specialFilesRef = useRef<SpecialVaultFile[]>([])
+  const specialFilesTruncatedRef = useRef(false)
+  const openTabsRef = useRef<string[]>([])
+  const draftsByPathRef = useRef<Record<string, string>>({})
   const draftContentRef = useRef('')
   const markdownEditorStateCacheRef = useRef(new Map<string, EditorState>())
   const markdownToolsRef = useRef<HTMLDivElement | null>(null)
   const editorContentRef = useRef<HTMLDivElement | null>(null)
+  const graphSurfaceRef = useRef<HTMLDivElement | null>(null)
+  const graphPanRef = useRef<{ x: number; y: number; viewport: GraphViewport } | null>(null)
+  const graphNodeDragRef = useRef<string | null>(null)
+  const graphSkipNodeClickRef = useRef(false)
+  const graphLoadRequestRef = useRef(0)
   const wikiLinkPreviewCacheRef = useRef(new Map<string, WikiLinkPreview>())
   const hoveredWikiLinkPathRef = useRef<string | null>(null)
+  const openingWikiLinkPathsRef = useRef(new Set<string>())
   const inlineTitleRenameQueueRef = useRef<Promise<void>>(Promise.resolve())
   const inlineTitleRenamePathRef = useRef<string | null>(null)
+  const vaultChangeQueueRef = useRef<VaultFileSystemChange[]>([])
+  const vaultChangeDebounceRef = useRef<number | null>(null)
+  const externalRemovedNoteQueueRef = useRef<ExternalRemovedNote[]>([])
   const [draftsByPath, setDraftsByPath] = useState<Record<string, string>>({})
   const [recentVaultPreference, setRecentVaultPreference] =
     useState<RecentVaultPreference | null>(null)
@@ -169,7 +312,18 @@ function App() {
   const [draggedNotePath, setDraggedNotePath] = useState<string | null>(null)
   const [dropFolderPath, setDropFolderPath] = useState<string | null>(null)
   const [justReleasedDrag, setJustReleasedDrag] = useState(false)
-  const [workspacePage, setWorkspacePage] = useState<'notes' | 'shortcuts' | 'settings' | 'trash'>('notes')
+  const [workspacePage, setWorkspacePage] = useState<'notes' | 'graph' | 'shortcuts' | 'settings' | 'trash'>('notes')
+  const [graphDocuments, setGraphDocuments] = useState<GraphDocument[]>([])
+  const [isGraphLoading, setGraphLoading] = useState(false)
+  const [graphNodeOverrides, setGraphNodeOverrides] = useState<Record<string, GraphPosition>>({})
+  const [graphViewport, setGraphViewport] = useState<GraphViewport>({ scale: 1, x: 0, y: 0 })
+  const [graphQuery, setGraphQuery] = useState('')
+  const [graphFolder, setGraphFolder] = useState('')
+  const [graphTag, setGraphTag] = useState('')
+  const [showGraphOrphans, setShowGraphOrphans] = useState(true)
+  const [showOnlyGraphOrphans, setShowOnlyGraphOrphans] = useState(false)
+  const [focusedGraphPath, setFocusedGraphPath] = useState<string | null>(null)
+  const [graphMode, setGraphMode] = useState<GraphMode>('global')
   const [shortcuts, setShortcuts] = useState<WorkspaceShortcuts>(() => {
     try {
       return { ...DEFAULT_WORKSPACE_SHORTCUTS, ...JSON.parse(localStorage.getItem('mirrormind.shortcuts') ?? '{}') }
@@ -225,10 +379,15 @@ function App() {
   const [brokenLinks, setBrokenLinks] = useState<BrokenLink[]>([])
   const [wikiLinkPreview, setWikiLinkPreview] = useState<WikiLinkPreview | null>(null)
   const [externalNoteConflict, setExternalNoteConflict] = useState<ExternalNoteConflict | null>(null)
+  const [externalRemovedNote, setExternalRemovedNote] = useState<ExternalRemovedNote | null>(null)
+  const [recoveredNotePath, setRecoveredNotePath] = useState('')
   const [showNoteLinkDialog, setShowNoteLinkDialog] = useState(false)
   const [noteLinkQuery, setNoteLinkQuery] = useState('')
   const [tagIndex, setTagIndex] = useState<TagSummary[]>([])
   const [attachments, setAttachments] = useState<string[]>([])
+  const [specialFiles, setSpecialFiles] = useState<SpecialVaultFile[]>([])
+  const [specialFilesTruncated, setSpecialFilesTruncated] = useState(false)
+  const [showSpecialFilesDialog, setShowSpecialFilesDialog] = useState(false)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [tagFilterQuery, setTagFilterQuery] = useState('')
   const [showTagFilterDialog, setShowTagFilterDialog] = useState(false)
@@ -382,8 +541,117 @@ function App() {
       // The note may be temporarily unavailable while another application writes it.
     }
   })
+  const remapWorkspacePathsForExternalChange = useEffectEvent((sourcePath: string, destinationPath: string) => {
+    const remapPath = (path: string) => remapVaultPath(path, sourcePath, destinationPath)
+    const remapRecord = <T,>(record: Record<string, T>) => Object.fromEntries(
+      Object.entries(record).map(([path, value]) => [remapPath(path), value]),
+    )
+
+    setOpenTabs((tabs) => tabs.map(remapPath))
+    setDraftsByPath(remapRecord)
+    setEditorSessionsByPath(remapRecord)
+    setFavorites((paths) => paths.map(remapPath))
+    setExpandedFolderIds((paths) => new Set([...paths].map(remapPath)))
+    setActiveNote((note) => {
+      if (!note) return note
+      const relativePath = remapPath(note.relativePath)
+      return relativePath === note.relativePath
+        ? note
+        : { ...note, relativePath, name: relativePath.split('/').at(-1) ?? note.name }
+    })
+    if (inlineTitleRenamePathRef.current) {
+      inlineTitleRenamePathRef.current = remapPath(inlineTitleRenamePathRef.current)
+    }
+    markdownEditorStateCacheRef.current = new Map(
+      [...markdownEditorStateCacheRef.current.entries()].map(([key, value]) => {
+        const separatorIndex = key.indexOf('::')
+        const notePath = separatorIndex === -1 ? key : key.slice(0, separatorIndex)
+        const suffix = separatorIndex === -1 ? '' : key.slice(separatorIndex)
+        return [`${remapPath(notePath)}${suffix}`, value]
+      }),
+    )
+  })
+  const checkExternalVaultTree = useEffectEvent(async (change?: VaultFileSystemChange) => {
+    if (!vault || saveInFlightRef.current) return
+
+    try {
+      const renamePaths = change?.kind === 'rename' && change.paths.length >= 2
+        ? [change.paths[0], change.paths.at(-1) ?? change.paths[1]] as const
+        : null
+      const trackedTabs = renamePaths
+        ? openTabsRef.current.map((path) => remapVaultPath(path, renamePaths[0], renamePaths[1]))
+        : openTabsRef.current
+      if (renamePaths) {
+        remapWorkspacePathsForExternalChange(renamePaths[0], renamePaths[1])
+      }
+
+      const [notePayload, nextFolders, specialFilesPayload] = await Promise.all([
+        invoke<unknown>('list_notes', { path: vault.path }),
+        invoke<string[]>('list_folders', { path: vault.path }),
+        invoke<unknown>('list_special_files', { path: vault.path }),
+      ])
+      const nextNotes = parseNoteList(notePayload)
+      const nextSpecialInventory = parseSpecialVaultInventory(specialFilesPayload)
+      const nextSpecialFiles = nextSpecialInventory.files
+      const currentSnapshot = JSON.stringify({ folders: [...foldersRef.current].sort(), notes: notesRef.current.map((note) => note.relativePath).sort(), specialFiles: specialFilesRef.current.map((file) => file.relativePath).sort(), specialFilesTruncated: specialFilesTruncatedRef.current })
+      const nextSnapshot = JSON.stringify({ folders: [...nextFolders].sort(), notes: nextNotes.map((note) => note.relativePath).sort(), specialFiles: nextSpecialFiles.map((file) => file.relativePath).sort(), specialFilesTruncated: nextSpecialInventory.truncated })
+      const availablePaths = new Set(nextNotes.map((note) => note.relativePath))
+      const removedPaths = change?.kind === 'remove' ? change.paths : []
+      const missingTabs = trackedTabs.filter((path) => path !== '__new_note__' && !availablePaths.has(path))
+      const prioritizedMissingTabs = [...missingTabs].sort((left, right) => {
+        const leftMatchesEvent = removedPaths.some((path) => isVaultPathAffected(left, path))
+        const rightMatchesEvent = removedPaths.some((path) => isVaultPathAffected(right, path))
+        return Number(rightMatchesEvent) - Number(leftMatchesEvent)
+      })
+      const queuedPaths = new Set([
+        externalRemovedNote?.relativePath,
+        ...externalRemovedNoteQueueRef.current.map((note) => note.relativePath),
+      ])
+      for (const missingTab of prioritizedMissingTabs) {
+        if (queuedPaths.has(missingTab)) continue
+        const wasActive = activeNoteRef.current?.relativePath === missingTab
+        externalRemovedNoteQueueRef.current.push({
+          relativePath: missingTab,
+          content: wasActive ? draftContentRef.current : draftsByPathRef.current[missingTab] ?? '',
+          wasActive,
+        })
+      }
+      if (!externalRemovedNote) {
+        const nextRemovedNote = externalRemovedNoteQueueRef.current.shift()
+        if (nextRemovedNote) {
+          setExternalRemovedNote(nextRemovedNote)
+          setRecoveredNotePath(nextRemovedNote.relativePath.replace(/\.md$/i, '-recuperada.md'))
+        }
+      }
+      if (currentSnapshot === nextSnapshot) return
+
+      setNotes(nextNotes)
+      setFolders(nextFolders)
+      setSpecialFiles(nextSpecialFiles)
+      setSpecialFilesTruncated(nextSpecialInventory.truncated)
+      const [nextTagIndex, nextAttachments] = await Promise.all([
+        invoke<TagSummary[]>('get_tag_index', { path: vault.path }),
+        invoke<string[]>('list_attachments', { path: vault.path }),
+      ])
+      setTagIndex(nextTagIndex)
+      setAttachments(nextAttachments)
+      const activePath = renamePaths && activeNoteRef.current
+        ? remapVaultPath(activeNoteRef.current.relativePath, renamePaths[0], renamePaths[1])
+        : activeNoteRef.current?.relativePath
+      setStatus(activePath && !availablePaths.has(activePath)
+        ? 'A nota aberta foi removida ou movida fora do MirrorMind. O rascunho local foi preservado.'
+        : 'Explorador atualizado a partir de uma alteracao externa.')
+    } catch {
+      // Another application may be writing the vault while it is scanned.
+    }
+  })
+
+  const refreshGraphWhenNotesChange = useEffectEvent(() => {
+    if (workspacePage === 'graph' && vault && graphDocuments.length > 0) void openGraphPage()
+  })
 
   useEffect(() => {
+    graphLoadRequestRef.current += 1
     if (!vault) {
       setNotes([])
       setFolders([])
@@ -395,8 +663,14 @@ function App() {
       setBrokenLinks([])
       setWikiLinkPreview(null)
       setExternalNoteConflict(null)
+      setExternalRemovedNote(null)
+      externalRemovedNoteQueueRef.current = []
+      setRecoveredNotePath('')
       setTagIndex([])
       setAttachments([])
+      setSpecialFiles([])
+      setSpecialFilesTruncated(false)
+      setShowSpecialFilesDialog(false)
       setSelectedTags([])
       setTagFilterQuery('')
       return
@@ -409,6 +683,55 @@ function App() {
     window.addEventListener('keydown', handleWorkspaceShortcut)
     return () => window.removeEventListener('keydown', handleWorkspaceShortcut)
   }, [])
+
+  useEffect(() => {
+    if (!vault) return
+    try {
+      const stored = JSON.parse(localStorage.getItem(`mirrormind.graph.${vault.path}`) ?? '{}') as Partial<{ positions: Record<string, GraphPosition>; viewport: GraphViewport; folder: string; tag: string; showOrphans: boolean; mode: GraphMode }>
+      setGraphNodeOverrides(stored.positions ?? {})
+      setGraphViewport(stored.viewport ?? { scale: 1, x: 0, y: 0 })
+      setGraphFolder(stored.folder ?? '')
+      setGraphTag(stored.tag ?? '')
+      setShowGraphOrphans(stored.showOrphans ?? true)
+      setGraphMode(stored.mode ?? 'global')
+    } catch {
+      setGraphNodeOverrides({})
+    }
+  }, [vault])
+
+  useEffect(() => {
+    if (!vault) return
+    localStorage.setItem(`mirrormind.graph.${vault.path}`, JSON.stringify({
+      positions: graphNodeOverrides,
+      viewport: graphViewport,
+      folder: graphFolder,
+      tag: graphTag,
+      showOrphans: showGraphOrphans,
+      mode: graphMode,
+    }))
+  }, [graphFolder, graphMode, graphNodeOverrides, graphTag, graphViewport, showGraphOrphans, vault])
+
+  useEffect(() => {
+    const query = graphQuery.trim().toLowerCase()
+    if (!query || !graphSurfaceRef.current) return
+    const index = graphDocuments.findIndex((document) => document.name.replace(/\.md$/i, '').toLowerCase().includes(query))
+    if (index === -1) return
+    const document = graphDocuments[index]
+    const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
+    const position = graphNodeOverrides[document.relativePath] ?? { x: 50 + Math.cos(angle) * (graphDocuments.length < 3 ? 28 : 34), y: 50 + Math.sin(angle) * (graphDocuments.length < 3 ? 28 : 34) }
+    const bounds = graphSurfaceRef.current.getBoundingClientRect()
+    const scale = 1.2
+    setFocusedGraphPath(document.relativePath)
+    setGraphViewport({
+      scale,
+      x: (bounds.width / 2) - ((position.x / 100) * bounds.width * scale),
+      y: (bounds.height / 2) - ((position.y / 100) * bounds.height * scale),
+    })
+  }, [graphDocuments, graphNodeOverrides, graphQuery])
+
+  useEffect(() => {
+    refreshGraphWhenNotesChange()
+  }, [notes])
 
   useEffect(() => {
     if (!showTagFilterDropdown) return
@@ -490,6 +813,22 @@ function App() {
   }, [activeNote, draftContent])
 
   useEffect(() => {
+    notesRef.current = notes
+    foldersRef.current = folders
+    specialFilesRef.current = specialFiles
+    specialFilesTruncatedRef.current = specialFilesTruncated
+  }, [folders, notes, specialFiles, specialFilesTruncated])
+
+  useEffect(() => {
+    if (specialFiles.length === 0) setShowSpecialFilesDialog(false)
+  }, [specialFiles.length])
+
+  useEffect(() => {
+    openTabsRef.current = openTabs
+    draftsByPathRef.current = draftsByPath
+  }, [draftsByPath, openTabs])
+
+  useEffect(() => {
     setExternalNoteConflict(null)
   }, [activeNote?.relativePath])
 
@@ -498,6 +837,63 @@ function App() {
     const interval = window.setInterval(() => void checkExternalNoteChange(), 2_500)
     return () => window.clearInterval(interval)
   }, [activeNote, isNewNoteDraft, vault])
+
+  useEffect(() => {
+    if (!vault) return
+    const interval = window.setInterval(() => void checkExternalVaultTree(), 30_000)
+    return () => window.clearInterval(interval)
+  }, [vault])
+
+  useEffect(() => {
+    if (!vault) return
+    let disposed = false
+    let unlisten: (() => void) | undefined
+    let watcherId: number | undefined
+
+    void listen<VaultFileSystemChange>('vault-file-system-change', (event) => {
+      vaultChangeQueueRef.current.push(event.payload)
+      if (vaultChangeDebounceRef.current !== null) {
+        window.clearTimeout(vaultChangeDebounceRef.current)
+      }
+      vaultChangeDebounceRef.current = window.setTimeout(() => {
+        const changes = vaultChangeQueueRef.current.splice(0)
+        vaultChangeDebounceRef.current = null
+        const primaryChange = changes.find((change) => change.kind === 'rename' && change.paths.length >= 2)
+          ?? changes.at(-1)
+        if (changes.some((change) => change.kind === 'modify')) {
+          void checkExternalNoteChange()
+        }
+        void checkExternalVaultTree(primaryChange)
+      }, 220)
+    }).then((cleanup) => {
+      if (disposed) cleanup()
+      else unlisten = cleanup
+    }).catch(() => {
+      setStatus('Eventos nativos indisponiveis; a sincronizacao externa usara verificacao periodica.')
+    })
+
+    void invoke<number>('watch_vault', { path: vault.path })
+      .then((id) => {
+        watcherId = id
+        if (disposed) void invoke('unwatch_vault', { watcherId: id }).catch(() => undefined)
+      })
+      .catch(() => {
+        setStatus('Nao foi possivel iniciar eventos nativos; a sincronizacao externa usara verificacao periodica.')
+      })
+
+    return () => {
+      disposed = true
+      unlisten?.()
+      vaultChangeQueueRef.current = []
+      if (vaultChangeDebounceRef.current !== null) {
+        window.clearTimeout(vaultChangeDebounceRef.current)
+        vaultChangeDebounceRef.current = null
+      }
+      if (watcherId !== undefined) {
+        void invoke('unwatch_vault', { watcherId }).catch(() => undefined)
+      }
+    }
+  }, [vault])
 
   useEffect(() => {
     const canAutoSave = isAutoSaveEnabled
@@ -721,12 +1117,16 @@ function App() {
       const nextFolders = await invoke<string[]>('list_folders', { path: vaultPath })
       const nextTagIndex = await invoke<TagSummary[]>('get_tag_index', { path: vaultPath })
       const nextAttachments = await invoke<string[]>('list_attachments', { path: vaultPath })
+      const nextSpecialInventory = parseSpecialVaultInventory(await invoke<unknown>('list_special_files', { path: vaultPath }))
+      const nextSpecialFiles = nextSpecialInventory.files
       const nextFavorites = await invoke<string[]>('list_favorites', { path: vaultPath })
       const nextTemplates = await invoke<NoteTemplate[]>('list_templates', { path: vaultPath })
       setNotes(nextNotes)
       setFolders(nextFolders)
       setTagIndex(nextTagIndex)
       setAttachments(nextAttachments)
+      setSpecialFiles(nextSpecialFiles)
+      setSpecialFilesTruncated(nextSpecialInventory.truncated)
       setFavorites(nextFavorites)
       setTemplates(nextTemplates)
 
@@ -753,6 +1153,63 @@ function App() {
       setStatus('Falha ao carregar a lista de notas do vault.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function openGraphPage() {
+    if (!vault) return
+    const requestId = graphLoadRequestRef.current + 1
+    graphLoadRequestRef.current = requestId
+    const vaultPath = vault.path
+    setWorkspacePage('graph')
+    setGraphLoading(true)
+    setError(null)
+
+    try {
+      const documents = await Promise.all(notes.map(async (note) => {
+        const payload = await invoke<unknown>('read_note', { path: vaultPath, relativePath: note.relativePath })
+        return parseNoteDocument(payload)
+      }))
+      if (requestId !== graphLoadRequestRef.current || vault.path !== vaultPath) return
+      setGraphDocuments(documents)
+      setFocusedGraphPath(activeNote?.relativePath ?? null)
+    } catch {
+      if (requestId !== graphLoadRequestRef.current) return
+      setGraphDocuments([])
+      setError('Nao foi possivel carregar as conexoes entre as notas.')
+    } finally {
+      if (requestId === graphLoadRequestRef.current) setGraphLoading(false)
+    }
+  }
+
+  function reorganizeGraphNodes() {
+    setGraphNodeOverrides(createForceGraphLayout(graphDocuments, buildNoteGraphLinks(graphDocuments, notes.map((note) => note.relativePath))))
+  }
+
+  function resetGraphView() {
+    setGraphViewport({ scale: 1, x: 0, y: 0 })
+  }
+
+  function updateGraphNodePosition(path: string, clientX: number, clientY: number) {
+    const surface = graphSurfaceRef.current
+    if (!surface) return
+    const bounds = surface.getBoundingClientRect()
+    setGraphNodeOverrides((positions) => ({
+      ...positions,
+      [path]: {
+        x: Math.max(4, Math.min(96, ((clientX - bounds.left - graphViewport.x) / (bounds.width * graphViewport.scale)) * 100)),
+        y: Math.max(5, Math.min(95, ((clientY - bounds.top - graphViewport.y) / (bounds.height * graphViewport.scale)) * 100)),
+      },
+    }))
+  }
+
+  async function copyGraphWikiLink(relativePath: string) {
+    const wikiLink = `[[${relativePath.replace(/\.md$/i, '')}]]`
+    try {
+      await navigator.clipboard.writeText(wikiLink)
+      setStatus(`Link ${wikiLink} copiado.`)
+    } catch {
+      setStatus(`Nao foi possivel copiar ${wikiLink}.`)
     }
   }
 
@@ -823,6 +1280,25 @@ function App() {
     setRenameName(type === 'note' ? name.replace(/\.md$/i, '') : name)
   }
 
+  async function persistWorkspaceDraftsBeforePathChange(vaultPath: string) {
+    const pendingDrafts = new Map(Object.entries(draftsByPathRef.current))
+    if (activeNoteRef.current) {
+      pendingDrafts.set(activeNoteRef.current.relativePath, draftContentRef.current)
+    }
+    const availablePaths = new Set(notesRef.current.map((note) => note.relativePath))
+    await Promise.all(
+      [...pendingDrafts.entries()]
+        .filter(([relativePath]) => relativePath !== '__new_note__' && availablePaths.has(relativePath))
+        .map(([relativePath, content]) => invoke('save_note', {
+          path: vaultPath,
+          relativePath,
+          content,
+        })),
+    )
+    draftsByPathRef.current = {}
+    setDraftsByPath({})
+  }
+
   async function renameVaultItem() {
     if (!vault || !renameTarget || !renameName.trim()) return
     const target = renameTarget
@@ -838,6 +1314,7 @@ function App() {
 
     setLoading(true)
     try {
+      await persistWorkspaceDraftsBeforePathChange(vault.path)
       await invoke('rename_vault_item', {
         path: vault.path,
         relativePath: target.path,
@@ -889,6 +1366,7 @@ function App() {
         if (sourcePath === destinationPath) return
 
         try {
+          await persistWorkspaceDraftsBeforePathChange(vaultPath)
           await invoke('rename_vault_item', {
             path: vaultPath,
             relativePath: sourcePath,
@@ -941,6 +1419,7 @@ function App() {
 
     setLoading(true)
     try {
+      await persistWorkspaceDraftsBeforePathChange(vault.path)
       await invoke('move_vault_item', {
         path: vault.path,
         relativePath: target.path,
@@ -971,6 +1450,7 @@ function App() {
     const destinationPath = destinationFolder ? `${destinationFolder}/${name}` : name
     setLoading(true)
     try {
+      await persistWorkspaceDraftsBeforePathChange(vault.path)
       await invoke('move_vault_item', { path: vault.path, relativePath, destinationFolder, itemType: 'note' })
       setOpenTabs((tabs) => tabs.map((path) => path === relativePath ? destinationPath : path))
       setDraftsByPath((drafts) => Object.fromEntries(Object.entries(drafts).map(([path, content]) => [path === relativePath ? destinationPath : path, content])))
@@ -1140,7 +1620,7 @@ function App() {
           ? currentTabs
           : [...currentTabs, parsedNote.relativePath],
       )
-      setDraftContent(draftsByPath[parsedNote.relativePath] ?? parsedNote.content)
+      setDraftContent(draftsByPathRef.current[parsedNote.relativePath] ?? parsedNote.content)
       void loadBacklinks(parsedNote.relativePath, targetVaultPath)
       void loadBrokenLinks(parsedNote.relativePath, targetVaultPath)
       setStatus(`Editando ${parsedNote.relativePath}`)
@@ -1290,6 +1770,123 @@ function App() {
     setStatus('Rascunho local mantido. Salve a nota para aplicar sua versao.')
   }
 
+  async function writeRecoveredExternalNote(relativePath: string, content: string) {
+    if (!vault) throw new Error('Nenhum vault esta aberto.')
+    const payload = await invoke<unknown>('recover_note', {
+      path: vault.path,
+      relativePath,
+      content,
+    })
+    return parseNoteDocument(payload)
+  }
+
+  function showNextExternallyRemovedNote() {
+    const nextRemovedNote = externalRemovedNoteQueueRef.current.shift() ?? null
+    setExternalRemovedNote(nextRemovedNote)
+    setRecoveredNotePath(nextRemovedNote
+      ? nextRemovedNote.relativePath.replace(/\.md$/i, '-recuperada.md')
+      : '')
+  }
+
+  function applyRecoveredExternalNote(recoveredNote: NoteDocument) {
+    if (!externalRemovedNote) return
+    const removedPath = externalRemovedNote.relativePath
+    setOpenTabs((tabs) => [...new Set(tabs.map((path) => (
+      path === removedPath ? recoveredNote.relativePath : path
+    )))])
+    setDraftsByPath((drafts) => {
+      const { [removedPath]: _removedDraft, ...remainingDrafts } = drafts
+      return { ...remainingDrafts, [recoveredNote.relativePath]: recoveredNote.content }
+    })
+    setNotes((currentNotes) => {
+      const preview = { name: recoveredNote.name, relativePath: recoveredNote.relativePath }
+      return currentNotes.some((note) => note.relativePath === recoveredNote.relativePath)
+        ? currentNotes.map((note) => note.relativePath === recoveredNote.relativePath ? preview : note)
+        : [...currentNotes, preview]
+    })
+    if (externalRemovedNote.wasActive) {
+      setActiveNote(recoveredNote)
+      setDraftContent(recoveredNote.content)
+    }
+    showNextExternallyRemovedNote()
+  }
+
+  async function restoreExternallyRemovedNote() {
+    if (!externalRemovedNote) return
+    setLoading(true)
+    setError(null)
+    try {
+      const recoveredNote = await writeRecoveredExternalNote(
+        externalRemovedNote.relativePath,
+        externalRemovedNote.content,
+      )
+      applyRecoveredExternalNote(recoveredNote)
+      setStatus(`Nota restaurada: ${recoveredNote.relativePath}`)
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel restaurar a nota.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function saveExternallyRemovedNoteAsNew() {
+    if (!externalRemovedNote) return
+    const destinationPath = normalizeRecoveredNotePath(recoveredNotePath)
+    if (!destinationPath) {
+      setError('Informe um caminho para a nota recuperada.')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    try {
+      const recoveredNote = await writeRecoveredExternalNote(
+        destinationPath,
+        externalRemovedNote.content,
+      )
+      applyRecoveredExternalNote(recoveredNote)
+      setStatus(`Rascunho recuperado como ${recoveredNote.relativePath}.`)
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel recuperar a nota.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function closeExternallyRemovedNote() {
+    if (!externalRemovedNote) return
+    const removedPath = externalRemovedNote.relativePath
+    const pendingRemovedPaths = new Set(
+      externalRemovedNoteQueueRef.current.map((note) => note.relativePath),
+    )
+    const fallbackPath = openTabsRef.current
+      .filter((path) => path !== removedPath && !pendingRemovedPaths.has(path))
+      .at(-1)
+    setOpenTabs((tabs) => tabs.filter((path) => path !== removedPath))
+    setDraftsByPath((drafts) => {
+      const { [removedPath]: _removedDraft, ...remainingDrafts } = drafts
+      return remainingDrafts
+    })
+    setEditorSessionsByPath((sessions) => {
+      const { [removedPath]: _removedSession, ...remainingSessions } = sessions
+      return remainingSessions
+    })
+    for (const key of markdownEditorStateCacheRef.current.keys()) {
+      if (key === removedPath || key.startsWith(`${removedPath}::`)) {
+        markdownEditorStateCacheRef.current.delete(key)
+      }
+    }
+    showNextExternallyRemovedNote()
+    if (externalRemovedNote.wasActive) {
+      if (fallbackPath) void openNote(fallbackPath)
+      else {
+        setActiveNote(null)
+        setDraftContent('')
+      }
+    }
+    setStatus('A aba da nota removida foi fechada; o arquivo nao foi recriado.')
+  }
+
   function startNewNote() {
     setSidebarExpanded(true)
     setWorkspacePage('notes')
@@ -1368,10 +1965,10 @@ function App() {
     if (editorMode === 'mixed') {
       if (mixedFocusedBlock === null) return
       setDraftContent((currentContent) => {
-        const blocks = splitMarkdownBlocks(getMarkdownBody(currentContent))
-        const block = blocks[mixedFocusedBlock] ?? ''
-        blocks[mixedFocusedBlock] = formatMarkdownSelection(block, selection.selectionStart, selection.selectionEnd, format)
-        return replaceMarkdownBody(currentContent, blocks.join('\n\n'))
+        const body = getMarkdownBody(currentContent)
+        const block = getMarkdownBlockRanges(body)[mixedFocusedBlock]?.content ?? ''
+        const updatedBlock = formatMarkdownSelection(block, selection.selectionStart, selection.selectionEnd, format)
+        return replaceMarkdownBody(currentContent, replaceMarkdownBlock(body, mixedFocusedBlock, updatedBlock))
       })
     } else {
       setDraftContent((currentContent) => formatMarkdownSelection(currentContent, selection.selectionStart, selection.selectionEnd, format))
@@ -1387,10 +1984,10 @@ function App() {
     if (editorMode === 'mixed') {
       if (mixedFocusedBlock === null) return
       setDraftContent((currentContent) => {
-        const blocks = splitMarkdownBlocks(getMarkdownBody(currentContent))
-        const block = blocks[mixedFocusedBlock] ?? ''
-        blocks[mixedFocusedBlock] = `${block.slice(0, selectionStart)}${replacement}${block.slice(selectionEnd)}`
-        return replaceMarkdownBody(currentContent, blocks.join('\n\n'))
+        const body = getMarkdownBody(currentContent)
+        const block = getMarkdownBlockRanges(body)[mixedFocusedBlock]?.content ?? ''
+        const updatedBlock = `${block.slice(0, selectionStart)}${replacement}${block.slice(selectionEnd)}`
+        return replaceMarkdownBody(currentContent, replaceMarkdownBlock(body, mixedFocusedBlock, updatedBlock))
       })
     } else {
       setDraftContent((currentContent) => `${currentContent.slice(0, selectionStart)}${replacement}${currentContent.slice(selectionEnd)}`)
@@ -1409,13 +2006,70 @@ function App() {
   function formatFrontmatterPropertyValue(value: FrontmatterValue) {
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
     if (value === null) return 'null'
-    return JSON.stringify(value)
+    const seen = new WeakSet<object>()
+    try {
+      return JSON.stringify(value, (_key, nestedValue: unknown) => {
+        if (typeof nestedValue !== 'object' || nestedValue === null) return nestedValue
+        if (seen.has(nestedValue)) return '[referencia circular]'
+        seen.add(nestedValue)
+        return nestedValue
+      })
+    } catch {
+      return '[valor YAML]'
+    }
   }
 
   function openFrontmatterEditor() {
     setFrontmatterDraft(getMarkdownFrontmatterSource(draftContent))
     setFrontmatterError(null)
+    setFrontmatterPropertyEditor(null)
     setFrontmatterEditorOpen(true)
+  }
+
+  function openFrontmatterPropertyEditor(key?: string, value?: FrontmatterValue) {
+    setFrontmatterPropertyEditor({
+      originalKey: key ?? null,
+      key: key ?? '',
+      value: key ? (getMarkdownFrontmatterPropertySource(draftContent, key) ?? '') : value === undefined ? '' : formatFrontmatterPropertyInput(value),
+    })
+    setFrontmatterError(null)
+    setFrontmatterEditorOpen(false)
+  }
+
+  function saveFrontmatterProperty() {
+    if (!frontmatterPropertyEditor) return
+    const normalizedKey = frontmatterPropertyEditor.key.trim()
+    if (!normalizedKey) {
+      setFrontmatterError('Informe o nome da propriedade.')
+      return
+    }
+    if (!frontmatterPropertyEditor.originalKey && Object.hasOwn(frontmatterProperties, normalizedKey)) {
+      setFrontmatterError('Ja existe uma propriedade com esse nome.')
+      return
+    }
+
+    const result = setMarkdownFrontmatterPropertySource(
+      draftContent,
+      normalizedKey,
+      frontmatterPropertyEditor.value,
+    )
+    if (result.error) {
+      setFrontmatterError(result.error)
+      return
+    }
+    setDraftContent(result.content)
+    setFrontmatterPropertyEditor(null)
+  }
+
+  function deleteFrontmatterProperty() {
+    if (!frontmatterPropertyEditor?.originalKey) return
+    const result = removeMarkdownFrontmatterProperty(draftContent, frontmatterPropertyEditor.originalKey)
+    if (result.error) {
+      setFrontmatterError(result.error)
+      return
+    }
+    setDraftContent(result.content)
+    setFrontmatterPropertyEditor(null)
   }
 
   function saveFrontmatterProperties() {
@@ -1424,7 +2078,7 @@ function App() {
       setFrontmatterError(parsed.error ?? 'Propriedades invalidas.')
       return
     }
-      setDraftContent((currentContent) => setMarkdownFrontmatterProperties(currentContent, parsed.properties))
+    setDraftContent((currentContent) => setMarkdownFrontmatterSource(currentContent, frontmatterDraft))
     setFrontmatterEditorOpen(false)
   }
 
@@ -1462,9 +2116,10 @@ function App() {
     if (editorMode === 'mixed') {
       if (mixedFocusedBlock === null) return
       setDraftContent((currentContent) => {
-        const blocks = splitMarkdownBlocks(getMarkdownBody(currentContent))
-        blocks[mixedFocusedBlock] = transformMarkdownTable(blocks[mixedFocusedBlock] ?? '', selection.selectionStart, action)
-        return replaceMarkdownBody(currentContent, blocks.join('\n\n'))
+        const body = getMarkdownBody(currentContent)
+        const block = getMarkdownBlockRanges(body)[mixedFocusedBlock]?.content ?? ''
+        const updatedBlock = transformMarkdownTable(block, selection.selectionStart, action)
+        return replaceMarkdownBody(currentContent, replaceMarkdownBlock(body, mixedFocusedBlock, updatedBlock))
       })
     } else {
       setDraftContent((currentContent) => transformMarkdownTable(currentContent, selection.selectionStart, action))
@@ -1585,19 +2240,86 @@ function App() {
     setWikiLinkPreview(null)
   }
 
-  function renderMarkdown(content: string, onToggleChecklist?: (lineNumber: number) => void) {
+  function scrollToWikiHeading(fragment: string) {
+    if (!fragment) return
+    if (fragment.startsWith('^')) {
+      const blocks = document.querySelectorAll<HTMLElement>('.markdown-reading p, .markdown-reading li, .markdown-reading blockquote, .markdown-reading table, .markdown-reading ul, .markdown-reading ol, .markdown-reading pre, .markdown-mixed p, .markdown-mixed li, .markdown-mixed blockquote, .markdown-mixed table, .markdown-mixed ul, .markdown-mixed ol, .markdown-mixed pre')
+      const block = [...blocks].find((candidate) => candidate.textContent?.trim().endsWith(fragment))
+      const target = block?.textContent?.trim() === fragment && block.previousElementSibling instanceof HTMLElement
+        ? block.previousElementSibling
+        : block
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    const targetPath = fragment.split('#').map((segment) => segment.trim().replace(/\s+/g, ' ').toLowerCase()).filter(Boolean)
+    const headings = document.querySelectorAll<HTMLElement>('.markdown-reading h1, .markdown-reading h2, .markdown-reading h3, .markdown-reading h4, .markdown-reading h5, .markdown-reading h6, .markdown-mixed h1, .markdown-mixed h2, .markdown-mixed h3, .markdown-mixed h4, .markdown-mixed h5, .markdown-mixed h6')
+    const hierarchy: string[] = []
+    const heading = [...headings].find((candidate) => {
+      const level = Number(candidate.tagName.slice(1))
+      const title = candidate.textContent?.trim().replace(/\s+/g, ' ').toLowerCase() ?? ''
+      hierarchy.length = level - 1
+      hierarchy[level - 1] = title
+      const path = hierarchy.filter(Boolean)
+      return targetPath.length === 1
+        ? title === targetPath[0]
+        : path.length >= targetPath.length
+          && path.slice(-targetPath.length).every((segment, index) => segment === targetPath[index])
+    })
+    heading?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  async function openWikiLink(relativePath: string, fragment: string | null) {
+    if (!vault) return
+    const existingPath = notes.find((note) => note.relativePath.toLowerCase() === relativePath.toLowerCase())?.relativePath
+    const targetPath = existingPath ?? relativePath
+
+    if (activeNote?.relativePath.toLowerCase() === targetPath.toLowerCase()) {
+      if (fragment) window.setTimeout(() => scrollToWikiHeading(fragment), 0)
+      return
+    }
+
+    if (!existingPath) {
+      const pendingPath = targetPath.toLowerCase()
+      if (openingWikiLinkPathsRef.current.has(pendingPath)) return
+      openingWikiLinkPathsRef.current.add(pendingPath)
+      setLoading(true)
+      setError(null)
+      try {
+        await invoke('create_note', { path: vault.path, relativePath: targetPath })
+        await refreshNotes(vault.path)
+      } catch (caughtError) {
+        setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel criar a nota vinculada.')
+        return
+      } finally {
+        openingWikiLinkPathsRef.current.delete(pendingPath)
+        setLoading(false)
+      }
+    }
+
+    await openNote(targetPath)
+    if (fragment) window.setTimeout(() => scrollToWikiHeading(fragment), 0)
+  }
+
+  let renderedNoteEmbedCount = 0
+  let renderedPdfEmbedCount = 0
+
+  function renderMarkdownDocument(content: string, onToggleChecklist?: (lineNumber: number) => void, lineOffset = 0, depth = 0, sourcePath = activeNote?.relativePath ?? '') {
     return (
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkObsidianCallouts]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA]]}
         components={{
           a: ({ href, children }) => {
             const internalPrefix = 'https://mirrormind.local/note/'
             if (href?.startsWith(internalPrefix)) {
-              const relativePath = decodeURIComponent(href.slice(internalPrefix.length))
+              const url = new URL(href)
+              const relativePath = safeDecodeURIComponent(url.pathname.slice('/note/'.length))
+              if (!relativePath) return <span>{children}</span>
+              const fragment = url.searchParams.get('fragment')
               const preview = wikiLinkPreview?.relativePath === relativePath ? wikiLinkPreview : null
               return (
                 <span className="wiki-link-preview-anchor" onMouseEnter={() => void showWikiLinkPreview(relativePath)} onMouseLeave={() => hideWikiLinkPreview(relativePath)}>
-                  <button type="button" className="wiki-link" onClick={() => void openNote(relativePath)}>{children}</button>
+                  <button type="button" className="wiki-link" onClick={() => void openWikiLink(relativePath, fragment)}>{children}</button>
                   {preview ? (
                     <span className="wiki-link-preview" role="tooltip">
                       <strong>{preview.title}</strong>
@@ -1609,10 +2331,60 @@ function App() {
             }
             return <a href={href}>{children}</a>
           },
+          p: ({ children, node }) => {
+            const embeddedImage = node?.children.length === 1 ? node.children[0] : null
+            const embeddedSource = embeddedImage?.type === 'element' && embeddedImage.tagName === 'img'
+              ? embeddedImage.properties?.src
+              : null
+            const embeddedAlt = embeddedImage?.type === 'element' && embeddedImage.tagName === 'img'
+              ? embeddedImage.properties?.alt
+              : null
+            const internalAssetPrefix = 'https://mirrormind.local/asset/'
+            if (typeof embeddedSource === 'string' && embeddedSource.startsWith(internalAssetPrefix) && vault) {
+              const relativeAssetPath = safeDecodeURIComponent(embeddedSource.slice(internalAssetPrefix.length))
+              if (relativeAssetPath?.toLowerCase().endsWith('.pdf')) {
+                const normalizedAssetPath = relativeAssetPath.replace(/\\/g, '/').toLowerCase()
+                const inventoriedPath = attachments.find((path) => path.replace(/\\/g, '/').toLowerCase() === normalizedAssetPath)
+                if (!inventoriedPath || relativeAssetPath.includes('..') || relativeAssetPath.startsWith('/')) return null
+                if (renderedPdfEmbedCount >= MAX_PDF_EMBEDS_PER_NOTE_RENDER) {
+                  return <p className="obsidian-pdf-embed is-limited">Limite de PDFs incorporados atingido.</p>
+                }
+                renderedPdfEmbedCount += 1
+                const title = typeof embeddedAlt === 'string' && embeddedAlt
+                  ? embeddedAlt
+                  : inventoriedPath.split('/').at(-1) ?? 'PDF'
+                return <ObsidianPdfEmbed vaultPath={vault.path} relativePath={inventoriedPath} title={title} />
+              }
+            }
+            const internalEmbedPrefix = 'https://mirrormind.local/embed/'
+            if (typeof embeddedSource !== 'string' || !embeddedSource.startsWith(internalEmbedPrefix) || !vault) return <p>{children}</p>
+
+            const url = new URL(embeddedSource)
+            const relativePath = safeDecodeURIComponent(url.pathname.slice('/embed/'.length))
+            if (!relativePath) return null
+            if (depth >= MAX_EMBED_DEPTH || renderedNoteEmbedCount >= MAX_EMBEDS_PER_NOTE_RENDER) {
+              return <p className="obsidian-note-embed is-limited">Limite de notas incorporadas atingido.</p>
+            }
+            renderedNoteEmbedCount += 1
+            return (
+              <ObsidianNoteEmbed
+                vaultPath={vault.path}
+                relativePath={relativePath}
+                fragment={url.searchParams.get('fragment')}
+                renderContent={(embeddedContent) => renderMarkdown(embeddedContent, undefined, 0, depth + 1, relativePath)}
+              />
+            )
+          },
           img: ({ src, alt }) => {
-            const isVaultAttachment = src?.startsWith('attachments/') && !src.includes('..')
-            const assetUrl = isVaultAttachment && vault
-              ? convertFileSrc(`${vault.path}${vault.path.includes('\\') ? '\\' : '/'}${src}`)
+            const internalAssetPrefix = 'https://mirrormind.local/asset/'
+            const isInternalVaultAsset = src?.startsWith(internalAssetPrefix) ?? false
+            const relativeAssetPath = isInternalVaultAsset && src
+              ? safeDecodeURIComponent(src.slice(internalAssetPrefix.length))
+              : src
+            const isSafeVaultAsset = isInternalVaultAsset && relativeAssetPath && !relativeAssetPath.includes('..') && !relativeAssetPath.startsWith('/')
+            if (isInternalVaultAsset && !isSafeVaultAsset) return null
+            const assetUrl = isSafeVaultAsset && vault
+              ? convertFileSrc(`${vault.path}${vault.path.includes('\\') ? '\\' : '/'}${relativeAssetPath}`)
               : src
             return <img src={assetUrl} alt={alt ?? ''} />
           },
@@ -1620,14 +2392,78 @@ function App() {
             if (inputProps.type !== 'checkbox') return <input {...inputProps} />
             const lineNumber = node?.position?.start.line
             return <input {...inputProps} type="checkbox" checked={Boolean(checked)} onChange={() => {
-              if (lineNumber) onToggleChecklist?.(lineNumber)
+              if (lineNumber) onToggleChecklist?.(lineOffset + lineNumber)
             }} />
+          },
+          blockquote: ({ children, node }) => {
+            const calloutType = node?.properties?.dataCalloutType
+            if (typeof calloutType !== 'string') return <blockquote>{children}</blockquote>
+
+            const calloutFold = node?.properties?.dataCalloutFold
+            const calloutTitle = node?.properties?.dataCalloutTitle
+            return (
+              <ObsidianCallout
+                defaultCollapsed={calloutFold === '-'}
+                foldable={calloutFold === '-' || calloutFold === '+'}
+                title={typeof calloutTitle === 'string' && calloutTitle ? renderMarkdownInline(calloutTitle) : null}
+                type={calloutType}
+              >
+                {children}
+              </ObsidianCallout>
+            )
           },
         }}
       >
-        {renderWikiLinksAsMarkdown(content)}
+        {renderWikiLinksAsMarkdown(
+          content,
+          (linkPath) => resolveObsidianWikiLinkPath(linkPath, sourcePath, notes.map((note) => note.relativePath)),
+          (attachmentPath) => resolveObsidianAttachmentPath(attachmentPath, sourcePath, attachments),
+        )}
       </ReactMarkdown>
     )
+  }
+
+  function renderMarkdownInline(content: string) {
+    return (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA]]}
+        allowedElements={['a', 'br', 'code', 'del', 'em', 'strong']}
+        unwrapDisallowed
+      >
+        {content}
+      </ReactMarkdown>
+    )
+  }
+
+  function renderMarkdown(content: string, onToggleChecklist?: (lineNumber: number) => void, lineOffset = 0, depth = 0, sourcePath = activeNote?.relativePath ?? ''): ReactNode {
+    if (content.length > MAX_RICH_MARKDOWN_LENGTH) {
+      return <pre className="markdown-preserved-raw">{content}</pre>
+    }
+    if (depth >= MAX_CALLOUT_DEPTH) return renderMarkdownDocument(content, onToggleChecklist, lineOffset, depth, sourcePath)
+
+    const segments = parseObsidianCalloutSegments(content)
+    if (segments.length === 1 && segments[0].kind === 'markdown') {
+      return renderMarkdownDocument(segments[0].content, onToggleChecklist, lineOffset + segments[0].startLine - 1, depth, sourcePath)
+    }
+
+    return segments.map((segment, index) => {
+      const segmentOffset = lineOffset + segment.startLine - 1
+      if (segment.kind === 'markdown') {
+        return <Fragment key={`${segment.startLine}-${index}`}>{renderMarkdownDocument(segment.content, onToggleChecklist, segmentOffset, depth, sourcePath)}</Fragment>
+      }
+      return (
+        <ObsidianCallout
+          defaultCollapsed={segment.defaultCollapsed}
+          foldable={segment.foldable}
+          key={`${segment.startLine}-${index}`}
+          title={segment.title ? renderMarkdownInline(segment.title) : null}
+          type={segment.type}
+        >
+          {renderMarkdown(segment.content, onToggleChecklist, segmentOffset, depth + 1, sourcePath)}
+        </ObsidianCallout>
+      )
+    })
   }
 
   function insertInternalLink(note: NotePreview) {
@@ -1643,7 +2479,7 @@ function App() {
 
   function insertTag() {
     const selection = getActiveEditorSelection()
-    const normalizedTag = tagName.trim().replace(/^#/, '').replace(/[^\p{L}\p{N}_-]/gu, '').toLowerCase()
+    const normalizedTag = normalizeMarkdownTag(tagName)
     if (!selection || !normalizedTag) return
     const prefix = selection.selectionStart > 0 && !/\s$/.test(selection.value.slice(0, selection.selectionStart)) ? ' ' : ''
     replaceEditorSelection(`${prefix}#${normalizedTag}`)
@@ -1754,6 +2590,8 @@ function App() {
       note.relativePath !== activeNote?.relativePath && note.relativePath.toLowerCase().includes(noteLinkQuery.trim().toLowerCase()),
     )
     const activeTags = extractMarkdownTags(draftContent)
+    const unsupportedMarkdownFeatures = detectUnsupportedMarkdownFeatures(draftContent)
+    const mixedMarkdownBlocks = getMarkdownBlockRanges(noteBody)
     const markdownAutocompleteData = {
       attachments,
       notePaths: notes.map((note) => note.relativePath),
@@ -1763,6 +2601,43 @@ function App() {
     const matchingTagSuggestions = tagIndex.filter((entry) =>
       !selectedTags.includes(entry.tag) && entry.tag.includes(tagFilterQuery.trim().replace(/^#/, '').toLowerCase()),
     )
+    const allGraphLinks = buildNoteGraphLinks(graphDocuments, notes.map((note) => note.relativePath))
+    const allGraphDegreeByPath = allGraphLinks.reduce<Record<string, number>>((degrees, link) => {
+      degrees[link.source] = (degrees[link.source] ?? 0) + 1
+      degrees[link.target] = (degrees[link.target] ?? 0) + 1
+      return degrees
+    }, {})
+    const orphanGraphDocuments = graphDocuments.filter((document) => (allGraphDegreeByPath[document.relativePath] ?? 0) === 0)
+    const localGraphCenterPath = focusedGraphPath ?? activeNote?.relativePath ?? null
+    const localGraphPaths = new Set(localGraphCenterPath
+      ? [localGraphCenterPath, ...allGraphLinks.flatMap((link) => link.source === localGraphCenterPath ? [link.target] : link.target === localGraphCenterPath ? [link.source] : [])]
+      : [])
+    const graphFolders = [...new Set(graphDocuments.map((document) => document.relativePath.split('/').slice(0, -1).join('/')).filter(Boolean))].sort()
+    const graphTags = [...new Set(graphDocuments.flatMap((document) => extractMarkdownTags(document.content)))].sort()
+    const focusedGraphDocument = graphDocuments.find((document) => document.relativePath === focusedGraphPath) ?? null
+    const focusedIncomingLinks = focusedGraphPath ? allGraphLinks.filter((link) => link.target === focusedGraphPath) : []
+    const focusedOutgoingLinks = focusedGraphPath ? allGraphLinks.filter((link) => link.source === focusedGraphPath) : []
+    const visibleGraphDocuments = graphDocuments.filter((document) => {
+      const title = document.name.replace(/\.md$/i, '').toLowerCase()
+      const matchesQuery = !graphQuery.trim() || title.includes(graphQuery.trim().toLowerCase())
+      const matchesFolder = !graphFolder || document.relativePath.startsWith(`${graphFolder}/`)
+      const matchesTag = !graphTag || extractMarkdownTags(document.content).includes(graphTag)
+      const isOrphan = (allGraphDegreeByPath[document.relativePath] ?? 0) === 0
+      return matchesQuery && matchesFolder && matchesTag && (graphMode === 'global' || localGraphPaths.has(document.relativePath)) && (showOnlyGraphOrphans ? isOrphan : showGraphOrphans || !isOrphan)
+    })
+    const visibleGraphPaths = new Set(visibleGraphDocuments.map((document) => document.relativePath))
+    const graphLinks = allGraphLinks.filter((link) => visibleGraphPaths.has(link.source) && visibleGraphPaths.has(link.target))
+    const graphDegreeByPath = graphLinks.reduce<Record<string, number>>((degrees, link) => {
+      degrees[link.source] = (degrees[link.source] ?? 0) + 1
+      degrees[link.target] = (degrees[link.target] ?? 0) + 1
+      return degrees
+    }, {})
+    const graphNodePositions = graphDocuments.reduce<Record<string, GraphPosition>>((positions, document, index) => {
+      const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
+      const radius = graphDocuments.length < 3 ? 28 : 34
+      positions[document.relativePath] = graphNodeOverrides[document.relativePath] ?? { x: 50 + Math.cos(angle) * radius, y: 50 + Math.sin(angle) * radius }
+      return positions
+    }, {})
     const paletteCommands: PaletteCommand[] = [
       { id: 'new-note', label: 'Criar nova nota', description: 'Abre uma nova nota com foco no titulo.' },
       { id: 'daily-note', label: 'Abrir nota diaria', description: 'Cria ou abre a nota de hoje em Diarias.' },
@@ -1811,6 +2686,16 @@ function App() {
           >
             <span className="rail-icon" aria-hidden="true">&#9998;</span>
             <span className="rail-label">Notas</span>
+          </button>
+          <button
+            type="button"
+            className={`rail-button${workspacePage === 'graph' ? ' is-active' : ''}`}
+            onClick={() => void openGraphPage()}
+            aria-label="Abrir grafo das notas"
+            title="Grafo das notas"
+          >
+            <Network size={17} strokeWidth={1.5} aria-hidden="true" />
+            <span className="rail-label">Grafo</span>
           </button>
           <button
             type="button"
@@ -1931,6 +2816,18 @@ function App() {
                       </div>
                     ) : null}
                   </div>
+                  {specialFiles.length > 0 ? (
+                    <button
+                      type="button"
+                      className="secondary-button special-files-button"
+                      onClick={() => setShowSpecialFilesDialog(true)}
+                      title={`${specialFiles.length}${specialFilesTruncated ? '+' : ''} arquivo${specialFiles.length === 1 ? '' : 's'} preservado${specialFiles.length === 1 ? '' : 's'} sem edicao`}
+                      aria-label={`Ver ${specialFiles.length}${specialFilesTruncated ? ' ou mais' : ''} arquivo${specialFiles.length === 1 ? '' : 's'} com compatibilidade limitada`}
+                    >
+                      <FileWarning size={15} strokeWidth={1.5} aria-hidden="true" />
+                      <span aria-hidden="true">{specialFiles.length}{specialFilesTruncated ? '+' : ''}</span>
+                    </button>
+                  ) : null}
                   </div>
                 </div>
               </div>
@@ -2062,9 +2959,42 @@ function App() {
                       />
                     </label>
                     <div className="note-properties" aria-label="Propriedades da nota">
-                      {visibleFrontmatterProperties.map(([key, value]) => <span key={key}><strong>{key}</strong> {formatFrontmatterPropertyValue(value)}</span>)}
-                      <button type="button" className="secondary-button" onClick={openFrontmatterEditor}>Propriedades</button>
+                      {visibleFrontmatterProperties.map(([key, value]) => (
+                        <button type="button" className="note-property-chip" key={key} onClick={() => openFrontmatterPropertyEditor(key, value)} aria-label={`Editar propriedade ${key}`} title={`Editar ${key}`}>
+                          <strong>{key}</strong> {formatFrontmatterPropertyValue(value)}
+                        </button>
+                      ))}
+                      <button type="button" className="secondary-button" onClick={() => openFrontmatterPropertyEditor()}>Nova propriedade</button>
+                      <button type="button" className="secondary-button" onClick={openFrontmatterEditor}>YAML completo</button>
                     </div>
+                    {frontmatterPropertyEditor ? (
+                      <div className="frontmatter-editor frontmatter-property-editor">
+                        <label htmlFor="frontmatter-property-key">Nome da propriedade</label>
+                        <input
+                          id="frontmatter-property-key"
+                          value={frontmatterPropertyEditor.key}
+                          onChange={(event) => setFrontmatterPropertyEditor((current) => current ? { ...current, key: event.target.value } : null)}
+                          disabled={frontmatterPropertyEditor.originalKey !== null}
+                          autoFocus
+                          spellCheck={false}
+                        />
+                        <label htmlFor="frontmatter-property-value">Valor YAML</label>
+                        <textarea
+                          id="frontmatter-property-value"
+                          value={frontmatterPropertyEditor.value}
+                          onChange={(event) => setFrontmatterPropertyEditor((current) => current ? { ...current, value: event.target.value } : null)}
+                          placeholder={'texto, [lista] ou\nchave: valor'}
+                          spellCheck={false}
+                        />
+                        <small>Edite texto, numeros, listas ou objetos. As demais propriedades permanecem exatamente como estao no arquivo.</small>
+                        {frontmatterError ? <p className="field-error">{frontmatterError}</p> : null}
+                        <div>
+                          {frontmatterPropertyEditor.originalKey ? <button type="button" className="danger-button" onClick={deleteFrontmatterProperty}>Remover</button> : null}
+                          <button type="button" className="secondary-button" onClick={() => setFrontmatterPropertyEditor(null)}>Cancelar</button>
+                          <button type="button" onClick={saveFrontmatterProperty}>Aplicar</button>
+                        </div>
+                      </div>
+                    ) : null}
                     {isFrontmatterEditorOpen ? (
                       <div className="frontmatter-editor">
                         <label htmlFor="frontmatter-properties">Propriedades YAML</label>
@@ -2081,6 +3011,11 @@ function App() {
                       <div className="note-tag-list" aria-label="Tags da nota">
                         {activeTags.map((tag) => <span key={tag}>#{tag}</span>)}
                       </div>
+                    ) : null}
+                    {unsupportedMarkdownFeatures.length > 0 ? (
+                      <p className="markdown-preservation-notice" role="status">
+                        Compatibilidade limitada, fonte preservada: {unsupportedMarkdownFeatures.map((feature) => LIMITED_MARKDOWN_FEATURE_LABELS[feature] ?? feature).join(', ')}.
+                      </p>
                     ) : null}
                     {!isNewNoteDraft && backlinks.length > 0 ? (
                       <div className="backlink-list" aria-label="Backlinks">
@@ -2162,7 +3097,7 @@ function App() {
                   <article className={`markdown-reading${isReadingLineWrapEnabled ? '' : ' is-line-wrap-disabled'}`} style={readingStyle}>{renderMarkdown(noteBody, (lineNumber) => setDraftContent((currentContent) => replaceMarkdownBody(currentContent, toggleChecklistAtLine(noteBody, lineNumber))))}</article>
                 ) : (
                   <section className="markdown-mixed">
-                    {(splitMarkdownBlocks(noteBody).length ? splitMarkdownBlocks(noteBody) : ['']).map((block, index, blocks) =>
+                    {mixedMarkdownBlocks.map(({ content: block }, index) =>
                       mixedFocusedBlock === index ? (
                         <MarkdownCodeEditor
                           key={index}
@@ -2175,7 +3110,10 @@ function App() {
                           autocompleteData={markdownAutocompleteData}
                           onSearchRequest={openNoteSearch}
                           value={block}
-                          onChange={(value) => setDraftContent((currentContent) => replaceMarkdownBody(currentContent, blocks.map((item, itemIndex) => itemIndex === index ? value : item).join('\n\n')))}
+                          onChange={(value) => setDraftContent((currentContent) => {
+                            const body = getMarkdownBody(currentContent)
+                            return replaceMarkdownBody(currentContent, replaceMarkdownBlock(body, index, value))
+                          })}
                           onHistoryChange={setMarkdownHistoryStatus}
                           onSessionChange={(session) => {
                             const documentKey = mixedEditorDocumentKey(activeNote.relativePath, index)
@@ -2193,9 +3131,9 @@ function App() {
                       ) : (
                         <article key={index} onClick={(event) => startMixedBlockEditing(event, index, block)}>
                           {renderMarkdown(block, (lineNumber) => setDraftContent((currentContent) => {
-                            const blocks = splitMarkdownBlocks(getMarkdownBody(currentContent))
-                            blocks[index] = toggleChecklistAtLine(block, lineNumber)
-                            return replaceMarkdownBody(currentContent, blocks.join('\n\n'))
+                            const body = getMarkdownBody(currentContent)
+                            const currentBlock = getMarkdownBlockRanges(body)[index]?.content ?? block
+                            return replaceMarkdownBody(currentContent, replaceMarkdownBlock(body, index, toggleChecklistAtLine(currentBlock, lineNumber)))
                           }))}
                         </article>
                       ),
@@ -2264,6 +3202,109 @@ function App() {
               </div>
             )}
               </>
+            ) : workspacePage === 'graph' ? (
+              <section className="workspace-page graph-page" data-builder-name="note-graph-page">
+                <div className="graph-page-header">
+                  <div>
+                    <p className="card-kicker">Conhecimento conectado</p>
+                    <h2>Grafo das notas</h2>
+                    <p>Explore as conexoes criadas pelos links internos do vault.</p>
+                  </div>
+                  <button type="button" className="secondary-button" onClick={() => void openGraphPage()} disabled={isGraphLoading}>
+                    <RefreshCw size={15} strokeWidth={1.5} aria-hidden="true" />
+                    Atualizar grafo
+                  </button>
+                </div>
+                {isGraphLoading ? (
+                  <p className="graph-empty-state">Lendo os links das notas...</p>
+                ) : graphDocuments.length === 0 ? (
+                  <p className="graph-empty-state">Nenhuma nota disponivel para montar o grafo.</p>
+                ) : (
+                  <>
+                    <div className="graph-summary" aria-label="Resumo do grafo">
+                      <span>{visibleGraphDocuments.length} {visibleGraphDocuments.length === 1 ? 'nota' : 'notas'}</span>
+                      <span>{graphLinks.length} {graphLinks.length === 1 ? 'conexao' : 'conexoes'}</span>
+                    </div>
+                    <div className="graph-controls" aria-label="Controles do grafo">
+                      <select value={graphMode} onChange={(event) => setGraphMode(event.target.value as GraphMode)} aria-label="Modo do grafo"><option value="global">Grafo global</option><option value="local">Grafo local</option></select>
+                      <input value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
+                      <select value={graphFolder} onChange={(event) => setGraphFolder(event.target.value)} aria-label="Filtrar pasta do grafo"><option value="">Todas as pastas</option>{graphFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}</select>
+                      <select value={graphTag} onChange={(event) => setGraphTag(event.target.value)} aria-label="Filtrar tag do grafo"><option value="">Todas as tags</option>{graphTags.map((tag) => <option key={tag} value={tag}>#{tag}</option>)}</select>
+                      <label><input type="checkbox" checked={showGraphOrphans} onChange={(event) => setShowGraphOrphans(event.target.checked)} /> Mostrar notas sem conexao</label>
+                      <label><input type="checkbox" checked={showOnlyGraphOrphans} onChange={(event) => setShowOnlyGraphOrphans(event.target.checked)} /> Somente notas nao conectadas</label>
+                      <button type="button" className="secondary-button" onClick={reorganizeGraphNodes} aria-label="Reorganizar nos">Reorganizar</button>
+                      <button type="button" className="secondary-button" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.min(2.4, view.scale + 0.15) }))} aria-label="Aproximar grafo">+</button>
+                      <button type="button" className="secondary-button" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.max(0.55, view.scale - 0.15) }))} aria-label="Afastar grafo">−</button>
+                      <button type="button" className="secondary-button" onClick={resetGraphView} aria-label="Centralizar grafo">Centralizar</button>
+                    </div>
+                    <div
+                      ref={graphSurfaceRef}
+                      className="note-graph"
+                      role="region"
+                      aria-label="Grafo interativo das notas"
+                      onWheel={(event) => { event.preventDefault(); setGraphViewport((view) => ({ ...view, scale: Math.max(0.55, Math.min(2.4, view.scale + (event.deltaY < 0 ? 0.1 : -0.1))) })) }}
+                      onPointerDown={(event) => { if (event.target instanceof Element && event.target.closest('.note-graph-node')) return; event.currentTarget.setPointerCapture?.(event.pointerId); graphPanRef.current = { x: event.clientX, y: event.clientY, viewport: graphViewport } }}
+                      onPointerMove={(event) => { const pan = graphPanRef.current; if (pan) setGraphViewport({ ...pan.viewport, x: pan.viewport.x + event.clientX - pan.x, y: pan.viewport.y + event.clientY - pan.y }) }}
+                      onPointerUp={(event) => { graphPanRef.current = null; event.currentTarget.releasePointerCapture?.(event.pointerId) }}
+                      onPointerCancel={() => { graphPanRef.current = null }}
+                    >
+                      <div className="note-graph-world" style={{ transform: `translate(${graphViewport.x}px, ${graphViewport.y}px) scale(${graphViewport.scale})` }}>
+                        <svg className="note-graph-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                          {graphLinks.map((link) => {
+                            const source = graphNodePositions[link.source]
+                            const target = graphNodePositions[link.target]
+                            const isFocused = focusedGraphPath === link.source || focusedGraphPath === link.target
+                            return <line className={isFocused ? 'is-focused' : ''} key={`${link.source}-${link.target}`} x1={source.x} y1={source.y} x2={target.x} y2={target.y} />
+                          })}
+                        </svg>
+                      {visibleGraphDocuments.map((document) => {
+                        const position = graphNodePositions[document.relativePath]
+                        const degree = graphDegreeByPath[document.relativePath] ?? 0
+                        const isCurrent = document.relativePath === activeNote?.relativePath
+                        return (
+                          <button
+                            key={document.relativePath}
+                            type="button"
+                            className={`note-graph-node${isCurrent ? ' is-current' : ''}${focusedGraphPath === document.relativePath ? ' is-focused' : ''}`}
+                            style={{ left: `${position.x}%`, top: `${position.y}%`, '--graph-degree': Math.min(degree, 5) } as CSSProperties}
+                            onPointerDown={(event) => { event.stopPropagation(); event.currentTarget.setPointerCapture?.(event.pointerId); graphNodeDragRef.current = document.relativePath; graphSkipNodeClickRef.current = false; setFocusedGraphPath(document.relativePath) }}
+                            onPointerMove={(event) => { if (graphNodeDragRef.current !== document.relativePath) return; graphSkipNodeClickRef.current = true; updateGraphNodePosition(document.relativePath, event.clientX, event.clientY) }}
+                            onPointerUp={(event) => { graphNodeDragRef.current = null; event.currentTarget.releasePointerCapture?.(event.pointerId) }}
+                            onPointerCancel={() => { graphNodeDragRef.current = null }}
+                            onFocus={() => setFocusedGraphPath(document.relativePath)}
+                            onClick={() => { if (graphSkipNodeClickRef.current) { graphSkipNodeClickRef.current = false; return }; setWorkspacePage('notes'); void openNote(document.relativePath) }}
+                            aria-label={`Abrir nota ${document.name.replace(/\.md$/i, '')} no grafo`}
+                            title={`${document.name.replace(/\.md$/i, '')}${degree ? `, ${degree} conexao(oes)` : ''}`}
+                          >
+                            <span>{document.name.replace(/\.md$/i, '')}</span>
+                          </button>
+                        )
+                      })}
+                      </div>
+                    </div>
+                    {focusedGraphDocument ? (
+                      <aside className="graph-detail-panel" aria-label="Detalhes da nota selecionada">
+                        <div><p className="card-kicker">Nota selecionada</p><h3>{focusedGraphDocument.name.replace(/\.md$/i, '')}</h3><p>{focusedGraphDocument.relativePath}</p></div>
+                        <div className="graph-detail-metrics"><span>{focusedIncomingLinks.length} entradas</span><span>{focusedOutgoingLinks.length} saidas</span></div>
+                        <div className="graph-detail-actions">
+                          <button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(focusedGraphDocument.relativePath) }}>Abrir nota</button>
+                          <button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(focusedGraphDocument.relativePath) }} title="Abre a nota em uma aba do workspace">Abrir em nova aba</button>
+                          <button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(focusedGraphDocument.relativePath) }}>Revelar no explorador</button>
+                          <button type="button" className="secondary-button" onClick={() => void copyGraphWikiLink(focusedGraphDocument.relativePath)}>Copiar wikilink</button>
+                          <button type="button" className="secondary-button" onClick={() => setGraphMode('local')}>Ver grafo local</button>
+                        </div>
+                      </aside>
+                    ) : null}
+                    {showOnlyGraphOrphans ? (
+                      <section className="graph-orphan-panel" aria-label="Notas nao conectadas">
+                        <div><p className="card-kicker">Limpeza do vault</p><h3>{orphanGraphDocuments.length} notas nao conectadas</h3></div>
+                        {orphanGraphDocuments.length > 0 ? <div className="graph-orphan-list">{orphanGraphDocuments.map((document) => <div key={document.relativePath}><span>{document.name.replace(/\.md$/i, '')}</span><button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(document.relativePath) }}>Abrir</button></div>)}</div> : <p>Nenhuma nota isolada com os filtros atuais.</p>}
+                      </section>
+                    ) : null}
+                    {visibleGraphDocuments.length === 0 ? <p className="graph-empty-state">Nenhuma nota corresponde aos filtros atuais.</p> : graphLinks.length === 0 ? <p className="graph-empty-state">Ainda nao ha links internos entre estas notas. Use <code>[[Nome da nota]]</code> para criar conexoes.</p> : null}
+                  </>
+                )}
+              </section>
             ) : workspacePage === 'shortcuts' ? (
               <section className="workspace-page" data-builder-name="shortcuts-page">
                 <p className="card-kicker">Atalhos</p>
@@ -2498,6 +3539,31 @@ function App() {
             </section>
           </div>
         ) : null}
+        {externalRemovedNote ? (
+          <div className="note-search-backdrop external-change-backdrop" role="presentation">
+            <section className="note-search-modal external-change-modal" role="dialog" aria-modal="true" aria-label="Nota removida fora do MirrorMind">
+              <div className="move-item-heading">
+                <strong>Nota removida externamente</strong>
+                <span>A nota <b>{externalRemovedNote.relativePath.replace(/\.md$/i, '')}</b> foi removida ou movida por outro aplicativo. Seu rascunho continua preservado.</span>
+              </div>
+              <p>Restaure no caminho original, salve o rascunho em uma nova nota ou feche a aba sem recriar o arquivo.</p>
+              <label className="recovered-note-path-field">
+                <span>Novo caminho</span>
+                <input
+                  value={recoveredNotePath}
+                  onChange={(event) => setRecoveredNotePath(event.target.value)}
+                  placeholder="recuperadas/minha-nota.md"
+                  aria-label="Novo caminho para a nota recuperada"
+                />
+              </label>
+              <div className="folder-dialog-actions external-removed-note-actions">
+                <button type="button" className="secondary-button" onClick={closeExternallyRemovedNote} disabled={loading}>Fechar aba</button>
+                <button type="button" className="secondary-button" onClick={() => void saveExternallyRemovedNoteAsNew()} disabled={loading || !recoveredNotePath.trim()}>Salvar como nova</button>
+                <button type="button" onClick={() => void restoreExternallyRemovedNote()} disabled={loading}>Restaurar arquivo</button>
+              </div>
+            </section>
+          </div>
+        ) : null}
         {showCommandPalette ? (
           <div className="note-search-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowCommandPalette(false) }}>
             <section className="note-search-modal command-palette" role="dialog" aria-modal="true" aria-label="Command Palette">
@@ -2507,6 +3573,30 @@ function App() {
                 {matchingCommands.length === 0 ? <p>Nenhum comando encontrado.</p> : null}
               </div>
               <div className="folder-dialog-actions"><span className="command-palette-hint">Ctrl+K para abrir</span><button type="button" className="secondary-button" onClick={() => setShowCommandPalette(false)}>Fechar</button></div>
+            </section>
+          </div>
+        ) : null}
+        {showSpecialFilesDialog ? (
+          <div className="note-search-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowSpecialFilesDialog(false) }}>
+            <section className="note-search-modal special-files-modal" role="dialog" aria-modal="true" aria-label="Arquivos com compatibilidade limitada" onKeyDown={(event) => { if (event.key === 'Escape') setShowSpecialFilesDialog(false) }}>
+              <div className="move-item-heading">
+                <strong>Arquivos preservados</strong>
+                <span>Estes arquivos permanecem no Vault, mas ainda nao podem ser visualizados ou editados aqui.</span>
+                <button autoFocus type="button" className="modal-close-button" onClick={() => setShowSpecialFilesDialog(false)} aria-label="Fechar arquivos especiais"><X size={15} aria-hidden="true" /></button>
+              </div>
+              {specialFilesTruncated ? <p className="special-files-limit-notice" role="status">Mostrando os primeiros 500 arquivos. A coleta foi interrompida para manter o workspace responsivo.</p> : null}
+              <div className="special-files-list">
+                {specialFiles.map((file) => (
+                  <article key={file.relativePath} className="special-file-row">
+                    <div>
+                      <strong>{file.name}</strong>
+                      <code>{file.relativePath}</code>
+                    </div>
+                    <span className={`special-file-kind is-${file.kind}`}>{SPECIAL_FILE_LABELS[file.kind]}</span>
+                    <p>{SPECIAL_FILE_LIMITATIONS[file.kind]} O arquivo sera preservado sem alteracoes.</p>
+                  </article>
+                ))}
+              </div>
             </section>
           </div>
         ) : null}

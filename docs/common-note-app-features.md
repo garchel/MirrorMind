@@ -88,11 +88,14 @@ Estas tasks acompanham a evolucao do editor atual para uma experiencia compative
 
 **Lembrete apos concluir o Bloco 7:** executar `cargo fmt` em um commit exclusivo de formatacao e repetir `cargo test`.
 
-## Bloco V2: Evolucoes Futuras
+## Roadmap V2
 
-| Task | Estado | Criterio de conclusao |
-| --- | --- | --- |
-| Observacao completa do Vault | Planejado | Detecta criacoes, edicoes, renomeacoes, movimentacoes e exclusoes externas em toda a arvore do Vault, atualizando o explorador e oferecendo resolucao de conflitos para notas abertas. |
+Os blocos de features V2 e V2.1 foram movidos para [v2-features-roadmap.md](v2-features-roadmap.md).
+
+## Roadmap de qualidade e testes
+
+A estrategia multiplataforma, com Windows como prioridade, e o plano de E2E desktop estao em [testing-roadmap.md](testing-roadmap.md).
+
 
 ## Bloco 8: Compatibilidade com Vaults Obsidian
 
@@ -100,30 +103,24 @@ Objetivo: um usuario deve conseguir abrir um Vault do Obsidian, navegar e editar
 
 | Task | Estado | Criterio de conclusao |
 | --- | --- | --- |
-| Contrato de compatibilidade V1 | Planejado | Define sintaxes suportadas, preservadas e explicitamente fora de escopo, com exemplos de entrada e saida. |
-| Suite de Vaults de compatibilidade | Planejado | Vaults de fixture reais cobrem Markdown, YAML, wikilinks, embeds, anexos, tags, callouts e nomes de arquivo complexos. |
-| Preservacao sem perdas do frontmatter | Planejado | Editar uma propriedade nao remove comentarios, ordem, aspas, anchors, aliases, tags, valores desconhecidos ou estilos de YAML existentes. |
-| Preservacao de Markdown nao suportado | Planejado | Callouts, blocos especiais, HTML, sintaxes de plugins e extensoes desconhecidas permanecem byte-equivalentes quando nao sao editadas. |
-| Wikilinks completos | Planejado | Suporta caminhos, aliases, headings, block references e links com caracteres especiais, seguindo a resolucao do Obsidian. |
-| Embeds e transclusoes | Planejado | Renderiza e edita `![[nota]]`, `![[imagem.png]]`, PDFs e recortes por heading/bloco sem quebrar o Markdown original. |
-| Tags compativeis | Planejado | Indexa tags no corpo e no frontmatter, incluindo tags aninhadas, caracteres Unicode e filtros equivalentes. |
-| Anexos compativeis | Planejado | Respeita caminhos relativos, nomes duplicados, extensoes e convencoes da pasta de anexos configurada no Vault. |
-| Arquivos e configuracoes `.obsidian/` | Planejado | Ignora arquivos internos com seguranca e le configuracoes relevantes sem sobrescreve-las. |
-| Plugins e arquivos especiais | Planejado | Preserva dados de plugins, Canvas, Excalidraw e arquivos desconhecidos; informa limitacoes de visualizacao sem modifica-los. |
-| Deteccao de mudancas externas | Planejado | Atualizacoes feitas no Obsidian ou no sistema sao detectadas, com comparacao e resolucao de conflitos. |
-| Renomeacao compativel | Planejado | Renomear ou mover notas atualiza apenas links reconhecidos e preserva aliases, embeds e referencias de bloco. |
-| Matriz de regressao Obsidian | Planejado | Cada release executa testes de abertura, edicao e reabertura dos Vaults de fixture sem perda de dados. |
+| Contrato de compatibilidade V1 | Implementado | O contrato em `docs/obsidian-v1-compatibility.md` define sintaxes suportadas, preservadas e fora de escopo, incluindo a regra de nunca reformatar ou remover recursos desconhecidos silenciosamente. |
+| Suite de Vaults de compatibilidade | Implementado | A matriz executavel cobre dois Vaults completos de estudos e projetos, alem de uma fixture sintatica legada, com `.obsidian`, anexos, notas aninhadas, nota diaria, Canvas e dados de plugins. Frontend e backend validam indexacao, edicao, reabertura e preservacao byte a byte de conteudo desconhecido e configuracoes. Casos adicionais de CRLF, BOM, nomes Unicode e caminhos longos devem ampliar a matriz sem alterar esse contrato. |
+| Preservacao sem perdas do frontmatter | Implementado | O editor YAML completo preserva literalmente a fonte valida e o editor individual altera, cria ou remove qualquer propriedade de nivel superior sem reserializar as demais. Comentarios, ordem, aspas, anchors, aliases, campos desconhecidos e finais de linha nao relacionados permanecem byte a byte; listas e objetos aninhados podem ser editados como YAML. |
+| Preservacao de Markdown nao suportado | Implementado | Callouts possuem aparencia semantica, icones, cores, titulos com Markdown inline, aninhamento em blocos e listas e recolhimento `+/-`. HTML e interpretado por `rehype-raw` somente apos sanitizacao; blocos e sintaxes de plugins, comentarios Obsidian e extensoes desconhecidas permanecem literais no arquivo e recursos limitados sao sinalizados no painel. |
+| Wikilinks completos | Implementado | Caminhos explicitos desde a raiz, nomes curtos relativos, duplicatas pela nota mais proxima, aliases, caracteres especiais, links locais, subheadings encadeados e referencias de bloco sao resolvidos de forma consistente na leitura, transclusao, backlinks e links quebrados. Wikilinks inexistentes criam a nota no caminho indicado. A reescrita ao renomear ou mover permanece rastreada separadamente em Renomeacao compativel. |
+| Embeds e transclusoes | Implementado | Renderiza `![[nota]]` pelo mesmo pipeline Markdown seguro da nota principal, com caminhos relativos, recortes por heading ou bloco, nesting limitado e leituras IPC controladas. Imagens e PDFs locais funcionam em pastas seguras do Vault; PDFs inventariados usam visualizador interno com navegacao por paginas e limites contra uso excessivo de recursos. |
+| Tags compativeis | Implementado | Indexa e filtra tags do corpo e da propriedade `tags` do frontmatter em formatos escalares, listas de bloco ou flow, aliases e sequencias YAML aninhadas. Normaliza hashtags, caminhos aninhados, BOM e Unicode NFC/NFD de forma consistente no explorador, na nota ativa, na insercao, no autocomplete e no grafo. Ignora codigo, comentarios e fragmentos de URL, rejeita tags parciais e aplica limites de seguranca ao indice. Valores YAML que nao representam tags sao preservados. |
+| Anexos compativeis | Implementado | Respeita as quatro localizacoes documentadas pelo Obsidian em `attachmentFolderPath`: raiz do Vault, pasta fixa, mesma pasta da nota (`./`) e subpasta da nota (`./pasta`). Inventaria formatos suportados em todo o Vault visivel, ignora diretorios internos e symlinks, resolve caminhos de embed absolutos no Vault, relativos seguros e nomes curtos pela pasta mais proxima, com normalizacao Unicode. A importacao valida o ancestral antes de criar pastas, confirma o confinamento depois da criacao e reserva nomes atomicamente sem sobrescrever; o calculo de destino e validado contra os Vaults de estudos e projetos. Evolucoes nao bloqueantes foram movidas para Compatibilidade ampliada de anexos no bloco V2. |
+| Arquivos e configuracoes `.obsidian/` | Implementado | Mantem `.obsidian` fora dos indices editaveis e nunca escreve em suas configuracoes. Le de `app.json`, por uma whitelist tipada e limitada, as preferencias de novas notas, anexos, formato e atualizacao de links, arquivos nao suportados, confirmacao/lixeira e filtros excluidos. O snapshot read-only acompanha o resumo do Vault pelo contrato IPC; configuracoes ausentes, invalidas, grandes demais ou campos de plugins sao ignorados sem impedir a abertura nem alterar bytes. |
+| Plugins e arquivos especiais | Implementado | Canvas, Excalidraw, `.excalidraw.md` e formatos desconhecidos fora de diretorios internos sao inventariados por uma API read-only, permanecem fora do editor de notas e aparecem em um painel de compatibilidade com caminho e limitacao. A coleta ignora `.obsidian`, `.mirmind`, diretorios com nome iniciado por ponto e symlinks; listar ou atualizar o Vault nao le nem modifica o conteudo desses arquivos. O inventario interrompe a varredura apos detectar mais de 500 itens e avisa sobre o truncamento para manter o workspace responsivo. Dados internos de plugins e configuracoes continuam preservados sem serem expostos. |
+| Deteccao de mudancas externas | Implementado | O backend Tauri observa o Vault recursivamente e emite eventos nativos relativos, ignorando `.mirmind`. O frontend agrega eventos, reconcilia a arvore, remapeia renomeacoes/movimentacoes e resolve remocoes de notas abertas por modal, com polling como fallback. |
+| Renomeacao compativel | Implementado | Renomear ou mover notas e pastas resolve os wikilinks contra a arvore anterior do Vault e preserva os destinos dos links de entrada e saida, incluindo links curtos reconhecidos, caminhos de raiz, extensao explicita e embeds. Aliases, headings, referencias de bloco, espacos e finais de linha sao preservados; links em codigo inline, code fences, comentarios HTML e Obsidian, blocos HTML e links escapados permanecem literais. Rascunhos abertos sao persistidos antes da mudanca. O backend faz preflight estrito, prepara as escritas, detecta edicoes concorrentes e usa staging com backups e rollback para evitar uma atualizacao parcial previsivel. |
+| Matriz de regressao Obsidian | Implementado | `npm test` e `cargo test` executam cenarios nomeados para os Vaults de estudos e projetos: abertura e indexacao seletiva, edicao pelo workspace, persistencia IPC, reabertura, reindexacao, round-trip do Markdown e preservacao byte a byte de toda a arvore inventariada, incluindo configuracoes `.obsidian`, anexos, Canvas e dados de plugins. As mensagens de falha identificam o Vault, o arquivo e a etapa da regressao. |
 
 ## Bloco 5: Revisao e aprendizado
 
-| Funcionalidade | Estado | Observacao |
-| --- | --- | --- |
-| Metadados de revisao no vault | Implementado | Estrutura `.mirmind/` preparada. |
-| Algoritmo de repeticao espacada | Planejado | |
-| Avaliacao por IA | Planejado | |
-| Identificacao de lacunas de conhecimento | Planejado | |
-| Agenda de revisoes | Planejado | |
-| Relatorios de retencao | Planejado | |
+O planejamento completo foi movido para [review-learning-roadmap.md](review-learning-roadmap.md). O documento dedicado contem as dependencias tecnicas, o escopo funcional aprovado e as evolucoes V2 e do plano pago.
+
 
 ## Bloco 6: Configuracoes
 
@@ -132,6 +129,3 @@ Objetivo: um usuario deve conseguir abrir um Vault do Obsidian, navegar e editar
 | Auto Save | Implementado | Persistido localmente no aplicativo. |
 | Atalhos | Implementado | Persistidos localmente no aplicativo. |
 | Preferencia de reabrir ultimo vault | Implementado | Persistida na configuracao nativa do aplicativo. |
-| Tema claro/escuro | Planejado | O tema atual e claro, inspirado em caderno. |
-| Configuracao de fonte | Planejado | |
-| Configuracao de historico | Planejado | Limite atual: 100 acoes. |
