@@ -6,7 +6,114 @@ on:
       - '**'
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  windows-validation:
+    name: Windows required
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.96.1
+          components: rustfmt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Frontend tests
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force test-results | Out-Null
+          npm run test:ci:frontend 2>&1 | Tee-Object -FilePath test-results/frontend.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Frontend build
+        run: npm run build
+
+      - name: Rust compile check
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+
+      - name: Rust tests
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force test-results | Out-Null
+          npm run test:ci:rust 2>&1 | Tee-Object -FilePath test-results/rust.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build Windows E2E app
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force test-results | Out-Null
+          npm run build:e2e:windows 2>&1 | Tee-Object -FilePath test-results/windows-e2e-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Desktop E2E
+        shell: powershell
+        run: |
+          npm run test:e2e:windows 2>&1 | Tee-Object -FilePath test-results/windows-e2e.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build Windows distributable
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force test-results | Out-Null
+          npm run build:desktop:bundle 2>&1 | Tee-Object -FilePath test-results/windows-bundle-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Smoke test Windows distributable
+        shell: powershell
+        run: |
+          ./scripts/verify-windows-bundle.ps1 `
+            -TargetDirectory src-tauri/target/release `
+            -ManifestPath test-results/windows-bundle-manifest.json `
+            2>&1 | Tee-Object -FilePath test-results/windows-bundle-smoke.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload Windows distributable
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrormind-windows-x64
+          path: |
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            test-results/windows-bundle-manifest.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload test diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics-windows
+          path: test-results
+          if-no-files-found: warn
+          retention-days: 14
+
   validate:
     runs-on: ubuntu-latest
 
@@ -32,11 +139,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: npm
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.96.1
+          components: rustfmt
 
       - name: Install dependencies
         run: npm ci
@@ -47,8 +157,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test
-        run: npm run test
+      - name: Frontend tests
+        run: |
+          mkdir -p test-results
+          set -o pipefail
+          npm run test:ci:frontend 2>&1 | tee test-results/frontend.log
 
       - name: Frontend build
         run: npm run build
@@ -57,4 +170,104 @@ jobs:
         run: cargo check --manifest-path src-tauri/Cargo.toml
 
       - name: Rust tests
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: |
+          mkdir -p test-results
+          set -o pipefail
+          npm run test:ci:rust 2>&1 | tee test-results/rust.log
+
+      - name: Upload test diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics-ubuntu
+          path: test-results
+          if-no-files-found: warn
+          retention-days: 14
+
+  coverage:
+    name: Coverage diagnostics
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies for Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libwebkit2gtk-4.1-dev
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.96.1
+          components: llvm-tools-preview
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov@0.8.7
+          fallback: none
+
+      - name: Frontend coverage
+        id: frontend_coverage
+        run: npm run test:coverage:frontend
+
+      - name: Rust coverage summary
+        id: rust_coverage
+        if: ${{ always() }}
+        run: npm run test:coverage:rust
+
+      - name: Export Rust LCOV report
+        id: rust_export
+        if: ${{ always() && steps.rust_coverage.outcome == 'success' }}
+        run: |
+          mkdir -p coverage/rust
+          cargo llvm-cov report \
+            --manifest-path src-tauri/Cargo.toml \
+            --lcov \
+            --output-path coverage/rust/lcov.info
+
+      - name: Verify coverage reports
+        if: ${{ always() }}
+        run: |
+          missing=0
+          for report in \
+            coverage/frontend/coverage-summary.json \
+            coverage/frontend/lcov.info \
+            coverage/rust/lcov.info
+          do
+            if [ ! -s "$report" ]; then
+              echo "Missing coverage report: $report"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Upload coverage reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-ubuntu
+          path: coverage
+          if-no-files-found: error
+          retention-days: 14

@@ -49,3 +49,44 @@ Objetivo: transformar a visualizacao de conexoes em uma ferramenta de exploracao
 | Layout em worker | Planejado | Executa o calculo de forcas fora da thread de interface, permite cancelar/reiniciar o calculo e mantem a tela responsiva. |
 | Renderizacao seletiva | Planejado | Renderiza apenas nos e linhas dentro ou proximos ao viewport, com limite configuravel e aviso quando o resultado for resumido. |
 | Testes de regressao do grafo | Planejado | Cobre acoes por no, filtros, agrupamento, persistencia, exportacao, notas isoladas, profundidade e comportamento com vaults grandes. |
+
+## Bloco V2.2: Qualidade e testes multiplataforma
+
+Objetivo: ampliar a garantia de qualidade para macOS e Ubuntu depois que contrato IPC, artefato, E2E e gate de release Windows estiverem estabilizados. O historico implementado e o backlog prioritario Windows permanecem em [testing-roadmap.md](testing-roadmap.md).
+
+### Compatibilidade macOS
+
+**Objetivo:** manter macOS como segunda plataforma oficialmente suportada.
+
+| Task | Estado | Criterio de conclusao |
+| --- | --- | --- |
+| Job macOS por PR | Planejado | `macos-latest` executa testes Rust, testes frontend e build desktop; falhas bloqueiam release, mesmo que a politica de branch permita execucao E2E menos frequente por custo. |
+| Filesystem macOS | Planejado | Cobre Unicode NFC/NFD, comportamento case-insensitive do volume padrao, symlinks, watchers e operacoes atomicas. |
+| E2E macOS | Planejado | Jornadas criticas rodam com o driver embedded em agenda noturna e em toda release candidata; um smoke menor pode rodar em PRs. |
+| Arquiteturas Apple | Planejado | Apple Silicon e Intel sao construidos e validados conforme as arquiteturas declaradas como suportadas. |
+
+### Compatibilidade Ubuntu
+
+**Objetivo:** preservar Ubuntu como terceira plataforma sem reduzir a prioridade dos gates Windows.
+
+| Task | Estado | Criterio de conclusao |
+| --- | --- | --- |
+| CI Linux enxuta | Implementado | Ubuntu ja executa lint, typecheck, Vitest, build e testes Rust para feedback rapido. A task permanece registrada para preservar o historico do roadmap original. |
+| Filesystem Linux | Planejado | Cobre case sensitivity, permissoes Unix, symlinks e watchers. |
+| E2E Linux | Planejado | Smoke desktop roda com display virtual em agenda noturna e antes de releases multiplataforma. |
+
+### Gates multiplataforma futuros
+
+| Evento | macOS | Ubuntu |
+| --- | --- | --- |
+| Pull request | Testes e build; smoke E2E quando estabilizado. | Lint, typecheck, Vitest, build e Rust. |
+| Nightly | E2E completo. | E2E completo. |
+| Release candidata | CI verde e E2E de release. | CI verde se a release oferecer Linux. |
+
+### Ordem futura
+
+1. Adicionar o job macOS por PR.
+2. Cobrir filesystem macOS e estabilizar o smoke E2E.
+3. Validar Apple Silicon e Intel conforme o suporte declarado.
+4. Completar filesystem Linux.
+5. Adicionar smoke E2E Linux com display virtual.

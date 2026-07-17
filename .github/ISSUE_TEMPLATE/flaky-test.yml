@@ -1,0 +1,75 @@
+name: Teste instavel
+description: Registre uma falha que muda de resultado sem alteracao relevante no codigo.
+title: "[Flaky test] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Uma suspeita de flakiness continua bloqueando o gate. Preencha os dados abaixo para que ela tenha diagnostico, responsavel e prazo.
+  - type: input
+    id: test
+    attributes:
+      label: Teste afetado
+      description: Informe o nome completo e o arquivo do teste.
+      placeholder: src/example.test.tsx > suite > caso
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Plataforma
+      options:
+        - Windows
+        - macOS
+        - Ubuntu
+        - Mais de uma plataforma
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Responsavel
+      description: Informe o usuario GitHub que conduzira a investigacao.
+      placeholder: "@usuario"
+    validations:
+      required: true
+  - type: input
+    id: deadline
+    attributes:
+      label: Prazo
+      description: Use uma data ISO; o prazo normal nao deve exceder sete dias.
+      placeholder: AAAA-MM-DD
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidencias
+      description: Vincule execucoes da CI e anexe logs, JUnit, seed e mensagens relevantes. Remova tokens, caminhos pessoais e conteudo privado de Vault; prefira links para artefatos com acesso controlado.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproducao
+      description: Registre comando, numero de repeticoes, falhas observadas e diferencas entre ambientes.
+    validations:
+      required: true
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hipotese inicial
+      description: Descreva estado compartilhado, tempo, concorrencia, ordem, filesystem ou dependencia suspeita.
+    validations:
+      required: true
+  - type: checkboxes
+    id: policy
+    attributes:
+      label: Compromissos
+      options:
+        - label: O teste nao recebeu retry, skip ou assercao enfraquecida para liberar o gate.
+          required: true
+        - label: A issue tem responsavel e prazo definidos.
+          required: true

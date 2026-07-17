@@ -18,6 +18,7 @@ import { ObsidianCallout } from './components/ObsidianCallout'
 import { ObsidianNoteEmbed } from './components/ObsidianNoteEmbed'
 import { ObsidianPdfEmbed } from './components/ObsidianPdfEmbed'
 import { remarkObsidianCallouts } from './lib/remarkObsidianCallouts'
+import { createVaultScanCoordinator, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
 import type { MarkdownCodeEditorHandle, MarkdownEditorHistoryStatus, MarkdownEditorSession } from './components/MarkdownCodeEditor'
 import {
   DEFAULT_WORKSPACE_SHORTCUTS,
@@ -71,6 +72,8 @@ type Attachment = {
   relativePath: string
   isImage: boolean
 }
+
+let nextVaultWatcherRequestId = 1
 
 const SPECIAL_FILE_LABELS: Record<SpecialVaultFile['kind'], string> = {
   canvas: 'Canvas',
@@ -299,6 +302,10 @@ function App() {
   const inlineTitleRenamePathRef = useRef<string | null>(null)
   const vaultChangeQueueRef = useRef<VaultFileSystemChange[]>([])
   const vaultChangeDebounceRef = useRef<number | null>(null)
+  const activeVaultWatcherRequestRef = useRef(0)
+  const activeVaultPathRef = useRef<string | null>(null)
+  const externalVaultScanCoordinatorRef = useRef<ReturnType<typeof createVaultScanCoordinator> | null>(null)
+  activeVaultPathRef.current = vault?.path ?? null
   const externalRemovedNoteQueueRef = useRef<ExternalRemovedNote[]>([])
   const [draftsByPath, setDraftsByPath] = useState<Record<string, string>>({})
   const [recentVaultPreference, setRecentVaultPreference] =
@@ -573,6 +580,7 @@ function App() {
   })
   const checkExternalVaultTree = useEffectEvent(async (change?: VaultFileSystemChange) => {
     if (!vault || saveInFlightRef.current) return
+    const vaultPath = vault.path
 
     try {
       const renamePaths = change?.kind === 'rename' && change.paths.length >= 2
@@ -586,10 +594,11 @@ function App() {
       }
 
       const [notePayload, nextFolders, specialFilesPayload] = await Promise.all([
-        invoke<unknown>('list_notes', { path: vault.path }),
-        invoke<string[]>('list_folders', { path: vault.path }),
-        invoke<unknown>('list_special_files', { path: vault.path }),
+        invoke<unknown>('list_notes', { path: vaultPath }),
+        invoke<string[]>('list_folders', { path: vaultPath }),
+        invoke<unknown>('list_special_files', { path: vaultPath }),
       ])
+      if (activeVaultPathRef.current !== vaultPath) return
       const nextNotes = parseNoteList(notePayload)
       const nextSpecialInventory = parseSpecialVaultInventory(specialFilesPayload)
       const nextSpecialFiles = nextSpecialInventory.files
@@ -630,9 +639,10 @@ function App() {
       setSpecialFiles(nextSpecialFiles)
       setSpecialFilesTruncated(nextSpecialInventory.truncated)
       const [nextTagIndex, nextAttachments] = await Promise.all([
-        invoke<TagSummary[]>('get_tag_index', { path: vault.path }),
-        invoke<string[]>('list_attachments', { path: vault.path }),
+        invoke<TagSummary[]>('get_tag_index', { path: vaultPath }),
+        invoke<string[]>('list_attachments', { path: vaultPath }),
       ])
+      if (activeVaultPathRef.current !== vaultPath) return
       setTagIndex(nextTagIndex)
       setAttachments(nextAttachments)
       const activePath = renamePaths && activeNoteRef.current
@@ -644,6 +654,11 @@ function App() {
     } catch {
       // Another application may be writing the vault while it is scanned.
     }
+  })
+
+  const requestExternalVaultTreeCheck = useEffectEvent((change?: VaultFileSystemChange) => {
+    externalVaultScanCoordinatorRef.current ??= createVaultScanCoordinator(checkExternalVaultTree)
+    return externalVaultScanCoordinatorRef.current(change)
   })
 
   const refreshGraphWhenNotesChange = useEffectEvent(() => {
@@ -840,7 +855,7 @@ function App() {
 
   useEffect(() => {
     if (!vault) return
-    const interval = window.setInterval(() => void checkExternalVaultTree(), 30_000)
+    const interval = window.setInterval(() => void requestExternalVaultTreeCheck(), 30_000)
     return () => window.clearInterval(interval)
   }, [vault])
 
@@ -849,37 +864,48 @@ function App() {
     let disposed = false
     let unlisten: (() => void) | undefined
     let watcherId: number | undefined
+    const requestId = nextVaultWatcherRequestId
+    nextVaultWatcherRequestId += 1
+    activeVaultWatcherRequestRef.current = requestId
 
-    void listen<VaultFileSystemChange>('vault-file-system-change', (event) => {
-      vaultChangeQueueRef.current.push(event.payload)
-      if (vaultChangeDebounceRef.current !== null) {
-        window.clearTimeout(vaultChangeDebounceRef.current)
-      }
-      vaultChangeDebounceRef.current = window.setTimeout(() => {
-        const changes = vaultChangeQueueRef.current.splice(0)
-        vaultChangeDebounceRef.current = null
-        const primaryChange = changes.find((change) => change.kind === 'rename' && change.paths.length >= 2)
-          ?? changes.at(-1)
-        if (changes.some((change) => change.kind === 'modify')) {
-          void checkExternalNoteChange()
+    void (async () => {
+      try {
+        const cleanup = await listen<ScopedVaultFileSystemChange>('vault-file-system-change', (event) => {
+          if (!isVaultWatcherEventForRequest(event.payload, requestId)) return
+          const queueAction = enqueueVaultFileSystemChange(vaultChangeQueueRef.current, event.payload)
+          if (queueAction === 'unchanged') return
+          if (vaultChangeDebounceRef.current !== null) {
+            window.clearTimeout(vaultChangeDebounceRef.current)
+          }
+          vaultChangeDebounceRef.current = window.setTimeout(() => {
+            const changes = vaultChangeQueueRef.current.splice(0)
+            vaultChangeDebounceRef.current = null
+            const primaryChange = changes.find((change) => change.kind === 'rename' && change.paths.length >= 2)
+              ?? changes.at(-1)
+            if (changes.some((change) => change.kind === 'modify')) {
+              void checkExternalNoteChange()
+            }
+            void requestExternalVaultTreeCheck(primaryChange)
+          }, queueAction === 'rescan' ? 0 : 220)
+        })
+        if (disposed || activeVaultWatcherRequestRef.current !== requestId) {
+          cleanup()
+          return
         }
-        void checkExternalVaultTree(primaryChange)
-      }, 220)
-    }).then((cleanup) => {
-      if (disposed) cleanup()
-      else unlisten = cleanup
-    }).catch(() => {
-      setStatus('Eventos nativos indisponiveis; a sincronizacao externa usara verificacao periodica.')
-    })
+        unlisten = cleanup
 
-    void invoke<number>('watch_vault', { path: vault.path })
-      .then((id) => {
+        const id = await invoke<number>('watch_vault', { path: vault.path, requestId })
+        if (disposed || activeVaultWatcherRequestRef.current !== requestId) {
+          void invoke('unwatch_vault', { watcherId: id }).catch(() => undefined)
+          return
+        }
         watcherId = id
-        if (disposed) void invoke('unwatch_vault', { watcherId: id }).catch(() => undefined)
-      })
-      .catch(() => {
-        setStatus('Nao foi possivel iniciar eventos nativos; a sincronizacao externa usara verificacao periodica.')
-      })
+      } catch {
+        if (!disposed && activeVaultWatcherRequestRef.current === requestId) {
+          setStatus('Eventos nativos indisponiveis; a sincronizacao externa usara verificacao periodica.')
+        }
+      }
+    })()
 
     return () => {
       disposed = true

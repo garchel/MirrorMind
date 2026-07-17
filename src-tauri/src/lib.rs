@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use notify::{
-    event::ModifyKind, Event as NotifyEvent, EventKind as NotifyEventKind, RecommendedWatcher,
-    RecursiveMode, Watcher,
+    event::{CreateKind, ModifyKind, RemoveKind, RenameMode},
+    Event as NotifyEvent, EventKind as NotifyEventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -11,10 +11,11 @@ use std::{
     io::{self, Read, Write},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU64, Ordering},
-        Mutex,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        mpsc, Arc, Mutex,
     },
-    time::{SystemTime, UNIX_EPOCH},
+    thread,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
@@ -42,6 +43,9 @@ const SUPPORTED_ATTACHMENT_EXTENSIONS: &[&str] = &[
 ];
 const TEMPLATES_FILE: &str = "templates.json";
 const MAX_PDF_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
+const WATCHER_DUPLICATE_WINDOW: Duration = Duration::from_millis(250);
+const WATCHER_EVENT_QUEUE_CAPACITY: usize = 1024;
+const WATCHER_RESCAN_MAX_INTERVAL: Duration = Duration::from_secs(2);
 const MAX_TAG_FRONTMATTER_BYTES: usize = 256 * 1024;
 const MAX_TAG_INDEX_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_TAG_INDEX_ENTRIES: usize = 10_000;
@@ -316,6 +320,16 @@ fn select_vault_parent(
     app: AppHandle,
     authorized_paths: State<AuthorizedPaths>,
 ) -> Result<Option<String>, String> {
+    #[cfg(feature = "e2e")]
+    if let Some(parent_path) = std::env::var_os("MIRRORMIND_E2E_VAULT_PARENT") {
+        let canonical_parent =
+            canonicalize_directory(Path::new(&parent_path)).map_err(|error| error.to_string())?;
+        authorized_paths
+            .authorize_parent_directory(&canonical_parent)
+            .map_err(|error| error.to_string())?;
+        return Ok(Some(canonical_parent.display().to_string()));
+    }
+
     let selected = app
         .dialog()
         .file()
@@ -2008,6 +2022,69 @@ fn temporary_sibling_path(target: &Path, extension: &str) -> Result<PathBuf> {
     Ok(parent.join(format!(".{file_name}.mirmind-{id}.{extension}")))
 }
 
+fn temporary_transaction_path(root: &Path, target: &Path, extension: &str) -> PathBuf {
+    let file_name = target
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("note");
+    let id = NEXT_LINK_TRANSACTION_ID.fetch_add(1, Ordering::Relaxed);
+    root.join(format!(".{file_name}.mirmind-{id}.{extension}"))
+}
+
+#[cfg(windows)]
+fn windows_wide_path(path: &Path) -> Vec<u16> {
+    use std::os::windows::ffi::OsStrExt as _;
+
+    path.as_os_str().encode_wide().chain(Some(0)).collect()
+}
+
+#[cfg(windows)]
+fn replace_file_atomically(target: &Path, replacement: &Path, backup: Option<&Path>) -> Result<()> {
+    use windows_sys::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_REPLACE_EXISTING};
+
+    if let Some(backup) = backup {
+        fs::hard_link(target, backup).with_context(|| {
+            format!(
+                "Nao foi possivel reservar backup de '{}'.",
+                target.display()
+            )
+        })?;
+    }
+    let target_wide = windows_wide_path(target);
+    let replacement_wide = windows_wide_path(replacement);
+    let mut last_error = None;
+    for _ in 0..128 {
+        let moved = unsafe {
+            MoveFileExW(
+                replacement_wide.as_ptr(),
+                target_wide.as_ptr(),
+                MOVEFILE_REPLACE_EXISTING,
+            )
+        };
+        if moved != 0 {
+            return Ok(());
+        }
+        let error = std::io::Error::last_os_error();
+        let transient = matches!(error.raw_os_error(), Some(5 | 32));
+        last_error = Some(error);
+        if !transient {
+            break;
+        }
+        std::thread::yield_now();
+    }
+    if let Some(backup) = backup {
+        let _ = fs::remove_file(backup);
+    }
+    Err(last_error.unwrap_or_else(|| std::io::Error::other("replace sem resultado"))).with_context(
+        || {
+            format!(
+                "Nao foi possivel substituir '{}' atomicamente.",
+                target.display()
+            )
+        },
+    )
+}
+
 fn restore_link_update_backups(backups: &[LinkUpdateBackup]) -> Result<()> {
     let mut failures = Vec::new();
     for backup in backups.iter().rev() {
@@ -2101,10 +2178,23 @@ fn update_wiki_links_for_note_path_change(
 fn update_wiki_links_for_note_path_change_with_hook<F>(
     root: &Path,
     updates: &[PlannedWikiLinkUpdate],
-    mut after_commit: F,
+    after_commit: F,
 ) -> Result<()>
 where
     F: FnMut(usize) -> Result<()>,
+{
+    update_wiki_links_for_note_path_change_with_hooks(root, updates, |_| Ok(()), after_commit)
+}
+
+fn update_wiki_links_for_note_path_change_with_hooks<F, G>(
+    root: &Path,
+    updates: &[PlannedWikiLinkUpdate],
+    mut before_commit: F,
+    mut after_commit: G,
+) -> Result<()>
+where
+    F: FnMut(usize) -> Result<()>,
+    G: FnMut(usize) -> Result<()>,
 {
     for update in updates {
         verify_link_update_path(root, &update.path_after_change)?;
@@ -2124,7 +2214,7 @@ where
 
     let mut staged_updates: Vec<StagedWikiLinkUpdate> = Vec::new();
     for update in updates {
-        let staged_path = temporary_sibling_path(&update.path_after_change, "tmp")?;
+        let staged_path = temporary_transaction_path(root, &update.path_after_change, "tmp");
         let stage_result = (|| -> Result<()> {
             let mut staged_file = OpenOptions::new()
                 .write(true)
@@ -2172,18 +2262,33 @@ where
     let mut backups: Vec<LinkUpdateBackup> = Vec::new();
     for (index, (update, staged)) in updates.iter().zip(&staged_updates).enumerate() {
         let commit_result = (|| -> Result<()> {
+            before_commit(index)?;
             verify_link_update_path(root, &staged.target_path)?;
-            let backup_path = temporary_sibling_path(&staged.target_path, "bak")?;
-            fs::hard_link(&staged.target_path, &backup_path).with_context(|| {
-                format!(
-                    "Nao foi possivel reservar backup de '{}'.",
-                    staged.target_path.display()
-                )
-            })?;
-            if let Err(error) = fs::remove_file(&staged.target_path) {
-                let _ = fs::remove_file(&backup_path);
-                return Err(error.into());
+            let backup_path = temporary_transaction_path(root, &staged.target_path, "bak");
+            #[cfg(windows)]
+            replace_file_atomically(&staged.target_path, &staged.staged_path, Some(&backup_path))?;
+
+            #[cfg(not(windows))]
+            {
+                fs::hard_link(&staged.target_path, &backup_path).with_context(|| {
+                    format!(
+                        "Nao foi possivel reservar backup de '{}'.",
+                        staged.target_path.display()
+                    )
+                })?;
+                if let Err(error) = fs::remove_file(&staged.target_path) {
+                    let _ = fs::remove_file(&backup_path);
+                    return Err(error.into());
+                }
+                fs::hard_link(&staged.staged_path, &staged.target_path).with_context(|| {
+                    format!(
+                        "O destino '{}' foi ocupado durante a substituicao.",
+                        staged.target_path.display()
+                    )
+                })?;
+                fs::remove_file(&staged.staged_path)?;
             }
+
             backups.push(LinkUpdateBackup {
                 backup_path: backup_path.clone(),
                 original_content: update.original_content.clone(),
@@ -2196,13 +2301,6 @@ where
                     staged.target_path.display()
                 );
             }
-            fs::hard_link(&staged.staged_path, &staged.target_path).with_context(|| {
-                format!(
-                    "O destino '{}' foi ocupado durante a substituicao.",
-                    staged.target_path.display()
-                )
-            })?;
-            fs::remove_file(&staged.staged_path)?;
             after_commit(index)?;
             Ok(())
         })();
@@ -3285,18 +3383,65 @@ fn validate_vault_name(name: &str) -> Result<()> {
         bail!("O nome do vault possui caracteres invalidos para uma pasta.");
     }
 
-    if trimmed.ends_with('.') || trimmed.ends_with(' ') {
+    if name.ends_with('.') || name.ends_with(' ') {
         bail!("O nome do vault nao pode terminar com ponto ou espaco.");
     }
 
     let reserved = [
-        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
-        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        "COM1",
+        "COM2",
+        "COM3",
+        "COM4",
+        "COM5",
+        "COM6",
+        "COM7",
+        "COM8",
+        "COM9",
+        "COM\u{00B9}",
+        "COM\u{00B2}",
+        "COM\u{00B3}",
+        "LPT1",
+        "LPT2",
+        "LPT3",
+        "LPT4",
+        "LPT5",
+        "LPT6",
+        "LPT7",
+        "LPT8",
+        "LPT9",
+        "LPT\u{00B9}",
+        "LPT\u{00B2}",
+        "LPT\u{00B3}",
     ];
-    if reserved.contains(&trimmed.to_ascii_uppercase().as_str()) {
+    let device_name = trimmed
+        .split('.')
+        .next()
+        .unwrap_or(trimmed)
+        .to_ascii_uppercase();
+    if reserved.contains(&device_name.as_str()) {
         bail!("Esse nome e reservado pelo sistema operacional.");
     }
 
+    Ok(())
+}
+
+fn validate_relative_path_components(path: &Path) -> Result<()> {
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(segment) => {
+                let name = segment
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("O caminho possui caracteres invalidos."))?;
+                validate_vault_name(name)?;
+            }
+            std::path::Component::CurDir => {}
+            _ => bail!("O caminho precisa ser relativo e permanecer dentro do vault."),
+        }
+    }
     Ok(())
 }
 
@@ -3775,7 +3920,7 @@ fn resolve_note_path(root: &Path, relative_path: &str) -> Result<PathBuf> {
     }
 
     let candidate = Path::new(trimmed);
-    if candidate.is_absolute() {
+    if candidate.is_absolute() || candidate.has_root() {
         bail!("A nota precisa usar um caminho relativo ao vault.");
     }
 
@@ -3785,15 +3930,22 @@ fn resolve_note_path(root: &Path, relative_path: &str) -> Result<PathBuf> {
     {
         bail!("Nao e permitido navegar para fora do vault.");
     }
+    validate_relative_path_components(candidate)?;
 
-    if candidate
-        .components()
-        .any(|component| component.as_os_str() == METADATA_DIR)
-    {
+    if candidate.components().any(|component| {
+        component
+            .as_os_str()
+            .to_str()
+            .is_some_and(|name| name.eq_ignore_ascii_case(METADATA_DIR))
+    }) {
         bail!("A pasta .mirmind e reservada para metadados do app.");
     }
 
-    let normalized = if trimmed.ends_with(".md") {
+    let normalized = if candidate
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+    {
         trimmed.to_string()
     } else {
         format!("{trimmed}.md")
@@ -3830,22 +3982,26 @@ fn resolve_note_path(root: &Path, relative_path: &str) -> Result<PathBuf> {
 }
 
 fn resolve_folder_path(root: &Path, relative_path: &str) -> Result<PathBuf> {
-    let trimmed = relative_path.trim().trim_matches(['/', '\\']);
+    let trimmed = relative_path.trim();
     if trimmed.is_empty() {
         bail!("Defina um nome para a pasta.");
     }
     let candidate = Path::new(trimmed);
     if candidate.is_absolute()
+        || candidate.has_root()
         || candidate
             .components()
             .any(|component| matches!(component, std::path::Component::ParentDir))
     {
         bail!("A pasta precisa usar um caminho relativo dentro do vault.");
     }
-    if candidate
-        .components()
-        .any(|component| component.as_os_str() == METADATA_DIR)
-    {
+    validate_relative_path_components(candidate)?;
+    if candidate.components().any(|component| {
+        component
+            .as_os_str()
+            .to_str()
+            .is_some_and(|name| name.eq_ignore_ascii_case(METADATA_DIR))
+    }) {
         bail!("A pasta .mirmind e reservada para metadados do app.");
     }
     let resolved = root.join(candidate);
@@ -4090,21 +4246,242 @@ struct AuthorizedPaths {
     parent_directories: Mutex<HashSet<PathBuf>>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum VaultFileSystemChangeKind {
+    Create,
+    Modify,
+    Remove,
+    Rename,
+    Rescan,
+}
+
+impl VaultFileSystemChangeKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Create => "create",
+            Self::Modify => "modify",
+            Self::Remove => "remove",
+            Self::Rename => "rename",
+            Self::Rescan => "rescan",
+        }
+    }
+}
+
+impl PartialEq<&str> for VaultFileSystemChangeKind {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct VaultFileSystemChange {
-    kind: String,
+    kind: VaultFileSystemChangeKind,
     paths: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ScopedVaultFileSystemChange {
+    request_id: u64,
+    #[serde(flatten)]
+    change: VaultFileSystemChange,
+}
+
+#[cfg(test)]
+fn ipc_contract_fixture() -> serde_json::Value {
+    fn vault_summary(
+        name: &str,
+        obsidian_preferences: Option<ObsidianPreferences>,
+    ) -> VaultSummary {
+        VaultSummary {
+            name: name.to_string(),
+            path: "C:\\Vaults\\Estudos".to_string(),
+            note_count: 2,
+            note_previews: vec![
+                NotePreview {
+                    name: "aula.md".to_string(),
+                    relative_path: "notas/aula.md".to_string(),
+                },
+                NotePreview {
+                    name: "projeto.md".to_string(),
+                    relative_path: "projetos/projeto.md".to_string(),
+                },
+            ],
+            is_obsidian_vault: true,
+            obsidian_preferences,
+            metadata: VaultMetadata {
+                is_initialized: true,
+                root_path: "C:\\Vaults\\Estudos\\.mirmind".to_string(),
+                missing: Vec::new(),
+            },
+        }
+    }
+
+    let preferences = ObsidianPreferences {
+        new_file_location: Some("folder".to_string()),
+        new_file_folder_path: Some("notas".to_string()),
+        attachment_folder_path: Some("./media".to_string()),
+        new_link_format: Some("relative".to_string()),
+        use_markdown_links: Some(true),
+        always_update_links: Some(false),
+        show_unsupported_files: Some(true),
+        prompt_delete: Some(false),
+        trash_option: Some("local".to_string()),
+        user_ignore_filters: vec!["Arquivo/".to_string()],
+    };
+    let current_vault_summary = vault_summary("Estudos", Some(preferences));
+    let partially_nullable_vault_summary = vault_summary(
+        "Estudos com preferencias parciais",
+        Some(ObsidianPreferences {
+            new_file_location: None,
+            new_file_folder_path: None,
+            attachment_folder_path: None,
+            new_link_format: None,
+            use_markdown_links: None,
+            always_update_links: None,
+            show_unsupported_files: None,
+            prompt_delete: None,
+            trash_option: None,
+            user_ignore_filters: Vec::new(),
+        }),
+    );
+    let nullable_vault_summary = vault_summary("Estudos sem preferencias", None);
+    let mut legacy_vault_summary = serde_json::to_value(vault_summary("Vault legado", None))
+        .expect("serialize legacy vault summary");
+    legacy_vault_summary
+        .as_object_mut()
+        .expect("vault summary must serialize as an object")
+        .remove("obsidianPreferences");
+
+    json!({
+        "version": 1,
+        "limits": {
+            "obsidianPreferenceUtf16Units": MAX_OBSIDIAN_PREFERENCE_UTF16_UNITS,
+            "obsidianIgnoreFilters": MAX_OBSIDIAN_IGNORE_FILTERS,
+            "specialVaultFiles": MAX_SPECIAL_VAULT_FILES,
+        },
+        "current": {
+            "vaultSummary": current_vault_summary,
+            "partiallyNullableVaultSummary": partially_nullable_vault_summary,
+            "nullableVaultSummary": nullable_vault_summary,
+            "noteDocument": NoteDocument {
+                name: "aula.md".to_string(),
+                relative_path: "notas/aula.md".to_string(),
+                content: "# Aula\n\nConteudo".to_string(),
+            },
+            "noteList": vec![
+                NotePreview {
+                    name: "aula.md".to_string(),
+                    relative_path: "notas/aula.md".to_string(),
+                },
+                NotePreview {
+                    name: "projeto.md".to_string(),
+                    relative_path: "projetos/projeto.md".to_string(),
+                },
+            ],
+            "specialVaultInventory": SpecialVaultInventory {
+                files: vec![SpecialVaultFile {
+                    name: "Mapa.canvas".to_string(),
+                    relative_path: "diagramas/Mapa.canvas".to_string(),
+                    kind: SpecialVaultFileKind::Canvas,
+                }],
+                truncated: false,
+            },
+            "recentVaultPreference": RecentVaultPreference {
+                last_vault_path: Some("C:\\Vaults\\Estudos".to_string()),
+                ask_before_reopen: true,
+            },
+            "nullableRecentVaultPreference": RecentVaultPreference::default(),
+            "historyStatus": HistoryStatus {
+                can_undo: true,
+                can_redo: false,
+            },
+            "watcherEvents": [
+                ScopedVaultFileSystemChange {
+                    request_id: 7,
+                    change: VaultFileSystemChange {
+                        kind: VaultFileSystemChangeKind::Create,
+                        paths: vec!["notas/nova.md".to_string()],
+                    },
+                },
+                ScopedVaultFileSystemChange {
+                    request_id: 7,
+                    change: VaultFileSystemChange {
+                        kind: VaultFileSystemChangeKind::Modify,
+                        paths: vec!["notas/aula.md".to_string()],
+                    },
+                },
+                ScopedVaultFileSystemChange {
+                    request_id: 7,
+                    change: VaultFileSystemChange {
+                        kind: VaultFileSystemChangeKind::Remove,
+                        paths: vec!["notas/antiga.md".to_string()],
+                    },
+                },
+                ScopedVaultFileSystemChange {
+                    request_id: 7,
+                    change: VaultFileSystemChange {
+                        kind: VaultFileSystemChangeKind::Rename,
+                        paths: vec!["notas/origem.md".to_string(), "notas/destino.md".to_string()],
+                    },
+                },
+                ScopedVaultFileSystemChange {
+                    request_id: 7,
+                    change: VaultFileSystemChange {
+                        kind: VaultFileSystemChangeKind::Rescan,
+                        paths: Vec::new(),
+                    },
+                },
+            ],
+        },
+        "legacy": {
+            "vaultSummaryWithoutObsidianPreferences": legacy_vault_summary,
+        },
+    })
+}
+
+struct RunningVaultWatcher {
+    watcher: Option<RecommendedWatcher>,
+    worker: Option<thread::JoinHandle<()>>,
+}
+
+impl Drop for RunningVaultWatcher {
+    fn drop(&mut self) {
+        self.watcher.take();
+        if self
+            .worker
+            .take()
+            .is_some_and(|worker| worker.join().is_err())
+        {
+            log::warn!("O processador do watcher terminou inesperadamente.");
+        }
+    }
 }
 
 struct ActiveVaultWatcher {
     id: u64,
-    _watcher: RecommendedWatcher,
+    _watcher: RunningVaultWatcher,
 }
 
 #[derive(Default)]
 struct VaultWatcherState {
     active: Mutex<Option<ActiveVaultWatcher>>,
+    latest_request_id: AtomicU64,
+}
+
+impl VaultWatcherState {
+    fn register_request(&self, request_id: u64) -> bool {
+        request_id
+            >= self
+                .latest_request_id
+                .fetch_max(request_id, Ordering::AcqRel)
+    }
+
+    fn is_current_request(&self, request_id: u64) -> bool {
+        self.latest_request_id.load(Ordering::Acquire) == request_id
+    }
 }
 
 fn is_internal_vault_path(relative_path: &str) -> bool {
@@ -4135,61 +4512,350 @@ fn classify_vault_file_system_change(
     }
 
     let kind = match &event.kind {
-        NotifyEventKind::Create(_) => "create",
-        NotifyEventKind::Remove(_) => "remove",
-        NotifyEventKind::Modify(ModifyKind::Name(_)) if paths.len() >= 2 => "rename",
+        NotifyEventKind::Create(_) => VaultFileSystemChangeKind::Create,
+        NotifyEventKind::Remove(_) => VaultFileSystemChangeKind::Remove,
+        NotifyEventKind::Modify(ModifyKind::Name(_)) if paths.len() >= 2 => {
+            VaultFileSystemChangeKind::Rename
+        }
         NotifyEventKind::Modify(ModifyKind::Name(_)) if all_paths.len() >= 2 => {
             let first_is_internal = is_internal_vault_path(&all_paths[0]);
             if first_is_internal {
-                "create"
+                VaultFileSystemChangeKind::Create
             } else {
-                "remove"
+                VaultFileSystemChangeKind::Remove
             }
         }
-        NotifyEventKind::Modify(ModifyKind::Name(_)) => "rescan",
-        NotifyEventKind::Modify(_) => "modify",
-        _ => "rescan",
+        NotifyEventKind::Modify(ModifyKind::Name(_)) => VaultFileSystemChangeKind::Rescan,
+        NotifyEventKind::Modify(_) => VaultFileSystemChangeKind::Modify,
+        _ => VaultFileSystemChangeKind::Rescan,
+    };
+    let paths = match kind {
+        VaultFileSystemChangeKind::Rescan => Vec::new(),
+        VaultFileSystemChangeKind::Rename => vec![
+            paths.first().expect("rename source must exist").clone(),
+            paths.last().expect("rename destination must exist").clone(),
+        ],
+        _ => paths,
     };
 
-    Some(VaultFileSystemChange {
-        kind: kind.to_string(),
-        paths,
+    Some(VaultFileSystemChange { kind, paths })
+}
+
+enum VaultWatcherInput {
+    Event(NotifyEvent),
+    Rescan(String),
+}
+
+fn emit_vault_watcher_change<F>(change: VaultFileSystemChange, on_change: &mut F)
+where
+    F: FnMut(VaultFileSystemChange),
+{
+    on_change(change);
+}
+
+fn flush_pending_watcher_modifications<F>(
+    pending: &mut HashMap<
+        (VaultFileSystemChangeKind, Vec<String>),
+        (VaultFileSystemChange, Instant),
+    >,
+    force: bool,
+    on_change: &mut F,
+) where
+    F: FnMut(VaultFileSystemChange),
+{
+    let now = Instant::now();
+    let mut ready = pending
+        .iter()
+        .filter(|(_, (_, received_at))| {
+            force || now.duration_since(*received_at) >= WATCHER_DUPLICATE_WINDOW
+        })
+        .map(|(key, (_, received_at))| (key.clone(), *received_at))
+        .collect::<Vec<_>>();
+    ready.sort_by_key(|(_, received_at)| *received_at);
+    for (key, _) in ready {
+        if let Some((change, _)) = pending.remove(&key) {
+            emit_vault_watcher_change(change, on_change);
+        }
+    }
+}
+
+fn orphaned_rename_change(
+    root: &Path,
+    path: PathBuf,
+    kind: NotifyEventKind,
+) -> Option<VaultFileSystemChange> {
+    classify_vault_file_system_change(root, &NotifyEvent::new(kind).add_path(path))
+}
+
+fn queue_pending_watcher_modification(
+    pending_modifications: &mut HashMap<
+        (VaultFileSystemChangeKind, Vec<String>),
+        (VaultFileSystemChange, Instant),
+    >,
+    change: VaultFileSystemChange,
+    capacity: usize,
+) -> bool {
+    let key = (change.kind.clone(), change.paths.clone());
+    if !pending_modifications.contains_key(&key) && pending_modifications.len() >= capacity.max(1) {
+        return false;
+    }
+    pending_modifications.insert(key, (change, Instant::now()));
+    true
+}
+
+fn start_vault_watcher_with_capacity<F>(
+    root: &Path,
+    queue_capacity: usize,
+    mut on_change: F,
+) -> Result<RunningVaultWatcher, String>
+where
+    F: FnMut(VaultFileSystemChange) + Send + 'static,
+{
+    let callback_root = root.to_path_buf();
+    let queue_capacity = queue_capacity.max(1);
+    let (event_sender, event_receiver) = mpsc::sync_channel(queue_capacity);
+    let queue_overflowed = Arc::new(AtomicBool::new(false));
+    let callback_overflowed = Arc::clone(&queue_overflowed);
+    let mut watcher = notify::recommended_watcher(move |result: notify::Result<NotifyEvent>| {
+        let input = match result {
+            Ok(event) => VaultWatcherInput::Event(event),
+            Err(error) => VaultWatcherInput::Rescan(error.to_string()),
+        };
+        match event_sender.try_send(input) {
+            Ok(()) => {}
+            Err(mpsc::TrySendError::Full(_)) => {
+                callback_overflowed.store(true, Ordering::Release);
+            }
+            Err(mpsc::TrySendError::Disconnected(_)) => {}
+        }
+    })
+    .map_err(|error| format!("Nao foi possivel iniciar a observacao do vault: {error}"))?;
+    watcher
+        .watch(root, RecursiveMode::Recursive)
+        .map_err(|error| format!("Nao foi possivel observar '{}': {error}", root.display()))?;
+
+    let worker = thread::Builder::new()
+        .name("mirrormind-vault-watcher".to_string())
+        .spawn(move || {
+            let mut pending_modifications: HashMap<
+                (VaultFileSystemChangeKind, Vec<String>),
+                (VaultFileSystemChange, Instant),
+            > = HashMap::new();
+            let mut overflow_dirty = false;
+            let mut last_overflow_rescan = None;
+
+            loop {
+                let next_deadline = pending_modifications
+                    .values()
+                    .map(|(_, received_at)| *received_at + WATCHER_DUPLICATE_WINDOW)
+                    .min();
+                let timeout = next_deadline
+                    .map(|deadline| deadline.saturating_duration_since(Instant::now()))
+                    .unwrap_or(WATCHER_DUPLICATE_WINDOW);
+                let received = event_receiver.recv_timeout(timeout);
+
+                if queue_overflowed.swap(false, Ordering::AcqRel) && !overflow_dirty {
+                    overflow_dirty = true;
+                    pending_modifications.clear();
+                    log::warn!(
+                        "A fila do watcher atingiu o limite; solicitando uma nova leitura do vault."
+                    );
+                    emit_vault_watcher_change(
+                        VaultFileSystemChange {
+                            kind: VaultFileSystemChangeKind::Rescan,
+                            paths: Vec::new(),
+                        },
+                        &mut on_change,
+                    );
+                    last_overflow_rescan = Some(Instant::now());
+                }
+                if overflow_dirty {
+                    match received {
+                        Ok(_) => {
+                            if last_overflow_rescan.is_none_or(|last_rescan| {
+                                last_rescan.elapsed() >= WATCHER_RESCAN_MAX_INTERVAL
+                            }) {
+                                emit_vault_watcher_change(
+                                    VaultFileSystemChange {
+                                        kind: VaultFileSystemChangeKind::Rescan,
+                                        paths: Vec::new(),
+                                    },
+                                    &mut on_change,
+                                );
+                                last_overflow_rescan = Some(Instant::now());
+                            }
+                            continue;
+                        }
+                        Err(mpsc::RecvTimeoutError::Timeout) => {
+                            emit_vault_watcher_change(
+                                VaultFileSystemChange {
+                                    kind: VaultFileSystemChangeKind::Rescan,
+                                    paths: Vec::new(),
+                                },
+                                &mut on_change,
+                            );
+                            overflow_dirty = false;
+                            last_overflow_rescan = None;
+                            continue;
+                        }
+                        Err(mpsc::RecvTimeoutError::Disconnected) => {
+                            emit_vault_watcher_change(
+                                VaultFileSystemChange {
+                                    kind: VaultFileSystemChangeKind::Rescan,
+                                    paths: Vec::new(),
+                                },
+                                &mut on_change,
+                            );
+                            break;
+                        }
+                    }
+                }
+
+                flush_pending_watcher_modifications(
+                    &mut pending_modifications,
+                    false,
+                    &mut on_change,
+                );
+                let input = match received {
+                    Ok(input) => input,
+                    Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        flush_pending_watcher_modifications(
+                            &mut pending_modifications,
+                            true,
+                            &mut on_change,
+                        );
+                        break;
+                    }
+                };
+                let event = match input {
+                    VaultWatcherInput::Event(event) => event,
+                    VaultWatcherInput::Rescan(error) => {
+                        pending_modifications.clear();
+                        log::warn!("O backend do watcher solicitou rescan: {error}");
+                        emit_vault_watcher_change(
+                            VaultFileSystemChange {
+                                kind: VaultFileSystemChangeKind::Rescan,
+                                paths: Vec::new(),
+                            },
+                            &mut on_change,
+                        );
+                        continue;
+                    }
+                };
+
+                match event.kind {
+                    NotifyEventKind::Modify(ModifyKind::Name(RenameMode::From)) => {
+                        flush_pending_watcher_modifications(
+                            &mut pending_modifications,
+                            true,
+                            &mut on_change,
+                        );
+                        if let Some(from) = event.paths.first().cloned() {
+                            if let Some(change) = orphaned_rename_change(
+                                &callback_root,
+                                from,
+                                NotifyEventKind::Remove(RemoveKind::Any),
+                            ) {
+                                emit_vault_watcher_change(change, &mut on_change);
+                            }
+                        }
+                        continue;
+                    }
+                    NotifyEventKind::Modify(ModifyKind::Name(RenameMode::To)) => {
+                        flush_pending_watcher_modifications(
+                            &mut pending_modifications,
+                            true,
+                            &mut on_change,
+                        );
+                        if let Some(to) = event.paths.first().cloned() {
+                            if let Some(change) = orphaned_rename_change(
+                                &callback_root,
+                                to,
+                                NotifyEventKind::Create(CreateKind::Any),
+                            ) {
+                                emit_vault_watcher_change(change, &mut on_change);
+                            }
+                        }
+                        continue;
+                    }
+                    _ => {}
+                }
+
+                let Some(change) = classify_vault_file_system_change(&callback_root, &event) else {
+                    continue;
+                };
+                if change.kind == VaultFileSystemChangeKind::Modify {
+                    if !queue_pending_watcher_modification(
+                        &mut pending_modifications,
+                        change,
+                        queue_capacity,
+                    ) {
+                        pending_modifications.clear();
+                        overflow_dirty = true;
+                        emit_vault_watcher_change(
+                            VaultFileSystemChange {
+                                kind: VaultFileSystemChangeKind::Rescan,
+                                paths: Vec::new(),
+                            },
+                            &mut on_change,
+                        );
+                        last_overflow_rescan = Some(Instant::now());
+                    }
+                    continue;
+                }
+                flush_pending_watcher_modifications(
+                    &mut pending_modifications,
+                    true,
+                    &mut on_change,
+                );
+                emit_vault_watcher_change(change, &mut on_change);
+            }
+        })
+        .map_err(|error| format!("Nao foi possivel iniciar o processador do watcher: {error}"))?;
+
+    Ok(RunningVaultWatcher {
+        watcher: Some(watcher),
+        worker: Some(worker),
     })
 }
 
+fn start_vault_watcher<F>(root: &Path, on_change: F) -> Result<RunningVaultWatcher, String>
+where
+    F: FnMut(VaultFileSystemChange) + Send + 'static,
+{
+    start_vault_watcher_with_capacity(root, WATCHER_EVENT_QUEUE_CAPACITY, on_change)
+}
 #[tauri::command]
 fn watch_vault(
     path: String,
+    request_id: u64,
     app: AppHandle,
     authorized_paths: State<AuthorizedPaths>,
     watcher_state: State<VaultWatcherState>,
 ) -> Result<u64, String> {
+    if !watcher_state.register_request(request_id) {
+        return Err("Solicitacao obsoleta para observar o vault.".to_string());
+    }
     let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
     authorized_paths
         .ensure_authorized_vault_root(&root)
         .map_err(|error| error.to_string())?;
 
-    let callback_root = root.clone();
-    let mut watcher = notify::recommended_watcher(move |result: notify::Result<NotifyEvent>| {
-        let Ok(event) = result else {
-            return;
-        };
-        let Some(change) = classify_vault_file_system_change(&callback_root, &event) else {
-            return;
-        };
-        if let Err(error) = app.emit("vault-file-system-change", change) {
+    let watcher = start_vault_watcher(&root, move |change| {
+        let scoped_change = ScopedVaultFileSystemChange { request_id, change };
+        if let Err(error) = app.emit("vault-file-system-change", scoped_change) {
             log::warn!("Nao foi possivel emitir uma mudanca do vault: {error}");
         }
-    })
-    .map_err(|error| format!("Nao foi possivel iniciar a observacao do vault: {error}"))?;
-    watcher
-        .watch(&root, RecursiveMode::Recursive)
-        .map_err(|error| format!("Nao foi possivel observar '{}': {error}", root.display()))?;
+    })?;
 
     let mut active = watcher_state
         .active
         .lock()
         .map_err(|_| "Nao foi possivel atualizar o observador do vault.".to_string())?;
+    if !watcher_state.is_current_request(request_id) {
+        return Err("Solicitacao obsoleta para observar o vault.".to_string());
+    }
     let watcher_id = NEXT_VAULT_WATCHER_ID.fetch_add(1, Ordering::Relaxed);
     *active = Some(ActiveVaultWatcher {
         id: watcher_id,
@@ -4259,8 +4925,14 @@ impl AuthorizedPaths {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
+    let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
+
+    #[cfg(feature = "e2e")]
+    let builder = builder
+        .plugin(tauri_plugin_wdio::init())
+        .plugin(tauri_plugin_wdio_webdriver::init());
+
+    builder
         .manage(AuthorizedPaths::default())
         .manage(VaultWatcherState::default())
         .invoke_handler(tauri::generate_handler![
@@ -4302,9 +4974,10 @@ pub fn run() {
             watch_vault,
             unwatch_vault
         ])
-        .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
+        .setup(|_app| {
+            #[cfg(all(debug_assertions, not(feature = "e2e")))]
+            {
+                _app.handle().plugin(
                     tauri_plugin_log::Builder::default()
                         .level(log::LevelFilter::Info)
                         .build(),
@@ -4330,10 +5003,11 @@ mod tests {
         rename_vault_item_in_root, resolve_folder_path, resolve_note_path,
         restore_trash_item_in_root, save_note_in_root, search_notes_in_root, to_relative_display,
         update_wiki_links_for_note_path_change, update_wiki_links_for_note_path_change_with_hook,
-        validate_vault_name, write_new_file, write_trash_entries, HistoryCommand,
-        PlannedWikiLinkUpdate, RecentVaultPreference, SpecialVaultFileKind, ASSESSMENTS_DIR,
-        ATTACHMENTS_DIR, CONFIG_FILE, MAX_PDF_ATTACHMENT_BYTES, MAX_SPECIAL_VAULT_FILES,
-        METADATA_DIR, REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
+        update_wiki_links_for_note_path_change_with_hooks, validate_vault_name, write_new_file,
+        write_trash_entries, HistoryCommand, PlannedWikiLinkUpdate, RecentVaultPreference,
+        SpecialVaultFileKind, VaultFileSystemChangeKind, ASSESSMENTS_DIR, ATTACHMENTS_DIR,
+        CONFIG_FILE, MAX_PDF_ATTACHMENT_BYTES, MAX_SPECIAL_VAULT_FILES, METADATA_DIR,
+        REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
     };
     use notify::{
         event::{CreateKind, ModifyKind, RenameMode},
@@ -4342,11 +5016,84 @@ mod tests {
     use std::{fs, path::Path};
     use tempfile::tempdir;
 
+    #[cfg(windows)]
+    use super::{
+        queue_pending_watcher_modification, start_vault_watcher, start_vault_watcher_with_capacity,
+        VaultFileSystemChange, VaultWatcherState,
+    };
+    #[cfg(windows)]
+    use std::{
+        collections::{HashMap, HashSet},
+        sync::mpsc::{self, Receiver},
+        thread,
+        time::{Duration, Instant},
+    };
+
     struct ObsidianRegressionScenario {
         name: &'static str,
         fixture_directory: &'static str,
         indexed_notes: &'static [&'static str],
         editable_note: &'static str,
+    }
+
+    #[cfg(windows)]
+    fn create_windows_junction(target: &Path, junction: &Path) {
+        let output = std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(junction)
+            .arg(target)
+            .output()
+            .expect("run Windows mklink junction command");
+        assert!(
+            output.status.success(),
+            "create NTFS junction: stdout={}, stderr={}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    #[cfg(windows)]
+    fn create_windows_file_symlink_if_available(
+        target: &Path,
+        link: &Path,
+        scenario: &str,
+    ) -> bool {
+        match std::os::windows::fs::symlink_file(target, link) {
+            Ok(()) => true,
+            Err(error) if error.raw_os_error() == Some(1314) => {
+                eprintln!(
+                    "NTFS_CAPABILITY_UNAVAILABLE: {scenario} requires Developer Mode or SeCreateSymbolicLinkPrivilege: {error}"
+                );
+                false
+            }
+            Err(error) => panic!(
+                "{scenario}: create file symlink {} -> {}: {error}",
+                link.display(),
+                target.display()
+            ),
+        }
+    }
+
+    #[cfg(windows)]
+    fn create_windows_directory_symlink_if_available(
+        target: &Path,
+        link: &Path,
+        scenario: &str,
+    ) -> bool {
+        match std::os::windows::fs::symlink_dir(target, link) {
+            Ok(()) => true,
+            Err(error) if error.raw_os_error() == Some(1314) => {
+                eprintln!(
+                    "NTFS_CAPABILITY_UNAVAILABLE: {scenario} requires Developer Mode or SeCreateSymbolicLinkPrivilege: {error}"
+                );
+                false
+            }
+            Err(error) => panic!(
+                "{scenario}: create directory symlink {} -> {}: {error}",
+                link.display(),
+                target.display()
+            ),
+        }
     }
 
     fn inventory_fixture_tree(scenario_name: &str, fixture_root: &Path) -> Vec<(String, Vec<u8>)> {
@@ -4498,6 +5245,371 @@ mod tests {
                 scenario.name, relative_path
             );
         }
+    }
+
+    #[cfg(windows)]
+    fn observe_watcher_operation<F>(
+        receiver: &Receiver<VaultFileSystemChange>,
+        description: &str,
+        expected: F,
+    ) -> Vec<VaultFileSystemChange>
+    where
+        F: Fn(&VaultFileSystemChange) -> bool,
+    {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut changes = Vec::new();
+        let mut matched = false;
+
+        while Instant::now() < deadline {
+            let timeout = if matched {
+                Duration::from_millis(350)
+            } else {
+                deadline.saturating_duration_since(Instant::now())
+            };
+            match receiver.recv_timeout(timeout) {
+                Ok(change) => {
+                    matched |= expected(&change);
+                    changes.push(change);
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) if matched => break,
+                Err(mpsc::RecvTimeoutError::Timeout) => break,
+                Err(error) => panic!("{description}: watcher channel disconnected: {error}"),
+            }
+        }
+
+        assert!(
+            matched,
+            "{description}: expected change not observed; received {changes:?}"
+        );
+        let matching_count = changes.iter().filter(|change| expected(change)).count();
+        assert_eq!(
+            matching_count, 1,
+            "{description}: logical change was emitted more than once; received {changes:?}"
+        );
+        changes
+    }
+
+    #[cfg(windows)]
+    fn apply_watcher_changes_to_model(
+        model: &mut HashSet<String>,
+        changes: &[VaultFileSystemChange],
+    ) {
+        for change in changes {
+            match change.kind {
+                VaultFileSystemChangeKind::Create => model.extend(change.paths.iter().cloned()),
+                VaultFileSystemChangeKind::Remove => {
+                    for path in &change.paths {
+                        model.remove(path);
+                    }
+                }
+                VaultFileSystemChangeKind::Rename if change.paths.len() >= 2 => {
+                    model.remove(&change.paths[0]);
+                    if let Some(destination) = change.paths.last() {
+                        model.insert(destination.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    fn wait_for_watcher_channel_to_close(
+        receiver: &Receiver<VaultFileSystemChange>,
+        description: &str,
+    ) -> Vec<VaultFileSystemChange> {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut remaining = Vec::new();
+        loop {
+            match receiver.recv_timeout(Duration::from_millis(100)) {
+                Ok(change) => remaining.push(change),
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                Err(mpsc::RecvTimeoutError::Timeout) if Instant::now() < deadline => {}
+                Err(error) => panic!("{description}: watcher did not stop cleanly: {error}"),
+            }
+        }
+        remaining
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_watcher_reports_external_lifecycle_once_and_preserves_final_state() {
+        let temporary_directory = tempdir().expect("watcher temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical watcher root");
+        let (sender, receiver) = mpsc::channel();
+        let watcher = start_vault_watcher(&root, move |change| {
+            let _ = sender.send(change);
+        })
+        .expect("start real Windows watcher");
+        let mut observed = Vec::new();
+        let mut event_model = HashSet::new();
+
+        let original = root.join("entrada.md");
+        fs::write(&original, "primeira versao").expect("create note outside app");
+        observed.extend(observe_watcher_operation(
+            &receiver,
+            "external create",
+            |change| change.kind == "create" && change.paths == ["entrada.md"],
+        ));
+
+        fs::write(&original, "segunda versao").expect("first rapid external edit");
+        fs::write(&original, "terceira versao").expect("second rapid external edit");
+        observed.extend(observe_watcher_operation(
+            &receiver,
+            "rapid external edits",
+            |change| change.kind == "modify" && change.paths == ["entrada.md"],
+        ));
+        assert_eq!(
+            fs::read_to_string(&original).expect("read latest external edit"),
+            "terceira versao"
+        );
+
+        let renamed = root.join("renomeada.md");
+        fs::rename(&original, &renamed).expect("rename note outside app");
+        let rename_changes =
+            observe_watcher_operation(&receiver, "external rename removal", |change| {
+                change.kind == "remove" && change.paths == ["entrada.md"]
+            });
+        assert_eq!(
+            rename_changes
+                .iter()
+                .filter(|change| change.kind == "create" && change.paths == ["renomeada.md"])
+                .count(),
+            1,
+            "external rename must produce exactly one conservative destination creation: {rename_changes:?}"
+        );
+        assert!(
+            rename_changes.iter().all(|change| change.kind != "rename"),
+            "Windows From/To events without file identity must remain conservative: {rename_changes:?}"
+        );
+        observed.extend(rename_changes);
+
+        let destination_directory = root.join("arquivo");
+        fs::create_dir(&destination_directory).expect("create destination outside app");
+        observed.extend(observe_watcher_operation(
+            &receiver,
+            "external folder create",
+            |change| change.kind == "create" && change.paths == ["arquivo"],
+        ));
+
+        let moved = destination_directory.join("renomeada.md");
+        fs::rename(&renamed, &moved).expect("move note outside app");
+        let movement_changes =
+            observe_watcher_operation(&receiver, "external move removal", |change| {
+                change.kind == "remove" && change.paths == ["renomeada.md"]
+            });
+        assert_eq!(
+            movement_changes
+                .iter()
+                .filter(|change| {
+                    change.kind == "create" && change.paths == ["arquivo/renomeada.md"]
+                })
+                .count(),
+            1,
+            "external move must produce exactly one destination creation: {movement_changes:?}"
+        );
+        assert!(
+            movement_changes.iter().all(|change| change.kind != "rename"),
+            "remove/create without native identity must not be promoted to rename: {movement_changes:?}"
+        );
+        observed.extend(movement_changes);
+
+        fs::remove_file(&moved).expect("delete note outside app");
+        observed.extend(observe_watcher_operation(
+            &receiver,
+            "external delete",
+            |change| change.kind == "remove" && change.paths == ["arquivo/renomeada.md"],
+        ));
+
+        drop(watcher);
+        observed.extend(wait_for_watcher_channel_to_close(
+            &receiver,
+            "external lifecycle shutdown",
+        ));
+
+        for (expected_count, kind, paths) in [
+            (1, "create", vec!["entrada.md"]),
+            (2, "modify", vec!["entrada.md"]),
+            (1, "remove", vec!["entrada.md"]),
+            (1, "create", vec!["renomeada.md"]),
+            (1, "create", vec!["arquivo"]),
+            (1, "remove", vec!["renomeada.md"]),
+            (1, "create", vec!["arquivo/renomeada.md"]),
+            (1, "remove", vec!["arquivo/renomeada.md"]),
+        ] {
+            assert_eq!(
+                observed
+                    .iter()
+                    .filter(|change| change.kind == kind && change.paths == paths)
+                    .count(),
+                expected_count,
+                "logical change {kind} {paths:?} must occur {expected_count} time(s): {observed:?}"
+            );
+        }
+        assert!(
+            observed.iter().all(|change| change.kind != "rename"),
+            "untracked Windows rename fragments must never be guessed into a rename: {observed:?}"
+        );
+
+        apply_watcher_changes_to_model(&mut event_model, &observed);
+        assert_eq!(event_model, HashSet::from(["arquivo".to_string()]));
+        assert!(!original.exists(), "original path must remain absent");
+        assert!(
+            !renamed.exists(),
+            "renamed path must remain absent after move"
+        );
+        assert!(!moved.exists(), "deleted note must remain absent");
+        assert!(
+            destination_directory.is_dir(),
+            "unrelated folder state was lost"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_watcher_replacement_and_close_finish_each_worker() {
+        let first_directory = tempdir().expect("first watcher temp dir");
+        let second_directory = tempdir().expect("second watcher temp dir");
+        let first_root = first_directory
+            .path()
+            .canonicalize()
+            .expect("first canonical root");
+        let second_root = second_directory
+            .path()
+            .canonicalize()
+            .expect("second canonical root");
+        let (first_sender, first_receiver) = mpsc::channel();
+        let (second_sender, second_receiver) = mpsc::channel();
+        let mut active = Some(
+            start_vault_watcher(&first_root, move |change| {
+                let _ = first_sender.send(change);
+            })
+            .expect("start first watcher"),
+        );
+
+        let replacement = start_vault_watcher(&second_root, move |change| {
+            let _ = second_sender.send(change);
+        })
+        .expect("start replacement watcher");
+        drop(active.replace(replacement));
+        wait_for_watcher_channel_to_close(&first_receiver, "replaced watcher");
+
+        drop(active.take());
+        wait_for_watcher_channel_to_close(&second_receiver, "closed watcher");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_watcher_uses_rescan_instead_of_an_unbounded_overflow_queue() {
+        let temporary_directory = tempdir().expect("overflow watcher temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("overflow canonical root");
+        let (sender, receiver) = mpsc::channel();
+        let watcher = start_vault_watcher_with_capacity(&root, 1, move |change| {
+            thread::sleep(Duration::from_millis(15));
+            let _ = sender.send(change);
+        })
+        .expect("start capacity-limited watcher");
+
+        let (stop_sender, stop_receiver) = mpsc::channel();
+        let producer_root = root.clone();
+        let producer = thread::spawn(move || {
+            let mut index = 0_u64;
+            while stop_receiver.try_recv().is_err() {
+                fs::write(
+                    producer_root.join(format!("storm-{}.md", index % 16)),
+                    index.to_string(),
+                )
+                .expect("write continuous event storm file");
+                index += 1;
+            }
+        });
+        let changes = observe_watcher_operation(&receiver, "overflow rescan", |change| {
+            change.kind == "rescan" && change.paths.is_empty()
+        });
+        stop_sender.send(()).expect("stop event storm producer");
+        producer.join().expect("join event storm producer");
+        assert!(
+            changes.len() < 64,
+            "overflow must collapse the event storm instead of forwarding an unbounded queue: {} events",
+            changes.len()
+        );
+
+        drop(watcher);
+        wait_for_watcher_channel_to_close(&receiver, "overflow watcher shutdown");
+    }
+    #[cfg(windows)]
+    #[test]
+    fn windows_watcher_bounds_distinct_pending_modifications() {
+        let mut pending = HashMap::new();
+        for index in 0..2 {
+            assert!(queue_pending_watcher_modification(
+                &mut pending,
+                VaultFileSystemChange {
+                    kind: VaultFileSystemChangeKind::Modify,
+                    paths: vec![format!("note-{index}.md")],
+                },
+                2,
+            ));
+        }
+        assert!(!queue_pending_watcher_modification(
+            &mut pending,
+            VaultFileSystemChange {
+                kind: VaultFileSystemChangeKind::Modify,
+                paths: vec!["note-2.md".to_string()],
+            },
+            2,
+        ));
+        assert_eq!(pending.len(), 2);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_watcher_rejects_an_out_of_order_activation_request() {
+        let state = VaultWatcherState::default();
+
+        assert!(state.register_request(1));
+        assert!(state.register_request(3));
+        assert!(!state.register_request(2));
+        assert!(state.is_current_request(3));
+        assert!(!state.is_current_request(1));
+    }
+
+    #[test]
+    fn vault_watcher_event_serializes_its_activation_scope() {
+        let payload = super::ScopedVaultFileSystemChange {
+            request_id: 42,
+            change: super::VaultFileSystemChange {
+                kind: VaultFileSystemChangeKind::Modify,
+                paths: vec!["nota.md".to_string()],
+            },
+        };
+
+        assert_eq!(
+            serde_json::to_value(payload).expect("serialize scoped watcher payload"),
+            serde_json::json!({
+                "requestId": 42,
+                "kind": "modify",
+                "paths": ["nota.md"],
+            })
+        );
+    }
+
+    #[test]
+    fn ipc_contract_fixture_matches_backend_serialization() {
+        let fixture_path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/fixtures/ipc-contract-v1.json");
+        let fixture_source = fs::read_to_string(&fixture_path)
+            .unwrap_or_else(|error| panic!("read IPC contract fixture {fixture_path:?}: {error}"));
+        let committed_fixture: serde_json::Value = serde_json::from_str(&fixture_source)
+            .unwrap_or_else(|error| panic!("parse IPC contract fixture {fixture_path:?}: {error}"));
+
+        assert_eq!(committed_fixture, super::ipc_contract_fixture());
     }
 
     #[test]
@@ -4878,6 +5990,186 @@ mod tests {
         assert!(validate_vault_name("Meu Vault").is_ok());
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn windows_path_suite_accepts_forward_and_backslash_separators() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+
+        assert_eq!(
+            resolve_note_path(&root, "area/subarea/nota").expect("forward slash note"),
+            resolve_note_path(&root, r"area\subarea\nota").expect("backslash note")
+        );
+        assert_eq!(
+            resolve_folder_path(&root, "area/subarea").expect("forward slash folder"),
+            resolve_folder_path(&root, r"area\subarea").expect("backslash folder")
+        );
+        assert_eq!(
+            resolve_note_path(&root, "README.MD").expect("uppercase markdown extension"),
+            root.join("README.MD")
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_path_suite_rejects_drive_unc_rooted_and_device_paths() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+
+        for unsafe_path in [
+            r"C:\Windows\system32",
+            r"\Windows\system32",
+            r"\\server\share\escape",
+            r"\\?\C:\escape",
+            r"\\.\C:\escape",
+        ] {
+            assert!(
+                resolve_note_path(&root, unsafe_path).is_err(),
+                "note path should reject {unsafe_path}"
+            );
+            assert!(
+                resolve_folder_path(&root, unsafe_path).is_err(),
+                "folder path should reject {unsafe_path}"
+            );
+        }
+
+        for metadata_alias in [".MIRMIND/nota", "area/.Mirmind/nota", ".mirmind /nota"] {
+            assert!(
+                resolve_note_path(&root, metadata_alias).is_err(),
+                "note path should reject metadata alias {metadata_alias}"
+            );
+            assert!(
+                resolve_folder_path(&root, metadata_alias).is_err(),
+                "folder path should reject metadata alias {metadata_alias}"
+            );
+        }
+    }
+
+    #[test]
+    fn windows_path_suite_rejects_reserved_device_names_and_extensions() {
+        for reserved in [
+            "CON",
+            "con.txt",
+            "NUL.tar.gz",
+            "PRN",
+            "AUX.md",
+            "COM1",
+            "com9.log",
+            "LPT1",
+            "lpt9.txt",
+            "COM\u{00B9}",
+            "COM\u{00B2}.log",
+            "COM\u{00B3}",
+            "LPT\u{00B9}",
+            "LPT\u{00B2}.txt",
+            "LPT\u{00B3}",
+        ] {
+            assert!(
+                validate_vault_name(reserved).is_err(),
+                "reserved Windows device name should be rejected: {reserved}"
+            );
+        }
+
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        for reserved_path in ["CON", "area/AUX", "LPT1.txt", "area/NUL.md"] {
+            assert!(
+                resolve_note_path(&root, reserved_path).is_err(),
+                "reserved note segment should be rejected: {reserved_path}"
+            );
+            assert!(
+                resolve_folder_path(&root, reserved_path).is_err(),
+                "reserved folder segment should be rejected: {reserved_path}"
+            );
+        }
+
+        for invalid_name in ["nome ", "nome."] {
+            assert!(
+                validate_vault_name(invalid_name).is_err(),
+                "trailing dot or space should be rejected: {invalid_name:?}"
+            );
+        }
+        for invalid_path in ["area/nome /nota", "area/nome./nota"] {
+            assert!(
+                resolve_note_path(&root, invalid_path).is_err(),
+                "invalid note segment should be rejected: {invalid_path}"
+            );
+            assert!(
+                resolve_folder_path(&root, invalid_path).is_err(),
+                "invalid folder segment should be rejected: {invalid_path}"
+            );
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_path_suite_preserves_unicode_and_ntfs_case_insensitivity() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let original = root
+            .join("Estudos")
+            .join("\u{00C1}rvore_\u{65E5}\u{672C}.md");
+        fs::create_dir_all(original.parent().expect("unicode note parent"))
+            .expect("create unicode directory");
+        fs::write(&original, "conteudo unicode").unwrap_or_else(|error| {
+            panic!(
+                "write unicode note {} ({original:?}): {error}",
+                original.display()
+            )
+        });
+
+        let differently_cased =
+            resolve_note_path(&root, "estudos/\u{00C1}RVORE_\u{65E5}\u{672C}.md")
+                .expect("resolve unicode note");
+        assert_eq!(
+            differently_cased
+                .canonicalize()
+                .expect("canonical case variant"),
+            original.canonicalize().expect("canonical unicode note")
+        );
+        assert_eq!(
+            fs::read_to_string(differently_cased).expect("read unicode case variant"),
+            "conteudo unicode"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_path_suite_writes_and_reopens_a_path_longer_than_max_path() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let segment = "caminho-longo-".repeat(4);
+        let relative = format!("{segment}/{segment}/{segment}/{segment}/nota-final.md");
+        let note = resolve_note_path(&root, &relative).expect("resolve long note path");
+        assert!(
+            note.as_os_str().len() > 260,
+            "test path must exceed MAX_PATH"
+        );
+
+        fs::create_dir_all(note.parent().expect("long note parent"))
+            .expect("create long directory tree");
+        fs::write(&note, "conteudo em caminho longo").expect("write long note");
+        assert_eq!(
+            fs::read_to_string(&note).expect("reopen long note"),
+            "conteudo em caminho longo"
+        );
+    }
+
     #[test]
     fn resolve_note_path_rejects_parent_traversal() {
         let temporary_directory = tempdir().expect("temp dir");
@@ -4906,13 +6198,8 @@ mod tests {
         #[cfg(unix)]
         std::os::unix::fs::symlink(&outside, &link).expect("create file symlink");
         #[cfg(windows)]
-        if let Err(error) = std::os::windows::fs::symlink_file(&outside, &link) {
-            if error.kind() == std::io::ErrorKind::PermissionDenied
-                || error.raw_os_error() == Some(1314)
-            {
-                return;
-            }
-            panic!("create file symlink: {error}");
+        if !create_windows_file_symlink_if_available(&outside, &link, "note path confinement") {
+            return;
         }
 
         assert!(resolve_note_path(&root, "linked.md").is_err());
@@ -4928,6 +6215,43 @@ mod tests {
         assert_eq!(
             fs::read_to_string(&note_path).expect("read original note"),
             "original"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn ntfs_security_suite_preserves_a_locked_note_until_the_handle_is_released() {
+        use std::os::windows::fs::OpenOptionsExt as _;
+
+        const FILE_SHARE_READ: u32 = 0x00000001;
+
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        ensure_metadata_layout(&root).expect("initialize metadata");
+        let note = root.join("bloqueada.md");
+        fs::write(&note, "original").expect("write original note");
+        let locked_handle = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ)
+            .open(&note)
+            .expect("open note without write/delete sharing");
+
+        assert!(save_note_in_root(&root, "bloqueada.md", "substituida").is_err());
+        assert_eq!(
+            fs::read_to_string(&note).expect("read locked note"),
+            "original"
+        );
+
+        drop(locked_handle);
+        let saved =
+            save_note_in_root(&root, "bloqueada.md", "substituida").expect("save after unlock");
+        assert_eq!(saved.content, "substituida");
+        assert_eq!(
+            fs::read_to_string(&note).expect("read updated note"),
+            "substituida"
         );
     }
 
@@ -5224,6 +6548,202 @@ mod tests {
                 .file_name()
                 .to_string_lossy()
                 .contains(".mirmind-")));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn ntfs_security_suite_rolls_back_after_a_concurrent_junction_swap() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path().join("vault");
+        let outside = temporary_directory.path().join("outside");
+        fs::create_dir(&root).expect("create vault");
+        fs::create_dir(&outside).expect("create outside directory");
+        let root = root.canonicalize().expect("canonical vault");
+        fs::write(root.join("primeira.md"), "original 1").expect("write first note");
+        fs::write(root.join("segunda.md"), "original 2").expect("write second note");
+        fs::write(outside.join("segredo.md"), "segredo externo").expect("write outside note");
+        let updates = vec![
+            PlannedWikiLinkUpdate {
+                original_content: b"original 1".to_vec(),
+                path_after_change: root.join("primeira.md"),
+                updated_content: b"atualizada 1".to_vec(),
+            },
+            PlannedWikiLinkUpdate {
+                original_content: b"original 2".to_vec(),
+                path_after_change: root.join("segunda.md"),
+                updated_content: b"atualizada 2".to_vec(),
+            },
+        ];
+        let second = root.join("segunda.md");
+
+        let result =
+            update_wiki_links_for_note_path_change_with_hook(&root, &updates, |committed_index| {
+                if committed_index == 0 {
+                    fs::remove_file(&second).expect("remove second note for concurrent swap");
+                    create_windows_junction(&outside, &second);
+                }
+                Ok(())
+            });
+
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read_to_string(root.join("primeira.md")).expect("read rolled back first note"),
+            "original 1"
+        );
+        assert_eq!(
+            fs::read_to_string(outside.join("segredo.md")).expect("read untouched outside note"),
+            "segredo externo"
+        );
+        assert_eq!(
+            second.canonicalize().expect("canonical swapped junction"),
+            outside.canonicalize().expect("canonical outside directory")
+        );
+        assert!(fs::read_dir(&root)
+            .expect("list transaction artifacts")
+            .all(|entry| {
+                !entry
+                    .expect("read transaction artifact")
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(".mirmind-")
+            }));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn ntfs_security_suite_blocks_an_ancestor_swap_between_check_and_replace() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path().join("vault");
+        let outside = temporary_directory.path().join("outside");
+        fs::create_dir_all(root.join("area")).expect("create vault tree");
+        fs::create_dir(&outside).expect("create outside directory");
+        let root = root.canonicalize().expect("canonical vault");
+        let area = root.join("area");
+        let moved_area = root.join("area-movida");
+        let note = area.join("nota.md");
+        fs::write(&note, "conteudo original").expect("write original note");
+        fs::write(outside.join("segredo.md"), "segredo externo").expect("write outside note");
+        let updates = vec![PlannedWikiLinkUpdate {
+            original_content: b"conteudo original".to_vec(),
+            path_after_change: note,
+            updated_content: b"conteudo atualizado".to_vec(),
+        }];
+        let mut swap_attempted = false;
+
+        let result = update_wiki_links_for_note_path_change_with_hooks(
+            &root,
+            &updates,
+            |_| {
+                swap_attempted = true;
+                fs::rename(&area, &moved_area).expect("swap ancestor after validation");
+                create_windows_junction(&outside, &area);
+                Ok(())
+            },
+            |_| Ok(()),
+        );
+
+        assert!(result.is_err());
+        assert!(swap_attempted);
+        assert_eq!(
+            area.canonicalize().expect("canonical swapped ancestor"),
+            outside.canonicalize().expect("canonical outside directory")
+        );
+        assert_eq!(
+            fs::read_to_string(moved_area.join("nota.md")).expect("read untouched original note"),
+            "conteudo original"
+        );
+        let mut outside_entries = fs::read_dir(&outside)
+            .expect("list outside directory")
+            .map(|entry| entry.expect("read outside entry").file_name())
+            .collect::<Vec<_>>();
+        outside_entries.sort();
+        assert_eq!(
+            outside_entries,
+            vec![std::ffi::OsString::from("segredo.md")]
+        );
+        assert!(fs::read_dir(&root)
+            .expect("list transaction artifacts")
+            .all(|entry| {
+                !entry
+                    .expect("read transaction artifact")
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(".mirmind-")
+            }));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn ntfs_security_suite_replaces_a_note_atomically_without_artifacts() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc, Barrier, Mutex,
+        };
+
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let note = root.join("atomica.md");
+        fs::write(&note, "versao-000").expect("write original note");
+        let stop = Arc::new(AtomicBool::new(false));
+        let failure = Arc::new(Mutex::new(None::<String>));
+        let barrier = Arc::new(Barrier::new(2));
+        let reader_note = note.clone();
+        let reader_stop = Arc::clone(&stop);
+        let reader_failure = Arc::clone(&failure);
+        let reader_barrier = Arc::clone(&barrier);
+        let reader = std::thread::spawn(move || {
+            reader_barrier.wait();
+            while !reader_stop.load(Ordering::Acquire) {
+                if !reader_note.exists() {
+                    *reader_failure.lock().expect("lock observer failure") =
+                        Some("caminho ausente durante replace".to_string());
+                    break;
+                }
+                std::thread::yield_now();
+            }
+        });
+
+        barrier.wait();
+        let mut current = "versao-000".to_string();
+        for index in 1..=128 {
+            let next = format!("versao-{index:03}");
+            let updates = vec![PlannedWikiLinkUpdate {
+                original_content: current.as_bytes().to_vec(),
+                path_after_change: note.clone(),
+                updated_content: next.as_bytes().to_vec(),
+            }];
+            update_wiki_links_for_note_path_change(&root, &updates)
+                .expect("commit atomic replacement");
+            assert_eq!(
+                fs::read_to_string(&note).expect("read complete committed version"),
+                next
+            );
+            current = next;
+        }
+        stop.store(true, Ordering::Release);
+        reader.join().expect("join atomic observer");
+
+        assert_eq!(
+            failure.lock().expect("read observer failure").as_ref(),
+            None,
+            "a concurrent reader observed a non-atomic state"
+        );
+        assert_eq!(
+            fs::read_to_string(&note).expect("read final replacement"),
+            "versao-128"
+        );
+        assert!(fs::read_dir(&root)
+            .expect("list transaction artifacts")
+            .all(|entry| {
+                !entry
+                    .expect("read transaction artifact")
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(".mirmind-")
+            }));
     }
 
     #[test]
@@ -5548,13 +7068,9 @@ mod tests {
         #[cfg(unix)]
         std::os::unix::fs::symlink(&outside, &link).expect("create obsidian config symlink");
         #[cfg(windows)]
-        if let Err(error) = std::os::windows::fs::symlink_file(&outside, &link) {
-            if error.kind() == std::io::ErrorKind::PermissionDenied
-                || error.raw_os_error() == Some(1314)
-            {
-                return;
-            }
-            panic!("create obsidian config symlink: {error}");
+        if !create_windows_file_symlink_if_available(&outside, &link, "Obsidian config confinement")
+        {
+            return;
         }
 
         assert!(inspect_vault_path(&root)
@@ -5639,14 +7155,42 @@ mod tests {
         #[cfg(unix)]
         std::os::unix::fs::symlink(&outside, root.join("media")).expect("create directory symlink");
         #[cfg(windows)]
-        if let Err(error) = std::os::windows::fs::symlink_dir(&outside, root.join("media")) {
-            if error.kind() == std::io::ErrorKind::PermissionDenied
-                || error.raw_os_error() == Some(1314)
-            {
-                return;
-            }
-            panic!("create directory symlink: {error}");
+        if !create_windows_directory_symlink_if_available(
+            &outside,
+            &root.join("media"),
+            "attachment directory confinement",
+        ) {
+            return;
         }
+        fs::write(
+            root.join(".obsidian").join("app.json"),
+            r#"{"attachmentFolderPath":"media/subpasta"}"#,
+        )
+        .expect("write obsidian config");
+        let source = source_directory.path().join("diagrama.png");
+        fs::write(&source, "image bytes").expect("write attachment");
+
+        assert!(import_attachment_in_root(&root, &source, "aula.md").is_err());
+        assert!(!outside.join("subpasta").exists());
+        assert!(!outside.join("diagrama.png").exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn ntfs_security_suite_rejects_a_junction_that_escapes_the_vault() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let source_directory = tempdir().expect("source dir");
+        let root = temporary_directory.path().join("vault");
+        let outside = temporary_directory.path().join("outside");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+        fs::create_dir_all(&outside).expect("create outside folder");
+        create_windows_junction(&outside, &root.join("media"));
+        assert_eq!(
+            root.join("media")
+                .canonicalize()
+                .expect("canonical junction"),
+            outside.canonicalize().expect("canonical outside folder")
+        );
         fs::write(
             root.join(".obsidian").join("app.json"),
             r#"{"attachmentFolderPath":"media/subpasta"}"#,

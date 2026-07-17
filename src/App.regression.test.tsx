@@ -403,15 +403,16 @@ describe('Regressao do editor no workspace', () => {
   it('[mudanca externa] preserva e restaura o rascunho de uma nota removida', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
-    let fileSystemListener: ((event: { payload: { kind: string; paths: string[] } }) => void) | undefined
+    let fileSystemListener: ((event: { payload: { requestId: number; kind: string; paths: string[] } }) => void) | undefined
     listenMock.mockImplementation(async (_eventName, listener) => {
       fileSystemListener = listener
       return () => undefined
     })
     await openTestVault(user)
 
+    const requestId = invokeMock.mock.calls.find(([command]) => command === 'watch_vault')?.[1]?.requestId as number
     notes.delete('inicial.md')
-    fileSystemListener?.({ payload: { kind: 'remove', paths: ['inicial.md'] } })
+    fileSystemListener?.({ payload: { requestId, kind: 'remove', paths: ['inicial.md'] } })
 
     const dialog = await screen.findByRole('dialog', { name: 'Nota removida fora do MirrorMind' })
     expect(dialog).toHaveTextContent('Seu rascunho continua preservado')
@@ -424,7 +425,7 @@ describe('Regressao do editor no workspace', () => {
   it('[mudanca externa] resolve em sequencia varias abas removidas', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
-    let fileSystemListener: ((event: { payload: { kind: string; paths: string[] } }) => void) | undefined
+    let fileSystemListener: ((event: { payload: { requestId: number; kind: string; paths: string[] } }) => void) | undefined
     listenMock.mockImplementation(async (_eventName, listener) => {
       fileSystemListener = listener
       return () => undefined
@@ -432,8 +433,9 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
     await user.click(screen.getByRole('button', { name: 'Abrir nota alvo' }))
 
+    const requestId = invokeMock.mock.calls.find(([command]) => command === 'watch_vault')?.[1]?.requestId as number
     notes.clear()
-    fileSystemListener?.({ payload: { kind: 'remove', paths: ['inicial.md', 'alvo.md'] } })
+    fileSystemListener?.({ payload: { requestId, kind: 'remove', paths: ['inicial.md', 'alvo.md'] } })
 
     expect(await screen.findByRole('dialog', { name: 'Nota removida fora do MirrorMind' })).toHaveTextContent('inicial')
     await user.click(screen.getByRole('button', { name: 'Fechar aba' }))
