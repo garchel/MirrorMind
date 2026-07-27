@@ -1,0 +1,285 @@
+{
+    "schemaVersion":  1,
+    "revision":  1,
+    "note":  {
+                 "id":  "note-1",
+                 "relativePath":  "Biologia/Fotossintese.md",
+                 "contentHash":  "sha256:note-content",
+                 "readiness":  {
+                                   "status":  "ready",
+                                   "assessedAtUnixMs":  1720000000000,
+                                   "assessedContentHash":  "sha256:note-content",
+                                   "issues":  [
+
+                                              ]
+                               },
+                 "enrollment":  {
+                                    "manual":  true,
+                                    "manualPaused":  false,
+                                    "inheritedFromTagIds":  [
+                                                                "tag-prova"
+                                                            ],
+                                    "preferredMode":  "exam"
+                                }
+             },
+    "units":  [
+                  {
+                      "id":  "unit-1",
+                      "ordinal":  0,
+                      "kind":  "paragraph",
+                      "contentHash":  "sha256:paragraph-1",
+                      "sectionPath":  [
+                                          "Fotossíntese"
+                                      ],
+                      "identity":  {
+                                       "signatureVersion":  1,
+                                       "normalizedContentHash":  "sha256:normalized-1",
+                                       "previousContextHash":  null,
+                                       "nextContextHash":  "sha256:context-2",
+                                       "approximateStartUtf16":  15
+                                   },
+                      "fsrs":  {
+                                   "difficulty":  5.2,
+                                   "stabilityDays":  4.5,
+                                   "retrievability":  0.82,
+                                   "lastReviewedAtUnixMs":  1720500000000
+                               },
+                      "latestEvaluation":  {
+                                               "kind":  "evaluated",
+                                               "score":  85,
+                                               "outcome":  "good",
+                                               "evidence":  "freeRecall",
+                                               "evaluatedAtUnixMs":  1720500000000,
+                                               "gaps":  [
+                                                            {
+                                                                "classification":  "confused",
+                                                                "sourceQuote":  "energia luminosa",
+                                                                "sourceStartUtf16":  24,
+                                                                "sourceEndUtf16":  40
+                                                            }
+                                                        ]
+                                           },
+                      "sourceStartUtf16":  0,
+                      "sourceEndUtf16":  100
+                  },
+                  {
+                      "id":  "unit-2",
+                      "ordinal":  1,
+                      "kind":  "paragraph",
+                      "contentHash":  "sha256:paragraph-2",
+                      "sectionPath":  [
+                                          "Fotossíntese"
+                                      ],
+                      "identity":  {
+                                       "signatureVersion":  1,
+                                       "normalizedContentHash":  "sha256:normalized-2",
+                                       "previousContextHash":  "sha256:context-1",
+                                       "nextContextHash":  null,
+                                       "approximateStartUtf16":  120
+                                   },
+                      "fsrs":  {
+                                   "difficulty":  7.4,
+                                   "stabilityDays":  1.8,
+                                   "retrievability":  0.58,
+                                   "lastReviewedAtUnixMs":  1720500000000
+                               },
+                      "latestEvaluation":  {
+                                               "kind":  "evaluated",
+                                               "score":  30,
+                                               "outcome":  "forgotten",
+                                               "evidence":  "freeRecall",
+                                               "evaluatedAtUnixMs":  1720500000000,
+                                               "gaps":  [
+                                                            {
+                                                                "classification":  "forgotten",
+                                                                "sourceQuote":  "glicose e oxigênio",
+                                                                "sourceStartUtf16":  145,
+                                                                "sourceEndUtf16":  163
+                                                            }
+                                                        ]
+                                           },
+                      "sourceStartUtf16":  100,
+                      "sourceEndUtf16":  200
+                  }
+              ],
+    "effectivePolicy":  {
+                            "firstReviewIntervalDays":  2,
+                            "targetRetention":  0.93,
+                            "priorityWeight":  1.8,
+                            "minIntervalDays":  1,
+                            "maxIntervalDays":  30,
+                            "deadlineAtUnixMs":  1728000000000,
+                            "sources":  {
+                                            "firstReviewIntervalDays":  {
+                                                                            "kind":  "tag",
+                                                                            "sourceId":  "tag-prova"
+                                                                        },
+                                            "targetRetention":  {
+                                                                    "kind":  "activeDeadlineTag",
+                                                                    "sourceId":  "tag-prova"
+                                                                },
+                                            "priorityWeight":  {
+                                                                   "kind":  "note",
+                                                                   "sourceId":  "note-1"
+                                                               },
+                                            "minIntervalDays":  {
+                                                                    "kind":  "vaultDefault",
+                                                                    "sourceId":  null
+                                                                },
+                                            "maxIntervalDays":  {
+                                                                    "kind":  "activeDeadlineTag",
+                                                                    "sourceId":  "tag-prova"
+                                                                },
+                                            "deadlineAtUnixMs":  {
+                                                                     "kind":  "activeDeadlineTag",
+                                                                     "sourceId":  "tag-prova"
+                                                                 },
+                                            "activeDeadline":  {
+                                                                   "kind":  "activeDeadlineTag",
+                                                                   "sourceId":  "tag-prova"
+                                                               }
+                                        }
+                        },
+    "scheduling":  {
+                       "status":  "due",
+                       "firstReviewAtUnixMs":  1720259200000,
+                       "lastReviewAtUnixMs":  1720500000000,
+                       "nextReviewAtUnixMs":  1720672800000,
+                       "fsrsVersion":  "fsrs-6"
+                   },
+    "sessions":  [
+                     {
+                         "id":  "session-1",
+                         "noteContentHash":  "sha256:note-content",
+                         "mode":  "exam",
+                         "provider":  "ollama",
+                         "completedAtUnixMs":  1720500000000,
+                         "overallScore":  58,
+                         "unitResults":  [
+                                             {
+                                                 "evaluation":  {
+                                                                    "kind":  "evaluated",
+                                                                    "score":  85,
+                                                                    "outcome":  "good",
+                                                                    "evidence":  "freeRecall",
+                                                                    "evaluatedAtUnixMs":  1720500000000,
+                                                                    "gaps":  [
+                                                                                 {
+                                                                                     "classification":  "confused",
+                                                                                     "sourceQuote":  "energia luminosa",
+                                                                                     "sourceStartUtf16":  24,
+                                                                                     "sourceEndUtf16":  40
+                                                                                 }
+                                                                             ]
+                                                                },
+                                                 "fsrsBefore":  null,
+                                                 "fsrsAfter":  {
+                                                                   "difficulty":  5.2,
+                                                                   "stabilityDays":  4.5,
+                                                                   "retrievability":  0.82,
+                                                                   "lastReviewedAtUnixMs":  1720500000000
+                                                               },
+                                                 "unitSnapshot":  {
+                                                                      "id":  "unit-1",
+                                                                      "ordinal":  0,
+                                                                      "kind":  "paragraph",
+                                                                      "contentHash":  "sha256:paragraph-1",
+                                                                      "sectionPath":  [
+                                                                                          "Fotossíntese"
+                                                                                      ],
+                                                                      "identity":  {
+                                                                                       "signatureVersion":  1,
+                                                                                       "normalizedContentHash":  "sha256:normalized-1",
+                                                                                       "previousContextHash":  null,
+                                                                                       "nextContextHash":  "sha256:context-2",
+                                                                                       "approximateStartUtf16":  15
+                                                                                   },
+                                                                      "sourceStartUtf16":  0,
+                                                                      "sourceEndUtf16":  100
+                                                                  }
+                                             },
+                                             {
+                                                 "evaluation":  {
+                                                                    "kind":  "evaluated",
+                                                                    "score":  30,
+                                                                    "outcome":  "forgotten",
+                                                                    "evidence":  "freeRecall",
+                                                                    "evaluatedAtUnixMs":  1720500000000,
+                                                                    "gaps":  [
+                                                                                 {
+                                                                                     "classification":  "forgotten",
+                                                                                     "sourceQuote":  "glicose e oxigênio",
+                                                                                     "sourceStartUtf16":  145,
+                                                                                     "sourceEndUtf16":  163
+                                                                                 }
+                                                                             ]
+                                                                },
+                                                 "fsrsBefore":  null,
+                                                 "fsrsAfter":  {
+                                                                   "difficulty":  7.4,
+                                                                   "stabilityDays":  1.8,
+                                                                   "retrievability":  0.58,
+                                                                   "lastReviewedAtUnixMs":  1720500000000
+                                                               },
+                                                 "unitSnapshot":  {
+                                                                      "id":  "unit-2",
+                                                                      "ordinal":  1,
+                                                                      "kind":  "paragraph",
+                                                                      "contentHash":  "sha256:paragraph-2",
+                                                                      "sectionPath":  [
+                                                                                          "Fotossíntese"
+                                                                                      ],
+                                                                      "identity":  {
+                                                                                       "signatureVersion":  1,
+                                                                                       "normalizedContentHash":  "sha256:normalized-2",
+                                                                                       "previousContextHash":  "sha256:context-1",
+                                                                                       "nextContextHash":  null,
+                                                                                       "approximateStartUtf16":  120
+                                                                                   },
+                                                                      "sourceStartUtf16":  100,
+                                                                      "sourceEndUtf16":  200
+                                                                  }
+                                             }
+                                         ],
+                         "effectivePolicy":  {
+                                                 "firstReviewIntervalDays":  2,
+                                                 "targetRetention":  0.93,
+                                                 "priorityWeight":  1.8,
+                                                 "minIntervalDays":  1,
+                                                 "maxIntervalDays":  30,
+                                                 "deadlineAtUnixMs":  1728000000000,
+                                                 "sources":  {
+                                                                 "firstReviewIntervalDays":  {
+                                                                                                 "kind":  "tag",
+                                                                                                 "sourceId":  "tag-prova"
+                                                                                             },
+                                                                 "targetRetention":  {
+                                                                                         "kind":  "activeDeadlineTag",
+                                                                                         "sourceId":  "tag-prova"
+                                                                                     },
+                                                                 "priorityWeight":  {
+                                                                                        "kind":  "note",
+                                                                                        "sourceId":  "note-1"
+                                                                                    },
+                                                                 "minIntervalDays":  {
+                                                                                         "kind":  "vaultDefault",
+                                                                                         "sourceId":  null
+                                                                                     },
+                                                                 "maxIntervalDays":  {
+                                                                                         "kind":  "activeDeadlineTag",
+                                                                                         "sourceId":  "tag-prova"
+                                                                                     },
+                                                                 "deadlineAtUnixMs":  {
+                                                                                          "kind":  "activeDeadlineTag",
+                                                                                          "sourceId":  "tag-prova"
+                                                                                      },
+                                                                 "activeDeadline":  {
+                                                                                        "kind":  "activeDeadlineTag",
+                                                                                        "sourceId":  "tag-prova"
+                                                                                    }
+                                                             }
+                                             },
+                         "nextReviewAtUnixMs":  1720672800000
+                     }
+                 ]
+}

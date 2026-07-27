@@ -28,6 +28,7 @@ vi.mock('./components/ObsidianPdfEmbed', () => ({
 }))
 
 import App from './App'
+import { ReviewAiSettingsProvider } from './features/review/ReviewAiSettingsContext'
 import obsidianStudyNote from './fixtures/obsidian-vaults/study-vault/Notas/Quimica.md?raw'
 
 type StoredNote = { name: string; relativePath: string; content: string }
@@ -43,7 +44,7 @@ const vault = {
 
 function createTauriHarness() {
   const notes = new Map<string, StoredNote>([
-    ['inicial.md', { name: 'inicial.md', relativePath: 'inicial.md', content: '---\ndescription: Inicial\nloop: &loop [*loop]\n---\n\n# Inicial\n\nTexto inicial. Veja [[alvo]], volte para [[#Inicial]] e crie [[nova/pagina]].' }],
+    ['inicial.md', { name: 'inicial.md', relativePath: 'inicial.md', content: '---\ndescription: Inicial\nloop: &loop [*loop]\n---\n\n# Inicial\n\nTexto inicial. Veja [[alvo]], volte para [[#Inicial]] e crie [[nova/pagina]].\n\n**Equação Geral**\n\n$$\n6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2\n$$' }],
     ['alvo.md', { name: 'alvo.md', relativePath: 'alvo.md', content: '# Alvo\n\n> [!warning]- **Aviso** *seguro*\n> Conteudo do callout.\n\n> [!note] # Titulo inline\n> Sem heading no cabecalho.\n\n- Item da lista\n  > [!tip] **Dica interna**\n  > Conteudo aninhado.\n\n- Item multinivel\n  > Contexto comum\n  >\n  > > [!example] Exemplo profundo\n  > > Conteudo profundo.\n\n![[inicial]]\n\n![[media/manual.pdf|Manual]]\n\n![[.obsidian/plugins/segredo.pdf|Segredo]]\n\n![Remote](https://example.com/image.png)\n\n<kbd>Ctrl K</kbd><script>danger()</script><a href="https://mirrormind.local/note/%E0%A4%A">URL quebrada</a>' }],
   ])
 
@@ -74,6 +75,20 @@ function createTauriHarness() {
       case 'get_backlinks':
       case 'get_broken_links':
         return []
+      case 'get_vault_review_policy_config':
+        return {
+          revision: 0,
+          defaults: {
+            firstReviewIntervalDays: 2,
+            targetRetention: 0.8,
+            priorityWeight: 1,
+            minIntervalDays: 1,
+            maxIntervalDays: 365,
+          },
+          tagRules: [],
+          updatedAtUnixMs: null,
+          affectedNoteCount: 0,
+        }
       case 'get_history_status':
         return { canUndo: false, canRedo: false }
       case 'watch_vault':
@@ -120,7 +135,7 @@ function createTauriHarness() {
 }
 
 async function openTestVault(user: ReturnType<typeof userEvent.setup>) {
-  render(<App />)
+  render(<ReviewAiSettingsProvider><App /></ReviewAiSettingsProvider>)
   await user.click(await screen.findByRole('button', { name: 'Escolher pasta' }))
   await screen.findByRole('button', { name: 'Abrir nota inicial' })
 }
@@ -144,6 +159,26 @@ describe('Regressao do editor no workspace', () => {
     cleanup()
   })
 
+  it('[tags] abre a pagina dedicada pela barra de ferramentas', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Abrir gerenciador de tags' }))
+
+    expect(await screen.findByRole('heading', { name: 'Tags do vault' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Criar tag' })).toBeInTheDocument()
+  })
+
+  it('[metadados] mostra as tags associadas e remove o campo de descricao', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    expect(screen.getByRole('button', { name: 'Tags associadas a nota' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Descricao da nota' })).not.toBeInTheDocument()
+  })
+
   it('[nota nova] salva ao confirmar o titulo com Enter e abre a nota criada', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
@@ -159,6 +194,35 @@ describe('Regressao do editor no workspace', () => {
     })
     expect(invokeMock).toHaveBeenCalledWith('create_note', expect.objectContaining({ relativePath: 'minha-nota-de-regressao.md' }))
     expect(invokeMock).toHaveBeenCalledWith('save_note', expect.objectContaining({ relativePath: 'minha-nota-de-regressao.md' }))
+  })
+
+  it('[atalhos] exibe os atalhos para salvar a nota e alternar o modo de visualizacao', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Ver atalhos' }))
+
+    expect(screen.getByRole('textbox', { name: 'Atalho para salvar nota' })).toHaveValue('Ctrl+S')
+    expect(screen.getByRole('textbox', { name: 'Atalho para alternar modo de visualizacao' })).toHaveValue('Ctrl+Shift+M')
+  })
+
+  it('[atalhos] salva a nota e alterna o modo de visualizacao pelos atalhos configurados', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    await user.selectOptions(screen.getByLabelText('Modo de visualizacao da nota'), 'edit')
+    await user.click(document.querySelector('.cm-content')!)
+    await user.type(document.querySelector('.cm-content')!, ' alterado')
+    await user.keyboard('{Control>}s{/Control}')
+
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('save_note', expect.objectContaining({ relativePath: 'inicial.md' })))
+
+    await user.keyboard('{Control>}{Shift>}m{/Shift}{/Control}')
+    expect(screen.getByLabelText('Modo de visualizacao da nota')).toHaveValue('read')
+    await user.keyboard('{Control>}{Shift>}m{/Shift}{/Control}')
+    expect(screen.getByLabelText('Modo de visualizacao da nota')).toHaveValue('mixed')
   })
 
   it('[nota diaria] cria a nota de hoje pela Command Palette e a abre no workspace', async () => {
@@ -177,6 +241,17 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.getByRole('tab', { name: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}.md` })).toBeInTheDocument()
   })
 
+  it('[Markdown] renderiza formulas matematicas em bloco', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    await user.selectOptions(screen.getByLabelText('Modo de visualizacao da nota'), 'read')
+
+    const formula = await screen.findByText('6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2', { selector: 'annotation' })
+    expect(formula.closest('.katex-display')).not.toBeNull()
+    expect(formula.closest('.katex')).not.toBeNull()
+  })
   it('[links internos] abre a nota vinculada no modo Leitura', async () => {
     const user = userEvent.setup()
     createTauriHarness()
@@ -328,18 +403,20 @@ describe('Regressao do editor no workspace', () => {
     localStorage.setItem('mirrormind.auto-save', 'true')
     await openTestVault(user)
 
-    const description = screen.getByRole('textbox', { name: 'Descricao da nota' })
-    await user.clear(description)
-    await user.type(description, 'Resumo-atualizado')
-    expect(description).toHaveValue('Resumo-atualizado')
+    await user.selectOptions(screen.getByLabelText('Modo de visualizacao da nota'), 'edit')
+    const editor = screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })
+    await user.click(editor)
+    await user.keyboard('{Control>}{End}{/Control}')
+    await user.paste(' Resumo-atualizado')
+
     expect(screen.getByText('Alteracoes pendentes')).toBeInTheDocument()
 
     await waitFor(() => {
-      expect(notes.get('inicial.md')?.content).toContain('description: Resumo-atualizado')
+      expect(notes.get('inicial.md')?.content).toContain('Resumo-atualizado')
     }, { timeout: 2_000 })
     expect(invokeMock).toHaveBeenCalledWith('save_note', expect.objectContaining({
       relativePath: 'inicial.md',
-      content: expect.stringContaining('description: Resumo-atualizado'),
+      content: expect.stringContaining('Resumo-atualizado'),
     }))
   })
 

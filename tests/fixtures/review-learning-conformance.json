@@ -1,0 +1,324 @@
+[
+    {
+        "name":  "complete-v1",
+        "valid":  true,
+        "operations":  [
+
+                       ]
+    },
+    {
+        "name":  "policy-source-requires-id",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "effectivePolicy",
+                                            "sources",
+                                            "priorityWeight",
+                                            "sourceId"
+                                        ],
+                               "value":  null
+                           }
+                       ]
+    },
+    {
+        "name":  "blank-readiness-message",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "note",
+                                            "readiness",
+                                            "status"
+                                        ],
+                               "value":  "ambiguous"
+                           },
+                           {
+                               "path":  [
+                                            "note",
+                                            "readiness",
+                                            "issues"
+                                        ],
+                               "value":  [
+                                             {
+                                                 "unitId":  "unit-1",
+                                                 "code":  "ambiguous",
+                                                 "message":  "   "
+                                             }
+                                         ]
+                           },
+                           {
+                               "path":  [
+                                            "scheduling",
+                                            "status"
+                                        ],
+                               "value":  "paused"
+                           },
+                           {
+                               "path":  [
+                                            "scheduling",
+                                            "nextReviewAtUnixMs"
+                                        ],
+                               "value":  null
+                           }
+                       ]
+    },
+    {
+        "name":  "blank-inherited-tag",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "note",
+                                            "enrollment",
+                                            "inheritedFromTagIds"
+                                        ],
+                               "value":  [
+                                             "   "
+                                         ]
+                           }
+                       ]
+    },
+    {
+        "name":  "blank-section-path",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "units",
+                                            0,
+                                            "sectionPath"
+                                        ],
+                               "value":  [
+                                             "   "
+                                         ]
+                           }
+                       ]
+    },
+    {
+        "name":  "blank-gap-quote",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "units",
+                                            0,
+                                            "latestEvaluation",
+                                            "gaps",
+                                            0,
+                                            "sourceQuote"
+                                        ],
+                               "value":  "   "
+                           }
+                       ]
+    },
+    {
+        "name":  "ordinal-exceeds-u32",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "units",
+                                            0,
+                                            "ordinal"
+                                        ],
+                               "value":  4294967296
+                           }
+                       ]
+    },
+    {
+        "name":  "unknown-root-field",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "unexpected"
+                                        ],
+                               "value":  true
+                           }
+                       ]
+    },
+    {
+        "name":  "score-outcome-mismatch",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "units",
+                                            0,
+                                            "latestEvaluation",
+                                            "score"
+                                        ],
+                               "value":  20
+                           }
+                       ]
+    },
+    {
+        "name":  "modified-with-current-assessment",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "note",
+                                            "readiness",
+                                            "status"
+                                        ],
+                               "value":  "modified"
+                           },
+                           {
+                               "path":  [
+                                            "scheduling",
+                                            "status"
+                                        ],
+                               "value":  "paused"
+                           },
+                           {
+                               "path":  [
+                                            "scheduling",
+                                            "nextReviewAtUnixMs"
+                                        ],
+                               "value":  null
+                           }
+                       ]
+    },
+    {
+        "name":  "duplicate-unit-ordinal",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "units",
+                                            1,
+                                            "ordinal"
+                                        ],
+                               "value":  0
+                           }
+                       ]
+    },
+    {
+        "name":  "duplicate-session-unit-result",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "sessions",
+                                            0,
+                                            "unitResults",
+                                            1,
+                                            "unitSnapshot",
+                                            "id"
+                                        ],
+                               "value":  "unit-1"
+                           }
+                       ]
+    },
+    {
+        "name":  "utf16-offsets-with-emoji",
+        "valid":  true,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "units",
+                                            0,
+                                            "latestEvaluation",
+                                            "gaps",
+                                            0,
+                                            "sourceQuote"
+                                        ],
+                               "value":  "luz 🌞"
+                           },
+                           {
+                               "path":  [
+                                            "units",
+                                            0,
+                                            "latestEvaluation",
+                                            "gaps",
+                                            0,
+                                            "sourceStartUtf16"
+                                        ],
+                               "value":  10
+                           },
+                           {
+                               "path":  [
+                                            "units",
+                                            0,
+                                            "latestEvaluation",
+                                            "gaps",
+                                            0,
+                                            "sourceEndUtf16"
+                                        ],
+                               "value":  16
+                           },
+                           {
+                               "path":  [
+                                            "sessions",
+                                            0,
+                                            "unitResults",
+                                            0,
+                                            "evaluation",
+                                            "gaps",
+                                            0,
+                                            "sourceQuote"
+                                        ],
+                               "value":  "luz 🌞"
+                           },
+                           {
+                               "path":  [
+                                            "sessions",
+                                            0,
+                                            "unitResults",
+                                            0,
+                                            "evaluation",
+                                            "gaps",
+                                            0,
+                                            "sourceStartUtf16"
+                                        ],
+                               "value":  10
+                           },
+                           {
+                               "path":  [
+                                            "sessions",
+                                            0,
+                                            "unitResults",
+                                            0,
+                                            "evaluation",
+                                            "gaps",
+                                            0,
+                                            "sourceEndUtf16"
+                                        ],
+                               "value":  16
+                           }
+                       ]
+    },
+    {
+        "name":  "leading-whitespace-is-not-normalized",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "units",
+                                            0,
+                                            "id"
+                                        ],
+                               "value":  " unit-1"
+                           }
+                       ]
+    },
+    {
+        "name":  "nullable-fields-must-be-explicit",
+        "valid":  false,
+        "operations":  [
+                           {
+                               "path":  [
+                                            "sessions",
+                                            0,
+                                            "unitResults",
+                                            0,
+                                            "fsrsAfter"
+                                        ],
+                               "delete":  true,
+                               "value":  null
+                           }
+                       ]
+    }
+]

@@ -5,18 +5,30 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { Bold, CheckSquare, ChevronDown, Code2, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, Link, List, ListFilter, ListOrdered, Minus, Network, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Star, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
+import { Bold, BookOpenCheck, CheckSquare, ChevronDown, Code2, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, Link, List, ListFilter, ListOrdered, Minus, Network, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Star, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { CiStickyNote } from 'react-icons/ci'
+import 'katex/dist/katex.min.css'
 import ReactMarkdown from 'react-markdown'
+import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { BuilderModeControl } from './components/BuilderModeControl'
 import { MarkdownCodeEditor } from './components/MarkdownCodeEditor'
+import { NoteTagPicker } from './components/NoteTagPicker'
 import { ObsidianCallout } from './components/ObsidianCallout'
 import { ObsidianNoteEmbed } from './components/ObsidianNoteEmbed'
 import { ObsidianPdfEmbed } from './components/ObsidianPdfEmbed'
+import { NoteReadinessControl } from './features/review/NoteReadinessControl'
+import { NoteReviewPolicyControl } from './features/review/NoteReviewPolicyControl'
+import { ReviewQueuePage } from './features/review/ReviewQueuePage'
+import { ReviewSessionPage } from './features/review/ReviewSessionPage'
+import type { DueReviewItem } from './features/review/reviewQueue'
+import { ReviewAiSettings } from './features/review/ReviewAiSettings'
+import { VaultReviewPolicySettings } from './features/review/VaultReviewPolicySettings'
+import { TagManagementPage } from './features/tags/TagManagementPage'
 import { remarkObsidianCallouts } from './lib/remarkObsidianCallouts'
 import { createVaultScanCoordinator, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
 import type { MarkdownCodeEditorHandle, MarkdownEditorHistoryStatus, MarkdownEditorSession } from './components/MarkdownCodeEditor'
@@ -57,7 +69,7 @@ import {
   suggestVaultName,
 } from './lib/vault'
 import './App.css'
-import { detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBlockRanges, getMarkdownBody, getMarkdownDescription, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownFrontmatterSource, getMarkdownPreviewText, normalizeMarkdownTag, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderWikiLinksAsMarkdown, replaceMarkdownBlock, replaceMarkdownBody, resolveObsidianAttachmentPath, resolveObsidianWikiLinkPath, setMarkdownDescription, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable, type FrontmatterValue, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
+import { detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBlockRanges, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownFrontmatterSource, getMarkdownPreviewText, normalizeMarkdownTag, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderWikiLinksAsMarkdown, replaceMarkdownBlock, replaceMarkdownBody, resolveObsidianAttachmentPath, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable, type FrontmatterValue, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
 
 type TrashItem = {
   id: string
@@ -319,7 +331,8 @@ function App() {
   const [draggedNotePath, setDraggedNotePath] = useState<string | null>(null)
   const [dropFolderPath, setDropFolderPath] = useState<string | null>(null)
   const [justReleasedDrag, setJustReleasedDrag] = useState(false)
-  const [workspacePage, setWorkspacePage] = useState<'notes' | 'graph' | 'shortcuts' | 'settings' | 'trash'>('notes')
+  const [workspacePage, setWorkspacePage] = useState<'notes' | 'review' | 'tags' | 'graph' | 'shortcuts' | 'settings' | 'trash'>('notes')
+  const [activeReviewItem, setActiveReviewItem] = useState<DueReviewItem | null>(null)
   const [graphDocuments, setGraphDocuments] = useState<GraphDocument[]>([])
   const [isGraphLoading, setGraphLoading] = useState(false)
   const [graphNodeOverrides, setGraphNodeOverrides] = useState<Record<string, GraphPosition>>({})
@@ -417,7 +430,7 @@ function App() {
   })
 
   const isDirty = activeNote !== null && draftContent !== activeNote.content
-  const noteDescription = getMarkdownDescription(draftContent)
+  const noteTags = extractMarkdownTags(draftContent)
   const frontmatterProperties = getMarkdownFrontmatterProperties(draftContent)
   const visibleFrontmatterProperties = Object.entries(frontmatterProperties).filter(([key]) => key !== 'description')
   const noteBody = getMarkdownBody(draftContent)
@@ -450,10 +463,20 @@ function App() {
       setShowTagFilterDialog(true)
       return
     }
-    if (event.target instanceof HTMLElement && event.target.closest('.cm-content')) {
+    if (vault && activeNote && isDirty && matchesShortcut(event, shortcuts.saveNote)) {
+      event.preventDefault()
+      void saveActiveNote()
+      return
+    }
+    if (activeNote && matchesShortcut(event, shortcuts.cycleNoteViewMode)) {
+      event.preventDefault()
+      cycleNoteViewMode()
       return
     }
 
+    if (event.target instanceof HTMLElement && event.target.closest('.cm-content')) {
+      return
+    }
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
       if (event.target instanceof HTMLTextAreaElement && (event.ctrlKey || event.metaKey)) {
         const format = event.key.toLowerCase() === 'b' ? 'bold' : event.key.toLowerCase() === 'i' ? 'italic' : null
@@ -467,11 +490,6 @@ function App() {
 
     if (!vault || (!event.ctrlKey && !event.metaKey)) {
       return
-    }
-
-    if (event.key.toLowerCase() === 's' && activeNote && isDirty) {
-      event.preventDefault()
-      void saveActiveNote()
     }
 
     if (event.key.toLowerCase() === 'z') {
@@ -1182,6 +1200,47 @@ function App() {
     }
   }
 
+  async function openTagManagementPage() {
+    if (!vault) return
+    setLoading(true)
+    setError(null)
+    try {
+      const activePath = activeNoteRef.current?.relativePath
+      await persistWorkspaceDraftsBeforePathChange(vault.path)
+      if (activePath && activePath !== '__new_note__') {
+        const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath: activePath })
+        const savedNote = parseNoteDocument(payload)
+        setActiveNote(savedNote)
+        setDraftContent(savedNote.content)
+      }
+      setWorkspacePage('tags')
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível abrir a página de tags.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function synchronizeTagChanges(markdownNotePaths: string[]) {
+    if (!vault) return
+    const nextTagIndex = await invoke<TagSummary[]>('get_tag_index', { path: vault.path })
+    setTagIndex(nextTagIndex)
+    const current = activeNoteRef.current
+    if (!current || !markdownNotePaths.includes(current.relativePath)) return
+    const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath: current.relativePath })
+    const updated = parseNoteDocument(payload)
+    markdownEditorStateCacheRef.current.delete(updated.relativePath)
+    setEditorSessionsByPath((sessions) => {
+      const { [updated.relativePath]: _discarded, ...remaining } = sessions
+      return remaining
+    })
+    setActiveNote(updated)
+    setDraftContent(updated.content)
+    setDraftsByPath((drafts) => {
+      const { [updated.relativePath]: _discarded, ...remaining } = drafts
+      return remaining
+    })
+  }
   async function openGraphPage() {
     if (!vault) return
     const requestId = graphLoadRequestRef.current + 1
@@ -1270,6 +1329,7 @@ function App() {
     if (command.id === 'open-note') { setShowNoteSearch(true); setNoteSearchQuery('') }
     if (command.id === 'search-content') { setShowNoteSearch(true); setNoteSearchQuery('') }
     if (command.id === 'filter-tags') setShowTagFilterDialog(true)
+    if (command.id === 'manage-tags') void openTagManagementPage()
     if (command.id === 'settings') setWorkspacePage('settings')
     if (command.id === 'shortcuts') setWorkspacePage('shortcuts')
     if (command.id === 'favorite') void toggleActiveFavorite()
@@ -1678,6 +1738,20 @@ function App() {
     }
   }
 
+  function cycleNoteViewMode() {
+    setMixedFocusedBlock(null)
+    setEditorMode((currentMode) => currentMode === 'mixed' ? 'edit' : currentMode === 'edit' ? 'read' : 'mixed')
+  }
+
+  function applyExistingTag(tag: string) {
+    setDraftContent((currentContent) => {
+      const nextTags = [...new Set([...extractMarkdownTags(currentContent), tag])]
+      const result = setMarkdownFrontmatterPropertySource(currentContent, 'tags', nextTags.map((item) => `- ${item}`).join('\n'))
+      return result.error ? currentContent : result.content
+    })
+    setStatus(`Tag aplicada: #${tag}`)
+  }
+
   async function saveActiveNote(isAutomatic = false) {
     if (!vault || !activeNote || saveInFlightRef.current) {
       return
@@ -2025,10 +2099,6 @@ function App() {
     event.preventDefault()
   }
 
-  function updateNoteDescription(description: string) {
-    setDraftContent((currentContent) => setMarkdownDescription(currentContent, description))
-  }
-
   function formatFrontmatterPropertyValue(value: FrontmatterValue) {
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
     if (value === null) return 'null'
@@ -2332,8 +2402,8 @@ function App() {
   function renderMarkdownDocument(content: string, onToggleChecklist?: (lineNumber: number) => void, lineOffset = 0, depth = 0, sourcePath = activeNote?.relativePath ?? '') {
     return (
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkObsidianCallouts]}
-        rehypePlugins={[rehypeRaw, [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA]]}
+        remarkPlugins={[remarkGfm, remarkMath, remarkObsidianCallouts]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA], rehypeKatex]}
         components={{
           a: ({ href, children }) => {
             const internalPrefix = 'https://mirrormind.local/note/'
@@ -2453,7 +2523,7 @@ function App() {
     return (
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw, [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA]]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA], rehypeKatex]}
         allowedElements={['a', 'br', 'code', 'del', 'em', 'strong']}
         unwrapDisallowed
       >
@@ -2669,6 +2739,7 @@ function App() {
       { id: 'daily-note', label: 'Abrir nota diaria', description: 'Cria ou abre a nota de hoje em Diarias.' },
       { id: 'open-note', label: 'Abrir nota', description: 'Pesquisa notas por nome, conteudo ou tags.' },
       { id: 'filter-tags', label: 'Filtrar por tags', description: 'Abre o filtro completo de tags.' },
+      { id: 'manage-tags', label: 'Gerenciar tags', description: 'Abre a página de tags e políticas de revisão.' },
       { id: 'favorite', label: favorites.includes(activeNote?.relativePath ?? '') ? 'Remover dos favoritos' : 'Adicionar aos favoritos', description: 'Fixa ou remove a nota atual.', disabled: !activeNote || isNewNoteDraft },
       { id: 'undo', label: 'Desfazer', description: 'Reverte a ultima alteracao da nota ou do vault.', disabled: !canUndoActiveEditor },
       { id: 'redo', label: 'Refazer', description: 'Refaz a ultima alteracao da nota ou do vault.', disabled: !canRedoActiveEditor },
@@ -2712,6 +2783,26 @@ function App() {
           >
             <span className="rail-icon" aria-hidden="true">&#9998;</span>
             <span className="rail-label">Notas</span>
+          </button>
+          <button
+            type="button"
+            className={`rail-button${workspacePage === 'review' ? ' is-active' : ''}`}
+            onClick={() => setWorkspacePage('review')}
+            aria-label="Abrir fila de revisão"
+            title="Revisar"
+          >
+            <BookOpenCheck size={17} strokeWidth={1.5} aria-hidden="true" />
+            <span className="rail-label">Revisar</span>
+          </button>
+          <button
+            type="button"
+            className={`rail-button${workspacePage === 'tags' ? ' is-active' : ''}`}
+            onClick={() => void openTagManagementPage()}
+            aria-label="Abrir gerenciador de tags"
+            title="Tags"
+          >
+            <Hash size={17} strokeWidth={1.5} aria-hidden="true" />
+            <span className="rail-label">Tags</span>
           </button>
           <button
             type="button"
@@ -2976,20 +3067,19 @@ function App() {
                         {activeNote.name.replace(/\.md$/i, '')}
                       </button>
                     )}
-                    <label className="note-description-field">
-                      <input
-                        value={noteDescription}
-                        onChange={(event) => updateNoteDescription(event.target.value)}
-                        placeholder="Descricao da nota"
-                        aria-label="Descricao da nota"
-                      />
-                    </label>
                     <div className="note-properties" aria-label="Propriedades da nota">
                       {visibleFrontmatterProperties.map(([key, value]) => (
                         <button type="button" className="note-property-chip" key={key} onClick={() => openFrontmatterPropertyEditor(key, value)} aria-label={`Editar propriedade ${key}`} title={`Editar ${key}`}>
                           <strong>{key}</strong> {formatFrontmatterPropertyValue(value)}
                         </button>
                       ))}
+                    <NoteTagPicker
+                      availableTags={tagIndex.map((entry) => entry.tag)}
+                      onApply={applyExistingTag}
+                      relativePath={activeNote.relativePath}
+                      tags={noteTags}
+                      vaultPath={vault.path}
+                    />
                       <button type="button" className="secondary-button" onClick={() => openFrontmatterPropertyEditor()}>Nova propriedade</button>
                       <button type="button" className="secondary-button" onClick={openFrontmatterEditor}>YAML completo</button>
                     </div>
@@ -3069,6 +3159,24 @@ function App() {
                       </span>
                     ) : null}
                     {!isNewNoteDraft ? <button type="button" className={`secondary-button favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></button> : null}
+                    {!isNewNoteDraft ? (
+                      <NoteReadinessControl
+                        vaultPath={vault.path}
+                        relativePath={activeNote.relativePath}
+                        sourceRevision={activeNote.content}
+                        isDirty={isDirty}
+                        disabled={loading || saving}
+                      />
+                    ) : null}
+                    {!isNewNoteDraft ? (
+                      <NoteReviewPolicyControl
+                        vaultPath={vault.path}
+                        relativePath={activeNote.relativePath}
+                        sourceRevision={activeNote.content}
+                        isDirty={isDirty}
+                        disabled={loading || saving}
+                      />
+                    ) : null}
                     <label className="editor-mode-control" title="Escolha como o Markdown sera exibido: Misto mostra a edicao no bloco ativo, Edicao mostra o Markdown e Leitura mostra a nota formatada.">
                       <Eye size={15} strokeWidth={1.5} aria-hidden="true" />
                       <select value={editorMode} onChange={(event) => setEditorMode(event.target.value as typeof editorMode)} aria-label="Modo de visualizacao da nota">
@@ -3228,6 +3336,29 @@ function App() {
               </div>
             )}
               </>
+            ) : workspacePage === 'review' ? (
+              activeReviewItem ? (
+                <ReviewSessionPage
+                  vaultPath={vault.path}
+                  item={activeReviewItem}
+                  onExit={() => setActiveReviewItem(null)}
+                  onCompleted={() => undefined}
+                />
+              ) : (
+                <ReviewQueuePage
+                  vaultPath={vault.path}
+                  onStartReview={setActiveReviewItem}
+                  onOpenNote={(relativePath) => {
+                    setWorkspacePage('notes')
+                    void openNote(relativePath)
+                  }}
+                />
+              )
+            ) : workspacePage === 'tags' ? (
+              <TagManagementPage
+                vaultPath={vault.path}
+                onTagsChanged={synchronizeTagChanges}
+              />
             ) : workspacePage === 'graph' ? (
               <section className="workspace-page graph-page" data-builder-name="note-graph-page">
                 <div className="graph-page-header">
@@ -3349,6 +3480,36 @@ function App() {
                         setShortcuts((current) => ({ ...current, createNote: formatShortcut(event.nativeEvent) }))
                       }}
                       aria-label="Atalho para criar nova nota"
+                      readOnly
+                    />
+                  </label>
+                  <label>
+                    <span>
+                      <strong>Salvar nota</strong>
+                      <small>Salva as alteracoes da nota aberta.</small>
+                    </span>
+                    <input
+                      value={shortcuts.saveNote}
+                      onKeyDown={(event) => {
+                        event.preventDefault()
+                        setShortcuts((current) => ({ ...current, saveNote: formatShortcut(event.nativeEvent) }))
+                      }}
+                      aria-label="Atalho para salvar nota"
+                      readOnly
+                    />
+                  </label>
+                  <label>
+                    <span>
+                      <strong>Alternar modo de visualizacao</strong>
+                      <small>Alterna entre os modos Misto, Edicao e Leitura.</small>
+                    </span>
+                    <input
+                      value={shortcuts.cycleNoteViewMode}
+                      onKeyDown={(event) => {
+                        event.preventDefault()
+                        setShortcuts((current) => ({ ...current, cycleNoteViewMode: formatShortcut(event.nativeEvent) }))
+                      }}
+                      aria-label="Atalho para alternar modo de visualizacao"
                       readOnly
                     />
                   </label>
@@ -3521,6 +3682,8 @@ function App() {
                     <input type="checkbox" checked={isSpellCheckEnabled} onChange={(event) => setSpellCheckEnabled(event.target.checked)} />
                   </label>
                 </div>
+                <VaultReviewPolicySettings vaultPath={vault.path} />
+                <ReviewAiSettings />
               </section>
             )}
           </section>

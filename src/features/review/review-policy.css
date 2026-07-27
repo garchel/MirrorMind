@@ -1,0 +1,205 @@
+.note-review-policy-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.note-review-policy-trigger-error {
+  color: var(--danger, #a33b31);
+}
+
+.review-policy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(20 20 18 / 0.42);
+}
+
+.review-policy-dialog {
+  width: min(620px, 100%);
+  max-height: min(760px, calc(100dvh - 48px));
+  overflow: auto;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 8px;
+  background: var(--surface, #fffdf8);
+  color: var(--text, #24231f);
+  box-shadow: 0 24px 70px rgb(20 20 18 / 0.24);
+}
+
+.review-policy-dialog > header,
+.review-policy-dialog > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.review-policy-dialog > header {
+  border-bottom: 1px solid var(--border, #d8d4ca);
+}
+
+.review-policy-dialog > footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border, #d8d4ca);
+}
+
+.review-policy-dialog h2,
+.review-policy-dialog p {
+  margin: 0;
+}
+
+.review-policy-dialog header span,
+.review-policy-schedule span {
+  color: var(--muted, #706d66);
+  font-size: 12px;
+}
+
+.review-policy-dialog h2 {
+  margin-top: 2px;
+  font-size: 19px;
+}
+
+.review-policy-intro,
+.review-policy-presets,
+.review-policy-modes,
+.review-policy-advanced,
+.review-policy-schedule,
+.review-policy-error,
+.review-policy-success {
+  margin: 16px 18px !important;
+}
+
+.review-policy-presets,
+.review-policy-modes {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+}
+
+.review-policy-presets {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.review-policy-presets legend,
+.review-policy-modes legend {
+  margin-bottom: 8px;
+  color: var(--muted, #706d66);
+  font-size: 12px;
+}
+
+.review-policy-presets button,
+.review-policy-modes label {
+  min-width: 0;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface, #fffdf8) 88%, var(--workspace, #eeece6));
+  color: inherit;
+}
+
+.review-policy-presets button {
+  display: grid;
+  gap: 4px;
+  padding: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.review-policy-presets button:hover,
+.review-policy-modes label:has(input:checked) {
+  border-color: var(--accent, #6b695f);
+  background: color-mix(in srgb, var(--surface, #fffdf8) 78%, var(--accent, #6b695f));
+}
+
+.review-policy-presets span,
+.review-policy-modes small,
+.review-policy-schedule small {
+  color: var(--muted, #706d66);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.review-policy-modes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.review-policy-modes label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+}
+
+.review-policy-modes label span {
+  display: grid;
+  gap: 2px;
+}
+
+.review-policy-advanced {
+  border-top: 1px solid var(--border, #d8d4ca);
+  border-bottom: 1px solid var(--border, #d8d4ca);
+  padding: 12px 0;
+}
+
+.review-policy-advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.review-policy-advanced > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin-top: 12px;
+}
+
+.review-policy-advanced label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted, #706d66);
+  font-size: 12px;
+}
+
+.review-policy-advanced input {
+  min-height: 34px;
+  box-sizing: border-box;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--surface, #fffdf8);
+  color: var(--text, #24231f);
+  font: inherit;
+}
+
+.review-policy-advanced p,
+.review-policy-error {
+  margin-top: 9px !important;
+  color: var(--danger, #a33b31);
+  font-size: 13px;
+}
+
+.review-policy-schedule {
+  display: grid;
+  gap: 3px;
+}
+
+.review-policy-success {
+  color: var(--success, #3e7550);
+  font-size: 13px;
+}
+
+@media (max-width: 680px) {
+  .review-policy-overlay {
+    padding: 12px;
+  }
+
+  .review-policy-presets,
+  .review-policy-modes,
+  .review-policy-advanced > div {
+    grid-template-columns: 1fr;
+  }
+}

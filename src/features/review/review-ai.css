@@ -1,0 +1,253 @@
+.review-ai-settings {
+  gap: 14px;
+}
+
+.review-ai-provider-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface, #f8f6f0) 86%, white);
+}
+
+.review-ai-provider-panel p,
+.review-ai-provider-panel dl {
+  margin: 0;
+}
+
+.review-ai-provider-panel dl,
+.review-ai-provider-panel dl > div {
+  display: grid;
+  gap: 6px;
+}
+
+.review-ai-provider-panel dl > div {
+  grid-template-columns: minmax(90px, 0.35fr) 1fr;
+}
+
+.review-ai-provider-panel dt {
+  color: var(--muted, #706d66);
+}
+
+.review-ai-provider-panel dd {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.review-ai-consent,
+.review-ai-key-field {
+  display: grid;
+  gap: 7px;
+}
+
+.review-ai-consent {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+}
+
+.review-ai-key-field input,
+.review-ai-diagnostic textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 6px;
+  background: var(--surface, #fffdf8);
+  color: inherit;
+  font: inherit;
+}
+
+.review-ai-key-field input {
+  min-height: 36px;
+  padding: 7px 9px;
+}
+
+.review-ai-inline-actions,
+.review-ai-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.note-readiness-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.note-readiness-state,
+.note-review-enrollment {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+}
+
+.note-readiness-state {
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--border, #d8d4ca) 72%, currentColor);
+  border-radius: 6px;
+  color: var(--muted, #706d66);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.note-readiness-state.is-ready,
+.note-review-enrollment.is-active {
+  color: #486a52;
+  background: rgb(72 106 82 / 9%);
+}
+
+.note-readiness-state.is-ambiguous,
+.note-readiness-state.is-modified {
+  color: #826126;
+  background: rgb(130 97 38 / 9%);
+}
+
+.note-readiness-state.is-insufficient {
+  color: #8b4942;
+  background: rgb(139 73 66 / 9%);
+}
+
+.note-review-enrollment {
+  gap: 6px;
+}
+
+.note-review-next-date {
+  color: var(--muted, #706d66);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.review-ai-toolbar-error {
+  max-width: 240px;
+  margin: 0;
+  color: #9b3f38;
+  font-size: 12px;
+}
+
+.review-ai-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(32 30 27 / 48%);
+}
+
+.review-ai-dialog {
+  width: min(680px, 100%);
+  max-height: min(780px, calc(100vh - 48px));
+  overflow: auto;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 8px;
+  background: var(--surface, #fffdf8);
+  box-shadow: 0 18px 54px rgb(23 22 20 / 22%);
+}
+
+.review-ai-dialog > header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--border, #d8d4ca);
+  background: inherit;
+}
+
+.review-ai-dialog h2,
+.review-ai-dialog .card-kicker {
+  margin: 0;
+}
+
+.review-ai-dialog h2 {
+  margin-top: 4px;
+  font-size: 20px;
+}
+
+.review-ai-report-body {
+  display: grid;
+  gap: 18px;
+  padding: 20px 22px 24px;
+}
+
+.review-ai-report-body > p,
+.review-ai-diagnostic > small {
+  margin: 0;
+}
+
+.review-ai-issue-list,
+.review-ai-validation-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.review-ai-issue-list blockquote {
+  margin: 7px 0 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--accent, #738979);
+  background: rgb(115 137 121 / 9%);
+}
+
+.review-ai-markdown {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.review-ai-markdown > :is(p, ul, ol, blockquote, pre, table) {
+  margin: 0;
+}
+
+.review-ai-markdown .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 0;
+}
+
+.review-ai-markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.review-ai-suggestion {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted, #5f665f);
+}
+
+.review-ai-diagnostic {
+  display: grid;
+  gap: 7px;
+}
+
+.review-ai-diagnostic textarea {
+  min-height: 210px;
+  resize: vertical;
+  padding: 10px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+@media (max-width: 720px) {
+  .note-readiness-trigger span,
+  .note-review-enrollment span {
+
+    display: none;
+  }
+
+  .review-ai-dialog-backdrop {
+    padding: 12px;
+  }
+}

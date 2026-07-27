@@ -21,6 +21,9 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
+pub mod review;
+mod tag_management;
+
 const METADATA_DIR: &str = ".mirmind";
 const CONFIG_FILE: &str = "config.json";
 const ASSESSMENTS_DIR: &str = "assessments";
@@ -223,15 +226,6 @@ struct NoteTemplate {
     name: String,
     content: String,
 }
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ReviewPlan {
-    relative_path: String,
-    interval_days: u32,
-    repetitions: u32,
-    due_day: u64,
-}
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct VaultMetadata {
@@ -399,62 +393,12 @@ fn read_templates(root: &Path) -> Result<Vec<NoteTemplate>> {
     .unwrap_or_default())
 }
 
-fn review_plan_path(root: &Path, relative_path: &str) -> PathBuf {
-    root.join(METADATA_DIR).join(REVIEW_PLANS_DIR).join(format!(
-        "{}.json",
-        relative_path.replace(['/', '\\', '.'], "_")
-    ))
-}
 fn today_day() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
         / 86_400
-}
-
-#[tauri::command]
-fn review_note(
-    path: String,
-    relative_path: String,
-    quality: u8,
-    authorized_paths: State<AuthorizedPaths>,
-) -> Result<ReviewPlan, String> {
-    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
-    authorized_paths
-        .ensure_authorized_vault_root(&root)
-        .map_err(|error| error.to_string())?;
-    let note = resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
-    if !note.exists() {
-        return Err("A nota nao existe mais.".to_string());
-    }
-    ensure_metadata_layout(&root).map_err(|error| error.to_string())?;
-    let plan_path = review_plan_path(&root, &relative_path);
-    let old: ReviewPlan = fs::read_to_string(&plan_path)
-        .ok()
-        .and_then(|data| serde_json::from_str(&data).ok())
-        .unwrap_or(ReviewPlan {
-            relative_path: relative_path.clone(),
-            interval_days: 1,
-            repetitions: 0,
-            due_day: today_day(),
-        });
-    let interval_days = if quality <= 1 {
-        1
-    } else if quality == 2 {
-        old.interval_days.max(1) * 2
-    } else {
-        old.interval_days.max(1) * 3
-    };
-    let plan = ReviewPlan {
-        relative_path,
-        interval_days,
-        repetitions: old.repetitions + 1,
-        due_day: today_day() + interval_days as u64,
-    };
-    let serialized = serde_json::to_string_pretty(&plan).map_err(|error| error.to_string())?;
-    fs::write(plan_path, serialized).map_err(|error| error.to_string())?;
-    Ok(plan)
 }
 
 #[tauri::command]
@@ -883,7 +827,7 @@ fn get_tag_index_in_root(root: &Path) -> Result<Vec<TagSummary>> {
     Ok(summaries)
 }
 
-fn extract_tags(content: &str) -> Result<Vec<String>> {
+pub(crate) fn extract_tags(content: &str) -> Result<Vec<String>> {
     let (frontmatter, body) = split_frontmatter_for_tags(content).unwrap_or(("", content));
     let mut tags = HashSet::new();
     collect_markdown_body_tags(body, &mut tags);
@@ -1093,7 +1037,7 @@ fn collect_frontmatter_tag_values(value: &FrontmatterTagValue, tags: &mut Vec<St
     }
 }
 
-fn normalize_tag(value: &str) -> Option<String> {
+pub(crate) fn normalize_tag(value: &str) -> Option<String> {
     let trimmed = value.trim();
     let tag = trimmed
         .strip_prefix('#')
@@ -2671,17 +2615,22 @@ fn rename_vault_item_in_root(
     let planned_link_updates =
         prepare_wiki_link_updates(root, &path_changes, &available_paths_before_change)?;
 
-    move_vault_path_without_overwrite(&source, &destination, is_note)
-        .with_context(|| format!("Nao foi possivel renomear '{}'.", source.display()))?;
-    if let Err(error) = update_wiki_links_for_note_path_change(root, &planned_link_updates) {
-        move_vault_path_without_overwrite(&destination, &source, is_note).with_context(|| {
-            format!(
-                "A atualizacao dos links falhou e tambem nao foi possivel restaurar '{}'.",
-                source.display()
-            )
-        })?;
-        return Err(error);
-    }
+    review::storage::with_relocated_learning_documents(root, &path_changes, || {
+        move_vault_path_without_overwrite(&source, &destination, is_note)
+            .with_context(|| format!("Nao foi possivel renomear '{}'.", source.display()))?;
+        if let Err(error) = update_wiki_links_for_note_path_change(root, &planned_link_updates) {
+            move_vault_path_without_overwrite(&destination, &source, is_note).with_context(
+                || {
+                    format!(
+                        "A atualizacao dos links falhou e tambem nao foi possivel restaurar '{}'.",
+                        source.display()
+                    )
+                },
+            )?;
+            return Err(error);
+        }
+        Ok(())
+    })?;
     Ok(())
 }
 
@@ -2749,17 +2698,20 @@ fn move_vault_item_in_root(
         note_path_changes_for_item(root, &source, &target, is_note)?;
     let planned_link_updates =
         prepare_wiki_link_updates(root, &path_changes, &available_paths_before_change)?;
-    move_vault_path_without_overwrite(&source, &target, is_note)
-        .with_context(|| format!("Nao foi possivel mover '{}'.", source.display()))?;
-    if let Err(error) = update_wiki_links_for_note_path_change(root, &planned_link_updates) {
-        move_vault_path_without_overwrite(&target, &source, is_note).with_context(|| {
-            format!(
-                "A atualizacao dos links falhou e tambem nao foi possivel restaurar '{}'.",
-                source.display()
-            )
-        })?;
-        return Err(error);
-    }
+    review::storage::with_relocated_learning_documents(root, &path_changes, || {
+        move_vault_path_without_overwrite(&source, &target, is_note)
+            .with_context(|| format!("Nao foi possivel mover '{}'.", source.display()))?;
+        if let Err(error) = update_wiki_links_for_note_path_change(root, &planned_link_updates) {
+            move_vault_path_without_overwrite(&target, &source, is_note).with_context(|| {
+                format!(
+                    "A atualizacao dos links falhou e tambem nao foi possivel restaurar '{}'.",
+                    source.display()
+                )
+            })?;
+            return Err(error);
+        }
+        Ok(())
+    })?;
     Ok(())
 }
 
@@ -4945,7 +4897,6 @@ pub fn run() {
             create_vault,
             list_notes,
             list_templates,
-            review_note,
             search_notes,
             list_favorites,
             toggle_favorite,
@@ -4968,11 +4919,32 @@ pub fn run() {
             get_backlinks,
             get_broken_links,
             get_tag_index,
+            tag_management::preview_tag_management_change,
+            tag_management::apply_tag_management_change,
             undo_last_command,
             redo_last_command,
             get_history_status,
             watch_vault,
-            unwatch_vault
+            unwatch_vault,
+            review::ipc::get_review_ai_configuration,
+            review::ipc::configure_gemini_api_key,
+            review::ipc::set_gemini_data_consent,
+            review::ipc::remove_gemini_api_key,
+            review::ipc::check_ollama_review_status,
+            review::ipc::assess_note_readiness,
+            review::ipc::get_note_review_state,
+            review::ipc::list_due_review_queue,
+            review::ipc::set_note_review_enrollment,
+            review::ipc::get_vault_review_policy_config,
+            review::ipc::preview_vault_review_policy_defaults,
+            review::ipc::preview_vault_review_policy_tag_rules,
+            review::ipc::set_vault_review_policy_defaults,
+            review::ipc::set_vault_review_policy_tag_rules,
+            review::ipc::get_note_review_policy,
+            review::ipc::set_note_review_policy,
+            review::ipc::start_note_review_session,
+            review::ipc::continue_note_review_conversation,
+            review::ipc::complete_note_review_session
         ])
         .setup(|_app| {
             #[cfg(all(debug_assertions, not(feature = "e2e")))]
@@ -5008,6 +4980,12 @@ mod tests {
         SpecialVaultFileKind, VaultFileSystemChangeKind, ASSESSMENTS_DIR, ATTACHMENTS_DIR,
         CONFIG_FILE, MAX_PDF_ATTACHMENT_BYTES, MAX_SPECIAL_VAULT_FILES, METADATA_DIR,
         REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
+    };
+    use crate::review::{
+        evaluation::{ReadinessReport, ReadinessStatus},
+        policy::load_note_review_policy,
+        state::{load_note_review_state, persist_readiness_assessment, set_manual_enrollment},
+        storage::load_learning_document,
     };
     use notify::{
         event::{CreateKind, ModifyKind, RenameMode},
@@ -6290,6 +6268,165 @@ mod tests {
         assert!(rename_vault_item_in_root(&root, "estudos", "../fora", "folder").is_err());
     }
 
+    #[test]
+    fn renaming_a_note_preserves_its_learning_identity_and_schedule() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let original_path = "materias/aula.md";
+        let renamed_path = "materias/resumo.md";
+        let markdown = "# Aula\n\nPrimeiro ponto.\n\nSegundo ponto.\n\nTerceiro ponto.";
+        let ready_at = 1_720_000_000_000;
+        fs::create_dir_all(root.join("materias")).expect("create source folder");
+        fs::write(root.join(original_path), markdown).expect("write source note");
+
+        let ready = persist_readiness_assessment(
+            &root,
+            original_path,
+            markdown,
+            &ReadinessReport {
+                status: ReadinessStatus::Ready,
+                explanation: "Pronta.".to_string(),
+                central_idea: None,
+                evaluable_points: Vec::new(),
+                issues: Vec::new(),
+            },
+            ready_at,
+        )
+        .expect("persist readiness");
+        let enrolled = set_manual_enrollment(&root, original_path, markdown, true, ready_at)
+            .expect("enable review");
+        let original_note_id = ready.note_id;
+        let original_next_review = enrolled.next_review_at_unix_ms;
+
+        rename_vault_item_in_root(&root, original_path, "resumo", "note").expect("rename note");
+
+        let renamed = load_note_review_state(&root, renamed_path, markdown, ready_at)
+            .expect("load renamed note state")
+            .expect("renamed note keeps learning state");
+        assert_eq!(renamed.note_id, original_note_id);
+        assert!(renamed.enrolled);
+        assert_eq!(renamed.next_review_at_unix_ms, original_next_review);
+        let stored = load_learning_document(&root, &renamed.note_id)
+            .expect("load learning document")
+            .expect("learning document");
+        assert_eq!(stored.document.note.relative_path, renamed_path);
+    }
+    #[test]
+    fn a_renamed_note_keeps_its_review_policy_controls() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let original_path = "aula.md";
+        let renamed_path = "resumo.md";
+        let markdown = "# Aula\n\nPrimeiro ponto.\n\nSegundo ponto.\n\nTerceiro ponto.";
+        let now = 1_720_000_000_000;
+        fs::write(root.join(original_path), markdown).expect("write source note");
+        persist_readiness_assessment(
+            &root,
+            original_path,
+            markdown,
+            &ReadinessReport {
+                status: ReadinessStatus::Ready,
+                explanation: "Pronta.".to_string(),
+                central_idea: None,
+                evaluable_points: Vec::new(),
+                issues: Vec::new(),
+            },
+            now,
+        )
+        .expect("persist readiness");
+
+        rename_vault_item_in_root(&root, original_path, "resumo", "note").expect("rename note");
+
+        let policy = load_note_review_policy(&root, renamed_path, markdown, now)
+            .expect("load policy")
+            .expect("renamed note keeps policy controls");
+        assert_eq!(policy.first_review_interval_days, 2);
+    }
+    #[test]
+    fn renaming_a_folder_preserves_learning_identity_for_every_note_inside_it() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        let notes = [
+            ("curso/aula.md", "# Aula\n\nUm.\n\nDois.\n\nTres."),
+            (
+                "curso/modulo/resumo.md",
+                "# Resumo\n\nUm.\n\nDois.\n\nTres.",
+            ),
+        ];
+        fs::create_dir_all(root.join("curso/modulo")).expect("create source folders");
+        let mut original_ids = Vec::new();
+        for (path, markdown) in notes {
+            fs::write(root.join(path), markdown).expect("write source note");
+            original_ids.push(
+                persist_readiness_assessment(&root, path, markdown, &report, 1_720_000_000_000)
+                    .expect("persist readiness")
+                    .note_id,
+            );
+        }
+
+        rename_vault_item_in_root(&root, "curso", "estudos", "folder").expect("rename folder");
+
+        for ((_, markdown), (renamed_path, original_id)) in notes.into_iter().zip([
+            ("estudos/aula.md", &original_ids[0]),
+            ("estudos/modulo/resumo.md", &original_ids[1]),
+        ]) {
+            let state = load_note_review_state(&root, renamed_path, markdown, 1_720_000_000_000)
+                .expect("load moved state")
+                .expect("moved note keeps state");
+            assert_eq!(&state.note_id, original_id);
+        }
+    }
+    #[test]
+    fn moving_a_note_preserves_its_learning_identity() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let original_path = "origem/aula.md";
+        let moved_path = "destino/aula.md";
+        let markdown = "# Aula\n\nUm.\n\nDois.\n\nTres.";
+        fs::create_dir_all(root.join("origem")).expect("create source folder");
+        fs::create_dir_all(root.join("destino")).expect("create destination folder");
+        fs::write(root.join(original_path), markdown).expect("write source note");
+        let original = persist_readiness_assessment(
+            &root,
+            original_path,
+            markdown,
+            &ReadinessReport {
+                status: ReadinessStatus::Ready,
+                explanation: "Pronta.".to_string(),
+                central_idea: None,
+                evaluable_points: Vec::new(),
+                issues: Vec::new(),
+            },
+            1_720_000_000_000,
+        )
+        .expect("persist readiness");
+
+        move_vault_item_in_root(&root, original_path, "destino", "note").expect("move note");
+
+        let moved = load_note_review_state(&root, moved_path, markdown, 1_720_000_000_000)
+            .expect("load moved state")
+            .expect("moved note keeps state");
+        assert_eq!(moved.note_id, original.note_id);
+    }
     #[test]
     fn changing_a_note_path_updates_matching_wiki_links_and_finds_broken_ones() {
         let temporary_directory = tempdir().expect("temp dir");

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 0,
+  "note": {
+    "id": "legacy-note",
+    "relativePath": "Legado/Nota.md",
+    "contentHash": "sha256:legacy-note",
+    "readiness": {
+      "status": "ready",
+      "assessedAtUnixMs": 1710000000000,
+      "contentHash": "sha256:legacy-note",
+      "issues": []
+    },
+    "enrollment": {
+      "manual": true,
+      "inheritedFromTagIds": [],
+      "preferredMode": "conversation"
+    }
+  },
+  "units": [
+    {
+      "id": "legacy-unit",
+      "ordinal": 0,
+      "kind": "wholeNote",
+      "contentHash": "sha256:legacy-unit",
+      "sectionPath": [],
+      "fsrs": null,
+      "latestEvaluation": null
+    }
+  ],
+  "effectivePolicy": {
+    "firstReviewIntervalDays": 3,
+    "targetRetention": 0.9,
+    "priorityWeight": 1,
+    "minIntervalDays": 1,
+    "maxIntervalDays": 365,
+    "deadlineAtUnixMs": null,
+    "source": {
+      "kind": "vaultDefault",
+      "sourceId": null
+    }
+  },
+  "scheduling": {
+    "status": "scheduled",
+    "firstReviewAtUnixMs": 1710259200000,
+    "lastReviewAtUnixMs": null,
+    "nextReviewAtUnixMs": 1710259200000,
+    "fsrsVersion": "fsrs-6"
+  },
+  "sessions": []
+}

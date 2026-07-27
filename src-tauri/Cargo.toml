@@ -34,9 +34,22 @@ serde_yaml_ng = "0.10.0"
 unicode-normalization = "0.1.24"
 tauri-plugin-wdio = { version = "1", optional = true }
 tauri-plugin-wdio-webdriver = { version = "1", optional = true }
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "json", "rustls"] }
+sha2 = "0.10"
+zeroize = "1.9.0"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+keyring = { version = "3.6.3", features = ["windows-native"] }
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem", "Win32_Foundation"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3.6.3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3.6.3", features = ["linux-native-sync-persistent", "crypto-rust"] }
 
 [dev-dependencies]
 tempfile = "3"

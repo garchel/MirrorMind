@@ -1,0 +1,110 @@
+{
+  "shortNote": {
+    "markdown": "# ATP\nATP armazena energia para uso celular.",
+    "expectedUnitKind": "wholeNote",
+    "expectedUnitCount": 1
+  },
+  "segmentation": {
+    "markdown": "# Conceitos\nA energia é conservada.\n\nA energia é conservada.\n\nA célula transforma energia.",
+    "expectedUnits": [
+      {
+        "ordinal": 0,
+        "normalizedContentHash": "sha256:duplicate",
+        "previousContextHash": null,
+        "nextContextHash": "sha256:duplicate",
+        "approximateStartUtf16": 12
+      },
+      {
+        "ordinal": 1,
+        "normalizedContentHash": "sha256:duplicate",
+        "previousContextHash": "sha256:duplicate",
+        "nextContextHash": "sha256:cell",
+        "approximateStartUtf16": 38
+      },
+      {
+        "ordinal": 2,
+        "normalizedContentHash": "sha256:cell",
+        "previousContextHash": "sha256:duplicate",
+        "nextContextHash": null,
+        "approximateStartUtf16": 64
+      }
+    ]
+  },
+  "evaluationCases": [
+    {
+      "id": "forgotten-free-recall",
+      "prompt": "Explique o papel da clorofila.",
+      "response": "Não lembro.",
+      "expectedScore": 20,
+      "expectedOutcome": "forgotten",
+      "expectedGapClassification": "forgotten"
+    },
+    {
+      "id": "partial-free-recall",
+      "prompt": "Explique o papel da clorofila.",
+      "response": "Ela participa da luz, mas não lembro como.",
+      "expectedScore": 55,
+      "expectedOutcome": "partial",
+      "expectedGapClassification": "confused"
+    },
+    {
+      "id": "good-free-recall",
+      "prompt": "Explique o papel da clorofila.",
+      "response": "Ela absorve luz e inicia a conversão de energia.",
+      "expectedScore": 82,
+      "expectedOutcome": "good",
+      "expectedGapClassification": "confused"
+    },
+    {
+      "id": "complete-free-recall",
+      "prompt": "Explique o papel da clorofila.",
+      "response": "Ela absorve energia luminosa usada nas reações descritas na nota.",
+      "expectedScore": 95,
+      "expectedOutcome": "complete",
+      "expectedGapClassification": null
+    },
+    {
+      "id": "inconclusive-provider-output",
+      "prompt": "Explique o papel da clorofila.",
+      "response": "",
+      "expectedScore": null,
+      "expectedOutcome": "inconclusive",
+      "expectedGapClassification": null
+    }
+  ],
+  "policyCases": [
+    {
+      "id": "nearest-active-deadline-wins",
+      "nowUnixMs": 1720000000000,
+      "tags": [
+        { "id": "exam-later", "deadlineAtUnixMs": 1729000000000 },
+        { "id": "exam-near", "deadlineAtUnixMs": 1723000000000 },
+        { "id": "important", "deadlineAtUnixMs": null }
+      ],
+      "expectedActiveDeadlineTagId": "exam-near"
+    },
+    {
+      "id": "non-deadline-wins-after-expiration",
+      "nowUnixMs": 1730000000000,
+      "tags": [
+        { "id": "exam-expired", "deadlineAtUnixMs": 1723000000000 },
+        { "id": "important", "deadlineAtUnixMs": null }
+      ],
+      "expectedActiveDeadlineTagId": null
+    }
+  ],
+  "dateCases": [
+    {
+      "id": "exactly-due",
+      "nowUnixMs": 1720672800000,
+      "nextReviewAtUnixMs": 1720672800000,
+      "expectedDue": true
+    },
+    {
+      "id": "one-millisecond-early",
+      "nowUnixMs": 1720672799999,
+      "nextReviewAtUnixMs": 1720672800000,
+      "expectedDue": false
+    }
+  ]
+}

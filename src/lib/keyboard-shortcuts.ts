@@ -1,15 +1,19 @@
 export type WorkspaceShortcuts = {
   createNote: string
+  saveNote: string
   openNote: string
   openTagFilter: string
   openCommandPalette: string
+  cycleNoteViewMode: string
 }
 
 export const DEFAULT_WORKSPACE_SHORTCUTS: WorkspaceShortcuts = {
   createNote: 'Ctrl+N',
+  saveNote: 'Ctrl+S',
   openNote: 'Ctrl+O',
   openTagFilter: 'Ctrl+Shift+F',
   openCommandPalette: 'Ctrl+K',
+  cycleNoteViewMode: 'Ctrl+Shift+M',
 }
 
 export function formatShortcut(event: KeyboardEvent) {
