@@ -60,7 +60,7 @@ describe('NoteTagPicker', () => {
   it('confirma o impacto e avisa quando a tag ativa revis?o autom?tica', async () => {
     const user = userEvent.setup()
     const onApply = vi.fn()
-    render(<NoteTagPicker availableTags={['estudo']} onApply={onApply} relativePath="nota.md" tags={[]} vaultPath="C:\\Vault" />)
+    render(<NoteTagPicker availableTags={[]} onApply={onApply} relativePath="nota.md" tags={[]} vaultPath="C:\\Vault" />)
 
     await user.click(screen.getByRole('button', { name: 'Tags associadas a nota' }))
     await user.click(await screen.findByRole('menuitem', { name: '#estudo' }))
@@ -69,5 +69,17 @@ describe('NoteTagPicker', () => {
     await user.click(screen.getByRole('button', { name: 'Aplicar tag' }))
 
     expect(onApply).toHaveBeenCalledWith('estudo')
+  })
+
+  it('bloqueia a selecao enquanto os detalhes da revisao nao podem ser carregados', async () => {
+    const user = userEvent.setup()
+    getVaultReviewPolicyConfigMock.mockRejectedValueOnce(new Error('falha'))
+
+    render(<NoteTagPicker availableTags={['existente']} onApply={vi.fn()} relativePath="nota.md" tags={[]} vaultPath="C:\\Vault" />)
+
+    await user.click(screen.getByRole('button', { name: 'Tags associadas a nota' }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: '#existente' })).not.toBeInTheDocument()
   })
 })

@@ -466,6 +466,10 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
     expect(screen.getByRole('button', { name: 'Editar propriedade loop' })).toHaveTextContent('[referencia circular]')
 
+    const propertyActions = screen.getByRole('button', { name: 'Ações das propriedades' })
+    expect(propertyActions).toHaveAttribute('aria-expanded', 'false')
+    await user.click(propertyActions)
+    expect(propertyActions).toHaveAttribute('aria-expanded', 'true')
     await user.click(screen.getByRole('button', { name: 'Nova propriedade' }))
     await user.type(screen.getByLabelText('Nome da propriedade'), 'review')
     await user.type(screen.getByLabelText('Valor YAML'), 'interval: 7{enter}repetitions: 3')

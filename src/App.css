@@ -3689,6 +3689,48 @@ button:disabled {
   font-size: 11px;
 }
 
+.workspace-shell .frontmatter-actions-disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 180ms ease-out;
+}
+
+.workspace-shell .frontmatter-actions-disclosure.is-open {
+  grid-template-rows: 1fr;
+}
+
+.workspace-shell .frontmatter-actions-content {
+  display: flex;
+  min-height: 0;
+  gap: 6px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 140ms ease-out, transform 180ms ease-out;
+}
+
+.workspace-shell .frontmatter-actions-disclosure.is-open .frontmatter-actions-content {
+  margin-top: 8px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.workspace-shell .editor-disclosure-button.is-open svg {
+  transform: rotate(180deg);
+}
+
+.workspace-shell .editor-disclosure-button svg {
+  transition: transform 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell .frontmatter-actions-disclosure,
+  .workspace-shell .frontmatter-actions-content,
+  .workspace-shell .editor-disclosure-button svg {
+    transition: none;
+  }
+}
+
 .workspace-shell .frontmatter-editor {
   display: grid;
   gap: 7px;

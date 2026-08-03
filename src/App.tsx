@@ -272,6 +272,7 @@ function App() {
   const [activeNote, setActiveNote] = useState<NoteDocument | null>(null)
   const [isInlineTitleEditing, setInlineTitleEditing] = useState(false)
   const [inlineTitle, setInlineTitle] = useState('')
+  const [isFrontmatterActionsOpen, setFrontmatterActionsOpen] = useState(false)
   const [isFrontmatterEditorOpen, setFrontmatterEditorOpen] = useState(false)
   const [frontmatterDraft, setFrontmatterDraft] = useState('')
   const [frontmatterError, setFrontmatterError] = useState<string | null>(null)
@@ -3080,8 +3081,12 @@ function App() {
                       tags={noteTags}
                       vaultPath={vault.path}
                     />
-                      <button type="button" className="secondary-button" onClick={() => openFrontmatterPropertyEditor()}>Nova propriedade</button>
-                      <button type="button" className="secondary-button" onClick={openFrontmatterEditor}>YAML completo</button>
+                    </div>
+                    <div id="frontmatter-actions" className={`frontmatter-actions-disclosure${isFrontmatterActionsOpen ? ' is-open' : ''}`} aria-hidden={!isFrontmatterActionsOpen}>
+                      <div className="frontmatter-actions-content">
+                        <button type="button" className="secondary-button" onClick={() => openFrontmatterPropertyEditor()}>Nova propriedade</button>
+                        <button type="button" className="secondary-button" onClick={openFrontmatterEditor}>YAML completo</button>
+                      </div>
                     </div>
                     {frontmatterPropertyEditor ? (
                       <div className="frontmatter-editor frontmatter-property-editor">
@@ -3201,7 +3206,15 @@ function App() {
                       </button>
                     ) : null}
                   </div>
-                  <button type="button" className="editor-disclosure-button" aria-disabled="true" tabIndex={-1} title="Ações adicionais do editor (em breve)" aria-label="Ações adicionais do editor, em breve">
+                  <button
+                    type="button"
+                    className={`editor-disclosure-button${isFrontmatterActionsOpen ? ' is-open' : ''}`}
+                    onClick={() => setFrontmatterActionsOpen((isOpen) => !isOpen)}
+                    title="Ações das propriedades"
+                    aria-label="Ações das propriedades"
+                    aria-controls="frontmatter-actions"
+                    aria-expanded={isFrontmatterActionsOpen}
+                  >
                     <ChevronDown size={16} strokeWidth={1.7} aria-hidden="true" />
                   </button>
                 </div>

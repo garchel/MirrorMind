@@ -21,7 +21,7 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
   const [error, setError] = useState('')
   const triggerRef = useRef<HTMLButtonElement>(null)
 
-  const selectableTags = [...new Set(availableTags)]
+  const selectableTags = [...new Set([...availableTags, ...(policyConfig?.tagRules.map((rule) => rule.tag) ?? [])])]
     .filter((tag) => !tags.includes(tag))
     .sort((left, right) => left.localeCompare(right, 'pt-BR'))
 
@@ -84,7 +84,7 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
           {isLoading ? <p>Carregando tags?</p> : null}
           {error ? <p role="alert">N?o foi poss?vel carregar os detalhes de revis?o.</p> : null}
           {!isLoading && selectableTags.length === 0 ? <p>Nenhuma tag dispon?vel para aplicar.</p> : null}
-          {!isLoading ? selectableTags.map((tag) => (
+          {!isLoading && !error ? selectableTags.map((tag) => (
             <button key={tag} type="button" role="menuitem" onClick={() => { setPendingTag(tag); setOpen(false) }}>
               #{tag}
             </button>
