@@ -3257,6 +3257,16 @@ button:disabled {
   overflow-x: auto;
 }
 
+.workspace-shell .markdown-reading :is(th, td) {
+  border: 1px solid #d9d7d0;
+  padding: 4px 10px;
+}
+
+.workspace-shell .markdown-reading th {
+  background: #efede6;
+  font-weight: 600;
+}
+
 .workspace-shell .markdown-reading.is-line-wrap-disabled,
 .workspace-shell .markdown-reading.is-line-wrap-disabled * {
   overflow-wrap: normal;
@@ -3434,8 +3444,120 @@ button:disabled {
   font-weight: 700;
 }
 
-.markdown-mixed .cm-live-table {
-  padding: 0 4px;
+/* Matematica (KaTeX) renderizada como no modo Leitura: o editor usa fonte de
+   15px, entao ~1.2em aproxima o tamanho do corpo de leitura (18px). */
+.markdown-mixed .cm-live-math {
+  font-size: 1.2em;
+}
+
+.markdown-mixed .cm-live-math-display {
+  display: block;
+  padding: 2px 0;
+  text-align: center;
+}
+
+.markdown-mixed .cm-live-math-display .katex-display {
+  margin: 4px 0;
+}
+
+/* Linhas intermediarias de uma formula multilinha: colapsadas a zero altura. */
+.markdown-mixed .cm-live-math-collapsed {
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Divisor horizontal (---): uma linha grafica como <hr> do modo Leitura. */
+.markdown-mixed .cm-live-hr {
+  width: 100%;
+  height: 2px;
+  margin: 9px 0;
+  border-radius: 2px;
+  background: #d9d7d0;
+}
+
+/* Tabela do modo Misto: um <table> real, com a MESMA aparencia do modo
+   Leitura (a regra compartilhada `.markdown-mixed table` abaixo cuida da
+   grade, do cabecalho e do alinhamento). O widget e largura de leitura
+   centralizada; as celulas sao editaveis inline e nunca revelam o Markdown
+   cru (nem com o cursor dentro da tabela). */
+.markdown-mixed .cm-live-table-wrap {
+  box-sizing: border-box;
+  position: relative;
+  width: min(100%, var(--reading-max-width, 820px));
+  margin-inline: auto;
+  padding: 2px 0;
+}
+
+.markdown-mixed .cm-live-table-wrap table {
+  width: 100%;
+}
+
+/* Bordas redimensionaveis: a inferior altera as linhas, a direita altera as
+   colunas e o canto altera ambas. O cursor muda no hover para indicar que a
+   borda e clicavel/arrastavel. */
+.markdown-mixed .cm-live-table-grip {
+  position: absolute;
+  z-index: 2;
+  touch-action: none;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+.markdown-mixed .cm-live-table-grip[data-grip='row'] {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 9px;
+  cursor: ns-resize;
+}
+
+.markdown-mixed .cm-live-table-grip[data-grip='col'] {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 9px;
+  cursor: ew-resize;
+}
+
+.markdown-mixed .cm-live-table-grip[data-grip='corner'] {
+  right: 0;
+  bottom: 0;
+  width: 17px;
+  height: 17px;
+  cursor: nwse-resize;
+}
+
+.markdown-mixed .cm-live-table-grip:hover,
+.markdown-mixed .cm-live-table-wrap.resizing .cm-live-table-grip {
+  background: rgba(93, 118, 100, 0.16);
+}
+
+.markdown-mixed .cm-live-table-wrap.resizing {
+  user-select: none;
+}
+
+/* Mantem o cursor de redimensionamento enquanto o mouse esta fora da alca
+   (a tabela cresce/encolhe e a alca se reposiciona durante o arrasto). */
+.markdown-mixed .cm-live-table-wrap[data-dragging='row'] {
+  cursor: ns-resize;
+}
+
+.markdown-mixed .cm-live-table-wrap[data-dragging='col'] {
+  cursor: ew-resize;
+}
+
+.markdown-mixed .cm-live-table-wrap[data-dragging='corner'] {
+  cursor: nwse-resize;
+}
+
+/* Celula em edicao: o conteudo cru recebe o foco para digitar. */
+.markdown-mixed .cm-live-table-cell.is-editing {
+  outline: 1px dashed #a89f8d;
+  outline-offset: -1px;
+  border-radius: 2px;
+  background: #fffdf7;
+  cursor: text;
 }
 
 .markdown-mixed .cm-live-fence-content {

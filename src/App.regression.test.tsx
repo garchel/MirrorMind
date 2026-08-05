@@ -317,6 +317,13 @@ describe('Regressao do editor no workspace', () => {
     expect(visibleText).not.toContain('**')
     expect(visibleText).not.toContain('[[')
     expect(visibleText).toContain('Equação Geral')
+
+    // Matematica multilinha ($$...$$) e renderizada com KaTeX, nao crua.
+    expect(document.querySelector('.markdown-mixed .katex')).not.toBeNull()
+    expect(visibleText).not.toContain('$$')
+
+    // O frontmatter YAML inicial permanece cru (inclusive os --- delimitadores).
+    expect(visibleText).toContain('description: Inicial')
   })
 
   it('[nota diaria] cria a nota de hoje pela Command Palette e a abre no workspace', async () => {

@@ -101,6 +101,56 @@ describe('findTreeMaskTokens', () => {
     const mask = findTreeMaskTokens(treeOf(text), docOf(text))
     expect(mask.tokens.some((token) => token.kind === 'bold')).toBe(false)
   })
+
+  it('detecta matematica inline e em bloco (KaTeX)', () => {
+    const text = 'Formula $E = mc^2$ no texto e $$\\int x\\, dx$$ em bloco.'
+    const mask = findTreeMaskTokens(treeOf(text), docOf(text))
+    const math = mask.tokens.filter((token) => token.kind === 'math') as Array<Extract<MaskToken, { kind: 'math' }>>
+    expect(math).toHaveLength(2)
+    const inline = math.find((token) => !token.displayMode)
+    const display = math.find((token) => token.displayMode)
+    expect(text.slice(inline!.from, inline!.to)).toBe('$E = mc^2$')
+    expect(inline!.source).toBe('E = mc^2')
+    expect(text.slice(display!.from, display!.to)).toBe('$$\\int x\\, dx$$')
+  })
+
+  it('detecta matematica em bloco multilinha com um unico token', () => {
+    const text = '$$\n6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\rightarrow \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2\n$$'
+    const mask = findTreeMaskTokens(treeOf(text), docOf(text))
+    const math = mask.tokens.find((token): token is Extract<MaskToken, { kind: 'math' }> => token.kind === 'math')
+    expect(math).toBeTruthy()
+    expect(math!.displayMode).toBe(true)
+    expect(text.slice(math!.from, math!.to)).toBe(text)
+    expect(math!.source).toContain('\\text{CO}_2')
+  })
+
+  it('nao detecta matematica dentro de codigo inline, cercado ou frontmatter', () => {
+    const text = '---\ntags: [$a$]\n---\n\n`$x$`\n\n```\n$y$\n```\n\n$z$'
+    const mask = findTreeMaskTokens(treeOf(text), docOf(text))
+    const math = mask.tokens.filter((token) => token.kind === 'math') as Array<Extract<MaskToken, { kind: 'math' }>>
+    expect(math).toHaveLength(1)
+    expect(math[0].source).toBe('z')
+  })
+
+  it('detecta divisor horizontal (---) como linha grafica', () => {
+    const text = 'Texto\n\n---\n\nOutro'
+    const mask = findTreeMaskTokens(treeOf(text), docOf(text))
+    const hr = mask.tokens.find((token) => token.kind === 'hr')
+    expect(hr).toBeTruthy()
+    expect(text.slice(hr!.from, hr!.to)).toBe('---')
+  })
+
+  it('nao trata heading setext nem frontmatter como divisor horizontal', () => {
+    const setext = 'Titulo\n---'
+    const maskSetext = findTreeMaskTokens(treeOf(setext), docOf(setext))
+    expect(maskSetext.tokens.some((token) => token.kind === 'hr')).toBe(false)
+
+    const fm = '---\ntags: [a, b]\n---\n\n# Titulo'
+    const maskFm = findTreeMaskTokens(treeOf(fm), docOf(fm))
+    expect(maskFm.tokens.some((token) => token.kind === 'hr')).toBe(false)
+    expect(maskFm.frontmatterLines.size).toBe(3)
+    expect(maskFm.tokens.filter((token) => token.kind === 'heading')).toHaveLength(1)
+  })
 })
 
 describe('findMaskTokens (fallback)', () => {

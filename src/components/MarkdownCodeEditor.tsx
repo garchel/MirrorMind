@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 
 import type { ForwardedRef } from 'react'
 import { defaultKeymap, history, historyKeymap, indentLess, indentMore, redo, redoDepth, undo, undoDepth } from '@codemirror/commands'
 import { autocompletion, type CompletionContext } from '@codemirror/autocomplete'
-import { markdown } from '@codemirror/lang-markdown'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
@@ -239,7 +239,9 @@ function MarkdownCodeEditorComponent(
       },
       extensions: [
         history(),
-        markdown({ codeLanguages: languages }),
+        // GFM como base: tabelas, tarefas, riscado e links de autolink ganham
+        // nos na arvore sintatica, a mesma base do modo Leitura (remark-gfm).
+        markdown({ base: markdownLanguage, codeLanguages: languages }),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         search({ top: true }),
         autocompletion({

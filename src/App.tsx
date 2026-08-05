@@ -3488,7 +3488,7 @@ function App() {
                     <MarkdownCodeEditor
                       ref={markdownCodeEditorRef}
                       ariaLabel={`Editor Markdown (Misto) da nota ${activeNote.name.replace(/\.md$/i, '')}`}
-                      documentKey={`${activeNote.relativePath}::misto`}
+                      documentKey={`${activeNote.relativePath}::misto::gfm`}
                       livePreview
                       spellCheck={isSpellCheckEnabled}
                       stateCache={markdownEditorStateCacheRef.current}
@@ -3500,10 +3500,10 @@ function App() {
                       onSessionChange={(session) => {
                         setEditorSessionsByPath((currentSessions) => ({
                           ...currentSessions,
-                          [`${activeNote.relativePath}::misto`]: session,
+                          [`${activeNote.relativePath}::misto::gfm`]: session,
                         }))
                       }}
-                      session={editorSessionsByPath[`${activeNote.relativePath}::misto`]}
+                      session={editorSessionsByPath[`${activeNote.relativePath}::misto::gfm`]}
                     />
                   </section>
                 )}
