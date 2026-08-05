@@ -1,0 +1,258 @@
+.review-dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 26px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.review-dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.review-dashboard-header h2 {
+  margin: 2px 0 4px;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.review-dashboard-header p {
+  margin: 0;
+  color: var(--muted, #6b6a63);
+  font-size: 13.5px;
+  max-width: 54ch;
+}
+
+.review-dashboard-status {
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--muted, #6b6a63);
+  border: 1px dashed var(--border, #dedbd1);
+  border-radius: 12px;
+  font-size: 13.5px;
+}
+
+.review-dashboard-status.is-error {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  color: var(--danger, #b3261e);
+}
+
+.review-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.review-dashboard-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 16px 14px;
+  background: var(--surface, #fdfcf8);
+  border: 1px solid var(--border, #e6e3d8);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.review-dashboard-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.review-dashboard-card-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--accent, #5b6f52);
+  background: color-mix(in srgb, var(--accent, #5b6f52) 12%, transparent);
+}
+
+.review-dashboard-card > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.review-dashboard-card strong {
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.review-dashboard-card > div > span {
+  color: var(--muted, #6b6a63);
+  font-size: 12.5px;
+}
+
+.review-dashboard-card small {
+  color: var(--muted, #6b6a63);
+  font-size: 11.5px;
+}
+
+.review-dashboard-deadlines {
+  padding: 16px 18px 18px;
+  background: var(--surface, #fdfcf8);
+  border: 1px solid var(--border, #e6e3d8);
+  border-radius: 14px;
+}
+
+.review-dashboard-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.review-dashboard-section-heading h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.review-dashboard-section-heading > span {
+  color: var(--muted, #6b6a63);
+  font-size: 12px;
+}
+
+.review-dashboard-deadlines-empty {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--border, #dedbd1);
+  border-radius: 10px;
+  color: var(--muted, #6b6a63);
+  font-size: 13px;
+  text-align: center;
+}
+
+.review-dashboard-deadline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-dashboard-deadline-list li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border, #efede4);
+}
+
+.review-dashboard-deadline-list li:last-child {
+  border-bottom: none;
+}
+
+.review-dashboard-deadline-date {
+  flex: 0 0 auto;
+  min-width: 92px;
+  padding: 6px 10px;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent, #5b6f52) 10%, transparent);
+  color: var(--accent-strong, #3f5239);
+}
+
+.review-dashboard-deadline-date.is-urgent {
+  background: color-mix(in srgb, var(--danger, #b3261e) 12%, transparent);
+  color: var(--danger, #b3261e);
+}
+
+.review-dashboard-deadline-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.review-dashboard-deadline-copy strong {
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-dashboard-deadline-copy small {
+  color: var(--muted, #6b6a63);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-dashboard-deadline-open {
+  flex: 0 0 auto;
+}
+
+.review-dashboard-forecast {
+  padding: 16px 18px 18px;
+  background: var(--surface, #fdfcf8);
+  border: 1px solid var(--border, #e6e3d8);
+  border-radius: 14px;
+}
+
+.review-dashboard-forecast-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.review-dashboard-forecast-list li {
+  display: grid;
+  grid-template-columns: 64px 1fr 34px;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-dashboard-forecast-day {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #6b6a63);
+}
+
+.review-dashboard-forecast-list li.is-today .review-dashboard-forecast-day {
+  color: var(--accent-strong, #3f5239);
+}
+
+.review-dashboard-forecast-track {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #5b6f52) 9%, #efede4);
+  overflow: hidden;
+}
+
+.review-dashboard-forecast-bar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #5b6f52) 55%, #e3e1d8);
+  transition: width 300ms ease;
+}
+
+.review-dashboard-forecast-list li.is-today .review-dashboard-forecast-bar {
+  background: var(--accent, #5b6f52);
+}
+
+.review-dashboard-forecast-count {
+  font-size: 13px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

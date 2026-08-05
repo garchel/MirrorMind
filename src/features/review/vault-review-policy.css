@@ -1,0 +1,186 @@
+.vault-review-policy-settings {
+  gap: 14px;
+}
+
+.vault-review-policy-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.vault-review-policy-heading p,
+.vault-review-policy-heading small,
+.vault-review-policy-confirmation p {
+  margin: 0;
+}
+
+.vault-review-policy-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.vault-review-policy-heading > span {
+  color: var(--muted, #706d66);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vault-review-policy-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.vault-review-policy-presets button {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-height: 74px;
+  padding: 10px 11px;
+  text-align: left;
+}
+
+.vault-review-policy-presets small,
+.vault-review-policy-heading small {
+  color: var(--muted, #706d66);
+  line-height: 1.35;
+}
+
+.vault-review-policy-advanced {
+  border-top: 1px solid var(--border, #d8d4ca);
+  border-bottom: 1px solid var(--border, #d8d4ca);
+  padding: 11px 0;
+}
+
+.vault-review-policy-advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.vault-review-policy-advanced > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin-top: 12px;
+}
+
+.vault-review-policy-advanced label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted, #706d66);
+  font-size: 12px;
+}
+
+.vault-review-policy-advanced input {
+  min-height: 34px;
+  box-sizing: border-box;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--surface, #fffdf8);
+  color: var(--text, #24231f);
+  font: inherit;
+}
+
+.vault-review-policy-confirmation {
+  display: grid;
+  gap: 12px;
+  border-left: 3px solid var(--accent, #738979);
+  padding: 11px 12px;
+  background: rgb(115 137 121 / 9%);
+}
+
+.vault-review-policy-confirmation > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.vault-review-policy-success {
+  margin: 0;
+  color: var(--success, #3e7550);
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .vault-review-policy-presets,
+  .vault-review-policy-advanced > div {
+    grid-template-columns: 1fr;
+  }
+}
+.vault-tag-policy-settings {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--border, #d8d4ca);
+  padding-top: 14px;
+}
+
+.vault-tag-policy-list {
+  display: grid;
+  gap: 10px;
+}
+
+.vault-tag-policy-rule {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 8px;
+  padding: 11px;
+}
+
+.vault-tag-policy-rule-heading {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, auto) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.vault-tag-policy-rule label,
+.vault-tag-policy-fields label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted, #706d66);
+  font-size: 12px;
+}
+
+.vault-tag-policy-rule input:not([type='checkbox']) {
+  min-height: 34px;
+  box-sizing: border-box;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--surface, #fffdf8);
+  color: var(--text, #24231f);
+  font: inherit;
+}
+
+.vault-tag-policy-checkbox {
+  display: flex !important;
+  min-height: 34px;
+  align-items: center;
+  grid-auto-flow: column;
+  justify-content: start;
+}
+
+.vault-tag-policy-rule summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vault-tag-policy-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+@media (max-width: 720px) {
+  .vault-tag-policy-rule-heading,
+  .vault-tag-policy-fields {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "identifier": "com.mirrormind.desktop.e2e",
+  "build": {
+    "beforeBuildCommand": "vite build --mode e2e"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": [
+        "default",
+        {
+          "identifier": "e2e-automation",
+          "description": "Test-only WebdriverIO permissions for the dedicated E2E build.",
+          "windows": ["main"],
+          "permissions": ["wdio:default", "wdio-webdriver:default"]
+        }
+      ]
+    }
+  }
+}

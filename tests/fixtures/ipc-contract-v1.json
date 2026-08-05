@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "limits": {
+    "obsidianPreferenceUtf16Units": 1024,
+    "obsidianIgnoreFilters": 256,
+    "specialVaultFiles": 500
+  },
+  "current": {
+    "vaultSummary": {
+      "name": "Estudos",
+      "path": "C:\\Vaults\\Estudos",
+      "noteCount": 2,
+      "notePreviews": [
+        { "name": "aula.md", "relativePath": "notas/aula.md" },
+        { "name": "projeto.md", "relativePath": "projetos/projeto.md" }
+      ],
+      "isObsidianVault": true,
+      "obsidianPreferences": {
+        "newFileLocation": "folder",
+        "newFileFolderPath": "notas",
+        "attachmentFolderPath": "./media",
+        "newLinkFormat": "relative",
+        "useMarkdownLinks": true,
+        "alwaysUpdateLinks": false,
+        "showUnsupportedFiles": true,
+        "promptDelete": false,
+        "trashOption": "local",
+        "userIgnoreFilters": ["Arquivo/"]
+      },
+      "metadata": {
+        "isInitialized": true,
+        "rootPath": "C:\\Vaults\\Estudos\\.mirmind",
+        "missing": []
+      }
+    },
+    "partiallyNullableVaultSummary": {
+      "name": "Estudos com preferencias parciais",
+      "path": "C:\\Vaults\\Estudos",
+      "noteCount": 2,
+      "notePreviews": [
+        { "name": "aula.md", "relativePath": "notas/aula.md" },
+        { "name": "projeto.md", "relativePath": "projetos/projeto.md" }
+      ],
+      "isObsidianVault": true,
+      "obsidianPreferences": {
+        "newFileLocation": null,
+        "newFileFolderPath": null,
+        "attachmentFolderPath": null,
+        "newLinkFormat": null,
+        "useMarkdownLinks": null,
+        "alwaysUpdateLinks": null,
+        "showUnsupportedFiles": null,
+        "promptDelete": null,
+        "trashOption": null,
+        "userIgnoreFilters": []
+      },
+      "metadata": {
+        "isInitialized": true,
+        "rootPath": "C:\\Vaults\\Estudos\\.mirmind",
+        "missing": []
+      }
+    },    "nullableVaultSummary": {
+      "name": "Estudos sem preferencias",
+      "path": "C:\\Vaults\\Estudos",
+      "noteCount": 2,
+      "notePreviews": [
+        { "name": "aula.md", "relativePath": "notas/aula.md" },
+        { "name": "projeto.md", "relativePath": "projetos/projeto.md" }
+      ],
+      "isObsidianVault": true,
+      "obsidianPreferences": null,
+      "metadata": {
+        "isInitialized": true,
+        "rootPath": "C:\\Vaults\\Estudos\\.mirmind",
+        "missing": []
+      }
+    },
+    "noteDocument": {
+      "name": "aula.md",
+      "relativePath": "notas/aula.md",
+      "content": "# Aula\n\nConteudo"
+    },
+    "noteList": [
+      { "name": "aula.md", "relativePath": "notas/aula.md" },
+      { "name": "projeto.md", "relativePath": "projetos/projeto.md" }
+    ],
+    "specialVaultInventory": {
+      "files": [
+        {
+          "name": "Mapa.canvas",
+          "relativePath": "diagramas/Mapa.canvas",
+          "kind": "canvas"
+        }
+      ],
+      "truncated": false
+    },
+    "recentVaultPreference": {
+      "lastVaultPath": "C:\\Vaults\\Estudos",
+      "askBeforeReopen": true
+    },
+    "nullableRecentVaultPreference": {
+      "lastVaultPath": null,
+      "askBeforeReopen": true
+    },
+    "historyStatus": {
+      "canUndo": true,
+      "canRedo": false
+    },
+    "watcherEvents": [
+      { "requestId": 7, "kind": "create", "paths": ["notas/nova.md"] },
+      { "requestId": 7, "kind": "modify", "paths": ["notas/aula.md"] },
+      { "requestId": 7, "kind": "remove", "paths": ["notas/antiga.md"] },
+      { "requestId": 7, "kind": "rename", "paths": ["notas/origem.md", "notas/destino.md"] },
+      { "requestId": 7, "kind": "rescan", "paths": [] }
+    ]
+  },
+  "legacy": {
+    "vaultSummaryWithoutObsidianPreferences": {
+      "name": "Vault legado",
+      "path": "C:\\Vaults\\Estudos",
+      "noteCount": 2,
+      "notePreviews": [
+        { "name": "aula.md", "relativePath": "notas/aula.md" },
+        { "name": "projeto.md", "relativePath": "projetos/projeto.md" }
+      ],
+      "isObsidianVault": true,
+      "metadata": {
+        "isInitialized": true,
+        "rootPath": "C:\\Vaults\\Estudos\\.mirmind",
+        "missing": []
+      }
+    }
+  }
+}
