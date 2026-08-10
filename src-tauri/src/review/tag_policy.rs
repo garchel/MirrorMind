@@ -1,4 +1,4 @@
-use super::contract::{LearningDocument, PolicySource, PolicySourceKind, ReviewPolicy};
+use super::contract::{LearningDocument, PolicySource, PolicySourceKind, ReviewMode, ReviewPolicy};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -14,11 +14,18 @@ pub struct TagReviewPolicyRule {
     pub min_interval_days: u64,
     pub max_interval_days: u64,
     pub deadline_at_unix_ms: Option<u64>,
+    /// Modo de revisao que a tag transmite para as notas correspondentes
+    /// (None = a tag nao dita o modo; a nota usa o proprio ou o padrao Prova).
+    #[serde(default)]
+    pub preferred_mode: Option<ReviewMode>,
 }
 
 pub struct InheritedReviewPolicy {
     pub policy: ReviewPolicy,
     pub auto_enrollment_tag_ids: Vec<String>,
+    /// Modo de revisao ditado pelas tags correspondentes (None quando nenhuma
+    /// tag configura preferencia), respeitando a mesma precedencia da politica.
+    pub preferred_mode: Option<ReviewMode>,
 }
 
 pub fn default_tag_review_rules() -> Vec<TagReviewPolicyRule> {
@@ -32,6 +39,7 @@ pub fn default_tag_review_rules() -> Vec<TagReviewPolicyRule> {
             min_interval_days: 1,
             max_interval_days: 90,
             deadline_at_unix_ms: None,
+            preferred_mode: Some(ReviewMode::Exam),
         },
         TagReviewPolicyRule {
             tag: "revisao/manter".to_string(),
@@ -42,6 +50,7 @@ pub fn default_tag_review_rules() -> Vec<TagReviewPolicyRule> {
             min_interval_days: 1,
             max_interval_days: 365,
             deadline_at_unix_ms: None,
+            preferred_mode: None,
         },
         TagReviewPolicyRule {
             tag: "revisao/leve".to_string(),
@@ -52,6 +61,7 @@ pub fn default_tag_review_rules() -> Vec<TagReviewPolicyRule> {
             min_interval_days: 3,
             max_interval_days: 730,
             deadline_at_unix_ms: None,
+            preferred_mode: None,
         },
     ]
 }
@@ -81,6 +91,13 @@ pub fn resolve_inherited_review_policy(
         .map(|rule| rule.tag.clone())
         .collect();
 
+    // O modo herdado segue a mesma precedencia da politica: a tag de prazo
+    // ativo dita sozinha; na ausencia dela, entre tags sem prazo vence a de
+    // maior prioridade que tenha preferencia; sem tags sem prazo, a tag de
+    // prazo encerrado mais recente dita; sem nenhuma, None (a nota usa o
+    // proprio modo ou o padrao Prova).
+    let mut preferred_mode: Option<ReviewMode> = None;
+
     if let Some(active) = matching_rules
         .iter()
         .copied()
@@ -98,6 +115,7 @@ pub fn resolve_inherited_review_policy(
         };
         policy.sources.deadline_at_unix_ms = Some(source.clone());
         policy.sources.active_deadline = Some(source);
+        preferred_mode = active.preferred_mode.clone();
     } else {
         let no_deadline_rules: Vec<&&TagReviewPolicyRule> = matching_rules
             .iter()
@@ -107,6 +125,7 @@ pub fn resolve_inherited_review_policy(
             for (index, rule) in no_deadline_rules.iter().enumerate() {
                 compose_strictest_fields(&mut policy, rule, index);
             }
+            preferred_mode = pick_tag_mode(no_deadline_rules.iter().map(|rule| **rule));
         } else if let Some(expired) = matching_rules
             .iter()
             .copied()
@@ -123,6 +142,7 @@ pub fn resolve_inherited_review_policy(
                 source_id: Some(expired.tag.clone()),
             });
             policy.sources.active_deadline = None;
+            preferred_mode = expired.preferred_mode.clone();
         }
     }
 
@@ -132,7 +152,27 @@ pub fn resolve_inherited_review_policy(
     Ok(InheritedReviewPolicy {
         policy,
         auto_enrollment_tag_ids,
+        preferred_mode,
     })
+}
+
+/// Modo herdado entre tags do mesmo nivel: a tag com preferencia de maior
+/// prioridade dita o modo; empate mantem a primeira na ordem da configuracao.
+fn pick_tag_mode<'a>(rules: impl Iterator<Item = &'a TagReviewPolicyRule>) -> Option<ReviewMode> {
+    let mut best: Option<(f64, ReviewMode)> = None;
+    for rule in rules {
+        let Some(mode) = rule.preferred_mode.clone() else {
+            continue;
+        };
+        let replaces = match &best {
+            Some((weight, _)) => rule.priority_weight > *weight,
+            None => true,
+        };
+        if replaces {
+            best = Some((rule.priority_weight, mode));
+        }
+    }
+    best.map(|(_, mode)| mode)
 }
 
 /// Aplica todos os campos de uma regra que define sozinha a politica (prazo
@@ -195,6 +235,7 @@ pub fn apply_inherited_review_policy(
     let before = serde_json::to_vec(&(
         &document.effective_policy,
         &document.note.enrollment.inherited_from_tag_ids,
+        &document.note.enrollment.preferred_mode,
     ))?;
     let inherited_policy = inherited.policy;
     if !matches!(
@@ -253,10 +294,22 @@ pub fn apply_inherited_review_policy(
             inherited_policy.sources.active_deadline.clone();
     }
     document.note.enrollment.inherited_from_tag_ids = inherited.auto_enrollment_tag_ids;
+    // Preferencia de modo herdada das tags: vale somente quando a nota nao
+    // definiu a propria (mode_manual = false). Sem tag ditando modo, a nota
+    // preserva o modo atual — escolhas feitas antes da feature (ou o padrao
+    // Prova) nunca sao sobrescritas silenciosamente.
+    if !document.note.enrollment.mode_manual {
+        if let Some(inherited_mode) = inherited.preferred_mode {
+            if document.note.enrollment.preferred_mode != inherited_mode {
+                document.note.enrollment.preferred_mode = inherited_mode;
+            }
+        }
+    }
     document.effective_policy.validate()?;
     let after = serde_json::to_vec(&(
         &document.effective_policy,
         &document.note.enrollment.inherited_from_tag_ids,
+        &document.note.enrollment.preferred_mode,
     ))?;
     Ok(before != after)
 }
@@ -279,6 +332,7 @@ mod tests {
             min_interval_days: 1,
             max_interval_days: 365,
             deadline_at_unix_ms: deadline,
+            preferred_mode: None,
         }
     }
 
@@ -502,6 +556,84 @@ mod tests {
             Some("prova-passada")
         );
         assert!(resolved.policy.sources.active_deadline.is_none());
+    }
+
+    #[test]
+    fn the_highest_priority_no_deadline_tag_dictates_the_inherited_mode() {
+        let now = 1_730_000_000_000;
+        let mut low = rule("revisao/leve", None);
+        low.priority_weight = 1.0;
+        low.preferred_mode = Some(crate::review::contract::ReviewMode::Exam);
+        let mut high = rule("revisao/prova", None);
+        high.priority_weight = 9.0;
+        high.preferred_mode = Some(crate::review::contract::ReviewMode::Conversation);
+
+        let resolved = resolve_inherited_review_policy(
+            defaults(),
+            &[low, high],
+            "# Titulo #revisao/leve #revisao/prova",
+            now,
+        )
+        .expect("resolve modes");
+
+        assert_eq!(
+            resolved.preferred_mode,
+            Some(crate::review::contract::ReviewMode::Conversation)
+        );
+    }
+
+    #[test]
+    fn tags_without_a_mode_preference_do_not_dictate_the_mode() {
+        let now = 1_730_000_000_000;
+        let resolved = resolve_inherited_review_policy(
+            defaults(),
+            &[rule("revisao/leve", None), rule("revisao/manter", None)],
+            "# Titulo #revisao/leve #revisao/manter",
+            now,
+        )
+        .expect("resolve without mode");
+
+        assert_eq!(resolved.preferred_mode, None);
+    }
+
+    #[test]
+    fn an_active_deadline_tag_dictates_the_inherited_mode() {
+        let now = 1_730_000_000_000;
+        let mut active = rule("prova-ativa", Some(now + 3 * DAY_MS));
+        active.preferred_mode = Some(crate::review::contract::ReviewMode::Conversation);
+        let mut stronger_no_deadline = rule("revisao/manter", None);
+        stronger_no_deadline.priority_weight = 10.0;
+        stronger_no_deadline.preferred_mode = Some(crate::review::contract::ReviewMode::Exam);
+
+        let resolved = resolve_inherited_review_policy(
+            defaults(),
+            &[active, stronger_no_deadline],
+            "# Titulo #prova-ativa #revisao/manter",
+            now,
+        )
+        .expect("resolve active deadline mode");
+
+        // A tag de prazo ativo define sozinha a politica e tambem o modo.
+        assert_eq!(
+            resolved.preferred_mode,
+            Some(crate::review::contract::ReviewMode::Conversation)
+        );
+    }
+
+    #[test]
+    fn an_expired_deadline_tag_dictates_the_mode_when_no_no_deadline_tag_exists() {
+        let now = 1_730_000_000_000;
+        let mut expired = rule("prova-passada", Some(now - 2 * DAY_MS));
+        expired.preferred_mode = Some(crate::review::contract::ReviewMode::Conversation);
+
+        let resolved =
+            resolve_inherited_review_policy(defaults(), &[expired], "# Titulo #prova-passada", now)
+                .expect("resolve expired mode");
+
+        assert_eq!(
+            resolved.preferred_mode,
+            Some(crate::review::contract::ReviewMode::Conversation)
+        );
     }
 
     #[test]

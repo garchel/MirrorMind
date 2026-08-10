@@ -20,10 +20,33 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
   const [pendingTag, setPendingTag] = useState<string | null>(null)
   const [error, setError] = useState('')
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const pickerRef = useRef<HTMLDivElement>(null)
 
   const selectableTags = [...new Set([...availableTags, ...(policyConfig?.tagRules.map((rule) => rule.tag) ?? [])])]
     .filter((tag) => !tags.includes(tag))
     .sort((left, right) => left.localeCompare(right, 'pt-BR'))
+
+  // Fecha o menu ao clicar fora do componente ou pressionar Escape.
+  useEffect(() => {
+    if (!isOpen) return
+    function closeOnOutside(event: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    window.addEventListener('mousedown', closeOnOutside)
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      window.removeEventListener('mousedown', closeOnOutside)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -65,7 +88,7 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
   }
 
   return (
-    <div className="note-tag-picker">
+    <div className="note-tag-picker" ref={pickerRef}>
       <button
         ref={triggerRef}
         type="button"
@@ -74,9 +97,10 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-label="Tags associadas a nota"
+        title="Adicionar ou remover tags"
       >
-        <span>Tags</span>
-        <ChevronDown size={13} aria-hidden="true" />
+        <span>tags:</span>
+        <ChevronDown size={12} aria-hidden="true" className="note-tag-picker-chevron" />
       </button>
 
       {isOpen ? (

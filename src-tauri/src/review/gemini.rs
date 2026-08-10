@@ -28,7 +28,7 @@ impl GeminiProvider {
     }
 
     #[cfg(test)]
-    fn for_test(endpoint: String, api_key: String) -> Self {
+    pub(crate) fn for_test(endpoint: String, api_key: String) -> Self {
         Self::with_endpoint(endpoint, api_key).expect("valid test Gemini provider")
     }
 

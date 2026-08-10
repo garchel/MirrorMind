@@ -90,8 +90,8 @@ Usar WebdriverIO com o servico oficial para Tauri e driver embedded. Cada teste 
 
 | Jornada | Estado | Criterio de conclusao |
 | --- | --- | --- |
-| Renomear e mover com links | Em validacao | A implementacao usa uma raiz isolada para renomear e mover nota/pasta pela interface, validar wikilinks, caminhos, bytes no NTFS e salvar pelas abas remapeadas; um segundo processo reabre somente os caminhos finais. O Gate 2 da versao reforcada aguarda nova execucao E2E por limite temporario da plataforma. |
-| Lixeira e restauracao | Planejado | Exclui, restaura e confirma que nenhum item existente foi sobrescrito. |
+| Renomear e mover com links | Implementado | A implementacao usa uma raiz isolada para renomear e mover nota/pasta pela interface, validar wikilinks, caminhos, bytes no NTFS e salvar pelas abas remapeadas; um segundo processo reabre somente os caminhos finais. O Gate 2 foi concluido: os seletores foram atualizados para a estrutura atual do editor (controle de modo virou radiogroup, clique no titulo abriria o rename inline) e a digitacao no CodeMirror usa foco + selecionar tudo + digitar com espera do conteudo refletido antes do Ctrl+S. |
+| Lixeira e restauracao | Implementado | Exclui nota pela interface (menu de contexto + confirmacao), lista na pagina da lixeira, restaura com os bytes originais e confirma que nenhum item existente foi sobrescrito: com um arquivo novo no caminho original, a restauracao recusa (erro exibido) e preserva o arquivo; depois que o conflito e resolvido, a restauracao devolve os bytes e limpa o registro. Um segundo processo reabre e confirma os bytes restaurados sem itens remanescentes. |
 | Mudanca externa e conflito | Planejado | Modifica/remove arquivo fora do app e valida reconciliacao, preservacao do rascunho e escolha do usuario. |
 
 ### Marco 6: Promessas centrais do produto

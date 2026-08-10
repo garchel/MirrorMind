@@ -1,0 +1,164 @@
+/* Componentes no padrao do shadcn/ui, adaptados ao CSS plain do projeto
+   (sem Tailwind). As classes sao prefixadas com `ui-` para nao colidir. */
+
+/* --- Badge --------------------------------------------------------------- */
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font: 11px/1.2 var(--sans);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  /* Mais transparente por padrao: nao rouba a atencao. */
+  opacity: 0.62;
+  transition: opacity 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.ui-badge:hover {
+  opacity: 1;
+}
+
+.ui-badge-default {
+  background: var(--button-bg, #1c2427);
+  color: var(--button-text, #f7f2e7);
+}
+
+.ui-badge-secondary {
+  background: #ecebe5;
+  border-color: rgba(28, 36, 39, 0.1);
+  color: #686861;
+}
+
+.ui-badge-outline {
+  background: transparent;
+  border-color: rgba(28, 36, 39, 0.22);
+  color: var(--text, #4d5048);
+}
+
+.ui-badge-destructive {
+  background: var(--danger, #9a3b23);
+  color: #fdfbf5;
+}
+
+/* --- Popover ------------------------------------------------------------- */
+
+.ui-popover-content {
+  z-index: 60;
+  min-width: 260px;
+  max-width: min(92vw, 440px);
+  padding: 10px;
+  border: 1px solid rgba(28, 36, 39, 0.2);
+  border-radius: 10px;
+  background: #fdfbf5;
+  box-shadow: 0 12px 32px rgba(56, 44, 18, 0.18);
+  outline: none;
+  animation: ui-popover-in 130ms ease-out;
+}
+
+.ui-popover-content[data-state='closed'] {
+  animation: none;
+}
+
+@keyframes ui-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- Drawer (vaul) ------------------------------------------------------- */
+
+.ui-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgb(28 36 39 / 38%);
+}
+
+.ui-drawer-content {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 71;
+  max-height: 76vh;
+  margin: 0 auto;
+  padding: 16px 20px 22px;
+  border: 1px solid rgb(28 36 39 / 12%);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  background: #fbfaf6;
+  box-shadow: 0 -16px 44px rgb(44 54 45 / 20%);
+  outline: none;
+  overflow: auto;
+}
+
+/* Drawer lateral (direction="right"): coluna fixa na direita, altura total. */
+.ui-drawer-content[data-vaul-drawer-direction='right'] {
+  top: 0;
+  bottom: 0;
+  left: auto;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(372px, 94vw);
+  max-height: none;
+  height: 100%;
+  margin: 0;
+  padding: 18px 18px 16px;
+  border: 1px solid rgb(28 36 39 / 12%);
+  border-right: none;
+  border-radius: 16px 0 0 16px;
+  box-shadow: -18px 0 48px rgb(44 54 45 / 22%);
+}
+
+.ui-drawer-content[data-vaul-drawer-direction='right'] .ui-drawer-handle {
+  position: absolute;
+  top: 50%;
+  left: -1px;
+  width: 4px;
+  height: 46px;
+  margin: 0;
+  border-radius: 999px;
+  transform: translateY(-50%);
+}
+
+.ui-drawer-handle {
+  width: 44px;
+  height: 5px;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  background: rgb(28 36 39 / 24%);
+}
+
+.ui-drawer-header {
+  display: grid;
+  gap: 4px;
+}
+
+.ui-drawer-title {
+  margin: 0;
+  color: #20201e;
+  font: 600 17px/1.3 var(--sans);
+}
+
+.ui-drawer-description {
+  margin: 0;
+  color: #73736d;
+  font-size: 12px;
+}
+
+.ui-drawer-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}

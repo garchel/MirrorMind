@@ -74,6 +74,17 @@ describe('NoteTagPicker', () => {
     expect(onApply).toHaveBeenCalledWith('estudo')
   })
 
+  it('fecha o menu ao clicar fora do componente', async () => {
+    const user = userEvent.setup()
+    render(<NoteTagPicker availableTags={['existente']} onApply={vi.fn()} relativePath="nota.md" tags={[]} vaultPath="C:\\Vault" />)
+
+    await user.click(screen.getByRole('button', { name: 'Tags associadas a nota' }))
+    expect(await screen.findByRole('menu', { name: 'Tags existentes' })).toBeInTheDocument()
+
+    await user.click(document.body)
+    expect(screen.queryByRole('menu', { name: 'Tags existentes' })).not.toBeInTheDocument()
+  })
+
   it('bloqueia a selecao enquanto os detalhes da revisao nao podem ser carregados', async () => {
     const user = userEvent.setup()
     getVaultReviewPolicyConfigMock.mockRejectedValueOnce(new Error('falha'))

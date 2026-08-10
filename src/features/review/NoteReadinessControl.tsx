@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { CalendarCheck2, FileCheck2, X } from 'lucide-react'
+import { CalendarCheck2, ChartColumnBig, Check, NotebookPen, RotateCcw, Search, X } from 'lucide-react'
 import 'katex/dist/katex.min.css'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
@@ -9,6 +9,7 @@ import remarkMath from 'remark-math'
 import {
   assessNoteReadiness,
   getNoteReviewState,
+  resetNoteLearning,
   reviewAiErrorMessage,
   setNoteReviewEnrollment,
 } from './ai'
@@ -22,6 +23,18 @@ type NoteReadinessControlProps = {
   sourceRevision: string
   isDirty: boolean
   disabled?: boolean
+  /** Notifica o estado de prontidao mais recente (para indicadores externos). */
+  onStatusChange?: (readiness: NoteReviewState['readiness'] | null) => void
+  /** Informacoes necessarias para abrir uma sessao de revisao da nota. */
+  onStartReview?: (info: ReviewStartInfo | null) => void
+}
+
+/** Dados minimos para construir um item de revisao imediata ("Fazer revisao agora"). */
+export type ReviewStartInfo = {
+  noteId: string
+  preferredMode: 'exam' | 'conversation'
+  nextReviewAtUnixMs: number | null
+  firstReviewAtUnixMs: number | null
 }
 
 type AssessmentIdentity = {
@@ -47,9 +60,10 @@ const STATUS_LABELS = {
   insufficient: 'Insuficiente',
 } as const
 
-const PERSISTED_STATUS_LABELS = {
+/** Rotulos do badge unificado de status ("Status: ..."). */
+const STATUS_BADGE_LABELS = {
   unassessed: 'Não avaliada',
-  ready: 'Pronta',
+  ready: 'Nota validada',
   ambiguous: 'Ambígua',
   insufficient: 'Insuficiente',
   modified: 'Alterada',
@@ -61,6 +75,8 @@ export function NoteReadinessControl({
   sourceRevision,
   isDirty,
   disabled = false,
+  onStatusChange,
+  onStartReview,
 }: NoteReadinessControlProps) {
   const { provider, geminiConsent } = useReviewAiSettings()
   const [attempt, setAttempt] = useState<ReadinessAttempt | null>(null)
@@ -70,11 +86,15 @@ export function NoteReadinessControl({
   const [enrollmentBusy, setEnrollmentBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
+  const [resetBusy, setResetBusy] = useState(false)
+  const [resetError, setResetError] = useState('')
   const requestGenerationRef = useRef(0)
   const stateGenerationRef = useRef(0)
   const triggerButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useRef<HTMLElement>(null)
+  const resetDialogRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     requestGenerationRef.current += 1
@@ -86,6 +106,9 @@ export function NoteReadinessControl({
     setBusy(false)
     setEnrollmentBusy(false)
     setError('')
+    setResetConfirmOpen(false)
+    setResetBusy(false)
+    setResetError('')
     if (isDirty) {
       setStateLoading(false)
       return
@@ -111,6 +134,10 @@ export function NoteReadinessControl({
   useEffect(() => {
     if (attempt) closeButtonRef.current?.focus()
   }, [attempt])
+
+  useEffect(() => {
+    onStatusChange?.(reviewState?.readiness ?? null)
+  }, [onStatusChange, reviewState])
 
   const consentMissing = provider === 'gemini' && !geminiConsent
   const unavailableReason = isDirty
@@ -148,22 +175,87 @@ export function NoteReadinessControl({
     }
   }
 
-  async function toggleEnrollment() {
-    if (!reviewState || (reviewState.readiness !== 'ready' && !reviewState.enrolled)) return
+  /** Abre uma revisao imediata; se a nota estiver pronta mas nao inscrita,
+   *  ativa a inscricao automaticamente antes de iniciar a sessao. */
+  async function startReviewNow() {
+    if (!reviewState || reviewState.readiness !== 'ready') return
     const generation = stateGenerationRef.current
-    setEnrollmentBusy(true)
-    setError('')
+    let startInfo: ReviewStartInfo = {
+      noteId: reviewState.noteId,
+      preferredMode: reviewState.preferredMode,
+      nextReviewAtUnixMs: reviewState.nextReviewAtUnixMs,
+      firstReviewAtUnixMs: reviewState.firstReviewAtUnixMs,
+    }
+    if (!reviewState.enrolled) {
+      setEnrollmentBusy(true)
+      setError('')
+      try {
+        const state = await setNoteReviewEnrollment({ vaultPath, relativePath, enabled: true })
+        if (stateGenerationRef.current !== generation) return
+        setReviewState(state)
+        startInfo = {
+          noteId: state.noteId,
+          preferredMode: state.preferredMode,
+          nextReviewAtUnixMs: state.nextReviewAtUnixMs,
+          firstReviewAtUnixMs: state.firstReviewAtUnixMs,
+        }
+      } catch (cause) {
+        if (stateGenerationRef.current === generation) setError(reviewAiErrorMessage(cause))
+        return
+      } finally {
+        if (stateGenerationRef.current === generation) setEnrollmentBusy(false)
+      }
+    }
+    // Se a nota mudou durante a inscricao, nao inicia a sessao com dados antigos.
+    if (stateGenerationRef.current !== generation) return
+    onStartReview?.(startInfo)
+  }
+
+  async function performReset() {
+    const generation = stateGenerationRef.current
+    setResetBusy(true)
+    setResetError('')
     try {
-      const state = await setNoteReviewEnrollment({
-        vaultPath,
-        relativePath,
-        enabled: !reviewState.enrolled,
-      })
-      if (stateGenerationRef.current === generation) setReviewState(state)
+      const state = await resetNoteLearning({ vaultPath, relativePath })
+      if (stateGenerationRef.current !== generation) return
+      setReviewState(state)
+      setResetConfirmOpen(false)
+      triggerButtonRef.current?.focus()
     } catch (cause) {
-      if (stateGenerationRef.current === generation) setError(reviewAiErrorMessage(cause))
+      if (stateGenerationRef.current === generation) setResetError(reviewAiErrorMessage(cause))
     } finally {
-      if (stateGenerationRef.current === generation) setEnrollmentBusy(false)
+      if (stateGenerationRef.current === generation) setResetBusy(false)
+    }
+  }
+
+  function closeResetConfirm() {
+    if (resetBusy) return
+    setResetConfirmOpen(false)
+    setResetError('')
+    triggerButtonRef.current?.focus()
+  }
+
+  function handleResetKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
+    if (event.key === 'Escape') {
+      if (!resetBusy) {
+        event.preventDefault()
+        closeResetConfirm()
+      }
+      return
+    }
+    if (event.key !== 'Tab') return
+    const focusable = resetDialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), [tabindex]:not([tabindex="-1"])',
+    )
+    if (!focusable?.length) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
     }
   }
 
@@ -210,24 +302,34 @@ export function NoteReadinessControl({
 
   return (
     <>
-      {reviewState ? (
-        <span className={`note-readiness-state is-${reviewState.readiness}`} role="status">
-          {PERSISTED_STATUS_LABELS[reviewState.readiness]}
-        </span>
-      ) : null}
-      {reviewState && (reviewState.readiness === 'ready' || reviewState.enrolled) ? (
-        <button
-          type="button"
-          className={`secondary-button note-review-enrollment${reviewState.enrolled ? ' is-active' : ''}`}
-          onClick={() => void toggleEnrollment()}
-          disabled={disabled || isDirty || enrollmentBusy}
-          aria-label={reviewState.enrolled ? 'Pausar revisões espaçadas' : 'Ativar revisões espaçadas'}
-          title={reviewState.enrolled ? 'Pausar revisões desta nota' : 'Ativar revisões desta nota'}
-        >
-          <CalendarCheck2 size={15} strokeWidth={1.5} aria-hidden="true" />
-          <span>{enrollmentBusy ? 'Salvando...' : reviewState.enrolled ? 'Revisão ativa' : 'Ativar revisões'}</span>
-        </button>
-      ) : null}
+      {/* Cartao de status (sempre presente no menu): estado da nota + proxima
+          revisao, agrupados para o layout em bento do popover. */}
+      <div className="note-readiness-status-card">
+        {!stateLoading ? (
+          isDirty ? (
+            <span className="note-readiness-state is-unassessed" role="status">Status: Alterações não salvas</span>
+          ) : reviewState ? (
+            <span className={`note-readiness-state is-${reviewState.readiness}`} role="status">
+              {reviewState.readiness === 'ready' ? (
+                <span className="note-readiness-state-check" aria-hidden="true"><Check size={11} strokeWidth={3} /></span>
+              ) : null}
+              Status: {STATUS_BADGE_LABELS[reviewState.readiness]}
+            </span>
+          ) : (
+            <span className="note-readiness-state is-unassessed" role="status">Status: {STATUS_BADGE_LABELS.unassessed}</span>
+          )
+        ) : null}
+        {reviewState?.nextReviewAtUnixMs ? (
+          <span className="note-review-next-date">
+            Próxima revisão: {new Date(reviewState.nextReviewAtUnixMs).toLocaleDateString('pt-BR')}
+          </span>
+        ) : null}
+        {reviewState?.deadlineRetentionAtRisk ? (
+          <span className="note-review-risk-badge" role="status" title="Mesmo antecipando revisões, a meta de retenção na data da prova não é atingida.">
+            Meta de retenção em risco
+          </span>
+        ) : null}
+      </div>
       {reviewState?.report ? (
         <button
           type="button"
@@ -236,14 +338,28 @@ export function NoteReadinessControl({
           disabled={disabled || isDirty || busy}
           aria-label="Abrir último relatório de prontidão"
         >
-          Ver relatório
+          <span className="note-review-icon-stack" aria-hidden="true">
+            <ChartColumnBig size={15} strokeWidth={1.5} />
+            <Search size={9} strokeWidth={2.25} className="note-review-icon-corner" />
+          </span>
+          <span>Ver relatório</span>
         </button>
       ) : null}
-      {reviewState?.nextReviewAtUnixMs ? (
-        <span className="note-review-next-date">
-          Próxima: {new Date(reviewState.nextReviewAtUnixMs).toLocaleDateString('pt-BR')}
-        </span>
-      ) : null}
+      <button
+        type="button"
+        className="note-review-start-trigger"
+        onClick={() => void startReviewNow()}
+        disabled={disabled || busy || enrollmentBusy || isDirty || !reviewState || reviewState.readiness !== 'ready'}
+        title={isDirty
+          ? 'Salve a nota antes de iniciar a revisão.'
+          : !reviewState || reviewState.readiness !== 'ready'
+            ? 'Avalie a nota para liberar a revisão.'
+            : 'Iniciar a revisão desta nota agora'}
+        aria-label="Iniciar revisão agora"
+      >
+        <CalendarCheck2 size={15} strokeWidth={1.5} aria-hidden="true" />
+        <span>{enrollmentBusy ? 'Preparando…' : 'Fazer revisão agora'}</span>
+      </button>
       <button
         ref={triggerButtonRef}
         type="button"
@@ -253,10 +369,86 @@ export function NoteReadinessControl({
         title={unavailableReason ?? 'Avaliar se a nota está pronta para revisão'}
         aria-label="Avaliar prontidão da nota"
       >
-        <FileCheck2 size={15} strokeWidth={1.5} aria-hidden="true" />
+        <span className="note-review-icon-stack" aria-hidden="true">
+          <NotebookPen size={15} strokeWidth={1.5} />
+          <RotateCcw size={9} strokeWidth={2.25} className="note-review-icon-corner" />
+        </span>
         <span>{busy ? 'Avaliando...' : reviewState ? 'Reavaliar nota' : 'Avaliar nota'}</span>
       </button>
+      {!stateLoading && reviewState ? (
+        <button
+          type="button"
+          className="note-review-reset-trigger"
+          onClick={() => {
+            setError('')
+            setResetConfirmOpen(true)
+          }}
+          disabled={disabled || busy || resetBusy}
+          title="Remove pontuações, estado de memória e datas de revisão desta nota"
+        >
+          <RotateCcw size={13} strokeWidth={1.6} aria-hidden="true" />
+          <span>Reiniciar aprendizado desta nota</span>
+        </button>
+      ) : null}
       {error && !attempt ? <p className="review-ai-toolbar-error" role="alert">{error}</p> : null}
+
+      {resetConfirmOpen ? (
+        <div className="review-ai-dialog-backdrop" role="presentation">
+          <section
+            ref={resetDialogRef}
+            className="review-ai-dialog review-reset-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="review-reset-title"
+            aria-describedby="review-reset-description"
+            onKeyDown={handleResetKeyDown}
+          >
+            <header>
+              <div>
+                <p className="card-kicker">Aprendizado da nota</p>
+                <h2 id="review-reset-title">Reiniciar aprendizado?</h2>
+              </div>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={closeResetConfirm}
+                disabled={resetBusy}
+                aria-label="Cancelar reinício"
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            </header>
+            <div className="review-ai-report-body">
+              <p id="review-reset-description">
+                Esta ação remove as pontuações, o estado de memória (DSR/FSRS) e as datas de revisão
+                desta nota. O Markdown, as tags, a avaliação de prontidão e a política são preservados.
+              </p>
+              {resetBusy ? (
+                <p className="review-ai-stale-report" role="status">Reiniciando…</p>
+              ) : (
+                <p className="review-reset-hint">
+                  O novo ciclo começa agora, usando o primeiro intervalo da política efetiva.
+                </p>
+              )}
+              {resetError ? <p className="review-reset-error" role="alert">{resetError}</p> : null}
+            </div>
+            <div className="review-ai-dialog-actions">
+              <button type="button" className="secondary-button" onClick={closeResetConfirm} disabled={resetBusy}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="review-reset-confirm"
+                onClick={() => void performReset()}
+                disabled={resetBusy}
+                autoFocus
+              >
+                {resetBusy ? 'Reiniciando…' : 'Reiniciar aprendizado'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {attempt ? (
         <div className="review-ai-dialog-backdrop" role="presentation">

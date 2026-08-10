@@ -31,6 +31,9 @@ function validateIntervalOrder(
 
 export const noteReviewPolicySchema = z.object({
   ...noteReviewPolicyValuesShape,
+  // O modo foi definido explicitamente na nota (senao e herdado das tags ou
+  // usa o padrao Prova).
+  modeManual: z.boolean().default(false),
   deadlineAtUnixMs: unixMillisecondsSchema.nullable(),
   sources: z.object({
     firstReviewIntervalDays: policySourceSchema,
@@ -104,5 +107,19 @@ export async function setNoteReviewPolicy(input: {
     path: input.vaultPath,
     relativePath: input.relativePath,
     policy,
+  }))
+}
+
+/** Acao rapida: altera somente o peso de prioridade da nota (sobrescrita de
+ *  nota), preservando os demais campos, historico e estado de memoria. */
+export async function setNoteReviewPriority(input: {
+  vaultPath: string
+  relativePath: string
+  priorityWeight: number
+}): Promise<NoteReviewPolicy> {
+  return parseNoteReviewPolicy(await invoke<unknown>('set_note_review_priority', {
+    path: input.vaultPath,
+    relativePath: input.relativePath,
+    priorityWeight: input.priorityWeight,
   }))
 }

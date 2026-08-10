@@ -27,7 +27,7 @@ Este documento concentra as evolucoes futuras que antes ficavam no roadmap princ
 | Compatibilidade ampliada de configuracoes `.obsidian` | Planejado | Evolui a whitelist read-only conforme novos formatos do Obsidian, ignora campos conhecidos com tipos invalidos sem descartar as demais preferencias validas e oferece diagnostico local das configuracoes ignoradas sem expor dados de plugins. Elimina a janela TOCTOU residual da leitura de `app.json` com abertura no-follow e validacao pelo mesmo handle em Windows, Linux e macOS. |
 | Indice escalavel de wikilinks para renomeacao | Planejado | Evita reler e preparar toda a arvore Markdown em cada renomeacao por meio de indice incremental, limites e progresso cancelavel, mantendo a atual garantia de preflight e rollback em Vaults grandes. |
 | Graph view e Bases | Parcial | O grafo de notas ja mostra wikilinks, permite zoom, pan, filtros, busca, layout de forcas, arraste de nos, persistencia de layout por Vault, grafo local e painel de detalhes. Bases continua planejado. |
-| Revisao e aprendizado V2 | Planejado | O escopo de revisao de sintese, cerne, multimodalidade, IA gerenciada, custos, verificacao factual e sincronizacao esta em [review-learning-roadmap.md](review-learning-roadmap.md). |
+| Revisao e aprendizado V2 | Planejado | O escopo de revisao de sintese, cerne, multimodalidade, IA gerenciada, custos, verificacao factual e sincronizacao esta em [review-learning-v2-roadmap.md](review-learning-v2-roadmap.md). |
 
 ## Bloco V2.3: Fluidez do editor (padroes do Obsidian)
 

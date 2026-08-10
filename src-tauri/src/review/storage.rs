@@ -392,14 +392,17 @@ pub fn reconcile_external_learning_paths(
     vault_root: &Path,
     removed_paths: &[String],
     created_paths: &[String],
-) -> Result<usize> {
+) -> Result<Vec<(String, String)>> {
     let pairs = external_reconciliation_pairs(vault_root, removed_paths, created_paths)?;
     if pairs.is_empty() {
-        return Ok(0);
+        return Ok(Vec::new());
     }
     // O arquivo ja foi movido pela ferramenta externa; o commit nao precisa mover nada.
     // O diario transacional apenas conclui a realocacao dos metadados de aprendizado.
-    with_relocated_learning_documents(vault_root, &pairs, || Ok(()))
+    // Os pares (origem, destino) confirmados por hash permitem ao frontend remapear
+    // abas, rascunhos e favoritos sem nunca adivinhar identidade.
+    with_relocated_learning_documents(vault_root, &pairs, || Ok(()))?;
+    Ok(pairs)
 }
 
 fn external_reconciliation_pairs(
@@ -1702,7 +1705,10 @@ mod tests {
             &[target_path.to_string()],
         )
         .expect("reconcile external rename");
-        assert_eq!(reconciled, 1);
+        assert_eq!(
+            reconciled,
+            vec![(source_path.to_string(), target_path.to_string())]
+        );
         let loaded = load_learning_document(vault.path(), "note-1")
             .expect("load document")
             .expect("document");
@@ -1737,8 +1743,8 @@ mod tests {
             &[target_path.to_string()],
         )
         .expect("reconcile external rename");
-        assert_eq!(
-            reconciled, 0,
+        assert!(
+            reconciled.is_empty(),
             "different content must not adopt the identity"
         );
         let loaded = load_learning_document(vault.path(), "note-1")
@@ -1775,7 +1781,10 @@ mod tests {
             ],
         )
         .expect("reconcile external rename");
-        assert_eq!(reconciled, 0, "ambiguous candidates must not be guessed");
+        assert!(
+            reconciled.is_empty(),
+            "ambiguous candidates must not be guessed"
+        );
         let loaded = load_learning_document(vault.path(), "note-1")
             .expect("load document")
             .expect("document");
@@ -1807,9 +1816,12 @@ mod tests {
             &[target_path.to_string()],
         )
         .expect("second reconciliation");
-        assert_eq!(first, 1);
         assert_eq!(
-            second, 0,
+            first,
+            vec![(source_path.to_string(), target_path.to_string())]
+        );
+        assert!(
+            second.is_empty(),
             "an already reconciled document must not move again"
         );
         let loaded = load_learning_document(vault.path(), "note-1")
@@ -1836,8 +1848,8 @@ mod tests {
             &[target_path.to_string()],
         )
         .expect("reconcile external copy");
-        assert_eq!(
-            reconciled, 0,
+        assert!(
+            reconciled.is_empty(),
             "a copy with the source present must not move"
         );
         let loaded = load_learning_document(vault.path(), "note-1")
@@ -1857,7 +1869,7 @@ mod tests {
             &["Arquivo/nova.md".to_string()],
         )
         .expect("reconcile without documents");
-        assert_eq!(reconciled, 0);
+        assert!(reconciled.is_empty());
     }
 
     #[test]
@@ -1884,8 +1896,8 @@ mod tests {
             &[target_path.to_string()],
         )
         .expect("reconcile external rename");
-        assert_eq!(
-            reconciled, 0,
+        assert!(
+            reconciled.is_empty(),
             "a claimed destination must never be overwritten"
         );
         let loaded = load_learning_document(vault.path(), "note-1")

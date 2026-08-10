@@ -60,30 +60,43 @@ pub enum ReadinessAssessment {
         assessed_at_unix_ms: Option<u64>,
         #[serde(deserialize_with = "deserialize_nullable")]
         assessed_content_hash: Option<String>,
+        /// Fingerprint semantico (espacos/pontuacao/acentos ignorados) do
+        /// conteudo avaliado. Ausente em documentos antigos: nesse caso,
+        /// qualquer mudanca de conteudo exige nova avaliacao.
+        #[serde(default)]
+        assessed_semantic_hash: Option<String>,
         issues: Vec<ReadinessIssue>,
         report: Option<ReadinessReport>,
     },
     Ready {
         assessed_at_unix_ms: u64,
         assessed_content_hash: String,
+        #[serde(default)]
+        assessed_semantic_hash: Option<String>,
         issues: Vec<ReadinessIssue>,
         report: Option<ReadinessReport>,
     },
     Ambiguous {
         assessed_at_unix_ms: u64,
         assessed_content_hash: String,
+        #[serde(default)]
+        assessed_semantic_hash: Option<String>,
         issues: Vec<ReadinessIssue>,
         report: Option<ReadinessReport>,
     },
     Insufficient {
         assessed_at_unix_ms: u64,
         assessed_content_hash: String,
+        #[serde(default)]
+        assessed_semantic_hash: Option<String>,
         issues: Vec<ReadinessIssue>,
         report: Option<ReadinessReport>,
     },
     Modified {
         assessed_at_unix_ms: u64,
         assessed_content_hash: String,
+        #[serde(default)]
+        assessed_semantic_hash: Option<String>,
         issues: Vec<ReadinessIssue>,
         report: Option<ReadinessReport>,
     },
@@ -106,6 +119,11 @@ pub struct Enrollment {
     pub manual_paused: bool,
     pub inherited_from_tag_ids: Vec<String>,
     pub preferred_mode: ReviewMode,
+    /// O modo preferido foi definido explicitamente na nota: quando verdadeiro,
+    /// alteracoes de tags nao sobrescrevem o modo; quando falso, o modo segue a
+    /// preferencia herdada das tags (ou o padrao Prova quando nenhuma dita).
+    #[serde(default)]
+    pub mode_manual: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -273,7 +291,7 @@ pub enum ReadinessIssueCode {
     MissingContext,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ReviewMode {
     Exam,
@@ -297,12 +315,19 @@ pub enum RecallOutcome {
     Complete,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum EvidenceStrength {
     Recognition,
+    /// Reconhecimento objetivo (prova) com dica exibida antes da resposta:
+    /// a recuperacao foi assistida, entao e evidencia ainda mais fraca de
+    /// recuperacao espontanea que o reconhecimento puro.
+    AssistedRecognition,
     FreeRecall,
     Conversation,
+    /// Conversa que recorreu a contexto: a resposta aberta veio com ajuda,
+    /// entao estabiliza menos que uma conversa sem contexto.
+    AssistedConversation,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

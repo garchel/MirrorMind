@@ -1,32 +1,43 @@
-use super::contract::ReviewMode;
+use super::contract::{ReviewMode, UnitEvaluation};
 use super::credentials::{
     credential_status, delete_gemini_api_key, has_gemini_consent, save_gemini_api_key,
     set_gemini_consent, NativeCredentialStore,
 };
 use super::dashboard::{build_vault_review_dashboard, VaultReviewDashboard};
 use super::evaluation::{evaluate_readiness, source_hash, ReadinessAttempt};
-use super::gaps::{latest_review_gaps, NoteReviewGapView};
+use super::gaps::{latest_review_gaps, latest_review_units, NoteReviewGapView, NoteReviewUnitView};
 use super::gemini::{GeminiProvider, GEMINI_MODEL};
+use super::notifications::{
+    check_daily_notification, load_settings as load_notification_settings,
+    save_settings as save_notification_settings, send_test_notification,
+    ReviewNotificationCheckView, ReviewNotificationSettingsView,
+};
 use super::policy::{
     load_note_review_policy, set_note_review_policy as update_note_review_policy,
-    NoteReviewPolicyInput, NoteReviewPolicyView,
+    set_note_review_priority as update_note_review_priority, NoteReviewPolicyInput,
+    NoteReviewPolicyView,
 };
 use super::policy_config::{
-    load_vault_review_policy_config, preview_vault_review_defaults, preview_vault_review_tag_rules,
-    set_vault_review_defaults, set_vault_review_tag_rules, set_vault_segmentation,
-    SegmentationLimits, VaultReviewDefaultsInput, VaultReviewDefaultsPreview,
-    VaultReviewPolicyConfigView,
+    apply_deadline_change as apply_deadline_change_in_root, load_vault_review_policy_config,
+    preview_deadline_change as preview_deadline_change_in_root, preview_vault_review_defaults,
+    preview_vault_review_tag_rules, set_vault_review_defaults, set_vault_review_tag_rules,
+    set_vault_segmentation, SegmentationLimits, VaultReviewDefaultsInput,
+    VaultReviewDefaultsPreview, VaultReviewPolicyConfigView,
 };
 use super::provider::{OllamaProvider, StructuredAiProvider, OLLAMA_ENDPOINT, OLLAMA_MODEL};
 use super::queue::{list_due_reviews, DueReviewItem};
-use super::reports::{list_review_reports as collect_review_reports, ReviewReportItem};
+use super::reports::{
+    build_retention_report as collect_retention_report,
+    list_review_reports as collect_review_reports, RetentionReport, ReviewReportItem,
+};
 use super::session::{
-    complete_review_session, continue_review_conversation, start_review_session,
+    complete_review_session, continue_review_conversation, start_review_session_with_coverage,
     ConversationTurnAttempt, ReviewCompletionAttempt, ReviewCompletionInput, ReviewExchange,
     ReviewGenerationAttempt, ReviewPrompt,
 };
 use super::state::{
-    load_note_review_state, persist_readiness_attempt, set_manual_enrollment, NoteReadinessStatus,
+    load_note_review_state, persist_readiness_attempt,
+    reset_note_learning as reset_note_learning_state, set_manual_enrollment, NoteReadinessStatus,
     NoteReviewState, NoteSchedulingStatus,
 };
 use super::storage::{
@@ -68,6 +79,12 @@ struct ActiveReviewSession {
     provider: AiProviderSelection,
     mode: ActiveReviewMode,
     prompts: Vec<ReviewPrompt>,
+    /// Unidades selecionadas pela cobertura adaptativa: somente elas pontuam
+    /// e evoluem o estado de memoria ao concluir a sessao.
+    target_unit_ids: Vec<String>,
+    /// Texto das unidades-alvo (subset do Markdown): e a fonte que a IA ve em
+    /// toda a sessao (geracao, continuacao da conversa e avaliacao final).
+    session_markdown: String,
     created_at_unix_ms: u64,
 }
 
@@ -76,6 +93,24 @@ static ACTIVE_REVIEW_SESSIONS: OnceLock<Mutex<HashMap<String, ActiveReviewSessio
 
 fn active_review_sessions() -> &'static Mutex<HashMap<String, ActiveReviewSession>> {
     ACTIVE_REVIEW_SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Uma sessao pode iniciar quando a nota esta vencida, ou quando a calibracao
+/// inicial ainda nao observou todas as unidades da nota segmentada e o usuario
+/// escolheu continuar imediatamente (uma etapa por dia e o ritmo minimo, nao
+/// um limite: a continuacao imediata fica a criterio do usuario).
+fn may_start_session(
+    status: &NoteSchedulingStatus,
+    allow_calibration_continuation: bool,
+    calibrating: bool,
+) -> bool {
+    match status {
+        NoteSchedulingStatus::Due => true,
+        // A calibracao de uma nota agendada (nao vencida) so continua por
+        // escolha explicita do usuario enquanto houver unidades nao observadas.
+        NoteSchedulingStatus::Scheduled => allow_calibration_continuation && calibrating,
+        NoteSchedulingStatus::NotScheduled | NoteSchedulingStatus::Paused => false,
+    }
 }
 
 fn active_mode(mode: &ReviewMode) -> ActiveReviewMode {
@@ -296,6 +331,7 @@ pub(crate) async fn start_note_review_session(
     relative_path: String,
     provider: AiProviderSelection,
     mode: ReviewMode,
+    allow_calibration_continuation: bool,
     authorized_paths: State<'_, crate::AuthorizedPaths>,
 ) -> Result<ReviewGenerationAttempt, String> {
     let root =
@@ -316,12 +352,25 @@ pub(crate) async fn start_note_review_session(
             .map_err(|error| error.to_string())?
             .ok_or_else(|| "O estado de aprendizado da nota nao existe.".to_string())?
             .document;
-        if state.scheduling_status != NoteSchedulingStatus::Due {
+        // A calibracao inicial de notas longas permite continuar imediatamente
+        // apos uma etapa, mesmo sem a nota estar vencida, enquanto houver
+        // unidades ainda nao observadas; a fila continua exigindo vencimento.
+        let calibrating = document.units.iter().any(|unit| {
+            !matches!(
+                unit.latest_evaluation,
+                Some(UnitEvaluation::Evaluated { .. })
+            )
+        });
+        if !may_start_session(
+            &state.scheduling_status,
+            allow_calibration_continuation,
+            calibrating,
+        ) {
             return Err("A nota ainda nao esta vencida para revisao.".to_string());
         }
         let provider_selection = provider;
         let provider = provider_for_selection(provider_selection)?;
-        let attempt = start_review_session(
+        let (attempt, coverage) = start_review_session_with_coverage(
             provider.as_ref(),
             &document,
             &markdown,
@@ -340,6 +389,8 @@ pub(crate) async fn start_note_review_session(
                     provider: provider_selection,
                     mode: active_mode(&draft.mode),
                     prompts: draft.prompts.clone(),
+                    target_unit_ids: coverage.target_unit_ids,
+                    session_markdown: coverage.session_markdown,
                     created_at_unix_ms: now,
                 },
                 now,
@@ -396,8 +447,11 @@ pub(crate) async fn continue_note_review_conversation(
             &exchanges,
         )?;
         let provider = provider_for_selection(provider)?;
-        let attempt = continue_review_conversation(provider.as_ref(), &markdown, &exchanges)
-            .map_err(|error| error.to_string())?;
+        // A conversa continua com o subset das unidades-alvo (cobertura
+        // adaptativa), para os turnos nunca sairem do escopo da sessao.
+        let attempt =
+            continue_review_conversation(provider.as_ref(), &bound.session_markdown, &exchanges)
+                .map_err(|error| error.to_string())?;
         if let ConversationTurnAttempt::Valid {
             prompt: Some(prompt),
             ..
@@ -464,6 +518,10 @@ pub(crate) async fn complete_note_review_session(
             // As alternativas e o indice correto vem do registro interno da
             // sessao (emitido no inicio), nunca do cliente.
             prompts: bound.prompts.clone(),
+            // A cobertura adaptativa (unidades-alvo e subset) tambem vem do
+            // registro interno da sessao, nunca do cliente.
+            target_unit_ids: bound.target_unit_ids.clone(),
+            session_markdown: bound.session_markdown.clone(),
         };
         let attempt = complete_review_session(
             &root,
@@ -475,7 +533,10 @@ pub(crate) async fn complete_note_review_session(
             || read_bounded_markdown(&root, &note_path),
         )
         .map_err(|error| error.to_string())?;
-        if matches!(attempt, ReviewCompletionAttempt::Valid { .. }) {
+        // Qualquer desfecho terminal (valido ou inconclusivo) encerra a sessao
+        // ativa: um relatorio inconclusivo nao persiste nada, mas refazer cria
+        // uma sessao nova, e a antiga nao pode mais continuar.
+        if !matches!(attempt, ReviewCompletionAttempt::Invalid { .. }) {
             session_lock()?.remove(&session_id);
         }
         Ok(attempt)
@@ -588,6 +649,32 @@ pub(crate) async fn set_note_review_enrollment(
 }
 
 #[tauri::command]
+pub(crate) async fn reset_note_learning(
+    path: String,
+    relative_path: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<NoteReviewState, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        // Diferente dos comandos que dependem do conteudo, o reinicio opera
+        // apenas sobre o documento de aprendizado: nao precisa ler nem conferir
+        // o hash do Markdown (a nota pode inclusive ja ter sido alterada).
+        reset_note_learning_state(
+            &root,
+            &relative_path,
+            current_unix_ms().map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel reiniciar o aprendizado da nota.".to_string())?
+}
+
+#[tauri::command]
 pub(crate) async fn get_vault_review_policy_config(
     path: String,
     authorized_paths: State<'_, crate::AuthorizedPaths>,
@@ -668,6 +755,60 @@ pub(crate) async fn preview_vault_review_policy_tag_rules(
     .await
     .map_err(|_| "Nao foi possivel calcular o impacto das regras de tag.".to_string())?
 }
+#[tauri::command]
+pub(crate) async fn preview_vault_deadline_change(
+    path: String,
+    tag: String,
+    new_deadline: Option<u64>,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<VaultReviewDefaultsPreview, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        preview_deadline_change_in_root(
+            &root,
+            &tag,
+            new_deadline,
+            current_unix_ms().map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel calcular o impacto do novo prazo.".to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn apply_vault_deadline_change(
+    path: String,
+    expected_revision: u64,
+    tag: String,
+    new_deadline: Option<u64>,
+    expected_affected_note_count: usize,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<VaultReviewPolicyConfigView, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        apply_deadline_change_in_root(
+            &root,
+            expected_revision,
+            &tag,
+            new_deadline,
+            expected_affected_note_count,
+            current_unix_ms().map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel alterar o prazo.".to_string())?
+}
+
 #[tauri::command]
 pub(crate) async fn set_vault_review_policy_tag_rules(
     path: String,
@@ -761,6 +902,36 @@ pub(crate) async fn get_note_review_policy(
 }
 
 #[tauri::command]
+pub(crate) async fn set_note_review_priority(
+    path: String,
+    relative_path: String,
+    priority_weight: f64,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<NoteReviewPolicyView, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let note_path =
+            crate::resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+        let markdown =
+            read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
+        update_note_review_priority(
+            &root,
+            &relative_path,
+            &markdown,
+            priority_weight,
+            current_unix_ms().map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel alterar a prioridade da nota.".to_string())?
+}
+
+#[tauri::command]
 pub(crate) async fn set_note_review_policy(
     path: String,
     relative_path: String,
@@ -814,6 +985,29 @@ pub(crate) async fn get_vault_review_dashboard(
 }
 
 #[tauri::command]
+pub(crate) async fn get_retention_report(
+    path: String,
+    local_day_start_unix_ms: u64,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<RetentionReport, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        collect_retention_report(
+            &root,
+            current_unix_ms().map_err(|error| error.to_string())?,
+            local_day_start_unix_ms,
+        )
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel carregar o relatorio de retencao.".to_string())?
+}
+
+#[tauri::command]
 pub(crate) async fn get_note_review_gaps(
     path: String,
     relative_path: String,
@@ -849,12 +1043,47 @@ pub(crate) async fn get_note_review_gaps(
 }
 
 #[tauri::command]
+pub(crate) async fn get_note_review_units(
+    path: String,
+    relative_path: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<Vec<NoteReviewUnitView>, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let note_path =
+            crate::resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+        let markdown =
+            read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
+        let state = load_note_review_state(
+            &root,
+            &relative_path,
+            &markdown,
+            current_unix_ms().map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "A nota ainda nao possui estado de aprendizado.".to_string())?;
+        let content_hash = state.content_hash.clone();
+        let document = load_learning_document(&root, &state.note_id)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "O estado de aprendizado da nota nao existe.".to_string())?
+            .document;
+        latest_review_units(&document, &markdown, &content_hash).map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel carregar a avaliacao por unidade da nota.".to_string())?
+}
+
+#[tauri::command]
 pub(crate) async fn reconcile_external_learning_paths(
     path: String,
     removed_paths: Vec<String>,
     created_paths: Vec<String>,
     authorized_paths: State<'_, crate::AuthorizedPaths>,
-) -> Result<usize, String> {
+) -> Result<Vec<(String, String)>, String> {
     let root =
         crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
     authorized_paths
@@ -978,8 +1207,87 @@ fn same_file_identity(file: &fs::File, path: &Path) -> AnyResult<bool> {
     let current = fs::metadata(path)?;
     Ok(opened.len() == current.len() && opened.modified().ok() == current.modified().ok())
 }
+#[tauri::command]
+pub(crate) async fn get_review_notification_settings(
+    app: tauri::AppHandle,
+) -> Result<ReviewNotificationSettingsView, String> {
+    Ok(ReviewNotificationSettingsView::from(
+        load_notification_settings(&app),
+    ))
+}
+
+#[tauri::command]
+pub(crate) async fn set_review_notification_settings(
+    app: tauri::AppHandle,
+    settings: ReviewNotificationSettingsView,
+) -> Result<ReviewNotificationSettingsView, String> {
+    let mut stored = load_notification_settings(&app);
+    stored.enabled = settings.enabled;
+    stored.hour = settings.hour;
+    stored.minute = settings.minute;
+    stored.muted = settings.muted;
+    save_notification_settings(&app, &stored).map_err(|error| error.to_string())?;
+    Ok(ReviewNotificationSettingsView::from(&stored))
+}
+
+#[tauri::command]
+pub(crate) async fn check_review_notifications(
+    path: String,
+    now_unix_ms: u64,
+    local_day_start_unix_ms: u64,
+    app: tauri::AppHandle,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<ReviewNotificationCheckView, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        check_daily_notification(&app, &root, now_unix_ms, local_day_start_unix_ms)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel verificar as notificacoes de revisao.".to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn send_review_test_notification(app: tauri::AppHandle) -> Result<(), String> {
+    send_test_notification(&app).map_err(|error| error.to_string())
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn calibration_continuation_allows_starting_a_not_yet_due_note() {
+        use super::may_start_session;
+        use crate::review::state::NoteSchedulingStatus;
+        // Vencida sempre pode iniciar.
+        assert!(may_start_session(&NoteSchedulingStatus::Due, false, false));
+        assert!(may_start_session(&NoteSchedulingStatus::Due, true, true));
+        // Nao vencida so inicia com a continuacao de calibracao e unidades
+        // ainda nao observadas; sem calibracao em andamento, permanece.
+        assert!(!may_start_session(
+            &NoteSchedulingStatus::Scheduled,
+            false,
+            true
+        ));
+        assert!(!may_start_session(
+            &NoteSchedulingStatus::Scheduled,
+            true,
+            false
+        ));
+        assert!(may_start_session(
+            &NoteSchedulingStatus::Scheduled,
+            true,
+            true
+        ));
+        assert!(!may_start_session(
+            &NoteSchedulingStatus::Paused,
+            true,
+            true
+        ));
+    }
     use super::{
         load_bound_session, read_bounded_markdown, register_active_session, ActiveReviewMode,
         ActiveReviewSession, AiProviderSelection, MAX_NOTE_BYTES,
@@ -998,6 +1306,7 @@ mod tests {
             id: "question-1".to_string(),
             text: "Explique o conceito.".to_string(),
             assistance: "Pense na definicao.".to_string(),
+            kind: crate::review::session::PromptKind::MultipleChoice,
             options: vec![
                 "Uma".to_string(),
                 "Duas".to_string(),
@@ -1005,7 +1314,9 @@ mod tests {
                 "Quatro".to_string(),
             ],
             correct_option_index: Some(2),
+            expected_answer: None,
             source_quote: None,
+            is_clarification: false,
         };
         register_active_session(
             &session_id,
@@ -1017,6 +1328,8 @@ mod tests {
                 provider: AiProviderSelection::Ollama,
                 mode: ActiveReviewMode::Exam,
                 prompts: vec![prompt.clone()],
+                target_unit_ids: vec!["unit-1".to_string()],
+                session_markdown: "Conteudo da nota.".to_string(),
                 created_at_unix_ms: 1,
             },
             1,
@@ -1026,6 +1339,7 @@ mod tests {
             prompt_id: prompt.id,
             prompt: prompt.text,
             answer: "Minha resposta.".to_string(),
+            assistance_used: false,
         }];
         assert!(load_bound_session(
             &session_id,

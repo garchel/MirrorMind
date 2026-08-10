@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectUnsupportedMarkdownFeatures, findMarkdownWordAtOffset, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownDescription, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderObsidianCalloutsAsMarkdown, renderWikiLinksAsMarkdown, replaceMarkdownBlock, replaceMarkdownBody, setMarkdownDescription, setMarkdownFrontmatterProperties, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable } from './markdown'
+import { countMarkdownWords, detectUnsupportedMarkdownFeatures, findMarkdownWordAtOffset, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownDescription, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderObsidianCalloutsAsMarkdown, renderWikiLinksAsMarkdown, replaceMarkdownBlock, replaceMarkdownBody, setMarkdownDescription, setMarkdownFrontmatterProperties, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable } from './markdown'
 
 describe('note description frontmatter', () => {
   it('creates and reads the description property without changing the body', () => {
@@ -154,6 +154,19 @@ describe('Markdown editing helpers', () => {
     expect(toggleChecklistAtLine('- [x] Estudar\n- [x] Revisar', 2)).toBe('- [x] Estudar\n- [ ] Revisar')
   })
 
+  it('wraps the selected text in riscado and matematica', () => {
+    expect(formatMarkdownSelection('texto', 0, 5, 'strikethrough')).toBe('~~texto~~')
+    expect(formatMarkdownSelection('texto', 0, 5, 'math')).toBe('$texto$')
+    expect(formatMarkdownSelection('sem marcacao', 0, 12, 'strikethrough')).toBe('~~sem marcacao~~')
+  })
+
+  it('wraps the selected text in subscrito, sobrescrito e setas de reacao', () => {
+    expect(formatMarkdownSelection('CO2', 2, 3, 'subscript')).toBe('CO$_{2}$')
+    expect(formatMarkdownSelection('x2', 1, 2, 'superscript')).toBe('x$^{2}$')
+    expect(formatMarkdownSelection('Luz', 0, 3, 'reactionArrow')).toBe('$\\xrightarrow{\\text{Luz}}$')
+    expect(formatMarkdownSelection('Volta', 0, 5, 'reverseReactionArrow')).toBe('$\\xleftarrow{\\text{Volta}}$')
+  })
+
   it('adds and removes rows and columns in the table at the cursor', () => {
     const table = '| Titulo | Estado |\n| --- | --- |\n| Revisar | Pendente |'
     const withRow = transformMarkdownTable(table, table.length, 'addRow')
@@ -170,6 +183,30 @@ describe('Markdown preview text', () => {
   it('prioritizes the description and removes Markdown syntax from the fallback', () => {
     expect(getMarkdownPreviewText('---\ndescription: Resumo curto\n---\n\n# Titulo\n**Texto**')).toBe('Resumo curto')
     expect(getMarkdownPreviewText('# Titulo\n\nVeja [[materias/aula|a aula]] e [guia](https://example.com).')).toBe('Titulo Veja a aula e guia.')
+  })
+})
+
+describe('countMarkdownWords', () => {
+  it('counts plain words and ignores the frontmatter', () => {
+    expect(countMarkdownWords('---\ntags: [estudo]\ndescription: Resumo\n---\n\nUm dois tres.')).toBe(3)
+  })
+
+  it('ignores fenced and inline code, HTML and math markers', () => {
+    expect(countMarkdownWords('```js\nconst x = 1;\n```\n\nTexto `inline` <kbd>Ctrl</kbd> $E=mc^2$ $$\nx + y\n$$')).toBe(3)
+  })
+
+  it('counts the readable text of headings, lists, links and wikilinks', () => {
+    expect(countMarkdownWords('# Titulo\n\n- Item da lista\n- [x] Tarefa feita\n\nVeja [[materias/aula|a aula]] e [guia](https://example.com).')).toBe(11)
+  })
+
+  it('counts table cells and returns zero for empty content', () => {
+    expect(countMarkdownWords('| Conceito | Valor |\n| --- | --- |\n| **Energia** | 42 |')).toBe(4)
+    expect(countMarkdownWords('')).toBe(0)
+    expect(countMarkdownWords('---\ntags: [x]\n---')).toBe(0)
+  })
+
+  it('keeps the readable label of links, wikilinks and image alt text', () => {
+    expect(countMarkdownWords('![Diagrama](img.png) e [[nota|a nota]]')).toBe(4)
   })
 })
 

@@ -6,10 +6,11 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
-import { EditorState } from '@codemirror/state'
-import { EditorView, keymap } from '@codemirror/view'
+import { EditorState, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
+import { Decoration, type DecorationSet, EditorView, keymap } from '@codemirror/view'
 import { markdownLivePreview } from './markdownLivePreview'
 import { getMarkdownAutocompleteResult, type MarkdownAutocompleteData } from '../lib/markdown-autocomplete'
+import { findTextMatches } from '../lib/findMatches'
 
 export type MarkdownEditorSession = {
   selectionStart: number
@@ -25,8 +26,14 @@ export type MarkdownEditorHistoryStatus = {
 
 export type MarkdownCodeEditorHandle = {
   getSelection: () => { value: string; selectionStart: number; selectionEnd: number } | null
+  /** Retangulo (em coordenadas de viewport) da linha do cursor inicial da
+   * selecao, ou null quando a selecao esta colapsada ou fora da area visivel.
+   * Usado pelo popover de formatacao para posicionar-se junto ao texto. */
+  getSelectionRect: () => { bottom: number; left: number; right: number; top: number } | null
   focus: () => void
   redo: () => boolean
+  selectRange: (from: number, to: number) => void
+  setFindQuery: (query: string) => void
   undo: () => boolean
 }
 
@@ -40,7 +47,6 @@ type MarkdownCodeEditorProps = {
   onHistoryChange: (status: MarkdownEditorHistoryStatus) => void
   onSearchRequest?: () => void
   onSessionChange: (session: MarkdownEditorSession) => void
-  searchRequestId?: number
   session?: MarkdownEditorSession
   spellCheck?: boolean
   stateCache?: Map<string, EditorState>
@@ -75,6 +81,13 @@ const editorTheme = EditorView.theme({
   '&.cm-focused': {
     outline: '2px solid #9cafa0',
     outlineOffset: '-2px',
+  },
+  '.cm-find-match': {
+    backgroundColor: 'rgba(255, 213, 79, 0.4)',
+    borderRadius: '2px',
+  },
+  '.cm-find-match-selected': {
+    backgroundColor: 'rgba(255, 138, 0, 0.55)',
   },
 })
 
@@ -181,8 +194,48 @@ function contextualCompletions(context: CompletionContext, data: MarkdownAutocom
   return getMarkdownAutocompleteResult(context.state.doc.toString(), context.pos, data)
 }
 
+const findQueryEffect = StateEffect.define<string>()
+const findQueryField = StateField.define<string>({
+  create: () => '',
+  update(query, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(findQueryEffect)) return effect.value
+    }
+    return query
+  },
+})
+
+const findMatchMark = Decoration.mark({ class: 'cm-find-match' })
+const findSelectedMatchMark = Decoration.mark({ class: 'cm-find-match cm-find-match-selected' })
+
+const findHighlighter = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none
+  },
+  update(decorations, transaction) {
+    const query = transaction.state.field(findQueryField)
+    const queryChanged = transaction.effects.some((effect) => effect.is(findQueryEffect))
+    const selectionChanged = transaction.selection !== undefined
+    if (!queryChanged && !transaction.docChanged && !selectionChanged) {
+      return decorations
+    }
+    if (!query) return Decoration.none
+    const text = transaction.state.doc.toString()
+    const matches = findTextMatches(text, query)
+    if (matches.length === 0) return Decoration.none
+    const { from: selectedFrom, to: selectedTo } = transaction.state.selection.main
+    const builder = new RangeSetBuilder<Decoration>()
+    for (const match of matches) {
+      const selected = match.from === selectedFrom && match.to === selectedTo
+      builder.add(match.from, match.to, selected ? findSelectedMatchMark : findMatchMark)
+    }
+    return builder.finish()
+  },
+  provide: (field) => EditorView.decorations.from(field),
+})
+
 function MarkdownCodeEditorComponent(
-  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, documentKey, livePreview = false, onBlur, onChange, onHistoryChange, onSearchRequest, onSessionChange, searchRequestId, session, spellCheck = true, stateCache, value }: MarkdownCodeEditorProps,
+  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, documentKey, livePreview = false, onBlur, onChange, onHistoryChange, onSearchRequest, onSessionChange, session, spellCheck = true, stateCache, value }: MarkdownCodeEditorProps,
   ref: ForwardedRef<MarkdownCodeEditorHandle>,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -199,7 +252,6 @@ function MarkdownCodeEditorComponent(
   const onHistoryChangeRef = useRef(onHistoryChange)
   const onSearchRequestRef = useRef(onSearchRequest)
   const onSessionChangeRef = useRef(onSessionChange)
-  const handledSearchRequestRef = useRef(searchRequestId)
   const autocompleteDataRef = useRef(autocompleteData)
   const spellCheckRef = useRef(spellCheck)
   const ariaLabelRef = useRef(ariaLabel)
@@ -244,6 +296,8 @@ function MarkdownCodeEditorComponent(
         markdown({ base: markdownLanguage, codeLanguages: languages }),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         search({ top: true }),
+        findQueryField,
+        findHighlighter,
         autocompletion({
           activateOnTyping: true,
           override: [(context) => contextualCompletions(context, autocompleteDataRef.current)],
@@ -312,12 +366,31 @@ function MarkdownCodeEditorComponent(
         selectionEnd: view.state.selection.main.to,
       }
     },
+    getSelectionRect() {
+      const view = viewRef.current
+      if (!view) return null
+      const { from, to } = view.state.selection.main
+      if (from === to) return null
+      const start = view.coordsAtPos(from)
+      if (!start) return null
+      return { bottom: start.bottom, left: start.left, right: start.right, top: start.top }
+    },
     focus() {
       viewRef.current?.focus()
     },
     redo() {
       const view = viewRef.current
       return view ? redo(view) : false
+    },
+    selectRange(from, to) {
+      const view = viewRef.current
+      if (!view) return
+      view.dispatch({ selection: { anchor: from, head: to }, scrollIntoView: true })
+    },
+    setFindQuery(query) {
+      const view = viewRef.current
+      if (!view) return
+      view.dispatch({ effects: findQueryEffect.of(query) })
     },
     undo() {
       const view = viewRef.current
@@ -395,12 +468,6 @@ function MarkdownCodeEditorComponent(
       view.scrollDOM.scrollTop = session?.scrollTop ?? 0
     })
   }, [createEditorState, documentKey, session, value])
-
-  useEffect(() => {
-    if (searchRequestId === undefined || searchRequestId === handledSearchRequestRef.current) return
-    handledSearchRequestRef.current = searchRequestId
-    if (viewRef.current) openSearchPanel(viewRef.current)
-  }, [searchRequestId])
 
   return <div ref={containerRef} className="codemirror-markdown-editor" />
 }

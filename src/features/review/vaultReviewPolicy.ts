@@ -28,6 +28,8 @@ const unixMillisecondsSchema = z.number().int().nonnegative().max(Number.MAX_SAF
 
 const deadlineSchema = unixMillisecondsSchema.nullable()
 
+const preferredModeSchema = z.enum(['exam', 'conversation']).nullable()
+
 export const tagReviewPolicyRuleSchema = reviewPolicyValuesSchema.extend({
   tag: z.string().min(1).max(100).refine((value) => (
     value === value.normalize('NFC').toLowerCase()
@@ -35,6 +37,8 @@ export const tagReviewPolicyRuleSchema = reviewPolicyValuesSchema.extend({
   ), 'Use uma tag normalizada, sem #, espaços ou barras duplicadas.'),
   autoEnroll: z.boolean(),
   deadlineAtUnixMs: deadlineSchema,
+  // Modo de revisão que a tag transmite (null = não dita o modo).
+  preferredMode: preferredModeSchema.default(null),
 }).strict().superRefine(validateIntervalOrder)
 
 export const vaultSegmentationLimitsSchema = z.object({
@@ -120,6 +124,40 @@ export async function setVaultReviewTagRules(input: {
     path: input.vaultPath,
     expectedRevision: input.expectedRevision,
     tagRules,
+  }))
+}
+
+/** Conta exatamente quantas notas terao a data recalculada ao alterar o prazo da regra `tag`. */
+export async function previewDeadlineChange(
+  vaultPath: string,
+  tag: string,
+  newDeadline: number | null,
+): Promise<VaultReviewDefaultsPreview> {
+  const validatedTag = tagReviewPolicyRuleSchema.shape.tag.parse(tag)
+  const deadline = deadlineSchema.parse(newDeadline)
+  return vaultReviewDefaultsPreviewSchema.parse(await invoke<unknown>('preview_vault_deadline_change', {
+    path: vaultPath,
+    tag: validatedTag,
+    newDeadline: deadline,
+  }))
+}
+
+/** Aplica a nova data-limite em lote e devolve a configuracao atualizada. */
+export async function applyDeadlineChange(input: {
+  vaultPath: string
+  expectedRevision: number
+  tag: string
+  newDeadline: number | null
+  expectedAffectedNoteCount: number
+}): Promise<VaultReviewPolicyConfig> {
+  const tag = tagReviewPolicyRuleSchema.shape.tag.parse(input.tag)
+  const newDeadline = deadlineSchema.parse(input.newDeadline)
+  return parseVaultReviewPolicyConfig(await invoke<unknown>('apply_vault_deadline_change', {
+    path: input.vaultPath,
+    expectedRevision: input.expectedRevision,
+    tag,
+    newDeadline,
+    expectedAffectedNoteCount: input.expectedAffectedNoteCount,
   }))
 }
 

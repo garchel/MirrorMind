@@ -24,7 +24,7 @@ const ownedRun = process.env.MIRRORMIND_E2E_RUN_ROOT
   : createOwnedRunRoot(resultsRoot)
 const { runRoot, ownerToken } = ownedRun
 const phase = process.env.MIRRORMIND_E2E_PHASE ?? 'single'
-if (!['create-and-save', 'reopen', 'rename-and-move', 'verify-rename-and-move', 'single'].includes(phase)) throw new Error(`Unexpected E2E phase: ${phase}`)
+if (!['create-and-save', 'reopen', 'rename-and-move', 'verify-rename-and-move', 'trash-and-restore', 'verify-trash-restore', 'single'].includes(phase)) throw new Error(`Unexpected E2E phase: ${phase}`)
 const vaultParent = join(runRoot, 'vault-parent')
 const appData = join(runRoot, 'appdata')
 const localAppData = join(runRoot, 'localappdata')

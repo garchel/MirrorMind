@@ -76,6 +76,20 @@
   background: #fffdf8;
 }
 
+/* Texto apenas para leitores de tela: sem isso, o rotulo "Buscar tags" fica
+   visivel ao lado do placeholder "Buscar tag" (texto duplicado no campo). */
+.tag-management-page .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .tag-search:focus-within {
   border-color: #766d5e;
   box-shadow: 0 0 0 3px rgb(118 109 94 / 14%);
@@ -220,7 +234,7 @@
 
 .tag-policy-summary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   margin: 20px 0 0;
   border: 1px solid #dfd8cc;
   border-radius: 12px;
@@ -361,10 +375,62 @@
 }
 
 .tag-presets,
-.tag-policy-fields {
+.tag-policy-fields,
+.tag-mode-field {
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+.tag-mode-field legend {
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.tag-mode-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.tag-mode-options label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid #d3cbbd;
+  border-radius: 10px;
+  background: #f6f2ea;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.tag-mode-options label:has(input:checked) {
+  border-color: #9a8f7d;
+  background: #efe9dd;
+}
+
+.tag-mode-options label:hover {
+  border-color: #b9ae9e;
+}
+
+.tag-mode-options input {
+  margin-top: 3px;
+  accent-color: #5b6f52;
+}
+
+.tag-mode-options span {
+  display: grid;
+  gap: 3px;
+}
+
+.tag-mode-options strong {
+  font-size: 13px;
+}
+
+.tag-mode-options small {
+  color: #756f66;
+  line-height: 1.35;
 }
 
 .tag-presets > div {
@@ -567,7 +633,7 @@
 
   .tag-policy-summary,
   .tag-policy-fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -592,6 +658,7 @@
   }
 
   .tag-presets > div,
+  .tag-mode-options,
   .tag-policy-summary,
   .tag-policy-fields {
     grid-template-columns: 1fr;
@@ -601,4 +668,81 @@
     border-right: 0;
     border-bottom: 1px solid #e4ddd2;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   A pagina tem tema claro proprio, mas App.css (emitido depois no bundle)
+   aplica o tema escuro do workspace aos botoes (.workspace-shell button e
+   .workspace-shell .secondary-button) e vence os empates de especificidade.
+   Reafirma o tema claro da pagina com especificidade maior (classe duplicada),
+   sem afetar as outras paginas do workspace.
+--------------------------------------------------------------------------- */
+.tag-management-page.tag-management-page button {
+  min-height: 38px;
+  border-radius: 9px;
+  background: #25231f;
+  color: #faf7ef;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tag-management-page.tag-management-page button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #3a3730;
+}
+
+.tag-management-page.tag-management-page .secondary-button:not(.danger-button) {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid #d8d2c6;
+  border-radius: 9px;
+  background: #f0ece3;
+  color: #4a463f;
+}
+
+.tag-management-page.tag-management-page .secondary-button:not(.danger-button):hover:not(:disabled) {
+  background: #e6e0d3;
+}
+
+.tag-management-page.tag-management-page .tag-icon-button {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+}
+
+.tag-management-page.tag-management-page .danger-button {
+  background: #9b3c34;
+  color: #fffaf7;
+}
+
+.tag-management-page.tag-management-page .danger-button:hover:not(:disabled) {
+  background: #7e3029;
+}
+
+/* Lista de tags do catalogo: fundo claro e texto escuro legivel (o contador de
+   notas e o nome da tag ficavam escuros sobre o fundo escuro do workspace no
+   hover, sumindo da tela). */
+.tag-management-page.tag-management-page .tag-catalog-list > button {
+  min-height: 46px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #3a3731;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.tag-management-page.tag-management-page .tag-catalog-list > button:hover:not(:disabled) {
+  border-color: #d5cdbf;
+  background: rgb(255 253 248 / 72%);
+  transform: none;
+}
+
+.tag-management-page.tag-management-page .tag-catalog-list > button.is-selected {
+  border-color: #b9ae9e;
+  background: #fffdf8;
+  box-shadow: 0 5px 14px rgb(68 58 43 / 7%);
 }

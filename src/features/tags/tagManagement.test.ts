@@ -18,6 +18,7 @@ const rule = {
   minIntervalDays: 1,
   maxIntervalDays: 90,
   deadlineAtUnixMs: null,
+  preferredMode: null,
 }
 
 const config = {

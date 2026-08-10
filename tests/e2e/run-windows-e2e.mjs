@@ -14,6 +14,10 @@ const journeys = [
     spec: 'tests/e2e/rename-move-links.e2e.mjs',
     phases: ['rename-and-move', 'verify-rename-and-move'],
   },
+  {
+    spec: 'tests/e2e/trash-restore.e2e.mjs',
+    phases: ['trash-and-restore', 'verify-trash-restore'],
+  },
 ]
 
 async function runPhase({ ownerToken, phase, runRoot, spec }) {

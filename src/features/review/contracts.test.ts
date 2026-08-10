@@ -105,6 +105,16 @@ describe('learning document contract', () => {
     expect(parseLearningDocument(value).note.readiness.status).toBe('unassessed')
   })
 
+  it('accepts the assessed semantic hash (mudancas cosmeticas preservam avaliacao)', () => {
+    const value = fixture()
+    value.note.readiness.assessedSemanticHash = 'sha256:semantic-content'
+    expect(parseLearningDocument(value).note.readiness.assessedSemanticHash).toBe('sha256:semantic-content')
+
+    // Documentos antigos (sem o campo) continuam validos.
+    delete value.note.readiness.assessedSemanticHash
+    expect(parseLearningDocument(value).note.readiness.assessedSemanticHash).toBeUndefined()
+  })
+
   it('preserves the assessed hash and pauses a modified note', () => {
     const value = fixture()
     value.note.contentHash = 'sha256:edited-content'

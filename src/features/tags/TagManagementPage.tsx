@@ -87,6 +87,7 @@ function draftFor(tag: string, rule?: TagReviewPolicyRule | null): TagReviewPoli
         autoEnroll: false,
         ...PRESETS.balanced.values,
         deadlineAtUnixMs: null,
+        preferredMode: null,
       }
 }
 
@@ -416,6 +417,24 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   </div>
                 </fieldset>
 
+                <fieldset className="tag-mode-field">
+                  <legend>Modo de revisão herdado</legend>
+                  <div className="tag-mode-options">
+                    <label>
+                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === null} onChange={() => updateDraft({ preferredMode: null })} />
+                      <span><strong>Sem preferência</strong><small>A nota usa o modo dela ou o padrão Prova.</small></span>
+                    </label>
+                    <label>
+                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === 'exam'} onChange={() => updateDraft({ preferredMode: 'exam' })} />
+                      <span><strong>Prova</strong><small>Perguntas independentes.</small></span>
+                    </label>
+                    <label>
+                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === 'conversation'} onChange={() => updateDraft({ preferredMode: 'conversation' })} />
+                      <span><strong>Conversa</strong><small>Exploração progressiva.</small></span>
+                    </label>
+                  </div>
+                </fieldset>
+
                 <fieldset className="tag-policy-fields">
                   <legend>Parâmetros</legend>
                   <label><span>Primeira revisão</span><div><input aria-label="Primeira revisão" type="number" min="1" max="3650" value={draft.firstReviewIntervalDays} onChange={(event) => updateDraft({ firstReviewIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
@@ -477,6 +496,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     <div><dt>Intervalo mínimo</dt><dd>{selected.rule.minIntervalDays} dias</dd></div>
                     <div><dt>Intervalo máximo</dt><dd>{selected.rule.maxIntervalDays} dias</dd></div>
                     <div><dt>Prazo de estudo</dt><dd>{selected.rule.deadlineAtUnixMs === null ? 'Sem prazo' : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(selected.rule.deadlineAtUnixMs))}</dd></div>
+                    <div><dt>Modo herdado</dt><dd>{selected.rule.preferredMode === null ? 'Sem preferência' : selected.rule.preferredMode === 'exam' ? 'Prova' : 'Conversa'}</dd></div>
                   </dl>
                 </>
               ) : (

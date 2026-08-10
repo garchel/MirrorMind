@@ -1,15 +1,21 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewReportsPage } from './ReviewReportsPage'
 
-const { getReviewReportsMock } = vi.hoisted(() => ({
+const { getReviewReportsMock, getRetentionReportMock } = vi.hoisted(() => ({
   getReviewReportsMock: vi.fn(),
+  getRetentionReportMock: vi.fn(),
 }))
 
 vi.mock('./reviewReports', async (importOriginal) => ({
   ...await importOriginal<typeof import('./reviewReports')>(),
   getReviewReports: getReviewReportsMock,
+}))
+
+vi.mock('./retentionReport', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./retentionReport')>(),
+  getRetentionReport: getRetentionReportMock,
 }))
 
 const baseReport = {
@@ -27,6 +33,31 @@ const baseReport = {
   nextReviewAtUnixMs: 1_730_604_800_000,
 }
 
+const baseRetention = {
+  generatedAtUnixMs: 1_730_000_000_000,
+  overall: {
+    enrolledNoteCount: 2,
+    trackedUnitCount: 5,
+    averageRetrievability: 0.72,
+    averageStabilityDays: 9.5,
+    fragileUnitCount: 1,
+    completedSessionCount: 3,
+  },
+  perTag: [
+    {
+      tag: 'revisao/prova',
+      noteCount: 1,
+      unitCount: 3,
+      averageRetrievability: 0.55,
+      fragileUnitCount: 1,
+    },
+  ],
+  evolution: [
+    { dayStartUnixMs: 1_729_657_600_000, sessionCount: 1, averageScore: 80 },
+    { dayStartUnixMs: 1_729_744_000_000, sessionCount: 1, averageScore: 58 },
+  ],
+}
+
 function renderPage(onOpenNote = vi.fn()) {
   return { onOpenNote, ...render(<ReviewReportsPage vaultPath="C:\\Vault" onOpenNote={onOpenNote} />) }
 }
@@ -35,6 +66,8 @@ describe('ReviewReportsPage', () => {
   beforeEach(() => {
     getReviewReportsMock.mockReset()
     getReviewReportsMock.mockResolvedValue([baseReport])
+    getRetentionReportMock.mockReset()
+    getRetentionReportMock.mockResolvedValue(baseRetention)
   })
   afterEach(cleanup)
 
@@ -58,7 +91,8 @@ describe('ReviewReportsPage', () => {
 
     expect(await screen.findByRole('table', { name: /relatórios de revisão/i })).toBeInTheDocument()
 
-    const rows = screen.getAllByRole('row')
+    const reportsTable = screen.getByRole('table', { name: /relatórios de revisão/i })
+    const rows = within(reportsTable).getAllByRole('row')
     expect(rows).toHaveLength(3) // cabecalho + duas linhas
     expect(screen.getByText('Fotossintese')).toBeInTheDocument()
     expect(screen.getByText('Biologia/Fotossintese.md')).toBeInTheDocument()
@@ -70,6 +104,26 @@ describe('ReviewReportsPage', () => {
     expect(screen.getByText('Completa')).toBeInTheDocument()
     // Sem proxima revisao, a celula exibe em dash.
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+
+  it('shows the retention summary cards and the per-tag table', async () => {
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'Retenção estimada' })).toBeInTheDocument()
+    // Cards gerais.
+    expect(screen.getByText('72%')).toBeInTheDocument()
+    expect(screen.getByText('9.5d')).toBeInTheDocument()
+    expect(screen.getByText('Retenção média')).toBeInTheDocument()
+    // Tabela por tag, com a tag mais fraca e o valor de retencao.
+    expect(await screen.findByRole('table', { name: /retenção estimada por tag/i })).toBeInTheDocument()
+    expect(screen.getByText('#revisao/prova')).toBeInTheDocument()
+    expect(screen.getByText('55%')).toBeInTheDocument()
+  })
+
+  it('shows the evolution chart with the session days', async () => {
+    renderPage()
+
+    expect(await screen.findByRole('img', { name: /média das notas por dia/i })).toBeInTheDocument()
   })
 
   it('shows an empty state when no report exists', async () => {

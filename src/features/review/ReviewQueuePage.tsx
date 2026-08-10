@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, RefreshCw } from 'lucide-react'
+import { BookOpen, Minus, Plus, RefreshCw } from 'lucide-react'
+import { setNoteReviewPriority } from './reviewPolicy'
 import { getDueReviewQueue, type DueReviewItem } from './reviewQueue'
 import { formatOverdueDate } from './reviewQueueDate'
 import './review-queue.css'
@@ -10,13 +11,15 @@ type ReviewQueuePageProps = {
   onStartReview: (item: DueReviewItem) => void
 }
 
-
+const PRIORITY_STEP = 1
 
 export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview }: ReviewQueuePageProps) {
   const [items, setItems] = useState<DueReviewItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadRequest, setReloadRequest] = useState(0)
+  const [priorityBusy, setPriorityBusy] = useState<string | null>(null)
+  const [priorityError, setPriorityError] = useState<string | null>(null)
   const requestIdRef = useRef(0)
 
   useEffect(() => {
@@ -35,6 +38,22 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview }: Review
         if (requestId === requestIdRef.current) setLoading(false)
       })
   }, [vaultPath, reloadRequest])
+
+  async function changePriority(item: DueReviewItem, delta: number) {
+    if (priorityBusy) return
+    const next = Math.min(100, Math.max(0.1, Math.round((item.priorityWeight + delta) * 10) / 10))
+    if (next === item.priorityWeight) return
+    setPriorityBusy(item.noteId)
+    setPriorityError(null)
+    try {
+      await setNoteReviewPriority({ vaultPath, relativePath: item.relativePath, priorityWeight: next })
+      setReloadRequest((request) => request + 1)
+    } catch (cause) {
+      setPriorityError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setPriorityBusy(null)
+    }
+  }
 
   return (
     <section className="workspace-page review-queue-page" aria-labelledby="review-queue-title">
@@ -84,7 +103,27 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview }: Review
                 <div className="review-queue-meta">
                   <span>{formatOverdueDate(item.nextReviewAtUnixMs)}</span>
                   <span>{item.preferredMode === 'exam' ? 'Modo prova' : 'Modo conversa'}</span>
-                  <span>Prioridade {item.priorityWeight}</span>
+                  <span className="review-queue-priority" aria-label={`Prioridade ${item.priorityWeight}`} aria-live="polite">
+                    <button
+                      type="button"
+                      className="review-queue-priority-step"
+                      onClick={() => void changePriority(item, -PRIORITY_STEP)}
+                      disabled={priorityBusy !== null || item.priorityWeight <= 0.1}
+                      aria-label={`Diminuir prioridade de ${item.title}`}
+                    >
+                      <Minus size={11} strokeWidth={2} aria-hidden="true" />
+                    </button>
+                    <span>Prioridade {item.priorityWeight}</span>
+                    <button
+                      type="button"
+                      className="review-queue-priority-step"
+                      onClick={() => void changePriority(item, PRIORITY_STEP)}
+                      disabled={priorityBusy !== null || item.priorityWeight >= 100}
+                      aria-label={`Aumentar prioridade de ${item.title}`}
+                    >
+                      <Plus size={11} strokeWidth={2} aria-hidden="true" />
+                    </button>
+                  </span>
                   {item.deadlineAtUnixMs !== null ? (
                     <span className={`review-queue-deadline${item.deadlineAtUnixMs <= Date.now() ? ' is-expired' : ''}`}>
                       Prazo {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(item.deadlineAtUnixMs))}
@@ -114,6 +153,9 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview }: Review
           ))}
         </ol>
       )}
+      {priorityError ? (
+        <p className="review-queue-priority-error" role="alert">{priorityError}</p>
+      ) : null}
     </section>
   )
 }

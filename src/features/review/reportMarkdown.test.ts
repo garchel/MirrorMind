@@ -7,7 +7,7 @@ describe('annotateReviewMarkdown', () => {
     const result = annotateReviewMarkdown(
       markdown,
       [{ classification: 'forgotten', sourceStartUtf16: 2, sourceEndUtf16: 18 }],
-      [{ sourceStartUtf16: 0, sourceEndUtf16: markdown.length, score: 72, outcome: 'good' }],
+      [{ sourceStartUtf16: 0, sourceEndUtf16: markdown.length, evaluated: true, score: 72, outcome: 'good' }],
     )
     expect(result).toBe(
       'A <mark data-gap="forgotten">energia luminosa</mark> alimenta a fotossintese.'
@@ -22,7 +22,7 @@ describe('annotateReviewMarkdown', () => {
     const result = annotateReviewMarkdown(
       markdown,
       [{ classification: 'confused', sourceStartUtf16: bodyStart + 2, sourceEndUtf16: bodyStart + 18 }],
-      [{ sourceStartUtf16: bodyStart, sourceEndUtf16: bodyEnd, score: 50, outcome: 'partial' }],
+      [{ sourceStartUtf16: bodyStart, sourceEndUtf16: bodyEnd, evaluated: true, score: 50, outcome: 'partial' }],
     )
     expect(result).toContain('<mark data-gap="confused">energia luminosa</mark>')
     expect(result.endsWith('class="review-unit-score is-partial" data-score="50" data-outcome="partial" title="Dificil: 50">50</span>')).toBe(true)
@@ -37,8 +37,8 @@ describe('annotateReviewMarkdown', () => {
       markdown,
       [{ classification: 'forgotten', sourceStartUtf16: 5, sourceEndUtf16: 20 }],
       [
-        { sourceStartUtf16: 0, sourceEndUtf16: fenceEnd, score: 45, outcome: 'partial' },
-        { sourceStartUtf16: paraStart, sourceEndUtf16: markdown.length, score: 88, outcome: 'good' },
+        { sourceStartUtf16: 0, sourceEndUtf16: fenceEnd, evaluated: true, score: 45, outcome: 'partial' },
+        { sourceStartUtf16: paraStart, sourceEndUtf16: markdown.length, evaluated: true, score: 88, outcome: 'good' },
       ],
     )
     // Nenhum mark dentro do bloco de codigo: o texto do fence permanece intacto.
@@ -76,7 +76,7 @@ describe('annotateReviewMarkdown', () => {
     const result = annotateReviewMarkdown(
       markdown,
       [],
-      [{ sourceStartUtf16: 0, sourceEndUtf16: markdown.length, score: 88, outcome: 'good' }],
+      [{ sourceStartUtf16: 0, sourceEndUtf16: markdown.length, evaluated: true, score: 88, outcome: 'good' }],
     )
     // O badge vira um bloco proprio apos uma quebra de linha: a linha de
     // fechamento do fence permanece valida.
@@ -88,15 +88,64 @@ describe('annotateReviewMarkdown', () => {
     const result = annotateReviewMarkdown(
       markdown,
       [{ classification: 'forgotten', sourceStartUtf16: 10, sourceEndUtf16: 24 }],
-      [{ sourceStartUtf16: 0, sourceEndUtf16: markdown.length, score: 60, outcome: 'partial' }],
+      [{ sourceStartUtf16: 0, sourceEndUtf16: markdown.length, evaluated: true, score: 60, outcome: 'partial' }],
     )
     expect(result).not.toContain('<mark data-gap')
     expect(result.endsWith('\n<span class="review-unit-score is-partial" data-score="60" data-outcome="partial" title="Dificil: 60">60</span>')).toBe(true)
   })
 
+  it('moves the badge of a unit ending inside display math after the $$ block', () => {
+    const markdown = [
+      'Equacao acima.',
+      '',
+      '$$',
+      String.raw`6\text{CO}_2 + 6\text{H}_2\text{O} \xrightarrow{\text{Luz, Clorofila}} \text{C}_6\text{H}_{12}\text{O}_6`,
+      '$$',
+    ].join('\n')
+    const result = annotateReviewMarkdown(
+      markdown,
+      [],
+      [{ sourceStartUtf16: 0, sourceEndUtf16: markdown.length, evaluated: true, score: 55, outcome: 'partial' }],
+    )
+    // O badge nunca entra no bloco $$...$$ (quebraria o KaTeX): fica como um
+    // bloco proprio apos o fechamento.
+    expect(result.endsWith('$$\n<span class="review-unit-score is-partial" data-score="55" data-outcome="partial" title="Dificil: 55">55</span>')).toBe(true)
+    expect(result.match(/<span class="review-unit-score/g)?.length).toBe(1)
+  })
+
   it('keeps the body unchanged when there is nothing to annotate', () => {
     const markdown = 'Conteudo sem lacunas nem unidades.'
     expect(annotateReviewMarkdown(markdown, [], [])).toBe(markdown)
+  })
+
+  it('flags an out-of-scope unit as not evaluated without attributing zero', () => {
+    const markdown = 'A energia luminosa alimenta a fotossintese.'
+    const result = annotateReviewMarkdown(
+      markdown,
+      [],
+      [{ sourceStartUtf16: 0, sourceEndUtf16: markdown.length, evaluated: false, score: 0, outcome: 'partial' }],
+    )
+    // Diferente do esquecido (badge colorido com score), o conteúdo não
+    // perguntado recebe um badge neutro e explícito.
+    expect(result).toBe(
+      markdown
+      + '<span class="review-unit-score is-not-evaluated" data-evaluated="false" title="Não avaliado nesta sessão">não avaliado</span>',
+    )
+  })
+
+  it('flags an inconclusive unit without attributing zero', () => {
+    const markdown = 'A energia luminosa alimenta a fotossintese.'
+    const result = annotateReviewMarkdown(
+      markdown,
+      [],
+      [{ sourceStartUtf16: 0, sourceEndUtf16: markdown.length, evaluated: false, inconclusive: true, score: 0, outcome: 'partial' }],
+    )
+    // Evidência insuficiente: badge distinto de "não avaliado" e de
+    // "esquecido", nunca um zero.
+    expect(result).toBe(
+      markdown
+      + '<span class="review-unit-score is-inconclusive" data-inconclusive="true" title="Evidência insuficiente nesta sessão">inconclusivo</span>',
+    )
   })
 
   it('labels each outcome band', () => {

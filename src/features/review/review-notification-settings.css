@@ -1,0 +1,50 @@
+.review-notification-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.review-notification-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.review-notification-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-notification-heading svg {
+  color: var(--workspace-muted, #8a8f98);
+  margin-top: 2px;
+}
+
+.review-notification-time {
+  width: 130px;
+  padding: 6px 10px;
+  border: 1px solid var(--workspace-border, rgba(127, 127, 127, 0.25));
+  border-radius: 6px;
+  background: var(--workspace-surface, transparent);
+  color: inherit;
+  font: inherit;
+}
+
+.review-notification-time:disabled {
+  opacity: 0.55;
+}
+
+.review-notification-mute-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--workspace-muted, #8a8f98);
+}
+
+.review-notification-status {
+  margin: 0;
+  color: var(--workspace-muted, #8a8f98);
+  font-size: 0.85em;
+  line-height: 1.5;
+}

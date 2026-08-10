@@ -119,7 +119,7 @@ Objetivo: um usuario deve conseguir abrir um Vault do Obsidian, navegar e editar
 
 ## Bloco 5: Revisao e aprendizado
 
-O planejamento completo foi movido para [review-learning-roadmap.md](review-learning-roadmap.md). O documento dedicado contem as dependencias tecnicas, o escopo funcional aprovado e as evolucoes V2 e do plano pago.
+O planejamento completo foi movido para [review-learning-roadmap.md](review-learning-roadmap.md). O documento dedicado contem as dependencias tecnicas, o escopo funcional aprovado e a jornada V1; as evolucoes V2 e do plano pago ficam em [review-learning-v2-roadmap.md](review-learning-v2-roadmap.md).
 
 
 ## Bloco 6: Configuracoes

@@ -1,29 +1,51 @@
 .note-tag-picker {
   position: relative;
-  margin-top: 8px;
 }
 
+/* Trigger "(tags:)": pill outline SEM cor de fundo (sobrepoe a regra global
+   `.workspace-shell button`, que pinta botoes de escuro) e fonte no tom preto
+   das fontes (--text-h). Mais transparente, opacidade normal no hover/aberto. */
+.workspace-shell .note-tag-picker-trigger,
 .note-tag-picker-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  border: 0;
-  padding: 2px 0;
+  gap: 4px;
+  padding: 3px 9px;
+  border: 1px solid rgba(28, 36, 39, 0.22);
+  border-radius: 999px;
   background: transparent;
-  color: rgb(86 86 79 / 0.42);
-  font: 600 11px/1.2 var(--sans);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--text-h, #1c2427);
+  font: 11px/1.2 var(--sans);
+  letter-spacing: 0.02em;
   cursor: pointer;
-  transition: color 160ms ease;
+  opacity: 0.62;
+  transition: opacity 140ms ease;
 }
 
+/* No hover/aberto o trigger vira o botao escuro do app com fonte branca. */
+.workspace-shell .note-tag-picker-trigger:hover,
+.workspace-shell .note-tag-picker-trigger:focus-visible,
+.workspace-shell .note-tag-picker-trigger[aria-expanded='true'],
 .note-tag-picker-trigger:hover,
 .note-tag-picker-trigger:focus-visible,
 .note-tag-picker-trigger[aria-expanded='true'] {
-  color: #56564f;
+  opacity: 1;
+  background: var(--button-bg, #1c2427);
+  border-color: transparent;
+  color: var(--button-text, #f7f2e7);
 }
 
+.note-tag-picker-chevron {
+  transition: transform 160ms ease;
+}
+
+.note-tag-picker-trigger[aria-expanded='true'] .note-tag-picker-chevron {
+  transform: rotate(180deg);
+}
+
+/* Menu dropdown: mesma cor de fundo do workspace (#fbfaf6) para nao deixar
+   o conteudo da nota aparecer por tras; itens com a fonte no tom preto das
+   fontes (sobrepoe o escuro de `.workspace-shell button`). */
 .note-tag-picker-menu {
   position: absolute;
   z-index: 20;
@@ -34,31 +56,35 @@
   max-height: 240px;
   overflow: auto;
   padding: 5px;
-  border: 1px solid #d8d6cf;
+  border: 1px solid rgba(28, 36, 39, 0.22);
   border-radius: 7px;
-  background: #fbfaf6;
+  background: var(--workspace-bg, #fbfaf6);
   box-shadow: 0 12px 26px rgb(52 51 46 / 0.14);
 }
 
+.workspace-shell .note-tag-picker-menu button,
 .note-tag-picker-menu button {
   border: 0;
   padding: 7px 8px;
   border-radius: 4px;
   background: transparent;
-  color: #45453f;
+  color: var(--text-h, #1c2427);
   text-align: left;
   font: 13px var(--sans);
   cursor: pointer;
 }
 
+.workspace-shell .note-tag-picker-menu button:hover,
+.workspace-shell .note-tag-picker-menu button:focus-visible,
 .note-tag-picker-menu button:hover,
 .note-tag-picker-menu button:focus-visible {
-  background: #eceae3;
+  background: rgba(28, 36, 39, 0.07);
+  outline: none;
 }
 
 .note-tag-picker-menu p {
   margin: 5px 7px;
-  color: #75736b;
+  color: var(--muted, #7e7466);
   font: 12px/1.4 var(--sans);
 }
 

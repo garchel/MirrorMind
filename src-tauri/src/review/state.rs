@@ -4,7 +4,8 @@ use super::contract::{
     ReviewMode, ReviewPolicy, SchedulingState, SchedulingStatus, LEARNING_SCHEMA_VERSION,
 };
 use super::evaluation::{
-    source_hash, ReadinessAttempt, ReadinessIssueCode, ReadinessReport, ReadinessStatus,
+    semantic_fingerprint, source_hash, ReadinessAttempt, ReadinessIssueCode, ReadinessReport,
+    ReadinessStatus,
 };
 use super::policy::next_review_for_effective_policy;
 use super::policy_config::load_inherited_review_policy;
@@ -58,6 +59,9 @@ pub struct NoteReviewState {
     pub scheduling_status: NoteSchedulingStatus,
     pub first_review_at_unix_ms: Option<u64>,
     pub next_review_at_unix_ms: Option<u64>,
+    /// Meta de retencao em risco: a nota tem prazo ativo e a projecao na data
+    /// da prova nao atinge a tolerancia configurada mesmo antecipando revisoes.
+    pub deadline_retention_at_risk: bool,
 }
 
 fn reconcile_inherited_review_policy(
@@ -151,7 +155,8 @@ pub fn persist_readiness_assessment(
     document.revision = expected_revision.map_or(1, |revision| revision.saturating_add(1));
     document.note.relative_path = relative_path.to_string();
     document.note.content_hash = content_hash.clone();
-    document.note.readiness = stored_readiness(report, &content_hash, assessed_at_unix_ms);
+    document.note.readiness =
+        stored_readiness(report, &content_hash, &semantic_fingerprint(markdown), assessed_at_unix_ms);
     if report.status == ReadinessStatus::Ready && starts_new_cycle {
         if !document.sessions.is_empty() {
             // Nota ja revisada e agora reavaliada: as unidades foram reconciliadas
@@ -214,7 +219,7 @@ pub fn persist_readiness_assessment(
     }
 
     write_learning_document(vault_root, &note_id, expected_revision, &document)?;
-    Ok(state_from_document(&document))
+    Ok(state_from_document(&document, assessed_at_unix_ms))
 }
 
 pub fn load_note_review_state(
@@ -244,9 +249,24 @@ pub fn load_note_review_state(
         );
         document.note.content_hash = current_hash.clone();
         document.note.relative_path = relative_path.to_string();
-        mark_readiness_modified(&mut document.note.readiness);
-        document.scheduling.status = SchedulingStatus::Paused;
-        document.scheduling.next_review_at_unix_ms = None;
+        // Uma nota ja Modified nunca volta sozinha (reverter ao conteudo
+        // avaliado exige reavaliacao explicita) e o contrato exige que ela
+        // preserve o hash avaliado desatualizado: so estados ativos (Ready,
+        // Ambiguous, Insufficient) podem preservar-se em mudancas cosmeticas.
+        if !matches!(document.note.readiness, ReadinessAssessment::Modified { .. })
+            && assessed_semantic_hash(&document.note.readiness)
+                .is_some_and(|assessed| assessed == semantic_fingerprint(markdown))
+        {
+            // Mudanca apenas cosmetica (espacamento, pontuacao ou acentos): a
+            // avaliacao continua valida e o agendamento nao pausa. O hash
+            // avaliado acompanha o conteudo para o contrato continuar exigindo
+            // assessed_content_hash == current_hash no estado pronto.
+            set_assessed_content_hash(&mut document.note.readiness, &current_hash);
+        } else {
+            mark_readiness_modified(&mut document.note.readiness);
+            document.scheduling.status = SchedulingStatus::Paused;
+            document.scheduling.next_review_at_unix_ms = None;
+        }
         changed = true;
     }
 
@@ -261,7 +281,7 @@ pub fn load_note_review_state(
         document.revision = document.revision.saturating_add(1);
         write_learning_document(vault_root, &note_id, Some(expected_revision), &document)?;
     }
-    let mut state = state_from_document(&document);
+    let mut state = state_from_document(&document, now_unix_ms);
     if state.scheduling_status == NoteSchedulingStatus::Scheduled
         && state
             .next_review_at_unix_ms
@@ -278,6 +298,7 @@ fn mark_readiness_modified(readiness: &mut ReadinessAssessment) {
         ReadinessAssessment::Unassessed {
             assessed_at_unix_ms: None,
             assessed_content_hash: None,
+            assessed_semantic_hash: None,
             issues: Vec::new(),
             report: None,
         },
@@ -286,35 +307,122 @@ fn mark_readiness_modified(readiness: &mut ReadinessAssessment) {
         ReadinessAssessment::Ready {
             assessed_at_unix_ms,
             assessed_content_hash,
+            assessed_semantic_hash,
             issues,
             report,
         }
         | ReadinessAssessment::Ambiguous {
             assessed_at_unix_ms,
             assessed_content_hash,
+            assessed_semantic_hash,
             issues,
             report,
         }
         | ReadinessAssessment::Insufficient {
             assessed_at_unix_ms,
             assessed_content_hash,
+            assessed_semantic_hash,
             issues,
             report,
         }
         | ReadinessAssessment::Modified {
             assessed_at_unix_ms,
             assessed_content_hash,
+            assessed_semantic_hash,
             issues,
             report,
         } => ReadinessAssessment::Modified {
             assessed_at_unix_ms,
             assessed_content_hash,
+            assessed_semantic_hash,
             issues,
             report,
         },
         unassessed @ ReadinessAssessment::Unassessed { .. } => unassessed,
     };
 }
+
+/// Fingerprint semantico do conteudo avaliado, quando armazenado (documentos
+/// avaliados antes desta feature nao o possuem e seguem exigindo reavaliacao
+/// em qualquer mudanca).
+fn assessed_semantic_hash(readiness: &ReadinessAssessment) -> Option<&str> {
+    match readiness {
+        ReadinessAssessment::Unassessed {
+            assessed_semantic_hash,
+            ..
+        }
+        | ReadinessAssessment::Ready {
+            assessed_semantic_hash,
+            ..
+        }
+        | ReadinessAssessment::Ambiguous {
+            assessed_semantic_hash,
+            ..
+        }
+        | ReadinessAssessment::Insufficient {
+            assessed_semantic_hash,
+            ..
+        }
+        | ReadinessAssessment::Modified {
+            assessed_semantic_hash,
+            ..
+        } => assessed_semantic_hash.as_deref(),
+    }
+}
+
+/// Atualiza o hash avaliado sem tocar no restante da avaliacao: usado quando
+/// uma mudanca cosmetica mantem a prontidao (Ready exige que o hash avaliado
+/// corresponda ao conteudo atual).
+fn set_assessed_content_hash(readiness: &mut ReadinessAssessment, content_hash: &str) {
+    match readiness {
+        ReadinessAssessment::Unassessed {
+            assessed_content_hash,
+            ..
+        } => *assessed_content_hash = Some(content_hash.to_string()),
+        ReadinessAssessment::Ready {
+            assessed_content_hash,
+            ..
+        }
+        | ReadinessAssessment::Ambiguous {
+            assessed_content_hash,
+            ..
+        }
+        | ReadinessAssessment::Insufficient {
+            assessed_content_hash,
+            ..
+        }
+        | ReadinessAssessment::Modified {
+            assessed_content_hash,
+            ..
+        } => *assessed_content_hash = content_hash.to_string(),
+    }
+}
+/// Agenda a primeira revisao de uma nota inscrita: novo ciclo ancorado em
+/// `anchor_unix_ms` (a data em que ficou pronta ou o momento do reset), usando
+/// o primeiro intervalo da politica efetiva.
+fn schedule_first_review(
+    document: &mut LearningDocument,
+    anchor_unix_ms: u64,
+    now_unix_ms: u64,
+) -> Result<()> {
+    let interval_ms = document
+        .effective_policy
+        .first_review_interval_days
+        .checked_mul(24 * 60 * 60 * 1_000)
+        .ok_or_else(|| anyhow::anyhow!("O intervalo inicial de revisao e invalido."))?;
+    let first_review_at = anchor_unix_ms
+        .checked_add(interval_ms)
+        .ok_or_else(|| anyhow::anyhow!("A primeira data de revisao excede o limite."))?;
+    document.scheduling.first_review_at_unix_ms = Some(first_review_at);
+    document.scheduling.next_review_at_unix_ms = Some(first_review_at);
+    document.scheduling.status = if first_review_at <= now_unix_ms {
+        SchedulingStatus::Due
+    } else {
+        SchedulingStatus::Scheduled
+    };
+    Ok(())
+}
+
 pub fn set_manual_enrollment(
     vault_root: &Path,
     relative_path: &str,
@@ -345,17 +453,11 @@ pub fn set_manual_enrollment(
     let is_enrolled = document.note.enrollment.is_enrolled();
     if is_enrolled {
         if document.scheduling.first_review_at_unix_ms.is_none() {
-            let interval_ms = document
-                .effective_policy
-                .first_review_interval_days
-                .checked_mul(24 * 60 * 60 * 1_000)
-                .ok_or_else(|| anyhow::anyhow!("O intervalo inicial de revisao e invalido."))?;
-            let first_review_at = ready_at_unix_ms
-                .expect("an enrolled note must have a ready assessment")
-                .checked_add(interval_ms)
-                .ok_or_else(|| anyhow::anyhow!("A primeira data de revisao excede o limite."))?;
-            document.scheduling.first_review_at_unix_ms = Some(first_review_at);
-            document.scheduling.next_review_at_unix_ms = Some(first_review_at);
+            schedule_first_review(
+                &mut document,
+                ready_at_unix_ms.expect("an enrolled note must have a ready assessment"),
+                now_unix_ms,
+            )?;
         } else if document.scheduling.next_review_at_unix_ms.is_none() {
             document.scheduling.next_review_at_unix_ms = if document.sessions.is_empty() {
                 document.scheduling.first_review_at_unix_ms
@@ -378,8 +480,47 @@ pub fn set_manual_enrollment(
     }
 
     write_learning_document(vault_root, &note_id, Some(expected_revision), &document)?;
-    Ok(state_from_document(&document))
+    Ok(state_from_document(&document, now_unix_ms))
 }
+/// Reinicia o aprendizado da nota: remove o historico de sessoes, o estado
+/// DSR/FSRS das unidades e as datas de revisao, preservando Markdown, tags,
+/// avaliacao de prontidao, adesao e politica explicita. Se a nota continuar
+/// pronta e inscrita, o novo ciclo comeca no momento do reset usando o
+/// primeiro intervalo da politica efetiva; caso contrario, volta a aguardar.
+pub fn reset_note_learning(
+    vault_root: &Path,
+    relative_path: &str,
+    now_unix_ms: u64,
+) -> Result<NoteReviewState> {
+    let loaded = load_learning_document_for_path(vault_root, relative_path)?
+        .ok_or_else(|| anyhow::anyhow!("Nao ha aprendizado para reiniciar nesta nota."))?;
+    let note_id = loaded.document.note.id.clone();
+    let expected_revision = loaded.document.revision;
+    let mut document = loaded.document;
+
+    document.sessions.clear();
+    for unit in &mut document.units {
+        unit.fsrs = None;
+        unit.latest_evaluation = None;
+    }
+    document.scheduling.first_review_at_unix_ms = None;
+    document.scheduling.last_review_at_unix_ms = None;
+    document.scheduling.next_review_at_unix_ms = None;
+
+    let is_ready = matches!(&document.note.readiness, ReadinessAssessment::Ready { .. });
+    let is_enrolled = document.note.enrollment.is_enrolled();
+    if is_ready && is_enrolled {
+        // Novo ciclo ancorado no momento do reset, nao na avaliacao original.
+        schedule_first_review(&mut document, now_unix_ms, now_unix_ms)?;
+    } else {
+        document.scheduling.status = SchedulingStatus::NotScheduled;
+    }
+
+    document.revision = document.revision.saturating_add(1);
+    write_learning_document(vault_root, &note_id, Some(expected_revision), &document)?;
+    Ok(state_from_document(&document, now_unix_ms))
+}
+
 fn new_learning_document(
     note_id: String,
     relative_path: &str,
@@ -399,6 +540,7 @@ fn new_learning_document(
             readiness: ReadinessAssessment::Unassessed {
                 assessed_at_unix_ms: None,
                 assessed_content_hash: None,
+                assessed_semantic_hash: None,
                 issues: Vec::new(),
                 report: None,
             },
@@ -407,6 +549,7 @@ fn new_learning_document(
                 manual_paused: false,
                 inherited_from_tag_ids,
                 preferred_mode: ReviewMode::Exam,
+                mode_manual: false,
             },
         },
         units: build_learning_units_with_limits(markdown, content_hash, &[], max_whole_note_words),
@@ -425,6 +568,7 @@ fn new_learning_document(
 fn stored_readiness(
     report: &ReadinessReport,
     content_hash: &str,
+    assessed_semantic_hash: &str,
     assessed_at_unix_ms: u64,
 ) -> ReadinessAssessment {
     let issues = report
@@ -445,25 +589,28 @@ fn stored_readiness(
         ReadinessStatus::Ready => ReadinessAssessment::Ready {
             assessed_at_unix_ms,
             assessed_content_hash: content_hash.to_string(),
+            assessed_semantic_hash: Some(assessed_semantic_hash.to_string()),
             issues,
             report: Some(report.clone()),
         },
         ReadinessStatus::Ambiguous => ReadinessAssessment::Ambiguous {
             assessed_at_unix_ms,
             assessed_content_hash: content_hash.to_string(),
+            assessed_semantic_hash: Some(assessed_semantic_hash.to_string()),
             issues,
             report: Some(report.clone()),
         },
         ReadinessStatus::Insufficient => ReadinessAssessment::Insufficient {
             assessed_at_unix_ms,
             assessed_content_hash: content_hash.to_string(),
+            assessed_semantic_hash: Some(assessed_semantic_hash.to_string()),
             issues,
             report: Some(report.clone()),
         },
     }
 }
 
-fn state_from_document(document: &LearningDocument) -> NoteReviewState {
+fn state_from_document(document: &LearningDocument, now_unix_ms: u64) -> NoteReviewState {
     let (readiness, assessed_at_unix_ms) = match &document.note.readiness {
         ReadinessAssessment::Ready {
             assessed_at_unix_ms,
@@ -517,7 +664,28 @@ fn state_from_document(document: &LearningDocument) -> NoteReviewState {
         },
         first_review_at_unix_ms: document.scheduling.first_review_at_unix_ms,
         next_review_at_unix_ms: document.scheduling.next_review_at_unix_ms,
+        deadline_retention_at_risk: deadline_retention_at_risk(document, now_unix_ms),
     }
+}
+
+/// Meta de retencao em risco: ha prazo ativo e a projecao na data da prova nao
+/// atinge a tolerancia mesmo antecipando revisoes. Derivada a cada leitura, a
+/// partir do estado atual (nunca persistida), usando o mesmo ajuste do
+/// agendamento: risco verdadeiro somente quando o ajuste antecipa e ainda
+/// sinaliza que a meta nao cabe antes do prazo.
+fn deadline_retention_at_risk(document: &LearningDocument, now_unix_ms: u64) -> bool {
+    if document.effective_policy.deadline_at_unix_ms.is_none() {
+        return false;
+    }
+    let ready_at = super::session::note_ready_at(document);
+    super::session::adjust_schedule_for_deadline(
+        now_unix_ms,
+        &document.effective_policy,
+        &document.units,
+        ready_at,
+    )
+    .map(|(adjusted, at_risk)| adjusted.is_some() && at_risk)
+    .unwrap_or(false)
 }
 
 pub(crate) fn note_id_for_path(relative_path: &str) -> String {
@@ -535,13 +703,15 @@ pub(crate) fn note_id_for_path(relative_path: &str) -> String {
 mod tests {
     use super::{
         load_note_review_state, persist_readiness_assessment, persist_readiness_attempt,
-        set_manual_enrollment, NoteReadinessStatus, NoteSchedulingStatus,
+        reset_note_learning, set_manual_enrollment, NoteReadinessStatus, NoteSchedulingStatus,
     };
-    use crate::review::contract::{LearningUnitKind, PolicySourceKind};
+    use crate::review::contract::{LearningUnitKind, PolicySourceKind, ReadinessAssessment};
     use crate::review::evaluation::{
-        GroundedReadinessSource, ReadinessAttempt, ReadinessReport, ReadinessStatus,
+        source_hash, GroundedReadinessSource, ReadinessAttempt, ReadinessReport, ReadinessStatus,
     };
-    use crate::review::storage::load_learning_document;
+    use crate::review::storage::{
+        load_learning_document, load_learning_document_for_path, write_learning_document,
+    };
     use tempfile::tempdir;
 
     #[test]
@@ -753,6 +923,130 @@ mod tests {
         assert_eq!(state.first_review_at_unix_ms, Some(expected_review));
         assert_eq!(state.next_review_at_unix_ms, Some(expected_review));
     }
+    #[test]
+    fn resetting_note_learning_clears_history_and_starts_a_fresh_cycle_from_the_reset() {
+        let vault = tempdir().expect("vault");
+        let markdown = "# ATP\n\nATP armazena energia.\n\nATP transfere energia.\n\nATP participa do metabolismo.";
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        persist_readiness_assessment(vault.path(), "ATP.md", markdown, &report, 1_720_000_000_000)
+            .expect("persist assessment");
+        set_manual_enrollment(vault.path(), "ATP.md", markdown, true, 1_720_100_000_000)
+            .expect("enable review");
+
+        // Acumula historico: uma sessao concluida com estado DSR/FSRS na unidade.
+        let mut loaded = load_learning_document_for_path(vault.path(), "ATP.md")
+            .expect("load")
+            .expect("document");
+        let note_id = loaded.document.note.id.clone();
+        let expected_revision = loaded.document.revision;
+        let session_at = 1_720_200_000_000;
+        let snapshot = crate::review::contract::UnitSnapshot {
+            id: loaded.document.units[0].id.clone(),
+            ordinal: loaded.document.units[0].ordinal,
+            kind: loaded.document.units[0].kind.clone(),
+            content_hash: loaded.document.units[0].content_hash.clone(),
+            section_path: loaded.document.units[0].section_path.clone(),
+            identity: loaded.document.units[0].identity.clone(),
+            source_start_utf16: loaded.document.units[0].source_start_utf16,
+            source_end_utf16: loaded.document.units[0].source_end_utf16,
+        };
+        let fsrs_state = crate::review::contract::FsrsState {
+            difficulty: 5.0,
+            stability_days: 12.0,
+            retrievability: 0.55,
+            last_reviewed_at_unix_ms: session_at,
+        };
+        let evaluation = crate::review::contract::UnitEvaluation::Evaluated {
+            score: 45,
+            outcome: crate::review::contract::RecallOutcome::Partial,
+            evidence: crate::review::contract::EvidenceStrength::FreeRecall,
+            evaluated_at_unix_ms: session_at,
+            gaps: Vec::new(),
+        };
+        loaded.document.sessions = vec![crate::review::contract::ReviewSession {
+            id: "session-reset".to_string(),
+            note_content_hash: loaded.document.note.content_hash.clone(),
+            mode: crate::review::contract::ReviewMode::Exam,
+            provider: crate::review::contract::AiProvider::Ollama,
+            completed_at_unix_ms: session_at,
+            overall_score: Some(45),
+            unit_results: vec![crate::review::contract::SessionUnitResult {
+                unit_snapshot: snapshot,
+                evaluation: evaluation.clone(),
+                fsrs_before: Some(fsrs_state.clone()),
+                fsrs_after: Some(fsrs_state.clone()),
+            }],
+            effective_policy: loaded.document.effective_policy.clone(),
+            next_review_at_unix_ms: Some(session_at + 3 * 24 * 60 * 60 * 1_000),
+        }];
+        loaded.document.units[0].fsrs = Some(fsrs_state);
+        loaded.document.units[0].latest_evaluation = Some(evaluation);
+        loaded.document.scheduling.last_review_at_unix_ms = Some(session_at);
+        loaded.document.scheduling.next_review_at_unix_ms =
+            Some(session_at + 3 * 24 * 60 * 60 * 1_000);
+        loaded.document.revision = loaded.document.revision.saturating_add(1);
+        write_learning_document(
+            vault.path(),
+            &note_id,
+            Some(expected_revision),
+            &loaded.document,
+        )
+        .expect("persist session");
+
+        let reset_at = 1_720_300_000_000;
+        let state = reset_note_learning(vault.path(), "ATP.md", reset_at).expect("reset");
+
+        let reloaded = load_learning_document_for_path(vault.path(), "ATP.md")
+            .expect("reload")
+            .expect("document")
+            .document;
+        // Historico e estado de memoria foram removidos; a data antiga de
+        // revisao (o `last_review_at` da sessao anterior) nao existe mais.
+        assert!(reloaded.sessions.is_empty());
+        assert!(reloaded.units[0].fsrs.is_none());
+        assert!(reloaded.units[0].latest_evaluation.is_none());
+        assert_eq!(reloaded.scheduling.last_review_at_unix_ms, None);
+        // Avaliacao e adesao sao preservadas; o novo ciclo comeca no reset.
+        assert!(
+            matches!(&reloaded.note.readiness, ReadinessAssessment::Ready { .. }),
+            "readiness preserved"
+        );
+        assert!(reloaded.note.enrollment.is_enrolled());
+        assert!(state.enrolled);
+        let expected_first = reset_at + 2 * 24 * 60 * 60 * 1_000;
+        assert_eq!(state.scheduling_status, NoteSchedulingStatus::Scheduled);
+        assert_eq!(state.first_review_at_unix_ms, Some(expected_first));
+        assert_eq!(state.next_review_at_unix_ms, Some(expected_first));
+    }
+
+    #[test]
+    fn resetting_an_unenrolled_note_returns_to_not_scheduled() {
+        let vault = tempdir().expect("vault");
+        let markdown = "# RNA\n\nRNA transcreve o DNA.\n\nRNA traduz proteinas.";
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        persist_readiness_assessment(vault.path(), "RNA.md", markdown, &report, 1_720_000_000_000)
+            .expect("persist assessment");
+
+        let state = reset_note_learning(vault.path(), "RNA.md", 1_720_100_000_000).expect("reset");
+
+        assert!(!state.enrolled);
+        assert_eq!(state.scheduling_status, NoteSchedulingStatus::NotScheduled);
+        assert_eq!(state.first_review_at_unix_ms, None);
+        assert_eq!(state.next_review_at_unix_ms, None);
+    }
+
     #[test]
     fn loading_an_edited_ready_note_marks_it_modified_and_pauses_scheduling() {
         let vault = tempdir().expect("vault");
@@ -1116,5 +1410,160 @@ mod tests {
                 .kind,
             crate::review::contract::PolicySourceKind::VaultDefault
         ));
+    }
+
+    #[test]
+    fn a_cosmetic_change_keeps_readiness_and_scheduling() {
+        let vault = tempdir().expect("vault");
+        let path = "Fotossintese.md";
+        let original =
+            "# Fotossintese #revisao/prova\n\nA planta absorve luz.\n\nA clorofila captura energia.\n\nO processo produz glicose.";
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        let ready_at = 1_720_000_000_000;
+        let assessed = persist_readiness_assessment(vault.path(), path, original, &report, ready_at)
+            .expect("persist ready note");
+        assert_eq!(assessed.readiness, NoteReadinessStatus::Ready);
+        assert_eq!(assessed.scheduling_status, NoteSchedulingStatus::Scheduled);
+
+        // Mudanca apenas de espacamento, pontuacao e acentos (a tag permanece):
+        // a prontidao e o agendamento sao preservados e o hash de conteudo
+        // acompanha o texto atualizado.
+        let cosmetic = "# Fotossíntese #revisao/prova\n\nA planta absorve  luz...\n\nA clorofila captura energia!\n\nO processo produz glicose.";
+        let after = load_note_review_state(vault.path(), path, cosmetic, ready_at + 60_000)
+            .expect("sync cosmetic change")
+            .expect("state");
+        assert_eq!(after.readiness, NoteReadinessStatus::Ready);
+        assert_eq!(after.scheduling_status, NoteSchedulingStatus::Scheduled);
+        assert_eq!(
+            after.next_review_at_unix_ms,
+            assessed.next_review_at_unix_ms
+        );
+        assert_eq!(after.content_hash, source_hash(cosmetic));
+        let document = load_learning_document(vault.path(), &after.note_id)
+            .expect("load document")
+            .expect("document");
+        assert!(matches!(
+            document.document.note.readiness,
+            ReadinessAssessment::Ready { .. }
+        ));
+    }
+
+    #[test]
+    fn a_semantic_change_marks_the_note_modified_and_pauses() {
+        let vault = tempdir().expect("vault");
+        let path = "Fotossintese.md";
+        let original =
+            "# Fotossintese #revisao/prova\n\nA planta absorve luz.\n\nA clorofila captura energia.\n\nO processo produz glicose.";
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        let ready_at = 1_720_000_000_000;
+        persist_readiness_assessment(vault.path(), path, original, &report, ready_at)
+            .expect("persist ready note");
+
+        // Conteudo mudou de verdade: nova avaliacao e exigida e o agendamento
+        // pausa ate a nota ser reavaliada.
+        let semantic = "# Fotossintese #revisao/prova\n\nA planta absorve luz.\n\nA mitocondria produz energia.\n\nO processo produz glicose.";
+        let after = load_note_review_state(vault.path(), path, semantic, ready_at + 60_000)
+            .expect("sync semantic change")
+            .expect("state");
+        assert_eq!(after.readiness, NoteReadinessStatus::Modified);
+        assert_eq!(after.scheduling_status, NoteSchedulingStatus::Paused);
+    }
+
+    #[test]
+    fn a_legacy_document_without_semantic_hash_requires_reassessment_on_any_change() {
+        let vault = tempdir().expect("vault");
+        let path = "Nota.md";
+        let markdown = "# Tema\n\nPonto um.\n\nPonto dois.\n\nPonto tres.";
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        let ready_at = 1_720_000_000_000;
+        let state = persist_readiness_assessment(vault.path(), path, markdown, &report, ready_at)
+            .expect("persist ready note");
+
+        // Simula um documento avaliado antes desta feature: sem o fingerprint
+        // semantico armazenado, qualquer mudanca exige nova avaliacao.
+        let loaded = load_learning_document(vault.path(), &state.note_id)
+            .expect("load document")
+            .expect("document");
+        let mut document = loaded.document;
+        match &mut document.note.readiness {
+            ReadinessAssessment::Ready {
+                assessed_semantic_hash,
+                ..
+            } => *assessed_semantic_hash = None,
+            _ => panic!("expected ready assessment"),
+        }
+        document.revision = document.revision.saturating_add(1);
+        write_learning_document(
+            vault.path(),
+            &state.note_id,
+            Some(document.revision - 1),
+            &document,
+        )
+        .expect("rewrite legacy document");
+
+        let cosmetic = "# Tema\n\nPonto  um.\n\nPonto dois.\n\nPonto tres.";
+        let after = load_note_review_state(vault.path(), path, cosmetic, ready_at + 60_000)
+            .expect("sync legacy document")
+            .expect("state");
+        assert_eq!(after.readiness, NoteReadinessStatus::Modified);
+        assert_eq!(after.scheduling_status, NoteSchedulingStatus::Paused);
+    }
+
+    #[test]
+    fn reverting_a_modified_note_to_the_assessed_content_keeps_it_modified() {
+        let vault = tempdir().expect("vault");
+        let path = "Nota.md";
+        let original = "# Tema\n\nPonto um.\n\nPonto dois.\n\nPonto tres.";
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        let ready_at = 1_720_000_000_000;
+        let state = persist_readiness_assessment(vault.path(), path, original, &report, ready_at)
+            .expect("persist ready note");
+
+        // Mudanca real -> Modified + Paused.
+        let changed = "# Tema\n\nPonto um.\n\nPonto alterado.\n\nPonto tres.";
+        let modified =
+            load_note_review_state(vault.path(), path, changed, ready_at + 60_000)
+                .expect("sync real change")
+                .expect("state");
+        assert_eq!(modified.readiness, NoteReadinessStatus::Modified);
+
+        // Reverter ao conteudo avaliado (mesmo fingerprint, texto cru diferente)
+        // nao restaura a prontidao sozinha: a nota permanece Modified e o
+        // contrato continua exigindo hash avaliado desatualizado.
+        let reverted = "# Tema\n\nPonto um.\n\nPonto  dois.\n\nPonto tres.";
+        let after = load_note_review_state(vault.path(), path, reverted, ready_at + 120_000)
+            .expect("sync revert")
+            .expect("state");
+        assert_eq!(after.readiness, NoteReadinessStatus::Modified);
+        assert_eq!(after.scheduling_status, NoteSchedulingStatus::Paused);
+        // Recarregar valida o contrato do documento persistido (nao pode
+        // terminar com assessed_content_hash == content_hash em Modified).
+        load_learning_document(vault.path(), &state.note_id)
+            .expect("reload persisted document")
+            .expect("document");
     }
 }

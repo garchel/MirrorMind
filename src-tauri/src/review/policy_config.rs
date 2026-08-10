@@ -243,6 +243,111 @@ pub fn set_vault_review_tag_rules(
     )?;
     Ok(view_from_stored(&next, affected_note_count))
 }
+/// Conta as notas cuja data de revisao mudaria se o prazo da regra `tag`
+/// passasse a ser `new_deadline` (None remove o prazo). Reutiliza o mesmo
+/// preparo do lote de regras: resolve a politica herdada por nota e compara
+/// antes/depois, entao o numero e exato e consistente com a aplicacao.
+pub fn preview_deadline_change(
+    vault_root: &Path,
+    tag: &str,
+    new_deadline: Option<u64>,
+    now_unix_ms: u64,
+) -> Result<VaultReviewDefaultsPreview> {
+    validate_deadline_tag(tag)?;
+    if new_deadline.is_some_and(|deadline| deadline > MAX_SAFE_INTEGER) {
+        bail!("O prazo da regra excede o limite inteiro seguro.");
+    }
+    let _guard = CONFIG_ACCESS
+        .lock()
+        .map_err(|_| anyhow::anyhow!("A configuracao de revisao esta indisponivel."))?;
+    let current = load_config_unlocked(vault_root)?;
+    let mut tag_rules = current.tag_rules.clone();
+    let rule = tag_rules
+        .iter_mut()
+        .find(|rule| rule.tag == tag)
+        .ok_or_else(|| anyhow::anyhow!("A tag de prazo nao esta configurada."))?;
+    rule.deadline_at_unix_ms = new_deadline;
+    validate_tag_rules(&mut tag_rules)?;
+    let prepared = prepare_tag_learning_document_updates(
+        vault_root,
+        current.defaults,
+        &tag_rules,
+        now_unix_ms,
+    )?;
+    Ok(VaultReviewDefaultsPreview {
+        affected_note_count: prepared.len(),
+    })
+}
+
+/// Aplica a nova data-limite da regra `tag` em lote: recalcula imediatamente a
+/// primeira ou proxima data de todas as notas afetadas, preservando pontuacoes,
+/// historico e estado DSR/FSRS (o preparo so toca politica + agendamento e usa
+/// a mesma transacao recuperavel das regras de tag). Notas que ficarem vencidas
+/// entram na fila; notas que deixarem de estar vencidas saem dela conforme a
+/// politica atualizada.
+pub fn apply_deadline_change(
+    vault_root: &Path,
+    expected_revision: u64,
+    tag: &str,
+    new_deadline: Option<u64>,
+    expected_affected_note_count: usize,
+    now_unix_ms: u64,
+) -> Result<VaultReviewPolicyConfigView> {
+    validate_deadline_tag(tag)?;
+    if new_deadline.is_some_and(|deadline| deadline > MAX_SAFE_INTEGER) {
+        bail!("O prazo da regra excede o limite inteiro seguro.");
+    }
+    let _guard = CONFIG_ACCESS
+        .lock()
+        .map_err(|_| anyhow::anyhow!("A configuracao de revisao esta indisponivel."))?;
+    let current = load_config_unlocked(vault_root)?;
+    if current.revision != expected_revision {
+        bail!("A configuracao de revisao foi alterada por outra operacao.");
+    }
+    let mut tag_rules = current.tag_rules.clone();
+    let rule = tag_rules
+        .iter_mut()
+        .find(|rule| rule.tag == tag)
+        .ok_or_else(|| anyhow::anyhow!("A tag de prazo nao esta configurada."))?;
+    rule.deadline_at_unix_ms = new_deadline;
+    validate_tag_rules(&mut tag_rules)?;
+    let prepared = prepare_tag_learning_document_updates(
+        vault_root,
+        current.defaults,
+        &tag_rules,
+        now_unix_ms,
+    )?;
+    if prepared.len() != expected_affected_note_count {
+        bail!("As notas afetadas pelo prazo mudaram. Revise o impacto antes de confirmar.");
+    }
+    let next = StoredVaultReviewPolicyConfig {
+        schema_version: SCHEMA_VERSION,
+        revision: current.revision.saturating_add(1),
+        defaults: current.defaults,
+        tag_rules,
+        segmentation: current.segmentation,
+        updated_at_unix_ms: Some(now_unix_ms),
+    };
+    let next_bytes = serialize_config(&next)?;
+    let affected_note_count = write_learning_documents_with_commit(
+        vault_root,
+        next.revision,
+        &next_bytes,
+        prepared,
+        || publish_config(vault_root, &next_bytes),
+    )?;
+    Ok(view_from_stored(&next, affected_note_count))
+}
+
+fn validate_deadline_tag(tag: &str) -> Result<()> {
+    let normalized =
+        crate::normalize_tag(tag).ok_or_else(|| anyhow::anyhow!("A tag de prazo e invalida."))?;
+    if normalized != tag {
+        bail!("A tag de prazo deve estar normalizada.");
+    }
+    Ok(())
+}
+
 pub fn load_vault_default_review_policy(vault_root: &Path) -> Result<ReviewPolicy> {
     let config = load_vault_review_policy_config(vault_root)?;
     Ok(review_policy_from_defaults(config.defaults))
@@ -855,7 +960,9 @@ mod tests {
         set_vault_review_defaults, set_vault_review_tag_rules, set_vault_segmentation,
         SegmentationLimits, VaultReviewDefaultsInput,
     };
-    use crate::review::contract::{LearningUnitKind, PolicySourceKind, ReviewMode};
+    use crate::review::contract::{
+        LearningUnitKind, PolicySourceKind, ReviewMode, SchedulingStatus,
+    };
     use crate::review::evaluation::{ReadinessReport, ReadinessStatus};
     use crate::review::policy::{
         set_note_review_policy, NoteReviewPolicyField, NoteReviewPolicyInput,
@@ -921,6 +1028,7 @@ mod tests {
                 min_interval_days: 1,
                 max_interval_days: 120,
                 deadline_at_unix_ms: None,
+                preferred_mode: None,
             }],
             assessed_at,
         )
@@ -953,6 +1061,101 @@ mod tests {
     }
 
     #[test]
+    fn tag_rules_transfer_the_preferred_mode_only_to_notes_without_a_manual_choice() {
+        let vault = tempdir().expect("vault");
+        let assessed_at = 1_720_000_000_000;
+        let inherited_path = "Curso/Inherited.md";
+        let inherited_markdown = "# Inherited #curso/a\n\nPonto um.\n\nPonto dois.\n\nPonto tres.";
+        let manual_path = "Curso/Manual.md";
+        let manual_markdown = "# Manual #curso/a\n\nPonto um.\n\nPonto dois.\n\nPonto tres.";
+        fs::create_dir_all(vault.path().join("Curso")).expect("create note folder");
+        fs::write(vault.path().join(inherited_path), inherited_markdown)
+            .expect("write inherited note");
+        fs::write(vault.path().join(manual_path), manual_markdown).expect("write manual note");
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        persist_readiness_assessment(
+            vault.path(),
+            inherited_path,
+            inherited_markdown,
+            &report,
+            assessed_at,
+        )
+        .expect("persist inherited note");
+        persist_readiness_assessment(
+            vault.path(),
+            manual_path,
+            manual_markdown,
+            &report,
+            assessed_at,
+        )
+        .expect("persist manual note");
+        // A nota manual define explicitamente o proprio modo (Conversa).
+        set_note_review_policy(
+            vault.path(),
+            manual_path,
+            manual_markdown,
+            NoteReviewPolicyInput {
+                first_review_interval_days: 2,
+                target_retention: 0.8,
+                priority_weight: 1.0,
+                min_interval_days: 1,
+                max_interval_days: 365,
+                preferred_mode: ReviewMode::Conversation,
+                override_fields: Vec::new(),
+                inherit_fields: Vec::new(),
+            },
+            assessed_at,
+        )
+        .expect("set manual note mode");
+
+        // A regra da tag dita Prova para todas as notas correspondentes.
+        let updated = set_vault_review_tag_rules(
+            vault.path(),
+            0,
+            vec![TagReviewPolicyRule {
+                tag: "curso/a".to_string(),
+                auto_enroll: true,
+                first_review_interval_days: 3,
+                target_retention: 0.88,
+                priority_weight: 4.0,
+                min_interval_days: 1,
+                max_interval_days: 120,
+                deadline_at_unix_ms: None,
+                preferred_mode: Some(ReviewMode::Exam),
+            }],
+            assessed_at,
+        )
+        .expect("save tag rules with mode");
+
+        // As duas notas mudam de politica (prioridade/intervalos) no lote.
+        assert_eq!(updated.affected_note_count, 2);
+        let inherited_doc = load_learning_document(vault.path(), &note_id_for_path(inherited_path))
+            .expect("load inherited note")
+            .expect("note");
+        let manual_doc = load_learning_document(vault.path(), &note_id_for_path(manual_path))
+            .expect("load manual note")
+            .expect("note");
+        // Sem escolha manual, a nota herda o modo ditado pela tag (Prova).
+        assert_eq!(
+            inherited_doc.document.note.enrollment.preferred_mode,
+            ReviewMode::Exam
+        );
+        assert!(!inherited_doc.document.note.enrollment.mode_manual);
+        // Com escolha manual, o modo da nota prevalece sobre a tag (Conversa).
+        assert_eq!(
+            manual_doc.document.note.enrollment.preferred_mode,
+            ReviewMode::Conversation
+        );
+        assert!(manual_doc.document.note.enrollment.mode_manual);
+    }
+
+    #[test]
     fn multiple_regular_tags_compose_the_strictest_value_per_field() {
         let vault = tempdir().expect("vault");
         let assessed_at = 1_720_000_000_000;
@@ -969,6 +1172,7 @@ mod tests {
                     min_interval_days: 2,
                     max_interval_days: 200,
                     deadline_at_unix_ms: None,
+                    preferred_mode: None,
                 },
                 TagReviewPolicyRule {
                     tag: "curso/b".to_string(),
@@ -979,6 +1183,7 @@ mod tests {
                     min_interval_days: 1,
                     max_interval_days: 120,
                     deadline_at_unix_ms: None,
+                    preferred_mode: None,
                 },
             ],
             assessed_at,
@@ -1518,5 +1723,354 @@ mod tests {
             super::add_policy_batch_document_bytes(super::MAX_POLICY_BATCH_DOCUMENT_BYTES, 1,)
                 .is_err()
         );
+    }
+
+    fn ready_report() -> ReadinessReport {
+        ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        }
+    }
+
+    fn deadline_rule(tag: &str, deadline: Option<u64>) -> TagReviewPolicyRule {
+        TagReviewPolicyRule {
+            tag: tag.to_string(),
+            auto_enroll: true,
+            first_review_interval_days: 1,
+            target_retention: 0.9,
+            priority_weight: 3.0,
+            min_interval_days: 1,
+            max_interval_days: 90,
+            deadline_at_unix_ms: deadline,
+            preferred_mode: None,
+        }
+    }
+
+    #[test]
+    fn previewing_a_deadline_change_counts_exactly_the_notes_whose_policy_would_change() {
+        let vault = tempdir().expect("vault");
+        let now = 1_730_000_000_000;
+        let first = "Prova/Biologia.md";
+        let second = "Prova/Quimica.md";
+        let first_markdown = "# Biologia #prova-bio\n\nPonto um.\n\nPonto dois.\n\nPonto tres.";
+        let second_markdown = "# Quimica #prova-bio\n\nPonto um.\n\nPonto dois.\n\nPonto tres.";
+        fs::create_dir_all(vault.path().join("Prova")).expect("create note folder");
+        fs::write(vault.path().join(first), first_markdown).expect("write first note");
+        fs::write(vault.path().join(second), second_markdown).expect("write second note");
+        persist_readiness_assessment(vault.path(), first, first_markdown, &ready_report(), now)
+            .expect("persist first");
+        persist_readiness_assessment(vault.path(), second, second_markdown, &ready_report(), now)
+            .expect("persist second");
+        set_vault_review_tag_rules(
+            vault.path(),
+            0,
+            vec![deadline_rule("prova-bio", Some(now + 30 * 86_400_000))],
+            now,
+        )
+        .expect("configure deadline rule");
+
+        // Nota sem a tag nao entra no preview.
+        let unrelated = "Prova/Fisica.md";
+        let unrelated_markdown = "# Fisica\n\nPonto um.\n\nPonto dois.\n\nPonto tres.";
+        fs::write(vault.path().join(unrelated), unrelated_markdown).expect("write unrelated note");
+        persist_readiness_assessment(
+            vault.path(),
+            unrelated,
+            unrelated_markdown,
+            &ready_report(),
+            now,
+        )
+        .expect("persist unrelated");
+
+        let preview = super::preview_deadline_change(
+            vault.path(),
+            "prova-bio",
+            Some(now + 10 * 86_400_000),
+            now,
+        )
+        .expect("preview deadline change");
+        assert_eq!(preview.affected_note_count, 2);
+
+        // Mesmo prazo nao muda nada: zero notas afetadas.
+        let same = super::preview_deadline_change(
+            vault.path(),
+            "prova-bio",
+            Some(now + 30 * 86_400_000),
+            now,
+        )
+        .expect("preview unchanged deadline");
+        assert_eq!(same.affected_note_count, 0);
+
+        // Remover o prazo tambem afeta as duas.
+        let removed = super::preview_deadline_change(vault.path(), "prova-bio", None, now)
+            .expect("preview deadline removal");
+        assert_eq!(removed.affected_note_count, 2);
+    }
+
+    #[test]
+    fn applying_a_deadline_change_recalculates_next_dates_and_preserves_memory_state() {
+        let vault = tempdir().expect("vault");
+        let now = 1_730_000_000_000;
+        let path = "Prova/Biologia.md";
+        let markdown = "# Biologia #prova-bio\n\nPonto um.\n\nPonto dois.\n\nPonto tres.";
+        fs::create_dir_all(vault.path().join("Prova")).expect("create note folder");
+        fs::write(vault.path().join(path), markdown).expect("write note");
+        persist_readiness_assessment(vault.path(), path, markdown, &ready_report(), now)
+            .expect("persist readiness");
+        let config = set_vault_review_tag_rules(
+            vault.path(),
+            0,
+            vec![deadline_rule("prova-bio", Some(now + 30 * 86_400_000))],
+            now,
+        )
+        .expect("configure deadline rule");
+
+        // Simula memoria ja revisada: FSRS persistido e uma sessao.
+        let loaded = load_learning_document(vault.path(), &note_id_for_path(path))
+            .expect("load note")
+            .expect("note");
+        let expected_revision = loaded.document.revision;
+        let mut document = loaded.document;
+        let fixture = crate::review::contract::parse_learning_document(include_str!(
+            "../../../tests/fixtures/review-learning-v1.json"
+        ))
+        .expect("session fixture");
+        // A revisao mais recente aconteceu ha 6 horas: a simulacao do prazo
+        // podera agendar a proxima revisao para o futuro (intervalo minimo de
+        // 1 dia) e a nota permanece agendada, nao vencida.
+        let last_reviewed_at = now - 6 * 60 * 60 * 1_000;
+        let fixture_session = serde_json::from_value::<crate::review::contract::ReviewSession>(
+            serde_json::to_value(&fixture.sessions[0]).expect("serialize fixture session"),
+        )
+        .expect("deserialize fixture session");
+        let fsrs_state = crate::review::contract::FsrsState {
+            difficulty: 5.0,
+            stability_days: 10.0,
+            retrievability: 0.8,
+            last_reviewed_at_unix_ms: last_reviewed_at,
+        };
+        let snapshot = serde_json::from_value::<crate::review::contract::UnitSnapshot>(
+            serde_json::to_value(&fixture_session.unit_results[0].unit_snapshot)
+                .expect("serialize fixture snapshot"),
+        )
+        .expect("deserialize fixture snapshot");
+        document.units[0].fsrs = Some(fsrs_state.clone());
+        let evaluation = fixture_session.unit_results[0].evaluation.clone();
+        let overall_score = match &evaluation {
+            crate::review::contract::UnitEvaluation::Evaluated { score, .. } => Some(*score),
+            _ => None,
+        };
+        let session = crate::review::contract::ReviewSession {
+            id: format!("deadline-session-{}", note_id_for_path(path)),
+            note_content_hash: document.note.content_hash.clone(),
+            mode: fixture_session.mode,
+            provider: fixture_session.provider,
+            completed_at_unix_ms: last_reviewed_at,
+            overall_score,
+            unit_results: vec![crate::review::contract::SessionUnitResult {
+                unit_snapshot: crate::review::contract::UnitSnapshot {
+                    id: snapshot.id.clone(),
+                    ordinal: snapshot.ordinal,
+                    kind: snapshot.kind,
+                    content_hash: document.units[0].content_hash.clone(),
+                    section_path: snapshot.section_path.clone(),
+                    identity: snapshot.identity.clone(),
+                    source_start_utf16: snapshot.source_start_utf16,
+                    source_end_utf16: snapshot.source_end_utf16,
+                },
+                evaluation: evaluation.clone(),
+                fsrs_before: fixture_session.unit_results[0].fsrs_before.clone(),
+                fsrs_after: Some(fsrs_state.clone()),
+            }],
+            effective_policy: fixture_session.effective_policy,
+            next_review_at_unix_ms: Some(now + 12 * 86_400_000),
+        };
+        document.units[0].latest_evaluation = Some(evaluation);
+        document.sessions = vec![session];
+        document.scheduling.first_review_at_unix_ms = Some(now - 2 * 86_400_000);
+        document.scheduling.last_review_at_unix_ms = Some(last_reviewed_at);
+        document.scheduling.next_review_at_unix_ms = Some(now + 12 * 86_400_000);
+        document.scheduling.status = SchedulingStatus::Scheduled;
+        document.revision = expected_revision.saturating_add(1);
+        crate::review::storage::write_learning_document(
+            vault.path(),
+            &note_id_for_path(path),
+            Some(expected_revision),
+            &document,
+        )
+        .expect("persist reviewed state");
+
+        let preview = super::preview_deadline_change(
+            vault.path(),
+            "prova-bio",
+            Some(now + 2 * 86_400_000),
+            now,
+        )
+        .expect("preview");
+        assert_eq!(preview.affected_note_count, 1);
+
+        let applied = super::apply_deadline_change(
+            vault.path(),
+            config.revision,
+            "prova-bio",
+            Some(now + 2 * 86_400_000),
+            preview.affected_note_count,
+            now,
+        )
+        .expect("apply deadline change");
+        assert_eq!(applied.affected_note_count, 1);
+        assert_eq!(applied.revision, config.revision + 1);
+        assert_eq!(
+            applied
+                .tag_rules
+                .iter()
+                .find(|rule| rule.tag == "prova-bio")
+                .expect("rule")
+                .deadline_at_unix_ms,
+            Some(now + 2 * 86_400_000)
+        );
+
+        let reloaded = load_learning_document(vault.path(), &note_id_for_path(path))
+            .expect("reload note")
+            .expect("note");
+        assert_eq!(
+            reloaded.document.effective_policy.deadline_at_unix_ms,
+            Some(now + 2 * 86_400_000)
+        );
+        assert_eq!(
+            reloaded.document.scheduling.status,
+            SchedulingStatus::Scheduled,
+            "a future deadline keeps the note scheduled"
+        );
+        assert_eq!(
+            reloaded.document.sessions.len(),
+            document.sessions.len(),
+            "history must be preserved"
+        );
+        assert!(
+            reloaded.document.units[0].fsrs.is_some(),
+            "FSRS must be preserved"
+        );
+        assert_eq!(
+            reloaded.document.units[0]
+                .fsrs
+                .as_ref()
+                .unwrap()
+                .stability_days,
+            10.0
+        );
+    }
+
+    #[test]
+    fn a_deadline_change_moves_notes_in_and_out_of_the_queue() {
+        let vault = tempdir().expect("vault");
+        let now = 1_730_000_000_000;
+        let path = "Prova/Biologia.md";
+        // Nota sem FSRS (aguardando a primeira revisao): a primeira data parte
+        // do instante em que ficou pronta + o primeiro intervalo da politica.
+        let markdown = "# Biologia #prova-bio\n\nPonto um.\n\nPonto dois.\n\nPonto tres.";
+        fs::create_dir_all(vault.path().join("Prova")).expect("create note folder");
+        fs::write(vault.path().join(path), markdown).expect("write note");
+        // Pronta ontem com primeiro intervalo de 7 dias: a primeira revisao
+        // cai daqui a 6 dias (futura), entao a nota comeca agendada.
+        let assessed_at = now - 86_400_000;
+        persist_readiness_assessment(vault.path(), path, markdown, &ready_report(), assessed_at)
+            .expect("persist readiness");
+        let mut rule = deadline_rule("prova-bio", Some(now + 30 * 86_400_000));
+        rule.first_review_interval_days = 7;
+        let config = set_vault_review_tag_rules(vault.path(), 0, vec![rule], now)
+            .expect("configure deadline rule");
+        let baseline = load_learning_document(vault.path(), &note_id_for_path(path))
+            .expect("load baseline")
+            .expect("note");
+        assert_eq!(
+            baseline.document.scheduling.status,
+            SchedulingStatus::Scheduled,
+            "the first review still fits before the distant deadline"
+        );
+
+        // Prazo daqui a 2 dias: a primeira revisao (daqui a 6 dias) ultrapassa
+        // a prova, entao a data vence imediatamente — a nota entra na fila.
+        let preview = super::preview_deadline_change(
+            vault.path(),
+            "prova-bio",
+            Some(now + 2 * 86_400_000),
+            now,
+        )
+        .expect("preview");
+        assert_eq!(preview.affected_note_count, 1);
+        let applied = super::apply_deadline_change(
+            vault.path(),
+            config.revision,
+            "prova-bio",
+            Some(now + 2 * 86_400_000),
+            preview.affected_note_count,
+            now,
+        )
+        .expect("apply");
+        assert_eq!(applied.affected_note_count, 1);
+        let after = load_learning_document(vault.path(), &note_id_for_path(path))
+            .expect("reload")
+            .expect("note");
+        assert_eq!(
+            after.document.scheduling.status,
+            SchedulingStatus::Due,
+            "a note whose review would miss the exam enters the queue"
+        );
+
+        // Prazo distante de novo: a primeira revisao volta a caber antes da
+        // prova e o agendamento normal (primeira data futura) e restaurado.
+        let relieved = super::apply_deadline_change(
+            vault.path(),
+            applied.revision,
+            "prova-bio",
+            Some(now + 30 * 86_400_000),
+            preview.affected_note_count,
+            now,
+        )
+        .expect("apply distant deadline");
+        assert_eq!(relieved.affected_note_count, 1);
+        let relieved_note = load_learning_document(vault.path(), &note_id_for_path(path))
+            .expect("reload relieved")
+            .expect("note");
+        assert_eq!(
+            relieved_note.document.scheduling.status,
+            SchedulingStatus::Scheduled,
+            "a note that stops being overdue leaves the queue"
+        );
+    }
+
+    #[test]
+    fn deadline_change_rejects_unknown_tags_and_stale_impacts() {
+        let vault = tempdir().expect("vault");
+        let now = 1_730_000_000_000;
+        assert!(super::preview_deadline_change(vault.path(), "sem-regra", None, now).is_err());
+        assert!(super::apply_deadline_change(vault.path(), 0, "sem-regra", None, 0, now,).is_err());
+        assert!(super::preview_deadline_change(vault.path(), "Tag Invalida!", None, now).is_err());
+
+        let config = set_vault_review_tag_rules(
+            vault.path(),
+            0,
+            vec![deadline_rule("prova-bio", None)],
+            now,
+        )
+        .expect("configure rule");
+        let preview =
+            super::preview_deadline_change(vault.path(), "prova-bio", Some(now + 86_400_000), now)
+                .expect("preview");
+        assert_eq!(preview.affected_note_count, 0);
+        let stale = super::apply_deadline_change(
+            vault.path(),
+            config.revision,
+            "prova-bio",
+            Some(now + 86_400_000),
+            3,
+            now,
+        )
+        .expect_err("stale expected count");
+        assert!(stale.to_string().contains("mudaram"));
     }
 }

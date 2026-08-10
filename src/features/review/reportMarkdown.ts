@@ -9,6 +9,12 @@ export type ReviewReportGap = {
 export type ReviewReportUnit = {
   sourceStartUtf16: number
   sourceEndUtf16: number
+  // Unidade efetivamente avaliada nesta sessão (alvo da cobertura adaptativa).
+  // Unidades fora do alvo ficam marcadas como não avaliadas, sem pontuar zero.
+  evaluated: boolean
+  // Unidade do alvo com evidência insuficiente (inconclusiva): nunca pontua
+  // zero, não altera DSR/FSRS e não entra na média.
+  inconclusive?: boolean
   score: number
   outcome: 'forgotten' | 'partial' | 'good' | 'complete'
 }
@@ -39,6 +45,36 @@ function lineOffsets(content: string): Line[] {
   return lines
 }
 
+function displayMathRanges(lines: Line[], contentLength: number): Range[] {
+  const ranges: Range[] = []
+  let openStart: number | null = null
+  for (const line of lines) {
+    const text = line.text
+    const opening = /^\s*\$\$/.test(text)
+    const closing = /\$\$\s*$/.test(text)
+    if (openStart === null) {
+      if (opening) {
+        // Uma linha que e apenas o delimitador ($$) e abertura OU fechamento
+        // de um bloco multilinha, nunca um bloco completo de uma linha.
+        const onlyDelimiter = /^\s*\$\$\s*$/.test(text)
+        if (closing && !onlyDelimiter) {
+          // $$...$$ na mesma linha: bloco completo em uma unica linha.
+          ranges.push([line.start, line.end])
+        } else {
+          openStart = line.start
+        }
+      }
+    } else if (closing) {
+      ranges.push([openStart, line.end])
+      openStart = null
+    }
+  }
+  // Um bloco de matematica sem fechamento protege todo o restante do corpo,
+  // como os fences de codigo nao fechados.
+  if (openStart !== null) ranges.push([openStart, contentLength])
+  return ranges
+}
+
 function fenceRanges(lines: Line[], contentLength: number): Range[] {
   const ranges: Range[] = []
   let fence: { character: string; length: number } | null = null
@@ -66,6 +102,16 @@ function fenceRanges(lines: Line[], contentLength: number): Range[] {
 }
 
 function unitScoreBadge(unit: ReviewReportUnit) {
+  if (!unit.evaluated && unit.inconclusive) {
+    // Evidência insuficiente mesmo após esclarecimento: nunca vira zero, não
+    // altera DSR/FSRS e não entra na média.
+    return '<span class="review-unit-score is-inconclusive" data-inconclusive="true" title="Evidência insuficiente nesta sessão">inconclusivo</span>'
+  }
+  if (!unit.evaluated) {
+    // Conteúdo não perguntado nesta sessão não vira zero: badge neutro que
+    // diferencia explicitamente "não avaliado" de "esquecido".
+    return '<span class="review-unit-score is-not-evaluated" data-evaluated="false" title="Não avaliado nesta sessão">não avaliado</span>'
+  }
   const label = UNIT_OUTCOME_LABELS[unit.outcome] ?? 'Avaliada'
   return `<span class="review-unit-score is-${unit.outcome}" data-score="${unit.score}" data-outcome="${unit.outcome}" title="${label}: ${unit.score}">${unit.score}</span>`
 }
@@ -91,7 +137,12 @@ export function annotateReviewMarkdown(
   const bodyOffset = markdown.length - body.length
   const lines = lineOffsets(body)
   const fences = fenceRanges(lines, body.length)
-  const insideFence = (position: number) => fences.some(([start, end]) => position >= start && position < end)
+  // Blocos de matematica exibicao ($$...$$) sao protegidos como os fences:
+  // um marca-texto ou badge dentro deles quebraria o KaTeX.
+  const mathBlocks = displayMathRanges(lines, body.length)
+  const protectedRanges = [...fences, ...mathBlocks]
+  const insideProtected = (position: number) =>
+    protectedRanges.some(([start, end]) => position >= start && position < end)
 
   const candidateGaps = gaps
     .map((gap) => ({
@@ -108,7 +159,7 @@ export function annotateReviewMarkdown(
     if (gap.start < cursor) continue
     const slice = body.slice(gap.start, gap.end)
     if (slice.includes('\n') || slice.includes('\r')) continue
-    if (insideFence(gap.start) || insideFence(gap.end)) continue
+    if (insideProtected(gap.start) || insideProtected(gap.end)) continue
     keptGaps.push(gap)
     cursor = gap.end
   }
@@ -120,16 +171,17 @@ export function annotateReviewMarkdown(
       if (end <= 0 || start >= body.length || end > body.length) return null
       let at = Math.max(0, Math.min(end, body.length))
       let html = unitScoreBadge(unit)
-      for (const [fenceStart, fenceEnd] of fences) {
-        if (at >= fenceStart && at <= fenceEnd) {
-          const nextLine = lines.find((line) => line.start > fenceEnd)
+      for (const [blockStart, blockEnd] of protectedRanges) {
+        if (at >= blockStart && at <= blockEnd) {
+          const nextLine = lines.find((line) => line.start > blockEnd)
           if (nextLine) {
             at = nextLine.start
-          } else if (at === body.length) {
-            // Sem linha seguinte, o badge nunca pode ficar na linha do fence
-            // de fechamento (quebraria o bloco de codigo): ele vira um bloco
-            // proprio apos uma quebra de linha.
+          } else {
+            // Sem linha seguinte, o bloco protegido vai ate o fim do corpo e
+            // o badge nunca pode ficar na linha dele (quebraria codigo ou
+            // KaTeX): ele vira um bloco proprio apos uma quebra de linha.
             html = `\n${html}`
+            at = body.length
           }
           break
         }

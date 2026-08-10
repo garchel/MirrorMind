@@ -73,6 +73,7 @@ const noteReviewStateSchema = z.object({
   schedulingStatus: z.enum(['notScheduled', 'scheduled', 'due', 'paused']),
   firstReviewAtUnixMs: z.number().int().nonnegative().nullable(),
   nextReviewAtUnixMs: z.number().int().nonnegative().nullable(),
+  deadlineRetentionAtRisk: z.boolean(),
 }).strict()
 const ollamaStatusSchema = z.object({
   reachable: z.boolean(),
@@ -138,6 +139,15 @@ export async function setNoteReviewEnrollment(input: {
     path: input.vaultPath,
     relativePath: input.relativePath,
     enabled: input.enabled,
+  }))
+}
+export async function resetNoteLearning(input: {
+  vaultPath: string
+  relativePath: string
+}): Promise<NoteReviewState> {
+  return noteReviewStateSchema.parse(await invoke('reset_note_learning', {
+    path: input.vaultPath,
+    relativePath: input.relativePath,
   }))
 }
 export function reviewAiErrorMessage(error: unknown): string {

@@ -51,6 +51,22 @@
 .review-option-letter { display:grid; place-items:center; flex:0 0 auto; width:26px; height:26px; margin-top:1px; border:1px solid #c8c6be; border-radius:50%; background:#fff; color:#4d4d48; font:700 12px/1 var(--mono); transition:background .15s ease, border-color .15s ease, color .15s ease; }
 .review-options .is-selected .review-option-letter { background:var(--accent); border-color:var(--accent); color:#fff; }
 .review-option-text { flex:1 1 auto; color:#33332e; font-size:13.5px; line-height:1.5; }
+/* Opcao explicita `Nao sei` da prova: fora das alternativas da IA, com estilo
+   proprio e neutro para o usuario admitir falta de memoria sem chutar. */
+.review-options .review-option-dont-know { border-style:dashed; background:#f4f2ec; }
+.review-options .review-option-dont-know .review-option-letter { background:#fff; color:#8a887f; font-style:italic; }
+.review-options .review-option-dont-know:hover { border-color:#c8c6be; background:#fbfaf6; }
+.review-options .review-option-dont-know.is-selected { border-color:#8a887f; background:#efede6; box-shadow:0 0 0 3px rgba(138,136,127,.14); }
+.review-options .review-option-dont-know.is-selected .review-option-letter { background:#6b6a63; border-color:#6b6a63; color:#fff; }
+/* A opcao `Nao sei` da prova mista vive fora do fieldset de alternativas para
+   valer tanto na multipla escolha quanto na resposta curta. Reproduz o visual
+   da opcao, como botao acessivel. */
+.review-question > .review-option-dont-know { position:relative; display:flex; align-items:center; gap:12px; width:100%; border:1px dashed #c8c6be; border-radius:8px; padding:10px 14px; background:#f4f2ec; color:#5d5c55; font:inherit; font-size:13px; cursor:pointer; transition:border-color .15s ease, background .15s ease, box-shadow .15s ease; }
+.review-question > .review-option-dont-know .review-option-letter { display:grid; place-items:center; width:24px; height:24px; border:1px solid #d9d7d0; border-radius:50%; background:#fff; color:#8a887f; font-style:italic; }
+.review-question > .review-option-dont-know:hover { border-color:#8a887f; background:#fbfaf6; }
+.review-question > .review-option-dont-know:focus-visible { outline:2px solid color-mix(in srgb,var(--accent) 22%,transparent); outline-offset:1px; }
+.review-question > .review-option-dont-know.is-selected { border-color:#6b6a63; background:#efede6; box-shadow:0 0 0 3px rgba(138,136,127,.14); }
+.review-question > .review-option-dont-know.is-selected .review-option-letter { background:#6b6a63; border-color:#6b6a63; color:#fff; }
 .review-question textarea, .review-diagnostic textarea { width:100%; resize:vertical; border:1px solid #c8c6be; border-radius:7px; padding:12px; background:#fffefa; color:#292925; font:14px/1.55 var(--sans); }
 .review-question textarea:focus { border-color:var(--accent); outline:2px solid color-mix(in srgb,var(--accent) 18%,transparent); }
 .review-answer-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -83,6 +99,8 @@
 .review-assistance-text > * { margin:0; }
 .review-assistance-text .katex-display { max-width:100%; overflow-x:auto; overflow-y:hidden; }
 .review-next-date { border-top:1px solid #d9d7d0; padding-top:14px; font-size:12px; }
+.review-evidence-note { margin: 0 0 14px; padding: 10px 12px; border: 1px dashed #d9d7d0; border-radius: 8px; background: #f7f6f1; color: #6b6a63; font-size: 12px; line-height: 1.5; display:flex; gap:8px; align-items:flex-start; }
+.review-evidence-note svg { flex-shrink:0; margin-top:1px; color:#8a887f; }
 @media (max-width:720px) { .review-setup fieldset { grid-template-columns:1fr; } .review-answer-actions { align-items:stretch; flex-direction:column; } .review-report-header { grid-template-columns:1fr; align-items:start; } .review-report-header-side { justify-items:start; } .review-report-header .review-unit-legend { justify-content:flex-start; } }
 @media (max-width:1040px) {
   .review-report-page { height: auto; overflow: auto; grid-template-rows: none; }
@@ -122,3 +140,12 @@
 .review-unit-score.is-partial { background: #ffe5a5; color: #7a5c10; }
 .review-unit-score.is-good { background: #cfe3c4; color: #3f5239; }
 .review-unit-score.is-complete { background: #8fc98a; color: #1d4d1d; }
+.review-unit-score.is-not-evaluated { background: #e6e4de; color: #8b897f; font-style: italic; font-weight: 500; }
+.review-unit-score.is-inconclusive { background: #e3e0f2; color: #5c5490; font-style: italic; font-weight: 500; border: 1px dashed #b9b3dd; }
+.review-report-inconclusive { margin: 0 0 18px; padding: 14px 16px; border: 1px solid #cfc9e8; border-radius: 10px; background: #f4f2fb; color: #4a4470; font-size: 13px; line-height: 1.55; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: space-between; }
+.review-report-inconclusive p { margin: 0; max-width: 46rem; }
+.review-report-inconclusive .primary-button { white-space: nowrap; }
+.review-clarification-tag { display: inline-block; margin-left: 10px; padding: 2px 9px; border-radius: 999px; background: #e9e6f7; color: #5c5490; font-size: 11px; font-weight: 600; vertical-align: middle; }
+
+.review-coverage-note { margin: 0 0 14px; padding: 10px 12px; border: 1px dashed #d9d7d0; border-radius: 8px; background: #f7f6f1; color: #6b6a63; font-size: 12px; line-height: 1.5; }
+.review-coverage-note strong { color: #4f4f49; font-weight: 700; }

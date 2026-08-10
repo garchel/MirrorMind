@@ -225,6 +225,37 @@ export function findTreeMaskTokens(tree: Tree, doc: { toString: () => string; li
         return
       }
 
+      // Sem linha em branco antes, `---` apos um paragrafo vira o sublinhado
+      // de um heading setext no parser — mas quem escreve `---` quer um
+      // divisor. Renderiza o sublinhado como linha grafica (mesmo visual de
+      // um HorizontalRule).
+      if (type === 'SetextHeading2') {
+        const mark = markChildren(node.node, 'HeaderMark')[0]
+        const markFrom = mark?.from ?? from
+        const markTo = mark?.to ?? to
+        mask.tokens.push({ kind: 'hr', from: markFrom, to: markTo, revealFrom: markFrom, revealTo: markTo })
+        return
+      }
+
+      // `===` apos um paragrafo: heading de nivel 1, como no modo Leitura.
+      // O sublinhado fica oculto; o cursor sobre ele revela o Markdown cru.
+      if (type === 'SetextHeading1') {
+        const mark = markChildren(node.node, 'HeaderMark')[0]
+        const markFrom = mark?.from ?? to
+        const markTo = mark?.to ?? to
+        mask.tokens.push({
+          kind: 'heading',
+          level: 1,
+          from,
+          to,
+          textFrom: from,
+          textTo: Math.max(from, markFrom - 1),
+          revealFrom: markFrom,
+          revealTo: markTo,
+        })
+        return
+      }
+
       if (type === 'ATXHeading1' || type === 'ATXHeading2' || type === 'ATXHeading3' ||
           type === 'ATXHeading4' || type === 'ATXHeading5' || type === 'ATXHeading6') {
         const mark = markChildren(node.node, 'HeaderMark')[0]
@@ -548,11 +579,18 @@ function tokenDecorations(token: MaskToken): DecorRange[] {
         { from: token.innerTo, to: token.to, decoration: hidden },
       ]
     }
-    case 'heading':
-      return [
-        { from: token.from, to: token.textFrom, decoration: hidden },
-        { from: token.textFrom, to: token.textTo, decoration: headingMarks[token.level - 1] ?? headingMarks[0] },
-      ]
+    case 'heading': {
+      // O marcador pode estar no inicio (ATX `#`) ou no fim (setext `===`).
+      // Ranges vazios de replace sao invalidos no CodeMirror (lancam erro e
+      // derrubam o conjunto inteiro), entao cada faixa so entra quando nao vazia.
+      const headingRanges: DecorRange[] = []
+      if (token.textFrom > token.from) headingRanges.push({ from: token.from, to: token.textFrom, decoration: hidden })
+      headingRanges.push({ from: token.textFrom, to: token.textTo, decoration: headingMarks[token.level - 1] ?? headingMarks[0] })
+      // Sublinhado setext (===) no fim: oculto sem cruzar a quebra de linha
+      // (textTo exclui o \n; ATX nao ativa este trecho).
+      if (token.revealFrom > token.textTo) headingRanges.push({ from: token.revealFrom, to: token.revealTo, decoration: hidden })
+      return headingRanges
+    }
     case 'quote':
       return [
         { from: token.from, to: token.textFrom, decoration: hidden },
@@ -779,16 +817,38 @@ function escapeHtml(text: string) {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-/** Conteudo de uma celula: HTML escapado com matematica $...$ via KaTeX. */
+// Construtos inline suportados nas celulas (mesma aparencia do modo Leitura):
+// matematica $...$ (KaTeX), codigo `...`, negrito **...**/__...__, italico
+// *...*/_..._ e riscado ~~...~~. As regras de flanco seguem o GFM (sem espaco
+// apos a abertura, conteudo sem espacos nas bordas, sublinhado fora de
+// palavra). O texto fora dos marcadores e escapado como HTML.
+const CELL_INLINE_RE =
+  /(\$[^$\n]+\$)|`([^`\n]+)`|\*\*([^*\n]+?)\*\*|__([^_\n]+?)__|~~([^~\n]+?)~~|(?<!\*)\*(?!\s)([^*\n]+?)(?<!\s)\*(?!\*)|(?<!\w)_(?!\s)([^_\n]+?)(?<!\s)_(?!\w)/g
+
+/** Conteudo de uma celula: formata negrito/italico/codigo/riscado e renderiza
+ * matematica $...$ via KaTeX — como o modo Leitura. */
 function renderCellHtml(text: string) {
-  const parts = text.split(/(\$[^$\n]+\$)/g)
-  return parts.map((part) => {
-    const math = part.match(/^\$([^$\n]+)\$$/)
-    if (math) {
-      return katex.renderToString(math[1], { displayMode: false, output: 'html', throwOnError: false })
+  let html = ''
+  let last = 0
+  for (const match of text.matchAll(CELL_INLINE_RE)) {
+    const full = match[0]
+    const index = match.index ?? 0
+    html += escapeHtml(text.slice(last, index))
+    const [, math, code, boldStars, boldUnders, strike, italicStar, italicUnders] = match
+    if (math !== undefined) {
+      html += katex.renderToString(math.slice(1, -1), { displayMode: false, output: 'html', throwOnError: false })
+    } else if (code !== undefined) {
+      html += `<code>${escapeHtml(code)}</code>`
+    } else if (boldStars !== undefined || boldUnders !== undefined) {
+      html += `<strong>${escapeHtml(boldStars ?? boldUnders ?? '')}</strong>`
+    } else if (strike !== undefined) {
+      html += `<del>${escapeHtml(strike)}</del>`
+    } else if (italicStar !== undefined || italicUnders !== undefined) {
+      html += `<em>${escapeHtml(italicStar ?? italicUnders ?? '')}</em>`
     }
-    return escapeHtml(part)
-  }).join('')
+    last = index + full.length
+  }
+  return html + escapeHtml(text.slice(last))
 }
 
 /** Tabela editavel: um <table> real (mesma aparencia do modo Leitura) cujas

@@ -161,6 +161,16 @@
 }
 
 .review-policy-presets button:hover,
+.review-policy-mode-inherited {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent, #5b6f52) 10%, transparent);
+  color: var(--muted, #6b6a63);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .review-policy-modes label:has(input:checked) {
   border-color: var(--accent, #6b695f);
   background: color-mix(in srgb, var(--surface, #fffdf8) 78%, var(--accent, #6b695f));

@@ -26,6 +26,7 @@ const policy: NoteReviewPolicy = {
   maxIntervalDays: 365,
   deadlineAtUnixMs: null,
   preferredMode: 'exam',
+  modeManual: true,
   sources: {
     firstReviewIntervalDays: { kind: 'vaultDefault', sourceId: null },
     targetRetention: { kind: 'vaultDefault', sourceId: null },
@@ -140,6 +141,21 @@ describe('NoteReviewPolicyControl', () => {
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
+  it('explains that the mode is inherited when the note did not set its own', async () => {
+    const user = userEvent.setup()
+    getPolicyMock.mockResolvedValueOnce({ ...policy, modeManual: false })
+    render(<NoteReviewPolicyControl
+      vaultPath={'C:\\Vault'}
+      relativePath="biologia.md"
+      sourceRevision="# Biologia"
+      isDirty={false}
+    />)
+
+    await user.click(await screen.findByRole('button', { name: 'Configurar revisão da nota' }))
+
+    expect(screen.getByText(/modo atual é herdado das tags/i)).toBeInTheDocument()
+  })
+
   it('changes only the preferred mode without freezing inherited policy values', async () => {
     const user = userEvent.setup()
     render(<NoteReviewPolicyControl

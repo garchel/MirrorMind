@@ -65,12 +65,6 @@
   box-shadow: 0 0 0 8px rgba(64, 145, 108, 0.12);
 }
 
-.status-hint {
-  font-size: 0.85em;
-  color: #6b6a63;
-  font-style: italic;
-}
-
 .status-dot.is-busy {
   background: var(--accent);
   box-shadow: 0 0 0 8px rgba(196, 106, 43, 0.16);
@@ -270,10 +264,6 @@ button:disabled {
   gap: 12px;
   flex-wrap: wrap;
   justify-content: flex-end;
-}
-
-.workspace-status {
-  margin-top: 0;
 }
 
 .workspace-grid {
@@ -582,8 +572,7 @@ button:disabled {
   transition: grid-template-columns 220ms ease;
 }
 
-.workspace-topbar,
-.workspace-status {
+.workspace-topbar {
   display: none;
 }
 
@@ -1012,6 +1001,19 @@ button:disabled {
   background: #fffef9;
   color: #3d3d38;
   font: 12px var(--sans);
+}
+
+/* Input numerico das configuracoes (ex.: Grafo 3D) — sobrescreve a largura
+ * compacta que o .settings-toggle input aplica aos checkboxes. */
+.settings-toggle input.settings-number {
+  width: 88px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #d9d7d0;
+  border-radius: 5px;
+  background: #fffef9;
+  color: #3d3d38;
+  font: 12px var(--mono);
 }
 
 .workspace-page {
@@ -1749,14 +1751,14 @@ button:disabled {
 .workspace-shell .explorer-navigation-row,
 .workspace-shell .explorer-title-row .card-kicker,
 .workspace-shell .workspace-tree,
-.workspace-shell .vault-indicator > span {
+.workspace-shell .vault-switch-button > span {
   transition: opacity 100ms ease 180ms, visibility 0s linear 180ms;
 }
 
 .workspace-shell.is-explorer-collapsed .explorer-navigation-row,
 .workspace-shell.is-explorer-collapsed .explorer-title-row .card-kicker,
 .workspace-shell.is-explorer-collapsed .workspace-tree,
-.workspace-shell.is-explorer-collapsed .vault-indicator > span {
+.workspace-shell.is-explorer-collapsed .vault-switch-button > span {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
@@ -1775,6 +1777,12 @@ button:disabled {
 .workspace-shell.is-explorer-collapsed .vault-indicator {
   justify-content: center;
   padding: 0;
+}
+
+.workspace-shell.is-explorer-collapsed .vault-switch-button {
+  flex: 0 0 auto;
+  padding: 0;
+  pointer-events: none;
 }
 
 .workspace-shell .sidebar-section-header h2,
@@ -1914,8 +1922,7 @@ button:disabled {
   font: 11px var(--sans);
 }
 
-.workspace-shell .tag-filter-chip,
-.workspace-shell .note-tag-list span {
+.workspace-shell .tag-filter-chip {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -1969,7 +1976,8 @@ button:disabled {
 .workspace-shell .note-tag-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
   margin-top: 7px;
 }
 
@@ -2320,14 +2328,42 @@ button:disabled {
   align-items: center;
   gap: 8px;
   min-height: 42px;
-  padding: 0 14px;
+  padding: 0 10px 0 14px;
   border-top: 1px solid #d9d7d0;
   color: #4f4f49;
   font-size: 12px;
   overflow: hidden;
 }
 
-.workspace-shell .vault-indicator > span:nth-child(2) {
+.workspace-shell .vault-switch-button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.workspace-shell .vault-switch-button:hover:not(:disabled) {
+  background: #e6e5de;
+  color: #2b2b27;
+}
+
+.workspace-shell .vault-switch-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.workspace-shell .vault-switch-button > span:nth-child(2) {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2387,60 +2423,77 @@ button:disabled {
   gap: 14px;
 }
 
+/* Pagina do grafo imersiva: o grafo ocupa a area inteira e a interface
+ * flutua por cima (header com opacidade variavel, paineis como overlay). */
 .workspace-shell .graph-page {
-  gap: 16px;
-}
-
-.workspace-shell .graph-page-header {
+  position: relative;
   display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 18px;
-  width: min(100%, 1080px);
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
-.workspace-shell .graph-page-header > div {
-  display: grid;
-  gap: 8px;
-}
-
-.workspace-shell .graph-page-header p {
-  margin: 0;
-}
-
-.workspace-shell .graph-page-header .secondary-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.workspace-shell .graph-summary {
-  display: flex;
-  gap: 7px;
-  color: #66665f;
-  font-size: 12px;
-}
-
-.workspace-shell .graph-summary span {
-  padding: 4px 7px;
-  border: 1px solid #ddd9d0;
-  border-radius: 999px;
-  background: #f7f5ef;
-}
-
-.workspace-shell .graph-controls {
+.workspace-shell .graph-immersive-header {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 30;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 7px;
-  width: min(100%, 1080px);
+  max-width: min(94%, 1080px);
+  padding: 8px 10px;
+  border: 1px solid rgb(28 36 39 / 14%);
+  border-radius: 12px;
+  background: rgb(251 250 246 / 88%);
+  box-shadow: 0 10px 30px rgb(44 54 45 / 18%);
+  backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+  transition: opacity 220ms ease, transform 220ms ease;
 }
 
-.workspace-shell .graph-controls input[type='text'],
-.workspace-shell .graph-controls > input,
-.workspace-shell .graph-controls select {
-  min-height: 32px;
+.workspace-shell .graph-immersive-header.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-10px);
+}
+
+.workspace-shell .graph-header-title {
+  margin: 0 4px 0 0;
+  color: #303f33;
+  font: 600 13px/1 var(--sans);
+  white-space: nowrap;
+}
+
+.workspace-shell .graph-header-summary {
+  display: flex;
+  gap: 5px;
+  color: #73736d;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.workspace-shell .graph-header-summary span {
+  padding: 3px 7px;
+  border: 1px solid rgb(28 36 39 / 10%);
+  border-radius: 999px;
+  background: rgb(255 254 249 / 70%);
+}
+
+.workspace-shell .graph-header-sep {
+  align-self: stretch;
+  width: 1px;
+  margin: 2px 3px;
+  background: rgb(28 36 39 / 14%);
+}
+
+.workspace-shell .graph-immersive-header input[type='text'],
+.workspace-shell .graph-immersive-header > input,
+.workspace-shell .graph-immersive-header select {
+  min-height: 30px;
   padding: 0 8px;
   border: 1px solid #d8d6cf;
   border-radius: 5px;
@@ -2449,42 +2502,492 @@ button:disabled {
   font: 12px var(--sans);
 }
 
-.workspace-shell .graph-controls > input { min-width: 170px; }
-.workspace-shell .graph-controls label { display: inline-flex; align-items: center; gap: 5px; color: #5f5f58; font-size: 12px; }
-.workspace-shell .graph-controls .secondary-button { min-height: 32px; padding: 0 9px; }
+.workspace-shell .graph-immersive-header > input { min-width: 150px; }
+.workspace-shell .graph-header-check { display: inline-flex; align-items: center; gap: 5px; color: #5f5f58; font-size: 12px; white-space: nowrap; }
+.workspace-shell .graph-immersive-header .secondary-button { min-height: 30px; padding: 0 9px; }
+.workspace-shell .graph-immersive-header .graph-dimension-toggle button { min-height: 26px; }
 
-.workspace-shell .graph-detail-panel {
-  display: grid;
-  gap: 10px;
-  width: min(100%, 1080px);
-  padding: 13px 14px;
-  border: 1px solid #d8d6cf;
-  border-left: 3px solid #738979;
-  border-radius: 7px;
-  background: #fffef9;
+.workspace-shell .graph-settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
 }
 
-.workspace-shell .graph-detail-panel h3,
-.workspace-shell .graph-detail-panel p { margin: 0; }
-.workspace-shell .graph-detail-panel h3 { color: #303f33; font-size: 15px; }
-.workspace-shell .graph-detail-panel p { margin-top: 3px; color: #73736d; font-size: 12px; }
-.workspace-shell .graph-detail-metrics,
-.workspace-shell .graph-detail-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.workspace-shell .graph-detail-metrics span { padding: 3px 6px; border-radius: 4px; background: #edf3eb; color: #4c624f; font-size: 11px; }
+.workspace-shell .graph-settings-popover {
+  width: min(340px, 92vw);
+  padding: 14px 14px 10px;
+}
 
-.workspace-shell .graph-orphan-panel { display: grid; gap: 10px; width: min(100%, 1080px); padding: 13px 14px; border: 1px solid #e0d8c9; border-left: 3px solid #a9844a; border-radius: 7px; background: #fffdf7; }
+.workspace-shell .graph-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgb(28 36 39 / 10%);
+}
+
+.workspace-shell .graph-settings-header-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #303f33;
+}
+
+.workspace-shell .graph-settings-header-title svg {
+  color: #2e6b4f;
+}
+
+.workspace-shell .graph-settings-header strong {
+  font: 600 13px/1 var(--sans);
+}
+
+.workspace-shell .graph-settings-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid rgb(28 36 39 / 14%);
+  border-radius: 6px;
+  background: transparent;
+  color: #6b6b64;
+  font: 11px var(--sans);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.workspace-shell .graph-settings-reset:hover {
+  background: #eceae2;
+  color: #20201e;
+}
+
+.workspace-shell .graph-settings-group {
+  display: grid;
+  gap: 2px;
+  margin-top: 10px;
+}
+
+.workspace-shell .graph-settings-group-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 3px;
+  color: #8a8a82;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-shell .graph-settings-group-title svg {
+  color: #a3a39b;
+}
+
+.workspace-shell .graph-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  color: #4f4f49;
+  font-size: 12px;
+}
+
+.workspace-shell .graph-settings-row > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.workspace-shell .graph-settings-row small {
+  color: #9a9a92;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.workspace-shell .graph-settings-row input {
+  flex-shrink: 0;
+  width: 68px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid #d8d6cf;
+  border-radius: 5px;
+  background: #fffef9;
+  color: #3d3d38;
+  font: 12px var(--mono);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.workspace-shell .graph-settings-row input:hover {
+  border-color: #b9b7ae;
+}
+
+.workspace-shell .graph-settings-row input:focus {
+  border-color: #2e6b4f;
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(46 107 79 / 16%);
+}
+
+.workspace-shell .graph-settings-sep {
+  display: block;
+  height: 1px;
+  margin: 10px 0 2px;
+  background: rgb(28 36 39 / 10%);
+}
+
+/* Interruptor (toggle switch) das opcoes de exibicao. */
+.workspace-shell .graph-settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  color: #4f4f49;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.workspace-shell .graph-settings-toggle > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.workspace-shell .graph-settings-toggle small {
+  color: #9a9a92;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.workspace-shell .graph-settings-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.workspace-shell .graph-settings-toggle-track {
+  position: relative;
+  flex-shrink: 0;
+  width: 34px;
+  height: 19px;
+  border-radius: 999px;
+  background: #d9d7d0;
+  transition: background 160ms ease;
+}
+
+.workspace-shell .graph-settings-toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2.5px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fffef9;
+  box-shadow: 0 1px 3px rgb(28 36 39 / 30%);
+  transition: transform 160ms ease;
+}
+
+.workspace-shell .graph-settings-toggle input:checked + .graph-settings-toggle-track {
+  background: #2e6b4f;
+}
+
+.workspace-shell .graph-settings-toggle input:checked + .graph-settings-toggle-track::after {
+  transform: translateX(14px);
+}
+
+.workspace-shell .graph-settings-toggle input:focus-visible + .graph-settings-toggle-track {
+  outline: 2px solid rgb(46 107 79 / 45%);
+  outline-offset: 2px;
+}
+
+.workspace-shell .graph-settings-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(28 36 39 / 8%);
+  color: #9a9a92;
+  font-size: 11px;
+}
+
+/* Drawer lateral da nota selecionada (coluna a direita). */
+.workspace-shell .graph-note-drawer .ui-drawer-header {
+  gap: 2px;
+}
+
+.workspace-shell .graph-note-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgb(28 36 39 / 10%);
+}
+
+.workspace-shell .graph-note-drawer-heading {
+  min-width: 0;
+}
+
+.workspace-shell .graph-note-drawer-eyebrow {
+  margin: 0 0 4px;
+  color: #2e6b4f;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Grade de metricas: numero grande + rotulo por coluna. */
+.workspace-shell .graph-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.workspace-shell .graph-detail-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border: 1px solid rgb(28 36 39 / 8%);
+  border-radius: 10px;
+  background: #f4f6f2;
+}
+
+.workspace-shell .graph-detail-stat strong {
+  color: #2c3d30;
+  font: 600 17px/1 var(--sans);
+}
+
+.workspace-shell .graph-detail-stat span {
+  color: #73736d;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Secoes do drawer (conteudo e referencias). */
+.workspace-shell .graph-note-drawer-section {
+  margin-top: 16px;
+}
+
+.workspace-shell .graph-note-drawer-section-title {
+  margin: 0 0 6px;
+  color: #8a8a82;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-shell .graph-note-drawer-preview {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgb(28 36 39 / 8%);
+  border-radius: 10px;
+  background: #fffef9;
+  color: #5a5a53;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.workspace-shell .graph-note-drawer-references {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workspace-shell .graph-note-drawer-ref {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid rgb(28 36 39 / 12%);
+  border-radius: 999px;
+  background: #f0f4ef;
+  color: #2e6b4f;
+  font-size: 11px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.workspace-shell .graph-note-drawer-ref:hover {
+  border-color: rgb(46 107 79 / 35%);
+  background: #e2efe4;
+}
+
+.workspace-shell .graph-note-drawer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(28 36 39 / 10%);
+}
+
+.workspace-shell .graph-note-drawer-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.workspace-shell .graph-note-drawer-actions .secondary-button {
+  min-height: 34px;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid rgb(28 36 39 / 12%);
+  background: transparent;
+}
+
+.workspace-shell .graph-note-drawer-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #20201e;
+  color: #fbfaf6;
+  font: 600 13px/1 var(--sans);
+  cursor: pointer;
+  transition: background 140ms ease, opacity 140ms ease;
+}
+
+.workspace-shell .graph-note-drawer-primary:hover {
+  background: #353530;
+}
+
+.workspace-shell .graph-note-drawer-close {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgb(28 36 39 / 12%);
+  border-radius: 8px;
+  background: transparent;
+  color: #6b6b64;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.workspace-shell .graph-note-drawer-close:hover {
+  background: #eceae2;
+  color: #20201e;
+}
+
+.workspace-shell .graph-note-drawer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.workspace-shell .graph-note-drawer-actions .secondary-button {
+  min-height: 34px;
+  justify-content: flex-start;
+  padding: 0 12px;
+  border: 1px solid rgb(28 36 39 / 12%);
+  background: transparent;
+}
+
+.workspace-shell .graph-note-drawer-primary {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #20201e;
+  color: #fbfaf6;
+  font: 600 13px/1 var(--sans);
+  cursor: pointer;
+  transition: background 140ms ease, opacity 140ms ease;
+}
+
+.workspace-shell .graph-note-drawer-primary:hover {
+  background: #353530;
+}
+
+
+
+/* Cluster de zoom no header: grupo visualmente fechado. */
+.workspace-shell .graph-zoom-cluster {
+  display: inline-flex;
+  gap: 1px;
+  padding: 2px;
+  border: 1px solid rgb(28 36 39 / 12%);
+  border-radius: 7px;
+  background: rgb(255 254 249 / 60%);
+}
+
+.workspace-shell .graph-zoom-cluster .secondary-button {
+  min-height: 24px;
+  padding: 0 8px;
+  border: 0;
+}
+
+.workspace-shell .graph-zoom-cluster .secondary-button + .secondary-button {
+  border-left: 1px solid rgb(28 36 39 / 10%);
+}
+
+/* Painel de orfaos e estados vazios: overlays sobre o grafo imersivo. */
+.workspace-shell .graph-empty-state-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 10;
+  transform: translate(-50%, -50%);
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgb(251 250 246 / 90%);
+  box-shadow: 0 8px 24px rgb(44 54 45 / 14%);
+}
+
+.workspace-shell .graph-orphan-panel {
+  position: absolute;
+  top: 66px;
+  left: 14px;
+  z-index: 20;
+  display: grid;
+  gap: 10px;
+  width: 340px;
+  max-height: calc(100% - 96px);
+  padding: 13px 14px;
+  overflow: auto;
+  border: 1px solid #e0d8c9;
+  border-left: 3px solid #a9844a;
+  border-radius: 9px;
+  background: rgb(255 253 247 / 94%);
+  box-shadow: 0 10px 28px rgb(44 54 45 / 16%);
+}
+
 .workspace-shell .graph-orphan-panel h3, .workspace-shell .graph-orphan-panel p { margin: 0; }
-.workspace-shell .graph-orphan-list { display: grid; gap: 4px; max-width: 520px; }
+.workspace-shell .graph-orphan-list { display: grid; gap: 4px; }
 .workspace-shell .graph-orphan-list > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; padding-left: 8px; border-bottom: 1px solid #eee8dc; color: #514b40; font-size: 12px; }
 
 .workspace-shell .note-graph {
   position: relative;
   isolation: isolate;
-  width: min(100%, 1080px);
-  min-height: min(62vh, 620px);
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 0;
   overflow: hidden;
-  border: 1px solid #dedcd5;
-  border-radius: 10px;
   background-color: #faf9f4;
   background-image: radial-gradient(#d9d7ce 0.75px, transparent 0.75px);
   background-size: 16px 16px;
@@ -2493,6 +2996,77 @@ button:disabled {
 }
 
 .workspace-shell .note-graph:active { cursor: grabbing; }
+
+/* Alternador 2D/3D do grafo (segmentado, como o controle de modo do editor). */
+.workspace-shell .graph-dimension-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid #d8d6cf;
+  border-radius: 7px;
+  background: #efece4;
+}
+
+.workspace-shell .graph-dimension-toggle button {
+  min-height: 28px;
+  padding: 0 11px;
+  border-radius: 5px;
+  background: transparent;
+  color: #6b6a63;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workspace-shell .graph-dimension-toggle button:hover:not(:disabled) {
+  transform: none;
+  background: #e5e1d7;
+}
+
+.workspace-shell .graph-dimension-toggle button.is-active {
+  background: #fffef9;
+  color: #303f33;
+  box-shadow: 0 1px 3px rgb(48 63 51 / 18%);
+}
+
+/* Painel 3D do grafo: fundo escuro para os pulsos eletricos brilharem. */
+.workspace-shell .note-graph-3d {
+  position: relative;
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 42%, #141a24 0%, #0d1117 62%, #0a0d12 100%);
+  cursor: grab;
+  touch-action: none;
+}
+
+.workspace-shell .note-graph-3d-fallback {
+  display: grid;
+  place-items: center;
+  color: #8a8a82;
+  font-size: 13px;
+}
+
+/* Rotulos CSS2D sobre os nos do grafo 3D (o renderer centraliza com translate). */
+.graph3d-label {
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgb(10 13 18 / 68%);
+  color: #c9d4e2;
+  font: 500 11px/1.35 var(--sans);
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.graph3d-label.is-focused {
+  color: #9fe8ff;
+  font-weight: 700;
+}
+
+.graph3d-label.is-current {
+  color: #f2b95c;
+}
 
 .workspace-shell .note-graph-world {
   position: absolute;
@@ -2524,7 +3098,8 @@ button:disabled {
   max-width: 150px;
   min-height: 34px;
   padding: 7px 10px;
-  transform: translate(-50%, -50%);
+  /* O no cresce com o numero de conexoes (--graph-scale, definido em JS). */
+  transform: translate(-50%, -50%) scale(var(--graph-scale, 1));
   border: 1px solid #aab9ac;
   border-radius: 6px;
   background: #fffef9;
@@ -2532,6 +3107,34 @@ button:disabled {
   color: #36513b;
   font: 600 12px/1.25 var(--sans);
   text-align: center;
+}
+
+/* Zoom out muito grande: nos com poucas conexoes viram um ponto sem nome. */
+.workspace-shell .note-graph-node.hide-label {
+  min-width: 14px;
+  max-width: 20px;
+  min-height: 14px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.workspace-shell .note-graph-node.hide-label span {
+  display: none;
+}
+
+/* Hover sobre um no oculto (zoom out ou "Ocultar nomes"): revela o nome. */
+.workspace-shell .note-graph-node.hide-label:hover,
+.workspace-shell .note-graph-node.hide-label:focus-visible {
+  min-width: 84px;
+  max-width: 150px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 6px;
+}
+
+.workspace-shell .note-graph-node.hide-label:hover span,
+.workspace-shell .note-graph-node.hide-label:focus-visible span {
+  display: block;
 }
 
 .workspace-shell .note-graph-node span {
@@ -2550,7 +3153,7 @@ button:disabled {
 }
 
 .workspace-shell .note-graph-node:active {
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--graph-scale, 1));
 }
 
 .workspace-shell .note-graph-node.is-focused { border-color: #52715a; background: #e5eee5; }
@@ -2648,7 +3251,83 @@ button:disabled {
   grid-template-rows: 38px auto 0 minmax(0, 1fr);
   height: 100dvh;
   background: var(--workspace-bg);
+  position: relative;
   transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.workspace-shell .note-find-bar {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: min(420px, calc(100% - 24px));
+  padding: 4px 5px 4px 9px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  background: var(--workspace-raised);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.workspace-shell .note-find-bar > svg {
+  flex: 0 0 auto;
+  color: var(--workspace-muted);
+}
+
+.workspace-shell .note-find-bar input {
+  flex: 1;
+  min-width: 0;
+  width: 150px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--workspace-text);
+  font: 400 13px/1.4 var(--sans);
+}
+
+.workspace-shell .note-find-bar input::placeholder {
+  color: var(--workspace-muted);
+}
+
+.workspace-shell .note-find-count {
+  flex: 0 0 auto;
+  min-width: 34px;
+  padding: 0 6px;
+  color: var(--workspace-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.workspace-shell .note-find-nav-button,
+.workspace-shell .note-find-close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--workspace-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.workspace-shell .note-find-nav-button:hover:not(:disabled),
+.workspace-shell .note-find-close:hover:not(:disabled) {
+  background: var(--workspace-line);
+  color: var(--workspace-text);
+}
+
+.workspace-shell .note-find-nav-button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .workspace-shell.is-markdown-tools-open .editor-surface {
@@ -2919,6 +3598,233 @@ button:disabled {
   line-height: 0;
 }
 
+.workspace-shell .editor-actions > .note-review-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.workspace-shell .editor-actions > .indexadora-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.workspace-shell .editor-actions > .indexadora-button.is-active {
+  color: #2e6b4f;
+  background: #e2efe4;
+}
+
+.workspace-shell .editor-actions > .indexadora-button.is-active:hover {
+  background: #d5e8d8;
+}
+
+/* Menu (Popover do shadcn) que agrupa as acoes de avaliacao/revisao da nota.
+   Layout do mockup: cabecalho -> faixa de status (badge unificado + proxima
+   revisao) -> divisor -> grid 2x2 de acoes (Ver relatorio | Fazer revisao
+   agora / Reavaliar nota | Politica de revisao). Células em alturas
+   uniformes. ATENCAO: o conteudo do Popover e renderizado num PORTAL do
+   Radix em document.body — fora do .workspace-shell — entao o escopo usa o
+   seletor do proprio conteudo (.ui-popover-content). */
+.ui-popover-content.note-review-menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 344px;
+  padding: 10px 11px 11px;
+  font-size: 12px;
+}
+
+/* Cabecalho: ocupa a largura toda (o divisor fica abaixo da faixa de status). */
+.ui-popover-content.note-review-menu > .note-review-menu-header {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 2px 6px;
+}
+
+.ui-popover-content.note-review-menu .note-review-menu-header strong {
+  color: var(--text-h, #1c2427);
+  font: 600 13px var(--sans);
+}
+
+.ui-popover-content.note-review-menu .note-review-menu-header small {
+  color: var(--muted, #7e7466);
+  font-size: 11px;
+}
+
+/* Faixa de status: largura toda, pill grande + proxima revisao, com divisor. */
+.ui-popover-content.note-review-menu .note-readiness-status-card {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 2px 9px;
+  border-bottom: 1px solid #e8e5dd;
+  margin-bottom: 3px;
+}
+
+/* Pill de status unificada: maior e mais visivel, circulo branco de check. */
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  padding: 0 12px 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: #eceae3;
+  color: #6b6b64;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state-check {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #2f4a35;
+}
+
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state.is-ready { background: #a9bda5; color: #2f4a35; }
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state.is-ambiguous,
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state.is-modified { background: #e6d8ad; color: #6b5319; }
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state.is-insufficient { background: #e6c4bb; color: #7c3f36; }
+
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-review-next-date {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  color: var(--muted, #7e7466);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Botoes de acao: alturas uniformes e compactas. */
+.ui-popover-content.note-review-menu .note-review-start-trigger,
+.ui-popover-content.note-review-menu .note-readiness-report-trigger,
+.ui-popover-content.note-review-menu .note-readiness-trigger,
+.ui-popover-content.note-review-menu .note-review-policy-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* CTA primaria (Fazer revisao agora): fundo escuro, coluna direita. */
+.ui-popover-content.note-review-menu .note-review-start-trigger {
+  grid-column: 2;
+  border: 0;
+  background: var(--button-bg, #1c2427);
+  color: var(--button-text, #f7f2e7);
+  font-weight: 600;
+}
+
+.ui-popover-content.note-review-menu .note-review-start-trigger:not(:disabled):hover {
+  background: #2c3538;
+}
+
+.ui-popover-content.note-review-menu .note-review-start-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Celulas leves: relatorio, reavaliar e politica. */
+.ui-popover-content.note-review-menu .note-readiness-report-trigger,
+.ui-popover-content.note-review-menu .note-readiness-trigger,
+.ui-popover-content.note-review-menu .note-review-policy-trigger {
+  border: 1px solid #e0ddd4;
+  background: #f5f2ea;
+}
+
+.ui-popover-content.note-review-menu .note-readiness-report-trigger { grid-column: 1; }
+.ui-popover-content.note-review-menu .note-readiness-trigger { grid-column: 1; }
+.ui-popover-content.note-review-menu .note-review-policy-trigger { grid-column: 2; }
+
+/* Robustez com celulas condicionais (:has e suportado no WebView2/Chromium):
+   sem "Ver relatorio", o CTA vira a celula da esquerda, "Reavaliar" passa
+   para a direita e a politica ocupa a largura toda — nunca sobra buraco. */
+.ui-popover-content.note-review-menu:not(:has(.note-readiness-report-trigger)) .note-review-start-trigger {
+  grid-column: 1;
+}
+
+.ui-popover-content.note-review-menu:not(:has(.note-readiness-report-trigger)) .note-readiness-trigger {
+  grid-column: 2;
+}
+
+.ui-popover-content.note-review-menu:not(:has(.note-readiness-report-trigger)) .note-review-policy-trigger {
+  grid-column: 1 / -1;
+}
+
+.ui-popover-content.note-review-menu .note-readiness-report-trigger:not(:disabled):hover,
+.ui-popover-content.note-review-menu .note-readiness-trigger:not(:disabled):hover,
+.ui-popover-content.note-review-menu .note-review-policy-trigger:not(:disabled):hover {
+  background: #ece8dd;
+}
+
+/* Icones empilhados (grafico+lupa, caderno+reciclar, engrenagem+chave):
+   um icone base com um icone-corner pequeno sobreposto. */
+.ui-popover-content.note-review-menu .note-review-icon-stack {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.ui-popover-content.note-review-menu .note-review-icon-stack .note-review-icon-corner {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 11px;
+  height: 11px;
+  padding: 1px;
+  border-radius: 50%;
+  background: #f5f2ea;
+  box-shadow: 0 0 0 1px rgb(28 36 39 / 8%);
+}
+
+/* Erros ocupam a largura toda. */
+.ui-popover-content.note-review-menu .review-ai-toolbar-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+/* Dot de status no trigger do popover (fora do portal, dentro do workspace). */
+.workspace-shell .note-review-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: #b9b6ac;
+  box-shadow: inset 0 0 0 1px rgb(28 36 39 / 0.14);
+}
+
+.workspace-shell .note-review-status-dot.is-ready { background: var(--success, #40916c); }
+.workspace-shell .note-review-status-dot.is-ambiguous,
+.workspace-shell .note-review-status-dot.is-modified { background: #c9a227; }
+.workspace-shell .note-review-status-dot.is-insufficient { background: var(--danger, #9a3b23); }
+
+
 .workspace-shell .favorite-button.is-active { color: #9a7432; background: #f1e8cf; }
 .workspace-shell .favorite-notes { display: grid; gap: 2px; margin: 0 2px 8px; padding: 6px; border-bottom: 1px solid #e6e4de; }
 .workspace-shell .favorite-notes > span { color: #73736d; font-size: 10px; text-transform: uppercase; }
@@ -3105,6 +4011,26 @@ button:disabled {
   height: 100%;
 }
 
+/* Contador de palavras da nota: canto inferior direito do editor, discreto e
+   sem interagir com o conteudo (pointer-events none). */
+.workspace-shell .note-word-count {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  z-index: 1;
+  padding: 2px 9px;
+  border: 1px solid rgba(28, 36, 39, 0.14);
+  border-radius: 999px;
+  background: rgba(251, 250, 246, 0.86);
+  color: var(--workspace-muted, #73736d);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
 .workspace-shell .codemirror-markdown-editor {
   min-height: 0;
 }
@@ -3197,6 +4123,47 @@ button:disabled {
 
 .workspace-shell .floating-markdown-toolbar .markdown-tools-drag-handle:active {
   cursor: grabbing;
+}
+
+/* Popover de formatacao da selecao: aparece junto ao texto selecionado nos
+   modos Edicao/Misto com as acoes mais comuns de marcacao inline. */
+.workspace-shell .selection-format-popover {
+  position: absolute;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  max-width: calc(100% - 12px);
+  padding: 4px;
+  border: 1px solid #d9d7d0;
+  border-radius: 8px;
+  background: #fbfaf6;
+  box-shadow: 0 8px 18px rgba(45, 44, 39, 0.18);
+}
+
+.workspace-shell .selection-format-popover.is-above {
+  transform: translateX(-50%) translateY(-100%);
+}
+
+.workspace-shell .selection-format-popover.is-below {
+  transform: translateX(-50%);
+}
+
+.workspace-shell .selection-format-popover button {
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #d9d7d0;
+  border-radius: 5px;
+  background: #fbfaf6;
+  color: #353531;
+}
+
+.workspace-shell .selection-format-popover button:hover:not(:disabled) {
+  background: #dce6dc;
 }
 
 .workspace-shell .editor-panel--edit,
@@ -3305,6 +4272,20 @@ button:disabled {
 .workspace-shell .markdown-reading.is-gap-hover-only:hover mark[data-gap='confused'],
 .workspace-shell .markdown-reading.is-gap-hover-only:focus-within mark[data-gap='confused'] {
   background: #ffe5a5;
+}
+
+/* Badges de pontuacao por paragrafo no modo Leitura: os estilos base e as
+   cores das faixas vêm de review-session.css (bundlado globalmente pelo
+   Vite); aqui so controlamos o comportamento 'somente no hover', que
+   acompanha os marca-textos (surgem apenas com hover/foco). */
+.workspace-shell .markdown-reading.is-gap-hover-only .review-unit-score {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.workspace-shell .markdown-reading.is-gap-hover-only:hover .review-unit-score,
+.workspace-shell .markdown-reading.is-gap-hover-only:focus-within .review-unit-score {
+  opacity: 1;
 }
 
 .workspace-shell .review-gap-mode-control {
@@ -3940,29 +4921,6 @@ button:disabled {
   outline-offset: -2px;
 }
 
-.workspace-shell .workspace-status {
-  display: inline-flex;
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 3;
-  max-width: min(420px, calc(100vw - 36px));
-  margin: 0;
-  padding: 9px 12px;
-  border: 1px solid #d9d7d0;
-  border-radius: 7px;
-  background: #fbfaf6;
-  box-shadow: 0 8px 24px rgba(32, 32, 30, 0.12);
-  color: #4f4f49;
-  font-size: 12px;
-}
-
-.workspace-shell .workspace-status .status-dot {
-  width: 7px;
-  height: 7px;
-  box-shadow: none;
-}
-
 .workspace-shell .autosave-indicator {
   color: #74746d;
   font-size: 11px;
@@ -4153,4 +5111,30 @@ button:disabled {
     justify-content: center;
     padding: 0;
   }
+}
+
+/* Reiniciar aprendizado: acao discreta de risco, largura toda no menu. */
+.ui-popover-content.note-review-menu .note-review-reset-trigger {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #9a5b52;
+  font-size: 11.5px;
+}
+
+.ui-popover-content.note-review-menu .note-review-reset-trigger:not(:disabled):hover {
+  background: color-mix(in srgb, #b3261e 8%, transparent);
+  color: var(--danger, #b3261e);
+}
+
+.ui-popover-content.note-review-menu .note-review-reset-trigger:disabled {
+  opacity: 0.55;
+  cursor: default;
 }

@@ -1,8 +1,18 @@
-use super::contract::{GapClassification, LearningDocument, UnitEvaluation};
+use super::contract::{GapClassification, LearningDocument, RecallOutcome, UnitEvaluation};
 use anyhow::Result;
 use serde::Serialize;
 
 const MAX_RETURNED_GAPS: usize = 200;
+const MAX_RETURNED_UNITS: usize = 2_000;
+
+fn outcome_view(outcome: &RecallOutcome) -> &'static str {
+    match outcome {
+        RecallOutcome::Forgotten => "forgotten",
+        RecallOutcome::Partial => "partial",
+        RecallOutcome::Good => "good",
+        RecallOutcome::Complete => "complete",
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -61,9 +71,78 @@ pub fn latest_review_gaps(
     Ok(gaps)
 }
 
+/// Unidade da ultima sessao concluida, no formato do overlay do relatorio:
+/// o modo Leitura do editor usa os mesmos intervalos para o badge de
+/// pontuacao ao final de cada paragrafo avaliado.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteReviewUnitView {
+    pub source_start_utf16: u64,
+    pub source_end_utf16: u64,
+    /// A unidade foi efetivamente avaliada na sessao (alvo da cobertura
+    /// adaptativa). Unidades fora do alvo nao pontuam nem evoluem estado.
+    pub evaluated: bool,
+    /// Unidade do alvo com evidencia insuficiente: nunca pontua zero, nao
+    /// altera DSR/FSRS e nao entra na media.
+    pub inconclusive: bool,
+    pub score: u8,
+    pub outcome: &'static str,
+}
+
+/// Expõe as unidades da ultima sessao concluida com a avaliacao por unidade,
+/// na ordem em que aparecem no documento. Retorna lista vazia quando a nota
+/// nao possui sessao ou seu conteudo mudou desde a sessao.
+pub fn latest_review_units(
+    document: &LearningDocument,
+    markdown: &str,
+    content_hash: &str,
+) -> Result<Vec<NoteReviewUnitView>> {
+    if document.note.content_hash != content_hash {
+        return Ok(Vec::new());
+    }
+    let Some(session) = document.sessions.last() else {
+        return Ok(Vec::new());
+    };
+    if session.note_content_hash != content_hash {
+        return Ok(Vec::new());
+    }
+    let markdown_utf16 = markdown.encode_utf16().count();
+    let mut units: Vec<NoteReviewUnitView> = session
+        .unit_results
+        .iter()
+        .filter_map(|result| {
+            let start = result.unit_snapshot.source_start_utf16;
+            let end = result.unit_snapshot.source_end_utf16;
+            if end as usize > markdown_utf16 || end <= start {
+                return None;
+            }
+            match &result.evaluation {
+                UnitEvaluation::Evaluated { score, outcome, .. } => Some(NoteReviewUnitView {
+                    source_start_utf16: start,
+                    source_end_utf16: end,
+                    evaluated: true,
+                    inconclusive: false,
+                    score: *score,
+                    outcome: outcome_view(outcome),
+                }),
+                UnitEvaluation::Inconclusive { .. } => Some(NoteReviewUnitView {
+                    source_start_utf16: start,
+                    source_end_utf16: end,
+                    evaluated: false,
+                    inconclusive: true,
+                    score: 0,
+                    outcome: "forgotten",
+                }),
+            }
+        })
+        .collect();
+    units.truncate(MAX_RETURNED_UNITS);
+    Ok(units)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::latest_review_gaps;
+    use super::{latest_review_gaps, latest_review_units};
     use crate::review::contract::{parse_learning_document, GapClassification, UnitEvaluation};
 
     #[test]
@@ -89,6 +168,33 @@ mod tests {
     }
 
     #[test]
+    fn exposes_the_latest_session_units_with_scores_and_outcomes() {
+        let document = parse_learning_document(include_str!(
+            "../../../tests/fixtures/review-learning-v1.json"
+        ))
+        .expect("fixture document");
+        let markdown = format!(
+            "{}energia luminosa{}glicose e oxigênio{}",
+            " ".repeat(24),
+            " ".repeat(145 - 40),
+            " ".repeat(200 - 163)
+        );
+
+        let units =
+            latest_review_units(&document, &markdown, "sha256:note-content").expect("list units");
+
+        assert_eq!(units.len(), 2);
+        assert!(units.iter().all(|unit| unit.evaluated));
+        assert!(units.iter().all(|unit| !unit.inconclusive));
+        assert_eq!(units[0].score, 85);
+        assert_eq!(units[0].outcome, "good");
+        assert_eq!(units[1].score, 30);
+        assert_eq!(units[1].outcome, "forgotten");
+        assert!(units[0].source_start_utf16 < units[0].source_end_utf16);
+        assert!(units[1].source_start_utf16 >= units[0].source_end_utf16);
+    }
+
+    #[test]
     fn hides_gaps_when_the_note_content_changed_after_the_session() {
         let document = parse_learning_document(include_str!(
             "../../../tests/fixtures/review-learning-v1.json"
@@ -97,6 +203,18 @@ mod tests {
         let markdown = "Conteudo novo que nao bate com a sessao.";
         let gaps = latest_review_gaps(&document, markdown, "sha256:stale-hash").expect("list gaps");
         assert!(gaps.is_empty());
+    }
+
+    #[test]
+    fn hides_units_when_the_note_content_changed_after_the_session() {
+        let document = parse_learning_document(include_str!(
+            "../../../tests/fixtures/review-learning-v1.json"
+        ))
+        .expect("fixture document");
+        let markdown = "Conteudo novo que nao bate com a sessao.";
+        let units =
+            latest_review_units(&document, markdown, "sha256:stale-hash").expect("list units");
+        assert!(units.is_empty());
     }
 
     #[test]

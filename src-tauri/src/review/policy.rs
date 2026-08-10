@@ -3,7 +3,7 @@ use super::contract::{
 };
 use super::evaluation::source_hash;
 use super::policy_config::load_inherited_review_policy;
-use super::session::interval_days_for_retention;
+use super::session::{adjust_schedule_for_deadline, interval_days_for_retention};
 use super::storage::{load_learning_document_for_path, write_learning_document};
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -65,6 +65,9 @@ pub struct NoteReviewPolicyView {
     pub max_interval_days: u64,
     pub deadline_at_unix_ms: Option<u64>,
     pub preferred_mode: &'static str,
+    /// O modo preferido foi definido explicitamente nesta nota (senao e herdado
+    /// das tags ou usa o padrao Prova).
+    pub mode_manual: bool,
     pub sources: NoteReviewPolicySourcesView,
     pub first_review_at_unix_ms: Option<u64>,
     pub next_review_at_unix_ms: Option<u64>,
@@ -107,6 +110,9 @@ pub fn set_note_review_policy(
     }
 
     document.note.enrollment.preferred_mode = input.preferred_mode;
+    // Salvar a politica da nota define o modo explicitamente: a partir dai as
+    // tags nao sobrescrevem esta preferencia.
+    document.note.enrollment.mode_manual = true;
     let override_fields: HashSet<_> = input.override_fields.iter().copied().collect();
     let inherit_fields: HashSet<_> = input.inherit_fields.iter().copied().collect();
     if !inherit_fields.is_empty() {
@@ -168,6 +174,42 @@ pub fn set_note_review_policy(
     Ok(view_from_document(&document, now_unix_ms))
 }
 
+/// Acao rapida de revisao: altera somente o peso de prioridade da nota,
+/// criando uma sobrescrita de nota sobre a heranca (Vault/tag), preservando
+/// todos os demais campos, o historico e o estado DSR/FSRS. A data de revisao
+/// nao muda (prioridade so afeta a ordem da fila), mas o reschedule mantem o
+/// documento consistente.
+pub fn set_note_review_priority(
+    vault_root: &Path,
+    relative_path: &str,
+    markdown: &str,
+    priority_weight: f64,
+    now_unix_ms: u64,
+) -> Result<NoteReviewPolicyView> {
+    if !priority_weight.is_finite() || priority_weight <= 0.0 || priority_weight > 100.0 {
+        bail!("A prioridade deve ser maior que zero e no maximo 100.");
+    }
+    let loaded = load_learning_document_for_path(vault_root, relative_path)?.ok_or_else(|| {
+        anyhow::anyhow!("Avalie a prontidao da nota antes de configurar revisoes.")
+    })?;
+    let note_id = loaded.document.note.id.clone();
+    let expected_revision = loaded.document.revision;
+    let mut document = loaded.document;
+    if document.note.content_hash != source_hash(markdown) {
+        bail!("A nota mudou desde a avaliacao. Avalie a prontidao novamente.");
+    }
+    document.effective_policy.priority_weight = priority_weight;
+    document.effective_policy.sources.priority_weight = PolicySource {
+        kind: PolicySourceKind::Note,
+        source_id: Some(note_id.clone()),
+    };
+    document.effective_policy.validate()?;
+    reschedule(&mut document, now_unix_ms)?;
+    document.revision = expected_revision.saturating_add(1);
+    write_learning_document(vault_root, &note_id, Some(expected_revision), &document)?;
+    Ok(view_from_document(&document, now_unix_ms))
+}
+
 fn validate_input(input: &NoteReviewPolicyInput) -> Result<()> {
     let unique_override_fields: HashSet<_> = input.override_fields.iter().copied().collect();
     if unique_override_fields.len() != input.override_fields.len() {
@@ -210,7 +252,22 @@ pub(crate) fn reschedule(
     now_unix_ms: u64,
 ) -> Result<()> {
     let enrolled = document.note.enrollment.is_enrolled();
-    let next_review = next_review_for_effective_policy(document)?;
+    let mut next_review = next_review_for_effective_policy(document)?;
+    // Ajuste do agendamento para a tag ativa com prazo: quando a politica muda
+    // (prazo novo ou alterado), a proxima data e recalculada projetando a
+    // retencao na prova e antecipando somente as revisoes necessarias. O flag
+    // de risco e derivado a cada leitura (state/dashboard), nunca persistido.
+    if document.effective_policy.deadline_at_unix_ms.is_some() {
+        let ready_at = super::session::note_ready_at(document);
+        if let (Some(adjusted), _) = adjust_schedule_for_deadline(
+            now_unix_ms,
+            &document.effective_policy,
+            &document.units,
+            ready_at,
+        )? {
+            next_review = Some(adjusted);
+        }
+    }
     if document.sessions.is_empty() {
         document.scheduling.first_review_at_unix_ms = next_review;
     }
@@ -285,6 +342,7 @@ fn view_from_document(
             ReviewMode::Exam => "exam",
             ReviewMode::Conversation => "conversation",
         },
+        mode_manual: document.note.enrollment.mode_manual,
         sources: NoteReviewPolicySourcesView {
             first_review_interval_days: source_view(&policy.sources.first_review_interval_days),
             target_retention: source_view(&policy.sources.target_retention),
@@ -645,6 +703,80 @@ mod tests {
             inherited.next_review_at_unix_ms,
             Some(assessed_at + (5 * DAY_MS))
         );
+    }
+
+    #[test]
+    fn a_priority_quick_action_overrides_only_priority_and_preserves_history() {
+        let vault = tempdir().expect("vault");
+        let path = "Biologia/ATP.md";
+        let markdown = "# ATP\n\nATP armazena energia.\n\nATP transfere energia.\n\nATP participa do metabolismo.";
+        let assessed_at = 1_720_000_000_000;
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        let state =
+            persist_readiness_assessment(vault.path(), path, markdown, &report, assessed_at)
+                .expect("persist readiness");
+        set_manual_enrollment(vault.path(), path, markdown, true, assessed_at)
+            .expect("enroll note");
+
+        let view = super::set_note_review_priority(vault.path(), path, markdown, 4.5, assessed_at)
+            .expect("set priority");
+        assert_eq!(view.priority_weight, 4.5);
+        assert_eq!(view.sources.priority_weight.kind, "note");
+        // A data nao muda: prioridade so afeta a ordem da fila.
+        assert_eq!(
+            view.next_review_at_unix_ms,
+            Some(assessed_at + (2 * DAY_MS))
+        );
+        assert_eq!(view.target_retention, 0.8);
+
+        let reloaded = load_learning_document(vault.path(), &state.note_id)
+            .expect("reload")
+            .expect("document");
+        assert_eq!(reloaded.document.revision, 3);
+        assert!(matches!(
+            reloaded
+                .document
+                .effective_policy
+                .sources
+                .priority_weight
+                .kind,
+            PolicySourceKind::Note
+        ));
+    }
+
+    #[test]
+    fn a_priority_quick_action_rejects_invalid_values_and_unknown_notes() {
+        let vault = tempdir().expect("vault");
+        assert!(super::set_note_review_priority(
+            vault.path(),
+            "Inexistente.md",
+            "# Conteudo",
+            2.0,
+            1_720_000_000_000,
+        )
+        .is_err());
+        assert!(super::set_note_review_priority(
+            vault.path(),
+            "Inexistente.md",
+            "# Conteudo",
+            0.0,
+            1_720_000_000_000,
+        )
+        .is_err());
+        assert!(super::set_note_review_priority(
+            vault.path(),
+            "Inexistente.md",
+            "# Conteudo",
+            101.0,
+            1_720_000_000_000,
+        )
+        .is_err());
     }
 
     #[test]

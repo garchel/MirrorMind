@@ -209,29 +209,27 @@ describe('MarkdownCodeEditor', () => {
     expect(getMarkdownAutocompleteResult('/tab', 4, data)?.options[0].label).toBe('/tabela')
   })
 
-  it('abre o painel de busca ao receber uma solicitacao externa', async () => {
-    const { rerender } = render(
+  it('destaca e seleciona correspondencias via handle de busca', async () => {
+    const editorRef = createRef<MarkdownCodeEditorHandle>()
+    render(
       <MarkdownCodeEditor
+        ref={editorRef}
         documentKey="busca.md"
         onChange={vi.fn()}
         onHistoryChange={vi.fn()}
         onSessionChange={vi.fn()}
-        searchRequestId={0}
-        value="Texto para buscar"
+        value="Texto para buscar, e outro texto para buscar."
       />,
     )
 
-    rerender(
-      <MarkdownCodeEditor
-        documentKey="busca.md"
-        onChange={vi.fn()}
-        onHistoryChange={vi.fn()}
-        onSessionChange={vi.fn()}
-        searchRequestId={1}
-        value="Texto para buscar"
-      />,
-    )
+    await waitFor(() => expect(document.querySelector('.cm-content')).toBeInTheDocument())
+    editorRef.current?.setFindQuery('buscar')
+    await waitFor(() => expect(document.querySelectorAll('.cm-find-match').length).toBeGreaterThan(0))
 
-    await waitFor(() => expect(document.querySelector('.cm-search')).toBeInTheDocument())
+    editorRef.current?.selectRange(0, 5)
+    expect(editorRef.current?.getSelection()).toMatchObject({ selectionStart: 0, selectionEnd: 5 })
+
+    editorRef.current?.setFindQuery('')
+    await waitFor(() => expect(document.querySelectorAll('.cm-find-match').length).toBe(0))
   })
 })

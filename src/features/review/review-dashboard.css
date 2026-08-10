@@ -2,9 +2,8 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
+  width: 100%;
   padding: 22px 26px;
-  max-width: 1080px;
-  margin: 0 auto;
 }
 
 .review-dashboard-header {
@@ -97,6 +96,90 @@
 .review-dashboard-card small {
   color: var(--muted, #6b6a63);
   font-size: 11.5px;
+}
+
+.review-dashboard-calibration {
+  padding: 16px 18px 18px;
+  background: var(--surface, #fdfcf8);
+  border: 1px solid var(--border, #e6e3d8);
+  border-radius: 14px;
+}
+
+.review-dashboard-calibration-empty {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--border, #dedbd1);
+  border-radius: 10px;
+  color: var(--muted, #6b6a63);
+  font-size: 13px;
+  text-align: center;
+}
+
+.review-dashboard-calibration-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-dashboard-calibration-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 220px) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border, #efede4);
+}
+
+.review-dashboard-calibration-list li:last-child {
+  border-bottom: none;
+}
+
+.review-dashboard-calibration-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.review-dashboard-calibration-copy strong {
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-dashboard-calibration-copy small {
+  color: var(--muted, #6b6a63);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-dashboard-calibration-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border, #e6e3d8);
+  overflow: hidden;
+}
+
+.review-dashboard-calibration-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent, #5b6f52);
+  transition: width 220ms ease;
+}
+
+.review-dashboard-calibration-count {
+  color: var(--muted, #6b6a63);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.review-dashboard-calibration-open {
+  justify-self: end;
 }
 
 .review-dashboard-deadlines {
@@ -194,8 +277,229 @@
   white-space: nowrap;
 }
 
-.review-dashboard-deadline-open {
+.review-deadline-risk-badge {
+  display: inline-block;
+  width: max-content;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ffe5a5;
+  color: #7a5c10;
+  font: 600 10.5px/1.4 var(--sans);
+}
+
+.review-dashboard-deadline-open,
+.review-dashboard-deadline-edit,
+.review-dashboard-deadline-review {
   flex: 0 0 auto;
+}
+
+.review-dashboard-deadline-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.review-dashboard-deadline-priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  width: max-content;
+  color: #4f4f49;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.review-dashboard-deadline-priority-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  border: 1px solid #cfccc2;
+  border-radius: 5px;
+  background: #f6f4ee;
+  color: #4f4f49;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.review-dashboard-deadline-priority-step:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent, #5b6f52) 14%, #f6f4ee);
+  border-color: color-mix(in srgb, var(--accent, #5b6f52) 45%, #cfccc2);
+  color: var(--accent-strong, #3f5239);
+}
+
+.review-dashboard-deadline-priority-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.review-dashboard-deadline-priority-error {
+  margin: 10px 0 0;
+  color: var(--danger, #b3261e);
+  font-size: 12.5px;
+}
+
+.review-dashboard-deadline-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.review-dashboard-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 20, 16, 0.34);
+  backdrop-filter: blur(2px);
+}
+
+.review-dashboard-dialog {
+  width: min(430px, 100%);
+  padding: 20px;
+  background: var(--surface, #fdfcf8);
+  border: 1px solid var(--border, #e6e3d8);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(30, 30, 24, 0.22);
+}
+
+.review-dashboard-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.review-dashboard-dialog-heading h3 {
+  margin: 2px 0 0;
+  font-size: 17px;
+}
+
+.review-dashboard-dialog-close {
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-dashboard-dialog-copy {
+  margin: 12px 0 14px;
+  color: var(--muted, #6b6a63);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.review-dashboard-dialog-copy strong {
+  color: var(--ink, #2b2a26);
+  font-weight: 600;
+}
+
+.review-dashboard-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.review-dashboard-dialog-field > span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink, #2b2a26);
+}
+
+.review-dashboard-dialog-field > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #e6e3d8);
+  border-radius: 10px;
+  background: var(--canvas, #fffefb);
+  color: var(--muted, #6b6a63);
+}
+
+.review-dashboard-dialog-field input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: 400 13.5px/1.4 var(--sans);
+  color: var(--ink, #2b2a26);
+}
+
+.review-dashboard-dialog-field small {
+  color: var(--muted, #8a8a82);
+  font-size: 11px;
+}
+
+.review-dashboard-dialog-preview {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent, #5b6f52) 10%, transparent);
+}
+
+.review-dashboard-dialog-preview strong {
+  font-size: 16px;
+  color: var(--accent-strong, #3f5239);
+}
+
+.review-dashboard-dialog-preview span {
+  font-size: 12px;
+  color: var(--accent-strong, #3f5239);
+}
+
+.review-dashboard-dialog-hint {
+  margin-top: 12px;
+  color: var(--muted, #8a8a82);
+  font-size: 12px;
+}
+
+.review-dashboard-dialog-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger, #b3261e) 10%, transparent);
+  color: var(--danger, #b3261e);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.review-dashboard-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.review-dashboard-dialog-actions .secondary-button {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+.review-dashboard-dialog-actions button:last-child {
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 12.5px;
 }
 
 .review-dashboard-forecast {
@@ -255,4 +559,142 @@
   font-size: 13px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* Prazos encerrados: a data-limite da tag ja passou, mas a nota continua em
+   aprendizado. Tom amber suave para chamar atencao sem urgir como um prazo
+   ativo em risco. */
+.review-dashboard-expired {
+  padding: 16px 18px 18px;
+  background: color-mix(in srgb, #b98a2f 5%, var(--surface, #fdfcf8));
+  border: 1px solid color-mix(in srgb, #b98a2f 28%, var(--border, #e6e3d8));
+  border-radius: 14px;
+}
+
+.review-dashboard-expired-hint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #b98a2f 8%, transparent);
+  color: #6b561f;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.review-dashboard-expired-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-dashboard-expired-list li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 4px;
+  border-bottom: 1px solid color-mix(in srgb, #b98a2f 14%, #efede4);
+}
+
+.review-dashboard-expired-list li:last-child {
+  border-bottom: none;
+}
+
+.review-dashboard-expired-date {
+  flex: 0 0 auto;
+  min-width: 92px;
+  padding: 6px 10px;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 9px;
+  background: color-mix(in srgb, #b98a2f 16%, transparent);
+  color: #7a5c10;
+}
+
+.review-dashboard-expired-tag {
+  display: inline-block;
+  width: max-content;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #b98a2f 14%, transparent);
+  color: #7a5c10;
+  font: 600 10.5px/1.4 var(--sans);
+}
+
+/* Meta diaria opcional: stepper, barra de progresso e celebracao ao atingir.
+   E apenas orientacao — nunca esconde revisoes da fila. */
+.review-dashboard-goal {
+  padding: 16px 18px 18px;
+  background: var(--surface, #fdfcf8);
+  border: 1px solid var(--border, #e6e3d8);
+  border-radius: 14px;
+}
+
+.review-dashboard-goal-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #5b6f52) 10%, transparent);
+  color: var(--accent-strong, #3f5239);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.review-dashboard-goal-status.is-reached {
+  background: color-mix(in srgb, var(--accent, #5b6f52) 20%, transparent);
+}
+
+.review-dashboard-goal-progress {
+  height: 10px;
+  margin-bottom: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #5b6f52) 9%, #efede4);
+  overflow: hidden;
+}
+
+.review-dashboard-goal-progress > span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 999px;
+  background: var(--accent, #5b6f52);
+  transition: width 300ms ease;
+}
+
+.review-dashboard-goal-copy {
+  margin: 0 0 12px;
+  color: var(--muted, #6b6a63);
+  font-size: 12.5px;
+}
+
+.review-dashboard-goal-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-dashboard-goal-stepper > strong {
+  min-width: 34px;
+  text-align: center;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-dashboard-goal-stepper .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.review-dashboard-goal-suggest {
+  margin-left: 6px;
+  gap: 5px;
 }

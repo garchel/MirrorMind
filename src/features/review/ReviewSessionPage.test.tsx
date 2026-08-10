@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
@@ -35,10 +35,13 @@ const questionOptions = (base: string) => [
 const draft = {
   sessionId: 'session-1', noteId: 'note-1', relativePath: item.relativePath,
   noteContentHash: 'sha256:content', mode: 'exam' as const, provider: 'ollama' as const,
+  // Prova mista: duas multipla escolha e uma resposta curta — a correcao
+  // deterministica compara os termos-chave da resposta esperada registrada no
+  // backend, que nunca trafega para o cliente.
   prompts: [
-    { id: 'q1', text: 'Pergunta um?', assistance: 'Dica um.', options: questionOptions('Opcao A') },
-    { id: 'q2', text: 'Pergunta dois?', assistance: 'Dica dois.', options: questionOptions('Opcao B') },
-    { id: 'q3', text: 'Pergunta tres?', assistance: 'Dica tres.', options: questionOptions('Opcao C') },
+    { id: 'q1', text: 'Pergunta um?', assistance: 'Dica um.', kind: 'multipleChoice' as const, options: questionOptions('Opcao A') },
+    { id: 'q2', text: 'Pergunta dois?', assistance: 'Dica dois.', kind: 'shortAnswer' as const, options: [] },
+    { id: 'q3', text: 'Pergunta tres?', assistance: 'Dica tres.', kind: 'multipleChoice' as const, options: questionOptions('Opcao C') },
   ], minimumAnswers: 3, maximumAnswers: 5,
 }
 
@@ -57,7 +60,7 @@ const report = (markdown: string, score = 72, gaps: Array<{ classification: 'for
     markdown,
     units: [{
       id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: markdown.length,
-      sectionPath: [], score, outcome: score >= 90 ? 'complete' as const : 'good' as const,
+      sectionPath: [], evaluated: true, score, outcome: score >= 90 ? 'complete' as const : 'good' as const,
     }],
     gaps,
     completedAtUnixMs: 1_730_000_000_000, nextReviewAtUnixMs: 1_730_604_800_000,
@@ -65,7 +68,14 @@ const report = (markdown: string, score = 72, gaps: Array<{ classification: 'for
 })
 
 async function answerExamQuestion(user: ReturnType<typeof userEvent.setup>, option: string) {
-  await user.click(screen.getByRole('radio', { name: option }))
+  // A prova mista alterna multipla escolha (radio) e resposta curta
+  // (textarea): o helper responde de acordo com a pergunta exibida.
+  const textarea = document.querySelector('.review-question textarea') as HTMLTextAreaElement | null
+  if (textarea) {
+    await user.type(textarea, option)
+  } else {
+    await user.click(screen.getByRole('radio', { name: option }))
+  }
   await user.click(screen.getByRole('button', { name: /Salvar resposta|Concluir e avaliar/ }))
 }
 
@@ -89,6 +99,89 @@ describe('ReviewSessionPage', () => {
     ]))
   })
   afterEach(cleanup)
+
+  it('explains that an objective exam is weaker evidence for scheduling', async () => {
+    // Relatorio de prova objetiva (reconhecimento) concluido.
+    completeMock.mockResolvedValue({
+      outcome: 'valid',
+      report: {
+        sessionId: 'session-1', overallScore: 72, outcome: 'good',
+        summary: 'Bom dominio.',
+        markdown: reportMarkdown,
+        units: [{
+          id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length,
+          sectionPath: [], evaluated: true, score: 72, outcome: 'good',
+        }],
+        gaps: [],
+        completedAtUnixMs: 1_730_000_000_000, nextReviewAtUnixMs: 1_730_604_800_000,
+        evidence: 'recognition',
+      },
+    })
+    const { onCompleted } = renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await answerExamQuestion(user, 'Opcao A beta')
+    await answerExamQuestion(user, 'Opcao B gama')
+    await answerExamQuestion(user, 'Opcao C alfa')
+
+    expect(await screen.findByText(/prova objetiva: a nota reflete o acerto/i)).toBeInTheDocument()
+    expect(screen.getByText(/evidência mais fraca de recuperação espontânea/i)).toBeInTheDocument()
+    expect(onCompleted).toHaveBeenCalledOnce()
+  })
+
+  it('answers a short answer question with the typed text, without exposing the expected answer', async () => {
+    const { onCompleted } = renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    // A primeira pergunta e de multipla escolha.
+    await answerExamQuestion(user, 'Opcao A beta')
+    // A segunda pergunta e de resposta curta: o textarea aparece e o botao
+    // `Nao sei` continua disponivel.
+    expect(await screen.findByRole('heading', { name: 'Pergunta dois?' })).toBeInTheDocument()
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement
+    await user.type(textarea, 'A energia luminosa alimenta as plantas')
+    await user.click(screen.getByRole('button', { name: 'Salvar resposta' }))
+    expect(await screen.findByRole('heading', { name: 'Pergunta tres?' })).toBeInTheDocument()
+    await answerExamQuestion(user, 'Opcao C alfa')
+
+    expect(onCompleted).toHaveBeenCalledOnce()
+    const submitted = completeMock.mock.calls[0][0].exchanges as Array<{ promptId: string; answer: string }>
+    expect(submitted[1].promptId).toBe('q2')
+    expect(submitted[1].answer).toBe('A energia luminosa alimenta as plantas')
+  })
+
+  it('lets the user answer `Nao sei` without guessing, sending the explicit option', async () => {
+    completeMock.mockResolvedValue({
+      outcome: 'valid',
+      report: {
+        sessionId: 'session-1', overallScore: 60, outcome: 'partial',
+        summary: 'Prova concluida: 2 de 3 questoes corretas, 1 sem resposta.',
+        markdown: reportMarkdown,
+        units: [{
+          id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length,
+          sectionPath: [], evaluated: true, score: 60, outcome: 'partial',
+        }],
+        gaps: [{ classification: 'forgotten', sourceQuote: 'fonte de energia', sourceStartUtf16: 10, sourceEndUtf16: 26 }],
+        completedAtUnixMs: 1_730_000_000_000, nextReviewAtUnixMs: 1_730_604_800_000,
+        evidence: 'recognition',
+      },
+    })
+    const { onCompleted } = renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await answerExamQuestion(user, 'Opcao A beta')
+    await answerExamQuestion(user, 'Opcao B gama')
+    // A opcao explicita `Nao sei` aparece fora das alternativas (vale para a
+    // multipla escolha e para a resposta curta) e envia a resposta exata,
+    // sem chute e sem indice de alternativa.
+    await user.click(screen.getByRole('button', { name: 'Não sei' }))
+    await user.click(screen.getByRole('button', { name: 'Concluir e avaliar' }))
+
+    expect(await screen.findByText(/1 sem resposta/i)).toBeInTheDocument()
+    expect(onCompleted).toHaveBeenCalledOnce()
+    const submitted = completeMock.mock.calls[0][0].exchanges as Array<{ answer: string }>
+    expect(submitted[2].answer).toBe('Não sei')
+  })
 
   it('runs a multiple-choice exam without exposing the note or the correct answer', async () => {
     const { onCompleted } = renderPage()
@@ -128,12 +221,141 @@ describe('ReviewSessionPage', () => {
     expect(screen.getByRole('list', { name: 'Faixas de pontuação por parágrafo' })).toBeInTheDocument()
   })
 
+  it('shows the adaptive coverage note and the not-evaluated badge for out-of-scope paragraphs', async () => {
+    const firstParagraph = 'A energia luminosa alimenta a fotossintese.'
+    const secondParagraph = 'A mitose divide a celula.'
+    const coverageMarkdown = `${firstParagraph}\n\n${secondParagraph}`
+    completeMock.mockResolvedValue({
+      outcome: 'valid',
+      report: {
+        sessionId: 'session-1', overallScore: 72, outcome: 'good' as const,
+        summary: 'Cobertura parcial.',
+        markdown: coverageMarkdown,
+        units: [
+          {
+            id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: firstParagraph.length,
+            sectionPath: [], evaluated: true, score: 72, outcome: 'good' as const,
+          },
+          {
+            id: 'unit-2', ordinal: 1, sourceStartUtf16: firstParagraph.length + 2, sourceEndUtf16: coverageMarkdown.length,
+            sectionPath: [], evaluated: false, score: 0, outcome: 'partial' as const,
+          },
+        ],
+        gaps: [{
+          classification: 'confused', sourceQuote: 'energia luminosa',
+          sourceStartUtf16: 2, sourceEndUtf16: 18,
+        }],
+        completedAtUnixMs: 1_730_000_000_000, nextReviewAtUnixMs: 1_730_604_800_000,
+      },
+    })
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+      await answerExamQuestion(user, option)
+    }
+
+    await waitFor(() => {
+      const note = document.querySelector('.review-coverage-note')
+      expect(note?.textContent).toContain('1 de 2 parágrafos')
+    })
+    const note = document.querySelector('.review-note-markdown')
+    expect(note?.querySelector('.review-unit-score.is-not-evaluated')).toHaveTextContent('não avaliado')
+    expect(note?.querySelector('.review-unit-score.is-good')).toHaveTextContent('72')
+  })
+
+  it('continues the calibration immediately when the report still has unobserved paragraphs', async () => {
+    const firstParagraph = 'A energia luminosa alimenta a fotossintese.'
+    const secondParagraph = 'A mitose divide a celula.'
+    const coverageMarkdown = `${firstParagraph}\n\n${secondParagraph}`
+    completeMock.mockResolvedValue({
+      outcome: 'valid',
+      report: {
+        sessionId: 'session-1', overallScore: 72, outcome: 'good' as const,
+        summary: 'Cobertura parcial.',
+        markdown: coverageMarkdown,
+        units: [
+          {
+            id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: firstParagraph.length,
+            sectionPath: [], evaluated: true, score: 72, outcome: 'good' as const,
+          },
+          {
+            id: 'unit-2', ordinal: 1, sourceStartUtf16: firstParagraph.length + 2, sourceEndUtf16: coverageMarkdown.length,
+            sectionPath: [], evaluated: false, score: 0, outcome: 'partial' as const,
+          },
+        ],
+        gaps: [],
+        completedAtUnixMs: 1_730_000_000_000, nextReviewAtUnixMs: 1_730_604_800_000,
+      },
+    })
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+      await answerExamQuestion(user, option)
+    }
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Revisar mais 1 parágrafo agora/ })).toBeInTheDocument()
+    })
+    await user.click(screen.getByRole('button', { name: /Revisar mais 1 parágrafo agora/ }))
+    await waitFor(() => {
+      expect(startMock).toHaveBeenCalledWith(expect.objectContaining({ allowCalibrationContinuation: true }))
+    })
+  })
+
   it('reveals optional help without changing the answer flow', async () => {
     renderPage()
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
     await user.click(await screen.findByRole('button', { name: 'Mostrar dica' }))
     expect(screen.getByText('Dica um.')).toBeInTheDocument()
+  })
+
+  it('marks an answer given with the hint visible as assisted evidence', async () => {
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await screen.findByRole('heading', { name: 'Pergunta um?' })
+    // A dica fica visivel enquanto a resposta e enviada.
+    await user.click(screen.getByRole('button', { name: 'Mostrar dica' }))
+    await answerExamQuestion(user, 'Opcao A beta')
+    // As demais respostas nao usam a dica.
+    await answerExamQuestion(user, 'Opcao B gama')
+    await answerExamQuestion(user, 'Opcao C alfa')
+
+    await waitFor(() => expect(completeMock).toHaveBeenCalledTimes(1))
+    const submitted = completeMock.mock.calls[0][0].exchanges as Array<{ promptId: string; assistanceUsed: boolean }>
+    expect(submitted).toHaveLength(3)
+    expect(submitted[0]).toMatchObject({ promptId: 'q1', assistanceUsed: true })
+    expect(submitted[1]).toMatchObject({ assistanceUsed: false })
+    expect(submitted[2]).toMatchObject({ assistanceUsed: false })
+  })
+
+  it('explains that an assisted exam stabilizes even less than pure recognition', async () => {
+    completeMock.mockResolvedValue({
+      outcome: 'valid',
+      report: {
+        sessionId: 'session-1', overallScore: 72, outcome: 'good',
+        summary: 'Prova concluida: 3 de 3 questoes corretas, 1 com ajuda.',
+        markdown: reportMarkdown,
+        units: [{
+          id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length,
+          sectionPath: [], evaluated: true, score: 72, outcome: 'good',
+        }],
+        gaps: [],
+        completedAtUnixMs: 1_730_000_000_000, nextReviewAtUnixMs: 1_730_604_800_000,
+        evidence: 'assistedRecognition',
+      },
+    })
+    const { onCompleted } = renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await answerExamQuestion(user, 'Opcao A beta')
+    await answerExamQuestion(user, 'Opcao B gama')
+    await answerExamQuestion(user, 'Opcao C alfa')
+
+    expect(await screen.findByText(/peso é ainda menor para os trechos assistidos/i)).toBeInTheDocument()
+    expect(onCompleted).toHaveBeenCalledOnce()
   })
 
   it('renders LaTeX math inside exam options and dica', async () => {
@@ -249,6 +471,66 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
     expect(continueMock).toHaveBeenCalledTimes(4)
     expect((await screen.findAllByText('72')).length).toBeGreaterThan(0)
     expect(onCompleted).toHaveBeenCalledOnce()
+  })
+
+  it('labels a clarification turn in the conversation without exposing the expected content', async () => {
+    startMock.mockResolvedValue({ outcome: 'valid', draft: conversationDraft })
+    continueMock.mockResolvedValueOnce({
+      outcome: 'valid',
+      prompt: {
+        id: 'turn-2',
+        text: 'Voce quis dizer que as duas celulas sao identicas?',
+        assistance: 'Nao ha resposta certa aqui.',
+        options: [],
+        isClarification: true,
+      },
+      shouldFinish: false,
+    })
+    completeMock.mockResolvedValue(report(reportMarkdown, 72, []))
+
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.type(screen.getByLabelText('Sua resposta'), 'Duas celulas.')
+    await user.click(screen.getByRole('button', { name: 'Salvar resposta' }))
+
+    expect(await screen.findByText('Esclarecimento')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Voce quis dizer que as duas celulas sao identicas?' })).toBeInTheDocument()
+  })
+
+  it('renders an entirely inconclusive session without a score and lets the user redo it', async () => {
+    completeMock.mockResolvedValue({
+      outcome: 'inconclusive',
+      report: {
+        sessionId: 'session-1',
+        overallScore: null,
+        outcome: null,
+        summary: 'Sessao inconclusiva: apenas 1 de 7 paragrafos-alvo tiveram evidencia valida (minimo de 50%).',
+        markdown: reportMarkdown,
+        units: [
+          { id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length, sectionPath: [], evaluated: false, inconclusive: true, score: 0, outcome: 'partial' },
+        ],
+        gaps: [],
+        completedAtUnixMs: 1_730_000_000_000,
+        nextReviewAtUnixMs: null,
+        inconclusive: true,
+      },
+    })
+
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+      await answerExamQuestion(user, option)
+    }
+
+    expect(await screen.findByText('Sessão inconclusiva')).toBeInTheDocument()
+    expect(screen.getByText(/nenhuma avaliação foi persistida/i)).toBeInTheDocument()
+    expect(screen.queryByText('/100')).not.toBeInTheDocument()
+    expect(screen.queryByText('Próxima revisão:')).not.toBeInTheDocument()
+    startMock.mockClear()
+    await user.click(screen.getByRole('button', { name: 'Refazer revisão agora' }))
+    expect(startMock).toHaveBeenCalledOnce()
   })
 
   it('guards rail navigation and discards the active session only after confirmation', async () => {

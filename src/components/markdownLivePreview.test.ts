@@ -140,11 +140,28 @@ describe('findTreeMaskTokens', () => {
     expect(text.slice(hr!.from, hr!.to)).toBe('---')
   })
 
-  it('nao trata heading setext nem frontmatter como divisor horizontal', () => {
+  it('trata o sublinhado setext --- (sem linha em branco) como divisor horizontal', () => {
+    // `---` logo apos um paragrafo vira sublinhado de heading setext no parser;
+    // quem escreve `---` quer um divisor, entao o trecho vira linha grafica.
     const setext = 'Titulo\n---'
-    const maskSetext = findTreeMaskTokens(treeOf(setext), docOf(setext))
-    expect(maskSetext.tokens.some((token) => token.kind === 'hr')).toBe(false)
+    const mask = findTreeMaskTokens(treeOf(setext), docOf(setext))
+    const hr = mask.tokens.find((token) => token.kind === 'hr')
+    expect(hr).toBeTruthy()
+    expect(setext.slice(hr!.from, hr!.to)).toBe('---')
+  })
 
+  it('trata o sublinhado setext === como heading de nivel 1 com o marcador oculto', () => {
+    const setext = 'Titulo\n==='
+    const mask = findTreeMaskTokens(treeOf(setext), docOf(setext))
+    const heading = mask.tokens.find((token) => token.kind === 'heading')
+    expect(heading).toBeTruthy()
+    expect(heading!.level).toBe(1)
+    expect(setext.slice(heading!.from, heading!.textTo)).toBe('Titulo')
+    // O marcador (===) fica na faixa de revelacao, oculto quando nao tocado.
+    expect(setext.slice(heading!.revealFrom, heading!.revealTo)).toBe('===')
+  })
+
+  it('nao trata frontmatter como divisor horizontal', () => {
     const fm = '---\ntags: [a, b]\n---\n\n# Titulo'
     const maskFm = findTreeMaskTokens(treeOf(fm), docOf(fm))
     expect(maskFm.tokens.some((token) => token.kind === 'hr')).toBe(false)

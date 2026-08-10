@@ -17,7 +17,8 @@ export const UI_STRUCTURE = {
     trashFiles: 'trash-files',
     tabBar: 'tab-strip',
     editor: 'editor-surface',
-    statusNotice: 'workspace-status',
+    noteHeader: 'editor-header',
+    editorContent: 'editor-content',
   },
 } as const
 
@@ -34,6 +35,7 @@ export const BUILDER_FRIENDLY_NAMES: Record<string, string> = {
   'trash-files': 'Arquivos da lixeira',
   'tab-strip': 'Barra de abas',
   'workspace-content-panel': 'Painel de conteudo do workspace',
+  'editor-header': 'Cabecalho da nota',
+  'editor-content': 'Editor da nota',
   'trash-page': 'Pagina da lixeira',
-  'workspace-status': 'Aviso de status',
 }

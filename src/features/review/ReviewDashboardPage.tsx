@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { CalendarClock, CheckCircle2, Clock3, Layers, ListTodo, RefreshCw, TimerReset, TrendingUp } from 'lucide-react'
-import { forecastDayLabel, getVaultReviewDashboard, type DailyLoadItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, Layers, ListTodo, Minus, Pencil, Plus, RefreshCw, Target, TimerReset, TrendingUp, X } from 'lucide-react'
+import { applyDeadlineChange, getVaultReviewPolicyConfig, previewDeadlineChange } from './vaultReviewPolicy'
+import { setNoteReviewPriority } from './reviewPolicy'
+import { forecastDayLabel, getVaultReviewDashboard, type CalibrationNoteItem, type DailyLoadItem, type ExpiredDeadlineItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
 import './review-dashboard.css'
 
 type Props = {
   vaultPath: string
   onOpenNote: (relativePath: string) => void
+  onStartReview: (item: UpcomingDeadlineItem | ExpiredDeadlineItem) => void
 }
 
 function formatPercentage(value: number | null) {
@@ -28,6 +31,118 @@ function deadlineClass(deadline: number) {
   return withinWeek ? 'is-urgent' : ''
 }
 
+function formatExpiredDeadline(deadline: number) {
+  const days = Math.floor((Date.now() - deadline) / 86_400_000)
+  if (days <= 0) return 'Hoje'
+  if (days === 1) return 'Há 1 dia'
+  return `Há ${days} dias`
+}
+
+/** Forma minima de um item de prazo editavel pelo dialogo (ativo ou encerrado). */
+type DeadlineEditable = {
+  sourceTag: string | null
+  deadlineAtUnixMs: number
+  title: string
+}
+
+const DAILY_GOAL_STORAGE_KEY = 'mirrormind.review-daily-goal'
+const MAX_DAILY_GOAL = 100
+
+function parseStoredDailyGoal() {
+  const raw = localStorage.getItem(DAILY_GOAL_STORAGE_KEY)
+  if (raw === null) return 0
+  const value = Number(raw)
+  return Number.isInteger(value) && value >= 1 && value <= MAX_DAILY_GOAL ? value : 0
+}
+
+/** Meta diaria opcional: orienta o ritmo do dia sem nunca limitar a fila. */
+function DailyGoalSection({ completedToday, forecast }: {
+  completedToday: number
+  forecast: DailyLoadItem[]
+}) {
+  const [goal, setGoal] = useState(parseStoredDailyGoal)
+  const totalForecast = forecast.reduce((sum, day) => sum + day.dueCount, 0)
+  const suggestion = Math.max(1, Math.round(totalForecast / Math.max(forecast.length, 1)))
+
+  useEffect(() => {
+    if (goal >= 1) {
+      localStorage.setItem(DAILY_GOAL_STORAGE_KEY, String(goal))
+    } else {
+      localStorage.removeItem(DAILY_GOAL_STORAGE_KEY)
+    }
+  }, [goal])
+
+  const goalReached = goal >= 1 && completedToday >= goal
+  const progress = goal >= 1 ? Math.min(100, Math.round((completedToday / goal) * 100)) : 0
+
+  return (
+    <section className="review-dashboard-goal" aria-labelledby="review-dashboard-goal-title">
+      <div className="review-dashboard-section-heading">
+        <h3 id="review-dashboard-goal-title">Meta diária</h3>
+        {goal >= 1 ? (
+          <span className={`review-dashboard-goal-status${goalReached ? ' is-reached' : ''}`} role="status">
+            {goalReached ? 'Meta atingida' : `${completedToday} de ${goal} hoje`}
+          </span>
+        ) : (
+          <span className="review-dashboard-goal-status">Sem meta definida</span>
+        )}
+      </div>
+
+      {goal >= 1 ? (
+        <div
+          className="review-dashboard-goal-progress"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={goal}
+          aria-valuenow={Math.min(completedToday, goal)}
+          aria-label="Progresso da meta diária de revisões"
+        >
+          <span style={{ width: `${progress}%` }} />
+        </div>
+      ) : null}
+
+      <p className="review-dashboard-goal-copy">
+        {goal >= 1
+          ? goalReached
+            ? 'Meta do dia atingida — continue no seu ritmo; a fila segue exibindo todas as revisões.'
+            : 'Orientação do dia, sem limitar a fila de revisões.'
+          : 'Defina quantas revisões pretende fazer hoje, como orientação (nunca um limite).'}
+      </p>
+
+      <div className="review-dashboard-goal-stepper" aria-label="Ajustar meta diária">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => setGoal((current) => Math.max(0, current - 1))}
+          disabled={goal <= 0}
+          aria-label="Diminuir meta diária"
+        >
+          <Minus size={14} strokeWidth={1.6} aria-hidden="true" />
+        </button>
+        <strong>{goal >= 1 ? goal : '—'}</strong>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => setGoal((current) => Math.min(MAX_DAILY_GOAL, current + 1))}
+          aria-label="Aumentar meta diária"
+        >
+          <Plus size={14} strokeWidth={1.6} aria-hidden="true" />
+        </button>
+        {goal < 1 ? (
+          <button
+            type="button"
+            className="secondary-button review-dashboard-goal-suggest"
+            onClick={() => setGoal(suggestion)}
+          >
+            <Target size={13} strokeWidth={1.6} aria-hidden="true" />
+            Sugerir: {suggestion} {suggestion === 1 ? 'revisão' : 'revisões'}/dia
+          </button>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
 function StatCard({ icon, label, value, hint }: {
   icon: React.ReactNode
   label: string
@@ -46,12 +161,183 @@ function StatCard({ icon, label, value, hint }: {
   )
 }
 
-export function ReviewDashboardPage({ vaultPath, onOpenNote }: Props) {
+function deadlineDateValue(deadline: number) {
+  const date = new Date(deadline)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function deadlineFromDateInput(value: string): number | null {
+  if (!value) return null
+  const date = new Date(`${value}T12:00:00`)
+  return Number.isNaN(date.getTime()) ? null : date.getTime()
+}
+
+function DeadlineChangeDialog({ vaultPath, item, onClose, onApplied }: {
+  vaultPath: string
+  item: DeadlineEditable
+  onClose: () => void
+  onApplied: () => void
+}) {
+  const [newDeadline, setNewDeadline] = useState<string>(deadlineDateValue(item.deadlineAtUnixMs))
+  const [preview, setPreview] = useState<number | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [applying, setApplying] = useState(false)
+  const [revision, setRevision] = useState<number | null>(null)
+
+  const deadline = deadlineFromDateInput(newDeadline)
+  const deadlineChanged = deadline !== item.deadlineAtUnixMs
+
+  useEffect(() => {
+    let cancelled = false
+    void getVaultReviewPolicyConfig(vaultPath)
+      .then((config) => {
+        if (!cancelled) setRevision(config.revision)
+      })
+      .catch(() => {
+        if (!cancelled) setError('Não foi possível carregar a configuração de revisão.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [vaultPath])
+
+  async function refreshPreview() {
+    if (!item.sourceTag || revision === null) return
+    const next = deadlineFromDateInput(newDeadline)
+    setError('')
+    setBusy(true)
+    try {
+      const result = await previewDeadlineChange(vaultPath, item.sourceTag, next)
+      setPreview(result.affectedNoteCount)
+    } catch (cause) {
+      setPreview(null)
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirm() {
+    if (!item.sourceTag || preview === null || revision === null || applying) return
+    setApplying(true)
+    setError('')
+    try {
+      await applyDeadlineChange({
+        vaultPath,
+        expectedRevision: revision,
+        tag: item.sourceTag,
+        newDeadline: deadline,
+        expectedAffectedNoteCount: preview,
+      })
+      onApplied()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+      setApplying(false)
+    }
+  }
+
+  return (
+    <div className="review-dashboard-dialog-backdrop" role="presentation">
+      <section className="review-dashboard-dialog" role="dialog" aria-modal="true" aria-labelledby="deadline-dialog-title">
+        <div className="review-dashboard-dialog-heading">
+          <div>
+            <p className="card-kicker">Prazo de estudo</p>
+            <h3 id="deadline-dialog-title">Alterar prazo · #{item.sourceTag ?? 'sem origem'}</h3>
+          </div>
+          <button type="button" className="secondary-button review-dashboard-dialog-close" onClick={onClose} disabled={applying} aria-label="Fechar alteração de prazo">
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+        <p className="review-dashboard-dialog-copy">
+          A data vale para todas as notas com a tag <strong>#{item.sourceTag}</strong>. Confirmar recalcula a próxima revisão de cada uma, preservando pontuações, histórico e estado de memória.
+        </p>
+        <label className="review-dashboard-dialog-field">
+          <span>Nova data da prova</span>
+          <div>
+            <CalendarDays size={16} aria-hidden="true" />
+            <input
+              aria-label="Nova data da prova"
+              type="date"
+              value={newDeadline}
+              disabled={applying}
+              onChange={(event) => {
+                setNewDeadline(event.target.value)
+                setPreview(null)
+                setError('')
+              }}
+            />
+          </div>
+          <small>Deixe vazio para remover o prazo da regra.</small>
+        </label>
+
+        {preview !== null ? (
+          <div className="review-dashboard-dialog-preview" role="status">
+            <strong>{preview}</strong>
+            <span>{preview === 1 ? 'nota terá a próxima data recalculada' : 'notas terão a próxima data recalculada'}</span>
+          </div>
+        ) : busy ? (
+          <p className="review-dashboard-dialog-hint" role="status">Calculando impacto...</p>
+        ) : null}
+
+        {error ? (
+          <div className="review-dashboard-dialog-error" role="alert">
+            <AlertTriangle size={15} aria-hidden="true" />
+            <span>{error}</span>
+          </div>
+        ) : null}
+
+        <div className="review-dashboard-dialog-actions">
+          <button type="button" className="secondary-button" onClick={onClose} disabled={applying}>Cancelar</button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => void refreshPreview()}
+            disabled={!item.sourceTag || !deadlineChanged || busy || applying}
+          >
+            {busy ? 'Calculando…' : 'Ver impacto'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void confirm()}
+            disabled={!item.sourceTag || revision === null || preview === null || !deadlineChanged || busy || applying}
+          >
+            {applying ? 'Aplicando…' : 'Confirmar alteração'}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Props) {
   const [dashboard, setDashboard] = useState<VaultReviewDashboard | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadRequest, setReloadRequest] = useState(0)
+  const [deadlineItem, setDeadlineItem] = useState<DeadlineEditable | null>(null)
+  const [priorityBusy, setPriorityBusy] = useState<string | null>(null)
+  const [priorityError, setPriorityError] = useState<string | null>(null)
   const requestIdRef = useRef(0)
+
+  async function changePriority(item: UpcomingDeadlineItem, delta: number) {
+    if (priorityBusy) return
+    const next = Math.min(100, Math.max(0.1, Math.round((item.priorityWeight + delta) * 10) / 10))
+    if (next === item.priorityWeight) return
+    setPriorityBusy(item.noteId)
+    setPriorityError(null)
+    try {
+      await setNoteReviewPriority({ vaultPath, relativePath: item.relativePath, priorityWeight: next })
+      setReloadRequest((request) => request + 1)
+    } catch (cause) {
+      setPriorityError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setPriorityBusy(null)
+    }
+  }
 
   useEffect(() => {
     const requestId = ++requestIdRef.current
@@ -145,7 +431,11 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote }: Props) {
             />
           </div>
 
+          <DailyGoalSection completedToday={dashboard.completedTodayCount} forecast={dashboard.loadForecast} />
+
           <ForecastSection forecast={dashboard.loadForecast} />
+
+          <CalibrationSection notes={dashboard.calibrationNotes} count={dashboard.calibrationNoteCount} onOpenNote={onOpenNote} />
 
           <section className="review-dashboard-deadlines" aria-labelledby="review-dashboard-deadlines-title">
             <div className="review-dashboard-section-heading">
@@ -164,22 +454,237 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote }: Props) {
                     <div className="review-dashboard-deadline-copy">
                       <strong>{item.title}</strong>
                       <small>{item.relativePath}</small>
+                      <span className="review-dashboard-deadline-priority" aria-label={`Prioridade ${item.priorityWeight}`} aria-live="polite">
+                        <button
+                          type="button"
+                          className="review-dashboard-deadline-priority-step"
+                          onClick={() => void changePriority(item, -1)}
+                          disabled={priorityBusy !== null || item.priorityWeight <= 0.1}
+                          aria-label={`Diminuir prioridade de ${item.title}`}
+                        >
+                          <Minus size={11} strokeWidth={2} aria-hidden="true" />
+                        </button>
+                        <span>Prioridade {item.priorityWeight}</span>
+                        <button
+                          type="button"
+                          className="review-dashboard-deadline-priority-step"
+                          onClick={() => void changePriority(item, 1)}
+                          disabled={priorityBusy !== null || item.priorityWeight >= 100}
+                          aria-label={`Aumentar prioridade de ${item.title}`}
+                        >
+                          <Plus size={11} strokeWidth={2} aria-hidden="true" />
+                        </button>
+                      </span>
+                      {item.retentionAtRisk ? (
+                        <span className="review-deadline-risk-badge" title="Mesmo antecipando revisões, a meta de retenção na data da prova não é atingida.">
+                          Meta de retenção em risco
+                        </span>
+                      ) : null}
                     </div>
-                    <button
-                      type="button"
-                      className="secondary-button review-dashboard-deadline-open"
-                      onClick={() => onOpenNote(item.relativePath)}
-                      aria-label={`Abrir nota ${item.title}`}
-                    >
-                      Abrir
-                    </button>
+                    <div className="review-dashboard-deadline-actions">
+                      {item.due ? (
+                        <button
+                          type="button"
+                          className="primary-button review-dashboard-deadline-review"
+                          onClick={() => onStartReview(item)}
+                          aria-label={`Revisar ${item.title}`}
+                        >
+                          Revisar
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="secondary-button review-dashboard-deadline-open"
+                        onClick={() => onOpenNote(item.relativePath)}
+                        aria-label={`Abrir nota ${item.title}`}
+                      >
+                        Abrir
+                      </button>
+                      {item.sourceTag ? (
+                        <button
+                          type="button"
+                          className="secondary-button review-dashboard-deadline-edit"
+                          onClick={() => setDeadlineItem(item)}
+                          aria-label={`Alterar prazo de ${item.title}`}
+                        >
+                          <Pencil size={13} strokeWidth={1.6} aria-hidden="true" />
+                          Alterar prazo
+                        </button>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ol>
             )}
+            {priorityError ? (
+              <p className="review-dashboard-deadline-priority-error" role="alert">{priorityError}</p>
+            ) : null}
           </section>
+
+          <ExpiredDeadlinesSection
+            items={dashboard.expiredDeadlines}
+            count={dashboard.expiredDeadlineNoteCount}
+            onOpenNote={onOpenNote}
+            onEditDeadline={setDeadlineItem}
+            onStartReview={onStartReview}
+          />
         </>
       ) : null}
+
+      {deadlineItem ? (
+        <DeadlineChangeDialog
+          vaultPath={vaultPath}
+          item={deadlineItem}
+          onClose={() => setDeadlineItem(null)}
+          onApplied={() => {
+            setDeadlineItem(null)
+            setReloadRequest((request) => request + 1)
+          }}
+        />
+      ) : null}
+    </section>
+  )
+}
+
+function CalibrationSection({ notes, count, onOpenNote }: {
+  notes: CalibrationNoteItem[]
+  count: number
+  onOpenNote: (relativePath: string) => void
+}) {
+  return (
+    <section className="review-dashboard-calibration" aria-labelledby="review-dashboard-calibration-title">
+      <div className="review-dashboard-section-heading">
+        <h3 id="review-dashboard-calibration-title">Em calibração</h3>
+        <span>
+          {count} {count === 1 ? 'nota longa' : 'notas longas'} — retenção parcial até todas as unidades serem avaliadas
+        </span>
+      </div>
+      {notes.length === 0 ? (
+        <p className="review-dashboard-calibration-empty">
+          Nenhuma nota longa em calibração. Notas com mais de um parágrafo passam por uma etapa por dia até cada parágrafo ser avaliado.
+        </p>
+      ) : (
+        <>
+          <ol className="review-dashboard-calibration-list" aria-label="Notas longas com unidades ainda não avaliadas">
+            {notes.map((item) => {
+              const progress = Math.round((item.observedUnitCount / item.totalUnitCount) * 100)
+              const remaining = item.totalUnitCount - item.observedUnitCount
+              return (
+                <li key={item.noteId}>
+                  <div className="review-dashboard-calibration-copy">
+                    <strong>{item.title}</strong>
+                    <small>{item.relativePath}</small>
+                  </div>
+                  <div className="review-dashboard-calibration-progress"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={item.totalUnitCount}
+                    aria-valuenow={item.observedUnitCount}
+                    aria-label={`Progresso da calibração de ${item.title}`}
+                  >
+                    <span style={{ width: `${progress}%` }} />
+                  </div>
+                  <span className="review-dashboard-calibration-count">
+                    {item.observedUnitCount} de {item.totalUnitCount} parágrafos · {remaining} {remaining === 1 ? 'restante' : 'restantes'}
+                  </span>
+                  <button
+                    type="button"
+                    className="secondary-button review-dashboard-calibration-open"
+                    onClick={() => onOpenNote(item.relativePath)}
+                    aria-label={`Abrir nota ${item.title}`}
+                  >
+                    Abrir
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+          {count > notes.length ? (
+            <p className="review-dashboard-calibration-empty">
+              Algumas notas longas estão em calibração, mas a lista está limitada aos primeiros itens.
+            </p>
+          ) : null}
+        </>
+      )}
+    </section>
+  )
+}
+
+function ExpiredDeadlinesSection({ items, count, onOpenNote, onEditDeadline, onStartReview }: {
+  items: ExpiredDeadlineItem[]
+  count: number
+  onOpenNote: (relativePath: string) => void
+  onEditDeadline: (item: ExpiredDeadlineItem) => void
+  onStartReview: (item: ExpiredDeadlineItem) => void
+}) {
+  return (
+    <section className="review-dashboard-expired" aria-labelledby="review-dashboard-expired-title">
+      <div className="review-dashboard-section-heading">
+        <h3 id="review-dashboard-expired-title">Prazos encerrados</h3>
+        <span>
+          {count} {count === 1 ? 'nota' : 'notas'} — a data-limite da tag já passou
+        </span>
+      </div>
+      <p className="review-dashboard-expired-hint">
+        A nota continua em aprendizado e preserva histórico e memória. Depois da prova, escolha:
+        remover a tag da nota, trocar o perfil da tag nas Configurações ou manter a política atual.
+      </p>
+      {items.length === 0 ? (
+        <p className="review-dashboard-deadlines-empty">Nenhuma nota com prazo de estudo encerrado.</p>
+      ) : (
+        <>
+          <ol className="review-dashboard-expired-list" aria-label="Notas com prazo de estudo encerrado">
+            {items.map((item) => (
+              <li key={item.noteId}>
+                <span className="review-dashboard-expired-date">
+                  {formatExpiredDeadline(item.deadlineAtUnixMs)}
+                </span>
+                <div className="review-dashboard-deadline-copy">
+                  <strong>{item.title}</strong>
+                  <small>{item.relativePath}</small>
+                  {item.sourceTag ? (
+                    <span className="review-dashboard-expired-tag">#{item.sourceTag}</span>
+                  ) : null}
+                </div>
+                <div className="review-dashboard-deadline-actions">
+                  <button
+                    type="button"
+                    className="primary-button review-dashboard-deadline-review"
+                    onClick={() => onStartReview(item)}
+                    aria-label={`Revisar ${item.title}`}
+                  >
+                    Revisar
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button review-dashboard-deadline-open"
+                    onClick={() => onOpenNote(item.relativePath)}
+                    aria-label={`Abrir nota ${item.title}`}
+                  >
+                    Abrir
+                  </button>
+                  {item.sourceTag ? (
+                    <button
+                      type="button"
+                      className="secondary-button review-dashboard-deadline-edit"
+                      onClick={() => onEditDeadline(item)}
+                      aria-label={`Alterar prazo de ${item.title}`}
+                    >
+                      <Pencil size={13} strokeWidth={1.6} aria-hidden="true" />
+                      Alterar prazo
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+          {count > items.length ? (
+            <p className="review-dashboard-calibration-empty">
+              Algumas notas têm prazo encerrado, mas a lista está limitada aos primeiros itens.
+            </p>
+          ) : null}
+        </>
+      )}
     </section>
   )
 }

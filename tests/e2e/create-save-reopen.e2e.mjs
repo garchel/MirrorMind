@@ -7,6 +7,38 @@ const journeyStatePath = join(process.env.MIRRORMIND_E2E_RUN_ROOT, 'journey-stat
 
 if (!['create-and-save', 'reopen'].includes(phase)) throw new Error(`Unexpected E2E phase: ${phase}`)
 
+// Le o documento do CodeMirror unindo as linhas `.cm-line` (o textContent do
+// contenteditable nao contem os finais de linha entre linhas).
+async function readEditorDocument(editor) {
+  return browser.execute((target) => (
+    Array.from(target.querySelectorAll('.cm-line'))
+      .map((line) => line.textContent ?? '')
+      .join('\n')
+  ), editor).then((text) => text.replace(/\r\n/g, '\n').trimEnd())
+}
+
+async function waitForEditorText(expectedText) {
+  const expected = expectedText.replace(/\r\n/g, '\n').trimEnd()
+  await browser.waitUntil(
+    async () => {
+      const editor = await $('[aria-label^="Editor Markdown"]')
+      return (await editor.isExisting()) && (await readEditorDocument(editor)) === expected
+    },
+    { timeout: 10_000, timeoutMsg: `O editor nao exibiu o conteudo esperado: ${expectedText}` },
+  )
+}
+
+// Digitacao explicita no CodeMirror: foca, seleciona tudo, apaga e digita. O
+// `setValue` do WebdriverIO nao tipa de forma confiavel no contenteditable.
+async function typeIntoEditor(content) {
+  const editor = await $('[aria-label^="Editor Markdown"]')
+  await editor.click()
+  await browser.keys(['Control', 'a'])
+  await browser.keys('Delete')
+  await editor.addValue(content)
+  await waitForEditorText(content)
+}
+
 if (phase === 'create-and-save') describe('Criar e salvar', () => {
   it('persiste uma nota no NTFS antes de encerrar o app', async () => {
     const vaultName = 'Vault E2E'
@@ -35,7 +67,7 @@ if (phase === 'create-and-save') describe('Criar e salvar', () => {
 
     await expect($('.workspace-shell')).toBeDisplayed()
     await browser.waitUntil(
-      async () => (await $('.workspace-status').getText()).includes('Vault carregado'),
+      async () => (await $('.workspace-title').getText()).includes(vaultName),
       { timeout: 20_000, timeoutMsg: 'O scan inicial do Vault nao foi concluido.' },
     )
 
@@ -54,14 +86,10 @@ if (phase === 'create-and-save') describe('Criar e salvar', () => {
     await expect(titleInput).toBeDisplayed()
     await titleInput.setValue(noteTitle)
 
-    await $('.markdown-mixed article').click()
-    const draftEditor = await $('[aria-label^="Editor Markdown"]')
-    await expect(draftEditor).toBeDisplayed()
-    await draftEditor.setValue(initialContent)
-    await browser.waitUntil(
-      async () => (await $('[aria-label^="Editor Markdown"]').getText()) === initialContent,
-      { timeoutMsg: 'O editor nao refletiu o conteudo inicial digitado.' },
-    )
+    // O modo misto nao renderiza mais um <article> interno: o foco vai direto
+    // para o editor, que ja responde ao clique no proprio conteiner.
+    await expect($('[aria-label^="Editor Markdown"]')).toBeDisplayed()
+    await typeIntoEditor(initialContent)
     await titleInput.click()
     await browser.keys('Enter')
 
@@ -76,10 +104,7 @@ if (phase === 'create-and-save') describe('Criar e salvar', () => {
       { timeout: 20_000, timeoutMsg: 'A criacao da nota nao chegou ao arquivo Markdown.' },
     )
 
-    await $('.markdown-mixed article').click()
-    const savedEditor = await $('[aria-label^="Editor Markdown"]')
-    await savedEditor.setValue(finalContent)
-    await expect(savedEditor).toHaveText(finalContent)
+    await typeIntoEditor(finalContent)
     await expect($('.autosave-indicator')).toHaveText('Salvo', { wait: 20_000 })
     await browser.waitUntil(
       () => readFileSync(notePath, 'utf8') === finalContent,
@@ -115,14 +140,10 @@ if (phase === 'reopen') describe('Reabrir em novo processo', () => {
     const reopenedNote = await $(`[aria-label="Abrir nota ${noteSlug}"]`)
     await expect(reopenedNote).toBeDisplayed()
     await reopenedNote.click()
-    await $('.markdown-mixed article').click()
 
     const reopenedEditor = await $('[aria-label^="Editor Markdown"]')
     await expect(reopenedEditor).toBeDisplayed()
-    await browser.waitUntil(
-      async () => (await reopenedEditor.getText()) === finalContent,
-      { timeout: 15_000, timeoutMsg: 'O conteudo reaberto na interface difere do arquivo.' },
-    )
+    await waitForEditorText(finalContent)
     expect(readFileSync(notePath, 'utf8')).toBe(finalContent)
   })
 })

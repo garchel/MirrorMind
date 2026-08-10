@@ -1,0 +1,9 @@
+{
+  "createdBy": "MirrorMind",
+  "reviewEngine": {
+    "assessmentStyle": "free-recall",
+    "mode": "spaced-repetition"
+  },
+  "vaultName": "docs",
+  "version": 1
+}

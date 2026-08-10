@@ -71,6 +71,10 @@ const readinessReportSchema = z.object({
 const assessedReadinessBase = {
   assessedAtUnixMs: unixMillisecondsSchema,
   assessedContentHash: contentHashSchema,
+  // Fingerprint semantico (espacos/pontuacao/acentos ignorados) do conteudo
+  // avaliado: ausente em documentos antigos; usado para preservar a avaliacao
+  // em mudancas apenas cosmeticas.
+  assessedSemanticHash: contentHashSchema.nullable().optional(),
   issues: z.array(readinessIssueSchema).max(LIMITS.issues),
   report: readinessReportSchema.nullable().optional(),
 }
@@ -80,6 +84,7 @@ const readinessAssessmentSchema = z.discriminatedUnion('status', [
     status: z.literal('unassessed'),
     assessedAtUnixMs: z.null(),
     assessedContentHash: z.null(),
+    assessedSemanticHash: z.null().optional(),
     issues: z.array(readinessIssueSchema).max(0),
     report: z.null().optional(),
   }).strict(),
@@ -101,6 +106,8 @@ const enrollmentSchema = z.object({
   manualPaused: z.boolean().default(false),
   inheritedFromTagIds: z.array(identifierSchema).max(LIMITS.tags),
   preferredMode: z.enum(['exam', 'conversation']),
+  // O modo foi definido explicitamente na nota: tags nao sobrescrevem.
+  modeManual: z.boolean().default(false),
 }).strict()
 
 const learningNoteSchema = z.object({
@@ -125,7 +132,9 @@ const evaluatedUnitResultSchema = z.object({
   kind: z.literal('evaluated'),
   score: z.number().int().min(0).max(100),
   outcome: z.enum(['forgotten', 'partial', 'good', 'complete']),
-  evidence: z.enum(['recognition', 'freeRecall', 'conversation']),
+  // `assistedRecognition`/`assistedConversation`: a resposta veio com a dica
+  // ou contexto exibido; estabiliza menos que a forma pura.
+  evidence: z.enum(['recognition', 'freeRecall', 'conversation', 'assistedRecognition', 'assistedConversation']),
   evaluatedAtUnixMs: unixMillisecondsSchema,
   gaps: z.array(evaluationGapSchema).max(LIMITS.gaps),
 }).strict().superRefine(({ score, outcome, gaps }, context) => {

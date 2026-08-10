@@ -42,6 +42,7 @@ const rule = {
   minIntervalDays: 1,
   maxIntervalDays: 90,
   deadlineAtUnixMs: null,
+  preferredMode: null,
 }
 
 const config = {
@@ -125,6 +126,22 @@ describe('TagManagementPage', () => {
         removeFromNotes: true,
       },
       tagRules: [],
+    })))
+  })
+
+  it('lets the tag dictate the inherited review mode', async () => {
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    await user.click(await screen.findByRole('button', { name: /Editar/i }))
+    await user.click(screen.getByRole('radio', { name: /Conversa/i }))
+    await user.click(screen.getByRole('button', { name: 'Revisar alterações' }))
+
+    await screen.findByRole('dialog', { name: /Salvar alterações em #prova/i })
+    await user.click(screen.getByRole('button', { name: 'Confirmar alteração' }))
+
+    await waitFor(() => expect(applyMock).toHaveBeenCalledWith(expect.objectContaining({
+      tagRules: [expect.objectContaining({ tag: 'prova', preferredMode: 'conversation' })],
     })))
   })
 

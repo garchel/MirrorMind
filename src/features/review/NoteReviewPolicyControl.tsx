@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, SlidersHorizontal, X } from 'lucide-react'
+import { AlertTriangle, Settings2, Wrench, X } from 'lucide-react'
 import {
   getNoteReviewPolicy,
   noteReviewPolicyInputSchema,
@@ -296,7 +296,11 @@ export function NoteReviewPolicyControl({
         disabled={disabled || loading}
         onClick={() => setOpen(true)}
       >
-        <SlidersHorizontal size={15} strokeWidth={1.5} aria-hidden="true" />
+        <span className="note-review-icon-stack" aria-hidden="true">
+          <Settings2 size={15} strokeWidth={1.5} />
+          <Wrench size={9} strokeWidth={2.25} className="note-review-icon-corner" />
+        </span>
+        <span>Política de revisão</span>
       </button>
 
       {open && policy && form ? (
@@ -354,6 +358,11 @@ export function NoteReviewPolicyControl({
               <legend>Modo preferido</legend>
               <label><input type="radio" name="preferred-review-mode" checked={form.preferredMode === 'exam'} onChange={() => setPreferredMode('exam')} /> <span><strong>Prova</strong><small>Perguntas independentes.</small></span></label>
               <label><input type="radio" name="preferred-review-mode" checked={form.preferredMode === 'conversation'} onChange={() => setPreferredMode('conversation')} /> <span><strong>Conversa</strong><small>Exploração progressiva.</small></span></label>
+              {!policy.modeManual ? (
+                <p className="review-policy-mode-inherited" role="status">
+                  O modo atual é herdado das tags — ao salvar, ele passa a ser definido nesta nota e deixa de acompanhar as tags.
+                </p>
+              ) : null}
             </fieldset>
 
             <details className="review-policy-advanced">

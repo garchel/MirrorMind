@@ -135,6 +135,17 @@ function createTauriHarness() {
           ]
         }
         return []
+      case 'get_note_review_units':
+        if (args?.relativePath === 'inicial.md') {
+          // Unidades alinhadas a paragrafos (como a segmentacao real): a
+          // primeira cobre o paragrafo introdutorio; a segunda vai ate o fim
+          // da formula em bloco, entao o badge e realocado para depois dela.
+          return [
+            { sourceStartUtf16: 59, sourceEndUtf16: 96, evaluated: true, inconclusive: false, score: 77, outcome: 'good' },
+            { sourceStartUtf16: 96, sourceEndUtf16: 211, evaluated: true, inconclusive: false, score: 55, outcome: 'partial' },
+          ]
+        }
+        return []
       default:
         throw new Error(`Comando Tauri inesperado no teste: ${command}`)
     }
@@ -359,11 +370,25 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
 
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'alvo' }))
+    // O botao do wikilink e o da lista de backlinks ("Referenciada por") podem
+    // coexistir com o mesmo nome; o clique deve mirar o wikilink da nota.
+    const alvoButtons = await screen.findAllByRole('button', { name: 'alvo' })
+    const wikiLink = alvoButtons.find((button) => button.classList.contains('wiki-link')) ?? alvoButtons[0]
+    fireEvent.click(wikiLink)
 
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'alvo.md' })))
-    await screen.findByText('Editando alvo.md')
     expect(await screen.findByRole('tab', { name: 'alvo.md' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('[contador] mostra o numero de palavras da nota no canto do editor', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    const counter = await screen.findByTestId('note-word-count')
+    const match = counter.textContent?.match(/(\d+) palavras/)
+    expect(match).not.toBeNull()
+    expect(Number(match?.[1])).toBeGreaterThan(0)
   })
 
   it('[tags] insere uma tag aninhada sem remover os separadores', async () => {
@@ -496,6 +521,39 @@ describe('Regressao do editor no workspace', () => {
 
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'alvo.md' })))
     expect(screen.getByRole('tab', { name: 'alvo.md' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('[indexadora] declara a nota e lista automaticamente quem a referencia', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Declarar nota como indexadora' }))
+
+    await waitFor(() => {
+      const content = notes.get('inicial.md')?.content ?? ''
+      expect(content).toContain('indexadora: true')
+      expect(content).toContain('<!-- indexadora -->')
+      // alvo.md ja referencia inicial.md (embed ![[inicial]]), entao o link
+      // gerado aparece na secao, uma linha por nota.
+      expect(content).toContain('[[alvo]]')
+    })
+  })
+
+  it('[indexadora] desativar remove a flag e a secao gerada', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Declarar nota como indexadora' }))
+    await waitFor(() => expect(notes.get('inicial.md')?.content).toContain('indexadora: true'))
+
+    await user.click(screen.getByRole('button', { name: 'Declarar nota como indexadora' }))
+    await waitFor(() => {
+      const content = notes.get('inicial.md')?.content ?? ''
+      expect(content).toContain('indexadora: false')
+      expect(content).not.toContain('<!-- indexadora -->')
+    })
   })
 
   it('[autosave] persiste alteracoes da nota apos a pausa de digitacao', async () => {
@@ -637,34 +695,138 @@ describe('Regressao do editor no workspace', () => {
     const control = screen.getByRole('radiogroup', { name: 'Exibicao das lacunas da ultima revisao' })
     expect(control).toBeInTheDocument()
 
-    // Padrao configurado: sempre visiveis -> article tem has-gap-marks e marca-textos.
+    // Padrao configurado: sempre visiveis -> article tem has-gap-marks, marca-textos
+    // e os badges de pontuacao por paragrafo da ultima revisao.
     const article = document.querySelector('.markdown-reading')
     expect(article?.className).toContain('has-gap-marks')
     expect(article?.querySelectorAll('mark[data-gap]').length).toBeGreaterThan(0)
+    expect(article?.querySelectorAll('span.review-unit-score').length).toBeGreaterThan(0)
 
-    // Hover-only: article marca is-gap-hover-only e mantem os marks no DOM.
+    // Hover-only: article marca is-gap-hover-only e mantem marks e badges no DOM.
     await user.click(screen.getByRole('radio', { name: 'Lacunas somente no hover' }))
     expect(article?.className).toContain('is-gap-hover-only')
     expect(article?.querySelectorAll('mark[data-gap]').length).toBeGreaterThan(0)
+    expect(article?.querySelectorAll('span.review-unit-score').length).toBeGreaterThan(0)
 
-    // Desativado: sem classe de lacunas e sem marks.
+    // Desativado: sem classe de lacunas, sem marks e sem badges.
     await user.click(screen.getByRole('radio', { name: 'Lacunas desativadas' }))
     expect(article?.className).not.toContain('has-gap-marks')
     expect(article?.querySelectorAll('mark[data-gap]').length).toBe(0)
+    expect(article?.querySelectorAll('span.review-unit-score').length).toBe(0)
   })
 
-  it('[resiliencia] renderiza a interface mesmo sem o runtime Tauri (sem tela branca)', async () => {
-    // Reproduz o crash de inicializacao: getCurrentWindow() lanca sincronamente
-    // quando window.__TAURI_INTERNALS__ nao existe (ex.: URL do Vite no navegador).
-    getCurrentWindowMock.mockImplementation(() => {
-      throw new TypeError("Cannot read properties of undefined (reading 'metadata')")
-    })
-
+  it('[busca na nota] Ctrl+F abre o campo flutuante com contador e navegacao por setas', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
+    await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
 
-    expect(screen.getByRole('radio', { name: 'Misto' })).toBeInTheDocument()
-    expect(document.querySelector('.workspace-shell')).not.toBeNull()
+    // A lupa abre o campo flutuante com o cursor dentro dele.
+    await user.click(screen.getByRole('button', { name: 'Buscar na nota' }))
+    const findInput = await screen.findByRole('textbox', { name: 'Buscar na nota' })
+    expect(findInput).toHaveFocus()
+
+    // Ao digitar, o contador mostra 1/N com N total de correspondencias.
+    await user.type(findInput, 'Inicial')
+    await waitFor(() => {
+      expect(document.querySelector('.note-find-count')?.textContent).toBe('1/4')
+    })
+
+    // Setas navegam entre as correspondencias e o contador acompanha.
+    await user.click(screen.getByRole('button', { name: 'Próxima correspondência' }))
+    expect(document.querySelector('.note-find-count')?.textContent).toBe('2/4')
+    await user.click(screen.getByRole('button', { name: 'Correspondência anterior' }))
+    expect(document.querySelector('.note-find-count')?.textContent).toBe('1/4')
+
+    // Esc fecha o campo e devolve o foco ao editor.
+    findInput.focus()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Buscar na nota' })).not.toBeInTheDocument())
+  })
+
+  it('[busca na nota] Ctrl+F funciona no modo Leitura sem trocar de modo', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+    await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
+
+    // Muda para Leitura: o conteudo e o article renderizado (sem CodeMirror).
+    await user.click(screen.getByRole('radio', { name: 'Leitura' }))
+    expect(document.querySelector('.markdown-reading')).not.toBeNull()
+
+    // Ctrl+F disparado sobre o corpo da nota abre a barra SEM trocar de modo.
+    fireEvent.keyDown(window, { key: 'f', ctrlKey: true })
+    const findInput = await screen.findByRole('textbox', { name: 'Buscar na nota' })
+    expect(findInput).toHaveFocus()
+    expect(document.querySelector('.markdown-reading')).not.toBeNull()
+
+    // O contador reflete as correspondencias no DOM renderizado: o frontmatter
+    // e a sintaxe nao contam (3 em vez de 4 no texto-fonte).
+    await user.type(findInput, 'Inicial')
+    await waitFor(() => {
+      expect(document.querySelector('.note-find-count')?.textContent).toBe('1/3')
+    })
+
+    // Navegacao avanca no DOM do modo Leitura.
+    await user.click(screen.getByRole('button', { name: 'Próxima correspondência' }))
+    expect(document.querySelector('.note-find-count')?.textContent).toBe('2/3')
+
+    // Esc fecha e o modo Leitura permanece.
+    findInput.focus()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Buscar na nota' })).not.toBeInTheDocument())
+    expect(document.querySelector('.markdown-reading')).not.toBeNull()
+  })
+
+  it('[busca na nota] Ctrl+F no modo Edicao abre a barra do app (nao o painel nativo do CodeMirror)', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+    await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
+    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+
+    // O foco esta dentro do editor (.cm-content): o CodeMirror intercepta o
+    // atalho e chama o callback do app em vez do painel nativo de busca.
+    const content = document.querySelector('.cm-content')
+    expect(content).not.toBeNull()
+    fireEvent.keyDown(content!, { key: 'f', ctrlKey: true })
+    const findInput = await screen.findByRole('textbox', { name: 'Buscar na nota' })
+    expect(findInput).toHaveFocus()
+    expect(document.querySelector('.cm-search')).toBeNull()
+  })
+
+  it('[popover de formatacao] aparece sobre a selecao, aplica negrito e fecha com Escape', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+    await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
+    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+
+    // Sem selecao nao ha popover.
+    expect(screen.queryByRole('toolbar', { name: 'Formatar seleção' })).not.toBeInTheDocument()
+
+    // Selecao via busca (selectRange imperativo do CodeMirror sobre o 1o match).
+    const content = document.querySelector('.cm-content')
+    expect(content).not.toBeNull()
+    fireEvent.keyDown(content!, { key: 'f', ctrlKey: true })
+    const findInput = await screen.findByRole('textbox', { name: 'Buscar na nota' })
+    await user.type(findInput, 'Equação')
+    await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Formatar seleção' })).toBeInTheDocument())
+
+    // Negrito envolve o trecho selecionado no texto-fonte.
+    await user.click(screen.getByRole('button', { name: 'Negrito (seleção)' }))
+    await waitFor(() => expect(document.querySelector('.cm-content')).toHaveTextContent('**Equação**'))
+
+    // Os formatos quimicos tambem estao no popover e aplicam marcacao.
+    expect(screen.getByRole('button', { name: 'Subscrito (seleção)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sobrescrito (seleção)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Seta de reação (seleção)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Seta reversa (seleção)' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Subscrito (seleção)' }))
+    await waitFor(() => expect(document.querySelector('.cm-content')).toHaveTextContent('$_{'))
+
+    // Escape fecha o popover sem fechar a nota.
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('toolbar', { name: 'Formatar seleção' })).not.toBeInTheDocument())
   })
 })

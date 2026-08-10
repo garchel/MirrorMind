@@ -78,8 +78,7 @@
   gap: 6px;
 }
 
-.note-readiness-state,
-.note-review-enrollment {
+.note-readiness-state {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
@@ -95,8 +94,7 @@
   white-space: nowrap;
 }
 
-.note-readiness-state.is-ready,
-.note-review-enrollment.is-active {
+.note-readiness-state.is-ready {
   color: #486a52;
   background: rgb(72 106 82 / 9%);
 }
@@ -112,15 +110,21 @@
   background: rgb(139 73 66 / 9%);
 }
 
-.note-review-enrollment {
-  gap: 6px;
-}
-
 .note-review-next-date {
   color: var(--muted, #706d66);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.note-review-risk-badge {
+  display: inline-block;
+  width: max-content;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #ffe5a5;
+  color: #7a5c10;
+  font: 600 10.5px/1.4 var(--sans);
 }
 .review-ai-toolbar-error {
   max-width: 240px;
@@ -241,13 +245,47 @@
 }
 
 @media (max-width: 720px) {
-  .note-readiness-trigger span,
-  .note-review-enrollment span {
-
+  .note-readiness-trigger span {
     display: none;
   }
 
   .review-ai-dialog-backdrop {
     padding: 12px;
   }
+}
+
+/* Dialogo de confirmacao do reinicio do aprendizado da nota. */
+.review-reset-dialog {
+  width: min(440px, 100%);
+}
+
+.review-reset-hint {
+  color: var(--muted, #706d66);
+  font-size: 12.5px;
+}
+
+.review-reset-error {
+  margin: 0;
+  color: var(--danger, #b3261e);
+  font-size: 12.5px;
+}
+
+.review-reset-confirm {
+  min-height: 34px;
+  padding: 0 16px;
+  border: 1px solid rgb(179 38 30 / 32%);
+  border-radius: 8px;
+  background: var(--danger, #b3261e);
+  color: #fffdf8;
+  font: 600 12.5px var(--sans);
+  cursor: pointer;
+}
+
+.review-reset-confirm:not(:disabled):hover {
+  background: #93251e;
+}
+
+.review-reset-confirm:disabled {
+  opacity: 0.6;
+  cursor: default;
 }

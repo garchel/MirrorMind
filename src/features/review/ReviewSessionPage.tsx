@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { ArrowLeft, CheckCircle2, Lightbulb, MessageCircle, RotateCw } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Info, Lightbulb, MessageCircle, RotateCw } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
 import rehypeRaw from 'rehype-raw'
@@ -28,7 +28,7 @@ const REVIEW_REPORT_SANITIZE_SCHEMA = {
   attributes: {
     ...defaultSchema.attributes,
     mark: ['dataGap'],
-    span: ['className', 'title', 'dataScore', 'dataOutcome'],
+    span: ['className', 'title', 'dataScore', 'dataOutcome', 'dataEvaluated', 'dataInconclusive'],
   },
 }
 
@@ -78,6 +78,10 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   const [promptIndex, setPromptIndex] = useState(0)
   const [answer, setAnswer] = useState('')
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
+  // Opcao explicita `Nao sei` da prova objetiva: o usuario admite nao saber em
+  // vez de chutar. Nunca acerta (erro claro de esquecimento) e o resumo a
+  // diferencia de um chute errado.
+  const [dontKnow, setDontKnow] = useState(false)
   const [exchanges, setExchanges] = useState<ReviewExchange[]>([])
   const [assistanceVisible, setAssistanceVisible] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -88,6 +92,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
 
   useEffect(() => {
     setSelectedOption(null)
+    setDontKnow(false)
   }, [prompt?.id])
 
   useEffect(() => {
@@ -118,12 +123,18 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
     }
   }, [busy, draft, onExit, report])
 
-  async function begin() {
+  async function begin(allowCalibrationContinuation = false) {
     if (!canUseProvider) return
     setBusy(true)
     setDiagnostic(null)
     try {
-      const attempt = await startReviewSession({ vaultPath, relativePath: item.relativePath, provider, mode })
+      const attempt = await startReviewSession({
+        vaultPath,
+        relativePath: item.relativePath,
+        provider,
+        mode,
+        allowCalibrationContinuation,
+      })
       if (attempt.outcome === 'invalid') {
         setDiagnostic(attempt)
         return
@@ -148,6 +159,8 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
         setDiagnostic(attempt)
         return
       }
+      // Uma sessao inteira inconclusiva tambem encerra: nada foi persistido, a
+      // nota permanece vencida e o relatorio oferece refazer (nao e contestacao).
       setReport(attempt.report)
       onCompleted()
     } catch {
@@ -180,16 +193,27 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   }
   async function submitAnswer() {
     if (!draft || !prompt) return
+    // A prova mista tem dois tipos de pergunta: multipla escolha (envia a
+    // letra e o texto da alternativa escolhida) e resposta curta (envia o
+    // texto digitado). `Nao sei` vale para ambos e nunca acerta.
     const answerText = draft.mode === 'exam'
-      ? (selectedOption === null || selectedOption >= prompt.options.length
-          ? ''
-          : `${String.fromCharCode(65 + selectedOption)}) ${prompt.options[selectedOption]}`)
+      ? dontKnow
+        ? 'Não sei'
+        : prompt.kind === 'shortAnswer'
+          ? answer.trim()
+          : (selectedOption === null || selectedOption >= prompt.options.length
+              ? ''
+              : `${String.fromCharCode(65 + selectedOption)}) ${prompt.options[selectedOption]}`)
       : answer.trim()
     if (!answerText) return
-    const nextExchanges = [...exchanges, { promptId: prompt.id, prompt: prompt.text, answer: answerText }]
+    // A dica/contexto estava visível no momento da resposta: a recuperação foi
+    // assistida e o agendamento usa evidência mais fraca para esta pergunta.
+    const assistanceUsed = assistanceVisible
+    const nextExchanges = [...exchanges, { promptId: prompt.id, prompt: prompt.text, answer: answerText, assistanceUsed }]
     setExchanges(nextExchanges)
     setAnswer('')
     setSelectedOption(null)
+    setDontKnow(false)
     setAssistanceVisible(false)
 
     if (draft.mode === 'exam') {
@@ -218,6 +242,27 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
     onExit()
   }
 
+  // Calibracao inicial de notas longas: apos concluir uma etapa com unidades
+  // ainda nao observadas, o usuario pode continuar imediatamente (a proxima
+  // etapa tambem voltaria no dia seguinte pela fila). Tambem e o handler do
+  // "Refazer revisao agora" de uma sessao inteira inconclusiva: nao confundir
+  // com contestacao, e `begin(true)` (allowCalibrationContinuation) e seguro
+  // tanto para uma nota vencida (que continua vencida apos a sessao
+  // inconclusiva) quanto para uma nota em calibracao agendada.
+  async function continueCalibration() {
+    if (busy) return
+    setReport(null)
+    setDraft(null)
+    setPrompt(null)
+    setPromptIndex(0)
+    setExchanges([])
+    setAnswer('')
+    setSelectedOption(null)
+    setAssistanceVisible(false)
+    setDiagnostic(null)
+    await begin(true)
+  }
+
   const annotatedReportMarkdown = useMemo(
     () => annotateReviewMarkdown(report?.markdown ?? '', report?.gaps ?? [], report?.units ?? []),
     [report],
@@ -229,30 +274,57 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
       <section className="workspace-page review-session-page review-report-page" aria-labelledby="review-result-title">
         <header className="review-session-topbar">
           <button type="button" className="secondary-button" onClick={onExit}><ArrowLeft size={15} /> Voltar à fila</button>
-          <span>Relatório concluído</span>
+          <span>{report.inconclusive ? 'Relatório inconclusivo' : 'Relatório concluído'}</span>
         </header>
         <header className="review-report-header">
           <div className="review-report-header-main">
-            <p className="review-session-kicker">Resultado</p>
+            <p className="review-session-kicker">{report.inconclusive ? 'Sessão inconclusiva' : 'Resultado'}</p>
             <h2 id="review-result-title">{item.title}</h2>
             <p className="review-report-summary">{report.summary}</p>
           </div>
-          <div className="review-report-header-side">
-            <div className="review-score" aria-label={`Pontuação ${report.overallScore} de 100`}>
-              <strong>{report.overallScore}</strong><span>/100</span>
+          {!report.inconclusive ? (
+            <div className="review-report-header-side">
+              <div className="review-score" aria-label={`Pontuação ${report.overallScore} de 100`}>
+                <strong>{report.overallScore}</strong><span>/100</span>
+              </div>
+              {hasUnits ? (
+                <ul className="review-unit-legend" aria-label="Faixas de pontuação por parágrafo">
+                  <li className="is-forgotten">0–39 Esquecida</li>
+                  <li className="is-partial">40–69 Difícil</li>
+                  <li className="is-good">70–89 Boa</li>
+                  <li className="is-complete">90–100 Completa</li>
+                </ul>
+              ) : null}
             </div>
-            {hasUnits ? (
-              <ul className="review-unit-legend" aria-label="Faixas de pontuação por parágrafo">
-                <li className="is-forgotten">0–39 Esquecida</li>
-                <li className="is-partial">40–69 Difícil</li>
-                <li className="is-good">70–89 Boa</li>
-                <li className="is-complete">90–100 Completa</li>
-              </ul>
-            ) : null}
-          </div>
+          ) : null}
         </header>
+        {report.inconclusive ? (
+          <div className="review-report-inconclusive" role="alert">
+            <p><strong>A cobertura válida desta sessão ficou abaixo do mínimo.</strong> Nenhuma avaliação foi persistida, sua memória não foi alterada e a nota continua vencida — refazer esta revisão não constitui contestação de um resultado.</p>
+            <button type="button" className="primary-button" onClick={() => void continueCalibration()} disabled={busy}>
+              <RotateCw size={15} aria-hidden="true" />
+              Refazer revisão agora
+            </button>
+          </div>
+        ) : null}
         <div className={`review-report-layout${hasUnits ? ' has-note' : ''}`}>
           <aside className="review-report-side" aria-label="Resumo da revisão" tabIndex={0}>
+            {report.units.some((unit) => !unit.evaluated) ? (
+              <>
+                <p className="review-coverage-note">
+                  Esta sessão cobriu <strong>{report.units.filter((unit) => unit.evaluated).length} de {report.units.length}</strong> parágrafos da nota. Os parágrafos restantes serão priorizados na próxima revisão — ou você pode continuar agora.
+                </p>
+                <button
+                  type="button"
+                  className="primary-button review-calibration-continue"
+                  onClick={() => void continueCalibration()}
+                  disabled={busy}
+                >
+                  <RotateCw size={15} aria-hidden="true" />
+                  Revisar mais {report.units.filter((unit) => !unit.evaluated).length} {report.units.filter((unit) => !unit.evaluated).length === 1 ? 'parágrafo' : 'parágrafos'} agora
+                </button>
+              </>
+            ) : null}
             {report.gaps.length > 0 ? (
               <section className="review-gaps" aria-labelledby="review-gaps-title">
                 <h3 id="review-gaps-title">Pontos para revisar</h3>
@@ -264,7 +336,22 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
                 ))}</ul>
               </section>
             ) : <p className="review-perfect"><CheckCircle2 size={18} /> Nenhuma lacuna foi identificada na nota.</p>}
-            <p className="review-next-date">Próxima revisão: <strong>{nextReviewLabel(report.nextReviewAtUnixMs)}</strong></p>
+            {report.nextReviewAtUnixMs !== null ? (
+              <p className="review-next-date">Próxima revisão: <strong>{nextReviewLabel(report.nextReviewAtUnixMs)}</strong></p>
+            ) : null}
+            {!report.inconclusive && (report.evidence === 'recognition' || report.evidence === 'assistedRecognition') ? (
+              <p className="review-evidence-note" title="A nota exibida reflete a cobertura da nota; o agendamento considera a força da evidência.">
+                <Info size={15} aria-hidden="true" />
+                Esta foi uma prova objetiva: a nota reflete o acerto, mas reconhecer a alternativa correta é uma evidência mais fraca de recuperação espontânea — o agendamento (próxima revisão) usa um peso menor que uma resposta aberta equivalente.
+                {report.evidence === 'assistedRecognition' ? ' Como pelo menos uma resposta foi dada com a dica exibida, o peso é ainda menor para os trechos assistidos.' : ''}
+              </p>
+            ) : null}
+            {!report.inconclusive && report.evidence === 'assistedConversation' ? (
+              <p className="review-evidence-note" title="A nota exibida reflete a cobertura da nota; o agendamento considera a força da evidência.">
+                <Info size={15} aria-hidden="true" />
+                Esta conversa recorreu ao contexto revelado: as respostas abertas vieram com ajuda e o agendamento (próxima revisão) usa um peso menor que uma conversa sem contexto.
+              </p>
+            ) : null}
           </aside>
           {hasUnits ? (
             <section className="review-report-note review-note-report" aria-labelledby="review-note-title" tabIndex={0}>
@@ -306,7 +393,11 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
     <section className="workspace-page review-session-page" aria-labelledby="review-question-title">
       <header className="review-session-topbar"><button type="button" className="secondary-button" onClick={exit} disabled={busy}><ArrowLeft size={15} /> {busy ? 'Finalizando…' : 'Abandonar'}</button><span>{draft.mode === 'exam' ? `Questão ${promptIndex + 1} de ${draft.prompts.length}` : `Turno ${exchanges.length + 1}`}</span></header>
       <div className="review-question">
-        <p className="review-session-kicker">{draft.mode === 'exam' ? 'Modo prova' : 'Modo conversa'}</p>
+        <p className="review-session-kicker">{draft.mode === 'exam' ? 'Modo prova' : 'Modo conversa'}
+          {draft.mode === 'conversation' && prompt?.isClarification ? (
+            <span className="review-clarification-tag" title="Pergunta neutra para desambiguar sua resposta anterior, sem revelar o conteúdo esperado">Esclarecimento</span>
+          ) : null}
+        </p>
         <h2 id="review-question-title"><ReviewRichMarkdown content={prompt?.text ?? ''} inline /></h2>
         {prompt && prompt.options.length > 0 ? (
           <fieldset className="review-options" disabled={busy || diagnostic !== null}>
@@ -315,7 +406,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
               const letter = String.fromCharCode(65 + index)
               return (
                 <label key={index} className={selectedOption === index ? 'is-selected' : ''}>
-                  <input type="radio" name="review-option" value={index} checked={selectedOption === index} onChange={() => setSelectedOption(index)} />
+                  <input type="radio" name="review-option" value={index} checked={selectedOption === index} onChange={() => { setSelectedOption(index); setDontKnow(false) }} />
                   <span className="review-option-letter" aria-hidden="true">{letter}</span>
                   <div className="review-option-text"><ReviewRichMarkdown content={option} /></div>
                 </label>
@@ -324,13 +415,24 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
           </fieldset>
         ) : (
           <>
-            <label htmlFor="review-answer">Sua resposta</label>
-            <textarea id="review-answer" value={answer} onChange={(event) => setAnswer(event.target.value)} rows={8} autoFocus disabled={busy || diagnostic !== null} />
+            <label htmlFor="review-answer">{prompt?.kind === 'shortAnswer' ? 'Escreva sua resposta' : 'Sua resposta'}</label>
+            <textarea id="review-answer" value={answer} onChange={(event) => { setAnswer(event.target.value); setDontKnow(false) }} rows={8} autoFocus disabled={busy || diagnostic !== null} />
           </>
         )}
+        {draft.mode === 'exam' ? (
+          <button
+            type="button"
+            className={`review-option-dont-know${dontKnow ? ' is-selected' : ''}`}
+            onClick={() => { setDontKnow((value) => !value); if (!dontKnow) setSelectedOption(null) }}
+            disabled={busy || diagnostic !== null}
+          >
+            <span className="review-option-letter" aria-hidden="true">?</span>
+            <span className="review-option-text">Não sei</span>
+          </button>
+        ) : null}
         <div className="review-answer-actions">
           <button type="button" className="secondary-button" onClick={() => setAssistanceVisible((visible) => !visible)}><Lightbulb size={15} /> {assistanceVisible ? 'Ocultar ajuda' : draft.mode === 'exam' ? 'Mostrar dica' : 'Mostrar contexto'}</button>
-          <button type="button" className="primary-button" onClick={() => void submitAnswer()} disabled={busy || diagnostic !== null || (draft.mode === 'exam' ? selectedOption === null : !answer.trim())}>{busy ? 'Processando…' : lastExamPrompt ? 'Concluir e avaliar' : 'Salvar resposta'}</button>
+          <button type="button" className="primary-button" onClick={() => void submitAnswer()} disabled={busy || diagnostic !== null || (draft.mode === 'exam' ? (prompt?.kind === 'shortAnswer' ? (!answer.trim() && !dontKnow) : (selectedOption === null && !dontKnow)) : !answer.trim())}>{busy ? 'Processando…' : lastExamPrompt ? 'Concluir e avaliar' : 'Salvar resposta'}</button>
         </div>
         {assistanceVisible ? <aside className="review-assistance"><MessageCircle size={16} /><div className="review-assistance-text"><ReviewRichMarkdown content={prompt?.assistance ?? ''} /></div></aside> : null}
         {diagnostic ? <DiagnosticPanel diagnostic={diagnostic} retry={() => draft.mode === 'conversation' && exchanges.length < draft.maximumAnswers ? requestConversationTurn(exchanges) : finish(exchanges)} retryLabel={draft.mode === 'conversation' && exchanges.length < draft.maximumAnswers ? 'Tentar continuar conversa' : 'Gerar novo relatorio'} busy={busy} /> : null}

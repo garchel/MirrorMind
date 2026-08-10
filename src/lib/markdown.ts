@@ -326,6 +326,12 @@ export type MarkdownFormat =
   | 'quote'
   | 'code'
   | 'codeBlock'
+  | 'strikethrough'
+  | 'math'
+  | 'subscript'
+  | 'superscript'
+  | 'reactionArrow'
+  | 'reverseReactionArrow'
   | 'divider'
   | 'table'
 
@@ -393,12 +399,22 @@ export function transformMarkdownTable(content: string, cursor: number, action: 
 
 export function formatMarkdownSelection(content: string, start: number, end: number, format: MarkdownFormat) {
   const selected = content.slice(start, end) || 'texto'
-  const wrappers: Record<Extract<MarkdownFormat, 'bold' | 'italic' | 'link' | 'code' | 'codeBlock'>, [string, string]> = {
+  const wrappers: Record<Extract<MarkdownFormat, 'bold' | 'italic' | 'link' | 'code' | 'codeBlock' | 'strikethrough' | 'math' | 'subscript' | 'superscript' | 'reactionArrow' | 'reverseReactionArrow'>, [string, string]> = {
     bold: ['**', '**'],
     italic: ['_', '_'],
     link: ['[', '](https://)'],
     code: ['`', '`'],
     codeBlock: ['```\n', '\n```'],
+    strikethrough: ['~~', '~~'],
+    math: ['$', '$'],
+    // Subscrito e sobrescrito via KaTeX inline: o texto selecionado vira o
+    // indice (CO$_{2}$) ou o expoente (x$^{2}$) da base que o precede.
+    subscript: ['$_{', '}$'],
+    superscript: ['$^{', '}$'],
+    // Setas de reacao quimica: o texto selecionado fica acima da seta
+    // (produto/reagente), como em \xrightarrow{\text{Luz, Clorofila}}.
+    reactionArrow: ['$\\xrightarrow{\\text{', '}}$'],
+    reverseReactionArrow: ['$\\xleftarrow{\\text{', '}}$'],
   }
 
   let replacement = selected
@@ -676,6 +692,31 @@ export function getMarkdownPreviewText(content: string, maxLength = 180) {
     .trim()
   const preview = description || body
   return preview.length > maxLength ? `${preview.slice(0, maxLength).trimEnd()}...` : preview
+}
+
+/** Conta as palavras legiveis de uma nota Markdown: remove o frontmatter,
+ * blocos e spans de codigo, HTML e os marcadores de sintaxe (headings,
+ * listas, citacoes, negrito, italico, links, wikilinks, tags, matematica)
+ * antes de contar os tokens com letras ou numeros. */
+export function countMarkdownWords(content: string): number {
+  const body = getMarkdownBody(content)
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/\$\$[\s\S]*?\$\$/g, ' ')
+    .replace(/`[^`\n]+`/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_match, target: string, alias?: string) => alias?.trim() || target.split('/').at(-1)?.trim() || target)
+    .replace(/^\s{0,3}[-*+]\s+\[[ xX]\]\s+/gm, ' ')
+    .replace(/^\s{0,3}(?:#{1,6}\s+|>\s?|[-*+]\s+|\d{1,9}[.)]\s+)/gm, ' ')
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '$1')
+    .replace(/~~([^~\n]+)~~/g, '$1')
+    .replace(/[$_~`#]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!body) return 0
+  return body.split(' ').filter((token) => /[\p{L}\p{N}]/u.test(token)).length
 }
 
 export function normalizeMarkdownTag(value: string) {

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "blank",
+    "name": "Em branco",
+    "content": ""
+  },
+  {
+    "id": "study",
+    "name": "Nota de estudo",
+    "content": "# Conceito\n\n## Explicacao\n\n## Exemplos\n\n## Duvidas\n"
+  },
+  {
+    "id": "meeting",
+    "name": "Reuniao",
+    "content": "# Objetivo\n\n## Participantes\n\n## Decisoes\n\n## Proximos passos\n"
+  }
+]

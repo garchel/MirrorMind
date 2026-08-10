@@ -5,9 +5,10 @@ import { NoteReadinessControl } from './NoteReadinessControl'
 import type { NoteReviewState, ReadinessAttempt } from './ai'
 import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
 
-const { assessNoteReadinessMock, getNoteReviewStateMock, setNoteReviewEnrollmentMock } = vi.hoisted(() => ({
+const { assessNoteReadinessMock, getNoteReviewStateMock, resetNoteLearningMock, setNoteReviewEnrollmentMock } = vi.hoisted(() => ({
   assessNoteReadinessMock: vi.fn(),
   getNoteReviewStateMock: vi.fn(),
+  resetNoteLearningMock: vi.fn(),
   setNoteReviewEnrollmentMock: vi.fn(),
 }))
 
@@ -17,6 +18,7 @@ vi.mock('./ai', async (importOriginal) => {
     ...original,
     assessNoteReadiness: assessNoteReadinessMock,
     getNoteReviewState: getNoteReviewStateMock,
+    resetNoteLearning: resetNoteLearningMock,
     setNoteReviewEnrollment: setNoteReviewEnrollmentMock,
   }
 })
@@ -60,10 +62,33 @@ describe('NoteReadinessControl', () => {
     window.localStorage.clear()
     assessNoteReadinessMock.mockReset()
     getNoteReviewStateMock.mockReset().mockResolvedValue(null)
+    resetNoteLearningMock.mockReset()
     setNoteReviewEnrollmentMock.mockReset()
   })
 
   afterEach(cleanup)
+
+  it('notifica o estado de prontidão mais recente via onStatusChange', async () => {
+    const onStatusChange = vi.fn()
+    getNoteReviewStateMock.mockResolvedValue({
+      noteId: 'note-1',
+      relativePath: 'biologia.md',
+      contentHash: 'sha256:note',
+      readiness: 'ready',
+      assessedAtUnixMs: 1,
+      report: null,
+      enrolled: false,
+      preferredMode: 'exam',
+      schedulingStatus: 'notScheduled',
+      firstReviewAtUnixMs: null,
+      nextReviewAtUnixMs: null,
+      deadlineRetentionAtRisk: false,
+    })
+
+    render(control({ onStatusChange }))
+
+    await waitFor(() => expect(onStatusChange).toHaveBeenLastCalledWith('ready'))
+  })
 
   it('exposes a rejected provider response safely and regenerates against the same source and provider', async () => {
     const user = userEvent.setup()
@@ -157,19 +182,54 @@ describe('NoteReadinessControl', () => {
     expect(button).toHaveAttribute('title', expect.stringContaining('Autorize o envio ao Gemini'))
   })
 
-  it('loads a persisted ready state and lets the user explicitly enable reviews', async () => {
+  it('abre uma revisão imediata quando a nota está pronta e inscrita', async () => {
     const user = userEvent.setup()
+    const onStartReview = vi.fn()
+    const readyState: NoteReviewState = {
+      noteId: 'note-ready',
+      relativePath: 'biologia.md',
+      contentHash: `sha256:${'b'.repeat(64)}`,
+      readiness: 'ready',
+      assessedAtUnixMs: 1_720_000_000_000,
+      report: null,
+      enrolled: true,
+      preferredMode: 'exam',
+      schedulingStatus: 'scheduled',
+      firstReviewAtUnixMs: 1_720_172_800_000,
+      nextReviewAtUnixMs: 1_720_172_800_000,
+      deadlineRetentionAtRisk: false,
+    }
+    getNoteReviewStateMock.mockResolvedValue(readyState)
+
+    render(control({ onStartReview }))
+
+    await user.click(await screen.findByRole('button', { name: 'Iniciar revisão agora' }))
+
+    expect(setNoteReviewEnrollmentMock).not.toHaveBeenCalled()
+    expect(onStartReview).toHaveBeenCalledWith({
+      noteId: 'note-ready',
+      preferredMode: 'exam',
+      nextReviewAtUnixMs: 1_720_172_800_000,
+      firstReviewAtUnixMs: 1_720_172_800_000,
+    })
+  })
+
+  it('inscreve automaticamente e inicia a revisão quando a nota está pronta mas não inscrita', async () => {
+    const user = userEvent.setup()
+    const onStartReview = vi.fn()
     const readyState: NoteReviewState = {
       noteId: 'note-atp',
       relativePath: 'biologia.md',
       contentHash: `sha256:${'b'.repeat(64)}`,
       readiness: 'ready',
       assessedAtUnixMs: 1_720_000_000_000,
+      report: null,
       enrolled: false,
-      preferredMode: 'exam',
+      preferredMode: 'conversation',
       schedulingStatus: 'notScheduled',
       firstReviewAtUnixMs: null,
       nextReviewAtUnixMs: null,
+      deadlineRetentionAtRisk: false,
     }
     getNoteReviewStateMock.mockResolvedValue(readyState)
     setNoteReviewEnrollmentMock.mockResolvedValue({
@@ -178,50 +238,40 @@ describe('NoteReadinessControl', () => {
       schedulingStatus: 'scheduled',
       firstReviewAtUnixMs: 1_720_172_800_000,
       nextReviewAtUnixMs: 1_720_172_800_000,
+      deadlineRetentionAtRisk: false,
     })
 
-    render(control())
+    render(control({ onStartReview }))
 
-    expect(await screen.findByText('Pronta')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Ativar/ }))
+    await user.click(await screen.findByRole('button', { name: 'Iniciar revisão agora' }))
+
     expect(setNoteReviewEnrollmentMock).toHaveBeenCalledWith({
       vaultPath: 'C:\\Vault',
       relativePath: 'biologia.md',
       enabled: true,
     })
-    expect(await screen.findByRole('button', { name: /Pausar/ })).toBeInTheDocument()
-  })
-  it('discards a delayed enrollment result when the active note changes', async () => {
-    const user = userEvent.setup()
-    const readyState: NoteReviewState = {
-      noteId: 'note-a',
-      relativePath: 'biologia.md',
-      contentHash: `sha256:${'c'.repeat(64)}`,
-      readiness: 'ready',
-      assessedAtUnixMs: 1_720_000_000_000,
-      enrolled: false,
-      preferredMode: 'exam',
-      schedulingStatus: 'notScheduled',
-      firstReviewAtUnixMs: null,
-      nextReviewAtUnixMs: null,
-    }
-    let resolveEnrollment!: (state: NoteReviewState) => void
-    getNoteReviewStateMock.mockResolvedValueOnce(readyState).mockResolvedValueOnce(null)
-    setNoteReviewEnrollmentMock.mockReturnValue(new Promise<NoteReviewState>((resolve) => {
-      resolveEnrollment = resolve
+    await waitFor(() => expect(onStartReview).toHaveBeenCalledWith({
+      noteId: 'note-atp',
+      preferredMode: 'conversation',
+      nextReviewAtUnixMs: 1_720_172_800_000,
+      firstReviewAtUnixMs: 1_720_172_800_000,
     }))
-    const view = render(control())
-
-    await user.click(await screen.findByRole('button', { name: /Ativar/ }))
-    view.rerender(control({ relativePath: 'quimica.md', sourceRevision: '# QuÃƒÆ’Ã‚Â­mica' }))
-    resolveEnrollment({ ...readyState, enrolled: true, schedulingStatus: 'scheduled' })
-
-    await waitFor(() => expect(getNoteReviewStateMock).toHaveBeenCalledTimes(2))
-    expect(screen.queryByRole('button', { name: /Pausar/ })).not.toBeInTheDocument()
-    expect(screen.queryByText('Pronta')).not.toBeInTheDocument()
   })
 
-  it('lets an enrolled modified note be disabled', async () => {
+  it('desabilita a revisão imediata para notas não avaliadas ou sujas', async () => {
+    render(control())
+    const button = screen.getByRole('button', { name: 'Iniciar revisão agora' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('title', expect.stringContaining('Avalie a nota'))
+    cleanup()
+
+    render(control({ isDirty: true }))
+    const dirtyButton = screen.getByRole('button', { name: 'Iniciar revisão agora' })
+    expect(dirtyButton).toBeDisabled()
+    expect(dirtyButton).toHaveAttribute('title', expect.stringContaining('Salve a nota'))
+  })
+
+  it('reopens the persisted report of an enrolled modified note', async () => {
     const user = userEvent.setup()
     const modifiedState: NoteReviewState = {
       noteId: 'note-modified',
@@ -235,21 +285,107 @@ describe('NoteReadinessControl', () => {
       schedulingStatus: 'paused',
       firstReviewAtUnixMs: 1_720_172_800_000,
       nextReviewAtUnixMs: null,
+      deadlineRetentionAtRisk: false,
     }
     getNoteReviewStateMock.mockResolvedValue(modifiedState)
-    setNoteReviewEnrollmentMock.mockResolvedValue({ ...modifiedState, enrolled: false })
     render(control())
 
-    await user.click(await screen.findByRole('button', { name: /Pausar/ }))
-
-    expect(setNoteReviewEnrollmentMock).toHaveBeenCalledWith({
-      vaultPath: 'C:\\Vault',
-      relativePath: 'biologia.md',
-      enabled: false,
-    })
-    await user.click(screen.getByRole('button', { name: /Abrir/ }))
+    await user.click(await screen.findByRole('button', { name: /Abrir/ }))
     expect(screen.getByText('Este relatorio pertence a versao anterior da nota.')).toBeInTheDocument()
   })
+  it('reinicia o aprendizado somente após confirmação', async () => {
+    const user = userEvent.setup()
+    const readyState: NoteReviewState = {
+      noteId: 'note-reset',
+      relativePath: 'biologia.md',
+      contentHash: `sha256:${'b'.repeat(64)}`,
+      readiness: 'ready',
+      assessedAtUnixMs: 1_720_000_000_000,
+      report: null,
+      enrolled: true,
+      preferredMode: 'exam',
+      schedulingStatus: 'scheduled',
+      firstReviewAtUnixMs: 1_720_000_000_000,
+      nextReviewAtUnixMs: 1_720_000_000_000,
+      deadlineRetentionAtRisk: false,
+    }
+    getNoteReviewStateMock.mockResolvedValue(readyState)
+    resetNoteLearningMock.mockResolvedValue({
+      ...readyState,
+      firstReviewAtUnixMs: 1_730_000_000_000,
+      nextReviewAtUnixMs: 1_730_000_000_000,
+      deadlineRetentionAtRisk: false,
+    })
+
+    render(control())
+
+    await user.click(await screen.findByRole('button', { name: /Reiniciar aprendizado desta nota/ }))
+    expect(screen.getByRole('dialog', { name: /Reiniciar aprendizado/ })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Reiniciar aprendizado' }))
+
+    expect(resetNoteLearningMock).toHaveBeenCalledWith({
+      vaultPath: 'C:\\Vault',
+      relativePath: 'biologia.md',
+    })
+    // O estado retornado substitui o anterior: a proxima data passa a ser a nova.
+    const expectedDate = new Date(1_730_000_000_000).toLocaleDateString('pt-BR')
+    expect(await screen.findByText(`Próxima revisão: ${expectedDate}`)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: /Reiniciar aprendizado/ })).not.toBeInTheDocument()
+  })
+
+  it('flags a deadline with retention at risk', async () => {
+    getNoteReviewStateMock.mockResolvedValue({
+      noteId: 'note-risk',
+      relativePath: 'biologia.md',
+      contentHash: `sha256:${'c'.repeat(64)}`,
+      readiness: 'ready',
+      assessedAtUnixMs: 1_720_000_000_000,
+      report: null,
+      enrolled: true,
+      preferredMode: 'exam',
+      schedulingStatus: 'scheduled',
+      firstReviewAtUnixMs: null,
+      nextReviewAtUnixMs: 1_720_172_800_000,
+      deadlineRetentionAtRisk: true,
+    })
+
+    render(control())
+
+    expect(await screen.findByText('Meta de retenção em risco')).toBeInTheDocument()
+  })
+
+  it('cancela o reinício sem chamar o backend', async () => {
+    const user = userEvent.setup()
+    getNoteReviewStateMock.mockResolvedValue({
+      noteId: 'note-reset',
+      relativePath: 'biologia.md',
+      contentHash: `sha256:${'b'.repeat(64)}`,
+      readiness: 'ready',
+      assessedAtUnixMs: 1_720_000_000_000,
+      report: null,
+      enrolled: true,
+      preferredMode: 'exam',
+      schedulingStatus: 'scheduled',
+      firstReviewAtUnixMs: 1_720_000_000_000,
+      nextReviewAtUnixMs: 1_720_000_000_000,
+      deadlineRetentionAtRisk: false,
+    })
+
+    render(control())
+
+    await user.click(await screen.findByRole('button', { name: /Reiniciar aprendizado desta nota/ }))
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(resetNoteLearningMock).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: /Reiniciar aprendizado/ })).not.toBeInTheDocument()
+  })
+
+  it('não oferece reinício quando a nota nunca foi avaliada', async () => {
+    render(control())
+    expect(await screen.findByText(/Status: Não avaliada/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Reiniciar aprendizado/ })).not.toBeInTheDocument()
+  })
+
   it('reopens the complete persisted readiness report', async () => {
     const persistedState: NoteReviewState = {
       noteId: 'note-report',
@@ -263,6 +399,7 @@ describe('NoteReadinessControl', () => {
       schedulingStatus: 'notScheduled',
       firstReviewAtUnixMs: null,
       nextReviewAtUnixMs: null,
+      deadlineRetentionAtRisk: false,
     }
     getNoteReviewStateMock.mockResolvedValue(persistedState)
     render(control())

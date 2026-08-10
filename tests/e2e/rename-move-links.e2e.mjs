@@ -49,8 +49,15 @@ async function waitForEditorText(expectedText) {
 
 async function saveEditorText(path, content) {
   const editor = await $('[aria-label^="Editor Markdown"]')
-  await editor.setValue(content)
-  await $('.editor-title-button').click()
+  // Digitacao explicita no CodeMirror: foca, seleciona tudo, apaga e digita.
+  // O `setValue` do WebdriverIO nao tipa de forma confiavel no contenteditable.
+  await editor.click()
+  await browser.keys(['Control', 'a'])
+  await browser.keys('Delete')
+  await editor.addValue(content)
+  // O atalho Ctrl+S so salva quando o estado sujo ja foi commitado pelo React:
+  // espera o editor refletir o conteudo digitado antes de enviar a tecla.
+  await waitForEditorText(content)
   await browser.keys(['Control', 's'])
   await waitForFile(
     path,
@@ -60,11 +67,12 @@ async function saveEditorText(path, content) {
 }
 
 async function selectEditorMode(modeElement, mode) {
-  await browser.execute((target, value) => {
-    const valueSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set
-    valueSetter?.call(target, value)
-    target.dispatchEvent(new Event('change', { bubbles: true }))
-  }, modeElement, mode)
+  // O controle de modo deixou de ser um <select> nativo e virou um grupo de
+  // radios (Edicao/Misto/Leitura): clica no radio correspondente.
+  const labels = { edit: 'Edicao', mixed: 'Misto', read: 'Leitura' }
+  const radio = modeElement.$(`.//button[normalize-space()="${labels[mode]}"]`)
+  await expect(radio).toBeDisplayed()
+  await radio.click()
 }
 
 async function createVault(vaultName) {
@@ -79,7 +87,7 @@ async function createVault(vaultName) {
   await createCard.$('.//button[normalize-space()="Criar vault"]').click()
   await expect($('.workspace-shell')).toBeDisplayed()
   await browser.waitUntil(
-    async () => (await $('.workspace-status').getText()).includes('Vault carregado'),
+    async () => (await $('.workspace-title').getText()).includes(vaultName),
     { timeout: 20_000, timeoutMsg: 'O scan inicial do Vault nao foi concluido.' },
   )
 }
@@ -176,7 +184,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
     await expect($('.editor-title-button')).toHaveText('resumo')
     const editorMode = await $('[aria-label="Modo de visualizacao da nota"]')
     await selectEditorMode(editorMode, 'edit')
-    await expect(editorMode).toHaveValue('edit')
+    await expect(editorMode.$('.//button[normalize-space()="Edicao"]')).toHaveAttribute('aria-checked', 'true')
     await waitForEditorText(targetContent)
     await saveEditorText(join(noteDestination, 'resumo.md'), movedTabContent)
 
@@ -210,6 +218,11 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
     expect(existsSync(join(vaultPath, 'estudos'))).toBe(false)
     await expect($('[role="tab"]*=material-interno.md')).toHaveAttribute('aria-selected', 'true')
     await expect($('.editor-title-button')).toHaveText('material-interno')
+    // O salvamento pelo atalho exige o editor em modo Edicao (o modo Misto
+    // nao propaga a entrada programatica do WebdriverIO como sujeira).
+    const nestedEditorMode = await $('[aria-label="Modo de visualizacao da nota"]')
+    await selectEditorMode(nestedEditorMode, 'edit')
+    await expect(nestedEditorMode.$('.//button[normalize-space()="Edicao"]')).toHaveAttribute('aria-checked', 'true')
     await waitForEditorText(nestedContent)
     await saveEditorText(finalNestedPath, movedNestedTabContent)
 
@@ -250,7 +263,7 @@ if (phase === 'verify-rename-and-move') describe('Reabrir rename e move', () => 
     await $('[aria-label="Abrir nota resumo"]').click()
     const editorMode = await $('[aria-label="Modo de visualizacao da nota"]')
     await selectEditorMode(editorMode, 'edit')
-    await expect(editorMode).toHaveValue('edit')
+    await expect(editorMode.$('.//button[normalize-space()="Edicao"]')).toHaveAttribute('aria-checked', 'true')
     await waitForEditorText(targetContent)
 
     await $('[aria-label="Pasta arquivo"]').click()

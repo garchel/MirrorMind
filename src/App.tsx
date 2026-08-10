@@ -1,11 +1,11 @@
-import { Fragment, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, DragEvent, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import type { EditorState } from '@codemirror/state'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { Bold, BookOpenCheck, CheckSquare, ChevronDown, ClipboardList, Code2, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Italic, LayoutDashboard, Link, List, ListFilter, ListOrdered, Minus, Network, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Star, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Star, Strikethrough, Subscript, Superscript, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { CiStickyNote } from 'react-icons/ci'
 import 'katex/dist/katex.min.css'
@@ -18,25 +18,36 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { BuilderModeControl } from './components/BuilderModeControl'
 import { MarkdownCodeEditor } from './components/MarkdownCodeEditor'
 import { NoteTagPicker } from './components/NoteTagPicker'
+import { Badge } from './components/ui/badge'
+import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover'
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from './components/ui/drawer'
 import { ObsidianCallout } from './components/ObsidianCallout'
 import { ObsidianNoteEmbed } from './components/ObsidianNoteEmbed'
 import { ObsidianPdfEmbed } from './components/ObsidianPdfEmbed'
-import { NoteReadinessControl } from './features/review/NoteReadinessControl'
+import { NoteReadinessControl, type ReviewStartInfo } from './features/review/NoteReadinessControl'
 import { NoteReviewPolicyControl } from './features/review/NoteReviewPolicyControl'
 import { ReviewDashboardPage } from './features/review/ReviewDashboardPage'
+import type { ExpiredDeadlineItem, UpcomingDeadlineItem } from './features/review/reviewDashboard'
 import { ReviewQueuePage } from './features/review/ReviewQueuePage'
 import { ReviewReportsPage } from './features/review/ReviewReportsPage'
 import { ReviewSessionPage } from './features/review/ReviewSessionPage'
 import { getNoteReviewGaps, type NoteReviewGap } from './features/review/noteReviewGaps'
-import type { DueReviewItem } from './features/review/reviewQueue'
+import { getNoteReviewUnits, type NoteReviewUnit } from './features/review/noteReviewUnits'
+import { annotateReviewMarkdown } from './features/review/reportMarkdown'
+import { getDueReviewQueue, type DueReviewItem } from './features/review/reviewQueue'
 import { ReviewAiSettings } from './features/review/ReviewAiSettings'
+import { ReviewNotificationSettings } from './features/review/ReviewNotificationSettings'
+import { checkReviewNotifications, type ReviewNotificationCheck } from './features/review/reviewNotifications'
+import { localDayStartUnixMs } from './features/review/reviewDashboard'
 import { SegmentationSettings } from './features/review/SegmentationSettings'
 import { VaultReviewPolicySettings } from './features/review/VaultReviewPolicySettings'
 import { TagManagementPage } from './features/tags/TagManagementPage'
 import { remarkObsidianCallouts } from './lib/remarkObsidianCallouts'
 import { createVaultScanCoordinator, diffVaultNotePaths, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
-import { applyGapHighlight } from './lib/gapHighlight'
+import { findTextMatches } from './lib/findMatches'
+import { findReadMatches, type ReadFindMatch } from './lib/readFind'
 import { applyWikilinkEdit, buildWikilinkIndex, getWikilinkBacklinks, getWikilinkTargets, removeWikilinkEntry } from './lib/wikilinkIndex'
+import { isIndexadora, removeIndexadoraSection, setIndexadoraFlag, syncIndexadoraSection } from './lib/indexadora'
 import type { MarkdownCodeEditorHandle, MarkdownEditorHistoryStatus, MarkdownEditorSession } from './components/MarkdownCodeEditor'
 import {
   DEFAULT_WORKSPACE_SHORTCUTS,
@@ -75,7 +86,9 @@ import {
   suggestVaultName,
 } from './lib/vault'
 import './App.css'
-import { detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownFrontmatterSource, getMarkdownPreviewText, normalizeMarkdownTag, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderWikiLinksAsMarkdown, replaceMarkdownBody, resolveObsidianAttachmentPath, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable, type FrontmatterValue, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
+import { countMarkdownWords, detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownFrontmatterSource, getMarkdownPreviewText, normalizeMarkdownTag, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderWikiLinksAsMarkdown, replaceMarkdownBody, resolveObsidianAttachmentPath, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable, type FrontmatterValue, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
+import { nextPopoverShiftX } from './lib/selectionPopover'
+import { applyGraphDragForces } from './lib/noteGraphLayout'
 
 type TrashItem = {
   id: string
@@ -234,18 +247,33 @@ function createForceGraphLayout(documents: GraphDocument[], links: NoteGraphLink
   return positions
 }
 
+/** Atualiza um numero de configuracao: campo vazio mantem o valor atual,
+ * valores invalidos sao ignorados e o resultado e limitado a [min, max]. */
+function updateNumberSetting(raw: string, current: number, min: number, max: number) {
+  if (raw.trim() === '') return current
+  const next = Number(raw)
+  return Number.isFinite(next) ? Math.max(min, Math.min(max, next)) : current
+}
+
 const AUTO_SAVE_DELAY_MS = 650
 const MAX_CALLOUT_DEPTH = 24
 const MAX_EMBED_DEPTH = 4
 const MAX_EMBEDS_PER_NOTE_RENDER = 16
 const MAX_PDF_EMBEDS_PER_NOTE_RENDER = 4
 const MAX_RICH_MARKDOWN_LENGTH = 1_000_000
+// three.js e pesado (~600 KB): carregado sob demanda, apenas quando o usuario
+// abre o modo 3D do grafo pela primeira vez.
+const NoteGraph3D = lazy(() => import('./components/NoteGraph3D').then((module) => ({ default: module.NoteGraph3D })))
 const MARKDOWN_SANITIZE_SCHEMA = {
   ...defaultSchema,
   tagNames: [...(defaultSchema.tagNames ?? []), 'mark'],
   attributes: {
     ...defaultSchema.attributes,
     mark: ['dataGap'],
+    // Mesmo allowlist do relatorio: permite apenas os badges de pontuacao por
+    // paragrafo (span.review-unit-score). rehype-sanitize remove handlers e
+    // scripts, entao nao ha execucao; classes arbitrarias nao passam.
+    span: ['className', 'title', 'dataScore', 'dataOutcome', 'dataEvaluated', 'dataInconclusive'],
     blockquote: [
       ...(defaultSchema.attributes?.blockquote ?? []),
       'dataCalloutFold',
@@ -292,11 +320,24 @@ function App() {
   const [editorMode, setEditorMode] = useState<'mixed' | 'edit' | 'read'>('mixed')
   const [markdownHistoryStatus, setMarkdownHistoryStatus] = useState<MarkdownEditorHistoryStatus>({ canUndo: false, canRedo: false })
   const [editorSessionsByPath, setEditorSessionsByPath] = useState<Record<string, MarkdownEditorSession>>({})
+  // Popover de formatacao da selecao: posicao (relativa ao painel de conteudo),
+  // direcao de abertura (acima/abaixo da linha do cursor da selecao) e shiftX
+  // (correcao horizontal para o popover inteiro ficar dentro do painel).
+  const [selectionPopover, setSelectionPopover] = useState<{ flip: boolean; shiftX: number; x: number; y: number } | null>(null)
+  const selectionPopoverRef = useRef<HTMLDivElement | null>(null)
   const [isMarkdownToolsOpen, setMarkdownToolsOpen] = useState(false)
-  const [markdownToolsOrientation, setMarkdownToolsOrientation] = useState<'horizontal' | 'vertical'>('horizontal')
+  const [markdownToolsOrientation, setMarkdownToolsOrientation] = useState<'horizontal' | 'vertical'>('vertical')
   const [markdownToolsPosition, setMarkdownToolsPosition] = useState({ x: 24, y: 24 })
-  const [searchRequestId, setSearchRequestId] = useState(0)
+  const [noteFindOpen, setNoteFindOpen] = useState(false)
+  const [noteFindQuery, setNoteFindQuery] = useState('')
+  const [noteFindIndex, setNoteFindIndex] = useState(0)
+  // Busca no modo Leitura: correspondencias calculadas sobre o DOM renderizado
+  // (nao ha editor CodeMirror para destacar). O total vira estado para o
+  // contador da barra; os matches ficam em ref (sem rerender por navegacao).
+  const [readFindTotal, setReadFindTotal] = useState(0)
+  const readFindMatchesRef = useRef<ReadFindMatch[]>([])
   const markdownCodeEditorRef = useRef<MarkdownCodeEditorHandle | null>(null)
+  const noteFindInputRef = useRef<HTMLInputElement | null>(null)
   const panelScrollRef = useRef<Record<string, number>>({})
   const lastEditorPathRef = useRef<string | null>(null)
   const editorPanelRef = useRef<HTMLElement | null>(null)
@@ -344,8 +385,17 @@ function App() {
   const [dropFolderPath, setDropFolderPath] = useState<string | null>(null)
   const [justReleasedDrag, setJustReleasedDrag] = useState(false)
   const [workspacePage, setWorkspacePage] = useState<'notes' | 'review' | 'dashboard' | 'reports' | 'tags' | 'graph' | 'shortcuts' | 'settings' | 'trash'>('notes')
+
+  // Fora da pagina de notas, o explorador de arquivos colapsa para dar espaco
+  // ao conteudo da pagina; ao voltar para notas, expande de volta.
+  useEffect(() => {
+    setExplorerExpanded(workspacePage === 'notes')
+  }, [workspacePage])
   const [activeReviewItem, setActiveReviewItem] = useState<DueReviewItem | null>(null)
+  const [reviewMenuOpen, setReviewMenuOpen] = useState(false)
+  const [notificationLastCheck, setNotificationLastCheck] = useState<ReviewNotificationCheck | null>(null)
   const [reviewGaps, setReviewGaps] = useState<NoteReviewGap[]>([])
+  const [reviewUnits, setReviewUnits] = useState<NoteReviewUnit[]>([])
   const [reviewGapMode, setReviewGapMode] = useState<ReviewGapMode>(
     () => (localStorage.getItem('mirrormind.review-gap-mode') as ReviewGapMode | null) ?? 'hover',
   )
@@ -361,16 +411,76 @@ function App() {
   const vaultWikilinkIndexRef = useRef<ReturnType<typeof buildWikilinkIndex> | null>(null)
   const vaultWikilinkIndexLoadedPathRef = useRef<string | null>(null)
   const vaultWikilinkIndexRequestRef = useRef(0)
-  const [isVaultIndexBuilding, setVaultIndexBuilding] = useState(false)
+  // Nota: o indicador de indexacao em segundo plano foi removido junto com a
+  // faixa de status do canto inferior direito; o indice continua sendo
+  // construido por buildVaultWikilinkIndex sem feedback visual dedicado.
   const [isGraphLoading, setGraphLoading] = useState(false)
   const [graphNodeOverrides, setGraphNodeOverrides] = useState<Record<string, GraphPosition>>({})
   const [graphViewport, setGraphViewport] = useState<GraphViewport>({ scale: 1, x: 0, y: 0 })
+  const [graphMode3d, setGraphMode3d] = useState(false)
+  const [graph3dLayoutVersion, setGraph3dLayoutVersion] = useState(0)
   const [graphQuery, setGraphQuery] = useState('')
   const [graphFolder, setGraphFolder] = useState('')
   const [graphTag, setGraphTag] = useState('')
   const [showGraphOrphans, setShowGraphOrphans] = useState(true)
   const [showOnlyGraphOrphans, setShowOnlyGraphOrphans] = useState(false)
+  const [graphHideAllNames, setGraphHideAllNames] = useState(false)
+  // Configuracoes do grafo 3D (tamanho/orbita/arestas), persistidas por vault.
+  const [graph3dNodeSize, setGraph3dNodeSize] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph3d.node-size'))
+    return Number.isFinite(value) && value > 0 ? value : 0.55
+  })
+  const [graph3dNodeSpacing, setGraph3dNodeSpacing] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph3d.node-spacing'))
+    return Number.isFinite(value) && value > 0 ? value : 8
+  })
+  const [graph3dOrbitSpeed, setGraph3dOrbitSpeed] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph3d.orbit-speed'))
+    return Number.isFinite(value) && value > 0 ? value : 1
+  })
+  const [graph3dMaxEdgeLength, setGraph3dMaxEdgeLength] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph3d.max-edge-length'))
+    return Number.isFinite(value) && value > 0 ? value : 14
+  })
+  const [graph3dMinEdgeLength, setGraph3dMinEdgeLength] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph3d.min-edge-length'))
+    return Number.isFinite(value) && value >= 0 ? value : 2.5
+  })
+  const [graph3dDegreeGrowth, setGraph3dDegreeGrowth] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph3d.degree-growth'))
+    return Number.isFinite(value) && value >= 0 ? value : 0.13
+  })
+  // Header flutuante do grafo com opacidade variavel: aparece com o mouse e
+  // some apos alguns segundos de inatividade (imersao).
+  const [graphUiVisible, setGraphUiVisible] = useState(true)
+  const graphUiHideTimerRef = useRef<number | null>(null)
+  const [graphSettingsOpen, setGraphSettingsOpen] = useState(false)
+  const graphSettingsOpenRef = useRef(false)
+
+  function pokeGraphUi() {
+    setGraphUiVisible(true)
+    if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current)
+    graphUiHideTimerRef.current = window.setTimeout(() => {
+      if (!graphSettingsOpenRef.current) setGraphUiVisible(false)
+    }, 2600)
+  }
+
+  function setGraphSettingsOpenSynced(open: boolean) {
+    graphSettingsOpenRef.current = open
+    setGraphSettingsOpen(open)
+    if (open) {
+      setGraphUiVisible(true)
+      if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current)
+    } else {
+      pokeGraphUi()
+    }
+  }
+
+  useEffect(() => () => {
+    if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current)
+  }, [])
   const [focusedGraphPath, setFocusedGraphPath] = useState<string | null>(null)
+  const [graphDetailOpen, setGraphDetailOpen] = useState(false)
   const [graphMode, setGraphMode] = useState<GraphMode>('global')
   const [shortcuts, setShortcuts] = useState<WorkspaceShortcuts>(() => {
     try {
@@ -407,6 +517,40 @@ function App() {
   useEffect(() => {
     localStorage.setItem('mirrormind.review-gap-mode', reviewGapMode)
   }, [reviewGapMode])
+  useEffect(() => {
+    localStorage.setItem('mirrormind.graph3d.node-size', String(graph3dNodeSize))
+    localStorage.setItem('mirrormind.graph3d.node-spacing', String(graph3dNodeSpacing))
+    localStorage.setItem('mirrormind.graph3d.orbit-speed', String(graph3dOrbitSpeed))
+    localStorage.setItem('mirrormind.graph3d.max-edge-length', String(graph3dMaxEdgeLength))
+    localStorage.setItem('mirrormind.graph3d.min-edge-length', String(graph3dMinEdgeLength))
+    localStorage.setItem('mirrormind.graph3d.degree-growth', String(graph3dDegreeGrowth))
+  }, [graph3dDegreeGrowth, graph3dMaxEdgeLength, graph3dMinEdgeLength, graph3dNodeSize, graph3dNodeSpacing, graph3dOrbitSpeed])
+  // Resumo diario de revisoes vencidas: verifica a cada 5 minutos enquanto ha
+  // um vault aberto. O backend garante no maximo uma notificacao por dia local.
+  useEffect(() => {
+    if (!vault) return
+    let cancelled = false
+    async function check() {
+      if (cancelled || !vault) return
+      try {
+        const result = await checkReviewNotifications({
+          vaultPath: vault.path,
+          nowUnixMs: Date.now(),
+          localDayStartUnixMs: localDayStartUnixMs(),
+        })
+        if (!cancelled) setNotificationLastCheck(result)
+      } catch {
+        // Silencioso: falhas de notificacao nao devem incomodar a edicao.
+      }
+    }
+    void check()
+    const timer = window.setInterval(() => void check(), 5 * 60_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [vault])
+  const [noteReadiness, setNoteReadiness] = useState<string | null>(null)
   const [isSpellCheckEnabled, setSpellCheckEnabled] = useState(
     () => localStorage.getItem('mirrormind.spell-check') !== 'false',
   )
@@ -467,8 +611,9 @@ function App() {
   const isDirty = activeNote !== null && draftContent !== activeNote.content
   const noteTags = extractMarkdownTags(draftContent)
   const frontmatterProperties = getMarkdownFrontmatterProperties(draftContent)
-  const visibleFrontmatterProperties = Object.entries(frontmatterProperties).filter(([key]) => key !== 'description')
+  const visibleFrontmatterProperties = Object.entries(frontmatterProperties).filter(([key]) => key !== 'description' && key !== 'tags')
   const noteBody = getMarkdownBody(draftContent)
+  const noteWordCount = useMemo(() => countMarkdownWords(draftContent), [draftContent])
   const canUndoActiveEditor = editorMode === 'edit'
     ? markdownHistoryStatus.canUndo
     : editorMode === 'mixed'
@@ -515,6 +660,13 @@ function App() {
     if (event.target instanceof HTMLElement && event.target.closest('.cm-content')) {
       return
     }
+
+    if (activeNote && (event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'f') {
+      event.preventDefault()
+      openNoteFind()
+      return
+    }
+
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
       if (event.target instanceof HTMLTextAreaElement && (event.ctrlKey || event.metaKey)) {
         const format = event.key.toLowerCase() === 'b' ? 'bold' : event.key.toLowerCase() === 'i' ? 'italic' : null
@@ -642,7 +794,7 @@ function App() {
       const renamePaths = change?.kind === 'rename' && change.paths.length >= 2
         ? [change.paths[0], change.paths.at(-1) ?? change.paths[1]] as const
         : null
-      const trackedTabs = renamePaths
+      let trackedTabs = renamePaths
         ? openTabsRef.current.map((path) => remapVaultPath(path, renamePaths[0], renamePaths[1]))
         : openTabsRef.current
       if (renamePaths) {
@@ -661,12 +813,18 @@ function App() {
       const previousNotePaths = notesRef.current.map((note) => note.relativePath)
       const nextNotePaths = nextNotes.map((note) => note.relativePath)
       const { removedPaths: removedLearningPaths, createdPaths: createdLearningPaths } = diffVaultNotePaths(previousNotePaths, nextNotePaths)
-      if (removedLearningPaths.length > 0 && createdLearningPaths.length > 0) {
-        void invoke<number>('reconcile_external_learning_paths', {
-          path: vaultPath,
-          removedPaths: removedLearningPaths,
-          createdPaths: createdLearningPaths,
-        }).catch(() => undefined)
+      const reconciledLearningNotePairs = removedLearningPaths.length > 0 && createdLearningPaths.length > 0
+        ? await invoke<Array<[string, string]>>('reconcile_external_learning_paths', {
+            path: vaultPath,
+            removedPaths: removedLearningPaths,
+            createdPaths: createdLearningPaths,
+          }).catch(() => [])
+        : []
+      for (const [sourcePath, destinationPath] of reconciledLearningNotePairs) {
+        // O backend so confirma pares cujo hash de conteudo e identico: o remapeamento
+        // do workspace segue identidade verificada, nunca adivinha.
+        remapWorkspacePathsForExternalChange(sourcePath, destinationPath)
+        trackedTabs = trackedTabs.map((path) => remapVaultPath(path, sourcePath, destinationPath))
       }
       const currentSnapshot = JSON.stringify({ folders: [...foldersRef.current].sort(), notes: notesRef.current.map((note) => note.relativePath).sort(), specialFiles: specialFilesRef.current.map((file) => file.relativePath).sort(), specialFilesTruncated: specialFilesTruncatedRef.current })
       const nextSnapshot = JSON.stringify({ folders: [...nextFolders].sort(), notes: nextNotes.map((note) => note.relativePath).sort(), specialFiles: nextSpecialFiles.map((file) => file.relativePath).sort(), specialFilesTruncated: nextSpecialInventory.truncated })
@@ -714,9 +872,12 @@ function App() {
       const activePath = renamePaths && activeNoteRef.current
         ? remapVaultPath(activeNoteRef.current.relativePath, renamePaths[0], renamePaths[1])
         : activeNoteRef.current?.relativePath
+      const reconciledLearningNoteCount = reconciledLearningNotePairs.length
       setStatus(activePath && !availablePaths.has(activePath)
         ? 'A nota aberta foi removida ou movida fora do MirrorMind. O rascunho local foi preservado.'
-        : 'Explorador atualizado a partir de uma alteracao externa.')
+        : reconciledLearningNoteCount > 0
+          ? `Aprendizado preservado em ${reconciledLearningNoteCount} ${reconciledLearningNoteCount === 1 ? 'nota movida' : 'notas movidas'} externamente.`
+          : 'Explorador atualizado a partir de uma alteracao externa.')
     } catch {
       // Another application may be writing the vault while it is scanned.
     }
@@ -770,12 +931,13 @@ function App() {
   useEffect(() => {
     if (!vault) return
     try {
-      const stored = JSON.parse(localStorage.getItem(`mirrormind.graph.${vault.path}`) ?? '{}') as Partial<{ positions: Record<string, GraphPosition>; viewport: GraphViewport; folder: string; tag: string; showOrphans: boolean; mode: GraphMode }>
+      const stored = JSON.parse(localStorage.getItem(`mirrormind.graph.${vault.path}`) ?? '{}') as Partial<{ positions: Record<string, GraphPosition>; viewport: GraphViewport; folder: string; tag: string; showOrphans: boolean; hideAllNames: boolean; mode: GraphMode }>
       setGraphNodeOverrides(stored.positions ?? {})
       setGraphViewport(stored.viewport ?? { scale: 1, x: 0, y: 0 })
       setGraphFolder(stored.folder ?? '')
       setGraphTag(stored.tag ?? '')
       setShowGraphOrphans(stored.showOrphans ?? true)
+      setGraphHideAllNames(stored.hideAllNames ?? false)
       setGraphMode(stored.mode ?? 'global')
     } catch {
       setGraphNodeOverrides({})
@@ -790,21 +952,70 @@ function App() {
       folder: graphFolder,
       tag: graphTag,
       showOrphans: showGraphOrphans,
+      hideAllNames: graphHideAllNames,
       mode: graphMode,
     }))
-  }, [graphFolder, graphMode, graphNodeOverrides, graphTag, graphViewport, showGraphOrphans, vault])
+  }, [graphFolder, graphHideAllNames, graphMode, graphNodeOverrides, graphTag, graphViewport, showGraphOrphans, vault])
+
+  // Ao abrir a pagina do grafo, ajusta o viewport para que todas as notas
+  // fiquem visiveis (encaixa o conteudo no painel), independente do zoom/pan
+  // que o usuario tenha deixado da ultima vez.
+  useEffect(() => {
+    if (workspacePage !== 'graph' || isGraphLoading || graphDocuments.length === 0) return
+    const surface = graphSurfaceRef.current
+    if (!surface) return
+    const width = surface.clientWidth
+    const height = surface.clientHeight
+    if (width <= 0 || height <= 0) return
+    // Mesma formula de graphNodePositions (override do usuario ou circulo).
+    const circleRadius = graphDocuments.length < 3 ? 28 : 34
+    const positions = graphDocuments.map((document, index) => {
+      const override = graphNodeOverrides[document.relativePath]
+      if (override) return override
+      const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
+      return { x: 50 + Math.cos(angle) * circleRadius, y: 50 + Math.sin(angle) * circleRadius }
+    })
+    if (positions.length === 0) return
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    for (const position of positions) {
+      minX = Math.min(minX, position.x)
+      minY = Math.min(minY, position.y)
+      maxX = Math.max(maxX, position.x)
+      maxY = Math.max(maxY, position.y)
+    }
+    const spanX = Math.max(maxX - minX, 10)
+    const spanY = Math.max(maxY - minY, 10)
+    const scale = Math.max(
+      0.35,
+      Math.min(1.15, Math.min((width - 170) / ((spanX / 100) * width), (height - 130) / ((spanY / 100) * height))),
+    )
+    const centerX = (minX + maxX) / 2
+    const centerY = (minY + maxY) / 2
+    setGraphViewport({
+      scale,
+      x: width / 2 - (centerX / 100) * width * scale,
+      y: height / 2 - (centerY / 100) * height * scale,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspacePage, isGraphLoading])
 
   useEffect(() => {
     const query = graphQuery.trim().toLowerCase()
-    if (!query || !graphSurfaceRef.current) return
+    if (!query) return
     const index = graphDocuments.findIndex((document) => document.name.replace(/\.md$/i, '').toLowerCase().includes(query))
     if (index === -1) return
     const document = graphDocuments[index]
+    setFocusedGraphPath(document.relativePath)
+    // Modo 3D: sem superficie 2D para panoramizar — o destaque e os pulsos do
+    // componente 3D ja localizam a nota; o pan/zoom do viewport e do 2D.
+    if (!graphSurfaceRef.current) return
     const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
     const position = graphNodeOverrides[document.relativePath] ?? { x: 50 + Math.cos(angle) * (graphDocuments.length < 3 ? 28 : 34), y: 50 + Math.sin(angle) * (graphDocuments.length < 3 ? 28 : 34) }
     const bounds = graphSurfaceRef.current.getBoundingClientRect()
     const scale = 1.2
-    setFocusedGraphPath(document.relativePath)
     setGraphViewport({
       scale,
       x: (bounds.width / 2) - ((position.x / 100) * bounds.width * scale),
@@ -913,11 +1124,16 @@ function App() {
 
   useEffect(() => {
     setExternalNoteConflict(null)
+    // O conteudo do popover desmonta quando fechado, entao o dot de status
+    // precisa ser resetado ao trocar de nota (senao mostraria o estado antigo).
+    setNoteReadiness(null)
+    setReviewUnits([])
   }, [activeNote?.relativePath])
 
   useEffect(() => {
     if (!vault || !activeNote || isNewNoteDraft) {
       setReviewGaps([])
+      setReviewUnits([])
       return
     }
     let disposed = false
@@ -928,6 +1144,14 @@ function App() {
       })
       .catch(() => {
         if (!disposed) setReviewGaps([])
+      })
+    void getNoteReviewUnits({ vaultPath: vault.path, relativePath: activeNote.relativePath })
+      .then((units) => {
+        if (disposed) return
+        setReviewUnits(units)
+      })
+      .catch(() => {
+        if (!disposed) setReviewUnits([])
       })
     return () => {
       disposed = true
@@ -1230,7 +1454,6 @@ function App() {
     const requestId = vaultWikilinkIndexRequestRef.current + 1
     vaultWikilinkIndexRequestRef.current = requestId
     vaultWikilinkIndexLoadedPathRef.current = vaultPath
-    setVaultIndexBuilding(true)
     try {
       const noteList = await invoke<unknown>('list_notes', { path: vaultPath })
       const allNotes = parseNoteList(noteList)
@@ -1257,8 +1480,6 @@ function App() {
       // Indexacao em segundo plano nunca derruba a interface; o get_backlinks
       // (varredura no disco) continua como fallback.
       vaultWikilinkIndexRef.current = null
-    } finally {
-      if (requestId === vaultWikilinkIndexRequestRef.current) setVaultIndexBuilding(false)
     }
   }
 
@@ -1354,12 +1575,69 @@ function App() {
       return remaining
     })
   }
+  /** Abre uma sessao de revisao imediata para a nota ativa: usa o item da
+   *  fila quando a nota ja esta vencida; senao sintetiza um item com os
+   *  dados de estado (a sessao so valida notas prontas e inscritas). */
+  async function handleStartReviewNow(info: ReviewStartInfo | null) {
+    if (!vault || !activeNote) return
+    let dueItem: DueReviewItem | null = null
+    try {
+      const queue = await getDueReviewQueue(vault.path)
+      dueItem = queue.find((candidate) => candidate.relativePath === activeNote.relativePath) ?? null
+    } catch {
+      dueItem = null
+    }
+    const synthesizedItem: DueReviewItem = {
+      noteId: info?.noteId ?? activeNote.relativePath,
+      relativePath: activeNote.relativePath,
+      title: activeNote.name.replace(/\.md$/i, ''),
+      nextReviewAtUnixMs: info?.nextReviewAtUnixMs ?? Date.now(),
+      priorityWeight: 1,
+      deadlineAtUnixMs: null,
+      preferredMode: info?.preferredMode ?? 'exam',
+      isFirstReview: info?.firstReviewAtUnixMs == null,
+    }
+    setReviewMenuOpen(false)
+    setActiveReviewItem(dueItem ?? synthesizedItem)
+    setWorkspacePage('review')
+  }
+
+  /** Inicia uma revisao direto do dashboard (prazo ativo e encerrado): usa o
+   *  item real da fila quando existe; senao sintetiza com os dados do prazo
+   *  (itens encerrados nao carregam prioridade, entao usa 1 como fallback).
+   *  A sessao valida no backend prontidao, adesao e vencimento. */
+  async function handleStartReviewFromDeadline(item: UpcomingDeadlineItem | ExpiredDeadlineItem) {
+    if (!vault) return
+    let dueItem: DueReviewItem | null = null
+    try {
+      const queue = await getDueReviewQueue(vault.path)
+      dueItem = queue.find((candidate) => candidate.noteId === item.noteId) ?? null
+    } catch {
+      dueItem = null
+    }
+    const synthesizedItem: DueReviewItem = {
+      noteId: item.noteId,
+      relativePath: item.relativePath,
+      title: item.title,
+      nextReviewAtUnixMs: Date.now(),
+      priorityWeight: 'priorityWeight' in item ? item.priorityWeight : 1,
+      deadlineAtUnixMs: item.deadlineAtUnixMs,
+      // Quando o item real da fila existe, preserva o modo preferido da nota;
+      // no fallback sintetizado (sem fila) usa o padrao Prova.
+      preferredMode: dueItem?.preferredMode ?? 'exam',
+      isFirstReview: false,
+    }
+    setActiveReviewItem(dueItem ?? synthesizedItem)
+    setWorkspacePage('review')
+  }
+
   async function openGraphPage() {
     if (!vault) return
     const requestId = graphLoadRequestRef.current + 1
     graphLoadRequestRef.current = requestId
     const vaultPath = vault.path
     setWorkspacePage('graph')
+    setGraphDetailOpen(false)
     setGraphLoading(true)
     setError(null)
 
@@ -1383,6 +1661,10 @@ function App() {
   }
 
   function reorganizeGraphNodes() {
+    if (graphMode3d) {
+      setGraph3dLayoutVersion((version) => version + 1)
+      return
+    }
     const links = graphWikilinkIndex
       ? buildNoteGraphLinksFromIndex(graphWikilinkIndex, graphDocuments)
       : buildNoteGraphLinks(graphDocuments, notes.map((note) => note.relativePath))
@@ -1393,17 +1675,13 @@ function App() {
     setGraphViewport({ scale: 1, x: 0, y: 0 })
   }
 
-  function updateGraphNodePosition(path: string, clientX: number, clientY: number) {
-    const surface = graphSurfaceRef.current
-    if (!surface) return
-    const bounds = surface.getBoundingClientRect()
-    setGraphNodeOverrides((positions) => ({
-      ...positions,
-      [path]: {
-        x: Math.max(4, Math.min(96, ((clientX - bounds.left - graphViewport.x) / (bounds.width * graphViewport.scale)) * 100)),
-        y: Math.max(5, Math.min(95, ((clientY - bounds.top - graphViewport.y) / (bounds.height * graphViewport.scale)) * 100)),
-      },
-    }))
+  function resetGraph3dSettings() {
+    setGraph3dNodeSize(0.55)
+    setGraph3dNodeSpacing(8)
+    setGraph3dOrbitSpeed(1)
+    setGraph3dMaxEdgeLength(14)
+    setGraph3dMinEdgeLength(2.5)
+    setGraph3dDegreeGrowth(0.13)
   }
 
   async function copyGraphWikiLink(relativePath: string) {
@@ -1763,11 +2041,18 @@ function App() {
       }
       setDeleteTarget(null)
       setStatus(`${target.type === 'note' ? 'Nota' : 'Pasta'} movida para a lixeira.`)
-      // Remove do indice em memoria as notas atingidas (incremental).
+      // Remove do indice em memoria as notas atingidas (incremental) e
+      // sincroniza notas indexadoras que apontavam para os itens excluidos.
       if (vaultWikilinkIndexRef.current) {
-        for (const path of [...vaultWikilinkIndexRef.current.entries.keys()].filter(isDeletedPath)) {
+        const deletedPaths = [...vaultWikilinkIndexRef.current.entries.keys()].filter(isDeletedPath)
+        const indexadoraSources = new Set<string>()
+        for (const path of deletedPaths) {
+          for (const source of vaultWikilinkIndexRef.current.backlinks.get(path) ?? []) indexadoraSources.add(source)
+        }
+        for (const path of deletedPaths) {
           vaultWikilinkIndexRef.current = removeWikilinkEntry(vaultWikilinkIndexRef.current, path)
         }
+        for (const sourcePath of indexadoraSources) void syncIndexadoraPath(sourcePath)
       }
       await refreshNotes(vault.path, '')
     } catch (caughtError) {
@@ -1779,6 +2064,7 @@ function App() {
 
   async function restoreTrashItem(id: string) {
     if (!vault) return
+    setError(null)
     setLoading(true)
     try {
       await invoke('restore_trash_item', { path: vault.path, id })
@@ -1795,6 +2081,7 @@ function App() {
   async function permanentlyDeleteTrashItem() {
     if (!vault || !permanentDeleteTarget) return
     const target = permanentDeleteTarget
+    setError(null)
     setLoading(true)
     try {
       await invoke('permanently_delete_trash_item', { path: vault.path, id: target.id })
@@ -1925,13 +2212,13 @@ function App() {
     setStatus(`Tag aplicada: #${tag}`)
   }
 
-  async function saveActiveNote(isAutomatic = false) {
+  async function saveActiveNote(isAutomatic = false, contentOverride?: string) {
     if (!vault || !activeNote || saveInFlightRef.current) {
       return
     }
     saveInFlightRef.current = true
     const notePath = activeNote.relativePath
-    const contentToSave = draftContent
+    const contentToSave = contentOverride ?? draftContent
 
     if (isNewNoteDraft) {
       const relativePath = formatNoteTitleAsPath(createNoteForm.title)
@@ -1996,7 +2283,11 @@ function App() {
           return remainingDrafts
         })
       }
-      // Atualiza o indice em memoria so da nota salva (incremental).
+      // Atualiza o indice em memoria so da nota salva (incremental) e
+      // sincroniza as notas indexadoras afetadas por esta edicao de links.
+      const previousTargets = graphWikilinkIndexRef.current?.entries.get(notePath)?.targets
+        ?? vaultWikilinkIndexRef.current?.entries.get(notePath)?.targets
+        ?? []
       if (graphWikilinkIndexRef.current) {
         graphWikilinkIndexRef.current = applyWikilinkEdit(
           graphWikilinkIndexRef.current,
@@ -2004,6 +2295,16 @@ function App() {
           parsedNote.content,
         )
       }
+      // Mantem o indice do Vault em dia para backlinks/autocomplete e para a
+      // sincronizacao das notas indexadoras (o grafo pode nunca ter sido aberto).
+      if (vaultWikilinkIndexRef.current) {
+        vaultWikilinkIndexRef.current = applyWikilinkEdit(
+          vaultWikilinkIndexRef.current,
+          parsedNote.relativePath,
+          parsedNote.content,
+        )
+      }
+      void syncIndexadorasAfterSave(parsedNote, previousTargets)
       if (isStillActive) setStatus(`Nota salva: ${parsedNote.relativePath}`)
       void loadBacklinks(parsedNote.relativePath, vault.path)
       void loadBrokenLinks(parsedNote.relativePath, vault.path)
@@ -2021,6 +2322,81 @@ function App() {
       setSaving(false)
       if (isAutomatic) setAutoSaveState(draftContentRef.current === contentToSave ? 'saved' : 'pending')
     }
+  }
+
+  /** Rele a nota `path` e reescreve a secao gerada (se for indexadora) ou a
+   *  remove (se a flag saiu). Nao sobrescreve um rascunho mais novo quando
+   *  `skipIfDirtyOf` e o proprio caminho. Atualiza os indices em memoria. */
+  async function syncIndexadoraPath(path: string, skipIfDirtyOf?: string): Promise<boolean> {
+    if (!vault) return false
+    const index = graphWikilinkIndexRef.current ?? vaultWikilinkIndexRef.current
+    if (!index) return false
+    try {
+      const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath: path })
+      const note = parseNoteDocument(payload)
+      if (skipIfDirtyOf === path && draftContentRef.current !== note.content) return false
+      const backlinks = getWikilinkBacklinks(index, path)
+      const synced = isIndexadora(note.content)
+        ? syncIndexadoraSection(note.content, backlinks)
+        : removeIndexadoraSection(note.content)
+      if (synced === note.content) return false
+      await invoke<unknown>('save_note', { path: vault.path, relativePath: path, content: synced })
+      if (graphWikilinkIndexRef.current) {
+        graphWikilinkIndexRef.current = applyWikilinkEdit(graphWikilinkIndexRef.current, path, synced)
+      }
+      if (vaultWikilinkIndexRef.current) {
+        vaultWikilinkIndexRef.current = applyWikilinkEdit(vaultWikilinkIndexRef.current, path, synced)
+      }
+      return true
+    } catch {
+      // Falha ao gravar uma indexadora nunca derruba o salvamento original.
+      return false
+    }
+  }
+
+  /** Apos salvar uma nota, sincroniza as secoes das notas indexadoras cujos
+   *  backlinks mudaram por causa dos links novos/removidos na nota salva. O
+   *  conjunto afetado e calculado UMA vez (sem cascata): a propria nota salva
+   *  (popula ou remove a propria secao) + indexadoras que a nota salva
+   *  comecou/deixou de referenciar. */
+  async function syncIndexadorasAfterSave(
+    savedNote: ReturnType<typeof parseNoteDocument>,
+    previousTargets: string[],
+  ) {
+    if (!vault) return
+    const index = graphWikilinkIndexRef.current ?? vaultWikilinkIndexRef.current
+    if (!index) return
+    const savedPath = savedNote.relativePath
+    const currentTargets = index.entries.get(savedPath)?.targets ?? []
+    const affected = new Set<string>([savedPath])
+    for (const candidatePath of new Set([...previousTargets, ...currentTargets])) {
+      if (candidatePath === savedPath) continue
+      try {
+        const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath: candidatePath })
+        if (isIndexadora(parseNoteDocument(payload).content)) affected.add(candidatePath)
+      } catch {
+        // Link quebrado ou nota inexistente: nada a sincronizar.
+      }
+    }
+    for (const path of affected) {
+      await syncIndexadoraPath(path, savedPath)
+    }
+  }
+
+  /** Liga/desliga a flag indexadora da nota ativa e salva na hora. A secao
+   *  gerada ja entra no rascunho para o editor refletir imediatamente. */
+  async function toggleActiveNoteIndexadora() {
+    if (!vault || !activeNote || isNewNoteDraft || saving || loading) return
+    const enabled = !isIndexadora(activeNote.content)
+    const flagContent = setIndexadoraFlag(activeNote.content, enabled)
+    const index = graphWikilinkIndexRef.current ?? vaultWikilinkIndexRef.current
+    const backlinks = index ? getWikilinkBacklinks(index, activeNote.relativePath) : []
+    const finalContent = enabled
+      ? syncIndexadoraSection(flagContent, backlinks)
+      : removeIndexadoraSection(flagContent)
+    draftContentRef.current = finalContent
+    setDraftContent(finalContent)
+    await saveActiveNote(false, finalContent)
   }
 
   function loadExternalNoteVersion() {
@@ -2231,9 +2607,204 @@ function App() {
     markdownCodeEditorRef.current?.focus()
   }
 
-  function openNoteSearch() {
-    if (editorMode === 'mixed') setEditorMode('edit')
-    setSearchRequestId((requestId) => requestId + 1)
+  // Sessao do editor atualmente visivel (Edicao usa a chave do caminho; Misto
+  // usa a chave composta). Leitura nao tem editor e nunca abre o popover.
+  const activeEditorSession = useMemo(() => {
+    if (editorMode === 'read' || !activeNote) return null
+    const key = editorMode === 'edit' ? activeNote.relativePath : `${activeNote.relativePath}::misto::gfm`
+    return editorSessionsByPath[key] ?? null
+  }, [activeNote, editorMode, editorSessionsByPath])
+
+  // Popover de formatacao: aparece nos modos com editor quando ha uma selecao
+  // nao-colapsada, ancorado na linha do cursor inicial da selecao. Some quando
+  // a selecao colapsa ou o texto sai da area visivel; o blur e o Escape sao
+  // tratados abaixo (onBlur dos editores e listener global de teclado).
+  useEffect(() => {
+    if (editorMode === 'read' || !activeNote) {
+      setSelectionPopover(null)
+      return
+    }
+    const session = activeEditorSession
+    if (!session || session.selectionStart === session.selectionEnd) {
+      setSelectionPopover(null)
+      return
+    }
+    const container = editorContentRef.current
+    if (!container) {
+      setSelectionPopover(null)
+      return
+    }
+    const containerRect = container.getBoundingClientRect()
+    const rect = markdownCodeEditorRef.current?.getSelectionRect()
+    if (!rect) {
+      // Sem geometria (ex.: testes/jsdom ou linha fora da area visivel): ancora
+      // no topo central do painel para nao perder a acao por falta de layout.
+      setSelectionPopover({ flip: false, shiftX: 0, x: Math.max(60, containerRect.width / 2), y: 12 })
+      return
+    }
+    const centerX = (rect.left + rect.right) / 2 - containerRect.left
+    const above = rect.top - containerRect.top - 8
+    const flip = above < 0
+    setSelectionPopover({
+      flip,
+      shiftX: 0,
+      x: Math.min(Math.max(centerX, 60), Math.max(60, containerRect.width - 60)),
+      y: flip ? rect.bottom - containerRect.top + 8 : above,
+    })
+  }, [activeEditorSession, activeNote, editorMode])
+
+  // Contencao horizontal: como o popover e centralizado no ponto de ancoragem
+  // (translateX(-50%)), metade da sua largura pode estourar o painel quando a
+  // selecao esta perto da borda (ex.: inicio da linha) e ficar cortada pelo
+  // explorador. Mede o popover ja renderizado e desloca-o (incrementalmente,
+  // via nextPopoverShiftX) para dentro dos limites do mesmo contêiner da busca
+  // Ctrl+F (.editor-content) — sem oscilar, pois o delta vira 0 ao entrar.
+  useLayoutEffect(() => {
+    if (!selectionPopover) return
+    const popover = selectionPopoverRef.current
+    const container = editorContentRef.current
+    if (!popover || !container) return
+    const popoverRect = popover.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+    const shiftX = nextPopoverShiftX(
+      popoverRect.left,
+      popoverRect.right,
+      containerRect.left,
+      containerRect.right,
+      selectionPopover.shiftX,
+    )
+    if (shiftX !== selectionPopover.shiftX) {
+      setSelectionPopover((current) => (current ? { ...current, shiftX } : current))
+    }
+  }, [selectionPopover])
+
+  // Escape fecha o popover de formatacao sem roubar o foco do editor.
+  useEffect(() => {
+    if (!selectionPopover) return
+    const handlePopoverKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setSelectionPopover(null)
+        focusActiveEditor()
+      }
+    }
+    window.addEventListener('keydown', handlePopoverKeyDown)
+    return () => window.removeEventListener('keydown', handlePopoverKeyDown)
+  }, [selectionPopover])
+
+  const noteFindMatches = useMemo(() => findTextMatches(draftContent, noteFindQuery), [noteFindQuery, draftContent])
+  // No modo Leitura as correspondencias vêm do DOM renderizado (readFindTotal);
+  // nos modos com editor, do texto-fonte (noteFindMatches).
+  const findTotal = editorMode === 'read' ? readFindTotal : noteFindMatches.length
+  const lastNoteFindQueryRef = useRef('')
+
+  // Sincroniza o destaque do editor com a query atual e volta para a primeira
+  // correspondencia quando o termo muda (nao quando o documento muda, para nao
+  // roubar o cursor do usuario enquanto digita na nota).
+  useEffect(() => {
+    if (!noteFindOpen) return
+    // Ao trocar de modo, o editor pode ter sido montado do zero (ex.: Leitura
+    // -> Edicao com a busca aberta); reaplica o destaque sem mover a selecao.
+    markdownCodeEditorRef.current?.setFindQuery(noteFindQuery)
+    if (lastNoteFindQueryRef.current === noteFindQuery) return
+    lastNoteFindQueryRef.current = noteFindQuery
+    setNoteFindIndex(0)
+    const first = noteFindMatches[0]
+    if (first) markdownCodeEditorRef.current?.selectRange(first.from, first.to)
+  }, [noteFindOpen, noteFindQuery, noteFindMatches, editorMode])
+
+  // Quando o documento muda (ex.: digitacao na nota), o total de correspondencias
+  // pode encolher; mantem o indice dentro dos limites sem reiniciar a navegacao.
+  useEffect(() => {
+    if (!noteFindOpen) return
+    const total = editorMode === 'read' ? readFindTotal : noteFindMatches.length
+    setNoteFindIndex((current) => Math.min(current, Math.max(0, total - 1)))
+  }, [noteFindOpen, noteFindMatches.length, readFindTotal, editorMode])
+
+  // Modo Leitura: recalcula as correspondencias sobre o DOM do artigo quando o
+  // termo ou o conteudo mudam. Declarado ANTES do efeito de navegacao para que
+  // a ref esteja atualizada quando ele selecionar a primeira correspondencia.
+  useEffect(() => {
+    if (editorMode !== 'read' || !noteFindOpen || !noteFindQuery.trim()) {
+      readFindMatchesRef.current = []
+      setReadFindTotal(0)
+      return
+    }
+    const article = editorPanelRef.current
+    if (!article) {
+      readFindMatchesRef.current = []
+      setReadFindTotal(0)
+      return
+    }
+    const matches = findReadMatches(article, noteFindQuery)
+    readFindMatchesRef.current = matches
+    setReadFindTotal(matches.length)
+  }, [editorMode, noteFindOpen, noteFindQuery, draftContent, noteBody])
+
+  // Modo Leitura: seleciona e rola ate a correspondencia atual (Range do DOM,
+  // sem mutar a arvore que o React gerencia).
+  useEffect(() => {
+    if (editorMode !== 'read' || !noteFindOpen) return
+    const match = readFindMatchesRef.current[noteFindIndex]
+    if (!match) return
+    selectReadFindMatch(match)
+  }, [editorMode, noteFindOpen, noteFindIndex, noteFindQuery, draftContent])
+
+  // Trocar de nota fecha a busca para nao aplicar um termo antigo ao novo arquivo.
+  useEffect(() => {
+    resetNoteFindState()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeNote?.relativePath])
+
+  // Abre a busca no modo atual (Edicao, Misto ou Leitura) sem trocar de modo:
+  // a barra flutuante fica sobre o conteudo e a navegacao usa o editor nos
+  // modos com CodeMirror e o DOM renderizado no modo Leitura.
+  function openNoteFind() {
+    setNoteFindOpen(true)
+  }
+
+  /** Seleciona (destaca) e rola ate uma correspondencia do modo Leitura. */
+  function selectReadFindMatch(match: ReadFindMatch) {
+    const range = document.createRange()
+    range.setStart(match.node, Math.min(match.start, match.node.data.length))
+    range.setEnd(match.endNode, Math.min(match.end, match.endNode.data.length))
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    // jsdom nao implementa scrollIntoView (guard para os testes); em navegador
+    // reais rola o painel de leitura ate a correspondencia.
+    const target = match.node.parentElement
+    if (target && typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'center' })
+  }
+
+  function closeNoteFind() {
+    resetNoteFindState()
+    focusActiveEditor()
+  }
+
+  function resetNoteFindState() {
+    setNoteFindOpen(false)
+    setNoteFindQuery('')
+    setNoteFindIndex(0)
+    readFindMatchesRef.current = []
+    setReadFindTotal(0)
+    markdownCodeEditorRef.current?.setFindQuery('')
+    // No modo Leitura a selecao da navegacao fica no DOM; limpa ao fechar.
+    if (editorMode === 'read') window.getSelection()?.removeAllRanges()
+  }
+
+  function navigateNoteFind(delta: number) {
+    const total = editorMode === 'read' ? readFindMatchesRef.current.length : noteFindMatches.length
+    if (total === 0) return
+    const next = (noteFindIndex + delta + total) % total
+    setNoteFindIndex(next)
+    if (editorMode === 'read') {
+      const match = readFindMatchesRef.current[next]
+      if (match) selectReadFindMatch(match)
+      return
+    }
+    const match = noteFindMatches[next]
+    if (match) markdownCodeEditorRef.current?.selectRange(match.from, match.to)
   }
 
   function applyMarkdownFormat(format: MarkdownFormat) {
@@ -2366,8 +2937,10 @@ function App() {
     const startX = event.clientX
     const startY = event.clientY
     const move = (moveEvent: PointerEvent) => {
+      // A posicao X e medida a partir da borda direita: arrastar para a
+      // direita reduz a distancia, arrastar para a esquerda aumenta.
       setMarkdownToolsPosition(clampMarkdownToolsPosition({
-        x: startPosition.x + moveEvent.clientX - startX,
+        x: startPosition.x - (moveEvent.clientX - startX),
         y: startPosition.y + moveEvent.clientY - startY,
       }))
     }
@@ -2853,6 +3426,11 @@ function App() {
     const focusedGraphDocument = graphDocuments.find((document) => document.relativePath === focusedGraphPath) ?? null
     const focusedIncomingLinks = focusedGraphPath ? allGraphLinks.filter((link) => link.target === focusedGraphPath) : []
     const focusedOutgoingLinks = focusedGraphPath ? allGraphLinks.filter((link) => link.source === focusedGraphPath) : []
+    // Notas que referenciam a selecionada (para os chips clicaveis no drawer).
+    const focusedIncomingNotes = focusedIncomingLinks
+      .map((link) => graphDocuments.find((document) => document.relativePath === link.source))
+      .filter((document): document is GraphDocument => document !== undefined)
+      .sort((left, right) => left.relativePath.localeCompare(right.relativePath))
     const visibleGraphDocuments = graphDocuments.filter((document) => {
       const title = document.name.replace(/\.md$/i, '').toLowerCase()
       const matchesQuery = !graphQuery.trim() || title.includes(graphQuery.trim().toLowerCase())
@@ -3027,12 +3605,6 @@ function App() {
           </div>
         </header>
 
-        <div className="status-strip workspace-status" role="status" data-builder-name="workspace-status">
-          <span className={`status-dot${loading || saving || isVaultIndexBuilding ? ' is-busy' : ''}`}></span>
-          <span>{status}</span>
-          {isVaultIndexBuilding ? <span className="status-hint">indexando conexoes entre notas…</span> : null}
-        </div>
-
         {error ? <p className="error-banner" role="alert">{error}</p> : null}
 
         <section className="workspace-grid">
@@ -3122,9 +3694,17 @@ function App() {
                 </div>
               </div>
             </div>
-            <footer className="vault-indicator" title={vault.path}>
-              <span className="vault-indicator-icon" aria-hidden="true">&#9670;</span>
-              <span>{vault.name}</span>
+            <footer className="vault-indicator">
+              <button
+                type="button"
+                className="vault-switch-button"
+                onClick={() => void chooseExistingVault()}
+                disabled={loading || saving}
+                title={`${vault.path} — clique para trocar de vault`}
+              >
+                <span className="vault-indicator-icon" aria-hidden="true">&#9670;</span>
+                <span>{vault.name}</span>
+              </button>
               <button type="button" className="secondary-button vault-refresh-button" onClick={() => void refreshNotes(vault.path)} disabled={loading || saving} title="Atualizar explorador" aria-label="Atualizar explorador de arquivos">
                 <RefreshCw size={14} strokeWidth={1.5} aria-hidden="true" />
               </button>
@@ -3177,7 +3757,7 @@ function App() {
 
             {activeNote ? (
               <>
-                <div className="editor-header">
+                <div className="editor-header" data-builder-name="editor-header">
                   <div>
                     {isNewNoteDraft ? (
                       <>
@@ -3234,13 +3814,20 @@ function App() {
                           <strong>{key}</strong> {formatFrontmatterPropertyValue(value)}
                         </button>
                       ))}
-                    <NoteTagPicker
-                      availableTags={tagIndex.map((entry) => entry.tag)}
-                      onApply={applyExistingTag}
-                      relativePath={activeNote.relativePath}
-                      tags={noteTags}
-                      vaultPath={vault.path}
-                    />
+                    </div>
+                    {/* Linha de tags SEMPRE presente: o badge "(tags:)" abre o menu
+                        para adicionar tags; as tags atuais aparecem como badges. */}
+                    <div className="note-tag-list" aria-label="Tags da nota">
+                      <NoteTagPicker
+                        availableTags={tagIndex.map((entry) => entry.tag)}
+                        onApply={applyExistingTag}
+                        relativePath={activeNote.relativePath}
+                        tags={noteTags}
+                        vaultPath={vault.path}
+                      />
+                      {activeTags.map((tag) => (
+                        <Badge key={tag} variant="secondary">#{tag}</Badge>
+                      ))}
                     </div>
                     <div id="frontmatter-actions" className={`frontmatter-actions-disclosure${isFrontmatterActionsOpen ? ' is-open' : ''}`} aria-hidden={!isFrontmatterActionsOpen}>
                       <div className="frontmatter-actions-content">
@@ -3288,11 +3875,6 @@ function App() {
                         </div>
                       </div>
                     ) : null}
-                    {activeTags.length > 0 ? (
-                      <div className="note-tag-list" aria-label="Tags da nota">
-                        {activeTags.map((tag) => <span key={tag}>#{tag}</span>)}
-                      </div>
-                    ) : null}
                     {unsupportedMarkdownFeatures.length > 0 ? (
                       <p className="markdown-preservation-notice" role="status">
                         Compatibilidade limitada, fonte preservada: {unsupportedMarkdownFeatures.map((feature) => LIMITED_MARKDOWN_FEATURE_LABELS[feature] ?? feature).join(', ')}.
@@ -3325,22 +3907,56 @@ function App() {
                     ) : null}
                     {!isNewNoteDraft ? <button type="button" className={`secondary-button favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></button> : null}
                     {!isNewNoteDraft ? (
-                      <NoteReadinessControl
-                        vaultPath={vault.path}
-                        relativePath={activeNote.relativePath}
-                        sourceRevision={activeNote.content}
-                        isDirty={isDirty}
-                        disabled={loading || saving}
-                      />
+                      <button
+                        type="button"
+                        className={`secondary-button indexadora-button${isIndexadora(activeNote.content) ? ' is-active' : ''}`}
+                        onClick={() => void toggleActiveNoteIndexadora()}
+                        disabled={saving || loading}
+                        title={isIndexadora(activeNote.content) ? 'Nota indexadora: remove a lista automatica de referencias' : 'Declarar como nota indexadora: lista automaticamente as notas que referenciam esta nota'}
+                        aria-label="Declarar nota como indexadora"
+                        aria-pressed={isIndexadora(activeNote.content)}
+                      >
+                        <BookMarked size={15} strokeWidth={1.5} aria-hidden="true" />
+                        <span>Indexadora</span>
+                      </button>
                     ) : null}
                     {!isNewNoteDraft ? (
-                      <NoteReviewPolicyControl
-                        vaultPath={vault.path}
-                        relativePath={activeNote.relativePath}
-                        sourceRevision={activeNote.content}
-                        isDirty={isDirty}
-                        disabled={loading || saving}
-                      />
+                      <Popover open={reviewMenuOpen} onOpenChange={setReviewMenuOpen}>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="secondary-button note-review-menu-trigger"
+                            aria-label="Avaliação e revisão da nota"
+                            title="Avaliação e revisão da nota"
+                          >
+                            <span className={`note-review-status-dot is-${noteReadiness ?? 'none'}`} aria-hidden="true" />
+                            <ClipboardList size={15} strokeWidth={1.5} aria-hidden="true" />
+                            <span>Avaliação &amp; revisão</span>
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" sideOffset={6} className="note-review-menu">
+                          <header className="note-review-menu-header">
+                            <strong>Avaliação &amp; revisão</strong>
+                            <small>Prontidão, agenda e política desta nota</small>
+                          </header>
+                          <NoteReadinessControl
+                            vaultPath={vault.path}
+                            relativePath={activeNote.relativePath}
+                            sourceRevision={activeNote.content}
+                            isDirty={isDirty}
+                            disabled={loading || saving}
+                            onStatusChange={setNoteReadiness}
+                            onStartReview={(info) => void handleStartReviewNow(info)}
+                          />
+                          <NoteReviewPolicyControl
+                            vaultPath={vault.path}
+                            relativePath={activeNote.relativePath}
+                            sourceRevision={activeNote.content}
+                            isDirty={isDirty}
+                            disabled={loading || saving}
+                          />
+                        </PopoverContent>
+                      </Popover>
                     ) : null}
                     <div
                       className="editor-mode-control"
@@ -3382,7 +3998,7 @@ function App() {
                         title="Leitura: mostra a nota formatada"
                       >Leitura</button>
                     </div>
-                    {editorMode === 'read' && reviewGaps.length > 0 ? (
+                    {editorMode === 'read' && (reviewGaps.length > 0 || reviewUnits.length > 0) ? (
                       <div
                         className="review-gap-mode-control"
                         role="radiogroup"
@@ -3431,9 +4047,7 @@ function App() {
                         </button>
                       </div>
                     ) : null}
-                    {editorMode !== 'read' ? (
-                      <button type="button" className="secondary-button" onClick={openNoteSearch} title="Buscar e substituir (Ctrl+F)" aria-label="Buscar e substituir"><Search size={15} strokeWidth={1.5} aria-hidden="true" /></button>
-                    ) : null}
+                    <button type="button" className="secondary-button" onClick={openNoteFind} title="Buscar na nota (Ctrl+F)" aria-label="Buscar na nota"><Search size={15} strokeWidth={1.5} aria-hidden="true" /></button>
                     {editorMode !== 'read' ? (
                       <button
                         type="button"
@@ -3460,7 +4074,38 @@ function App() {
                   </button>
                 </div>
 
-                <div id="note-editor" className="editor-content" ref={editorContentRef}>
+                <div id="note-editor" className="editor-content" ref={editorContentRef} data-builder-name="editor-content">
+                {noteFindOpen && activeNote ? (
+                  <div className="note-find-bar" role="search">
+                    <Search size={13} strokeWidth={1.7} aria-hidden="true" />
+                    <input
+                      ref={noteFindInputRef}
+                      value={noteFindQuery}
+                      onChange={(event) => setNoteFindQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          navigateNoteFind(event.shiftKey ? -1 : 1)
+                        }
+                        if (event.key === 'Escape') {
+                          event.preventDefault()
+                          closeNoteFind()
+                        }
+                      }}
+                      placeholder="Buscar na nota"
+                      aria-label="Buscar na nota"
+                      autoFocus
+                      spellCheck={false}
+                      autoComplete="off"
+                    />
+                    <span className="note-find-count" aria-live="polite">
+                      {noteFindQuery.trim() && findTotal > 0 ? `${noteFindIndex + 1}/${findTotal}` : '0/0'}
+                    </span>
+                    <button type="button" className="note-find-nav-button" onClick={() => navigateNoteFind(-1)} disabled={findTotal === 0} title="Correspondência anterior" aria-label="Correspondência anterior"><ChevronUp size={14} strokeWidth={1.7} aria-hidden="true" /></button>
+                    <button type="button" className="note-find-nav-button" onClick={() => navigateNoteFind(1)} disabled={findTotal === 0} title="Próxima correspondência" aria-label="Próxima correspondência"><ChevronDown size={14} strokeWidth={1.7} aria-hidden="true" /></button>
+                    <button type="button" className="note-find-close" onClick={closeNoteFind} title="Fechar busca (Esc)" aria-label="Fechar busca"><X size={13} strokeWidth={1.7} aria-hidden="true" /></button>
+                  </div>
+                ) : null}
                 {editorMode === 'edit' ? (
                   <MarkdownCodeEditor
                     ref={markdownCodeEditorRef}
@@ -3469,7 +4114,8 @@ function App() {
                     spellCheck={isSpellCheckEnabled}
                     stateCache={markdownEditorStateCacheRef.current}
                     autocompleteData={markdownAutocompleteData}
-                    searchRequestId={searchRequestId}
+                    onBlur={() => setSelectionPopover(null)}
+                    onSearchRequest={openNoteFind}
                     value={draftContent}
                     onHistoryChange={setMarkdownHistoryStatus}
                     session={editorSessionsByPath[activeNote.relativePath]}
@@ -3482,7 +4128,7 @@ function App() {
                     }}
                   />
                 ) : editorMode === 'read' ? (
-                  <article ref={editorPanelRef} className={`markdown-reading${isReadingLineWrapEnabled ? '' : ' is-line-wrap-disabled'}${reviewGapMode !== 'off' && !isDirty ? ' has-gap-marks' : ''}${reviewGapMode === 'hover' ? ' is-gap-hover-only' : ''}`} style={readingStyle}>{renderMarkdown(reviewGapMode !== 'off' && !isDirty ? applyGapHighlight(noteBody, reviewGaps, draftContent.length - noteBody.length) : noteBody, (lineNumber) => setDraftContent((currentContent) => replaceMarkdownBody(currentContent, toggleChecklistAtLine(noteBody, lineNumber))))}</article>
+                  <article ref={editorPanelRef} className={`markdown-reading${isReadingLineWrapEnabled ? '' : ' is-line-wrap-disabled'}${reviewGapMode !== 'off' && !isDirty ? ' has-gap-marks' : ''}${reviewGapMode === 'hover' ? ' is-gap-hover-only' : ''}`} style={readingStyle}>{renderMarkdown(reviewGapMode !== 'off' && !isDirty ? annotateReviewMarkdown(draftContent, reviewGaps, reviewUnits) : noteBody, (lineNumber) => setDraftContent((currentContent) => replaceMarkdownBody(currentContent, toggleChecklistAtLine(noteBody, lineNumber))))}</article>
                 ) : (
                   <section ref={editorPanelRef} className="markdown-mixed">
                     <MarkdownCodeEditor
@@ -3493,7 +4139,8 @@ function App() {
                       spellCheck={isSpellCheckEnabled}
                       stateCache={markdownEditorStateCacheRef.current}
                       autocompleteData={markdownAutocompleteData}
-                      onSearchRequest={openNoteSearch}
+                      onBlur={() => setSelectionPopover(null)}
+                      onSearchRequest={openNoteFind}
                       value={draftContent}
                       onChange={setDraftContent}
                       onHistoryChange={setMarkdownHistoryStatus}
@@ -3507,13 +4154,36 @@ function App() {
                     />
                   </section>
                 )}
+                {selectionPopover && editorMode !== 'read' ? (
+                  <div
+                    ref={selectionPopoverRef}
+                    className={`selection-format-popover is-${selectionPopover.flip ? 'below' : 'above'}`}
+                    role="toolbar"
+                    aria-label="Formatar seleção"
+                    style={{ left: selectionPopover.x + selectionPopover.shiftX, top: selectionPopover.y }}
+                  >
+                    <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('bold')} title="Negrito" aria-label="Negrito (seleção)"><Bold size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                    <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('italic')} title="Itálico" aria-label="Itálico (seleção)"><Italic size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                    <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('strikethrough')} title="Riscado" aria-label="Riscado (seleção)"><Strikethrough size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                    <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('code')} title="Código" aria-label="Código (seleção)"><Code2 size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                    <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('math')} title="Matemática" aria-label="Matemática (seleção)"><Sigma size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                    <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('subscript')} title="Subscrito (fórmula química)" aria-label="Subscrito (seleção)"><Subscript size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                    <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('superscript')} title="Sobrescrito (expoente)" aria-label="Sobrescrito (seleção)"><Superscript size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                    <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('reactionArrow')} title="Seta de reação com texto acima" aria-label="Seta de reação (seleção)"><ArrowRight size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                    <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('reverseReactionArrow')} title="Seta reversa com texto acima" aria-label="Seta reversa (seleção)"><ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                    <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('link')} title="Link" aria-label="Link (seleção)"><Link size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                  </div>
+                ) : null}
+                <div className="note-word-count" data-testid="note-word-count" title={`${noteWordCount} palavra${noteWordCount === 1 ? '' : 's'}`}>
+                  {noteWordCount} palavra{noteWordCount === 1 ? '' : 's'}
+                </div>
                 {isMarkdownToolsOpen && editorMode !== 'read' ? (
                   <div
                     ref={markdownToolsRef}
                     className={`floating-markdown-toolbar is-${markdownToolsOrientation}`}
                     role="toolbar"
                     aria-label="Ferramentas de Markdown"
-                    style={{ left: markdownToolsPosition.x, top: markdownToolsPosition.y }}
+                    style={{ right: markdownToolsPosition.x, top: markdownToolsPosition.y }}
                   >
                     <button type="button" className="markdown-tools-drag-handle" onPointerDown={startMarkdownToolsDrag} title="Arrastar ferramentas" aria-label="Arrastar ferramentas">
                       <GripHorizontal size={15} strokeWidth={1.7} aria-hidden="true" />
@@ -3594,6 +4264,7 @@ function App() {
                   setWorkspacePage('notes')
                   void openNote(relativePath)
                 }}
+                onStartReview={(item) => void handleStartReviewFromDeadline(item)}
               />
             ) : workspacePage === 'reports' ? (
               <ReviewReportsPage
@@ -3609,40 +4280,147 @@ function App() {
                 onTagsChanged={synchronizeTagChanges}
               />
             ) : workspacePage === 'graph' ? (
-              <section className="workspace-page graph-page" data-builder-name="note-graph-page">
-                <div className="graph-page-header">
-                  <div>
-                    <p className="card-kicker">Conhecimento conectado</p>
-                    <h2>Grafo das notas</h2>
-                    <p>Explore as conexoes criadas pelos links internos do vault.</p>
-                  </div>
-                  <button type="button" className="secondary-button" onClick={() => void openGraphPage()} disabled={isGraphLoading}>
-                    <RefreshCw size={15} strokeWidth={1.5} aria-hidden="true" />
-                    Atualizar grafo
-                  </button>
-                </div>
+              <section
+                className="workspace-page graph-page"
+                data-builder-name="note-graph-page"
+                onPointerMove={pokeGraphUi}
+                onPointerDown={pokeGraphUi}
+                onWheel={pokeGraphUi}
+              >
                 {isGraphLoading ? (
-                  <p className="graph-empty-state">Lendo os links das notas...</p>
+                  <p className="graph-empty-state graph-empty-state-overlay">Lendo os links das notas...</p>
                 ) : graphDocuments.length === 0 ? (
-                  <p className="graph-empty-state">Nenhuma nota disponivel para montar o grafo.</p>
+                  <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota disponivel para montar o grafo.</p>
                 ) : (
                   <>
-                    <div className="graph-summary" aria-label="Resumo do grafo">
-                      <span>{visibleGraphDocuments.length} {visibleGraphDocuments.length === 1 ? 'nota' : 'notas'}</span>
-                      <span>{graphLinks.length} {graphLinks.length === 1 ? 'conexao' : 'conexoes'}</span>
-                    </div>
-                    <div className="graph-controls" aria-label="Controles do grafo">
+                    <div
+                      className={`graph-immersive-header${graphUiVisible ? '' : ' is-hidden'}`}
+                      onMouseEnter={() => { setGraphUiVisible(true); if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current) }}
+                      onMouseLeave={pokeGraphUi}
+                      role="toolbar"
+                      aria-label="Controles do grafo"
+                    >
+                      <h2 className="graph-header-title">Grafo das notas</h2>
+                      <span className="graph-header-summary" aria-label="Resumo do grafo">
+                        <span>{visibleGraphDocuments.length} {visibleGraphDocuments.length === 1 ? 'nota' : 'notas'}</span>
+                        <span>{graphLinks.length} {graphLinks.length === 1 ? 'conexao' : 'conexoes'}</span>
+                      </span>
+                      <span className="graph-header-sep" aria-hidden="true" />
+                      <div className="graph-dimension-toggle" role="radiogroup" aria-label="Dimensao do grafo">
+                        <button type="button" role="radio" aria-checked={!graphMode3d} className={!graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(false)} title="Grafo em 2D">2D</button>
+                        <button type="button" role="radio" aria-checked={graphMode3d} className={graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(true)} title="Grafo 3D com pulsos eletricos">3D</button>
+                      </div>
                       <select value={graphMode} onChange={(event) => setGraphMode(event.target.value as GraphMode)} aria-label="Modo do grafo"><option value="global">Grafo global</option><option value="local">Grafo local</option></select>
-                      <input value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
                       <select value={graphFolder} onChange={(event) => setGraphFolder(event.target.value)} aria-label="Filtrar pasta do grafo"><option value="">Todas as pastas</option>{graphFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}</select>
                       <select value={graphTag} onChange={(event) => setGraphTag(event.target.value)} aria-label="Filtrar tag do grafo"><option value="">Todas as tags</option>{graphTags.map((tag) => <option key={tag} value={tag}>#{tag}</option>)}</select>
-                      <label><input type="checkbox" checked={showGraphOrphans} onChange={(event) => setShowGraphOrphans(event.target.checked)} /> Mostrar notas sem conexao</label>
-                      <label><input type="checkbox" checked={showOnlyGraphOrphans} onChange={(event) => setShowOnlyGraphOrphans(event.target.checked)} /> Somente notas nao conectadas</label>
+                      <span className="graph-header-sep" aria-hidden="true" />
+                      <input value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
                       <button type="button" className="secondary-button" onClick={reorganizeGraphNodes} aria-label="Reorganizar nos">Reorganizar</button>
-                      <button type="button" className="secondary-button" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.min(2.4, view.scale + 0.15) }))} aria-label="Aproximar grafo">+</button>
-                      <button type="button" className="secondary-button" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.max(0.55, view.scale - 0.15) }))} aria-label="Afastar grafo">−</button>
-                      <button type="button" className="secondary-button" onClick={resetGraphView} aria-label="Centralizar grafo">Centralizar</button>
+                      {!graphMode3d ? (
+                        <span className="graph-zoom-cluster" aria-label="Zoom do grafo">
+                          <button type="button" className="secondary-button" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.min(2.4, view.scale + 0.15) }))} aria-label="Aproximar grafo">+</button>
+                          <button type="button" className="secondary-button" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.max(0.55, view.scale - 0.15) }))} aria-label="Afastar grafo">−</button>
+                          <button type="button" className="secondary-button" onClick={resetGraphView} aria-label="Centralizar grafo">Centralizar</button>
+                        </span>
+                      ) : null}
+                      <span className="graph-header-sep" aria-hidden="true" />
+                      <button type="button" className="secondary-button" onClick={() => void openGraphPage()} disabled={isGraphLoading} aria-label="Atualizar grafo">
+                        <RefreshCw size={15} strokeWidth={1.5} aria-hidden="true" />
+                      </button>
+                      <Popover open={graphSettingsOpen} onOpenChange={setGraphSettingsOpenSynced}>
+                        <PopoverTrigger asChild>
+                          <button type="button" className="secondary-button graph-settings-button" aria-label="Configuracoes do grafo" title="Configuracoes do grafo">
+                            <Settings size={15} strokeWidth={1.5} aria-hidden="true" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" sideOffset={6} className="graph-settings-popover">
+                          <header className="graph-settings-header">
+                            <span className="graph-settings-header-title">
+                              <SlidersHorizontal size={14} strokeWidth={1.75} aria-hidden="true" />
+                              <strong>Configuracoes do grafo</strong>
+                            </span>
+                            <button type="button" className="graph-settings-reset" onClick={resetGraph3dSettings} title="Restaurar os valores padrao" aria-label="Restaurar os valores padrao">
+                              <RotateCcw size={12} strokeWidth={1.75} aria-hidden="true" />
+                              <span>Padroes</span>
+                            </button>
+                          </header>
+                          <section className="graph-settings-group" aria-label="Visual dos nos">
+                            <p className="graph-settings-group-title"><Palette size={12} strokeWidth={1.75} aria-hidden="true" /> Visual</p>
+                            <label className="graph-settings-row">
+                              <span>Tamanho dos nos<small>Raio base dos orbes</small></span>
+                              <input type="number" min={0.2} max={3} step={0.05} value={graph3dNodeSize} onChange={(event) => setGraph3dNodeSize(updateNumberSetting(event.target.value, graph3dNodeSize, 0.2, 3))} aria-label="Tamanho dos nos no grafo 3D" />
+                            </label>
+                            <label className="graph-settings-row">
+                              <span>Aumento por conexao<small>Crescimento do no por link</small></span>
+                              <input type="number" min={0} max={1} step={0.01} value={graph3dDegreeGrowth} onChange={(event) => setGraph3dDegreeGrowth(updateNumberSetting(event.target.value, graph3dDegreeGrowth, 0, 1))} aria-label="Fator de aumento por conexao no grafo 3D" />
+                            </label>
+                          </section>
+                          <section className="graph-settings-group" aria-label="Orbita dos nos">
+                            <p className="graph-settings-group-title"><Orbit size={12} strokeWidth={1.75} aria-hidden="true" /> Orbita</p>
+                            <label className="graph-settings-row">
+                              <span>Distancia entre nos<small>Raio das orbitas ao redor do nucleo</small></span>
+                              <input type="number" min={2} max={20} step={0.5} value={graph3dNodeSpacing} onChange={(event) => setGraph3dNodeSpacing(updateNumberSetting(event.target.value, graph3dNodeSpacing, 2, 20))} aria-label="Distancia entre nos no grafo 3D" />
+                            </label>
+                            <label className="graph-settings-row">
+                              <span>Velocidade de orbitacao<small>Multiplicador do giro orbital</small></span>
+                              <input type="number" min={0.1} max={5} step={0.1} value={graph3dOrbitSpeed} onChange={(event) => setGraph3dOrbitSpeed(updateNumberSetting(event.target.value, graph3dOrbitSpeed, 0.1, 5))} aria-label="Velocidade de orbitacao no grafo 3D" />
+                            </label>
+                          </section>
+                          <section className="graph-settings-group" aria-label="Arestas do grafo">
+                            <p className="graph-settings-group-title"><Link2 size={12} strokeWidth={1.75} aria-hidden="true" /> Arestas</p>
+                            <label className="graph-settings-row">
+                              <span>Aresta maxima<small>Limite superior das conexoes</small></span>
+                              <input type="number" min={4} max={40} step={1} value={graph3dMaxEdgeLength} onChange={(event) => setGraph3dMaxEdgeLength(updateNumberSetting(event.target.value, graph3dMaxEdgeLength, 4, 40))} aria-label="Tamanho maximo das arestas no grafo 3D" />
+                            </label>
+                            <label className="graph-settings-row">
+                              <span>Aresta minima<small>Distancia minima entre conectados</small></span>
+                              <input type="number" min={0} max={30} step={0.5} value={graph3dMinEdgeLength} onChange={(event) => setGraph3dMinEdgeLength(updateNumberSetting(event.target.value, graph3dMinEdgeLength, 0, 30))} aria-label="Tamanho minimo das arestas no grafo 3D" />
+                            </label>
+                          </section>
+                          <span className="graph-settings-sep" aria-hidden="true" />
+                          <section className="graph-settings-group" aria-label="Exibicao do grafo">
+                            <p className="graph-settings-group-title"><Eye size={12} strokeWidth={1.75} aria-hidden="true" /> Exibicao</p>
+                            <label className="graph-settings-toggle">
+                              <span>Mostrar notas sem conexao<small>Inclui notas isoladas no grafo</small></span>
+                              <input type="checkbox" checked={showGraphOrphans} onChange={(event) => setShowGraphOrphans(event.target.checked)} />
+                              <span className="graph-settings-toggle-track" aria-hidden="true" />
+                            </label>
+                            <label className="graph-settings-toggle">
+                              <span>Somente notas nao conectadas<small>Esconde as conectadas</small></span>
+                              <input type="checkbox" checked={showOnlyGraphOrphans} onChange={(event) => setShowOnlyGraphOrphans(event.target.checked)} />
+                              <span className="graph-settings-toggle-track" aria-hidden="true" />
+                            </label>
+                            <label className="graph-settings-toggle">
+                              <span>Ocultar nomes<small>Nome aparece apenas no hover</small></span>
+                              <input type="checkbox" checked={graphHideAllNames} onChange={(event) => setGraphHideAllNames(event.target.checked)} />
+                              <span className="graph-settings-toggle-track" aria-hidden="true" />
+                            </label>
+                          </section>
+                          <p className="graph-settings-note"><Info size={12} strokeWidth={1.75} aria-hidden="true" /> Sincronizado com a pagina de Configuracoes.</p>
+                        </PopoverContent>
+                      </Popover>
                     </div>
+                    {graphMode3d ? (
+                      <Suspense fallback={<div className="note-graph-3d note-graph-3d-fallback">Carregando grafo 3D...</div>}>
+                        <NoteGraph3D
+                          nodes={visibleGraphDocuments.map((document) => ({ name: document.name, relativePath: document.relativePath }))}
+                          links={graphLinks}
+                          degreeByPath={graphDegreeByPath}
+                          focusedPath={focusedGraphPath}
+                          currentPath={activeNote?.relativePath ?? null}
+                          layoutVersion={graph3dLayoutVersion}
+                          hideAllLabels={graphHideAllNames}
+                          nodeSize={graph3dNodeSize}
+                          nodeSpacing={graph3dNodeSpacing}
+                          orbitSpeed={graph3dOrbitSpeed}
+                          maxEdgeLength={graph3dMaxEdgeLength}
+                          minEdgeLength={graph3dMinEdgeLength}
+                          degreeGrowth={graph3dDegreeGrowth}
+                          onFocus={(path) => { setFocusedGraphPath(path); setGraphDetailOpen(Boolean(path)) }}
+                          onOpenNote={(relativePath) => { setWorkspacePage('notes'); void openNote(relativePath) }}
+                        />
+                      </Suspense>
+                    ) : (
                     <div
                       ref={graphSurfaceRef}
                       className="note-graph"
@@ -3667,15 +4445,38 @@ function App() {
                         const position = graphNodePositions[document.relativePath]
                         const degree = graphDegreeByPath[document.relativePath] ?? 0
                         const isCurrent = document.relativePath === activeNote?.relativePath
+                        // Zoom out muito grande: nos com poucas conexoes ocultam o
+                        // nome. "Ocultar nomes" esconde todos (hover revela).
+                        const hideName = graphHideAllNames || (graphViewport.scale < 0.65 && degree < 2)
                         return (
                           <button
                             key={document.relativePath}
                             type="button"
-                            className={`note-graph-node${isCurrent ? ' is-current' : ''}${focusedGraphPath === document.relativePath ? ' is-focused' : ''}`}
-                            style={{ left: `${position.x}%`, top: `${position.y}%`, '--graph-degree': Math.min(degree, 5) } as CSSProperties}
+                            className={`note-graph-node${isCurrent ? ' is-current' : ''}${focusedGraphPath === document.relativePath ? ' is-focused' : ''}${hideName ? ' hide-label' : ''}`}
+                            style={{ left: `${position.x}%`, top: `${position.y}%`, '--graph-scale': 1 + Math.min(degree, 5) * 0.1 } as CSSProperties}
                             onPointerDown={(event) => { event.stopPropagation(); event.currentTarget.setPointerCapture?.(event.pointerId); graphNodeDragRef.current = document.relativePath; graphSkipNodeClickRef.current = false; setFocusedGraphPath(document.relativePath) }}
-                            onPointerMove={(event) => { if (graphNodeDragRef.current !== document.relativePath) return; graphSkipNodeClickRef.current = true; updateGraphNodePosition(document.relativePath, event.clientX, event.clientY) }}
-                            onPointerUp={(event) => { graphNodeDragRef.current = null; event.currentTarget.releasePointerCapture?.(event.pointerId) }}
+                            onPointerMove={(event) => {
+                              if (graphNodeDragRef.current !== document.relativePath) return
+                              graphSkipNodeClickRef.current = true
+                              const surface = graphSurfaceRef.current
+                              if (!surface) return
+                              const bounds = surface.getBoundingClientRect()
+                              const target = {
+                                x: Math.max(4, Math.min(96, ((event.clientX - bounds.left - graphViewport.x) / (bounds.width * graphViewport.scale)) * 100)),
+                                y: Math.max(5, Math.min(95, ((event.clientY - bounds.top - graphViewport.y) / (bounds.height * graphViewport.scale)) * 100)),
+                              }
+                              // Repulsao + mola: o no arrastado empurra os demais e
+                              // puxa os conectados (como o grafo do Obsidian).
+                              setGraphNodeOverrides(applyGraphDragForces(graphNodePositions, graphLinks, visibleGraphDocuments, document.relativePath, target))
+                            }}
+                            onPointerUp={(event) => {
+                              // Soltou apos arrastar: desseleciona a nota (o
+                              // flag e marcado no primeiro pointermove real).
+                              const wasDrag = graphSkipNodeClickRef.current
+                              graphNodeDragRef.current = null
+                              event.currentTarget.releasePointerCapture?.(event.pointerId)
+                              if (wasDrag) setFocusedGraphPath(null)
+                            }}
                             onPointerCancel={() => { graphNodeDragRef.current = null }}
                             onFocus={() => setFocusedGraphPath(document.relativePath)}
                             onClick={() => { if (graphSkipNodeClickRef.current) { graphSkipNodeClickRef.current = false; return }; setWorkspacePage('notes'); void openNote(document.relativePath) }}
@@ -3688,26 +4489,72 @@ function App() {
                       })}
                       </div>
                     </div>
-                    {focusedGraphDocument ? (
-                      <aside className="graph-detail-panel" aria-label="Detalhes da nota selecionada">
-                        <div><p className="card-kicker">Nota selecionada</p><h3>{focusedGraphDocument.name.replace(/\.md$/i, '')}</h3><p>{focusedGraphDocument.relativePath}</p></div>
-                        <div className="graph-detail-metrics"><span>{focusedIncomingLinks.length} entradas</span><span>{focusedOutgoingLinks.length} saidas</span></div>
-                        <div className="graph-detail-actions">
-                          <button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(focusedGraphDocument.relativePath) }}>Abrir nota</button>
-                          <button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(focusedGraphDocument.relativePath) }} title="Abre a nota em uma aba do workspace">Abrir em nova aba</button>
-                          <button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(focusedGraphDocument.relativePath) }}>Revelar no explorador</button>
-                          <button type="button" className="secondary-button" onClick={() => void copyGraphWikiLink(focusedGraphDocument.relativePath)}>Copiar wikilink</button>
-                          <button type="button" className="secondary-button" onClick={() => setGraphMode('local')}>Ver grafo local</button>
-                        </div>
-                      </aside>
-                    ) : null}
+                    )}
+                    <Drawer direction="right" open={graphDetailOpen && Boolean(focusedGraphDocument)} onOpenChange={(open) => { if (!open) { setGraphDetailOpen(false); setFocusedGraphPath(null) } }}>
+                      <DrawerContent className="graph-note-drawer">
+                        {focusedGraphDocument ? (
+                          <>
+                            <DrawerHeader className="graph-note-drawer-header">
+                              <div className="graph-note-drawer-heading">
+                                <p className="graph-note-drawer-eyebrow">Nota no grafo</p>
+                                <DrawerTitle>{focusedGraphDocument.name.replace(/\.md$/i, '')}</DrawerTitle>
+                                <DrawerDescription>{focusedGraphDocument.relativePath}</DrawerDescription>
+                              </div>
+                              <button type="button" className="graph-note-drawer-close" onClick={() => setGraphDetailOpen(false)} aria-label="Fechar detalhes da nota">
+                                <X size={16} strokeWidth={1.75} aria-hidden="true" />
+                              </button>
+                            </DrawerHeader>
+                            <div className="graph-detail-stats" aria-label="Metricas da nota no grafo">
+                              <div className="graph-detail-stat"><strong>{focusedIncomingLinks.length}</strong><span>entradas</span></div>
+                              <div className="graph-detail-stat"><strong>{focusedOutgoingLinks.length}</strong><span>saidas</span></div>
+                              <div className="graph-detail-stat"><strong>{graphDegreeByPath[focusedGraphDocument.relativePath] ?? 0}</strong><span>conexoes</span></div>
+                            </div>
+                            <div className="graph-note-drawer-section">
+                              <p className="graph-note-drawer-section-title">Conteudo</p>
+                              <p className="graph-note-drawer-preview">{getMarkdownPreviewText(focusedGraphDocument.content, 240) || 'Nota vazia.'}</p>
+                            </div>
+                            {focusedIncomingNotes.length > 0 ? (
+                              <div className="graph-note-drawer-section">
+                                <p className="graph-note-drawer-section-title">Referenciada por</p>
+                                <div className="graph-note-drawer-references">
+                                  {focusedIncomingNotes.map((note) => (
+                                    <button
+                                      key={note.relativePath}
+                                      type="button"
+                                      className="graph-note-drawer-ref"
+                                      onClick={() => setFocusedGraphPath(note.relativePath)}
+                                      title={`Focar ${note.name.replace(/\.md$/i, '')} no grafo`}
+                                    >
+                                      {note.name.replace(/\.md$/i, '')}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+                            <div className="graph-note-drawer-actions">
+                              <button type="button" className="graph-note-drawer-primary" onClick={() => { setWorkspacePage('notes'); void openNote(focusedGraphDocument.relativePath) }}>
+                                <ExternalLink size={14} strokeWidth={1.75} aria-hidden="true" /> Abrir nota
+                              </button>
+                              <div className="graph-note-drawer-actions-grid">
+                                <button type="button" className="secondary-button" onClick={() => void copyGraphWikiLink(focusedGraphDocument.relativePath)}>
+                                  <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Copiar wikilink
+                                </button>
+                                <button type="button" className="secondary-button" onClick={() => { setGraphDetailOpen(false); setGraphMode('local') }}>
+                                  <Network size={14} strokeWidth={1.75} aria-hidden="true" /> Grafo local
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        ) : null}
+                      </DrawerContent>
+                    </Drawer>
                     {showOnlyGraphOrphans ? (
                       <section className="graph-orphan-panel" aria-label="Notas nao conectadas">
                         <div><p className="card-kicker">Limpeza do vault</p><h3>{orphanGraphDocuments.length} notas nao conectadas</h3></div>
                         {orphanGraphDocuments.length > 0 ? <div className="graph-orphan-list">{orphanGraphDocuments.map((document) => <div key={document.relativePath}><span>{document.name.replace(/\.md$/i, '')}</span><button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(document.relativePath) }}>Abrir</button></div>)}</div> : <p>Nenhuma nota isolada com os filtros atuais.</p>}
                       </section>
                     ) : null}
-                    {visibleGraphDocuments.length === 0 ? <p className="graph-empty-state">Nenhuma nota corresponde aos filtros atuais.</p> : graphLinks.length === 0 ? <p className="graph-empty-state">Ainda nao ha links internos entre estas notas. Use <code>[[Nome da nota]]</code> para criar conexoes.</p> : null}
+                    {visibleGraphDocuments.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota corresponde aos filtros atuais.</p> : graphLinks.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Ainda nao ha links internos entre estas notas. Use <code>[[Nome da nota]]</code> para criar conexoes.</p> : null}
                   </>
                 )}
               </section>
@@ -3931,6 +4778,105 @@ function App() {
                     <input type="checkbox" checked={isSpellCheckEnabled} onChange={(event) => setSpellCheckEnabled(event.target.checked)} />
                   </label>
                 </div>
+                <div className="settings-section" aria-labelledby="graph3d-preferences-title">
+                  <p className="card-kicker" id="graph3d-preferences-title">Grafo 3D</p>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Tamanho dos nos</strong>
+                      <small>Raio base dos orbes 3D no grafo.</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={0.2}
+                      max={3}
+                      step={0.05}
+                      value={graph3dNodeSize}
+                      onChange={(event) => setGraph3dNodeSize(updateNumberSetting(event.target.value, graph3dNodeSize, 0.2, 3))}
+                      aria-label="Tamanho dos nos no grafo 3D"
+                    />
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Distancia entre nos</strong>
+                      <small>Raio das orbitas dos eletrons ao redor do elemento com mais conexoes.</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={2}
+                      max={20}
+                      step={0.5}
+                      value={graph3dNodeSpacing}
+                      onChange={(event) => setGraph3dNodeSpacing(updateNumberSetting(event.target.value, graph3dNodeSpacing, 2, 20))}
+                      aria-label="Distancia entre nos no grafo 3D"
+                    />
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Velocidade de orbitacao</strong>
+                      <small>Multiplicador da velocidade com que os eletrons orbitam o nucleo.</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={0.1}
+                      max={5}
+                      step={0.1}
+                      value={graph3dOrbitSpeed}
+                      onChange={(event) => setGraph3dOrbitSpeed(updateNumberSetting(event.target.value, graph3dOrbitSpeed, 0.1, 5))}
+                      aria-label="Velocidade de orbitacao no grafo 3D"
+                    />
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Tamanho maximo das arestas</strong>
+                      <small>Distancia maxima entre nos conectados; alem dela, a aresta puxa os extremos de volta.</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={4}
+                      max={40}
+                      step={1}
+                      value={graph3dMaxEdgeLength}
+                      onChange={(event) => setGraph3dMaxEdgeLength(updateNumberSetting(event.target.value, graph3dMaxEdgeLength, 4, 40))}
+                      aria-label="Tamanho maximo das arestas no grafo 3D"
+                    />
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Tamanho minimo das arestas</strong>
+                      <small>Distancia minima entre nos conectados; abaixo dela, a aresta empurra os extremos para longe.</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={0}
+                      max={30}
+                      step={0.5}
+                      value={graph3dMinEdgeLength}
+                      onChange={(event) => setGraph3dMinEdgeLength(updateNumberSetting(event.target.value, graph3dMinEdgeLength, 0, 30))}
+                      aria-label="Tamanho minimo das arestas no grafo 3D"
+                    />
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Fator de aumento por conexao</strong>
+                      <small>Quanto cada conexao adicional aumenta o raio do no.</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={graph3dDegreeGrowth}
+                      onChange={(event) => setGraph3dDegreeGrowth(updateNumberSetting(event.target.value, graph3dDegreeGrowth, 0, 1))}
+                      aria-label="Fator de aumento por conexao no grafo 3D"
+                    />
+                  </label>
+                </div>
                 <div className="settings-section" aria-labelledby="review-gap-preferences-title">
                   <p className="card-kicker" id="review-gap-preferences-title">Revisao</p>
                   <label className="settings-toggle">
@@ -3952,6 +4898,16 @@ function App() {
                 </div>
                 <VaultReviewPolicySettings vaultPath={vault.path} />
                 <SegmentationSettings vaultPath={vault.path} />
+                <ReviewNotificationSettings
+                  lastCheck={notificationLastCheck}
+                  onRequestCheck={() => {
+                    void checkReviewNotifications({
+                      vaultPath: vault.path,
+                      nowUnixMs: Date.now(),
+                      localDayStartUnixMs: localDayStartUnixMs(),
+                    }).then(setNotificationLastCheck).catch(() => undefined)
+                  }}
+                />
                 <ReviewAiSettings />
               </section>
             )}

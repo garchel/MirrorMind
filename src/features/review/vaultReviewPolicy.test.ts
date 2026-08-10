@@ -21,6 +21,7 @@ describe('Vault review policy contract', () => {
         minIntervalDays: 1,
         maxIntervalDays: 90,
         deadlineAtUnixMs: null,
+        preferredMode: null,
       }],      updatedAtUnixMs: 1_720_000_000_000,
       segmentation: { maxWholeNoteWords: 800 },
       affectedNoteCount: 4,

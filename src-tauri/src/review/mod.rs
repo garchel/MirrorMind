@@ -1,10 +1,14 @@
+#[cfg(test)]
+mod conformance;
 pub mod contract;
+pub mod coverage;
 pub mod credentials;
 pub mod dashboard;
 pub mod evaluation;
 pub mod gaps;
 pub mod gemini;
 pub mod ipc;
+pub mod notifications;
 pub mod policy;
 
 pub mod policy_config;

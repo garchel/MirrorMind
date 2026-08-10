@@ -4555,6 +4555,79 @@ fn queue_pending_watcher_modification(
     true
 }
 
+/// Buffer de renames fragmentados do watcher nativo.
+///
+/// No Windows, o notify entrega `RenameMode::From` e `RenameMode::To` como
+/// eventos soltos e adjacentes. Este buffer segura o lado de origem por uma
+/// janela curta para que o lado de destino possa emparelha-lo em um unico
+/// `VaultFileSystemChangeKind::Rename` com os dois caminhos, em vez de emitir
+/// `Remove` + `Create` (que o frontend nao consegue correlacionar com seguranca
+/// para remapear abas, rascunhos e favoritos). A identidade nunca e adivinhada:
+/// so ha emparelhamento quando existe EXATAMENTE um From pendente dentro da
+/// janela; com zero ou mais de um, o To vira `Create` e os Froms expiram como
+/// `Remove`, preservando o comportamento seguro anterior.
+#[derive(Default)]
+struct PendingRenameBuffer {
+    from_paths: HashMap<String, Instant>,
+}
+
+impl PendingRenameBuffer {
+    /// Registra o lado de origem de um rename potencial, deduplicando por caminho.
+    fn record_from(&mut self, from: String, received_at: Instant) {
+        self.from_paths.insert(from, received_at);
+    }
+
+    /// Devolve o From emparelhavel somente quando ha exatamente um pendente
+    /// dentro da janela; remove-o do buffer nesse caso.
+    fn take_pair(&mut self, now: Instant, window: Duration) -> Option<String> {
+        let within: Vec<(String, Instant)> = self
+            .from_paths
+            .iter()
+            .filter(|(_, received_at)| now.duration_since(**received_at) <= window)
+            .map(|(from, received_at)| (from.clone(), *received_at))
+            .collect();
+        if within.len() != 1 {
+            return None;
+        }
+        let (from, _) = within.into_iter().next().expect("single pending rename");
+        self.from_paths.remove(&from);
+        Some(from)
+    }
+
+    /// Remove e devolve os Froms cuja janela expirou (devem virar `Remove`).
+    fn drain_expired(&mut self, now: Instant, window: Duration) -> Vec<String> {
+        let expired: Vec<String> = self
+            .from_paths
+            .iter()
+            .filter(|(_, received_at)| now.duration_since(**received_at) >= window)
+            .map(|(from, _)| from.clone())
+            .collect();
+        for from in &expired {
+            self.from_paths.remove(from);
+        }
+        expired
+    }
+
+    /// Remove e devolve todos os Froms pendentes (encerramento do watcher).
+    fn drain_all(&mut self) -> Vec<String> {
+        self.from_paths.drain().map(|(from, _)| from).collect()
+    }
+
+    /// Descartar todos os Froms pendentes sem emitir nada (rescan invalida os
+    /// eventos incrementais; a releitura completa do vault substitui todos).
+    fn clear(&mut self) {
+        self.from_paths.clear();
+    }
+
+    /// Proximo instante em que um From pendente expira, para acordar o loop.
+    fn earliest_deadline(&self, window: Duration) -> Option<Instant> {
+        self.from_paths
+            .values()
+            .map(|received_at| *received_at + window)
+            .min()
+    }
+}
+
 fn start_vault_watcher_with_capacity<F>(
     root: &Path,
     queue_capacity: usize,
@@ -4593,6 +4666,7 @@ where
                 (VaultFileSystemChangeKind, Vec<String>),
                 (VaultFileSystemChange, Instant),
             > = HashMap::new();
+            let mut pending_renames: PendingRenameBuffer = PendingRenameBuffer::default();
             let mut overflow_dirty = false;
             let mut last_overflow_rescan = None;
 
@@ -4600,6 +4674,7 @@ where
                 let next_deadline = pending_modifications
                     .values()
                     .map(|(_, received_at)| *received_at + WATCHER_DUPLICATE_WINDOW)
+                    .chain(pending_renames.earliest_deadline(WATCHER_DUPLICATE_WINDOW))
                     .min();
                 let timeout = next_deadline
                     .map(|deadline| deadline.saturating_duration_since(Instant::now()))
@@ -4609,6 +4684,7 @@ where
                 if queue_overflowed.swap(false, Ordering::AcqRel) && !overflow_dirty {
                     overflow_dirty = true;
                     pending_modifications.clear();
+                    pending_renames.clear();
                     log::warn!(
                         "A fila do watcher atingiu o limite; solicitando uma nova leitura do vault."
                     );
@@ -4668,6 +4744,16 @@ where
                     false,
                     &mut on_change,
                 );
+                let now = Instant::now();
+                for from in pending_renames.drain_expired(now, WATCHER_DUPLICATE_WINDOW) {
+                    if let Some(change) = orphaned_rename_change(
+                        &callback_root,
+                        from.into(),
+                        NotifyEventKind::Remove(RemoveKind::Any),
+                    ) {
+                        emit_vault_watcher_change(change, &mut on_change);
+                    }
+                }
                 let input = match received {
                     Ok(input) => input,
                     Err(mpsc::RecvTimeoutError::Timeout) => continue,
@@ -4677,6 +4763,15 @@ where
                             true,
                             &mut on_change,
                         );
+                        for from in pending_renames.drain_all() {
+                            if let Some(change) = orphaned_rename_change(
+                                &callback_root,
+                                from.into(),
+                                NotifyEventKind::Remove(RemoveKind::Any),
+                            ) {
+                                emit_vault_watcher_change(change, &mut on_change);
+                            }
+                        }
                         break;
                     }
                 };
@@ -4684,6 +4779,7 @@ where
                     VaultWatcherInput::Event(event) => event,
                     VaultWatcherInput::Rescan(error) => {
                         pending_modifications.clear();
+                        pending_renames.clear();
                         log::warn!("O backend do watcher solicitou rescan: {error}");
                         emit_vault_watcher_change(
                             VaultFileSystemChange {
@@ -4704,12 +4800,19 @@ where
                             &mut on_change,
                         );
                         if let Some(from) = event.paths.first().cloned() {
-                            if let Some(change) = orphaned_rename_change(
+                            // So registra o From se ele for um caminho publico valido
+                            // (caminhos internos do .mirmind retornam None aqui).
+                            if orphaned_rename_change(
                                 &callback_root,
-                                from,
+                                from.clone(),
                                 NotifyEventKind::Remove(RemoveKind::Any),
-                            ) {
-                                emit_vault_watcher_change(change, &mut on_change);
+                            )
+                            .is_some()
+                            {
+                                pending_renames.record_from(
+                                    from.to_string_lossy().into_owned(),
+                                    Instant::now(),
+                                );
                             }
                         }
                         continue;
@@ -4721,13 +4824,36 @@ where
                             &mut on_change,
                         );
                         if let Some(to) = event.paths.first().cloned() {
-                            if let Some(change) = orphaned_rename_change(
+                            let Some(change) = orphaned_rename_change(
                                 &callback_root,
                                 to,
                                 NotifyEventKind::Create(CreateKind::Any),
-                            ) {
-                                emit_vault_watcher_change(change, &mut on_change);
+                            ) else {
+                                continue;
+                            };
+                            let to_path = change.paths.first().cloned().unwrap_or_default();
+                            if let Some(from) =
+                                pending_renames.take_pair(Instant::now(), WATCHER_DUPLICATE_WINDOW)
+                            {
+                                let from_path = orphaned_rename_change(
+                                    &callback_root,
+                                    from.into(),
+                                    NotifyEventKind::Remove(RemoveKind::Any),
+                                )
+                                .and_then(|change| change.paths.into_iter().next())
+                                .unwrap_or_default();
+                                if !from_path.is_empty() {
+                                    emit_vault_watcher_change(
+                                        VaultFileSystemChange {
+                                            kind: VaultFileSystemChangeKind::Rename,
+                                            paths: vec![from_path, to_path],
+                                        },
+                                        &mut on_change,
+                                    );
+                                    continue;
+                                }
                             }
+                            emit_vault_watcher_change(change, &mut on_change);
                         }
                         continue;
                     }
@@ -4744,6 +4870,7 @@ where
                         queue_capacity,
                     ) {
                         pending_modifications.clear();
+                        pending_renames.clear();
                         overflow_dirty = true;
                         emit_vault_watcher_change(
                             VaultFileSystemChange {
@@ -4877,7 +5004,9 @@ impl AuthorizedPaths {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init());
 
     #[cfg(feature = "e2e")]
     let builder = builder
@@ -4935,17 +5064,27 @@ pub fn run() {
             review::ipc::get_note_review_state,
             review::ipc::list_due_review_queue,
             review::ipc::list_review_reports,
+            review::ipc::get_retention_report,
+            review::ipc::reset_note_learning,
             review::ipc::set_note_review_enrollment,
             review::ipc::get_vault_review_policy_config,
             review::ipc::preview_vault_review_policy_defaults,
             review::ipc::preview_vault_review_policy_tag_rules,
+            review::ipc::preview_vault_deadline_change,
+            review::ipc::apply_vault_deadline_change,
             review::ipc::set_vault_review_policy_defaults,
             review::ipc::set_vault_review_policy_tag_rules,
             review::ipc::set_vault_review_policy_segmentation,
             review::ipc::get_note_review_policy,
             review::ipc::set_note_review_policy,
+            review::ipc::set_note_review_priority,
             review::ipc::get_vault_review_dashboard,
             review::ipc::get_note_review_gaps,
+            review::ipc::get_note_review_units,
+            review::ipc::get_review_notification_settings,
+            review::ipc::set_review_notification_settings,
+            review::ipc::check_review_notifications,
+            review::ipc::send_review_test_notification,
             review::ipc::reconcile_external_learning_paths,
             review::ipc::start_note_review_session,
             review::ipc::continue_note_review_conversation,
@@ -4981,10 +5120,10 @@ mod tests {
         restore_trash_item_in_root, save_note_in_root, search_notes_in_root, to_relative_display,
         update_wiki_links_for_note_path_change, update_wiki_links_for_note_path_change_with_hook,
         update_wiki_links_for_note_path_change_with_hooks, validate_vault_name, write_new_file,
-        write_trash_entries, HistoryCommand, PlannedWikiLinkUpdate, RecentVaultPreference,
-        SpecialVaultFileKind, VaultFileSystemChangeKind, ASSESSMENTS_DIR, ATTACHMENTS_DIR,
-        CONFIG_FILE, MAX_PDF_ATTACHMENT_BYTES, MAX_SPECIAL_VAULT_FILES, METADATA_DIR,
-        REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
+        write_trash_entries, HistoryCommand, PendingRenameBuffer, PlannedWikiLinkUpdate,
+        RecentVaultPreference, SpecialVaultFileKind, VaultFileSystemChangeKind, ASSESSMENTS_DIR,
+        ATTACHMENTS_DIR, CONFIG_FILE, MAX_PDF_ATTACHMENT_BYTES, MAX_SPECIAL_VAULT_FILES,
+        METADATA_DIR, REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
     };
     use crate::review::{
         evaluation::{ReadinessReport, ReadinessStatus},
@@ -5353,20 +5492,16 @@ mod tests {
         let renamed = root.join("renomeada.md");
         fs::rename(&original, &renamed).expect("rename note outside app");
         let rename_changes =
-            observe_watcher_operation(&receiver, "external rename removal", |change| {
-                change.kind == "remove" && change.paths == ["entrada.md"]
+            observe_watcher_operation(&receiver, "external rename pairing", |change| {
+                change.kind == "rename" && change.paths == ["entrada.md", "renomeada.md"]
             });
         assert_eq!(
             rename_changes
                 .iter()
-                .filter(|change| change.kind == "create" && change.paths == ["renomeada.md"])
+                .filter(|change| change.kind == "rename")
                 .count(),
             1,
-            "external rename must produce exactly one conservative destination creation: {rename_changes:?}"
-        );
-        assert!(
-            rename_changes.iter().all(|change| change.kind != "rename"),
-            "Windows From/To events without file identity must remain conservative: {rename_changes:?}"
+            "a single unambiguous From/To pair must produce exactly one rename: {rename_changes:?}"
         );
         observed.extend(rename_changes);
 
@@ -5380,6 +5515,8 @@ mod tests {
 
         let moved = destination_directory.join("renomeada.md");
         fs::rename(&renamed, &moved).expect("move note outside app");
+        // Movimentos entre pastas sao reportados nativamente como Remove + Create
+        // (nao ha From/To para emparelhar): permanecem conservadores.
         let movement_changes =
             observe_watcher_operation(&receiver, "external move removal", |change| {
                 change.kind == "remove" && change.paths == ["renomeada.md"]
@@ -5396,7 +5533,7 @@ mod tests {
         );
         assert!(
             movement_changes.iter().all(|change| change.kind != "rename"),
-            "remove/create without native identity must not be promoted to rename: {movement_changes:?}"
+            "cross-directory remove/create without native identity must not be promoted to rename: {movement_changes:?}"
         );
         observed.extend(movement_changes);
 
@@ -5416,8 +5553,7 @@ mod tests {
         for (expected_count, kind, paths) in [
             (1, "create", vec!["entrada.md"]),
             (2, "modify", vec!["entrada.md"]),
-            (1, "remove", vec!["entrada.md"]),
-            (1, "create", vec!["renomeada.md"]),
+            (1, "rename", vec!["entrada.md", "renomeada.md"]),
             (1, "create", vec!["arquivo"]),
             (1, "remove", vec!["renomeada.md"]),
             (1, "create", vec!["arquivo/renomeada.md"]),
@@ -5432,9 +5568,13 @@ mod tests {
                 "logical change {kind} {paths:?} must occur {expected_count} time(s): {observed:?}"
             );
         }
-        assert!(
-            observed.iter().all(|change| change.kind != "rename"),
-            "untracked Windows rename fragments must never be guessed into a rename: {observed:?}"
+        assert_eq!(
+            observed
+                .iter()
+                .filter(|change| change.kind == "rename")
+                .count(),
+            1,
+            "only the unambiguous same-directory From/To pair may become a rename: {observed:?}"
         );
 
         apply_watcher_changes_to_model(&mut event_model, &observed);
@@ -5631,6 +5771,90 @@ mod tests {
 
         assert_eq!(change.kind, "remove");
         assert_eq!(change.paths, ["nota.md"]);
+    }
+
+    #[test]
+    fn pending_rename_buffer_pairs_a_single_from_and_to() {
+        let window = std::time::Duration::from_millis(250);
+        let t0 = std::time::Instant::now();
+        let mut buffer = PendingRenameBuffer::default();
+        buffer.record_from("pasta/nota.md".to_string(), t0);
+
+        let from = buffer.take_pair(t0 + std::time::Duration::from_millis(100), window);
+
+        assert_eq!(from.as_deref(), Some("pasta/nota.md"));
+        assert!(buffer.drain_all().is_empty());
+    }
+
+    #[test]
+    fn pending_rename_buffer_expires_an_orphaned_from_as_removal() {
+        let window = std::time::Duration::from_millis(250);
+        let t0 = std::time::Instant::now();
+        let mut buffer = PendingRenameBuffer::default();
+        buffer.record_from("nota.md".to_string(), t0);
+
+        let expired =
+            buffer.drain_expired(t0 + window + std::time::Duration::from_millis(10), window);
+
+        assert_eq!(expired, vec!["nota.md".to_string()]);
+        // O From expirado nao pode mais ser emparelhado por um To tardio.
+        assert_eq!(
+            buffer.take_pair(t0 + window + std::time::Duration::from_millis(10), window),
+            None
+        );
+    }
+
+    #[test]
+    fn pending_rename_buffer_refuses_to_pair_when_multiple_renames_are_in_flight() {
+        let window = std::time::Duration::from_millis(250);
+        let t0 = std::time::Instant::now();
+        let mut buffer = PendingRenameBuffer::default();
+        buffer.record_from("a.md".to_string(), t0);
+        buffer.record_from(
+            "b.md".to_string(),
+            t0 + std::time::Duration::from_millis(10),
+        );
+
+        // Com dois Froms em voo, nao ha como saber qual To pertence a qual:
+        // nunca adivinhar identidade.
+        assert_eq!(
+            buffer.take_pair(t0 + std::time::Duration::from_millis(50), window),
+            None
+        );
+        let mut drained = buffer.drain_all();
+        drained.sort();
+        assert_eq!(drained, vec!["a.md".to_string(), "b.md".to_string()]);
+    }
+
+    #[test]
+    fn pending_rename_buffer_dedups_same_source_and_drains_all() {
+        let window = std::time::Duration::from_millis(250);
+        let t0 = std::time::Instant::now();
+        let mut buffer = PendingRenameBuffer::default();
+        buffer.record_from("nota.md".to_string(), t0);
+        buffer.record_from(
+            "nota.md".to_string(),
+            t0 + std::time::Duration::from_millis(5),
+        );
+        buffer.record_from("outra.md".to_string(), t0);
+
+        assert_eq!(buffer.drain_all().len(), 2);
+        assert!(buffer.drain_all().is_empty());
+        let _ = window;
+    }
+
+    #[test]
+    fn pending_rename_buffer_ignores_entries_outside_the_window_for_pairing() {
+        let window = std::time::Duration::from_millis(250);
+        let t0 = std::time::Instant::now();
+        let mut buffer = PendingRenameBuffer::default();
+        buffer.record_from("velha.md".to_string(), t0);
+
+        assert_eq!(
+            buffer.take_pair(t0 + window + std::time::Duration::from_millis(1), window),
+            None
+        );
+        assert_eq!(buffer.drain_all(), vec!["velha.md".to_string()]);
     }
 
     #[test]

@@ -71,7 +71,7 @@ impl OllamaProvider {
     }
 
     #[cfg(test)]
-    fn for_test(base_url: String) -> Self {
+    pub(crate) fn for_test(base_url: String) -> Self {
         Self::with_base_url(base_url).expect("valid test provider")
     }
 

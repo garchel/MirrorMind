@@ -19,7 +19,8 @@
                                     "inheritedFromTagIds":  [
                                                                 "tag-prova"
                                                             ],
-                                    "preferredMode":  "exam"
+                                    "preferredMode":  "exam",
+                                    "modeManual":  false
                                 }
              },
     "units":  [

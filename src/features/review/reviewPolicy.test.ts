@@ -11,6 +11,7 @@ describe('note review policy contract', () => {
       maxIntervalDays: 365,
       deadlineAtUnixMs: null,
       preferredMode: 'exam',
+      modeManual: false,
       sources: {
         firstReviewIntervalDays: { kind: 'vaultDefault', sourceId: null },
         targetRetention: { kind: 'vaultDefault', sourceId: null },

@@ -723,6 +723,7 @@ mod tests {
             min_interval_days: 1,
             max_interval_days: 365,
             deadline_at_unix_ms: None,
+            preferred_mode: None,
         }
     }
 

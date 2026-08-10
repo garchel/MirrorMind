@@ -38,6 +38,49 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(container.querySelector('tbody td')?.textContent).toBe('1')
   })
 
+  it('renderiza negrito, italico, codigo e riscado nas celulas (como o modo Leitura)', async () => {
+    const value = 'Introducao\n\n| Texto | Valor |\n|---|---|\n| **negrito** | *italico* |\n| `codigo` | ~~riscado~~ |'
+    const container = await renderLive(value)
+    await waitFor(() => expect(table(container)).not.toBeNull())
+    // Os marcadores nao aparecem no texto visivel.
+    const content = container.querySelector('.cm-content')
+    expect(content?.textContent).not.toContain('**')
+    expect(content?.textContent).not.toContain('*italico*')
+    expect(content?.textContent).not.toContain('`codigo`')
+    expect(content?.textContent).not.toContain('~~')
+    // As tags de formatacao sao renderizadas dentro das celulas.
+    const cells = container.querySelectorAll('.cm-live-table-wrap td')
+    expect(cells[0]?.querySelector('strong')?.textContent).toBe('negrito')
+    expect(cells[1]?.querySelector('em')?.textContent).toBe('italico')
+    expect(cells[2]?.querySelector('code')?.textContent).toBe('codigo')
+    expect(cells[3]?.querySelector('del')?.textContent).toBe('riscado')
+  })
+
+  it('preserva negrito e matematica em celulas diferentes', async () => {
+    const value = 'Introducao\n\n| Conceito | Formula |\n|---|---|\n| **Energia** | $E=mc^2$ |'
+    const container = await renderLive(value)
+    await waitFor(() => expect(table(container)).not.toBeNull())
+    expect(container.querySelector('.cm-live-table-wrap .katex')).not.toBeNull()
+    const cells = container.querySelectorAll('.cm-live-table-wrap td')
+    expect(cells[0]?.querySelector('strong')?.textContent).toBe('Energia')
+    expect(cells[1]?.querySelector('.katex')).not.toBeNull()
+    const content = container.querySelector('.cm-content')
+    expect(content?.textContent).not.toContain('**')
+  })
+
+  it('nao cria italico espurio em textos com asteriscos/sublinhados soltos', async () => {
+    const value = 'Introducao\n\n| Operacao | Nome |\n|---|---|\n| 2 * 3 | foo_bar_baz |'
+    const container = await renderLive(value)
+    await waitFor(() => expect(table(container)).not.toBeNull())
+    const cells = container.querySelectorAll('.cm-live-table-wrap td')
+    // Sem <em> espurio: * solto com espaco e sublinhado intrapalavra nao
+    // viram italico.
+    expect(cells[0]?.querySelector('em')).toBeNull()
+    expect(cells[1]?.querySelector('em')).toBeNull()
+    expect(cells[0]?.textContent).toBe('2 * 3')
+    expect(cells[1]?.textContent).toBe('foo_bar_baz')
+  })
+
   it('nao revela o Markdown cru com o cursor dentro da tabela', async () => {
     // Cursor na posicao da celula "1" (dentro da tabela).
     const container = await renderLive('Introducao\n\n| A | B |\n|---|---|\n| 1 | 2 |', 33)
@@ -51,6 +94,32 @@ describe('markdownLivePreview render (jsdom)', () => {
     const container = await renderLive('Introducao\n\n$$E=mc^2$$')
     await waitFor(() => expect(container.querySelector('.cm-live-math .katex')).not.toBeNull())
     expect(container.querySelector('.cm-content')?.textContent).not.toContain('$$')
+  })
+
+  it('renderiza o divisor --- sem linha em branco antes (setext) como linha grafica', async () => {
+    // `---` logo apos um paragrafo e sublinhado de heading setext no parser,
+    // mas deve virar a linha grafica do divisor, nao Markdown cru.
+    const container = await renderLive('Texto\n---\nMais texto')
+    await waitFor(() => expect(container.querySelector('.cm-live-hr')).not.toBeNull())
+    const content = container.querySelector('.cm-content')
+    expect(content?.textContent).not.toContain('---')
+  })
+
+  it('renderiza divisor e matematica juntos sem linha em branco (setext + $$)', async () => {
+    const container = await renderLive('Texto\n---\n$$E=mc^2$$')
+    await waitFor(() => expect(container.querySelector('.cm-live-hr')).not.toBeNull())
+    await waitFor(() => expect(container.querySelector('.cm-live-math .katex')).not.toBeNull())
+    const content = container.querySelector('.cm-content')
+    expect(content?.textContent).not.toContain('---')
+    expect(content?.textContent).not.toContain('$$')
+  })
+
+  it('renderiza heading setext === como titulo de nivel 1 com o marcador oculto', async () => {
+    const container = await renderLive('Texto\n===')
+    await waitFor(() => expect(container.querySelector('.cm-live-heading.cm-live-h1')).not.toBeNull())
+    const content = container.querySelector('.cm-content')
+    expect(content?.textContent).not.toContain('===')
+    expect(content?.textContent).toContain('Texto')
   })
 
   it('nao revela elementos de linhas vizinhas quando o cursor esta em linha em branco', async () => {

@@ -4,8 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewQueuePage } from './ReviewQueuePage'
 import { formatOverdueDate } from './reviewQueueDate'
 
-const { getDueReviewQueueMock } = vi.hoisted(() => ({
+const { getDueReviewQueueMock, setPriorityMock } = vi.hoisted(() => ({
   getDueReviewQueueMock: vi.fn(),
+  setPriorityMock: vi.fn(),
 }))
 
 vi.mock('./reviewQueue', async (importOriginal) => ({
@@ -13,8 +14,17 @@ vi.mock('./reviewQueue', async (importOriginal) => ({
   getDueReviewQueue: getDueReviewQueueMock,
 }))
 
+vi.mock('./reviewPolicy', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./reviewPolicy')>(),
+  setNoteReviewPriority: setPriorityMock,
+}))
+
 describe('ReviewQueuePage', () => {
-  beforeEach(() => getDueReviewQueueMock.mockReset())
+  beforeEach(() => {
+    getDueReviewQueueMock.mockReset()
+    setPriorityMock.mockReset()
+    setPriorityMock.mockResolvedValue({})
+  })
   afterEach(() => {
     vi.useRealTimers()
     cleanup()
@@ -63,6 +73,30 @@ describe('ReviewQueuePage', () => {
     const yesterday = new Date(2026, 6, 21, 23, 30).getTime()
 
     expect(formatOverdueDate(yesterday, now)).toBe('Vencida há 1 dia')
+  })
+
+  it('adjusts the priority of an overdue note with the stepper and reloads', async () => {
+    const item = {
+      noteId: 'note-high',
+      relativePath: 'Prova/ATP.md',
+      title: 'ATP',
+      nextReviewAtUnixMs: Date.now() - 3 * 24 * 60 * 60 * 1_000,
+      priorityWeight: 3,
+      deadlineAtUnixMs: null,
+      preferredMode: 'exam',
+      isFirstReview: true,
+    }
+    getDueReviewQueueMock.mockResolvedValue([item])
+
+    render(<ReviewQueuePage vaultPath="C:\\Vault" onOpenNote={vi.fn()} onStartReview={vi.fn()} />)
+
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Aumentar prioridade de ATP' }))
+    expect(setPriorityMock).toHaveBeenCalledWith({
+      vaultPath: expect.stringContaining('Vault'),
+      relativePath: 'Prova/ATP.md',
+      priorityWeight: 4,
+    })
+    expect(getDueReviewQueueMock).toHaveBeenCalledTimes(2)
   })
 
   it('explains when there are no overdue notes', async () => {

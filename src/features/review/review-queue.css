@@ -149,3 +149,44 @@
 }
 
 .review-queue-actions { display:flex; align-items:center; gap:8px; }
+
+.review-queue-priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #4f4f49;
+  font-weight: 600;
+}
+
+.review-queue-priority-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  border: 1px solid #cfccc2;
+  border-radius: 5px;
+  background: #f6f4ee;
+  color: #4f4f49;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.review-queue-priority-step:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent, #5b6f52) 14%, #f6f4ee);
+  border-color: color-mix(in srgb, var(--accent, #5b6f52) 45%, #cfccc2);
+  color: var(--accent-strong, #3f5239);
+}
+
+.review-queue-priority-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.review-queue-priority-error {
+  max-width: 820px;
+  margin: 0;
+  color: var(--danger, #b3261e);
+  font-size: 12.5px;
+}
