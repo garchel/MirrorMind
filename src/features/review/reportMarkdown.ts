@@ -7,6 +7,9 @@ export type ReviewReportGap = {
 }
 
 export type ReviewReportUnit = {
+  id?: string
+  ordinal?: number
+  kind?: 'wholeNote' | 'section' | 'paragraph'
   sourceStartUtf16: number
   sourceEndUtf16: number
   // Unidade efetivamente avaliada nesta sessão (alvo da cobertura adaptativa).
@@ -113,7 +116,9 @@ function unitScoreBadge(unit: ReviewReportUnit) {
     return '<span class="review-unit-score is-not-evaluated" data-evaluated="false" title="Não avaliado nesta sessão">não avaliado</span>'
   }
   const label = UNIT_OUTCOME_LABELS[unit.outcome] ?? 'Avaliada'
-  return `<span class="review-unit-score is-${unit.outcome}" data-score="${unit.score}" data-outcome="${unit.outcome}" title="${label}: ${unit.score}">${unit.score}</span>`
+  const unitId = unit.id ? ` data-unit-id="${unit.id}"` : ''
+  const hint = unit.id ? '. Clique para corrigir a classificação' : ''
+  return `<span class="review-unit-score is-${unit.outcome}" data-score="${unit.score}" data-outcome="${unit.outcome}"${unitId} title="${label}: ${unit.score}${hint}">${unit.score}</span>`
 }
 
 /**

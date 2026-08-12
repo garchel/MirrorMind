@@ -1,4 +1,4 @@
-use super::contract::ReadinessAssessment;
+use super::contract::{LearningUnitKind, ReadinessAssessment};
 use super::session::{adjust_schedule_for_deadline, effective_retrievability};
 use super::storage::{list_learning_storage_keys, load_learning_document};
 use anyhow::Result;
@@ -10,12 +10,14 @@ const MAX_UPCOMING_DEADLINES: usize = 20;
 /// Limite da lista de prazos encerrados exibidos no dashboard.
 const MAX_EXPIRED_DEADLINES: usize = 20;
 const MAX_CALIBRATION_NOTES: usize = 20;
+/// Limite de notas que precisam de atencao de qualidade listadas no dashboard.
+const MAX_READINESS_ATTENTION: usize = 20;
 /// Dias exibidos na carga prevista: hoje (incluindo vencidas) mais seis.
 pub const FORECAST_DAYS: usize = 7;
 /// Limite provisorio de "paragrafo fragil": recuperabilidade abaixo deste valor
 /// marca uma unidade como candidata a revisao iminente. O valor exato deve ser
 /// calibrado por simulacoes antes de ser fixado (roadmap de retencao).
-pub const FRAGILE_RETRIEVABILITY_THRESHOLD: f64 = 0.6;
+pub use super::retention_calibration::fragile_threshold_for_target;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,8 +61,8 @@ pub struct DailyLoadItem {
 }
 
 /// Nota segmentada em calibracao inicial: ainda faltam observacoes de
-/// unidades, e o progresso e exibido como "X de Y paragrafos", com a retencao
-/// geral como estimativa parcial ate a ultima observacao.
+/// unidades, e o progresso e exibido como "X de Y secoes/paragrafos/unidades",
+/// com a retencao geral como estimativa parcial ate a ultima observacao.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CalibrationNoteItem {
@@ -69,6 +71,67 @@ pub struct CalibrationNoteItem {
     pub title: String,
     pub observed_unit_count: usize,
     pub total_unit_count: usize,
+    /// Rotulo do tipo dominante das unidades: ``section``, ``paragraph`` ou
+    /// ``mixed`` quando a nota combina tipos (ex.: preambulo + secoes). A
+    /// interface usa o substantivo correspondente nas contagens de progresso.
+    pub unit_kind: String,
+}
+
+/// Tipo dominante das unidades de uma nota para os rotulos de contagem:
+/// ``section`` quando todas sao secoes, ``paragraph`` quando todas sao
+/// paragrafos, ``mixed`` em qualquer combinacao.
+fn dominant_unit_kind(units: &[super::contract::LearningUnit]) -> &'static str {
+    let mut all_sections = true;
+    let mut all_paragraphs = true;
+    for unit in units {
+        match unit.kind {
+            LearningUnitKind::Section => all_paragraphs = false,
+            LearningUnitKind::Paragraph => all_sections = false,
+            LearningUnitKind::WholeNote => {
+                all_sections = false;
+                all_paragraphs = false;
+            }
+        }
+    }
+    if all_sections {
+        "section"
+    } else if all_paragraphs {
+        "paragraph"
+    } else {
+        "mixed"
+    }
+}
+
+/// Estado de prontidao exposto no dashboard, com os mesmos valores que a
+/// interface da nota utiliza para o indicador de qualidade.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ReadinessDashboardStatus {
+    Unassessed,
+    Ready,
+    Ambiguous,
+    Insufficient,
+    Modified,
+}
+
+/// Nota cuja qualidade para revisao exige atencao: a avaliacao mais recente
+/// concluiu que o conteudo e ambiguo, insuficiente, ou a nota foi editada
+/// depois da avaliacao (modificada). O dashboard expoe o motivo para o usuario
+/// decidir abrir a nota e corrigi-la ou reavalia-la.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadinessAttentionItem {
+    pub note_id: String,
+    pub relative_path: String,
+    pub title: String,
+    pub status: ReadinessDashboardStatus,
+    #[serde(rename = "assessedAtUnixMs")]
+    pub assessed_at_unix_ms: Option<u64>,
+    /// Explicacao objetiva do ultimo relatorio de prontidao.
+    pub explanation: String,
+    /// Quantidade de problemas apontados pelo relatorio (contradicoes,
+    /// contexto ausente, insuficiencia).
+    pub issue_count: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -100,6 +163,16 @@ pub struct VaultReviewDashboard {
     /// unidades), com progresso "X de Y paragrafos" e retencao parcial.
     pub calibration_note_count: usize,
     pub calibration_notes: Vec<CalibrationNoteItem>,
+    /// Qualidade da nota para revisao: contagens por estado de prontidao e a
+    /// lista de notas que precisam de atencao (ambiguas, insuficientes ou
+    /// modificadas), com a explicacao do ultimo relatorio.
+    pub readiness_unassessed_note_count: usize,
+    pub readiness_ready_note_count: usize,
+    pub readiness_ambiguous_note_count: usize,
+    pub readiness_insufficient_note_count: usize,
+    pub readiness_modified_note_count: usize,
+    pub readiness_attention_note_count: usize,
+    pub readiness_attention_notes: Vec<ReadinessAttentionItem>,
 }
 
 pub fn build_vault_review_dashboard(
@@ -132,6 +205,12 @@ pub fn build_vault_review_dashboard(
     let mut fragile_unit_count = 0usize;
     let mut calibration_note_count = 0usize;
     let mut calibration_notes: Vec<CalibrationNoteItem> = Vec::new();
+    let mut readiness_unassessed_note_count = 0usize;
+    let mut readiness_ready_note_count = 0usize;
+    let mut readiness_ambiguous_note_count = 0usize;
+    let mut readiness_insufficient_note_count = 0usize;
+    let mut readiness_modified_note_count = 0usize;
+    let mut readiness_attention_notes: Vec<ReadinessAttentionItem> = Vec::new();
     let mut load_forecast = (0..FORECAST_DAYS as u8)
         .map(|day_offset| DailyLoadItem {
             day_offset,
@@ -228,7 +307,13 @@ pub fn build_vault_review_dashboard(
         }
         // Retencao com a passagem do tempo: a recuperabilidade efetiva decai
         // desde a ultima revisao mesmo quando o paragrafo nao foi perguntado
-        // em uma sessao de cobertura adaptativa.
+        // em uma sessao de cobertura adaptativa. A fragilidade e calibrada por
+        // simulacao deterministica como relativa ao alvo da politica efetiva
+        // da nota (cerca de dois intervalos de revisao perdidos) — um limiar
+        // absoluto de 0.6 flagia politicas leves cedo demais e intensivas tarde
+        // demais (ver `retention_calibration`).
+        let fragile_threshold =
+            fragile_threshold_for_target(document.effective_policy.target_retention);
         let mut note_observed_units = 0usize;
         for unit in &document.units {
             if let Some(fsrs) = &unit.fsrs {
@@ -237,7 +322,7 @@ pub fn build_vault_review_dashboard(
                 let effective = effective_retrievability(fsrs, now_unix_ms);
                 retrievability_sum += effective;
                 stability_sum += fsrs.stability_days;
-                if effective < FRAGILE_RETRIEVABILITY_THRESHOLD {
+                if effective < fragile_threshold {
                     fragile_unit_count += 1;
                 }
             }
@@ -256,6 +341,7 @@ pub fn build_vault_review_dashboard(
                     title,
                     observed_unit_count: note_observed_units,
                     total_unit_count: document.units.len(),
+                    unit_kind: dominant_unit_kind(&document.units).to_string(),
                 });
             }
         }
@@ -267,6 +353,38 @@ pub fn build_vault_review_dashboard(
             .iter()
             .filter(|session| session.completed_at_unix_ms >= local_day_start_unix_ms)
             .count();
+
+        // Qualidade da nota para revisao: contagem por estado de prontidao e
+        // coleta das notas que precisam de atencao (ambiguas, insuficientes ou
+        // modificadas) com o motivo do ultimo relatorio.
+        let (status, assessed_at_unix_ms, explanation, issue_count) =
+            readiness_dashboard_meta(&document.note.readiness);
+        match status {
+            ReadinessDashboardStatus::Unassessed => readiness_unassessed_note_count += 1,
+            ReadinessDashboardStatus::Ready => readiness_ready_note_count += 1,
+            ReadinessDashboardStatus::Ambiguous => readiness_ambiguous_note_count += 1,
+            ReadinessDashboardStatus::Insufficient => readiness_insufficient_note_count += 1,
+            ReadinessDashboardStatus::Modified => readiness_modified_note_count += 1,
+        }
+        if matches!(
+            status,
+            ReadinessDashboardStatus::Ambiguous
+                | ReadinessDashboardStatus::Insufficient
+                | ReadinessDashboardStatus::Modified
+        ) && readiness_attention_notes.len() < MAX_READINESS_ATTENTION
+        {
+            let relative_path = document.note.relative_path.clone();
+            let title = display_title(&relative_path);
+            readiness_attention_notes.push(ReadinessAttentionItem {
+                note_id: document.note.id.clone(),
+                relative_path,
+                title,
+                status,
+                assessed_at_unix_ms,
+                explanation,
+                issue_count,
+            });
+        }
     }
 
     // O card "vencendo em sete dias" e o forecast compartilham a mesma
@@ -298,6 +416,20 @@ pub fn build_vault_review_dashboard(
             .total_cmp(&right_ratio)
             .then_with(|| left.relative_path.cmp(&right.relative_path))
     });
+    // Notas que precisam de atencao: as avaliadas ha mais tempo primeiro (a
+    // mais antiga no topo) e depois por caminho estavel, para o usuario
+    // revisar as pendencias de qualidade mais antigas primeiro.
+    readiness_attention_notes.sort_by(|left, right| {
+        let left_at = left.assessed_at_unix_ms.unwrap_or(u64::MAX);
+        let right_at = right.assessed_at_unix_ms.unwrap_or(u64::MAX);
+        left_at
+            .cmp(&right_at)
+            .then_with(|| left.relative_path.cmp(&right.relative_path))
+    });
+    readiness_attention_notes.truncate(MAX_READINESS_ATTENTION);
+    let readiness_attention_note_count = readiness_ambiguous_note_count
+        + readiness_insufficient_note_count
+        + readiness_modified_note_count;
 
     Ok(VaultReviewDashboard {
         enrolled_note_count,
@@ -325,7 +457,70 @@ pub fn build_vault_review_dashboard(
         fragile_unit_count,
         calibration_note_count,
         calibration_notes,
+        readiness_unassessed_note_count,
+        readiness_ready_note_count,
+        readiness_ambiguous_note_count,
+        readiness_insufficient_note_count,
+        readiness_modified_note_count,
+        readiness_attention_note_count,
+        readiness_attention_notes,
     })
+}
+
+/// Extrai do estado de prontidao os metadados exibidos no dashboard: o estado
+/// agregado, a data da avaliacao mais recente, a explicacao objetiva do ultimo
+/// relatorio (quando existir) e a quantidade de problemas apontados.
+fn readiness_dashboard_meta(
+    readiness: &ReadinessAssessment,
+) -> (ReadinessDashboardStatus, Option<u64>, String, usize) {
+    let (status, assessed_at_unix_ms, report) = match readiness {
+        ReadinessAssessment::Unassessed {
+            assessed_at_unix_ms,
+            report,
+            ..
+        } => (
+            ReadinessDashboardStatus::Unassessed,
+            *assessed_at_unix_ms,
+            report.as_ref(),
+        ),
+        ReadinessAssessment::Ready {
+            assessed_at_unix_ms,
+            report,
+            ..
+        }
+        | ReadinessAssessment::Ambiguous {
+            assessed_at_unix_ms,
+            report,
+            ..
+        }
+        | ReadinessAssessment::Insufficient {
+            assessed_at_unix_ms,
+            report,
+            ..
+        }
+        | ReadinessAssessment::Modified {
+            assessed_at_unix_ms,
+            report,
+            ..
+        } => (
+            match readiness {
+                ReadinessAssessment::Ready { .. } => ReadinessDashboardStatus::Ready,
+                ReadinessAssessment::Ambiguous { .. } => ReadinessDashboardStatus::Ambiguous,
+                ReadinessAssessment::Insufficient { .. } => ReadinessDashboardStatus::Insufficient,
+                ReadinessAssessment::Modified { .. } => ReadinessDashboardStatus::Modified,
+                ReadinessAssessment::Unassessed { .. } => unreachable!(),
+            },
+            Some(*assessed_at_unix_ms),
+            report.as_ref(),
+        ),
+    };
+    let explanation = report
+        .map(|report| report.explanation.clone())
+        .unwrap_or_default();
+    let issue_count = report
+        .map(|report| report.issues.len())
+        .unwrap_or(readiness.issues().len());
+    (status, assessed_at_unix_ms, explanation, issue_count)
 }
 
 fn round_4(value: f64) -> f64 {
@@ -650,7 +845,8 @@ mod tests {
         assert_eq!(buckets, vec![2, 1, 0, 1, 0, 0, 1]);
         assert_eq!(dashboard.due_note_count, 2);
         assert_eq!(dashboard.due_within_week_count, 5);
-        // Uma unidade com recuperabilidade 0.55 abaixo do limiar 0.6.
+        // Uma unidade com retencao efetiva decaida abaixo do limiar de
+        // fragilidade (relativo ao alvo da nota, calibrado por simulacao).
         assert_eq!(dashboard.fragile_unit_count, 1);
         // Notas sem nenhuma sessao concluida: vencida, hoje, dia3 e alem.
         assert_eq!(dashboard.awaiting_first_review_count, 4);
@@ -1117,5 +1313,152 @@ mod tests {
         }
         crate::review::storage::write_learning_document(vault, &note_id, None, &document)
             .expect("persist dashboard document");
+    }
+
+    #[test]
+    fn aggregates_readiness_quality_and_lists_notes_needing_attention() {
+        use crate::review::evaluation::{
+            GroundedReadinessIssue, ReadinessIssueCode as ReportIssueCode,
+        };
+
+        let vault = tempdir().expect("vault");
+        let now = 1_730_000_000_000;
+
+        // Pronta: conta como ready e nao entra na lista de atencao.
+        let ready_report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        persist_readiness_assessment(
+            vault.path(),
+            "Pronta.md",
+            MARKDOWN,
+            &ready_report,
+            now - 3 * DAY_MS,
+        )
+        .expect("persist ready note");
+
+        // Ambigua: relatorio com um problema de contexto ausente fundamentado.
+        let ambiguous_report = ReadinessReport {
+            status: ReadinessStatus::Ambiguous,
+            explanation: "Faltam contexto e referencias.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: vec![GroundedReadinessIssue {
+                code: ReportIssueCode::MissingContext,
+                message: "A segunda ideia carece de contexto.".to_string(),
+                suggestion: "Detalhe o contexto da segunda ideia.".to_string(),
+                source_quote: Some("Ideia dois.".to_string()),
+                source_start_utf16: Some(0),
+                source_end_utf16: Some(10),
+            }],
+        };
+        persist_readiness_assessment(
+            vault.path(),
+            "Ambígua.md",
+            MARKDOWN,
+            &ambiguous_report,
+            now - 2 * DAY_MS,
+        )
+        .expect("persist ambiguous note");
+
+        // Insuficiente: relatorio com um problema de insuficiencia.
+        let insufficient_report = ReadinessReport {
+            status: ReadinessStatus::Insufficient,
+            explanation: "Apenas titulo e esboco.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: vec![GroundedReadinessIssue {
+                code: ReportIssueCode::Insufficient,
+                message: "Nao ha pontos avaliaveis.".to_string(),
+                suggestion: "Escreva o conteudo substantivo.".to_string(),
+                source_quote: None,
+                source_start_utf16: None,
+                source_end_utf16: None,
+            }],
+        };
+        persist_readiness_assessment(
+            vault.path(),
+            "Esboco.md",
+            MARKDOWN,
+            &insufficient_report,
+            now - 1 * DAY_MS,
+        )
+        .expect("persist insufficient note");
+
+        // Modificada: avaliada pronta e depois editada (hash desatualizado).
+        let modified = persist_readiness_assessment(
+            vault.path(),
+            "Editada.md",
+            MARKDOWN,
+            &ready_report,
+            now - 4 * DAY_MS,
+        )
+        .expect("persist modified note");
+        {
+            let mut document = load_learning_document(vault.path(), &modified.note_id)
+                .expect("load modified")
+                .expect("modified document")
+                .document;
+            document.note.content_hash = "sha256:conteudo-novo".to_string();
+            document.note.readiness = crate::review::contract::ReadinessAssessment::Modified {
+                assessed_at_unix_ms: now - 4 * DAY_MS,
+                assessed_content_hash: "sha256:conteudo-antigo".to_string(),
+                assessed_semantic_hash: None,
+                issues: Vec::new(),
+                report: None,
+            };
+            document.scheduling.status = SchedulingStatus::Paused;
+            document.scheduling.next_review_at_unix_ms = None;
+            document.revision = document.revision.saturating_add(1);
+            write_learning_document(
+                vault.path(),
+                &modified.note_id,
+                Some(document.revision - 1),
+                &document,
+            )
+            .expect("persist modified state");
+        }
+
+        let day_start = now - (now % DAY_MS);
+        let dashboard =
+            build_vault_review_dashboard(vault.path(), now, day_start).expect("build dashboard");
+
+        assert_eq!(dashboard.readiness_ready_note_count, 1);
+        assert_eq!(dashboard.readiness_ambiguous_note_count, 1);
+        assert_eq!(dashboard.readiness_insufficient_note_count, 1);
+        assert_eq!(dashboard.readiness_modified_note_count, 1);
+        assert_eq!(dashboard.readiness_unassessed_note_count, 0);
+        // Pronta nao entra na lista de atencao: so ambigua, insuficiente e
+        // modificada.
+        assert_eq!(dashboard.readiness_attention_note_count, 3);
+        assert_eq!(dashboard.readiness_attention_notes.len(), 3);
+        // As mais antigas primeiro: Editada (avaliada ha 4 dias) vem antes de
+        // Ambígua (2 dias) e Esboco (1 dia).
+        let titles = dashboard
+            .readiness_attention_notes
+            .iter()
+            .map(|item| item.title.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(titles, vec!["Editada", "Ambígua", "Esboco"]);
+        let ambiguous = dashboard
+            .readiness_attention_notes
+            .iter()
+            .find(|item| item.title == "Ambígua")
+            .expect("ambiguous item");
+        assert_eq!(ambiguous.relative_path, "Ambígua.md");
+        assert_eq!(ambiguous.explanation, "Faltam contexto e referencias.");
+        assert_eq!(ambiguous.issue_count, 1);
+        // A nota editada preserva a origem da avaliacao e o motivo vazio (sem
+        // relatorio novo apos a edicao).
+        let modified_item = dashboard
+            .readiness_attention_notes
+            .iter()
+            .find(|item| item.title == "Editada")
+            .expect("modified item");
+        assert_eq!(modified_item.issue_count, 0);
     }
 }

@@ -4,10 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
 import { ReviewSessionPage } from './ReviewSessionPage'
 
-const { startMock, completeMock, continueMock } = vi.hoisted(() => ({
+const { startMock, completeMock, continueMock, reclassifyMock, previewMock } = vi.hoisted(() => ({
   startMock: vi.fn(),
   completeMock: vi.fn(),
   continueMock: vi.fn(),
+  reclassifyMock: vi.fn(),
+  previewMock: vi.fn(),
 }))
 
 vi.mock('./reviewSession', async (importOriginal) => ({
@@ -15,6 +17,12 @@ vi.mock('./reviewSession', async (importOriginal) => ({
   startReviewSession: startMock,
   completeReviewSession: completeMock,
   continueReviewConversation: continueMock,
+  previewReviewSessionPlan: previewMock,
+}))
+
+vi.mock('./ai', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./ai')>(),
+  setNoteUnitClassification: reclassifyMock,
 }))
 
 const item = {
@@ -59,7 +67,7 @@ const report = (markdown: string, score = 72, gaps: Array<{ classification: 'for
     summary: 'Bom dominio, com uma imprecisao.',
     markdown,
     units: [{
-      id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: markdown.length,
+      id: 'unit-1', ordinal: 0, kind: 'paragraph' as const, sourceStartUtf16: 0, sourceEndUtf16: markdown.length,
       sectionPath: [], evaluated: true, score, outcome: score >= 90 ? 'complete' as const : 'good' as const,
     }],
     gaps,
@@ -93,12 +101,45 @@ describe('ReviewSessionPage', () => {
     startMock.mockReset()
     completeMock.mockReset()
     continueMock.mockReset()
+    reclassifyMock.mockReset()
+    previewMock.mockReset()
+    previewMock.mockResolvedValue({
+      targetUnitCount: 4, totalUnitCount: 10, coverageFraction: 0.4,
+      estimatedMinutes: 6, expectedSessionsToCover: 3,
+    })
     startMock.mockResolvedValue({ outcome: 'valid', draft })
     completeMock.mockResolvedValue(report(reportMarkdown, 72, [
       { classification: 'confused', sourceQuote: 'energia luminosa', sourceStartUtf16: 2, sourceEndUtf16: 18 },
     ]))
+    reclassifyMock.mockResolvedValue({
+      noteId: 'note-1', relativePath: item.relativePath, enrolled: true, readiness: 'ready',
+      schedulingStatus: 'scheduled', firstReviewAtUnixMs: null, nextReviewAtUnixMs: 1_768_000_000_000,
+      completedReviewCount: 1, due: false, policy: {},
+    })
   })
   afterEach(cleanup)
+
+  it('shows the estimated session plan on the setup screen and refreshes it per mode', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    // Plano estimado exibido com duracao, cobertura e sessoes para cobrir.
+    await screen.findByText(/6 min/)
+    expect(screen.getByText(/cobre 4 de 10 unidades \(40%\)/)).toBeInTheDocument()
+    expect(screen.getByText(/cerca de 3 sessões para cobrir/)).toBeInTheDocument()
+    // Trocar o modo recalcula o plano.
+    previewMock.mockResolvedValue({
+      targetUnitCount: 5, totalUnitCount: 10, coverageFraction: 0.5,
+      estimatedMinutes: 7, expectedSessionsToCover: 2,
+    })
+    await user.click(screen.getByRole('radio', { name: /Modo conversa/ }))
+    await screen.findByText(/7 min/)
+    expect(screen.getByText(/cobre 5 de 10 unidades \(50%\)/)).toBeInTheDocument()
+    // A falha do preview nunca bloqueia o inicio da sessao.
+    previewMock.mockRejectedValue(new Error('offline'))
+    await user.click(screen.getByRole('radio', { name: /Modo prova/ }))
+    await screen.findByText(/Nao foi possivel estimar a sessao/)
+    expect(startMock).not.toHaveBeenCalled()
+  })
 
   it('explains that an objective exam is weaker evidence for scheduling', async () => {
     // Relatorio de prova objetiva (reconhecimento) concluido.
@@ -109,7 +150,7 @@ describe('ReviewSessionPage', () => {
         summary: 'Bom dominio.',
         markdown: reportMarkdown,
         units: [{
-          id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length,
+          id: 'unit-1', ordinal: 0, kind: 'paragraph' as const, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length,
           sectionPath: [], evaluated: true, score: 72, outcome: 'good',
         }],
         gaps: [],
@@ -158,7 +199,7 @@ describe('ReviewSessionPage', () => {
         summary: 'Prova concluida: 2 de 3 questoes corretas, 1 sem resposta.',
         markdown: reportMarkdown,
         units: [{
-          id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length,
+          id: 'unit-1', ordinal: 0, kind: 'paragraph' as const, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length,
           sectionPath: [], evaluated: true, score: 60, outcome: 'partial',
         }],
         gaps: [{ classification: 'forgotten', sourceQuote: 'fonte de energia', sourceStartUtf16: 10, sourceEndUtf16: 26 }],
@@ -233,11 +274,11 @@ describe('ReviewSessionPage', () => {
         markdown: coverageMarkdown,
         units: [
           {
-            id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: firstParagraph.length,
+            id: 'unit-1', ordinal: 0, kind: 'paragraph' as const, sourceStartUtf16: 0, sourceEndUtf16: firstParagraph.length,
             sectionPath: [], evaluated: true, score: 72, outcome: 'good' as const,
           },
           {
-            id: 'unit-2', ordinal: 1, sourceStartUtf16: firstParagraph.length + 2, sourceEndUtf16: coverageMarkdown.length,
+            id: 'unit-2', ordinal: 1, kind: 'paragraph' as const, sourceStartUtf16: firstParagraph.length + 2, sourceEndUtf16: coverageMarkdown.length,
             sectionPath: [], evaluated: false, score: 0, outcome: 'partial' as const,
           },
         ],
@@ -264,6 +305,46 @@ describe('ReviewSessionPage', () => {
     expect(note?.querySelector('.review-unit-score.is-good')).toHaveTextContent('72')
   })
 
+  it('labels the coverage with seções when the note is segmented into sections', async () => {
+    const firstSection = 'A energia luminosa alimenta a fotossintese.'
+    const secondSection = 'A mitose divide a celula.'
+    const coverageMarkdown = `${firstSection}\n\n${secondSection}`
+    completeMock.mockResolvedValue({
+      outcome: 'valid',
+      report: {
+        sessionId: 'session-1', overallScore: 72, outcome: 'good' as const,
+        summary: 'Cobertura parcial.',
+        markdown: coverageMarkdown,
+        units: [
+          {
+            id: 'unit-1', ordinal: 0, kind: 'section' as const,
+            sourceStartUtf16: 0, sourceEndUtf16: firstSection.length,
+            sectionPath: ['Fotossíntese'], evaluated: true, score: 72, outcome: 'good' as const,
+          },
+          {
+            id: 'unit-2', ordinal: 1, kind: 'section' as const,
+            sourceStartUtf16: firstSection.length + 2, sourceEndUtf16: coverageMarkdown.length,
+            sectionPath: ['Célula'], evaluated: false, score: 0, outcome: 'partial' as const,
+          },
+        ],
+        gaps: [],
+        completedAtUnixMs: 1_730_000_000_000, nextReviewAtUnixMs: 1_730_604_800_000,
+      },
+    })
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+      await answerExamQuestion(user, option)
+    }
+
+    await waitFor(() => {
+      const note = document.querySelector('.review-coverage-note')
+      expect(note?.textContent).toContain('1 de 2 seções')
+    })
+    expect(screen.getByRole('button', { name: /Revisar mais 1 seção agora/ })).toBeInTheDocument()
+  })
+
   it('continues the calibration immediately when the report still has unobserved paragraphs', async () => {
     const firstParagraph = 'A energia luminosa alimenta a fotossintese.'
     const secondParagraph = 'A mitose divide a celula.'
@@ -276,11 +357,11 @@ describe('ReviewSessionPage', () => {
         markdown: coverageMarkdown,
         units: [
           {
-            id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: firstParagraph.length,
+            id: 'unit-1', ordinal: 0, kind: 'paragraph' as const, sourceStartUtf16: 0, sourceEndUtf16: firstParagraph.length,
             sectionPath: [], evaluated: true, score: 72, outcome: 'good' as const,
           },
           {
-            id: 'unit-2', ordinal: 1, sourceStartUtf16: firstParagraph.length + 2, sourceEndUtf16: coverageMarkdown.length,
+            id: 'unit-2', ordinal: 1, kind: 'paragraph' as const, sourceStartUtf16: firstParagraph.length + 2, sourceEndUtf16: coverageMarkdown.length,
             sectionPath: [], evaluated: false, score: 0, outcome: 'partial' as const,
           },
         ],
@@ -339,7 +420,7 @@ describe('ReviewSessionPage', () => {
         summary: 'Prova concluida: 3 de 3 questoes corretas, 1 com ajuda.',
         markdown: reportMarkdown,
         units: [{
-          id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length,
+          id: 'unit-1', ordinal: 0, kind: 'paragraph' as const, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length,
           sectionPath: [], evaluated: true, score: 72, outcome: 'good',
         }],
         gaps: [],
@@ -473,6 +554,36 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
     expect(onCompleted).toHaveBeenCalledOnce()
   })
 
+  it('finishes the conversation after the sixth answer without requesting another turn', async () => {
+    // A conversa tem no maximo 6 respostas: ao responder a sexta, a sessao
+    // finaliza direto, sem pedir um setimo turno a IA.
+    startMock.mockResolvedValue({ outcome: 'valid', draft: conversationDraft })
+    continueMock
+      .mockResolvedValueOnce({ outcome: 'valid', prompt: { id: 'turn-2', text: 'Pergunta 2?', assistance: 'Dica.', options: [] }, shouldFinish: false })
+      .mockResolvedValueOnce({ outcome: 'valid', prompt: { id: 'turn-3', text: 'Pergunta 3?', assistance: 'Dica.', options: [] }, shouldFinish: false })
+      .mockResolvedValueOnce({ outcome: 'valid', prompt: { id: 'turn-4', text: 'Pergunta 4?', assistance: 'Dica.', options: [] }, shouldFinish: false })
+      .mockResolvedValueOnce({ outcome: 'valid', prompt: { id: 'turn-5', text: 'Pergunta 5?', assistance: 'Dica.', options: [] }, shouldFinish: false })
+      .mockResolvedValueOnce({ outcome: 'valid', prompt: { id: 'turn-6', text: 'Pergunta 6?', assistance: 'Dica.', options: [] }, shouldFinish: false })
+    completeMock.mockResolvedValue(report(reportMarkdown, 72, []))
+
+    const { onCompleted } = renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await screen.findByRole('heading', { name: 'O que a mitose produz?' })
+    for (let index = 1; index <= 6; index += 1) {
+      await user.type(screen.getByLabelText('Sua resposta'), `Resposta ${index}.`)
+      await user.click(screen.getByRole('button', { name: 'Salvar resposta' }))
+      if (index < 6) {
+        await screen.findByRole('heading', { name: `Pergunta ${index + 1}?` })
+      }
+    }
+    // Cinco continuacoes (da 2a a 6a pergunta) e depois nenhuma: a 6a resposta
+    // finaliza sem pedir um setimo turno.
+    expect(continueMock).toHaveBeenCalledTimes(5)
+    expect((await screen.findAllByText('72')).length).toBeGreaterThan(0)
+    expect(onCompleted).toHaveBeenCalledOnce()
+  })
+
   it('labels a clarification turn in the conversation without exposing the expected content', async () => {
     startMock.mockResolvedValue({ outcome: 'valid', draft: conversationDraft })
     continueMock.mockResolvedValueOnce({
@@ -508,7 +619,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
         summary: 'Sessao inconclusiva: apenas 1 de 7 paragrafos-alvo tiveram evidencia valida (minimo de 50%).',
         markdown: reportMarkdown,
         units: [
-          { id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length, sectionPath: [], evaluated: false, inconclusive: true, score: 0, outcome: 'partial' },
+          { id: 'unit-1', ordinal: 0, kind: 'paragraph' as const, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length, sectionPath: [], evaluated: false, inconclusive: true, score: 0, outcome: 'partial' },
         ],
         gaps: [],
         completedAtUnixMs: 1_730_000_000_000,
@@ -544,12 +655,116 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
     await screen.findByRole('heading', { name: 'Pergunta um?' })
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
 
+    // Cancelar mantem a sessao ativa e fechando o dialogo.
     await user.click(screen.getByRole('button', { name: 'Notas' }))
+    expect(screen.getByRole('dialog', { name: /abandonar esta revis/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(onExit).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: 'Pergunta um?' })).toBeInTheDocument()
+
+    // Confirmar descarta a sessao e sai para a fila.
     await user.click(screen.getByRole('button', { name: 'Notas' }))
+    await user.click(screen.getByRole('button', { name: /confirmar abandono/i }))
     expect(onExit).toHaveBeenCalledOnce()
-    expect(confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('guards vault switching during a session with the same confirmation dialog', async () => {
+    const onExit = vi.fn()
+    render(
+      <ReviewAiSettingsProvider>
+        <footer><button type="button" className="vault-switch-button">Meu Vault</button></footer>
+        <ReviewSessionPage vaultPath="C:\\Vault" item={item} onExit={onExit} onCompleted={vi.fn()} />
+      </ReviewAiSettingsProvider>,
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await screen.findByRole('heading', { name: 'Pergunta um?' })
+
+    await user.click(screen.getByRole('button', { name: 'Meu Vault' }))
+    expect(screen.getByRole('dialog', { name: /abandonar esta revis/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(onExit).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Meu Vault' }))
+    await user.click(screen.getByRole('button', { name: /confirmar abandono/i }))
+    expect(onExit).toHaveBeenCalledOnce()
+  })
+
+  it('abandons via the header button only after the dialog confirms', async () => {
+    const { onExit } = renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await screen.findByRole('heading', { name: 'Pergunta um?' })
+
+    await user.click(screen.getByRole('button', { name: 'Abandonar' }))
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(onExit).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Abandonar' }))
+    await user.click(screen.getByRole('button', { name: /confirmar abandono/i }))
+    expect(onExit).toHaveBeenCalledOnce()
+  })
+
+  it('prevents the window from unloading during an active session', async () => {
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await screen.findByRole('heading', { name: 'Pergunta um?' })
+
+    const unload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unload)
+    expect(unload.defaultPrevented).toBe(true)
+  })
+
+  it('corrects the classification of a paragraph by clicking its score badge', async () => {
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+      await answerExamQuestion(user, option)
+    }
+    await screen.findByRole('heading', { name: 'Nota avaliada' })
+
+    const badge = document.querySelector('.review-unit-score[data-unit-id]') as HTMLElement | null
+    expect(badge).not.toBeNull()
+    await user.click(badge!)
+    const menu = screen.getByRole('menu', { name: /corrigir classificação/i })
+    expect(menu).toBeInTheDocument()
+
+    await user.click(screen.getByRole('menuitem', { name: /completa/i }))
+    await waitFor(() => {
+      expect(reclassifyMock).toHaveBeenCalledWith(expect.objectContaining({
+        relativePath: item.relativePath,
+        unitId: 'unit-1',
+        score: 100,
+      }))
+    })
+    // O badge passa a exibir a classificacao corrigida e a nota reagendada
+    // pelo backend aparece no resumo.
+    await waitFor(() => {
+      expect(document.querySelector('.review-unit-score[data-unit-id]')).toHaveTextContent('100')
+    })
+    expect(document.querySelector('.review-unit-score[data-unit-id]')).toHaveAttribute('data-outcome', 'complete')
+    expect(screen.getByText(/próxima revisão/i).textContent).toContain('de 2026')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('closes the classification menu without changing anything when clicking outside', async () => {
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+      await answerExamQuestion(user, option)
+    }
+    await screen.findByRole('heading', { name: 'Nota avaliada' })
+
+    const badge = document.querySelector('.review-unit-score[data-unit-id]') as HTMLElement | null
+    await user.click(badge!)
+    expect(screen.getByRole('menu', { name: /corrigir classificação/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('heading', { name: 'Nota avaliada' }))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(reclassifyMock).not.toHaveBeenCalled()
   })
 })

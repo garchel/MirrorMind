@@ -1,15 +1,30 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NoteReadinessControl } from './NoteReadinessControl'
 import type { NoteReviewState, ReadinessAttempt } from './ai'
 import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
 
-const { assessNoteReadinessMock, getNoteReviewStateMock, resetNoteLearningMock, setNoteReviewEnrollmentMock } = vi.hoisted(() => ({
+const {
+  assessNoteReadinessMock,
+  getNoteReviewStateMock,
+  resetNoteLearningMock,
+  setNoteReviewEnrollmentMock,
+  getUnrecoverableMock,
+  exportUnrecoverableMock,
+  discardUnrecoverableMock,
+  saveDialogMock,
+  getVaultReviewPolicyConfigMock,
+} = vi.hoisted(() => ({
   assessNoteReadinessMock: vi.fn(),
   getNoteReviewStateMock: vi.fn(),
   resetNoteLearningMock: vi.fn(),
   setNoteReviewEnrollmentMock: vi.fn(),
+  getUnrecoverableMock: vi.fn(),
+  exportUnrecoverableMock: vi.fn(),
+  discardUnrecoverableMock: vi.fn(),
+  saveDialogMock: vi.fn(),
+  getVaultReviewPolicyConfigMock: vi.fn(),
 }))
 
 vi.mock('./ai', async (importOriginal) => {
@@ -20,6 +35,21 @@ vi.mock('./ai', async (importOriginal) => {
     getNoteReviewState: getNoteReviewStateMock,
     resetNoteLearning: resetNoteLearningMock,
     setNoteReviewEnrollment: setNoteReviewEnrollmentMock,
+    getUnrecoverableLearningDocuments: getUnrecoverableMock,
+    exportUnrecoverableLearningDocument: exportUnrecoverableMock,
+    discardUnrecoverableLearningDocument: discardUnrecoverableMock,
+  }
+})
+
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  save: saveDialogMock,
+}))
+
+vi.mock('./vaultReviewPolicy', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./vaultReviewPolicy')>()
+  return {
+    ...original,
+    getVaultReviewPolicyConfig: getVaultReviewPolicyConfigMock,
   }
 })
 
@@ -64,6 +94,29 @@ describe('NoteReadinessControl', () => {
     getNoteReviewStateMock.mockReset().mockResolvedValue(null)
     resetNoteLearningMock.mockReset()
     setNoteReviewEnrollmentMock.mockReset()
+    getUnrecoverableMock.mockReset().mockResolvedValue([])
+    exportUnrecoverableMock.mockReset().mockResolvedValue(1)
+    discardUnrecoverableMock.mockReset().mockResolvedValue(1)
+    saveDialogMock.mockReset().mockResolvedValue('C:\\export\\biologia.learning.json')
+    getVaultReviewPolicyConfigMock.mockReset().mockResolvedValue({
+      revision: 1,
+      defaults: {
+        firstReviewIntervalDays: 1,
+        targetRetention: 0.9,
+        priorityWeight: 3,
+        minIntervalDays: 1,
+        maxIntervalDays: 90,
+        preferredMode: 'exam',
+      },
+      tagRules: [
+        { tag: 'revisao/prova', autoEnroll: true, firstReviewIntervalDays: 1, targetRetention: 0.9, priorityWeight: 3, minIntervalDays: 1, maxIntervalDays: 90, deadlineAtUnixMs: null },
+        { tag: 'revisao/manter', autoEnroll: true, firstReviewIntervalDays: 2, targetRetention: 0.8, priorityWeight: 2, minIntervalDays: 1, maxIntervalDays: 365, deadlineAtUnixMs: null },
+        { tag: 'revisao/leve', autoEnroll: true, firstReviewIntervalDays: 7, targetRetention: 0.7, priorityWeight: 1, minIntervalDays: 3, maxIntervalDays: 730, deadlineAtUnixMs: null },
+      ],
+      segmentation: { maxWholeNoteWords: 800 },
+      updatedAtUnixMs: null,
+      affectedNoteCount: 0,
+    })
   })
 
   afterEach(cleanup)
@@ -83,6 +136,7 @@ describe('NoteReadinessControl', () => {
       firstReviewAtUnixMs: null,
       nextReviewAtUnixMs: null,
       deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
     })
 
     render(control({ onStatusChange }))
@@ -198,6 +252,7 @@ describe('NoteReadinessControl', () => {
       firstReviewAtUnixMs: 1_720_172_800_000,
       nextReviewAtUnixMs: 1_720_172_800_000,
       deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
     }
     getNoteReviewStateMock.mockResolvedValue(readyState)
 
@@ -230,6 +285,7 @@ describe('NoteReadinessControl', () => {
       firstReviewAtUnixMs: null,
       nextReviewAtUnixMs: null,
       deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
     }
     getNoteReviewStateMock.mockResolvedValue(readyState)
     setNoteReviewEnrollmentMock.mockResolvedValue({
@@ -239,6 +295,7 @@ describe('NoteReadinessControl', () => {
       firstReviewAtUnixMs: 1_720_172_800_000,
       nextReviewAtUnixMs: 1_720_172_800_000,
       deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
     })
 
     render(control({ onStartReview }))
@@ -286,6 +343,7 @@ describe('NoteReadinessControl', () => {
       firstReviewAtUnixMs: 1_720_172_800_000,
       nextReviewAtUnixMs: null,
       deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
     }
     getNoteReviewStateMock.mockResolvedValue(modifiedState)
     render(control())
@@ -308,6 +366,7 @@ describe('NoteReadinessControl', () => {
       firstReviewAtUnixMs: 1_720_000_000_000,
       nextReviewAtUnixMs: 1_720_000_000_000,
       deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
     }
     getNoteReviewStateMock.mockResolvedValue(readyState)
     resetNoteLearningMock.mockResolvedValue({
@@ -315,6 +374,7 @@ describe('NoteReadinessControl', () => {
       firstReviewAtUnixMs: 1_730_000_000_000,
       nextReviewAtUnixMs: 1_730_000_000_000,
       deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
     })
 
     render(control())
@@ -369,6 +429,7 @@ describe('NoteReadinessControl', () => {
       firstReviewAtUnixMs: 1_720_000_000_000,
       nextReviewAtUnixMs: 1_720_000_000_000,
       deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
     })
 
     render(control())
@@ -400,6 +461,7 @@ describe('NoteReadinessControl', () => {
       firstReviewAtUnixMs: null,
       nextReviewAtUnixMs: null,
       deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
     }
     getNoteReviewStateMock.mockResolvedValue(persistedState)
     render(control())
@@ -408,5 +470,147 @@ describe('NoteReadinessControl', () => {
 
     expect(await screen.findByText('A nota tem material suficiente.')).toBeInTheDocument()
     expect(screen.getByText('Ponto dois.')).toBeInTheDocument()
+  })
+
+  it('avisa quando o aprendizado foi recuperado de um backup', async () => {
+    getNoteReviewStateMock.mockResolvedValue({
+      noteId: 'note-backup',
+      relativePath: 'biologia.md',
+      contentHash: `sha256:${'b'.repeat(64)}`,
+      readiness: 'ready',
+      assessedAtUnixMs: 1_720_000_000_000,
+      report: null,
+      enrolled: true,
+      preferredMode: 'exam',
+      schedulingStatus: 'scheduled',
+      firstReviewAtUnixMs: 1_720_000_000_000,
+      nextReviewAtUnixMs: 1_720_000_000_000,
+      deadlineRetentionAtRisk: false,
+      recoveredFromBackup: true,
+    })
+    render(control())
+
+    const badge = await screen.findByText('Aprendizado recuperado de backup')
+    expect(badge).toHaveAttribute('role', 'status')
+    expect(badge.getAttribute('title')).toContain('restaurado de um backup')
+  })
+
+  it('oferece exportar e descartar quando o documento de aprendizado e irrecuperavel', async () => {
+    const user = userEvent.setup()
+    getNoteReviewStateMock.mockRejectedValue(new Error('O documento principal esta corrompido e nenhum backup valido foi encontrado.'))
+    getUnrecoverableMock.mockResolvedValue([{
+      storageKey: 'note-corrupt',
+      relativePath: 'biologia.md',
+    }])
+
+    render(control())
+
+    expect(await screen.findByText('Aprendizado irrecuperável')).toBeInTheDocument()
+    expect(screen.getByText('biologia.md')).toBeInTheDocument()
+
+    // Exporta para o destino escolhido no dialogo.
+    await user.click(screen.getByRole('button', { name: /Exportar arquivo/ }))
+    expect(saveDialogMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Exportar arquivo de aprendizado',
+    }))
+    expect(exportUnrecoverableMock).toHaveBeenCalledWith({
+      vaultPath: expect.stringContaining('Vault'),
+      storageKey: 'note-corrupt',
+      destinationPath: 'C:\\export\\biologia.learning.json',
+    })
+    await waitFor(() => expect(screen.getByRole('button', { name: /Exportar arquivo/ })).not.toBeDisabled())
+
+    // Descartar exige confirmacao e recarrega o estado apos quarentena.
+    getNoteReviewStateMock.mockResolvedValue(null)
+    await user.click(screen.getByRole('button', { name: /Descartar e reavaliar/ }))
+    const dialog = await screen.findByRole('dialog', { name: /Descartar aprendizado irrecuperável/ })
+    await user.click(within(dialog).getByRole('button', { name: 'Descartar e reavaliar' }))
+    await waitFor(() => expect(discardUnrecoverableMock).toHaveBeenCalledWith({
+      vaultPath: expect.stringContaining('Vault'),
+      storageKey: 'note-corrupt',
+    }))
+    expect(await screen.findByText(/Status: Não avaliada/)).toBeInTheDocument()
+  })
+
+  it('nao oferece recuperacao quando o documento irrecuperavel nao pertence a nota aberta', async () => {
+    getNoteReviewStateMock.mockRejectedValue(new Error('carregamento falhou'))
+    getUnrecoverableMock.mockResolvedValue([
+      { storageKey: 'note-other', relativePath: 'outra-nota.md' },
+      { storageKey: 'note-other-2', relativePath: 'mais-uma.md' },
+    ])
+    render(control())
+
+    await waitFor(() => expect(getUnrecoverableMock).toHaveBeenCalled())
+    expect(screen.queryByText('Aprendizado irrecuperável')).not.toBeInTheDocument()
+  })
+
+  it('sugere adotar um perfil padrao quando a nota esta pronta sem tag de revisao', async () => {
+    getNoteReviewStateMock.mockResolvedValue({
+      noteId: 'note-1',
+      relativePath: 'biologia.md',
+      contentHash: 'sha256:content',
+      readiness: 'ready',
+      assessedAtUnixMs: 1_730_000_000_000,
+      report: null,
+      enrolled: false,
+      preferredMode: 'exam',
+      schedulingStatus: 'notScheduled',
+      firstReviewAtUnixMs: null,
+      nextReviewAtUnixMs: null,
+      deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
+    })
+    const onApplyTag = vi.fn()
+    render(control({ noteTags: [], onApplyTag }))
+
+    expect(await screen.findByText('Adotar perfil de revisão?')).toBeInTheDocument()
+    await userEvent.setup().click(screen.getByRole('button', { name: /Intensiva/ }))
+    expect(onApplyTag).toHaveBeenCalledWith('revisao/prova')
+  })
+
+  it('nao sugere perfil quando a nota ja tem uma tag de revisao aplicada', async () => {
+    getNoteReviewStateMock.mockResolvedValue({
+      noteId: 'note-1',
+      relativePath: 'biologia.md',
+      contentHash: 'sha256:content',
+      readiness: 'ready',
+      assessedAtUnixMs: 1_730_000_000_000,
+      report: null,
+      enrolled: false,
+      preferredMode: 'exam',
+      schedulingStatus: 'notScheduled',
+      firstReviewAtUnixMs: null,
+      nextReviewAtUnixMs: null,
+      deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
+    })
+    render(control({ noteTags: ['revisao/prova'], onApplyTag: vi.fn() }))
+
+    await waitFor(() => expect(getVaultReviewPolicyConfigMock).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(screen.queryByText('Adotar perfil de revisão?')).not.toBeInTheDocument()
+  })
+
+  it('nao sugere perfil sem callback de aplicacao', async () => {
+    getNoteReviewStateMock.mockResolvedValue({
+      noteId: 'note-1',
+      relativePath: 'biologia.md',
+      contentHash: 'sha256:content',
+      readiness: 'ready',
+      assessedAtUnixMs: 1_730_000_000_000,
+      report: null,
+      enrolled: false,
+      preferredMode: 'exam',
+      schedulingStatus: 'notScheduled',
+      firstReviewAtUnixMs: null,
+      nextReviewAtUnixMs: null,
+      deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
+    })
+    render(control({ noteTags: [] }))
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(screen.queryByText('Adotar perfil de revisão?')).not.toBeInTheDocument()
+    expect(getVaultReviewPolicyConfigMock).not.toHaveBeenCalled()
   })
 })

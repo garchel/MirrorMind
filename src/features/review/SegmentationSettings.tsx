@@ -148,8 +148,8 @@ export function SegmentationSettings({ vaultPath }: Props) {
     <div className="settings-section segmentation-settings" aria-labelledby="segmentation-settings-title">
       <div className="segmentation-heading">
         <div>
-          <p className="card-kicker" id="segmentation-settings-title">Segmentação de parágrafos</p>
-          <small>Controla a partir de quantas palavras uma nota é dividida em parágrafos com identidade determinística.</small>
+          <p className="card-kicker" id="segmentation-settings-title">Segmentação de unidades</p>
+          <small>Controla a partir de quantas palavras uma nota deixa de ser tratada como uma unidade única e passa a ser dividida em seções (notas com títulos) ou parágrafos (notas sem títulos), com identidade determinística.</small>
         </div>
         {config ? <span>revisão {config.revision}</span> : null}
       </div>

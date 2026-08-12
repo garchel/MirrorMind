@@ -10,6 +10,7 @@ import type {
   VaultReviewDefaultsPreview,
   VaultReviewPolicyConfig,
 } from './vaultReviewPolicy'
+import { PolicyWorkloadEstimate } from './PolicyWorkloadEstimate'
 import './vault-review-policy.css'
 
 type Props = {
@@ -201,6 +202,16 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
             </div>
             {form.maxIntervalDays < form.minIntervalDays ? <p className="field-error" role="alert">O intervalo máximo deve ser igual ou maior que o mínimo.</p> : null}
           </details>
+
+          {form ? (
+            <PolicyWorkloadEstimate
+              firstReviewIntervalDays={form.firstReviewIntervalDays}
+              targetRetention={form.targetRetention}
+              minIntervalDays={form.minIntervalDays}
+              maxIntervalDays={form.maxIntervalDays}
+              valid={validation?.success === true}
+            />
+          ) : null}
 
           {preview ? (
             <div className="vault-review-policy-confirmation" role="alertdialog" aria-label="Confirmar alteração do padrão do Vault">

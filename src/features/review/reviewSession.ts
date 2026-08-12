@@ -69,6 +69,28 @@ const reviewSessionDraftSchema = z.object({
   }
 })
 
+// Plano estimado da sessao antes de iniciar: quantas unidades serao cobertas,
+// a fracao da nota, a duracao estimada e quantas sessoes seriam necessarias
+// para cobrir tudo. Derivado deterministicamente da selecao de cobertura no
+// backend (sem consultar a IA) — o que o usuario ve na preparacao e o que a
+// sessao executara.
+const reviewSessionPlanSchema = z.object({
+  targetUnitCount: z.number().int().positive().max(2_000),
+  totalUnitCount: z.number().int().positive().max(2_000),
+  coverageFraction: z.number().min(0).max(1),
+  estimatedMinutes: z.number().int().positive().max(24 * 60),
+  expectedSessionsToCover: z.number().int().positive().max(2_000),
+}).strict().superRefine((plan, context) => {
+  if (plan.targetUnitCount > plan.totalUnitCount) {
+    context.addIssue({ code: 'custom', message: 'The session plan cannot cover more units than exist.' })
+  }
+  if (plan.coverageFraction > 1) {
+    context.addIssue({ code: 'custom', message: 'The coverage fraction must be at most 1.' })
+  }
+})
+
+export type ReviewSessionPlan = z.infer<typeof reviewSessionPlanSchema>
+
 const invalidAttemptSchema = z.object({
   outcome: z.literal('invalid'),
   message: boundedText,
@@ -111,6 +133,9 @@ const reviewGapSchema = z.object({
 const reviewUnitReportSchema = z.object({
   id: z.string().min(1).max(256),
   ordinal: z.number().int().nonnegative().max(2_000),
+  // Tipo da unidade na segmentacao: usado nos rotulos de contagem da cobertura
+  // (``secoes``, ``paragrafos`` ou ``unidades``).
+  kind: z.enum(['wholeNote', 'section', 'paragraph']),
   sourceStartUtf16: z.number().int().nonnegative().max(4_294_967_295),
   sourceEndUtf16: z.number().int().positive().max(4_294_967_295),
   sectionPath: z.array(z.string().min(1).max(512)).max(64),
@@ -241,6 +266,10 @@ const reviewExchangeSchema = z.object({
   // A resposta foi dada com a dica (prova) ou contexto (conversa) exibido:
   // a recuperação foi assistida, evidência mais fraca para o agendamento.
   assistanceUsed: z.boolean().default(false),
+  // O turno respondido era uma pergunta neutra de esclarecimento (conversa).
+  // O backend valida contra o prompt emitido e usa a contagem para limitar a
+  // no máximo dois esclarecimentos por conversa de forma determinística.
+  isClarification: z.boolean().default(false),
 }).strict()
 
 export type ReviewPrompt = z.infer<typeof reviewPromptSchema>
@@ -261,6 +290,18 @@ export function parseConversationTurnAttempt(payload: unknown): ConversationTurn
 
 export function parseReviewCompletionAttempt(payload: unknown): ReviewCompletionAttempt {
   return reviewCompletionAttemptSchema.parse(payload)
+}
+
+export async function previewReviewSessionPlan(input: {
+  vaultPath: string
+  relativePath: string
+  mode: ReviewMode
+}): Promise<ReviewSessionPlan> {
+  return reviewSessionPlanSchema.parse(await invoke('preview_review_session_plan', {
+    path: input.vaultPath,
+    relativePath: input.relativePath,
+    mode: input.mode,
+  }))
 }
 
 export async function startReviewSession(input: {

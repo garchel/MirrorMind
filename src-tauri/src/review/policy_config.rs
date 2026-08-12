@@ -417,7 +417,7 @@ fn validate_defaults(defaults: &VaultReviewDefaultsInput) -> Result<()> {
     Ok(())
 }
 
-fn validate_tag_rules(rules: &mut Vec<TagReviewPolicyRule>) -> Result<()> {
+pub(crate) fn validate_tag_rules(rules: &mut Vec<TagReviewPolicyRule>) -> Result<()> {
     const MAX_TAG_RULES: usize = 100;
     if rules.len() > MAX_TAG_RULES {
         bail!("A configuracao excede o limite de regras de tag.");
@@ -1588,12 +1588,13 @@ mod tests {
         let recalculated = load_learning_document(vault.path(), &state.note_id)
             .expect("load recalculated")
             .expect("recalculated document");
-        assert_eq!(recalculated.document.units.len(), 2);
-        assert!(recalculated
-            .document
-            .units
-            .iter()
-            .all(|unit| { unit.kind == LearningUnitKind::Paragraph }));
+        // Com o limite menor a nota e re-segmentada: os dois blocos sob o
+        // mesmo heading agrupam em uma unica unidade de secao.
+        assert_eq!(recalculated.document.units.len(), 1);
+        assert_eq!(
+            recalculated.document.units[0].kind,
+            LearningUnitKind::Section
+        );
         assert_eq!(recalculated.document.revision, 2);
     }
 

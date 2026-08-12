@@ -1,11 +1,54 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }))
+vi.mock('@tauri-apps/api/core', () => ({ invoke }))
+
 import {
+  completeReviewSession,
   parseConversationTurnAttempt,
   parseReviewCompletionAttempt,
   parseReviewGenerationAttempt,
+  previewReviewSessionPlan,
+  type ReviewExchange,
 } from './reviewSession'
 
 describe('review session IPC contracts', () => {
+  it('accepts a valid estimated session plan', async () => {
+    invoke.mockResolvedValue({
+      targetUnitCount: 5,
+      totalUnitCount: 10,
+      coverageFraction: 0.5,
+      estimatedMinutes: 7,
+      expectedSessionsToCover: 2,
+    })
+    const plan = await previewReviewSessionPlan({
+      vaultPath: 'C:\\Vault',
+      relativePath: 'Biologia/Fotossintese.md',
+      mode: 'exam',
+    })
+    expect(plan).toMatchObject({ targetUnitCount: 5, totalUnitCount: 10 })
+    expect(invoke).toHaveBeenCalledWith('preview_review_session_plan', {
+      path: 'C:\\Vault',
+      relativePath: 'Biologia/Fotossintese.md',
+      mode: 'exam',
+    })
+  })
+
+  it('rejects a plan that covers more units than exist or exceeds one session of coverage', async () => {
+    invoke.mockResolvedValue({
+      targetUnitCount: 11,
+      totalUnitCount: 10,
+      coverageFraction: 1.5,
+      estimatedMinutes: 7,
+      expectedSessionsToCover: 1,
+    })
+    await expect(previewReviewSessionPlan({
+      vaultPath: 'C:\\Vault',
+      relativePath: 'Nota.md',
+      mode: 'conversation',
+    })).rejects.toThrow()
+  })
+
   it('accepts a generated exam draft without exposing note content', () => {
     const payload = {
       outcome: 'valid',
@@ -61,7 +104,7 @@ describe('review session IPC contracts', () => {
         summary: 'Bom dominio, com uma imprecisao.',
         markdown: 'A energia luminosa alimenta a fotossintese.',
         units: [{
-          id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: 46,
+          id: 'unit-1', ordinal: 0,  kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 46,
           sectionPath: [], evaluated: true, score: 72, outcome: 'good',
         }],
         gaps: [{
@@ -89,8 +132,8 @@ describe('review session IPC contracts', () => {
         summary: 'Inconsistente.',
         markdown: 'A energia luminosa alimenta a fotossintese.',
         units: [
-          { id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: 23, sectionPath: [], evaluated: true, score: 100, outcome: 'complete' },
-          { id: 'unit-2', ordinal: 1, sourceStartUtf16: 25, sourceEndUtf16: 46, sectionPath: [], evaluated: true, score: 100, outcome: 'complete' },
+          { id: 'unit-1', ordinal: 0,  kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 23, sectionPath: [], evaluated: true, score: 100, outcome: 'complete' },
+          { id: 'unit-2', ordinal: 1,  kind: 'paragraph', sourceStartUtf16: 25, sourceEndUtf16: 46, sectionPath: [], evaluated: true, score: 100, outcome: 'complete' },
         ],
         gaps: [],
         completedAtUnixMs: 1_730_000_000_000,
@@ -109,7 +152,7 @@ describe('review session IPC contracts', () => {
         summary: 'Inconsistente.',
         markdown: 'A energia luminosa alimenta a fotossintese.',
         units: [{
-          id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: 46,
+          id: 'unit-1', ordinal: 0,  kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 46,
           sectionPath: [], evaluated: true, score: 100, outcome: 'complete',
         }],
         gaps: [{ classification: 'forgotten', sourceQuote: 'energia', sourceStartUtf16: 2, sourceEndUtf16: 9 }],
@@ -143,7 +186,7 @@ describe('review session IPC contracts', () => {
         outcome: 'complete',
         summary: 'Invalido.',
         markdown: 'Conteudo.',
-        units: [{ id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: 9, sectionPath: [], score: 120, outcome: 'complete' }],
+        units: [{ id: 'unit-1', ordinal: 0,  kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 9, sectionPath: [], score: 120, outcome: 'complete' }],
         gaps: [],
         completedAtUnixMs: 1,
         nextReviewAtUnixMs: 2,
@@ -161,8 +204,8 @@ describe('review session IPC contracts', () => {
         summary: 'Sessao inconclusiva: apenas 1 de 7 paragrafos-alvo tiveram evidencia valida.',
         markdown: 'Paragrafo um.\n\nParagrafo dois.',
         units: [
-          { id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: 12, sectionPath: [], evaluated: false, inconclusive: false, score: 0, outcome: 'partial' },
-          { id: 'unit-2', ordinal: 1, sourceStartUtf16: 14, sourceEndUtf16: 27, sectionPath: [], evaluated: false, inconclusive: true, score: 0, outcome: 'partial' },
+          { id: 'unit-1', ordinal: 0,  kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 12, sectionPath: [], evaluated: false, inconclusive: false, score: 0, outcome: 'partial' },
+          { id: 'unit-2', ordinal: 1,  kind: 'paragraph', sourceStartUtf16: 14, sourceEndUtf16: 27, sectionPath: [], evaluated: false, inconclusive: true, score: 0, outcome: 'partial' },
         ],
         gaps: [],
         completedAtUnixMs: 1_730_000_000_000,
@@ -186,7 +229,7 @@ describe('review session IPC contracts', () => {
         outcome: null,
         summary: 'Invalido.',
         markdown: 'Conteudo.',
-        units: [{ id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: 9, sectionPath: [], evaluated: false, score: 0, outcome: 'partial' }],
+        units: [{ id: 'unit-1', ordinal: 0,  kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 9, sectionPath: [], evaluated: false, score: 0, outcome: 'partial' }],
         gaps: [],
         completedAtUnixMs: 1,
         nextReviewAtUnixMs: null,
@@ -201,7 +244,7 @@ describe('review session IPC contracts', () => {
         outcome: null,
         summary: 'Invalido.',
         markdown: 'Conteudo.',
-        units: [{ id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: 9, sectionPath: [], evaluated: false, score: 0, outcome: 'partial' }],
+        units: [{ id: 'unit-1', ordinal: 0,  kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 9, sectionPath: [], evaluated: false, score: 0, outcome: 'partial' }],
         gaps: [],
         completedAtUnixMs: 1,
         nextReviewAtUnixMs: null,
@@ -216,7 +259,7 @@ describe('review session IPC contracts', () => {
       outcome: 'complete',
       summary: 'Prova concluida.',
       markdown: 'Conteudo.',
-      units: [{ id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: 9, sectionPath: [], evaluated: true, score: 100, outcome: 'complete' }],
+      units: [{ id: 'unit-1', ordinal: 0,  kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 9, sectionPath: [], evaluated: true, score: 100, outcome: 'complete' }],
       gaps: [],
       completedAtUnixMs: 1_730_000_000_000,
       nextReviewAtUnixMs: 1_730_604_800_000,
@@ -252,7 +295,7 @@ describe('review session IPC contracts', () => {
       outcome: 'complete',
       summary: 'Prova concluida: 3 de 3 questoes corretas, 1 com ajuda.',
       markdown: 'Conteudo.',
-      units: [{ id: 'unit-1', ordinal: 0, sourceStartUtf16: 0, sourceEndUtf16: 9, sectionPath: [], evaluated: true, score: 100, outcome: 'complete' }],
+      units: [{ id: 'unit-1', ordinal: 0,  kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 9, sectionPath: [], evaluated: true, score: 100, outcome: 'complete' }],
       gaps: [],
       completedAtUnixMs: 1_730_000_000_000,
       nextReviewAtUnixMs: 1_730_604_800_000,
@@ -285,5 +328,43 @@ describe('review session IPC contracts', () => {
     expect(parsed).toMatchObject({ outcome: 'valid' })
     if (parsed.outcome !== 'valid' || parsed.prompt === null) throw new Error('expected a prompt')
     expect(parsed.prompt.isClarification).toBe(true)
+  })
+
+  it('rejects a conversation completion with 3 or 7 answers and accepts the flag', async () => {
+    const draft = {
+      sessionId: 'session-1',
+      noteId: 'note-1',
+      relativePath: 'Biologia/Fotossintese.md',
+      noteContentHash: 'sha256:content',
+      mode: 'conversation' as const,
+      provider: 'ollama' as const,
+      prompts: [{ id: 'turn-1', text: 'O que a mitose produz?', assistance: 'Pense nas celulas.', kind: 'shortAnswer' as const, options: [], isClarification: false }],
+      minimumAnswers: 4,
+      maximumAnswers: 6,
+    }
+    invoke.mockResolvedValue({
+      outcome: 'valid',
+      report: {
+        sessionId: 'session-1', overallScore: 100, outcome: 'complete', summary: 'Ok.', markdown: '# Nota\n\nTexto.',
+        units: [{ id: 'unit-1', ordinal: 0,  kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 8, sectionPath: [], evaluated: true, score: 100, outcome: 'complete' }],
+        gaps: [], completedAtUnixMs: 1_730_000_000_000, nextReviewAtUnixMs: 1_730_604_800_000,
+      },
+    })
+    const exchange = (i: number): ReviewExchange => ({ promptId: `turn-${i + 1}`, prompt: `Pergunta ${i + 1}?`, answer: `Resposta ${i + 1}.`, assistanceUsed: false, isClarification: false })
+    // Tres respostas: abaixo do minimo de 4 para a conversa.
+    await expect(completeReviewSession({ vaultPath: 'C:\\Vault', draft, provider: 'ollama', exchanges: [1, 2, 3].map(exchange) })).rejects.toThrow()
+    // Sete respostas: acima do maximo de 6.
+    await expect(completeReviewSession({ vaultPath: 'C:\\Vault', draft, provider: 'ollama', exchanges: [1, 2, 3, 4, 5, 6, 7].map(exchange) })).rejects.toThrow()
+    // O flag de esclarecimento acompanha o exchange enviado ao backend.
+    const exchanges = [
+      { ...exchange(0), isClarification: false },
+      { ...exchange(1), isClarification: true },
+      { ...exchange(2), isClarification: false },
+      exchange(3),
+    ]
+    await completeReviewSession({ vaultPath: 'C:\\Vault', draft, provider: 'ollama', exchanges })
+    expect(invoke).toHaveBeenCalledWith('complete_note_review_session', expect.objectContaining({
+      exchanges: expect.arrayContaining([expect.objectContaining({ isClarification: true })]),
+    }))
   })
 })

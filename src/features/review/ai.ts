@@ -74,6 +74,12 @@ const noteReviewStateSchema = z.object({
   firstReviewAtUnixMs: z.number().int().nonnegative().nullable(),
   nextReviewAtUnixMs: z.number().int().nonnegative().nullable(),
   deadlineRetentionAtRisk: z.boolean(),
+  recoveredFromBackup: z.boolean(),
+}).strict()
+
+const unrecoverableLearningDocumentSchema = z.object({
+  storageKey: z.string().min(1).max(256),
+  relativePath: z.string().min(1).max(1_024).nullable(),
 }).strict()
 const ollamaStatusSchema = z.object({
   reachable: z.boolean(),
@@ -84,6 +90,7 @@ export type ReviewAiConfiguration = z.infer<typeof aiConfigurationSchema>
 export type ReadinessAttempt = z.infer<typeof readinessAttemptSchema>
 export type NoteReviewState = z.infer<typeof noteReviewStateSchema>
 export type OllamaStatus = z.infer<typeof ollamaStatusSchema>
+export type UnrecoverableLearningDocument = z.infer<typeof unrecoverableLearningDocumentSchema>
 
 export async function getReviewAiConfiguration(): Promise<ReviewAiConfiguration> {
   return aiConfigurationSchema.parse(await invoke('get_review_ai_configuration'))
@@ -119,6 +126,61 @@ export async function assessNoteReadiness(input: {
   return readinessAttemptSchema.parse(payload)
 }
 
+const structuralAuditEditOpSchema = z.object({
+  startUtf16: z.number().int().nonnegative(),
+  insert: z.string().min(1),
+}).strict()
+
+const structuralAuditEditSchema = z.object({
+  kind: z.enum(['insertHeadingBefore', 'removeLines', 'splitSection']),
+  startUtf16: z.number().int().nonnegative(),
+  endUtf16: z.number().int().positive().nullable(),
+  insert: z.string().min(1).nullable(),
+  // splitSection: titulos a inserir antes de cada bloco (aplicados do maior
+  // offset para o menor, entao todos os offsets permanecem validos).
+  ops: z.array(structuralAuditEditOpSchema).max(50).nullable(),
+}).strict().superRefine((edit, context) => {
+  if (edit.kind === 'splitSection') {
+    if (!edit.ops || edit.ops.length === 0) {
+      context.addIssue({ code: 'custom', message: 'Split edits require ops.' })
+    }
+    return
+  }
+  if (edit.endUtf16 !== null && edit.endUtf16 <= edit.startUtf16) {
+    context.addIssue({ code: 'custom', message: 'Edit ranges must be non-empty.' })
+  }
+})
+
+export type StructuralAuditEdit = z.infer<typeof structuralAuditEditSchema>
+
+export const structuralAuditSchema = z.object({
+  noteWords: z.number().int().nonnegative(),
+  unitCount: z.number().int().positive().max(2_000),
+  findings: z.array(z.object({
+    code: z.enum(['noHeadings', 'longSection', 'orphanPreamble', 'emptyHeading']),
+    severity: z.enum(['warning', 'info']),
+    message: z.string().min(1),
+    suggestion: z.string().min(1),
+    sourceQuote: z.string().nullable(),
+    sourceStartUtf16: z.number().int().nonnegative().nullable(),
+    sourceEndUtf16: z.number().int().positive().nullable(),
+    edit: structuralAuditEditSchema.nullable(),
+  }).strict()).max(200),
+}).strict()
+
+export type StructuralAudit = z.infer<typeof structuralAuditSchema>
+
+/** Auditoria estrutural deterministica (sem IA) de uma nota. Leitura pura. */
+export async function auditNoteStructure(input: {
+  vaultPath: string
+  relativePath: string
+}): Promise<StructuralAudit> {
+  return structuralAuditSchema.parse(await invoke('audit_note_structure', {
+    path: input.vaultPath,
+    relativePath: input.relativePath,
+  }))
+}
+
 export async function getNoteReviewState(input: {
   vaultPath: string
   relativePath: string
@@ -148,6 +210,52 @@ export async function resetNoteLearning(input: {
   return noteReviewStateSchema.parse(await invoke('reset_note_learning', {
     path: input.vaultPath,
     relativePath: input.relativePath,
+  }))
+}
+
+/** Corrige manualmente a classificacao de uma unidade da nota (score 0-100). */
+export async function setNoteUnitClassification(input: {
+  vaultPath: string
+  relativePath: string
+  unitId: string
+  score: number
+}): Promise<NoteReviewState> {
+  return noteReviewStateSchema.parse(await invoke('set_note_unit_classification', {
+    path: input.vaultPath,
+    relativePath: input.relativePath,
+    unitId: input.unitId,
+    score: input.score,
+  }))
+}
+
+/** Documentos de aprendizado que nao podem ser carregados (principal corrompido/ausente e nenhum backup valido). */
+export async function getUnrecoverableLearningDocuments(vaultPath: string): Promise<UnrecoverableLearningDocument[]> {
+  return z.array(unrecoverableLearningDocumentSchema).parse(await invoke('get_unrecoverable_learning_documents', {
+    path: vaultPath,
+  }))
+}
+
+/** Copia o arquivo irrecuperavel (principal + backups) para o destino escolhido; devolve quantos arquivos foram copiados. */
+export async function exportUnrecoverableLearningDocument(input: {
+  vaultPath: string
+  storageKey: string
+  destinationPath: string
+}): Promise<number> {
+  return z.number().int().nonnegative().parse(await invoke('export_unrecoverable_learning_document', {
+    path: input.vaultPath,
+    storageKey: input.storageKey,
+    destinationPath: input.destinationPath,
+  }))
+}
+
+/** Isola em quarentena o documento irrecuperavel (principal + backups) para a nota recomecar; devolve quantos arquivos foram isolados. */
+export async function discardUnrecoverableLearningDocument(input: {
+  vaultPath: string
+  storageKey: string
+}): Promise<number> {
+  return z.number().int().nonnegative().parse(await invoke('discard_unrecoverable_learning_document', {
+    path: input.vaultPath,
+    storageKey: input.storageKey,
   }))
 }
 export function reviewAiErrorMessage(error: unknown): string {

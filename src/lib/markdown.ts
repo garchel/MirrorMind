@@ -755,8 +755,27 @@ export function extractMarkdownTags(content: string) {
       }
     }
 
+    // Um fragmento de wikilink ([[#Titulo]], [[nota#heading]] ou embed) e um
+    // destino de heading/bloco, nao uma tag: o `#` dentro de [[...]] deve ser
+    // ignorado para nunca ser gravado no frontmatter como tag.
+    const insideWikilink = new Array<boolean>(visibleCharacters.length).fill(false)
+    for (let index = 0; index < visibleCharacters.length; index += 1) {
+      if (visibleCharacters[index] !== '[' || visibleCharacters[index + 1] !== '[') continue
+      let closing = index + 2
+      while (
+        closing + 1 < visibleCharacters.length
+        && !(visibleCharacters[closing] === ']' && visibleCharacters[closing + 1] === ']')
+      ) {
+        closing += 1
+      }
+      const end = closing + 1 < visibleCharacters.length ? closing + 2 : visibleCharacters.length
+      for (let span = index; span < end; span += 1) insideWikilink[span] = true
+      index = end - 1
+    }
+
     for (let index = 0; index < visibleCharacters.length; index += 1) {
       if (visibleCharacters[index] !== '#') continue
+      if (insideWikilink[index]) continue
       const previous = visibleCharacters[index - 1]
       if (previous && (/^[\p{L}\p{M}\p{N}_#]$/u.test(previous) || previous === '/' || previous === '\\')) continue
       let end = index + 1

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Check, Hash, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { AlertTriangle, Check, ChevronRight, Hash, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
 import {
   getVaultReviewPolicyConfig,
   tagReviewPolicyRuleSchema,
@@ -14,6 +14,7 @@ import {
   type TagManagementPreview,
   type TagSummary,
 } from './tagManagement'
+import { PolicyWorkloadEstimate } from '../review/PolicyWorkloadEstimate'
 import './tag-management.css'
 
 type Props = {
@@ -118,20 +119,169 @@ function buildEntries(index: TagSummary[], config: VaultReviewPolicyConfig): Tag
     }))
 }
 
+type TagTreeNode = {
+  name: string
+  fullPath: string
+  depth: number
+  children: TagTreeNode[]
+  /** Entrada exata desta tag (notas + politica), ou null para pasta intermediaria. */
+  entry: TagEntry | null
+  /** Notas proprias + notas de todas as tags descendentes. */
+  aggregateCount: number
+}
+
+/** Monta a arvore aninhada a partir do caminho das tags (ex.: `concurso/matematica`). */
+function buildTagTree(entries: TagEntry[]): TagTreeNode[] {
+  const root: TagTreeNode[] = []
+  const byPath = new Map<string, TagTreeNode>()
+  for (const entry of [...entries].sort((left, right) => left.tag.localeCompare(right.tag, 'pt-BR'))) {
+    const segments = entry.tag.split('/')
+    let path = ''
+    let siblings = root
+    for (let index = 0; index < segments.length; index++) {
+      path = index === 0 ? segments[0] : `${path}/${segments[index]}`
+      let node = byPath.get(path)
+      if (!node) {
+        node = {
+          name: segments[index],
+          fullPath: path,
+          depth: index,
+          children: [],
+          entry: null,
+          aggregateCount: 0,
+        }
+        byPath.set(path, node)
+        siblings.push(node)
+      }
+      if (index === segments.length - 1) {
+        node.entry = entry
+        node.aggregateCount = entry.notePaths.length
+      }
+      siblings = node.children
+    }
+  }
+  const aggregate = (node: TagTreeNode): number => {
+    let total = node.aggregateCount
+    for (const child of node.children) total += aggregate(child)
+    node.aggregateCount = total
+    return total
+  }
+  for (const node of root) aggregate(node)
+  return root
+}
+
+/** Filtra a arvore mantendo os ancestrais dos resultados (todos forçadamente expandidos). */
+function filterTagTree(nodes: TagTreeNode[], query: string): TagTreeNode[] {
+  const normalized = normalizeTagInput(query)
+  if (!normalized) return nodes
+  const matches = (node: TagTreeNode): boolean => (
+    node.fullPath.includes(normalized) || node.children.some(matches)
+  )
+  const keep = (node: TagTreeNode): TagTreeNode | null => {
+    if (!matches(node)) return null
+    return {
+      ...node,
+      children: node.children
+        .map(keep)
+        .filter((child): child is TagTreeNode => child !== null),
+    }
+  }
+  return nodes
+    .map(keep)
+    .filter((node): node is TagTreeNode => node !== null)
+}
+
+/** Caminhos dos ancestrais de uma tag (ex.: `a/b/c` -> [`a`, `a/b`]). */
+function ancestorPaths(tag: string): string[] {
+  const segments = tag.split('/')
+  const paths: string[] = []
+  for (let index = 0; index < segments.length - 1; index++) {
+    paths.push(segments.slice(0, index + 1).join('/'))
+  }
+  return paths
+}
+
+function findTagNode(nodes: TagTreeNode[], fullPath: string): TagTreeNode | null {
+  for (const node of nodes) {
+    if (node.fullPath === fullPath) return node
+    const found = findTagNode(node.children, fullPath)
+    if (found) return found
+  }
+  return null
+}
+
+/** Todas as entradas reais sob um no da arvore (incluindo o proprio, se existir). */
+function subtreeEntries(node: TagTreeNode): TagEntry[] {
+  const out: TagEntry[] = []
+  if (node.entry) out.push(node.entry)
+  for (const child of node.children) out.push(...subtreeEntries(child))
+  return out
+}
+
+type TagTreeBranchProps = {
+  nodes: TagTreeNode[]
+  selected: string | null
+  expanded: Set<string>
+  querying: boolean
+  onSelect: (node: TagTreeNode) => void
+}
+
+function TagTreeBranch({ nodes, selected, expanded, querying, onSelect }: TagTreeBranchProps) {
+  return (
+    <ul className="tag-tree-list" role="tree">
+      {nodes.map((node) => {
+        const hasChildren = node.children.length > 0
+        const isExpanded = querying || expanded.has(node.fullPath)
+        const isSelected = node.fullPath === selected
+        return (
+          <li key={node.fullPath} role="treeitem" aria-expanded={hasChildren ? isExpanded : undefined} aria-selected={isSelected}>
+            <button
+              type="button"
+              className={`tag-tree-row${isSelected ? ' is-selected' : ''}`}
+              onClick={() => onSelect(node)}
+              title={`#${node.fullPath}`}
+              aria-label={`#${node.fullPath} · ${node.aggregateCount} ${node.aggregateCount === 1 ? 'nota' : 'notas'}`}
+            >
+              {hasChildren ? (
+                <ChevronRight size={14} strokeWidth={2} className={`tag-tree-chevron${isExpanded ? ' is-open' : ''}`} aria-hidden="true" />
+              ) : (
+                <span className="tag-tree-chevron-slot" aria-hidden="true" />
+              )}
+              <Hash size={13} strokeWidth={1.8} className="tag-tree-hash" aria-hidden="true" />
+              <span className="tag-tree-name">{node.name}</span>
+              {node.entry?.rule?.autoEnroll ? <i className="tag-tree-dot is-review-on" aria-label="Revisão automática ativa" /> : null}
+              <span className="tag-tree-count">{node.aggregateCount}</span>
+            </button>
+            {hasChildren && isExpanded ? (
+              <TagTreeBranch nodes={node.children} selected={selected} expanded={expanded} querying={querying} onSelect={onSelect} />
+            ) : null}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   const [config, setConfig] = useState<VaultReviewPolicyConfig | null>(null)
   const [tagIndex, setTagIndex] = useState<TagSummary[]>([])
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const [mode, setMode] = useState<'view' | 'create' | 'edit'>('view')
   const [draft, setDraft] = useState<TagReviewPolicyRule>(() => draftFor(''))
   const [query, setQuery] = useState('')
   const [pending, setPending] = useState<PendingChange | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<PendingChange | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
   const generationRef = useRef(0)
+  const selectedTagRef = useRef<string | null>(null)
+  useEffect(() => {
+    selectedTagRef.current = selectedTag
+  }, [selectedTag])
 
   useEffect(() => {
     const generation = generationRef.current + 1
@@ -145,11 +295,13 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
         setTagIndex(nextIndex)
         setConfig(nextConfig)
         const nextEntries = buildEntries(nextIndex, nextConfig)
-        setSelectedTag((current) => (
-          current && nextEntries.some((entry) => entry.tag === current)
-            ? current
-            : nextEntries[0]?.tag ?? null
-        ))
+        const nextSelected = nextEntries.some((entry) => entry.tag === selectedTagRef.current)
+          ? selectedTagRef.current
+          : nextEntries[0]?.tag ?? null
+        setSelectedTag(nextSelected)
+        if (nextSelected) {
+          setExpanded((previous) => new Set([...previous, ...ancestorPaths(nextSelected)]))
+        }
         setMode('view')
       })
       .catch((cause) => {
@@ -166,27 +318,52 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
     () => config ? buildEntries(tagIndex, config) : [],
     [config, tagIndex],
   )
-  const filteredEntries = entries.filter((entry) => (
-    entry.tag.includes(normalizeTagInput(query))
-  ))
   const selected = entries.find((entry) => entry.tag === selectedTag) ?? null
+  const tree = useMemo(() => buildTagTree(entries), [entries])
+  const filteredTree = useMemo(() => filterTagTree(tree, query), [tree, query])
+  const selectedNode = selectedTag ? findTagNode(tree, selectedTag) : null
+  const folderEntries = useMemo(
+    () => (selectedNode && !selectedNode.entry ? subtreeEntries(selectedNode) : []),
+    [selectedNode],
+  )
+  const folderNotePaths = useMemo(
+    () => [...new Set(folderEntries.flatMap((entry) => entry.notePaths))],
+    [folderEntries],
+  )
+  // Dados da tag que esta sendo excluida, para os avisos do modal.
+  const pendingDeleteTag = pendingDelete?.change.currentTag ?? null
+  const pendingDeleteNode = pendingDeleteTag ? findTagNode(tree, pendingDeleteTag) : null
+  const pendingDeleteEntry = pendingDeleteTag
+    ? entries.find((entry) => entry.tag === pendingDeleteTag) ?? null
+    : null
+  const pendingDeleteNested = pendingDeleteNode?.children.length ?? 0
+  const pendingDeleteNotes = pendingDeleteEntry?.notePaths.length ?? 0
   const validation = tagReviewPolicyRuleSchema.safeParse(draft)
   const duplicate = entries.some((entry) => (
     entry.tag === draft.tag && (mode === 'create' || entry.tag !== selectedTag)
   ))
 
-  function selectTag(tag: string) {
+  /** Clique na arvore: mostra os dados da tag clicada e expande/colapsa os aninhados. */
+  function handleTreeSelect(node: TagTreeNode) {
     if (busy) return
-    setSelectedTag(tag)
+    setSelectedTag(node.fullPath)
     setMode('view')
     setPending(null)
     setError('')
     setSuccess('')
+    if (node.children.length > 0) {
+      setExpanded((previous) => {
+        const next = new Set(previous)
+        if (next.has(node.fullPath)) next.delete(node.fullPath)
+        else next.add(node.fullPath)
+        return next
+      })
+    }
   }
 
-  function startCreate() {
+  function startCreate(prefillTag = '') {
     setSelectedTag(null)
-    setDraft(draftFor(''))
+    setDraft(draftFor(prefillTag))
     setMode('create')
     setPending(null)
     setError('')
@@ -204,7 +381,10 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
 
   function cancelEditing() {
     setMode('view')
-    if (!selectedTag && entries[0]) setSelectedTag(entries[0].tag)
+    if (!selectedTag && entries[0]) {
+      setSelectedTag(entries[0].tag)
+      setExpanded((previous) => new Set([...previous, ...ancestorPaths(entries[0].tag)]))
+    }
     setError('')
   }
 
@@ -267,7 +447,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
     setSuccess('')
     try {
       const preview = await previewTagManagementChange(vaultPath, change)
-      setPending({
+      setPendingDelete({
         title: `Excluir #${selected.tag}`,
         description: 'A configuração da tag será excluída. Escolha se ela também deve ser removida do Markdown das notas.',
         change,
@@ -281,8 +461,8 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
     }
   }
 
-  async function confirmPending() {
-    if (!config || !pending) return
+  async function applyPendingChange(pendingChange: PendingChange) {
+    if (!config || !pendingChange) return
     const generation = generationRef.current
     setBusy(true)
     setError('')
@@ -291,21 +471,25 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
       const result = await applyTagManagementChange({
         vaultPath,
         expectedRevision: config.revision,
-        tagRules: pending.tagRules,
-        change: pending.change,
-        expectedAffectedNotePaths: pending.preview.affectedNotePaths,
+        tagRules: pendingChange.tagRules,
+        change: pendingChange.change,
+        expectedAffectedNotePaths: pendingChange.preview.affectedNotePaths,
       })
       if (generationRef.current !== generation) return
       const nextIndex = await getTagIndex(vaultPath)
       if (generationRef.current !== generation) return
       setConfig(result.config)
       setTagIndex(nextIndex)
-      const nextSelected = pending.change.nextTag
+      const nextSelected = pendingChange.change.nextTag
       setSelectedTag(nextSelected)
+      if (nextSelected) {
+        setExpanded((previous) => new Set([...previous, ...ancestorPaths(nextSelected)]))
+      }
       setMode('view')
       setPending(null)
+      setPendingDelete(null)
       setSuccess(
-        `${pending.preview.affectedNotePaths.length} nota(s) atualizada(s).`
+        `${pendingChange.preview.affectedNotePaths.length} nota(s) atualizada(s).`
         + (result.markdownNotePaths.length > 0
           ? ` A tag foi alterada no Markdown de ${result.markdownNotePaths.length} nota(s).`
           : ''),
@@ -313,32 +497,41 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
       await onTagsChanged?.(result.markdownNotePaths)
     } catch (cause) {
       setPending(null)
+      setPendingDelete(null)
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
       if (generationRef.current === generation) setBusy(false)
     }
   }
 
+  function confirmPending() {
+    if (pending) void applyPendingChange(pending)
+  }
+
+  function confirmDelete() {
+    if (pendingDelete) void applyPendingChange(pendingDelete)
+  }
+
   const form = mode === 'create' || mode === 'edit'
 
   return (
-    <section className="tag-management-page" aria-labelledby="tag-management-title">
+    <section className="workspace-page tag-management-page" aria-labelledby="tag-management-title">
       <header className="tag-management-header">
         <div>
           <p className="card-kicker">Organização e aprendizado</p>
           <h2 id="tag-management-title">Tags do vault</h2>
           <p>Gerencie a classificação das notas e a política de revisão que cada tag transmite.</p>
         </div>
-        <button type="button" onClick={startCreate} disabled={busy || loading}>
+        <button type="button" onClick={() => startCreate()} disabled={busy || loading}>
           <Plus size={16} aria-hidden="true" />
           Criar tag
         </button>
       </header>
 
       <div className="tag-management-layout">
-        <aside className="tag-catalog" aria-label="Tags existentes">
+        <aside className="tag-tree-pane" aria-label="Tags existentes">
           <label className="tag-search">
-            <Search size={15} aria-hidden="true" />
+            <Search size={14} aria-hidden="true" />
             <span className="sr-only">Buscar tags</span>
             <input
               value={query}
@@ -346,35 +539,29 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               placeholder="Buscar tag"
             />
           </label>
-          <div className="tag-catalog-summary">
-            <span>{entries.length} tags</span>
+          <div className="tag-tree-summary">
+            <span>{entries.length} tag{entries.length === 1 ? '' : 's'}</span>
             <span>{entries.filter((entry) => entry.rule?.autoEnroll).length} ativam revisão</span>
           </div>
           {loading ? <p className="tag-page-state" role="status">Carregando tags…</p> : null}
-          {!loading && filteredEntries.length === 0 ? (
+          {!loading && filteredTree.length === 0 ? (
             <div className="tag-empty-state">
               <Hash size={22} aria-hidden="true" />
               <strong>{entries.length === 0 ? 'Nenhuma tag ainda' : 'Nenhum resultado'}</strong>
               <p>{entries.length === 0 ? 'Crie a primeira tag para organizar o vault.' : 'Tente outro termo de busca.'}</p>
             </div>
           ) : null}
-          <div className="tag-catalog-list">
-            {filteredEntries.map((entry) => (
-              <button
-                type="button"
-                key={entry.tag}
-                className={entry.tag === selectedTag ? 'is-selected' : ''}
-                onClick={() => selectTag(entry.tag)}
-                aria-pressed={entry.tag === selectedTag}
-              >
-                <span className="tag-catalog-name"><Hash size={14} aria-hidden="true" />{entry.tag}</span>
-                <span className="tag-catalog-meta">
-                  <small>{entry.notePaths.length} nota{entry.notePaths.length === 1 ? '' : 's'}</small>
-                  <i className={entry.rule?.autoEnroll ? 'is-review-on' : ''} aria-label={entry.rule?.autoEnroll ? 'Revisão automática ativa' : 'Revisão automática inativa'} />
-                </span>
-              </button>
-            ))}
-          </div>
+          {!loading && filteredTree.length > 0 ? (
+            <div className="tag-tree-scroll">
+              <TagTreeBranch
+                nodes={filteredTree}
+                selected={selectedTag}
+                expanded={expanded}
+                querying={query.trim() !== ''}
+                onSelect={handleTreeSelect}
+              />
+            </div>
+          ) : null}
         </aside>
 
         <main className="tag-detail">
@@ -456,6 +643,14 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   </label>
                 </fieldset>
 
+                <PolicyWorkloadEstimate
+                  firstReviewIntervalDays={draft.firstReviewIntervalDays}
+                  targetRetention={draft.targetRetention}
+                  minIntervalDays={draft.minIntervalDays}
+                  maxIntervalDays={draft.maxIntervalDays}
+                  valid={validation.success}
+                />
+
                 {!validation.success ? <p className="field-error" role="alert">Revise o nome e os intervalos da tag.</p> : null}
                 {duplicate ? <p className="field-error" role="alert">Esta tag já existe no vault.</p> : null}
                 <div className="tag-form-actions">
@@ -466,21 +661,36 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 </div>
               </div>
             </>
-          ) : selected ? (
-            <>
+          ) : selectedTag && selectedNode ? (
+            <div className="tag-folder-detail">
               <div className="tag-detail-heading">
                 <div>
-                  <p className="card-kicker">Tag selecionada</p>
-                  <h3><Hash size={22} aria-hidden="true" />{selected.tag}</h3>
-                  <p>{selected.notePaths.length} nota{selected.notePaths.length === 1 ? '' : 's'} usa{selected.notePaths.length === 1 ? '' : 'm'} esta tag.</p>
+                  <p className="card-kicker">{selected ? 'Tag selecionada' : 'Hierarquia de tags'}</p>
+                  <h3>
+                    {selected ? <Hash size={20} aria-hidden="true" /> : null}
+                    {selectedTag}
+                  </h3>
+                  <p>
+                    {selected
+                      ? `${selected.notePaths.length} nota${selected.notePaths.length === 1 ? '' : 's'} usa${selected.notePaths.length === 1 ? '' : 'm'} esta tag.`
+                      : `${folderNotePaths.length} nota${folderNotePaths.length === 1 ? '' : 's'} em ${folderEntries.length} tag${folderEntries.length === 1 ? '' : 's'} aninhada${folderEntries.length === 1 ? '' : 's'}.`}
+                  </p>
                 </div>
                 <div className="tag-detail-actions">
-                  <button type="button" className="secondary-button" onClick={startEdit} disabled={busy}><Pencil size={15} aria-hidden="true" />Editar</button>
-                  <button type="button" className="secondary-button danger-button" onClick={() => void requestDelete()} disabled={busy}><Trash2 size={15} aria-hidden="true" />Excluir</button>
+                  {selected ? (
+                    <>
+                      <button type="button" className="secondary-button" onClick={startEdit} disabled={busy}><Pencil size={15} aria-hidden="true" />Editar</button>
+                      <button type="button" className="secondary-button danger-button" onClick={() => void requestDelete()} disabled={busy}><Trash2 size={15} aria-hidden="true" />Excluir</button>
+                    </>
+                  ) : (
+                    <button type="button" className="secondary-button" onClick={() => startCreate(selectedTag)} disabled={busy} title={`Criar uma regra de revisão para #${selectedTag}`}>
+                      <Settings size={15} aria-hidden="true" />Configurar
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {selected.rule ? (
+              {selected?.rule ? (
                 <>
                   <div className={`tag-review-status ${selected.rule.autoEnroll ? 'is-active' : ''}`}>
                     <span><Check size={15} aria-hidden="true" /></span>
@@ -502,17 +712,37 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               ) : (
                 <div className="tag-unconfigured">
                   <AlertTriangle size={18} aria-hidden="true" />
-                  <div><strong>Sem política própria</strong><p>Esta tag existe nas notas, mas ainda não altera o agendamento. Clique em Editar para configurá-la.</p></div>
+                  <div>
+                    <strong>{selected ? 'Sem política própria' : 'Pasta sem regra própria'}</strong>
+                    <p>{selected
+                      ? 'Esta tag existe nas notas, mas ainda não altera o agendamento. Clique em Editar para configurá-la.'
+                      : 'As tags abaixo existem nas notas, mas esta hierarquia ainda não define um ritmo. Clique em Configurar para criar a regra.'}</p>
+                  </div>
                 </div>
               )}
 
-              <section className="tag-note-list" aria-labelledby="tag-note-list-title">
-                <div><h4 id="tag-note-list-title">Notas com esta tag</h4><span>{selected.notePaths.length}</span></div>
-                {selected.notePaths.length > 0 ? (
-                  <ul>{selected.notePaths.map((path) => <li key={path}>{path.replace(/\.md$/i, '')}<small>{path}</small></li>)}</ul>
-                ) : <p>Nenhuma nota usa esta tag atualmente.</p>}
-              </section>
-            </>
+              {selected ? (
+                <section className="tag-note-list" aria-labelledby="tag-detail-note-list-title">
+                  <div><h4 id="tag-detail-note-list-title">Notas com esta tag</h4><span>{selected.notePaths.length}</span></div>
+                  {selected.notePaths.length > 0 ? (
+                    <ul className="tag-note-flat">
+                      {[...selected.notePaths].sort((left, right) => left.localeCompare(right, 'pt-BR')).map((path) => {
+                        const clean = path.replace(/\.md$/i, '')
+                        const segments = clean.split('/')
+                        const name = segments[segments.length - 1] ?? clean
+                        const location = segments.slice(0, -1).join('/')
+                        return (
+                          <li key={path}>
+                            <span className="tag-note-flat-name">{name}</span>
+                            {location ? <small className="tag-note-flat-location">{location}/</small> : null}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : <p>Nenhuma nota usa esta tag atualmente.</p>}
+                </section>
+              ) : null}
+            </div>
           ) : (
             <div className="tag-detail-empty">
               <Hash size={30} aria-hidden="true" />
@@ -544,19 +774,6 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               <strong>{pending.preview.affectedNotePaths.length}</strong>
               <span>nota{pending.preview.affectedNotePaths.length === 1 ? '' : 's'} impactada{pending.preview.affectedNotePaths.length === 1 ? '' : 's'}</span>
             </div>
-            {pending.change.nextTag === null ? (
-              <label className="tag-delete-option">
-                <input
-                  type="checkbox"
-                  checked={pending.change.removeFromNotes}
-                  onChange={(event) => setPending({
-                    ...pending,
-                    change: { ...pending.change, removeFromNotes: event.target.checked },
-                  })}
-                />
-                <span><strong>Remover também das notas</strong><small>{pending.change.removeFromNotes ? 'O Markdown das notas abaixo será alterado.' : 'A tag continuará no Markdown como uma tag sem política.'}</small></span>
-              </label>
-            ) : null}
             <div className="tag-impact-notes">
               {pending.preview.affectedNotePaths.length > 0 ? (
                 <ul>{pending.preview.affectedNotePaths.map((path) => <li key={path}>{path}</li>)}</ul>
@@ -564,8 +781,70 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
             </div>
             <div className="tag-impact-actions">
               <button type="button" className="secondary-button" onClick={() => setPending(null)} disabled={busy}>Cancelar</button>
-              <button type="button" className={pending.change.nextTag === null ? 'danger-button' : ''} onClick={() => void confirmPending()} disabled={busy}>
-                {busy ? 'Aplicando…' : pending.change.nextTag === null ? 'Excluir tag' : 'Confirmar alteração'}
+              <button type="button" onClick={() => confirmPending()} disabled={busy}>
+                {busy ? 'Aplicando…' : 'Confirmar alteração'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {pendingDelete ? (
+        <div className="tag-impact-backdrop" role="presentation">
+          <section className="tag-impact-modal tag-delete-modal" role="dialog" aria-modal="true" aria-labelledby="tag-delete-title">
+            <div className="tag-impact-heading">
+              <div><p className="card-kicker">Excluir tag</p><h3 id="tag-delete-title">{pendingDelete.title}</h3></div>
+              <button type="button" className="secondary-button tag-icon-button" onClick={() => setPendingDelete(null)} disabled={busy} aria-label="Fechar confirmação"><X size={16} /></button>
+            </div>
+            <p>{pendingDelete.description}</p>
+
+            {pendingDeleteNotes > 0 || pendingDeleteNested > 0 ? (
+              <div className="tag-delete-warnings" role="alert">
+                {pendingDeleteNotes > 0 ? (
+                  <div className="tag-delete-warning">
+                    <AlertTriangle size={16} aria-hidden="true" />
+                    <span>
+                      <strong>Notas usam esta tag</strong>
+                      <small>{pendingDeleteNotes} nota{pendingDeleteNotes === 1 ? '' : 's'} está{pendingDeleteNotes === 1 ? '' : 'm'} associada{pendingDeleteNotes === 1 ? '' : 's'} a esta tag.</small>
+                    </span>
+                  </div>
+                ) : null}
+                {pendingDeleteNested > 0 ? (
+                  <div className="tag-delete-warning">
+                    <AlertTriangle size={16} aria-hidden="true" />
+                    <span>
+                      <strong>Tags aninhadas</strong>
+                      <small>{pendingDeleteNested} tag{pendingDeleteNested === 1 ? '' : 's'} aninhada{pendingDeleteNested === 1 ? '' : 's'} abaixo desta tag — a exclusão remove apenas a regra desta tag, as aninhadas permanecem.</small>
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="tag-impact-count">
+              <strong>{pendingDelete.preview.affectedNotePaths.length}</strong>
+              <span>nota{pendingDelete.preview.affectedNotePaths.length === 1 ? '' : 's'} impactada{pendingDelete.preview.affectedNotePaths.length === 1 ? '' : 's'}</span>
+            </div>
+            <label className="tag-delete-option">
+              <input
+                type="checkbox"
+                checked={pendingDelete.change.removeFromNotes}
+                onChange={(event) => setPendingDelete({
+                  ...pendingDelete,
+                  change: { ...pendingDelete.change, removeFromNotes: event.target.checked },
+                })}
+              />
+              <span><strong>Remover também das notas</strong><small>{pendingDelete.change.removeFromNotes ? 'O Markdown das notas abaixo será alterado.' : 'A tag continuará no Markdown como uma tag sem política.'}</small></span>
+            </label>
+            <div className="tag-impact-notes">
+              {pendingDelete.preview.affectedNotePaths.length > 0 ? (
+                <ul>{pendingDelete.preview.affectedNotePaths.map((path) => <li key={path}>{path}</li>)}</ul>
+              ) : <p>Nenhuma nota existente será alterada.</p>}
+            </div>
+            <div className="tag-impact-actions">
+              <button type="button" className="secondary-button" onClick={() => setPendingDelete(null)} disabled={busy}>Cancelar</button>
+              <button type="button" className="danger-button" onClick={() => confirmDelete()} disabled={busy}>
+                {busy ? 'Aplicando…' : 'Excluir tag'}
               </button>
             </div>
           </section>

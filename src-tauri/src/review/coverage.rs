@@ -1,13 +1,44 @@
 use super::contract::{LearningDocument, LearningUnit, ReviewMode, UnitEvaluation};
+use serde::Serialize;
 
 /// Resultado da cobertura adaptativa de uma sessao: as unidades que a sessao
 /// deve avaliar, os intervalos UTF-16 dessas unidades no Markdown original
-/// (para fundamentar citacoes) e o texto dessas unidades (o subset enviado a
-/// IA, para que as perguntas nunca cubram conteudo fora do escopo da sessao).
+/// (para fundamentar citacoes), o texto dessas unidades (o subset enviado a
+/// IA, para que as perguntas nunca cubram conteudo fora do escopo da sessao)
+/// e o plano estimado da sessao (duracao, cobertura e sessoes para cobrir).
 pub struct SessionCoverage {
     pub target_unit_ids: Vec<String>,
     pub target_ranges_utf16: Vec<(u64, u64)>,
     pub session_markdown: String,
+    pub plan: SessionPlan,
+}
+
+/// Plano estimado de uma sessao, derivado deterministicamente da selecao de
+/// cobertura — sem consultar a IA. Exibido na preparacao da sessao para o
+/// usuario calibrar a expectativa de duracao e cobertura.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionPlan {
+    /// Quantas unidades a sessao cobre (o orcamento de respostas do modo).
+    pub target_unit_count: u32,
+    /// Total de unidades de revisao da nota.
+    pub total_unit_count: u32,
+    /// Fracao das unidades cobertas nesta sessao (0..=1, arredondada a 2 casas).
+    pub coverage_fraction: f64,
+    /// Estimativa de duracao em minutos (piso 1).
+    pub estimated_minutes: u32,
+    /// Sessoes estimadas para cobrir todas as unidades com este orcamento.
+    pub expected_sessions_to_cover: u32,
+}
+
+/// Segundos estimados por resposta, por modo: na prova, multipla escolha leva
+/// menos tempo que uma resposta curta (media 90s); na conversa, a resposta
+/// aberta progressiva gira em torno de 75s.
+fn seconds_per_answer(mode: &ReviewMode) -> u32 {
+    match mode {
+        ReviewMode::Exam => 90,
+        ReviewMode::Conversation => 75,
+    }
 }
 
 /// Limites de respostas de cada modo, compartilhados pela selecao de
@@ -43,6 +74,28 @@ fn is_weak(unit: &LearningUnit) -> bool {
     )
 }
 
+/// Urgencia de dominio historico de uma unidade avaliada: menor recuperabilidade
+/// primeiro (a unidade mais provavel de ter sido esquecida e a mais urgente),
+/// depois menor pontuacao, depois a que ha mais tempo nao participa. Unidades
+/// sem estado FSRS sao tratadas como recuperabilidade zero (mais urgentes).
+fn mastery_urgency(unit: &LearningUnit, document: &LearningDocument) -> (u64, u8, u64, u64) {
+    let retrievability_millis = unit
+        .fsrs
+        .as_ref()
+        .map(|fsrs| (fsrs.retrievability * 1000.0).round() as u64)
+        .unwrap_or(0);
+    let score = match unit.latest_evaluation {
+        Some(UnitEvaluation::Evaluated { score, .. }) => score,
+        _ => 100,
+    };
+    (
+        retrievability_millis,
+        score,
+        last_included_at(document, &unit.id),
+        unit.ordinal,
+    )
+}
+
 /// Momento (completed_at da sessao) em que a unidade participou pela ultima
 /// vez de uma sessao. Zero quando nunca participou: e a base da rotacao, que
 /// evita repetir unidades saudaveis antes de cobrir as restantes.
@@ -61,14 +114,18 @@ fn last_included_at(document: &LearningDocument, unit_id: &str) -> u64 {
         .unwrap_or(0)
 }
 
-/// Seleciona as unidades que a sessao deve avaliar.
+/// Seleciona as unidades que a sessao deve avaliar e estima o plano.
 ///
 /// - Notas curtas (uma unidade ou ate o maximo de respostas do modo) avaliam
 ///   todas as unidades em cada sessao, como hoje.
-/// - Notas segmentadas selecionam uma parte: garantem espaco para unidades
-///   nunca avaliadas, incluem unidades historicamente fracas enquanto
-///   permanecerem fracas e preenchem as demais vagas por rotacao (a unidade
-///   que ha mais tempo nao participa entra primeiro).
+/// - Notas segmentadas selecionam uma parte com orcamento adaptativo: quanto
+///   mais unidades precisam de atencao (nunca avaliadas ou fracas), maior a
+///   fracao coberta na sessao (0.5 em recuperacao, 0.4 misto, 0.3 em
+///   manutencao), sempre dentro dos limites de respostas do modo.
+/// - A prioridade usa o dominio historico: nunca avaliadas primeiro, depois as
+///   fracas ordenadas pela urgencia de memoria (menor recuperabilidade, menor
+///   pontuacao) e o restante por rotacao (a unidade que ha mais tempo nao
+///   participa entra primeiro).
 pub fn select_session_units(
     document: &LearningDocument,
     markdown: &str,
@@ -79,10 +136,22 @@ pub fn select_session_units(
     let target_ids: Vec<String> = if total <= max_answers {
         document.units.iter().map(|unit| unit.id.clone()).collect()
     } else {
-        // O orcamento fica entre o minimo e o maximo de respostas do modo,
-        // proporcional a 40% do total: cobre a nota em poucas sessoes sem
-        // exigir mais perguntas do que o modo suporta.
-        let budget = ((total as f64 * 0.4).ceil() as usize).clamp(min_answers, max_answers);
+        // Fracao adaptativa pela saude da nota: recuperacao quando metade ou
+        // mais das unidades precisam de atencao, manutencao quando nenhuma
+        // precisa, e misto no meio.
+        let attention_needed = document
+            .units
+            .iter()
+            .filter(|unit| !is_observed(unit) || is_weak(unit))
+            .count();
+        let fraction = if attention_needed == 0 {
+            0.3
+        } else if attention_needed * 2 >= total {
+            0.5
+        } else {
+            0.4
+        };
+        let budget = ((total as f64 * fraction).ceil() as usize).clamp(min_answers, max_answers);
         let mut never_evaluated = document
             .units
             .iter()
@@ -94,7 +163,7 @@ pub fn select_session_units(
             .iter()
             .filter(|unit| is_observed(unit) && is_weak(unit))
             .collect::<Vec<_>>();
-        weak.sort_by_key(|unit| (last_included_at(document, &unit.id), unit.ordinal));
+        weak.sort_by_key(|unit| mastery_urgency(unit, document));
         let mut rotation = document
             .units
             .iter()
@@ -128,11 +197,41 @@ pub fn select_session_units(
         .map(|unit| (unit.source_start_utf16, unit.source_end_utf16))
         .collect::<Vec<_>>();
     let session_markdown = slice_units_utf16(markdown, &target_ranges_utf16);
+    let plan = SessionPlan {
+        target_unit_count: u32::try_from(target_ids.len()).unwrap_or(u32::MAX),
+        total_unit_count: u32::try_from(total).unwrap_or(u32::MAX),
+        coverage_fraction: rounded_fraction(target_ids.len(), total),
+        estimated_minutes: estimated_minutes(&mode, target_ids.len()),
+        expected_sessions_to_cover: expected_sessions(target_ids.len(), total),
+    };
     SessionCoverage {
         target_unit_ids: target_ids,
         target_ranges_utf16,
         session_markdown,
+        plan,
     }
+}
+
+/// Fracao de unidades cobertas, arredondada a 2 casas (0..=1).
+fn rounded_fraction(target: usize, total: usize) -> f64 {
+    if total == 0 {
+        return 0.0;
+    }
+    ((target as f64 / total as f64) * 100.0).round() / 100.0
+}
+
+/// Estimativa de duracao em minutos a partir da contagem de respostas.
+fn estimated_minutes(mode: &ReviewMode, answers: usize) -> u32 {
+    let seconds = answers as u32 * seconds_per_answer(mode);
+    (seconds / 60).max(1)
+}
+
+/// Sessoes estimadas para cobrir todas as unidades com este orcamento.
+fn expected_sessions(target: usize, total: usize) -> u32 {
+    if target == 0 {
+        return 0;
+    }
+    ((total + target - 1) / target) as u32
 }
 
 /// Converte um deslocamento UTF-16 do Markdown para o deslocamento em bytes do
@@ -179,7 +278,7 @@ fn slice_units_utf16(markdown: &str, ranges: &[(u64, u64)]) -> String {
 mod tests {
     use super::select_session_units;
     use crate::review::contract::{
-        LearningDocument, LearningUnit, LearningUnitKind, ReviewMode, UnitEvaluation,
+        FsrsState, LearningDocument, LearningUnit, LearningUnitKind, ReviewMode, UnitEvaluation,
     };
     use crate::review::segmentation::build_learning_units;
 
@@ -261,15 +360,16 @@ mod tests {
             .join("\n\n");
         let document = document_with_units(&markdown, &[]);
         let coverage = select_session_units(&document, &markdown, ReviewMode::Exam);
-        // Orcamento = clamp(ceil(10*0.4)=4, 3, 5) = 4: os quatro primeiros
+        // Nota nova (todas nunca avaliadas) esta em recuperacao: fracao 0.5,
+        // orcamento = clamp(ceil(10*0.5)=5, 3, 5) = 5 — os cinco primeiros
         // paragrafos (nunca avaliados, por ordem).
-        assert_eq!(coverage.target_unit_ids.len(), 4);
+        assert_eq!(coverage.target_unit_ids.len(), 5);
         assert_eq!(
             coverage.target_unit_ids,
-            vec!["unit-1", "unit-2", "unit-3", "unit-4"]
+            vec!["unit-1", "unit-2", "unit-3", "unit-4", "unit-5"]
         );
         // O subset da IA contem exatamente o texto das unidades selecionadas.
-        let expected = (1..=4)
+        let expected = (1..=5)
             .map(|index| format!("Paragrafo {index} com conteudo substantivo para revisao."))
             .collect::<Vec<_>>()
             .join("\n\n");
@@ -319,7 +419,8 @@ mod tests {
         units[6].latest_evaluation = evaluated(50);
         let document = document_with_units(&markdown, &units);
         let coverage = select_session_units(&document, &markdown, ReviewMode::Exam);
-        assert_eq!(coverage.target_unit_ids.len(), 4);
+        // 7 de 10 unidades precisam de atencao -> fracao 0.5, orcamento 5.
+        assert_eq!(coverage.target_unit_ids.len(), 5);
         assert!(
             coverage.target_unit_ids.contains(&"unit-7".to_string()),
             "weak units must keep a reserved slot even while never-evaluated units remain"
@@ -337,8 +438,9 @@ mod tests {
         let second = select_session_units(&document, &markdown, ReviewMode::Conversation);
         assert_eq!(first.target_unit_ids, second.target_unit_ids);
         assert_eq!(first.session_markdown, second.session_markdown);
-        // Conversa: orcamento = clamp(ceil(12*0.4)=5, 4, 6) = 5 unidades.
-        assert_eq!(first.target_unit_ids.len(), 5);
+        // Conversa, nota nova (recuperacao): fracao 0.5,
+        // orcamento = clamp(ceil(12*0.5)=6, 4, 6) = 6 unidades.
+        assert_eq!(first.target_unit_ids.len(), 6);
     }
 
     #[test]
@@ -351,10 +453,118 @@ mod tests {
             .join("\n\n");
         let document = document_with_units(&markdown, &[]);
         let coverage = select_session_units(&document, &markdown, ReviewMode::Exam);
-        // Orcamento = clamp(ceil(8*0.4)=4, 3, 5) = 4 unidades, texto exato.
+        // Nota nova (recuperacao): fracao 0.5, orcamento = clamp(ceil(8*0.5)=4, 3, 5) = 4.
         assert_eq!(coverage.target_unit_ids.len(), 4);
         assert!(coverage.session_markdown.contains("fotossíntese"));
         assert!(coverage.session_markdown.contains("oxigênio (1)"));
         assert!(!coverage.session_markdown.contains("(5)"));
+    }
+
+    fn with_fsrs(unit: &mut LearningUnit, retrievability: f64) {
+        unit.fsrs = Some(FsrsState {
+            difficulty: 5.0,
+            stability_days: 10.0,
+            retrievability,
+            last_reviewed_at_unix_ms: 1_720_000_000_000,
+        });
+    }
+
+    #[test]
+    fn healthy_notes_use_a_lighter_maintenance_budget() {
+        let markdown = (1..=10)
+            .map(|index| format!("Paragrafo {index} com conteudo substantivo para revisao."))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let hash = crate::review::evaluation::source_hash(&markdown);
+        let mut units = build_learning_units(&markdown, &hash, &[]);
+        for unit in &mut units {
+            unit.latest_evaluation = evaluated(88);
+        }
+        let document = document_with_units(&markdown, &units);
+        let coverage = select_session_units(&document, &markdown, ReviewMode::Exam);
+        // Nenhuma unidade precisa de atencao -> manutencao: fracao 0.3,
+        // orcamento = clamp(ceil(10*0.3)=3, 3, 5) = 3 unidades.
+        assert_eq!(coverage.target_unit_ids.len(), 3);
+    }
+
+    #[test]
+    fn weak_units_are_ordered_by_mastery_urgency() {
+        let markdown = (1..=10)
+            .map(|index| format!("Paragrafo {index} com conteudo substantivo para revisao."))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let hash = crate::review::evaluation::source_hash(&markdown);
+        let mut units = build_learning_units(&markdown, &hash, &[]);
+        for (index, unit) in units.iter_mut().enumerate() {
+            unit.latest_evaluation = evaluated(88);
+            match index {
+                // Tres fracas com recuperabilidades e scores diferentes: a
+                // mais urgente e a de menor recuperabilidade, depois menor
+                // score (empate de recuperabilidade), depois a mais antiga.
+                2 => {
+                    unit.latest_evaluation = evaluated(60);
+                    with_fsrs(unit, 0.9);
+                }
+                4 => {
+                    unit.latest_evaluation = evaluated(50);
+                    with_fsrs(unit, 0.5);
+                }
+                6 => {
+                    unit.latest_evaluation = evaluated(55);
+                    with_fsrs(unit, 0.2);
+                }
+                _ => {}
+            }
+        }
+        let document = document_with_units(&markdown, &units);
+        let coverage = select_session_units(&document, &markdown, ReviewMode::Exam);
+        // 3 fracas -> misto (0.4), orcamento 4; reserva de fracas = 2: as duas
+        // mais urgentes entram na ordem de urgencia (unit-7 ret 0.2 antes de
+        // unit-5 ret 0.5), e a menos urgente (unit-3 ret 0.9) fica para a
+        // proxima sessao em vez de ocupar vaga de saudavel.
+        assert!(coverage.target_unit_ids.len() == 4);
+        let position = |id: &str| {
+            coverage
+                .target_unit_ids
+                .iter()
+                .position(|candidate| candidate == id)
+                .expect("selected unit")
+        };
+        assert!(position("unit-7") < position("unit-5"));
+        assert!(!coverage.target_unit_ids.contains(&"unit-3".to_string()));
+    }
+
+    #[test]
+    fn the_session_plan_reports_duration_coverage_and_expected_sessions() {
+        let markdown = (1..=10)
+            .map(|index| format!("Paragrafo {index} com conteudo substantivo para revisao."))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let document = document_with_units(&markdown, &[]);
+        let coverage = select_session_units(&document, &markdown, ReviewMode::Exam);
+        let plan = &coverage.plan;
+        assert_eq!(plan.target_unit_count, 5);
+        assert_eq!(plan.total_unit_count, 10);
+        assert_eq!(plan.coverage_fraction, 0.5);
+        // 5 respostas * 90s = 450s = 7 min (piso de 1).
+        assert_eq!(plan.estimated_minutes, 7);
+        assert_eq!(plan.expected_sessions_to_cover, 2);
+        // Conversa usa outra duracao; orcamento = clamp(ceil(10*0.5)=5, 4, 6) = 5.
+        let conversation = select_session_units(&document, &markdown, ReviewMode::Conversation);
+        assert_eq!(conversation.plan.target_unit_count, 5);
+        assert_eq!(conversation.plan.estimated_minutes, 6);
+        assert_eq!(conversation.plan.expected_sessions_to_cover, 2);
+    }
+
+    #[test]
+    fn a_whole_note_plan_covers_everything_in_one_session() {
+        let markdown = "# ATP\nATP armazena energia para uso celular.";
+        let document = document_with_units(&markdown, &[]);
+        let coverage = select_session_units(&document, &markdown, ReviewMode::Exam);
+        assert_eq!(coverage.plan.target_unit_count, 1);
+        assert_eq!(coverage.plan.total_unit_count, 1);
+        assert_eq!(coverage.plan.coverage_fraction, 1.0);
+        assert_eq!(coverage.plan.expected_sessions_to_cover, 1);
+        assert_eq!(coverage.plan.estimated_minutes, 1);
     }
 }

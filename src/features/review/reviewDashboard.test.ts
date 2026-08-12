@@ -45,6 +45,30 @@ const validDashboard = {
     title: 'Longa',
     observedUnitCount: 3,
     totalUnitCount: 8,
+    unitKind: 'paragraph',
+  }],
+  readinessUnassessedNoteCount: 2,
+  readinessReadyNoteCount: 8,
+  readinessAmbiguousNoteCount: 1,
+  readinessInsufficientNoteCount: 1,
+  readinessModifiedNoteCount: 1,
+  readinessAttentionNoteCount: 2,
+  readinessAttentionNotes: [{
+    noteId: 'note-3',
+    relativePath: 'Esboco.md',
+    title: 'Esboco',
+    status: 'insufficient',
+    assessedAtUnixMs: 1_730_000_000_000,
+    explanation: 'Apenas titulo e esboco.',
+    issueCount: 1,
+  }, {
+    noteId: 'note-4',
+    relativePath: 'Editada.md',
+    title: 'Editada',
+    status: 'modified',
+    assessedAtUnixMs: 1_720_000_000_000,
+    explanation: '',
+    issueCount: 0,
   }],
 }
 
@@ -72,6 +96,13 @@ describe('vault review dashboard schema', () => {
       fragileUnitCount: 0,
       calibrationNoteCount: 0,
       calibrationNotes: [],
+      readinessUnassessedNoteCount: 0,
+      readinessReadyNoteCount: 0,
+      readinessAmbiguousNoteCount: 0,
+      readinessInsufficientNoteCount: 0,
+      readinessModifiedNoteCount: 0,
+      readinessAttentionNoteCount: 0,
+      readinessAttentionNotes: [],
     }
     expect(parseVaultReviewDashboard(empty).averageRetrievability).toBeNull()
   })
@@ -117,6 +148,26 @@ describe('vault review dashboard schema', () => {
       ...validDashboard,
       expiredDeadlineNoteCount: 0,
       expiredDeadlines: validDashboard.expiredDeadlines,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects a readiness attention list that exceeds its count', () => {
+    const result = vaultReviewDashboardSchema.safeParse({
+      ...validDashboard,
+      readinessAttentionNoteCount: 0,
+      readinessAttentionNotes: validDashboard.readinessAttentionNotes,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects an unknown readiness attention status', () => {
+    const result = vaultReviewDashboardSchema.safeParse({
+      ...validDashboard,
+      readinessAttentionNotes: [{
+        ...validDashboard.readinessAttentionNotes[0],
+        status: 'unknown',
+      }],
     })
     expect(result.success).toBe(false)
   })

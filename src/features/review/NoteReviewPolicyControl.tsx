@@ -6,6 +6,7 @@ import {
   setNoteReviewPolicy,
 } from './reviewPolicy'
 import type { NoteReviewPolicy, NoteReviewPolicyInput } from './reviewPolicy'
+import { PolicyWorkloadEstimate } from './PolicyWorkloadEstimate'
 import './review-policy.css'
 
 type Props = {
@@ -376,6 +377,14 @@ export function NoteReviewPolicyControl({
               </div>
               {intervalOrderInvalid ? <p role="alert">O intervalo máximo deve ser igual ou maior que o mínimo.</p> : null}
             </details>
+
+            <PolicyWorkloadEstimate
+              firstReviewIntervalDays={form.firstReviewIntervalDays}
+              targetRetention={form.targetRetention}
+              minIntervalDays={form.minIntervalDays}
+              maxIntervalDays={form.maxIntervalDays}
+              valid={validation?.success === true}
+            />
 
             <div className="review-policy-schedule">
               <span>Próxima revisão</span>

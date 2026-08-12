@@ -18,6 +18,10 @@ const journeys = [
     spec: 'tests/e2e/trash-restore.e2e.mjs',
     phases: ['trash-and-restore', 'verify-trash-restore'],
   },
+  {
+    spec: 'tests/e2e/session-abandon.e2e.mjs',
+    phases: ['session-abandon'],
+  },
 ]
 
 async function runPhase({ ownerToken, phase, runRoot, spec }) {

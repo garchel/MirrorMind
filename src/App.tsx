@@ -5,7 +5,7 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Star, Strikethrough, Subscript, Superscript, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { CiStickyNote } from 'react-icons/ci'
 import 'katex/dist/katex.min.css'
@@ -25,12 +25,14 @@ import { ObsidianCallout } from './components/ObsidianCallout'
 import { ObsidianNoteEmbed } from './components/ObsidianNoteEmbed'
 import { ObsidianPdfEmbed } from './components/ObsidianPdfEmbed'
 import { NoteReadinessControl, type ReviewStartInfo } from './features/review/NoteReadinessControl'
+import { applyStructuralAuditEdit } from './features/review/structuralAuditApply'
 import { NoteReviewPolicyControl } from './features/review/NoteReviewPolicyControl'
 import { ReviewDashboardPage } from './features/review/ReviewDashboardPage'
 import type { ExpiredDeadlineItem, UpcomingDeadlineItem } from './features/review/reviewDashboard'
 import { ReviewQueuePage } from './features/review/ReviewQueuePage'
 import { ReviewReportsPage } from './features/review/ReviewReportsPage'
 import { ReviewSessionPage } from './features/review/ReviewSessionPage'
+import { auditNoteStructure, type StructuralAudit } from './features/review/ai'
 import { getNoteReviewGaps, type NoteReviewGap } from './features/review/noteReviewGaps'
 import { getNoteReviewUnits, type NoteReviewUnit } from './features/review/noteReviewUnits'
 import { annotateReviewMarkdown } from './features/review/reportMarkdown'
@@ -88,7 +90,12 @@ import {
 import './App.css'
 import { countMarkdownWords, detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownFrontmatterSource, getMarkdownPreviewText, normalizeMarkdownTag, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderWikiLinksAsMarkdown, replaceMarkdownBody, resolveObsidianAttachmentPath, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable, type FrontmatterValue, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
 import { nextPopoverShiftX } from './lib/selectionPopover'
-import { applyGraphDragForces } from './lib/noteGraphLayout'
+import {
+  accumulateObsidianForces2D,
+  GRAPH_2D_BOUNDS,
+  OBSIDIAN_PHYSICS_2D,
+  type NoteGraphLayoutLink,
+} from './lib/noteGraphLayout'
 
 type TrashItem = {
   id: string
@@ -170,6 +177,57 @@ type GraphPosition = { x: number; y: number }
 type GraphViewport = { scale: number; x: number; y: number }
 type GraphMode = 'global' | 'local'
 
+/** Estado da fisica continua do grafo 2D no modelo do Obsidian: o no arrastado
+ * e o UNICO ponto fixado (pinned) e todo o grafo visivel flui pelas mesmas
+ * forcas — molas das arestas, repulsao 1/d² e center force com zona morta —
+ * com resfriamento alpha ate assentar. Ao soltar, a simulacao continua (hub
+ * fixo no ponto da soltura) ate parar. Uma simulacao AMBIENTE roda ao abrir
+ * o grafo (big bang: nos juntos no centro se espalham) e no botao Reorganizar.
+ * Tudo roda num rAF enquanto houver arrasto, assentamento ou ambiente ativo. */
+type Graph2DPhysics = {
+  positions: Map<string, GraphPosition>
+  /** Arestas entre os nos visiveis (molas), usadas por drag/coast/ambient.
+   * Ja em forma de objeto para o loop nao alocar arrays por frame. */
+  edges: NoteGraphLayoutLink[]
+  /** Tamanho em px da superficie capturado no inicio da simulacao (para
+   * converter as posicoes % em transform translate px — composicao GPU, sem
+   * forcar layout a cada frame). */
+  surfaceSize: { width: number; height: number } | null
+  drag: {
+    anchor: string
+    /** Todos os nos visiveis menos o ancora (fluem pelas forcas). */
+    paths: string[]
+    velocities: Map<string, GraphPosition>
+    draggedTarget: GraphPosition
+    /** Ultima posicao do alvo processada (para detectar cursor parado e
+     * "dormir" o loop — 60fps desnecessarios com o arrasto imovel). */
+    lastTarget: GraphPosition
+    startX: number
+    startY: number
+    moved: boolean
+    /** Bounds da superficie capturados no inicio do arrasto (para nao chamar
+     * getBoundingClientRect a cada pointermove, que forca layout sincrono). */
+    bounds: { left: number; top: number; width: number; height: number } | null
+  } | null
+  /** Assentamento pos-arrasto: o hub (no com mais conexoes) fica FIXO no
+   * ponto da soltura e o restante do grafo visivel assenta com alpha decaindo. */
+  coast: {
+    hub: string
+    paths: string[]
+    velocities: Map<string, GraphPosition>
+    startedAt: number
+    alpha: number
+  } | null
+  /** Simulacao ambiente (big bang): todos os nos visiveis partem do centro
+   * com pequena perturbacao e se espalham pelas forcas ate assentar. */
+  ambient: {
+    paths: string[]
+    velocities: Map<string, GraphPosition>
+    startedAt: number
+    alpha: number
+  } | null
+}
+
 function buildNoteGraphLinks(documents: GraphDocument[], availablePaths: string[]) {
   return documents.flatMap((document) => {
     const targets = new Set<string>()
@@ -199,52 +257,6 @@ function buildNoteGraphLinksFromIndex(snapshot: ReturnType<typeof buildWikilinkI
     }
   }
   return links
-}
-
-function createForceGraphLayout(documents: GraphDocument[], links: NoteGraphLink[]) {
-  const positions = documents.reduce<Record<string, GraphPosition>>((result, document, index) => {
-    const angle = (Math.PI * 2 * index) / Math.max(documents.length, 1) - Math.PI / 2
-    result[document.relativePath] = { x: 50 + Math.cos(angle) * 34, y: 50 + Math.sin(angle) * 34 }
-    return result
-  }, {})
-
-  for (let iteration = 0; iteration < 100; iteration += 1) {
-    const displacement = documents.reduce<Record<string, GraphPosition>>((result, document) => ({ ...result, [document.relativePath]: { x: 0, y: 0 } }), {})
-    for (let left = 0; left < documents.length; left += 1) {
-      for (let right = left + 1; right < documents.length; right += 1) {
-        const source = positions[documents[left].relativePath]
-        const target = positions[documents[right].relativePath]
-        const deltaX = source.x - target.x || 0.01
-        const deltaY = source.y - target.y || 0.01
-        const distanceSquared = Math.max(deltaX * deltaX + deltaY * deltaY, 1)
-        const force = 180 / distanceSquared
-        displacement[documents[left].relativePath].x += deltaX * force
-        displacement[documents[left].relativePath].y += deltaY * force
-        displacement[documents[right].relativePath].x -= deltaX * force
-        displacement[documents[right].relativePath].y -= deltaY * force
-      }
-    }
-    for (const link of links) {
-      const source = positions[link.source]
-      const target = positions[link.target]
-      if (!source || !target) continue
-      const deltaX = target.x - source.x
-      const deltaY = target.y - source.y
-      const distance = Math.max(Math.hypot(deltaX, deltaY), 1)
-      const force = (distance - 22) * 0.035
-      displacement[link.source].x += (deltaX / distance) * force
-      displacement[link.source].y += (deltaY / distance) * force
-      displacement[link.target].x -= (deltaX / distance) * force
-      displacement[link.target].y -= (deltaY / distance) * force
-    }
-    for (const document of documents) {
-      const position = positions[document.relativePath]
-      const movement = displacement[document.relativePath]
-      position.x = Math.max(7, Math.min(93, position.x + movement.x * 0.14 + (50 - position.x) * 0.006))
-      position.y = Math.max(9, Math.min(91, position.y + movement.y * 0.14 + (50 - position.y) * 0.006))
-    }
-  }
-  return positions
 }
 
 /** Atualiza um numero de configuracao: campo vazio mantem o valor atual,
@@ -359,6 +371,9 @@ function App() {
   const graphPanRef = useRef<{ x: number; y: number; viewport: GraphViewport } | null>(null)
   const graphNodeDragRef = useRef<string | null>(null)
   const graphSkipNodeClickRef = useRef(false)
+  const graphPhysicsRef = useRef<Graph2DPhysics | null>(null)
+  const graphPhysicsFrameRef = useRef<number | null>(null)
+  const graphPhysicsLastTimeRef = useRef<number | null>(null)
   const graphLoadRequestRef = useRef(0)
   const wikiLinkPreviewCacheRef = useRef(new Map<string, WikiLinkPreview>())
   const hoveredWikiLinkPathRef = useRef<string | null>(null)
@@ -393,6 +408,13 @@ function App() {
   }, [workspacePage])
   const [activeReviewItem, setActiveReviewItem] = useState<DueReviewItem | null>(null)
   const [reviewMenuOpen, setReviewMenuOpen] = useState(false)
+  // Auditoria estrutural deterministica (sem IA): achados + sugestoes aplicaveis
+  // uma a uma no rascunho do editor.
+  const [structuralAuditOpen, setStructuralAuditOpen] = useState(false)
+  const [structuralAudit, setStructuralAudit] = useState<StructuralAudit | null>(null)
+  const [structuralAuditLoading, setStructuralAuditLoading] = useState(false)
+  const [structuralAuditError, setStructuralAuditError] = useState<string | null>(null)
+  const [structuralAuditAppliedIndex, setStructuralAuditAppliedIndex] = useState<number | null>(null)
   const [notificationLastCheck, setNotificationLastCheck] = useState<ReviewNotificationCheck | null>(null)
   const [reviewGaps, setReviewGaps] = useState<NoteReviewGap[]>([])
   const [reviewUnits, setReviewUnits] = useState<NoteReviewUnit[]>([])
@@ -450,6 +472,74 @@ function App() {
     const value = Number(localStorage.getItem('mirrormind.graph3d.degree-growth'))
     return Number.isFinite(value) && value >= 0 ? value : 0.13
   })
+  // Configuracoes de FORCAS do grafo 2D (constantes do modelo Obsidian:
+  // repulsao 1/d², rigidez da mola, amortecimento, distancia do link e forca
+  // central), persistidas por vault e editaveis no popover de configuracoes do
+  // header do grafo (e na pagina de Configuracoes).
+  const [graph2dRepulsionStrength, setGraph2dRepulsionStrength] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph2d.repulsion-strength'))
+    return Number.isFinite(value) && value >= 0 ? value : 1600
+  })
+  const [graph2dLinkStiffness, setGraph2dLinkStiffness] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph2d.link-stiffness'))
+    return Number.isFinite(value) && value > 0 ? value : 2.2
+  })
+  const [graph2dVelocityDecay, setGraph2dVelocityDecay] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph2d.velocity-decay'))
+    return Number.isFinite(value) && value >= 0 ? value : 1.0
+  })
+  const [graph2dLinkDistance, setGraph2dLinkDistance] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph2d.link-distance'))
+    return Number.isFinite(value) && value > 0 ? value : 10
+  })
+  const [graph2dCenterForce, setGraph2dCenterForce] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph2d.center-force'))
+    return Number.isFinite(value) && value >= 0 ? value : 100
+  })
+  // Espelho das configuracoes do grafo 2D para o loop rAF da fisica (lido em
+  // tempo real sem recriar o closure). Posicoes transitorias da simulacao:
+  // arrasto/assentamento rodam sem persistir nada; apenas o layout final ao
+  // parar e gravado em graphNodeOverrides.
+  const graphPhysicsSettingsRef = useRef({
+    repulsionStrength: graph2dRepulsionStrength,
+    linkStiffness: graph2dLinkStiffness,
+    velocityDecay: graph2dVelocityDecay,
+    linkDistance: graph2dLinkDistance,
+    centerForce: graph2dCenterForce,
+  })
+  // Elementos DOM dos nos/arestas 2D: o loop da fisica escreve as posicoes
+  // DIRETAMENTE no DOM (imperativo) a cada frame, sem re-renderizar o React
+  // (o App inteiro, incluindo a arvore do explorador, renderizar a 60fps era a
+  // causa das travadinhas). A fonte de verdade das posicoes durante a
+  // simulacao e o proprio mapa vivo em graphPhysicsRef; a renderizacao le
+  // dele para nunca mostrar posicoes antigas.
+  const graph2dNodeElementsRef = useRef(new Map<string, HTMLButtonElement>())
+  const graph2dLinkElementsRef = useRef(new Map<string, SVGLineElement>())
+  // Ultimos valores escritos nas arestas (para pular escritas redundantes).
+  const graph2dLinkLastValuesRef = useRef(new WeakMap<SVGLineElement, string>())
+
+  useEffect(() => {
+    graphPhysicsSettingsRef.current = {
+      repulsionStrength: graph2dRepulsionStrength,
+      linkStiffness: graph2dLinkStiffness,
+      velocityDecay: graph2dVelocityDecay,
+      linkDistance: graph2dLinkDistance,
+      centerForce: graph2dCenterForce,
+    }
+  })
+
+  // Fora da superficie 2D (outra pagina ou modo 3D), para a fisica e limpa as
+  // posicoes transitorias para nao atualizar estado de um grafo desmontado.
+  useEffect(() => {
+    if (workspacePage === 'graph' && !graphMode3d) return
+    if (graphPhysicsFrameRef.current !== null) {
+      cancelAnimationFrame(graphPhysicsFrameRef.current)
+      graphPhysicsFrameRef.current = null
+    }
+    graphPhysicsRef.current = null
+    graphPhysicsLastTimeRef.current = null
+    setGraphHoverPath(null)
+  }, [graphMode3d, workspacePage])
   // Header flutuante do grafo com opacidade variavel: aparece com o mouse e
   // some apos alguns segundos de inatividade (imersao).
   const [graphUiVisible, setGraphUiVisible] = useState(true)
@@ -461,7 +551,9 @@ function App() {
     setGraphUiVisible(true)
     if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current)
     graphUiHideTimerRef.current = window.setTimeout(() => {
-      if (!graphSettingsOpenRef.current) setGraphUiVisible(false)
+      // Nao esconde a UI no meio de um arrasto (evita re-render do React
+      // durante a animacao) nem com o popover de configuracoes aberto.
+      if (!graphSettingsOpenRef.current && !graphNodeDragRef.current) setGraphUiVisible(false)
     }, 2600)
   }
 
@@ -480,6 +572,8 @@ function App() {
     if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current)
   }, [])
   const [focusedGraphPath, setFocusedGraphPath] = useState<string | null>(null)
+  // No do grafo 2D sob o mouse: destaca suas arestas e esmaece os demais.
+  const [graphHoverPath, setGraphHoverPath] = useState<string | null>(null)
   const [graphDetailOpen, setGraphDetailOpen] = useState(false)
   const [graphMode, setGraphMode] = useState<GraphMode>('global')
   const [shortcuts, setShortcuts] = useState<WorkspaceShortcuts>(() => {
@@ -525,6 +619,13 @@ function App() {
     localStorage.setItem('mirrormind.graph3d.min-edge-length', String(graph3dMinEdgeLength))
     localStorage.setItem('mirrormind.graph3d.degree-growth', String(graph3dDegreeGrowth))
   }, [graph3dDegreeGrowth, graph3dMaxEdgeLength, graph3dMinEdgeLength, graph3dNodeSize, graph3dNodeSpacing, graph3dOrbitSpeed])
+  useEffect(() => {
+    localStorage.setItem('mirrormind.graph2d.repulsion-strength', String(graph2dRepulsionStrength))
+    localStorage.setItem('mirrormind.graph2d.link-stiffness', String(graph2dLinkStiffness))
+    localStorage.setItem('mirrormind.graph2d.velocity-decay', String(graph2dVelocityDecay))
+    localStorage.setItem('mirrormind.graph2d.link-distance', String(graph2dLinkDistance))
+    localStorage.setItem('mirrormind.graph2d.center-force', String(graph2dCenterForce))
+  }, [graph2dCenterForce, graph2dLinkDistance, graph2dLinkStiffness, graph2dRepulsionStrength, graph2dVelocityDecay])
   // Resumo diario de revisoes vencidas: verifica a cada 5 minutos enquanto ha
   // um vault aberto. O backend garante no maximo uma notificacao por dia local.
   useEffect(() => {
@@ -1631,6 +1732,57 @@ function App() {
     setWorkspacePage('review')
   }
 
+  /** Auditoria estrutural deterministica (sem IA) da nota aberta: consome a
+   *  mesma regra de segmentacao por secoes e devolve achados com sugestoes.
+   *  Roda sobre o conteudo salvo em disco (como a avaliacao de prontidao). */
+  async function runStructuralAudit() {
+    if (!vault || !activeNote || isNewNoteDraft) return
+    setStructuralAuditLoading(true)
+    setStructuralAuditError(null)
+    setStructuralAuditAppliedIndex(null)
+    try {
+      const result = await auditNoteStructure({
+        vaultPath: vault.path,
+        relativePath: activeNote.relativePath,
+      })
+      setStructuralAudit(result)
+    } catch (error) {
+      setStructuralAuditError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setStructuralAuditLoading(false)
+    }
+  }
+
+  /** Aplica uma sugestao com edicao determinista ao rascunho do editor. O
+   *  usuario revisa no editor e salva — nunca editamos o Markdown sozinhos. */
+  function handleApplyStructuralAuditEdit(index: number) {
+    const edit = structuralAudit?.findings[index]?.edit
+    if (!edit) return
+    const nextContent = applyStructuralAuditEdit(draftContent, edit)
+    if (nextContent === null) {
+      setStructuralAuditError('Nao foi possivel aplicar a sugestao (offsets desatualizados). Re-execute a auditoria.')
+      return
+    }
+    setDraftContent(nextContent)
+    setStructuralAuditAppliedIndex(index)
+  }
+
+  // Re-executa a auditoria sempre que o painel abre (o conteudo salvo pode ter
+  // mudado) e fecha/limpa ao trocar de nota.
+  useEffect(() => {
+    if (structuralAuditOpen && vault && activeNote && !isNewNoteDraft) {
+      void runStructuralAudit()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structuralAuditOpen])
+
+  useEffect(() => {
+    setStructuralAuditOpen(false)
+    setStructuralAudit(null)
+    setStructuralAuditError(null)
+    setStructuralAuditAppliedIndex(null)
+  }, [activeNote?.relativePath])
+
   async function openGraphPage() {
     if (!vault) return
     const requestId = graphLoadRequestRef.current + 1
@@ -1665,10 +1817,17 @@ function App() {
       setGraph3dLayoutVersion((version) => version + 1)
       return
     }
-    const links = graphWikilinkIndex
-      ? buildNoteGraphLinksFromIndex(graphWikilinkIndex, graphDocuments)
-      : buildNoteGraphLinks(graphDocuments, notes.map((note) => note.relativePath))
-    setGraphNodeOverrides(createForceGraphLayout(graphDocuments, links))
+    // Reorganizar em 2D = nova simulacao ambiente: para a fisica em
+    // andamento, descarta o layout persistido e espalha os nos por toda a
+    // area a partir do circulo inicial (gravidade ao centro + repulsao).
+    if (graphPhysicsFrameRef.current !== null) {
+      cancelAnimationFrame(graphPhysicsFrameRef.current)
+      graphPhysicsFrameRef.current = null
+    }
+    graphPhysicsRef.current = null
+    graphPhysicsLastTimeRef.current = null
+    setGraphNodeOverrides({})
+    startGraph2dAmbientSimulation()
   }
 
   function resetGraphView() {
@@ -1682,6 +1841,426 @@ function App() {
     setGraph3dMaxEdgeLength(14)
     setGraph3dMinEdgeLength(2.5)
     setGraph3dDegreeGrowth(0.13)
+    // Tambem restaura as forcas do grafo 2D (mesmo popover/header).
+    setGraph2dRepulsionStrength(1600)
+    setGraph2dLinkStiffness(2.2)
+    setGraph2dVelocityDecay(1.0)
+    setGraph2dLinkDistance(10)
+    setGraph2dCenterForce(100)
+  }
+
+  /** Um passo da simulacao 2D (rAF): arrasto fluido (ancora fixo no cursor e
+   * vizinhos respondem as forcas do cluster) ou assentamento pos-arrasto
+   * (amortecimento ate parar). Escreve as posicoes transitorias em
+   * graphLivePositions e segue agendando enquanto houver interacao ativa. */
+  /** Integra um passo (amortecimento + movimento) para os nos em movimento e
+   * devolve a energia cinetica residual (para detectar o assentamento). */
+  function integrateGraph2dStep(paths: string[], positions: Map<string, GraphPosition>, velocities: Map<string, GraphPosition>, delta: number, velocityDecay: number) {
+    let remaining = 0
+    for (const path of paths) {
+      const current = positions.get(path)
+      const velocity = velocities.get(path)
+      if (!current || !velocity) continue
+      const damping = Math.max(0, 1 - velocityDecay * delta)
+      velocity.x *= damping
+      velocity.y *= damping
+      current.x = Math.max(GRAPH_2D_BOUNDS.minX, Math.min(GRAPH_2D_BOUNDS.maxX, current.x + velocity.x * delta))
+      current.y = Math.max(GRAPH_2D_BOUNDS.minY, Math.min(GRAPH_2D_BOUNDS.maxY, current.y + velocity.y * delta))
+      remaining += velocity.x * velocity.x + velocity.y * velocity.y
+    }
+    return remaining
+  }
+
+  /** Aplica as forcas do modelo Obsidian com as configuracoes atuais (sliders
+   * de repulsao, distancia do link e forca central) ao conjunto em movimento.
+   * Os nos FIXOS (pinned) entram em `paths` para repeler/puxar por mola, mas
+   * nao se movem porque nao tem entrada no mapa de `velocities`. */
+  function applyGraph2dForces(params: {
+    paths: string[]
+    fixed?: string[]
+    positions: Map<string, GraphPosition>
+    velocities: Map<string, GraphPosition>
+    edges: NoteGraphLayoutLink[]
+    alpha: number
+    delta: number
+  }) {
+    const settings = graphPhysicsSettingsRef.current
+    accumulateObsidianForces2D({
+      paths: params.fixed ? [...params.paths, ...params.fixed] : params.paths,
+      positions: params.positions,
+      velocities: params.velocities,
+      edges: params.edges,
+      linkStiffness: settings.linkStiffness,
+      linkRest: settings.linkDistance,
+      repulsionStrength: settings.repulsionStrength,
+      centerStrength: OBSIDIAN_PHYSICS_2D.centerStrength * (settings.centerForce / 100),
+      alpha: params.alpha,
+      delta: params.delta,
+    })
+  }
+
+  function stepGraph2dPhysics() {
+    const physics = graphPhysicsRef.current
+    // A superficie 2D foi desmontada (navegou ou trocou para 3D) no meio de um
+    // frame: para a simulacao sem atualizar estado de um grafo invisivel.
+    if (!physics || !graphSurfaceRef.current) {
+      if (graphPhysicsFrameRef.current !== null) {
+        cancelAnimationFrame(graphPhysicsFrameRef.current)
+        graphPhysicsFrameRef.current = null
+      }
+      graphPhysicsRef.current = null
+      return
+    }
+    const now = performance.now()
+    const last = graphPhysicsLastTimeRef.current ?? now
+    const delta = Math.min(0.05, Math.max(0.001, (now - last) / 1000))
+    graphPhysicsLastTimeRef.current = now
+    const { positions, edges, drag, coast } = physics
+    let sleepDrag = false
+    if (drag) {
+      // Unico ponto fixado (pinned): o no arrastado acompanha o cursor; o
+      // restante do grafo visivel flui pelas MESMAS forcas (molas das arestas,
+      // repulsao 1/d² e center force) — como o Obsidian, sem cluster rigido.
+      const anchor = positions.get(drag.anchor)
+      if (anchor) {
+        anchor.x = drag.draggedTarget.x
+        anchor.y = drag.draggedTarget.y
+      }
+      applyGraph2dForces({
+        paths: drag.paths,
+        fixed: [drag.anchor],
+        positions,
+        velocities: drag.velocities,
+        edges,
+        alpha: 1,
+        delta,
+      })
+      const dragRemaining = integrateGraph2dStep(drag.paths, positions, drag.velocities, delta, graphPhysicsSettingsRef.current.velocityDecay)
+      // Se o cursor parou e o cluster ja assentou, "dorme" o loop ate o
+      // proximo pointermove (evita 60fps desnecessarios com o arrasto imovel).
+      const targetMoved = drag.lastTarget.x !== drag.draggedTarget.x || drag.lastTarget.y !== drag.draggedTarget.y
+      drag.lastTarget.x = drag.draggedTarget.x
+      drag.lastTarget.y = drag.draggedTarget.y
+      if (!targetMoved && dragRemaining < 0.05) sleepDrag = true
+    } else if (coast) {
+      // Assentamento pos-arrasto: o hub (no com mais conexoes) fica FIXO no
+      // ponto da soltura e o restante do grafo visivel assenta com as mesmas
+      // forcas, com o alpha decaindo ate parar (como o Obsidian apos soltar).
+      const hub = positions.get(coast.hub)
+      if (hub) {
+        applyGraph2dForces({
+          paths: coast.paths,
+          fixed: [coast.hub],
+          positions,
+          velocities: coast.velocities,
+          edges,
+          alpha: coast.alpha,
+          delta,
+        })
+        const coastRemaining = integrateGraph2dStep(coast.paths, positions, coast.velocities, delta, graphPhysicsSettingsRef.current.velocityDecay)
+        coast.alpha *= OBSIDIAN_PHYSICS_2D.alphaDecay
+        if (coastRemaining < 0.05 || coast.alpha < OBSIDIAN_PHYSICS_2D.alphaMin || now - coast.startedAt > 3000) {
+          // Assentou: congela o layout reorganizado como a nova base persistida.
+          physics.coast = null
+          setGraphNodeOverrides((previous) => ({ ...previous, ...Object.fromEntries(positions) }))
+        }
+      }
+    } else if (physics.ambient) {
+      // Simulacao ambiente (big bang ao abrir o grafo / Reorganizar): todos os
+      // nos visiveis partem do centro e se espalham pelas forcas; o alpha
+      // decai ate assentar (ou timeout) e o layout final e persistido.
+      const ambient = physics.ambient
+      applyGraph2dForces({
+        paths: ambient.paths,
+        positions,
+        velocities: ambient.velocities,
+        edges,
+        alpha: ambient.alpha,
+        delta,
+      })
+      const ambientRemaining = integrateGraph2dStep(ambient.paths, positions, ambient.velocities, delta, graphPhysicsSettingsRef.current.velocityDecay)
+      ambient.alpha *= OBSIDIAN_PHYSICS_2D.alphaDecay
+      if (ambientRemaining < 0.05 || ambient.alpha < OBSIDIAN_PHYSICS_2D.alphaMin || now - ambient.startedAt > 4000) {
+        // Assentou: vira a nova base persistida (layout espalhado).
+        physics.ambient = null
+        setGraphNodeOverrides((previous) => ({ ...previous, ...Object.fromEntries(positions) }))
+      }
+    }
+    // Escreve as posicoes DIRETAMENTE no DOM (imperativo) — o React NAO e
+    // re-renderizado em nenhum frame da simulacao (era a causa das travadinhas
+    // durante o arrasto: o App inteiro, incluindo a arvore do explorador,
+    // renderizava a 60fps).
+    writeGraph2dPositionsToDom(positions)
+    if (sleepDrag) {
+      graphPhysicsFrameRef.current = null
+    } else if (physics.drag || physics.coast || physics.ambient) {
+      graphPhysicsFrameRef.current = requestAnimationFrame(stepGraph2dPhysics)
+    } else {
+      graphPhysicsFrameRef.current = null
+    }
+  }
+
+  /** Escreve as posicoes da simulacao diretamente no DOM dos nos e arestas 2D
+   * (sem estado React). Usada pelo loop e por um useLayoutEffect que roda apos
+   * cada render — assim, qualquer re-render do React por outro motivo (hover,
+   * drawer...) re-sincroniza o DOM com as posicoes REAIS da fisica, sem que os
+   * nos "pulem" para posicoes antigas do VDOM. */
+  function writeGraph2dPositionsToDom(positions: Map<string, GraphPosition>) {
+    const surfaceSize = graphPhysicsRef.current?.surfaceSize
+    for (const [path, element] of graph2dNodeElementsRef.current) {
+      const position = positions.get(path)
+      if (!element || !position) continue
+      if (surfaceSize && surfaceSize.width > 0 && surfaceSize.height > 0) {
+        // Posiciona por transform translate (px) — composicao GPU, sem forcar
+        // layout a cada frame. Zera o left/top percentual uma unica vez; as
+        // escritas de transform so mudam quando a posicao muda.
+        if (element.style.left !== '0px') element.style.left = '0px'
+        if (element.style.top !== '0px') element.style.top = '0px'
+        const transform = `translate(${(position.x / 100) * surfaceSize.width}px, ${(position.y / 100) * surfaceSize.height}px)`
+        if (element.style.transform !== transform) element.style.transform = transform
+      } else {
+        // Sem tamanho capturado (fallback): posiciona por left/top %.
+        const left = `${position.x}%`
+        const top = `${position.y}%`
+        if (element.style.left !== left) element.style.left = left
+        if (element.style.top !== top) element.style.top = top
+      }
+    }
+    for (const [key, element] of graph2dLinkElementsRef.current) {
+      const separatorIndex = key.indexOf('\u0000')
+      const source = key.slice(0, separatorIndex)
+      const target = key.slice(separatorIndex + 1)
+      const sourcePosition = positions.get(source)
+      const targetPosition = positions.get(target)
+      if (element && sourcePosition && targetPosition) {
+        const value = `${sourcePosition.x},${sourcePosition.y},${targetPosition.x},${targetPosition.y}`
+        if (graph2dLinkLastValuesRef.current.get(element) !== value) {
+          graph2dLinkLastValuesRef.current.set(element, value)
+          element.setAttribute('x1', String(sourcePosition.x))
+          element.setAttribute('y1', String(sourcePosition.y))
+          element.setAttribute('x2', String(targetPosition.x))
+          element.setAttribute('y2', String(targetPosition.y))
+        }
+      }
+    }
+  }
+
+  // Durante uma simulacao ativa, qualquer render do React (hover, drawer,
+  // fim da simulacao...) re-sincroniza o DOM com as posicoes reais da fisica.
+  useLayoutEffect(() => {
+    const physics = graphPhysicsRef.current
+    if (physics) writeGraph2dPositionsToDom(physics.positions)
+  })
+
+  /** Inicia (ou reinicia) o loop da fisica 2D na proxima moldura. */
+  function kickGraph2dPhysics() {
+    if (graphPhysicsFrameRef.current === null) {
+      graphPhysicsFrameRef.current = requestAnimationFrame(stepGraph2dPhysics)
+    }
+    graphPhysicsLastTimeRef.current = null
+  }
+
+  /** Nos visiveis da superficie 2D (mesmo filtro do render: query/pasta/tag/
+   * modo/orfaos) + arestas entre eles. Usado por ambient e arrasto para
+   * simular apenas o que esta na tela. */
+  function getGraph2dSimulationState() {
+    const links = graphWikilinkIndex
+      ? buildNoteGraphLinksFromIndex(graphWikilinkIndex, graphDocuments)
+      : buildNoteGraphLinks(graphDocuments, notes.map((note) => note.relativePath))
+    const degreeByPath = links.reduce<Record<string, number>>((degrees, link) => {
+      degrees[link.source] = (degrees[link.source] ?? 0) + 1
+      degrees[link.target] = (degrees[link.target] ?? 0) + 1
+      return degrees
+    }, {})
+    const localGraphCenterPath = focusedGraphPath ?? activeNote?.relativePath ?? null
+    const localGraphPaths = new Set(localGraphCenterPath
+      ? [localGraphCenterPath, ...links.flatMap((link) => link.source === localGraphCenterPath ? [link.target] : link.target === localGraphCenterPath ? [link.source] : [])]
+      : [])
+    const visibleGraphDocuments = graphDocuments.filter((document) => {
+      const title = document.name.replace(/\.md$/i, '').toLowerCase()
+      const matchesQuery = !graphQuery.trim() || title.includes(graphQuery.trim().toLowerCase())
+      const matchesFolder = !graphFolder || document.relativePath.startsWith(`${graphFolder}/`)
+      const matchesTag = !graphTag || extractMarkdownTags(document.content).includes(graphTag)
+      const isOrphan = (degreeByPath[document.relativePath] ?? 0) === 0
+      return matchesQuery && matchesFolder && matchesTag && (graphMode === 'global' || localGraphPaths.has(document.relativePath)) && (showOnlyGraphOrphans ? isOrphan : showGraphOrphans || !isOrphan)
+    })
+    const visiblePaths = new Set(visibleGraphDocuments.map((document) => document.relativePath))
+    const edges: NoteGraphLayoutLink[] = []
+    for (const link of links) {
+      if (visiblePaths.has(link.source) && visiblePaths.has(link.target)) edges.push(link)
+    }
+    return { visibleGraphDocuments, visiblePaths, edges, degreeByPath }
+  }
+
+  /** Monta o mapa de posicoes e velocidades da simulacao a partir do estado
+   * atual (posicoes transitorias > override > layout inicial). Com jitter
+   * (big bang), o no parte do centro com pequena perturbacao aleatoria e
+   * velocidade zero — como o Obsidian ao montar o grafo. Com
+   * `ignoreExisting`, TODAS as posicoes partem do centro (big bang forcado ao
+   * abrir o grafo), ignorando overrides/layout persistido. */
+  function buildGraph2dPositions(visiblePaths: Set<string>, jitter: boolean, ignoreExisting = false) {
+    const positions = new Map<string, GraphPosition>()
+    const velocities = new Map<string, GraphPosition>()
+    graphDocuments.forEach((document, index) => {
+      if (!visiblePaths.has(document.relativePath)) return
+      if (!ignoreExisting) {
+        // A simulacao em andamento e a fonte mais atual (arrasto no meio de uma
+        // simulacao continua de onde os nos estao, sem "pulos").
+        const live = graphPhysicsRef.current?.positions.get(document.relativePath)
+        const override = graphNodeOverrides[document.relativePath]
+        if (live) {
+          positions.set(document.relativePath, live)
+        } else if (override) {
+          positions.set(document.relativePath, override)
+        } else {
+          const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
+          const radius = jitter ? 1 + Math.random() * 2 : graphDocuments.length < 3 ? 28 : 34
+          positions.set(document.relativePath, { x: 50 + Math.cos(angle) * radius, y: 50 + Math.sin(angle) * radius })
+        }
+      } else {
+        const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
+        const radius = jitter ? 1 + Math.random() * 2 : graphDocuments.length < 3 ? 28 : 34
+        positions.set(document.relativePath, { x: 50 + Math.cos(angle) * radius, y: 50 + Math.sin(angle) * radius })
+      }
+      velocities.set(document.relativePath, { x: 0, y: 0 })
+    })
+    return { positions, velocities }
+  }
+
+  /** Simulacao ambiente do grafo 2D (big bang estilo Obsidian): todos os nos
+   * visiveis partem do centro com pequena perturbacao e se espalham pelas
+   * forcas (molas + repulsao 1/d² + center force), com alpha decaindo ate
+   * assentar. Os orfaos (sem conexao) sao atraidos ao anel central. Roda ao
+   * abrir o grafo 2D (big bang forcado: `forceBigBang`) e no botao
+   * Reorganizar; qualquer arrasto a cancela. */
+  function startGraph2dAmbientSimulation(forceBigBang = false) {
+    const { visibleGraphDocuments, visiblePaths, edges } = getGraph2dSimulationState()
+    if (graphSurfaceRef.current === null || visibleGraphDocuments.length === 0) return
+    const { positions, velocities } = buildGraph2dPositions(visiblePaths, true, forceBigBang)
+    const surfaceElement = graphSurfaceRef.current
+    graphPhysicsRef.current = {
+      positions,
+      edges,
+      surfaceSize: surfaceElement && surfaceElement.clientWidth > 0 ? { width: surfaceElement.clientWidth, height: surfaceElement.clientHeight } : null,
+      drag: null,
+      coast: null,
+      ambient: {
+        paths: [...visiblePaths],
+        velocities,
+        startedAt: performance.now(),
+        alpha: 1,
+      },
+    }
+    kickGraph2dPhysics()
+  }
+
+  // Ao abrir o grafo 2D (ou mudar filtros/modo), espalha os nos por toda a
+  // area com a simulacao ambiente, apos a superficie montar. Navegar para
+  // outra pagina ou trocar para 3D limpa a simulacao (efeito acima).
+  useEffect(() => {
+    if (workspacePage !== 'graph' || graphMode3d || isGraphLoading || graphDocuments.length === 0) return
+    // Big bang forcado ao ABRIR o grafo 2D (sem simulacao ativa = primeira
+    // abertura/montagem da pagina); mudancas de filtro no meio continuam a
+    // simulacao de onde os nos estao, sem re-explodir.
+    const forceBigBang = graphPhysicsRef.current === null
+    const timeoutId = window.setTimeout(() => startGraph2dAmbientSimulation(forceBigBang), 120)
+    return () => window.clearTimeout(timeoutId)
+  }, [workspacePage, graphMode3d, isGraphLoading, graphDocuments, graphMode, graphFolder, graphTag, showGraphOrphans, showOnlyGraphOrphans])
+
+  /** Inicia o arrasto de um no no grafo 2D (modelo Obsidian): o no segurado
+   * vira o UNICO ponto fixado (pinned) e todo o grafo visivel flui pelas mesmas
+   * forcas (molas + repulsao 1/d² + center force) no rAF. Qualquer simulacao
+   * anterior (ambiente/assentamento) e cancelada. */
+  function startGraph2dNodeDrag(relativePath: string, event: React.PointerEvent<HTMLButtonElement>) {
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    graphNodeDragRef.current = relativePath
+    graphSkipNodeClickRef.current = false
+    setFocusedGraphPath(relativePath)
+    const { visiblePaths, edges } = getGraph2dSimulationState()
+    const { positions, velocities } = buildGraph2dPositions(visiblePaths, false)
+    const startPosition = positions.get(relativePath) ?? { x: 50, y: 50 }
+    const paths = [...visiblePaths].filter((path) => path !== relativePath)
+    // O ancora e FIXO: sem entrada em velocities (contrato de movimento da
+    // funcao de forcas), apenas com a posicao atualizada pelo cursor.
+    velocities.delete(relativePath)
+    // Bounds da superficie capturados uma vez no inicio do arrasto: evita
+    // chamar getBoundingClientRect() a cada pointermove (que forca layout
+    // sincrono a cada evento — causa das travadinhas durante o arrasto).
+    const surfaceBounds = graphSurfaceRef.current?.getBoundingClientRect() ?? null
+    const surfaceElement = graphSurfaceRef.current
+    graphPhysicsRef.current = {
+      positions,
+      edges,
+      surfaceSize: surfaceElement && surfaceElement.clientWidth > 0 ? { width: surfaceElement.clientWidth, height: surfaceElement.clientHeight } : null,
+      drag: {
+        anchor: relativePath,
+        paths,
+        velocities,
+        draggedTarget: startPosition,
+        lastTarget: { ...startPosition },
+        startX: event.clientX,
+        startY: event.clientY,
+        moved: false,
+        bounds: surfaceBounds ? { left: surfaceBounds.left, top: surfaceBounds.top, width: surfaceBounds.width, height: surfaceBounds.height } : null,
+      },
+      coast: null,
+      ambient: null,
+    }
+    kickGraph2dPhysics()
+  }
+
+  /** Fim do arrasto 2D (modelo Obsidian): com movimento real, o hub (no com
+   * mais conexoes) e fixado no ponto da soltura e o restante do grafo visivel
+   * assenta com as mesmas forcas (alpha decaindo) ate parar — o layout final e
+   * persistido. Sem movimento (clique), apenas para a simulacao e deixa o
+   * onClick abrir a nota. */
+  function finishGraph2dNodeDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    graphNodeDragRef.current = null
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+    const physics = graphPhysicsRef.current
+    if (!physics?.drag) return
+    const drag = physics.drag
+    physics.drag = null
+    if (drag.moved) {
+      // O hub (no com mais conexoes) e reposicionado para o ponto da soltura;
+      // os demais nos visiveis fluem ao redor dele ate assentarem.
+      const degreeByPath = physics.edges.reduce<Record<string, number>>((degrees, link) => {
+        degrees[link.source] = (degrees[link.source] ?? 0) + 1
+        degrees[link.target] = (degrees[link.target] ?? 0) + 1
+        return degrees
+      }, {})
+      const cluster = [drag.anchor, ...drag.paths]
+      const hub = cluster.reduce((best, path) => {
+        const degree = degreeByPath[path] ?? 0
+        return degree > (degreeByPath[best] ?? 0) ? path : best
+      }, cluster[0])
+      const dropPosition = drag.draggedTarget
+      physics.positions.set(hub, dropPosition)
+      const velocities = new Map<string, GraphPosition>()
+      for (const path of drag.paths) velocities.set(path, drag.velocities.get(path) ?? { x: 0, y: 0 })
+      // O hub e FIXO no ponto da soltura: sem entrada em velocities.
+      velocities.delete(hub)
+      physics.coast = {
+        hub,
+        paths: drag.paths.filter((path) => path !== hub),
+        velocities,
+        startedAt: performance.now(),
+        alpha: 0.8,
+      }
+      // Acorda o loop (pode ter dormido com o cursor parado) para o
+      // assentamento rodar.
+      kickGraph2dPhysics()
+      setFocusedGraphPath(null)
+    } else {
+      // Clique (sem arrasto): para a simulacao e volta ao estado persistido;
+      // o onClick cuida de abrir a nota.
+      graphSkipNodeClickRef.current = false
+    }
+    if (!physics.drag && !physics.coast && graphPhysicsFrameRef.current !== null) {
+      cancelAnimationFrame(graphPhysicsFrameRef.current)
+      graphPhysicsFrameRef.current = null
+    }
   }
 
   async function copyGraphWikiLink(relativePath: string) {
@@ -3446,7 +4025,25 @@ function App() {
       degrees[link.target] = (degrees[link.target] ?? 0) + 1
       return degrees
     }, {})
+    // Vizinhança direta do no em hover: destacar as arestas e esmaecer os
+    // nos sem conexao direta com ele.
+    const graphHoverNeighbors = graphHoverPath
+      ? new Set([
+          graphHoverPath,
+          ...graphLinks.filter((link) => link.source === graphHoverPath).map((link) => link.target),
+          ...graphLinks.filter((link) => link.target === graphHoverPath).map((link) => link.source),
+        ])
+      : null
     const graphNodePositions = graphDocuments.reduce<Record<string, GraphPosition>>((positions, document, index) => {
+      // Posicoes da simulacao ativa (lidas do mapa vivo em graphPhysicsRef) tem
+      // prioridade sobre o layout persistido; o restante cai no override ou no
+      // circulo. Assim qualquer render do React durante uma simulacao mostra as
+      // posicoes REAIS (sem "pulos" para posicoes antigas).
+      const live = graphPhysicsRef.current?.positions.get(document.relativePath)
+      if (live) {
+        positions[document.relativePath] = live
+        return positions
+      }
       const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
       const radius = graphDocuments.length < 3 ? 28 : 34
       positions[document.relativePath] = graphNodeOverrides[document.relativePath] ?? { x: 50 + Math.cos(angle) * radius, y: 50 + Math.sin(angle) * radius }
@@ -3945,21 +4542,103 @@ function App() {
                             sourceRevision={activeNote.content}
                             isDirty={isDirty}
                             disabled={loading || saving}
+                            noteTags={activeTags}
+                            onApplyTag={applyExistingTag}
                             onStatusChange={setNoteReadiness}
                             onStartReview={(info) => void handleStartReviewNow(info)}
-                          />
-                          <NoteReviewPolicyControl
-                            vaultPath={vault.path}
-                            relativePath={activeNote.relativePath}
-                            sourceRevision={activeNote.content}
-                            isDirty={isDirty}
-                            disabled={loading || saving}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    ) : null}
-                    <div
-                      className="editor-mode-control"
+                          />                            <NoteReviewPolicyControl
+                              vaultPath={vault.path}
+                              relativePath={activeNote.relativePath}
+                              sourceRevision={activeNote.content}
+                              isDirty={isDirty}
+                              disabled={loading || saving}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      ) : null}
+                      {!isNewNoteDraft ? (
+                        <Popover open={structuralAuditOpen} onOpenChange={setStructuralAuditOpen}>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="secondary-button structural-audit-trigger"
+                              aria-label="Auditoria estrutural da nota"
+                              title="Auditoria estrutural — sugere melhorias na organizacao da nota para a revisao"
+                            >
+                              <Sparkles size={15} strokeWidth={1.5} aria-hidden="true" />
+                              <span>Propor melhorias</span>
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" sideOffset={6} className="structural-audit-panel">
+                            <header className="structural-audit-header">
+                              <strong>Auditoria estrutural</strong>
+                              <small>
+                                {structuralAudit
+                                  ? `${structuralAudit.noteWords.toLocaleString('pt-BR')} palavras · ${structuralAudit.unitCount} ${structuralAudit.unitCount === 1 ? 'unidade' : 'unidades'} de revisao`
+                                  : 'Analisa a organizacao da nota com a regra de segmentacao por secoes.'}
+                              </small>
+                            </header>
+                            {structuralAuditLoading ? (
+                              <div className="structural-audit-state">Analisando a estrutura da nota…</div>
+                            ) : structuralAuditError ? (
+                              <div className="structural-audit-state is-error">
+                                <span>{structuralAuditError}</span>
+                                <button type="button" className="secondary-button" onClick={() => void runStructuralAudit()}>Tentar novamente</button>
+                              </div>
+                            ) : structuralAudit === null ? (
+                              <div className="structural-audit-state">Abra a auditoria para ver as sugestoes.</div>
+                            ) : structuralAudit.findings.length === 0 ? (
+                              <div className="structural-audit-state is-clean">
+                                <CheckSquare size={15} strokeWidth={1.5} aria-hidden="true" />
+                                <span>Estrutura boa para revisao — nenhum achado.</span>
+                              </div>
+                            ) : (
+                              <div className="structural-audit-findings">
+                                {structuralAudit.findings.map((finding, index) => (
+                                  <article key={`${finding.code}-${index}`} className={`structural-audit-finding is-${finding.severity}`}>
+                                    <div className="structural-audit-finding-head">
+                                      <span className="structural-audit-severity">
+                                        {finding.severity === 'warning' ? 'Atencao' : 'Dica'}
+                                      </span>
+                                      <p>{finding.message}</p>
+                                    </div>
+                                    <p className="structural-audit-suggestion">{finding.suggestion}</p>
+                                    {finding.sourceQuote ? (
+                                      <pre className="structural-audit-quote">{finding.sourceQuote}</pre>
+                                    ) : null}
+                                    {finding.edit ? (
+                                      <div className="structural-audit-apply-row">
+                                        <button
+                                          type="button"
+                                          className="primary-button structural-audit-apply"
+                                          onClick={() => handleApplyStructuralAuditEdit(index)}
+                                          disabled={structuralAuditAppliedIndex !== null && structuralAuditAppliedIndex !== index}
+                                        >
+                                          {structuralAuditAppliedIndex === index ? (
+                                            <><CheckSquare size={13} strokeWidth={1.8} aria-hidden="true" /> Aplicado no rascunho</>
+                                          ) : (
+                                            'Aplicar no rascunho'
+                                          )}
+                                        </button>
+                                        {structuralAuditAppliedIndex !== null && structuralAuditAppliedIndex !== index ? (
+                                          <small className="structural-audit-hint">Aplique uma de cada vez; re-execute a auditoria depois.</small>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
+                                  </article>
+                                ))}
+                              </div>
+                            )}
+                            {structuralAudit !== null && !structuralAuditLoading ? (
+                              <footer className="structural-audit-footer">
+                                <button type="button" className="secondary-button" onClick={() => void runStructuralAudit()}>Re-executar auditoria</button>
+                              </footer>
+                            ) : null}
+                          </PopoverContent>
+                        </Popover>
+                      ) : null}
+                      <div
+                        className="editor-mode-control"
                       role="radiogroup"
                       aria-label="Modo de visualizacao da nota"
                       title="Como o Markdown sera exibido: Edicao mostra o codigo, Misto edita o bloco ativo e Leitura mostra a nota formatada."
@@ -4301,10 +4980,6 @@ function App() {
                       aria-label="Controles do grafo"
                     >
                       <h2 className="graph-header-title">Grafo das notas</h2>
-                      <span className="graph-header-summary" aria-label="Resumo do grafo">
-                        <span>{visibleGraphDocuments.length} {visibleGraphDocuments.length === 1 ? 'nota' : 'notas'}</span>
-                        <span>{graphLinks.length} {graphLinks.length === 1 ? 'conexao' : 'conexoes'}</span>
-                      </span>
                       <span className="graph-header-sep" aria-hidden="true" />
                       <div className="graph-dimension-toggle" role="radiogroup" aria-label="Dimensao do grafo">
                         <button type="button" role="radio" aria-checked={!graphMode3d} className={!graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(false)} title="Grafo em 2D">2D</button>
@@ -4377,7 +5052,29 @@ function App() {
                               <input type="number" min={0} max={30} step={0.5} value={graph3dMinEdgeLength} onChange={(event) => setGraph3dMinEdgeLength(updateNumberSetting(event.target.value, graph3dMinEdgeLength, 0, 30))} aria-label="Tamanho minimo das arestas no grafo 3D" />
                             </label>
                           </section>
-                          <span className="graph-settings-sep" aria-hidden="true" />
+                          <section className="graph-settings-group" aria-label="Forcas do grafo 2D">
+                            <p className="graph-settings-group-title"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Forcas (2D)</p>
+                            <label className="graph-settings-row">
+                              <span>Repulsao<small>Forca entre os nos (1/distancia²)</small></span>
+                              <input type="number" min={100} max={6000} step={50} value={graph2dRepulsionStrength} onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, 100, 6000))} aria-label="Forca de repulsao dos nos no grafo 2D" />
+                            </label>
+                            <label className="graph-settings-row">
+                              <span>Rigidez da mola<small>Forca das arestas por unidade de distancia</small></span>
+                              <input type="number" min={0.2} max={6} step={0.1} value={graph2dLinkStiffness} onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, 0.2, 6))} aria-label="Rigidez da mola das arestas no grafo 2D" />
+                            </label>
+                            <label className="graph-settings-row">
+                              <span>Amortecimento<small>Decaimento de velocidade por segundo</small></span>
+                              <input type="number" min={0} max={4} step={0.05} value={graph2dVelocityDecay} onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, 0, 4))} aria-label="Amortecimento da velocidade no grafo 2D" />
+                            </label>
+                            <label className="graph-settings-row">
+                              <span>Distancia do link<small>Descanso das molas entre conectados</small></span>
+                              <input type="number" min={2} max={30} step={0.5} value={graph2dLinkDistance} onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, 2, 30))} aria-label="Distancia do link no grafo 2D" />
+                            </label>
+                            <label className="graph-settings-row">
+                              <span>Forca central<small>Atracao ao anel no meio do grafo</small></span>
+                              <input type="number" min={0} max={300} step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, 0, 300))} aria-label="Forca central do grafo 2D" />
+                            </label>
+                          </section>
                           <section className="graph-settings-group" aria-label="Exibicao do grafo">
                             <p className="graph-settings-group-title"><Eye size={12} strokeWidth={1.75} aria-hidden="true" /> Exibicao</p>
                             <label className="graph-settings-toggle">
@@ -4428,9 +5125,19 @@ function App() {
                       aria-label="Grafo interativo das notas"
                       onWheel={(event) => { event.preventDefault(); setGraphViewport((view) => ({ ...view, scale: Math.max(0.55, Math.min(2.4, view.scale + (event.deltaY < 0 ? 0.1 : -0.1))) })) }}
                       onPointerDown={(event) => { if (event.target instanceof Element && event.target.closest('.note-graph-node')) return; event.currentTarget.setPointerCapture?.(event.pointerId); graphPanRef.current = { x: event.clientX, y: event.clientY, viewport: graphViewport } }}
-                      onPointerMove={(event) => { const pan = graphPanRef.current; if (pan) setGraphViewport({ ...pan.viewport, x: pan.viewport.x + event.clientX - pan.x, y: pan.viewport.y + event.clientY - pan.y }) }}
+                      onPointerMove={(event) => {
+                        const pan = graphPanRef.current
+                        if (pan) {
+                          setGraphViewport({ ...pan.viewport, x: pan.viewport.x + event.clientX - pan.x, y: pan.viewport.y + event.clientY - pan.y })
+                        } else if (!(event.target instanceof Element && event.target.closest('.note-graph-node'))) {
+                          // Sem arrastar e sem estar sobre um no: limpa o hover
+                          // (mantem o valor para nao re-renderizar a cada move).
+                          setGraphHoverPath((current) => (current === null ? current : null))
+                        }
+                      }}
                       onPointerUp={(event) => { graphPanRef.current = null; event.currentTarget.releasePointerCapture?.(event.pointerId) }}
                       onPointerCancel={() => { graphPanRef.current = null }}
+                      onPointerLeave={() => setGraphHoverPath(null)}
                     >
                       <div className="note-graph-world" style={{ transform: `translate(${graphViewport.x}px, ${graphViewport.y}px) scale(${graphViewport.scale})` }}>
                         <svg className="note-graph-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -4438,58 +5145,92 @@ function App() {
                             const source = graphNodePositions[link.source]
                             const target = graphNodePositions[link.target]
                             const isFocused = focusedGraphPath === link.source || focusedGraphPath === link.target
-                            return <line className={isFocused ? 'is-focused' : ''} key={`${link.source}-${link.target}`} x1={source.x} y1={source.y} x2={target.x} y2={target.y} />
+                            const isHovered = graphHoverPath !== null && (link.source === graphHoverPath || link.target === graphHoverPath)
+                            const linkClassName = `${isFocused ? 'is-focused' : ''}${isHovered ? ' is-hovered' : ''}`.trim() || undefined
+                            return <line className={linkClassName} key={`${link.source}-${link.target}`} x1={source.x} y1={source.y} x2={target.x} y2={target.y} ref={(element) => {
+                              const linkKey = `${link.source}\u0000${link.target}`
+                              if (element) graph2dLinkElementsRef.current.set(linkKey, element)
+                              else graph2dLinkElementsRef.current.delete(linkKey)
+                            }} />
                           })}
                         </svg>
                       {visibleGraphDocuments.map((document) => {
                         const position = graphNodePositions[document.relativePath]
                         const degree = graphDegreeByPath[document.relativePath] ?? 0
                         const isCurrent = document.relativePath === activeNote?.relativePath
-                        // Zoom out muito grande: nos com poucas conexoes ocultam o
-                        // nome. "Ocultar nomes" esconde todos (hover revela).
-                        const hideName = graphHideAllNames || (graphViewport.scale < 0.65 && degree < 2)
+                        const isHovered = graphHoverPath === document.relativePath
+                        // O nome aparece de acordo com o zoom: com o zoom bem
+                        // afastado nos de poucas conexoes ocultam o nome, e
+                        // "Ocultar nomes" esconde todos. No hover o nome
+                        // sempre aparece abaixo da bolinha.
+                        const hideNameByZoom = graphHideAllNames || (graphViewport.scale < 0.65 && degree < 2)
+                        const showLabel = !hideNameByZoom || isHovered
+                        // No hover, nos sem conexao direta com o no sao
+                        // esmaecidos (opacidade reduzida).
+                        const isDimmed = graphHoverNeighbors !== null && !graphHoverNeighbors.has(document.relativePath)
                         return (
                           <button
                             key={document.relativePath}
                             type="button"
-                            className={`note-graph-node${isCurrent ? ' is-current' : ''}${focusedGraphPath === document.relativePath ? ' is-focused' : ''}${hideName ? ' hide-label' : ''}`}
-                            style={{ left: `${position.x}%`, top: `${position.y}%`, '--graph-scale': 1 + Math.min(degree, 5) * 0.1 } as CSSProperties}
-                            onPointerDown={(event) => { event.stopPropagation(); event.currentTarget.setPointerCapture?.(event.pointerId); graphNodeDragRef.current = document.relativePath; graphSkipNodeClickRef.current = false; setFocusedGraphPath(document.relativePath) }}
+                            className={`note-graph-node${isCurrent ? ' is-current' : ''}${focusedGraphPath === document.relativePath ? ' is-focused' : ''}${isHovered ? ' is-hovered' : ''}${isDimmed ? ' is-dimmed' : ''}`}
+                            style={{ left: `${position.x}%`, top: `${position.y}%` } as CSSProperties}
+                            ref={(element) => {
+                              if (element) graph2dNodeElementsRef.current.set(document.relativePath, element)
+                              else graph2dNodeElementsRef.current.delete(document.relativePath)
+                            }}
+                            onPointerEnter={() => setGraphHoverPath(document.relativePath)}
+                            onPointerDown={(event) => { startGraph2dNodeDrag(document.relativePath, event) }}
                             onPointerMove={(event) => {
                               if (graphNodeDragRef.current !== document.relativePath) return
                               graphSkipNodeClickRef.current = true
-                              const surface = graphSurfaceRef.current
-                              if (!surface) return
-                              const bounds = surface.getBoundingClientRect()
-                              const target = {
-                                x: Math.max(4, Math.min(96, ((event.clientX - bounds.left - graphViewport.x) / (bounds.width * graphViewport.scale)) * 100)),
-                                y: Math.max(5, Math.min(95, ((event.clientY - bounds.top - graphViewport.y) / (bounds.height * graphViewport.scale)) * 100)),
+                              const physics = graphPhysicsRef.current
+                              if (!physics?.drag) return
+                              const bounds = physics.drag.bounds
+                              // Unico ponto fixado: o no arrastado segue o cursor
+                              // (os vizinhos fluem pelas forcas no rAF). Bounds
+                              // capturados no inicio do arrasto — sem chamadas de
+                              // getBoundingClientRect no caminho quente.
+                              if (bounds && bounds.width > 0 && bounds.height > 0) {
+                                physics.drag.draggedTarget = {
+                                  x: Math.max(GRAPH_2D_BOUNDS.minX, Math.min(GRAPH_2D_BOUNDS.maxX, ((event.clientX - bounds.left - graphViewport.x) / (bounds.width * graphViewport.scale)) * 100)),
+                                  y: Math.max(GRAPH_2D_BOUNDS.minY, Math.min(GRAPH_2D_BOUNDS.maxY, ((event.clientY - bounds.top - graphViewport.y) / (bounds.height * graphViewport.scale)) * 100)),
+                                }
                               }
-                              // Repulsao + mola: o no arrastado empurra os demais e
-                              // puxa os conectados (como o grafo do Obsidian).
-                              setGraphNodeOverrides(applyGraphDragForces(graphNodePositions, graphLinks, visibleGraphDocuments, document.relativePath, target))
+                              // Acorda o loop se estava dormindo (cursor parado).
+                              if (graphPhysicsFrameRef.current === null) kickGraph2dPhysics()
+                              if (Math.hypot(event.clientX - physics.drag.startX, event.clientY - physics.drag.startY) > 3) physics.drag.moved = true
                             }}
-                            onPointerUp={(event) => {
-                              // Soltou apos arrastar: desseleciona a nota (o
-                              // flag e marcado no primeiro pointermove real).
-                              const wasDrag = graphSkipNodeClickRef.current
+                            onPointerUp={(event) => { finishGraph2dNodeDrag(event) }}
+                            onPointerCancel={() => {
                               graphNodeDragRef.current = null
-                              event.currentTarget.releasePointerCapture?.(event.pointerId)
-                              if (wasDrag) setFocusedGraphPath(null)
+                              const physics = graphPhysicsRef.current
+                              if (physics) {
+                                physics.drag = null
+                                physics.coast = null
+                              }
+                              if (graphPhysicsFrameRef.current !== null) {
+                                cancelAnimationFrame(graphPhysicsFrameRef.current)
+                                graphPhysicsFrameRef.current = null
+                              }
                             }}
-                            onPointerCancel={() => { graphNodeDragRef.current = null }}
                             onFocus={() => setFocusedGraphPath(document.relativePath)}
                             onClick={() => { if (graphSkipNodeClickRef.current) { graphSkipNodeClickRef.current = false; return }; setWorkspacePage('notes'); void openNote(document.relativePath) }}
                             aria-label={`Abrir nota ${document.name.replace(/\.md$/i, '')} no grafo`}
                             title={`${document.name.replace(/\.md$/i, '')}${degree ? `, ${degree} conexao(oes)` : ''}`}
                           >
-                            <span>{document.name.replace(/\.md$/i, '')}</span>
+                            {/* Bolinha sempre circular; cresce com as conexoes. */}
+                            <span className="note-graph-node-dot" style={{ '--graph-scale': 1 + Math.min(degree, 8) * 0.13 } as CSSProperties} />
+                            <span className={`note-graph-node-label${showLabel ? '' : ' is-hidden'}`}>{document.name.replace(/\.md$/i, '')}</span>
                           </button>
                         )
                       })}
                       </div>
                     </div>
                     )}
+                    <div className="graph-summary-counter" aria-label="Resumo do grafo">
+                      <span>{visibleGraphDocuments.length} {visibleGraphDocuments.length === 1 ? 'nota' : 'notas'}</span>
+                      <span>{graphLinks.length} {graphLinks.length === 1 ? 'conexao' : 'conexoes'}</span>
+                    </div>
                     <Drawer direction="right" open={graphDetailOpen && Boolean(focusedGraphDocument)} onOpenChange={(open) => { if (!open) { setGraphDetailOpen(false); setFocusedGraphPath(null) } }}>
                       <DrawerContent className="graph-note-drawer">
                         {focusedGraphDocument ? (
@@ -4874,6 +5615,90 @@ function App() {
                       value={graph3dDegreeGrowth}
                       onChange={(event) => setGraph3dDegreeGrowth(updateNumberSetting(event.target.value, graph3dDegreeGrowth, 0, 1))}
                       aria-label="Fator de aumento por conexao no grafo 3D"
+                    />
+                  </label>
+                </div>
+                <div className="settings-section" aria-labelledby="graph2d-preferences-title">
+                  <p className="card-kicker" id="graph2d-preferences-title">Grafo 2D</p>
+                  <p className="settings-section-description">Forcas da simulacao do grafo 2D, no modelo do Obsidian: repulsao 1/distancia² entre nos, molas das arestas (rigidez e descanso), amortecimento da velocidade e atracao ao anel central.</p>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Repulsao</strong>
+                      <small>Forca com que os nos se repelem entre si (inversa ao quadrado da distancia).</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={100}
+                      max={6000}
+                      step={50}
+                      value={graph2dRepulsionStrength}
+                      onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, 100, 6000))}
+                      aria-label="Forca de repulsao dos nos no grafo 2D"
+                    />
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Rigidez da mola</strong>
+                      <small>Forca das arestas por unidade de distancia alem do descanso.</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={0.2}
+                      max={6}
+                      step={0.1}
+                      value={graph2dLinkStiffness}
+                      onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, 0.2, 6))}
+                      aria-label="Rigidez da mola das arestas no grafo 2D"
+                    />
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Amortecimento</strong>
+                      <small>Decaimento da velocidade por segundo; mais alto = movimento mais "gredoso".</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={0}
+                      max={4}
+                      step={0.05}
+                      value={graph2dVelocityDecay}
+                      onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, 0, 4))}
+                      aria-label="Amortecimento da velocidade no grafo 2D"
+                    />
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Distancia do link</strong>
+                      <small>Comprimento de descanso das molas entre nos conectados.</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={2}
+                      max={30}
+                      step={0.5}
+                      value={graph2dLinkDistance}
+                      onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, 2, 30))}
+                      aria-label="Distancia do link no grafo 2D"
+                    />
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Forca central</strong>
+                      <small>Atracao ao anel no meio do grafo; nos dentro do anel ficam soltos.</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={0}
+                      max={300}
+                      step={5}
+                      value={graph2dCenterForce}
+                      onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, 0, 300))}
+                      aria-label="Forca central do grafo 2D"
                     />
                   </label>
                 </div>

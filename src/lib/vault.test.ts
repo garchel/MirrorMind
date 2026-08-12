@@ -122,6 +122,14 @@ describe('vault helpers', () => {
     expect(extractMarkdownTags('#estudo/portugues #ação')).toEqual(['ação', 'estudo/portugues'])
   })
 
+  it('ignores wikilink heading and block fragments when extracting tags', () => {
+    expect(extractMarkdownTags('[[#Titulo]] e [[Nota#Subtitulo]] e ![[Anexo#parte]]')).toEqual([])
+    expect(extractMarkdownTags('[[#Titulo]] #real [[outra#^bloco]]')).toEqual(['real'])
+    expect(extractMarkdownTags('Nota [[#subtitulo]] e #tag-livre')).toEqual(['tag-livre'])
+    expect(extractMarkdownTags('[[#Titulo|alias]] #corpo')).toEqual(['corpo'])
+    expect(extractMarkdownTags('\[[#Titulo]] #escapado')).toEqual(['escapado'])
+  })
+
   it('includes complex Obsidian frontmatter tags in every frontend filter', () => {
     const content = `﻿---
 shared: &shared

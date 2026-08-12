@@ -62,9 +62,13 @@ pub struct NoteReviewState {
     /// Meta de retencao em risco: a nota tem prazo ativo e a projecao na data
     /// da prova nao atinge a tolerancia configurada mesmo antecipando revisoes.
     pub deadline_retention_at_risk: bool,
+    /// O documento de aprendizado foi restaurado de um backup depois de o
+    /// principal ser encontrado corrompido ou ausente. A interface avisa o
+    /// usuario de que houve recuperacao (possivelmente de uma versao anterior).
+    pub recovered_from_backup: bool,
 }
 
-fn reconcile_inherited_review_policy(
+pub(crate) fn reconcile_inherited_review_policy(
     vault_root: &Path,
     markdown: &str,
     document: &mut LearningDocument,
@@ -155,8 +159,12 @@ pub fn persist_readiness_assessment(
     document.revision = expected_revision.map_or(1, |revision| revision.saturating_add(1));
     document.note.relative_path = relative_path.to_string();
     document.note.content_hash = content_hash.clone();
-    document.note.readiness =
-        stored_readiness(report, &content_hash, &semantic_fingerprint(markdown), assessed_at_unix_ms);
+    document.note.readiness = stored_readiness(
+        report,
+        &content_hash,
+        &semantic_fingerprint(markdown),
+        assessed_at_unix_ms,
+    );
     if report.status == ReadinessStatus::Ready && starts_new_cycle {
         if !document.sessions.is_empty() {
             // Nota ja revisada e agora reavaliada: as unidades foram reconciliadas
@@ -219,7 +227,7 @@ pub fn persist_readiness_assessment(
     }
 
     write_learning_document(vault_root, &note_id, expected_revision, &document)?;
-    Ok(state_from_document(&document, assessed_at_unix_ms))
+    Ok(state_from_document(&document, assessed_at_unix_ms, false))
 }
 
 pub fn load_note_review_state(
@@ -231,6 +239,12 @@ pub fn load_note_review_state(
     let Some(loaded) = load_learning_document_for_path(vault_root, relative_path)? else {
         return Ok(None);
     };
+    // O documento pode ter sido restaurado de um backup (principal corrompido
+    // ou ausente): preservar essa informacao para a interface avisar o usuario.
+    let recovered_from_backup = matches!(
+        loaded.source,
+        super::storage::LearningDocumentSource::Backup(_)
+    );
     let note_id = loaded.document.note.id.clone();
     let expected_revision = loaded.document.revision;
     let mut document = loaded.document;
@@ -253,9 +267,11 @@ pub fn load_note_review_state(
         // avaliado exige reavaliacao explicita) e o contrato exige que ela
         // preserve o hash avaliado desatualizado: so estados ativos (Ready,
         // Ambiguous, Insufficient) podem preservar-se em mudancas cosmeticas.
-        if !matches!(document.note.readiness, ReadinessAssessment::Modified { .. })
-            && assessed_semantic_hash(&document.note.readiness)
-                .is_some_and(|assessed| assessed == semantic_fingerprint(markdown))
+        if !matches!(
+            document.note.readiness,
+            ReadinessAssessment::Modified { .. }
+        ) && assessed_semantic_hash(&document.note.readiness)
+            .is_some_and(|assessed| assessed == semantic_fingerprint(markdown))
         {
             // Mudanca apenas cosmetica (espacamento, pontuacao ou acentos): a
             // avaliacao continua valida e o agendamento nao pausa. O hash
@@ -281,7 +297,7 @@ pub fn load_note_review_state(
         document.revision = document.revision.saturating_add(1);
         write_learning_document(vault_root, &note_id, Some(expected_revision), &document)?;
     }
-    let mut state = state_from_document(&document, now_unix_ms);
+    let mut state = state_from_document(&document, now_unix_ms, recovered_from_backup);
     if state.scheduling_status == NoteSchedulingStatus::Scheduled
         && state
             .next_review_at_unix_ms
@@ -373,7 +389,7 @@ fn assessed_semantic_hash(readiness: &ReadinessAssessment) -> Option<&str> {
 /// Atualiza o hash avaliado sem tocar no restante da avaliacao: usado quando
 /// uma mudanca cosmetica mantem a prontidao (Ready exige que o hash avaliado
 /// corresponda ao conteudo atual).
-fn set_assessed_content_hash(readiness: &mut ReadinessAssessment, content_hash: &str) {
+pub(crate) fn set_assessed_content_hash(readiness: &mut ReadinessAssessment, content_hash: &str) {
     match readiness {
         ReadinessAssessment::Unassessed {
             assessed_content_hash,
@@ -397,6 +413,34 @@ fn set_assessed_content_hash(readiness: &mut ReadinessAssessment, content_hash: 
         } => *assessed_content_hash = content_hash.to_string(),
     }
 }
+/// Atualiza o fingerprint semantico avaliado sem tocar no restante da
+/// avaliacao: usado quando o conteudo avaliado permanece o mesmo e apenas o
+/// frontmatter mudou, mantendo a prontidao e o contrato consistentes.
+pub(crate) fn set_assessed_semantic_hash(readiness: &mut ReadinessAssessment, semantic_hash: &str) {
+    match readiness {
+        ReadinessAssessment::Unassessed {
+            assessed_semantic_hash,
+            ..
+        }
+        | ReadinessAssessment::Ready {
+            assessed_semantic_hash,
+            ..
+        }
+        | ReadinessAssessment::Ambiguous {
+            assessed_semantic_hash,
+            ..
+        }
+        | ReadinessAssessment::Insufficient {
+            assessed_semantic_hash,
+            ..
+        }
+        | ReadinessAssessment::Modified {
+            assessed_semantic_hash,
+            ..
+        } => *assessed_semantic_hash = Some(semantic_hash.to_string()),
+    }
+}
+
 /// Agenda a primeira revisao de uma nota inscrita: novo ciclo ancorado em
 /// `anchor_unix_ms` (a data em que ficou pronta ou o momento do reset), usando
 /// o primeiro intervalo da politica efetiva.
@@ -480,7 +524,7 @@ pub fn set_manual_enrollment(
     }
 
     write_learning_document(vault_root, &note_id, Some(expected_revision), &document)?;
-    Ok(state_from_document(&document, now_unix_ms))
+    Ok(state_from_document(&document, now_unix_ms, false))
 }
 /// Reinicia o aprendizado da nota: remove o historico de sessoes, o estado
 /// DSR/FSRS das unidades e as datas de revisao, preservando Markdown, tags,
@@ -518,7 +562,146 @@ pub fn reset_note_learning(
 
     document.revision = document.revision.saturating_add(1);
     write_learning_document(vault_root, &note_id, Some(expected_revision), &document)?;
-    Ok(state_from_document(&document, now_unix_ms))
+    Ok(state_from_document(&document, now_unix_ms, false))
+}
+
+/// Altera manualmente a classificacao de uma unidade (score 0-100) apos uma
+/// sessao, quando o usuario discorda da avaliacao da IA. Recalcula o DSR/FSRS
+/// da unidade pela mesma curva do reagendamento, reavalia a proxima data como
+/// o minimo entre as unidades e persiste atomicamente. A correcao usa a
+/// evidencia mais fraca (recall livre) por ser uma reavaliacao humana, e nunca
+/// apaga o historico de sessoes.
+pub fn set_unit_classification(
+    vault_root: &Path,
+    relative_path: &str,
+    unit_id: &str,
+    score: u8,
+    now_unix_ms: u64,
+) -> Result<NoteReviewState> {
+    if score > 100 {
+        bail!("A pontuacao deve ficar entre 0 e 100.");
+    }
+    let loaded = load_learning_document_for_path(vault_root, relative_path)?
+        .ok_or_else(|| anyhow::anyhow!("Nao ha aprendizado para corrigir nesta nota."))?;
+    let note_id = loaded.document.note.id.clone();
+    let expected_revision = loaded.document.revision;
+    let mut document = loaded.document;
+    // Captura os dados da unidade antes de mutar as sessoes (o borrow checker
+    // nao permite manter a unidade emprestada enquanto as sessoes mudam).
+    let unit_fsrs = document
+        .units
+        .iter()
+        .find(|unit| unit.id == unit_id)
+        .ok_or_else(|| anyhow::anyhow!("A unidade informada nao existe nesta nota."))?
+        .fsrs
+        .clone();
+    let unit_content_hash = document
+        .units
+        .iter()
+        .find(|unit| unit.id == unit_id)
+        .ok_or_else(|| anyhow::anyhow!("A unidade informada nao existe nesta nota."))?
+        .content_hash
+        .clone();
+    // A correcao manual atualiza a projecao da unidade e o registro mais
+    // recente da sessao correspondente, mantendo o contrato de que a projecao
+    // atual deriva do historico mais recente.
+    let outcome = super::session::outcome_for_score(score)?;
+    // Reclassificacao humana: a evidencia registrada e recall livre (peso 1.0),
+    // como uma resposta aberta sem contexto, pois o usuario esta afirmando o
+    // que realmente lembra.
+    let fsrs_after = super::session::update_fsrs(
+        unit_fsrs.as_ref(),
+        outcome,
+        score,
+        crate::review::contract::EvidenceStrength::FreeRecall,
+        now_unix_ms,
+    );
+    let recall_outcome = match outcome {
+        super::session::ReviewResultOutcome::Forgotten => {
+            crate::review::contract::RecallOutcome::Forgotten
+        }
+        super::session::ReviewResultOutcome::Partial => {
+            crate::review::contract::RecallOutcome::Partial
+        }
+        super::session::ReviewResultOutcome::Good => crate::review::contract::RecallOutcome::Good,
+        super::session::ReviewResultOutcome::Complete => {
+            crate::review::contract::RecallOutcome::Complete
+        }
+    };
+    let corrected_evaluation = crate::review::contract::UnitEvaluation::Evaluated {
+        score,
+        outcome: recall_outcome,
+        evidence: crate::review::contract::EvidenceStrength::FreeRecall,
+        evaluated_at_unix_ms: now_unix_ms,
+        gaps: Vec::new(),
+    };
+    // Atualiza o registro mais recente da unidade no historico de sessoes,
+    // preservando o snapshot: a projecao da unidade e o historico permanecem
+    // identicos, como o contrato exige.
+    let mut session_updated = false;
+    for session in document.sessions.iter_mut().rev() {
+        if let Some(result) = session.unit_results.iter_mut().find(|result| {
+            result.unit_snapshot.id == unit_id
+                && result.unit_snapshot.content_hash == unit_content_hash
+                && result.evaluation.is_evaluated()
+        }) {
+            result.evaluation = corrected_evaluation.clone();
+            result.fsrs_after = Some(fsrs_after.clone());
+            session_updated = true;
+            // Recalcula a media geral da sessao apos a correcao.
+            let (count, total) = session
+                .unit_results
+                .iter()
+                .filter_map(|result| match &result.evaluation {
+                    crate::review::contract::UnitEvaluation::Evaluated { score, .. } => {
+                        Some((1u32, u32::from(*score)))
+                    }
+                    _ => None,
+                })
+                .fold((0u32, 0u32), |(count, total), (one, score)| {
+                    (count + one, total + score)
+                });
+            session.overall_score = if count == 0 {
+                None
+            } else {
+                Some(((f64::from(total) / f64::from(count)).round()) as u8)
+            };
+            break;
+        }
+    }
+    if !session_updated {
+        bail!(
+            "A unidade ainda nao foi avaliada em nenhuma sessao; corrija apos a primeira revisao."
+        );
+    }
+    // A projecao da unidade recebe a correcao depois que as sessoes foram
+    // atualizadas, para nao dividir o emprestimo mutavel do documento.
+    let unit = document
+        .units
+        .iter_mut()
+        .find(|unit| unit.id == unit_id)
+        .ok_or_else(|| anyhow::anyhow!("A unidade informada nao existe nesta nota."))?;
+    unit.fsrs = Some(fsrs_after);
+    unit.latest_evaluation = Some(corrected_evaluation);
+    // Recalcula o agendamento como o minimo entre as unidades, exatamente como
+    // a conclusao de sessao faz. A primeira revisao nao muda: so a data futura.
+    // A sessao mais recente tambem recebe a nova data, para o contrato nao
+    // divergir entre o agendamento e a ultima sessao.
+    if let Some(next_review_at) = next_review_for_effective_policy(&document)? {
+        if let Some(latest) = document.sessions.last_mut() {
+            latest.next_review_at_unix_ms = Some(next_review_at);
+        }
+        document.scheduling.next_review_at_unix_ms = Some(next_review_at);
+        document.scheduling.status = if next_review_at <= now_unix_ms {
+            SchedulingStatus::Due
+        } else {
+            SchedulingStatus::Scheduled
+        };
+    }
+
+    document.revision = document.revision.saturating_add(1);
+    write_learning_document(vault_root, &note_id, Some(expected_revision), &document)?;
+    Ok(state_from_document(&document, now_unix_ms, false))
 }
 
 fn new_learning_document(
@@ -610,7 +793,11 @@ fn stored_readiness(
     }
 }
 
-fn state_from_document(document: &LearningDocument, now_unix_ms: u64) -> NoteReviewState {
+fn state_from_document(
+    document: &LearningDocument,
+    now_unix_ms: u64,
+    recovered_from_backup: bool,
+) -> NoteReviewState {
     let (readiness, assessed_at_unix_ms) = match &document.note.readiness {
         ReadinessAssessment::Ready {
             assessed_at_unix_ms,
@@ -665,6 +852,7 @@ fn state_from_document(document: &LearningDocument, now_unix_ms: u64) -> NoteRev
         first_review_at_unix_ms: document.scheduling.first_review_at_unix_ms,
         next_review_at_unix_ms: document.scheduling.next_review_at_unix_ms,
         deadline_retention_at_risk: deadline_retention_at_risk(document, now_unix_ms),
+        recovered_from_backup,
     }
 }
 
@@ -703,7 +891,8 @@ pub(crate) fn note_id_for_path(relative_path: &str) -> String {
 mod tests {
     use super::{
         load_note_review_state, persist_readiness_assessment, persist_readiness_attempt,
-        reset_note_learning, set_manual_enrollment, NoteReadinessStatus, NoteSchedulingStatus,
+        reset_note_learning, set_manual_enrollment, set_unit_classification, NoteReadinessStatus,
+        NoteSchedulingStatus,
     };
     use crate::review::contract::{LearningUnitKind, PolicySourceKind, ReadinessAssessment};
     use crate::review::evaluation::{
@@ -1426,8 +1615,9 @@ mod tests {
             issues: Vec::new(),
         };
         let ready_at = 1_720_000_000_000;
-        let assessed = persist_readiness_assessment(vault.path(), path, original, &report, ready_at)
-            .expect("persist ready note");
+        let assessed =
+            persist_readiness_assessment(vault.path(), path, original, &report, ready_at)
+                .expect("persist ready note");
         assert_eq!(assessed.readiness, NoteReadinessStatus::Ready);
         assert_eq!(assessed.scheduling_status, NoteSchedulingStatus::Scheduled);
 
@@ -1545,10 +1735,9 @@ mod tests {
 
         // Mudanca real -> Modified + Paused.
         let changed = "# Tema\n\nPonto um.\n\nPonto alterado.\n\nPonto tres.";
-        let modified =
-            load_note_review_state(vault.path(), path, changed, ready_at + 60_000)
-                .expect("sync real change")
-                .expect("state");
+        let modified = load_note_review_state(vault.path(), path, changed, ready_at + 60_000)
+            .expect("sync real change")
+            .expect("state");
         assert_eq!(modified.readiness, NoteReadinessStatus::Modified);
 
         // Reverter ao conteudo avaliado (mesmo fingerprint, texto cru diferente)
@@ -1565,5 +1754,184 @@ mod tests {
         load_learning_document(vault.path(), &state.note_id)
             .expect("reload persisted document")
             .expect("document");
+    }
+
+    #[test]
+    fn a_document_restored_from_backup_signals_recovery_in_the_state() {
+        let vault = tempdir().expect("vault");
+        let markdown = "# ATP\n\nA energia e armazenada em ATP.\n\nA hidrolise libera energia.";
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        persist_readiness_assessment(vault.path(), "ATP.md", markdown, &report, 1_720_000_000_000)
+            .expect("persist assessment");
+        set_manual_enrollment(vault.path(), "ATP.md", markdown, true, 1_720_100_000_000)
+            .expect("enable review");
+        let state = load_note_review_state(vault.path(), "ATP.md", markdown, 1_720_100_000_000)
+            .expect("initial load")
+            .expect("state exists");
+        assert!(!state.recovered_from_backup);
+
+        // Corrompe o principal mantendo o backup: o proximo load restaura o
+        // backup e o estado deve sinalizar a recuperacao. O backup fica em
+        // `<vault>/.mirmind/learning/<note-id>.json.bak.1`.
+        let directory = vault.path().join(".mirmind").join("learning");
+        let target = directory.join(format!("{}.json", state.note_id));
+        std::fs::write(&target, b"{invalid").expect("corrupt primary");
+
+        let recovered = load_note_review_state(vault.path(), "ATP.md", markdown, 1_720_200_000_000)
+            .expect("recovered load")
+            .expect("state exists");
+        assert!(recovered.recovered_from_backup);
+        assert_eq!(recovered.readiness, NoteReadinessStatus::Ready);
+    }
+
+    #[test]
+    fn reclassifying_a_unit_overrides_the_evaluation_and_reschedules() {
+        let vault = tempdir().expect("vault");
+        let markdown = "# ATP\n\nATP armazena energia.\n\nATP transfere energia.\n\nATP participa do metabolismo.";
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        persist_readiness_assessment(vault.path(), "ATP.md", markdown, &report, 1_720_000_000_000)
+            .expect("persist assessment");
+        set_manual_enrollment(vault.path(), "ATP.md", markdown, true, 1_720_100_000_000)
+            .expect("enable review");
+        // Acumula historico: uma sessao concluida com a unidade avaliada, para
+        // que a correcao manual tenha uma projecao anterior para sobrescrever.
+        let mut loaded = load_learning_document_for_path(vault.path(), "ATP.md")
+            .expect("load")
+            .expect("document");
+        let note_id = loaded.document.note.id.clone();
+        let expected_revision = loaded.document.revision;
+        let session_at = 1_720_200_000_000;
+        let snapshot = crate::review::contract::UnitSnapshot {
+            id: loaded.document.units[0].id.clone(),
+            ordinal: loaded.document.units[0].ordinal,
+            kind: loaded.document.units[0].kind.clone(),
+            content_hash: loaded.document.units[0].content_hash.clone(),
+            section_path: loaded.document.units[0].section_path.clone(),
+            identity: loaded.document.units[0].identity.clone(),
+            source_start_utf16: loaded.document.units[0].source_start_utf16,
+            source_end_utf16: loaded.document.units[0].source_end_utf16,
+        };
+        let evaluation = crate::review::contract::UnitEvaluation::Evaluated {
+            score: 45,
+            outcome: crate::review::contract::RecallOutcome::Partial,
+            evidence: crate::review::contract::EvidenceStrength::FreeRecall,
+            evaluated_at_unix_ms: session_at,
+            gaps: Vec::new(),
+        };
+        let fsrs_at = crate::review::contract::FsrsState {
+            difficulty: 5.0,
+            stability_days: 2.0,
+            retrievability: 0.55,
+            last_reviewed_at_unix_ms: session_at,
+        };
+        loaded.document.sessions = vec![crate::review::contract::ReviewSession {
+            id: "session-reclassify".to_string(),
+            note_content_hash: loaded.document.note.content_hash.clone(),
+            mode: crate::review::contract::ReviewMode::Exam,
+            provider: crate::review::contract::AiProvider::Ollama,
+            completed_at_unix_ms: session_at,
+            overall_score: Some(45),
+            unit_results: vec![crate::review::contract::SessionUnitResult {
+                unit_snapshot: snapshot,
+                evaluation: evaluation.clone(),
+                fsrs_before: Some(fsrs_at.clone()),
+                fsrs_after: Some(fsrs_at.clone()),
+            }],
+            effective_policy: loaded.document.effective_policy.clone(),
+            next_review_at_unix_ms: Some(session_at + 3 * 24 * 60 * 60 * 1_000),
+        }];
+        loaded.document.units[0].fsrs = Some(fsrs_at);
+        loaded.document.units[0].latest_evaluation = Some(evaluation);
+        loaded.document.scheduling.last_review_at_unix_ms = Some(session_at);
+        loaded.document.scheduling.next_review_at_unix_ms =
+            Some(session_at + 3 * 24 * 60 * 60 * 1_000);
+        loaded.document.revision = loaded.document.revision.saturating_add(1);
+        write_learning_document(
+            vault.path(),
+            &note_id,
+            Some(expected_revision),
+            &loaded.document,
+        )
+        .expect("persist session");
+        let unit_id = loaded.document.units[0].id.clone();
+        let unit_count = loaded.document.units.len();
+
+        // A unidade tinha estabilidade 2 dias; a reclassificacao para 100 deve
+        // elevar a estabilidade (completo 2.5x, evidencia livre) e reagendar
+        // para mais longe.
+        let corrected_at = 1_720_300_000_000;
+        let state = set_unit_classification(vault.path(), "ATP.md", &unit_id, 100, corrected_at)
+            .expect("reclassify");
+
+        let reloaded = load_learning_document_for_path(vault.path(), "ATP.md")
+            .expect("reload")
+            .expect("document")
+            .document;
+        let unit = reloaded
+            .units
+            .iter()
+            .find(|unit| unit.id == unit_id)
+            .expect("unit exists");
+        assert!(matches!(
+            &unit.latest_evaluation,
+            Some(crate::review::contract::UnitEvaluation::Evaluated {
+                score: 100,
+                outcome: crate::review::contract::RecallOutcome::Complete,
+                evidence: crate::review::contract::EvidenceStrength::FreeRecall,
+                ..
+            })
+        ));
+        let stability = unit.fsrs.as_ref().expect("fsrs").stability_days;
+        assert!((stability - 5.0).abs() < 1e-9);
+        // O historico de sessoes permanece intacto (a sessao injetada segue la).
+        assert_eq!(reloaded.sessions.len(), 1);
+        // A proxima revisao veio do reagendamento pelo estado da unidade.
+        assert!(reloaded.scheduling.next_review_at_unix_ms.is_some());
+        assert!(reloaded.scheduling.next_review_at_unix_ms.unwrap() > corrected_at);
+        assert!(state.enrolled);
+        assert_eq!(reloaded.units.len(), unit_count);
+    }
+
+    #[test]
+    fn reclassifying_an_unknown_unit_or_an_invalid_score_is_rejected() {
+        let vault = tempdir().expect("vault");
+        let markdown = "# RNA\n\nRNA transcreve o DNA.\n\nRNA traduz proteinas.";
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        persist_readiness_assessment(vault.path(), "RNA.md", markdown, &report, 1_720_000_000_000)
+            .expect("persist assessment");
+        set_manual_enrollment(vault.path(), "RNA.md", markdown, true, 1_720_100_000_000)
+            .expect("enable review");
+
+        let error = set_unit_classification(
+            vault.path(),
+            "RNA.md",
+            "unit-unknown",
+            80,
+            1_720_200_000_000,
+        )
+        .expect_err("unknown unit must fail");
+        assert!(error.to_string().contains("nao existe"));
+        let error =
+            set_unit_classification(vault.path(), "RNA.md", "unit-1", 101, 1_720_200_000_000)
+                .expect_err("score above 100 must fail");
+        assert!(error.to_string().contains("0 e 100"));
     }
 }

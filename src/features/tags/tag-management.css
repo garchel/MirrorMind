@@ -1,8 +1,13 @@
 .tag-management-page {
-  min-height: 100%;
-  padding: 32px;
-  color: var(--ink, #25231f);
-  background: #f5f2eb;
+  width: 100%;
+  --tag-surface: #fdfcf8;
+  --tag-border: #e6e3d8;
+  --tag-line: #d9d7d0;
+  --tag-ink: #20201e;
+  --tag-muted: #73736d;
+  --tag-accent: #5b6f52;
+  --tag-accent-soft: #dce6dc;
+  --tag-danger: #9b3c34;
 }
 
 .tag-management-header,
@@ -15,55 +20,50 @@
 }
 
 .tag-management-header {
-  max-width: 1180px;
-  margin: 0 auto 24px;
+  align-items: center;
 }
 
 .tag-management-header h2,
 .tag-detail-heading h3,
 .tag-impact-heading h3 {
   margin: 4px 0 6px;
-  letter-spacing: -0.035em;
-}
-
-.tag-management-header h2 {
-  font-size: clamp(28px, 3vw, 42px);
+  letter-spacing: -0.02em;
 }
 
 .tag-management-header p,
 .tag-detail-heading p {
-  max-width: 680px;
+  max-width: 640px;
   margin: 0;
-  color: #68635a;
+  color: var(--tag-muted);
+  font-size: 13.5px;
 }
 
-.tag-management-header > button,
-.tag-detail-actions button,
-.tag-form-actions button,
-.tag-impact-actions button {
+.tag-management-header > button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  flex: 0 0 auto;
 }
 
+/* ---------------------------------------------------------------------------
+   Layout de duas colunas solto na pagina: sem container bordado envolvendo
+   tudo, apenas um divisor entre a arvore e o detalhe (como o explorador).
+--------------------------------------------------------------------------- */
 .tag-management-layout {
   display: grid;
   grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
-  max-width: 1180px;
-  min-height: 620px;
-  margin: 0 auto;
-  overflow: hidden;
-  border: 1px solid #d8d2c6;
-  border-radius: 18px;
-  background: #fffdf8;
-  box-shadow: 0 18px 48px rgb(62 54 42 / 8%);
+  gap: 0;
+  min-height: 0;
 }
 
-.tag-catalog {
-  padding: 18px;
-  border-right: 1px solid #ded8cc;
-  background: #eee9df;
+.tag-tree-pane {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
+  min-height: 0;
+  padding: 4px 18px 20px 0;
+  border-right: 1px solid #e6e4de;
 }
 
 .tag-search {
@@ -71,9 +71,10 @@
   align-items: center;
   gap: 8px;
   padding: 0 11px;
-  border: 1px solid #d4cdbf;
-  border-radius: 10px;
-  background: #fffdf8;
+  border: 1px solid var(--tag-line);
+  border-radius: 8px;
+  background: #fbfaf6;
+  color: #8a8a82;
 }
 
 /* Texto apenas para leitores de tela: sem isso, o rotulo "Buscar tags" fica
@@ -91,131 +92,193 @@
 }
 
 .tag-search:focus-within {
-  border-color: #766d5e;
-  box-shadow: 0 0 0 3px rgb(118 109 94 / 14%);
+  border-color: #b3c1b3;
+  box-shadow: 0 0 0 3px rgb(115 137 121 / 14%);
 }
 
 .tag-search input {
   width: 100%;
-  min-height: 38px;
+  min-height: 36px;
   padding: 0;
   border: 0;
   outline: 0;
   background: transparent;
+  color: var(--tag-ink);
+  font: 13px var(--sans);
 }
 
-.tag-catalog-summary {
+.tag-search input::placeholder {
+  color: #9c9b94;
+}
+
+.tag-tree-summary {
   display: flex;
   justify-content: space-between;
-  padding: 13px 2px 9px;
-  color: #746f66;
+  gap: 8px;
+  padding: 0 2px;
+  color: var(--tag-muted);
   font-size: 11px;
 }
 
-.tag-catalog-list {
-  display: grid;
-  gap: 4px;
-  max-height: 545px;
+.tag-tree-scroll {
+  min-height: 0;
+  max-height: min(640px, calc(100svh - 300px));
   overflow: auto;
+  padding: 2px 4px 8px 0;
+  overscroll-behavior: contain;
 }
 
-.tag-catalog-list > button {
+.tag-tree-list {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag-tree-list .tag-tree-list {
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid #e2dfd6;
+}
+
+.tag-tree-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
   width: 100%;
-  min-height: 46px;
-  padding: 9px 10px;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  color: #3a3731;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
   background: transparent;
-  box-shadow: none;
+  color: #3f3f3a;
+  font-size: 13px;
   text-align: left;
-}
-
-.tag-catalog-list > button:hover {
-  border-color: #d5cdbf;
-  background: rgb(255 253 248 / 72%);
-}
-
-.tag-catalog-list > button.is-selected {
-  border-color: #b9ae9e;
-  background: #fffdf8;
-  box-shadow: 0 5px 14px rgb(68 58 43 / 7%);
-}
-
-.tag-catalog-name,
-.tag-catalog-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-
-.tag-catalog-name {
-  overflow: hidden;
-  font-weight: 650;
-  text-overflow: ellipsis;
-}
-
-.tag-catalog-meta small {
-  color: #7a756c;
   white-space: nowrap;
 }
 
-.tag-catalog-meta i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #aaa399;
+.tag-tree-row .tag-tree-chevron,
+.tag-tree-chevron-slot {
+  width: 14px;
+  min-width: 14px;
+  flex: 0 0 14px;
 }
 
-.tag-catalog-meta i.is-review-on {
+.tag-tree-row .tag-tree-chevron {
+  color: #a3a097;
+  transition: transform 140ms ease;
+}
+
+.tag-tree-row .tag-tree-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.tag-tree-hash {
+  color: #9a97a0;
+  flex: 0 0 auto;
+}
+
+.tag-tree-name {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1 1 auto;
+  text-overflow: ellipsis;
+}
+
+.tag-tree-count {
+  padding-left: 8px;
+  color: #8d8c85;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tag-tree-dot {
+  width: 6px;
+  height: 6px;
+  min-width: 6px;
+  border-radius: 50%;
+  background: #c6c4bc;
+}
+
+.tag-tree-dot.is-review-on {
   background: #3f7a5a;
   box-shadow: 0 0 0 3px rgb(63 122 90 / 12%);
 }
 
+/* ---------------------------------------------------------------------------
+   Painel de detalhe
+--------------------------------------------------------------------------- */
 .tag-detail {
   position: relative;
   min-width: 0;
-  padding: 30px 34px 40px;
+  padding: 4px 4px 20px 28px;
 }
 
 .tag-detail-heading h3 {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 26px;
+  font-size: 24px;
+}
+
+.tag-detail-heading h3 svg {
+  color: #8a877e;
 }
 
 .tag-detail-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
+/* Botoes de acao do detalhe: icone com espaco para o texto e largura
+   minima uniforme para Editar e Excluir ficarem do mesmo tamanho. */
+.tag-detail-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 96px;
+}
+
 .tag-icon-button {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
   padding: 0;
+}
+
+.tag-review-status,
+.tag-unconfigured,
+.tag-policy-summary,
+.tag-note-list,
+.tag-folder-children {
+  background: var(--tag-surface);
+  border: 1px solid var(--tag-border);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 3%);
 }
 
 .tag-review-status,
 .tag-unconfigured {
   display: flex;
+  align-items: flex-start;
   gap: 12px;
-  margin-top: 26px;
-  padding: 15px;
-  border: 1px solid #ddd5c7;
-  border-radius: 12px;
-  background: #f5f1e9;
+  margin-top: 24px;
+  padding: 15px 16px;
+}
+
+.tag-unconfigured > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
 }
 
 .tag-review-status > span {
   display: grid;
   width: 28px;
   height: 28px;
+  flex: 0 0 28px;
   place-items: center;
   border-radius: 50%;
   color: #fff;
@@ -226,25 +289,30 @@
   background: #3f7a5a;
 }
 
+.tag-review-status strong,
+.tag-unconfigured strong {
+  color: #35342f;
+  font-size: 13.5px;
+}
+
 .tag-review-status p,
 .tag-unconfigured p {
   margin: 4px 0 0;
-  color: #6b665d;
+  color: var(--tag-muted);
+  font-size: 12.5px;
 }
 
 .tag-policy-summary {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  margin: 20px 0 0;
-  border: 1px solid #dfd8cc;
-  border-radius: 12px;
+  margin: 16px 0 0;
   overflow: hidden;
 }
 
 .tag-policy-summary > div {
   min-width: 0;
   padding: 15px;
-  border-right: 1px solid #e4ddd2;
+  border-right: 1px solid #ece8de;
 }
 
 .tag-policy-summary > div:last-child {
@@ -252,42 +320,50 @@
 }
 
 .tag-policy-summary dt {
-  color: #777168;
+  color: var(--tag-muted);
   font-size: 11px;
 }
 
 .tag-policy-summary dd {
   margin: 7px 0 0;
-  font-size: 18px;
+  color: #33322d;
+  font-size: 17px;
   font-weight: 700;
 }
 
 .tag-note-list {
-  margin-top: 30px;
-  padding-top: 22px;
-  border-top: 1px solid #e4ded3;
+  margin-top: 26px;
+  padding: 16px 18px 12px;
 }
 
-.tag-note-list > div {
+.tag-note-list > div,
+.tag-folder-children-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
 }
 
-.tag-note-list h4 {
+.tag-note-list h4,
+.tag-folder-children-heading h4 {
   margin: 0;
+  color: #33322d;
+  font-size: 14px;
 }
 
-.tag-note-list > div span {
-  padding: 3px 8px;
-  border-radius: 99px;
-  background: #eee9df;
-  font-size: 12px;
+.tag-note-list > div span,
+.tag-folder-children-heading span {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #f0efe9;
+  color: #6f6e67;
+  font-size: 11.5px;
 }
 
 .tag-note-list ul,
-.tag-impact-notes ul {
-  margin: 13px 0 0;
+.tag-impact-notes ul,
+.tag-folder-children ul {
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -297,16 +373,82 @@
   justify-content: space-between;
   gap: 16px;
   padding: 10px 2px;
-  border-bottom: 1px solid #eee9e0;
+  border-bottom: 1px solid #efede6;
+}
+
+.tag-note-list li:last-child {
+  border-bottom: 0;
 }
 
 .tag-note-list li small {
   overflow: hidden;
-  color: #888177;
+  color: #8d8c85;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.tag-note-list > p {
+  margin: 10px 0 2px;
+  color: var(--tag-muted);
+  font-size: 12.5px;
+}
+
+/* Lista de notas: apenas o nome da nota e a sua localizacao. */
+.tag-note-flat {
+  display: grid;
+  gap: 2px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag-note-flat li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 10px 2px;
+  border-bottom: 1px solid #efede6;
+}
+
+.tag-note-flat li:last-child {
+  border-bottom: 0;
+}
+
+.tag-note-flat-name {
+  overflow: hidden;
+  min-width: 0;
+  color: #3f3f3a;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-note-flat-location {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 10px;
+  overflow: hidden;
+  color: #8d8c85;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   Detalhe de hierarquia (no intermediario da arvore de tags)
+--------------------------------------------------------------------------- */
+.tag-folder-detail {
+  display: grid;
+  gap: 16px;
+}
+
+/* ---------------------------------------------------------------------------
+   Formulario (criar/editar tag)
+--------------------------------------------------------------------------- */
 .tag-form {
   display: grid;
   gap: 22px;
@@ -320,7 +462,10 @@
 
 .tag-name-field > span,
 .tag-presets legend,
-.tag-policy-fields legend {
+.tag-policy-fields legend,
+.tag-mode-field legend {
+  color: #3c3b36;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -330,19 +475,26 @@
   gap: 8px;
   padding: 0 12px;
   border: 1px solid #cec6b8;
-  border-radius: 10px;
+  border-radius: 9px;
+  background: var(--tag-surface);
 }
 
 .tag-name-field input {
   width: 100%;
-  min-height: 42px;
+  min-height: 40px;
   border: 0;
   outline: 0;
   background: transparent;
+  color: var(--tag-ink);
+  font: 13px var(--sans);
 }
 
-.tag-name-field small {
-  color: #7c766c;
+.tag-name-field small,
+.tag-mode-options small,
+.tag-presets button small,
+.tag-review-switch small {
+  color: var(--tag-muted);
+  font-size: 12px;
 }
 
 .tag-review-switch,
@@ -352,9 +504,9 @@
   justify-content: space-between;
   gap: 20px;
   padding: 14px 16px;
-  border: 1px solid #ddd5c7;
-  border-radius: 11px;
-  background: #f6f2ea;
+  border: 1px solid var(--tag-border);
+  border-radius: 12px;
+  background: var(--tag-surface);
 }
 
 .tag-review-switch span,
@@ -363,15 +515,17 @@
   gap: 4px;
 }
 
-.tag-review-switch small,
-.tag-delete-option small {
-  color: #716b62;
+.tag-review-switch strong,
+.tag-delete-option strong {
+  color: #35342f;
+  font-size: 13.5px;
 }
 
 .tag-review-switch input,
 .tag-delete-option input {
-  width: 19px;
-  height: 19px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--tag-accent);
 }
 
 .tag-presets,
@@ -382,12 +536,13 @@
   border: 0;
 }
 
-.tag-mode-field legend {
+.tag-mode-field legend,
+.tag-policy-fields legend {
   margin-bottom: 10px;
-  font-weight: 700;
 }
 
-.tag-mode-options {
+.tag-mode-options,
+.tag-presets > div {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 9px;
@@ -400,14 +555,14 @@
   padding: 11px 12px;
   border: 1px solid #d3cbbd;
   border-radius: 10px;
-  background: #f6f2ea;
+  background: var(--tag-surface);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .tag-mode-options label:has(input:checked) {
   border-color: #9a8f7d;
-  background: #efe9dd;
+  background: #f0ece2;
 }
 
 .tag-mode-options label:hover {
@@ -416,7 +571,7 @@
 
 .tag-mode-options input {
   margin-top: 3px;
-  accent-color: #5b6f52;
+  accent-color: var(--tag-accent);
 }
 
 .tag-mode-options span {
@@ -425,18 +580,11 @@
 }
 
 .tag-mode-options strong {
+  color: #35342f;
   font-size: 13px;
 }
 
-.tag-mode-options small {
-  color: #756f66;
-  line-height: 1.35;
-}
-
 .tag-presets > div {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 9px;
   margin-top: 10px;
 }
 
@@ -447,19 +595,10 @@
   text-align: left;
 }
 
-.tag-presets button small {
-  color: #756f66;
-  line-height: 1.35;
-}
-
 .tag-policy-fields {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-}
-
-.tag-policy-fields legend {
-  margin-bottom: 10px;
 }
 
 .tag-policy-fields label {
@@ -468,7 +607,7 @@
 }
 
 .tag-policy-fields label > span {
-  color: #5d5850;
+  color: var(--tag-muted);
   font-size: 12px;
 }
 
@@ -477,21 +616,26 @@
   align-items: center;
   border: 1px solid #d3cbbd;
   border-radius: 9px;
+  background: var(--tag-surface);
   overflow: hidden;
 }
 
 .tag-policy-fields input {
   width: 100%;
   min-width: 0;
-  height: 39px;
+  height: 38px;
   padding: 0 10px;
   border: 0;
   outline: 0;
+  background: transparent;
+  color: var(--tag-ink);
+  font: 13px var(--sans);
 }
 
 .tag-policy-fields small {
   padding-right: 10px;
-  color: #817b72;
+  color: var(--tag-muted);
+  font-size: 12px;
 }
 
 .tag-form-actions,
@@ -501,17 +645,20 @@
   gap: 9px;
 }
 
+/* ---------------------------------------------------------------------------
+   Estados vazios, erros e sucesso
+--------------------------------------------------------------------------- */
 .tag-detail-empty,
 .tag-empty-state {
   display: grid;
   place-items: center;
   align-content: center;
   text-align: center;
-  color: #756f66;
+  color: var(--tag-muted);
 }
 
 .tag-detail-empty {
-  min-height: 500px;
+  min-height: 420px;
 }
 
 .tag-detail-empty h3,
@@ -520,14 +667,23 @@
   color: #393630;
 }
 
+.tag-detail-empty p,
+.tag-empty-state p {
+  margin: 0;
+  font-size: 13px;
+}
+
 .tag-empty-state {
-  min-height: 180px;
+  min-height: 160px;
   padding: 20px;
+  border: 1px dashed #dedbd1;
+  border-radius: 12px;
 }
 
 .tag-page-state {
   padding: 20px 4px;
-  color: #716c63;
+  color: var(--tag-muted);
+  font-size: 13px;
 }
 
 .tag-page-error,
@@ -538,6 +694,7 @@
   margin-top: 20px;
   padding: 12px 14px;
   border-radius: 10px;
+  font-size: 13px;
 }
 
 .tag-page-error {
@@ -554,6 +711,15 @@
   background: #e7f1e9;
 }
 
+.field-error {
+  margin: 0;
+  color: #9b3c34;
+  font-size: 12.5px;
+}
+
+/* ---------------------------------------------------------------------------
+   Modal de impacto
+--------------------------------------------------------------------------- */
 .tag-impact-backdrop {
   position: fixed;
   z-index: 1000;
@@ -571,13 +737,54 @@
   overflow: auto;
   padding: 24px;
   border: 1px solid #d7cfc1;
-  border-radius: 16px;
+  border-radius: 14px;
   background: #fffdf8;
   box-shadow: 0 28px 80px rgb(20 17 13 / 28%);
 }
 
 .tag-impact-modal > p {
-  color: #686259;
+  color: var(--tag-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Avisos do modal de exclusao: notas associadas e tags aninhadas. */
+.tag-delete-warnings {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.tag-delete-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid #ecd5a8;
+  border-radius: 10px;
+  background: #fdf3e0;
+  color: #7a5c10;
+}
+
+.tag-delete-warning > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.tag-delete-warning span {
+  display: grid;
+  gap: 2px;
+}
+
+.tag-delete-warning strong {
+  color: #6b5214;
+  font-size: 12.5px;
+}
+
+.tag-delete-warning small {
+  color: #8a6f26;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .tag-impact-count {
@@ -615,29 +822,107 @@
 .tag-impact-notes p {
   margin: 0;
   padding: 18px;
-  color: #746e65;
+  color: var(--tag-muted);
 }
 
-@media (max-width: 900px) {
-  .tag-management-page {
-    padding: 22px;
-  }
+/* ---------------------------------------------------------------------------
+   Botoes: o tema escuro do workspace (.workspace-shell button, emitido depois
+   no bundle) vence os empates de especificidade — reafirma o tema claro com
+   especificidade maior (classe duplicada), sem afetar as outras paginas.
+--------------------------------------------------------------------------- */
+.tag-management-page.tag-management-page button {
+  min-height: 34px;
+  border-radius: 8px;
+  background: #292926;
+  color: #fbfaf6;
+  font-size: 13px;
+  font-weight: 600;
+}
 
+.tag-management-page.tag-management-page button:hover:not(:disabled) {
+  transform: none;
+  background: #11110f;
+}
+
+.tag-management-page.tag-management-page .secondary-button:not(.danger-button) {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--tag-line);
+  border-radius: 8px;
+  background: transparent;
+  color: #4d4d47;
+}
+
+.tag-management-page.tag-management-page .secondary-button:not(.danger-button):hover:not(:disabled) {
+  background: #e2e1da;
+}
+
+.tag-management-page.tag-management-page .tag-icon-button {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+}
+
+.tag-management-page.tag-management-page .danger-button {
+  background: var(--tag-danger);
+  color: #fffaf7;
+}
+
+.tag-management-page.tag-management-page .danger-button:hover:not(:disabled) {
+  background: #7e3029;
+}
+
+/* Linhas da arvore de tags nunca devem parecer botao primario (o
+   workspace-shell button vence os empates). */
+.tag-management-page.tag-management-page .tag-tree-row {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #3f3f3a;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tag-management-page.tag-management-page .tag-tree-row:hover:not(:disabled) {
+  background: #e9eee8;
+  color: #1d2a20;
+  transform: none;
+}
+
+.tag-management-page.tag-management-page .tag-tree-row.is-selected {
+  background: var(--tag-accent-soft);
+  color: #1d2a20;
+  box-shadow: none;
+}
+
+@media (max-width: 980px) {
   .tag-management-layout {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
   }
 
   .tag-detail {
-    padding: 26px 24px;
+    padding-left: 20px;
   }
 
   .tag-policy-summary,
   .tag-policy-fields {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .tag-policy-summary > div {
+    border-bottom: 1px solid #ece8de;
+  }
+
+  .tag-policy-summary > div:nth-child(3n) {
+    border-right: 0;
+  }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 720px) {
   .tag-management-header,
   .tag-detail-heading {
     align-items: stretch;
@@ -648,13 +933,18 @@
     display: block;
   }
 
-  .tag-catalog {
+  .tag-tree-pane {
+    padding: 0 0 18px;
     border-right: 0;
-    border-bottom: 1px solid #ded8cc;
+    border-bottom: 1px solid #e6e4de;
   }
 
-  .tag-catalog-list {
-    max-height: 220px;
+  .tag-tree-scroll {
+    max-height: 240px;
+  }
+
+  .tag-detail {
+    padding: 22px 0 0;
   }
 
   .tag-presets > div,
@@ -666,83 +956,6 @@
 
   .tag-policy-summary > div {
     border-right: 0;
-    border-bottom: 1px solid #e4ddd2;
+    border-bottom: 1px solid #ece8de;
   }
-}
-
-/* ---------------------------------------------------------------------------
-   A pagina tem tema claro proprio, mas App.css (emitido depois no bundle)
-   aplica o tema escuro do workspace aos botoes (.workspace-shell button e
-   .workspace-shell .secondary-button) e vence os empates de especificidade.
-   Reafirma o tema claro da pagina com especificidade maior (classe duplicada),
-   sem afetar as outras paginas do workspace.
---------------------------------------------------------------------------- */
-.tag-management-page.tag-management-page button {
-  min-height: 38px;
-  border-radius: 9px;
-  background: #25231f;
-  color: #faf7ef;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.tag-management-page.tag-management-page button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  background: #3a3730;
-}
-
-.tag-management-page.tag-management-page .secondary-button:not(.danger-button) {
-  min-height: 34px;
-  padding: 0 13px;
-  border: 1px solid #d8d2c6;
-  border-radius: 9px;
-  background: #f0ece3;
-  color: #4a463f;
-}
-
-.tag-management-page.tag-management-page .secondary-button:not(.danger-button):hover:not(:disabled) {
-  background: #e6e0d3;
-}
-
-.tag-management-page.tag-management-page .tag-icon-button {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  min-height: 36px;
-  padding: 0;
-}
-
-.tag-management-page.tag-management-page .danger-button {
-  background: #9b3c34;
-  color: #fffaf7;
-}
-
-.tag-management-page.tag-management-page .danger-button:hover:not(:disabled) {
-  background: #7e3029;
-}
-
-/* Lista de tags do catalogo: fundo claro e texto escuro legivel (o contador de
-   notas e o nome da tag ficavam escuros sobre o fundo escuro do workspace no
-   hover, sumindo da tela). */
-.tag-management-page.tag-management-page .tag-catalog-list > button {
-  min-height: 46px;
-  padding: 9px 10px;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  background: transparent;
-  color: #3a3731;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.tag-management-page.tag-management-page .tag-catalog-list > button:hover:not(:disabled) {
-  border-color: #d5cdbf;
-  background: rgb(255 253 248 / 72%);
-  transform: none;
-}
-
-.tag-management-page.tag-management-page .tag-catalog-list > button.is-selected {
-  border-color: #b9ae9e;
-  background: #fffdf8;
-  box-shadow: 0 5px 14px rgb(68 58 43 / 7%);
 }

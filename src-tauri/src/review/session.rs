@@ -1,11 +1,11 @@
 use super::contract::{
     validate_session_against_markdown, AiProvider, EvaluationGap, EvidenceStrength, FsrsState,
-    GapClassification, LearningDocument, LearningUnit, ReadinessAssessment, RecallOutcome,
-    ReviewMode, ReviewPolicy, ReviewSession, SchedulingStatus, SessionUnitResult, UnitEvaluation,
-    UnitSnapshot,
+    GapClassification, LearningDocument, LearningUnit, LearningUnitKind, ReadinessAssessment,
+    RecallOutcome, ReviewMode, ReviewPolicy, ReviewSession, SchedulingStatus, SessionUnitResult,
+    UnitEvaluation, UnitSnapshot,
 };
 use super::coverage::{answer_bounds, select_session_units, SessionCoverage};
-use super::evaluation::source_hash;
+use super::evaluation::{semantic_fingerprint, source_hash};
 use super::provider::{ProviderKind, ProviderRequest, StructuredAiProvider};
 use super::storage::{load_learning_document, write_learning_document};
 use anyhow::{bail, Context, Result};
@@ -1111,6 +1111,12 @@ pub struct ReviewExchange {
     /// evidencia mais fraca de recuperacao espontanea.
     #[serde(default)]
     pub assistance_used: bool,
+    /// O turno respondido era uma pergunta neutra de esclarecimento (modo
+    /// conversa). O backend valida contra o prompt emitido pela sessao e usa
+    /// a contagem para limitar a no maximo dois esclarecimentos por conversa
+    /// de forma deterministica (nao so por instrucao ao modelo).
+    #[serde(default)]
+    pub is_clarification: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -1155,6 +1161,7 @@ pub fn continue_review_conversation(
         bail!("A conversa precisa ter entre uma e cinco respostas antes do proximo turno.");
     }
     let mut prompt_ids = std::collections::HashSet::new();
+    let mut clarification_count = 0usize;
     for exchange in exchanges {
         if !prompt_ids.insert(exchange.prompt_id.as_str())
             || exchange.prompt_id.trim().is_empty()
@@ -1164,6 +1171,9 @@ pub fn continue_review_conversation(
             || exchange.answer.len() > 32_768
         {
             bail!("O historico da conversa e invalido.");
+        }
+        if exchange.is_clarification {
+            clarification_count += 1;
         }
     }
     let transcript = serde_json::to_string(exchanges)?;
@@ -1199,6 +1209,18 @@ pub fn continue_review_conversation(
         return Ok(ConversationTurnAttempt::Valid {
             prompt: None,
             should_finish: true,
+        });
+    }
+    // Limite deterministico de esclarecimento: alem das instrucoes ao modelo,
+    // o backend rejeita um terceiro esclarecimento. A resposta dele conta
+    // como evidencia, entao o custo de exceder o limite e perder a resposta.
+    if raw.clarification && clarification_count >= 2 {
+        return Ok(ConversationTurnAttempt::Invalid {
+            message: "A conversa ja usou os dois esclarecimentos permitidos.".to_string(),
+            raw_response: Some(response.raw_response),
+            validation_errors: vec![
+                "No maximo duas perguntas de esclarecimento por conversa.".to_string()
+            ],
         });
     }
     let (Some(text), Some(assistance)) = (raw.prompt, raw.assistance) else {
@@ -1304,6 +1326,9 @@ pub struct ReviewInconclusiveUnit {
 pub struct ReviewUnitReport {
     pub id: String,
     pub ordinal: u64,
+    /// Tipo da unidade na segmentacao: a interface usa o rotulo correspondente
+    /// (``secoes``, ``paragrafos`` ou ``unidades``) nas contagens de cobertura.
+    pub kind: LearningUnitKind,
     pub source_start_utf16: u64,
     pub source_end_utf16: u64,
     pub section_path: Vec<String>,
@@ -1917,6 +1942,7 @@ fn assisted_unit_ids(
     prompts: &[ReviewPrompt],
     exchanges: &[ReviewExchange],
     units: &[LearningUnit],
+    frontmatter_delta_utf16: i64,
 ) -> HashSet<String> {
     let mut assisted = HashSet::new();
     for exchange in exchanges {
@@ -1935,6 +1961,11 @@ fn assisted_unit_ids(
         let Some((_, start, end)) = find_grounded_span(markdown, quote) else {
             continue;
         };
+        // O trecho e localizado na versao avaliada (`markdown`); com mudanca
+        // somente de frontmatter, as unidades ja foram reconstruidas na versao
+        // atual e o span precisa do mesmo rebase para a contencao bater.
+        let start = shift_offset(start, frontmatter_delta_utf16);
+        let end = shift_offset(end, frontmatter_delta_utf16);
         if let Some(unit) = units
             .iter()
             .find(|unit| start >= unit.source_start_utf16 && end <= unit.source_end_utf16)
@@ -1943,6 +1974,50 @@ fn assisted_unit_ids(
         }
     }
     assisted
+}
+
+/// Corpo da nota sem o frontmatter YAML (se houver): o frontmatter carrega
+/// tags, aliases e outras propriedades que nao sao o conteudo avaliado pela
+/// sessao. Duas versoes com o mesmo corpo diferem apenas em metadados e a
+/// avaliacao permanece valida.
+fn markdown_body(markdown: &str) -> &str {
+    crate::split_frontmatter_for_tags(markdown)
+        .map(|(_, body)| body)
+        .unwrap_or(markdown)
+}
+
+/// Comprimento em unidades UTF-16 da regiao de frontmatter (delimitadores
+/// inclusos) de uma nota; zero quando nao ha frontmatter.
+fn frontmatter_utf16_len(markdown: &str) -> usize {
+    let original = markdown;
+    let stripped = markdown.strip_prefix('\u{feff}').unwrap_or(markdown);
+    let Some((_, body)) = crate::split_frontmatter_for_tags(stripped) else {
+        return 0;
+    };
+    // O corpo retornado e sempre um sub-slice da entrada (apos o delimitador
+    // final do frontmatter), entao o deslocamento em bytes e valido.
+    let body_offset = body.as_ptr() as usize - stripped.as_ptr() as usize;
+    let body_offset_in_original = body_offset + (original.len() - stripped.len());
+    original[..body_offset_in_original].encode_utf16().count()
+}
+
+/// Desloca um offset UTF-16 por um delta com sinal, saturando nos limites.
+fn shift_offset(offset: u64, delta: i64) -> u64 {
+    if delta >= 0 {
+        offset.saturating_add(delta as u64)
+    } else {
+        offset.saturating_sub(delta.unsigned_abs())
+    }
+}
+
+/// Rebase de lacunas da versao avaliada para a versao atual (mudanca somente
+/// de frontmatter): o corpo identico garante que deslocar os offsets pelo
+/// delta do frontmatter e exato.
+fn shift_offsets(gaps: &mut [ReviewGapReport], delta: i64) {
+    for gap in gaps {
+        gap.source_start_utf16 = shift_offset(gap.source_start_utf16, delta);
+        gap.source_end_utf16 = shift_offset(gap.source_end_utf16, delta);
+    }
 }
 
 pub fn complete_review_session<F>(
@@ -2055,7 +2130,7 @@ where
     });
     // Unidades do alvo com evidencia insuficiente nunca pontuam por lacunas:
     // descarta as lacunas contidas nelas antes da atribuicao por unidade.
-    let inconclusive_unit_ranges = document
+    let mut inconclusive_unit_ranges = document
         .units
         .iter()
         .filter(|unit| {
@@ -2075,10 +2150,95 @@ where
         });
     }
 
+    // Verificacao da versao ao concluir: o backend rele a nota depois da
+    // resposta do provedor. Se o conteudo avaliado (o corpo, sem o frontmatter
+    // YAML de tags/aliases) mudou, a sessao e rejeitada sem persistir nada.
+    // Mudancas somente no frontmatter ou na politica (regra de tag, politica
+    // explicita da nota ou prioridade) nao invalidam a avaliacao: a sessao
+    // conclui com a politica efetiva mais recente, em vez de a revisao
+    // otimista rejeitar a escrita concorrente.
     let current_markdown = reread_markdown()?;
-    if source_hash(&current_markdown) != input.note_content_hash {
+    let current_hash = source_hash(&current_markdown);
+    let mut frontmatter_delta_utf16: i64 = 0;
+    let frontmatter_only_change = if current_hash == input.note_content_hash {
+        false
+    } else if markdown_body(source_markdown) == markdown_body(&current_markdown) {
+        frontmatter_delta_utf16 = frontmatter_utf16_len(&current_markdown) as i64
+            - frontmatter_utf16_len(source_markdown) as i64;
+        true
+    } else {
         bail!("A nota mudou durante a sessao. Reavalie a nota e inicie uma nova revisao.");
-    }
+    };
+
+    // O documento de aprendizado e recarregado apos a chamada do provedor:
+    // alteracoes concorrentes de politica (regras de tag, politica explicita
+    // da nota ou prioridade) sao incorporadas e a escrita usa a revisao mais
+    // recente, sem conflito otimista falso.
+    let latest = load_learning_document(vault_root, storage_key)?
+        .context("O estado de aprendizado da nota nao existe.")?;
+    document = latest.document;
+    validate_completion_identity(&document, provider, source_markdown, &input)?;
+
+    // Versao registrada na sessao e usada na validacao final: com mudanca
+    // somente de frontmatter, a sessao passa a referenciar a versao atual (o
+    // corpo avaliado e identico, apenas deslocado pelos novos metadados),
+    // mantendo documento, lacunas e relatorio no mesmo espaco de coordenadas.
+    let session_note_content_hash = if frontmatter_only_change {
+        // Rebase das lacunas e das unidades inconclusivas da versao avaliada
+        // para a versao atual: o frontmatter deslocou os offsets UTF-16 do
+        // corpo, e o corpo identico garante que o rebase e exato.
+        shift_offsets(&mut gaps, frontmatter_delta_utf16);
+        for inconclusive in &mut inconclusive_units {
+            inconclusive.source_start_utf16 =
+                shift_offset(inconclusive.source_start_utf16, frontmatter_delta_utf16);
+            inconclusive.source_end_utf16 =
+                shift_offset(inconclusive.source_end_utf16, frontmatter_delta_utf16);
+        }
+        inconclusive_unit_ranges = inconclusive_unit_ranges
+            .into_iter()
+            .map(|(start, end)| {
+                (
+                    shift_offset(start, frontmatter_delta_utf16),
+                    shift_offset(end, frontmatter_delta_utf16),
+                )
+            })
+            .collect();
+        // A avaliacao de prontidao continua valida: o conteudo avaliado nao
+        // mudou, apenas o frontmatter. O hash avaliado acompanha o conteudo
+        // (o contrato Ready exige assessed_content_hash == content_hash) e o
+        // fingerprint semantico e atualizado na mesma base, para a proxima
+        // mudanca cosmetica nao ser tratada como conteudo novo.
+        document.note.content_hash = current_hash.clone();
+        super::state::set_assessed_content_hash(&mut document.note.readiness, &current_hash);
+        super::state::set_assessed_semantic_hash(
+            &mut document.note.readiness,
+            &semantic_fingerprint(&current_markdown),
+        );
+        // As unidades sao reconstruidas com a versao atual: o corpo identico
+        // preserva id, historico e estado DSR/FSRS, e os offsets passam a
+        // corresponder ao markdown atual (o frontmatter deslocou o corpo).
+        let limits = super::policy_config::load_segmentation_limits(vault_root)?;
+        let max_whole_note_words = usize::try_from(limits.max_whole_note_words)
+            .map_err(|_| anyhow::anyhow!("O limite de palavras da segmentacao e invalido."))?;
+        document.units = super::segmentation::build_learning_units_with_limits(
+            &current_markdown,
+            &current_hash,
+            &document.units,
+            max_whole_note_words,
+        );
+        // A politica efetiva e reconciliada com as tags atuais e as regras
+        // mais recentes: a sessao conclui com a politica mais atual e o
+        // reagendamento abaixo usa esses valores.
+        super::state::reconcile_inherited_review_policy(
+            vault_root,
+            &current_markdown,
+            &mut document,
+            completed_at_unix_ms,
+        )?;
+        current_hash
+    } else {
+        input.note_content_hash.clone()
+    };
 
     let previous_revision = document.revision;
     // A forca da evidencia usada no agendamento depende do tipo de pergunta: a
@@ -2127,6 +2287,7 @@ where
             &input.prompts,
             &input.exchanges,
             &document.units,
+            frontmatter_delta_utf16,
         ),
         ReviewMode::Conversation => HashSet::new(),
     };
@@ -2302,6 +2463,7 @@ where
                 ReviewUnitReport {
                     id: unit.id.clone(),
                     ordinal: unit.ordinal,
+                    kind: unit.kind.clone(),
                     source_start_utf16: unit.source_start_utf16,
                     source_end_utf16: unit.source_end_utf16,
                     section_path: unit.section_path.clone(),
@@ -2313,8 +2475,33 @@ where
             })
             .collect::<Vec<_>>();
         let minimum_percent = (MIN_VALID_COVERAGE * 100.0).round() as u64;
+        // Rotulo das unidades-alvo: ``secoes`` quando todas sao secoes,
+        // ``paragrafos`` quando todas sao paragrafos, ``unidades`` em misto.
+        let mut all_sections = true;
+        let mut all_paragraphs = true;
+        for unit in document
+            .units
+            .iter()
+            .filter(|unit| target_set.contains(unit.id.as_str()))
+        {
+            match unit.kind {
+                LearningUnitKind::Section => all_paragraphs = false,
+                LearningUnitKind::Paragraph => all_sections = false,
+                LearningUnitKind::WholeNote => {
+                    all_sections = false;
+                    all_paragraphs = false;
+                }
+            }
+        }
+        let target_noun = if all_sections {
+            "secoes-alvo"
+        } else if all_paragraphs {
+            "paragrafos-alvo"
+        } else {
+            "unidades-alvo"
+        };
         let summary = format!(
-            "Sessao inconclusiva: apenas {evaluated_count} de {target_count} paragrafos-alvo tiveram evidencia valida (minimo de {minimum_percent}%). Nenhuma avaliacao foi persistida e a nota permanece vencida; refazer nao constitui contestacao."
+            "Sessao inconclusiva: apenas {evaluated_count} de {target_count} {target_noun} tiveram evidencia valida (minimo de {minimum_percent}%). Nenhuma avaliacao foi persistida e a nota permanece vencida; refazer nao constitui contestacao."
         );
         return Ok(ReviewCompletionAttempt::Inconclusive {
             report: ReviewCompletionReport {
@@ -2322,7 +2509,7 @@ where
                 overall_score: None,
                 outcome: None,
                 summary,
-                markdown: source_markdown.to_string(),
+                markdown: current_markdown.to_string(),
                 units,
                 gaps: Vec::new(),
                 completed_at_unix_ms,
@@ -2373,7 +2560,7 @@ where
 
     document.sessions.push(ReviewSession {
         id: input.session_id.clone(),
-        note_content_hash: input.note_content_hash.clone(),
+        note_content_hash: session_note_content_hash.clone(),
         mode: input.mode,
         provider: session_provider,
         completed_at_unix_ms,
@@ -2398,7 +2585,7 @@ where
         &document,
         &input.session_id,
         &current_markdown,
-        &input.note_content_hash,
+        &session_note_content_hash,
         &trusted_hashes,
     )?;
     write_learning_document(vault_root, storage_key, Some(previous_revision), &document)?;
@@ -2436,6 +2623,7 @@ where
             Ok(ReviewUnitReport {
                 id: unit.id.clone(),
                 ordinal: unit.ordinal,
+                kind: unit.kind.clone(),
                 source_start_utf16: unit.source_start_utf16,
                 source_end_utf16: unit.source_end_utf16,
                 section_path: unit.section_path.clone(),
@@ -2453,7 +2641,7 @@ where
             overall_score: Some(overall_score),
             outcome: Some(overall_outcome),
             summary,
-            markdown: source_markdown.to_string(),
+            markdown: current_markdown.to_string(),
             units: unit_reports,
             gaps,
             completed_at_unix_ms,
@@ -2531,7 +2719,7 @@ fn validate_completion_exchanges(mode: &ReviewMode, exchanges: &[ReviewExchange]
     Ok(())
 }
 
-fn outcome_for_score(score: u8) -> Result<ReviewResultOutcome> {
+pub(crate) fn outcome_for_score(score: u8) -> Result<ReviewResultOutcome> {
     Ok(match score {
         0..=39 => ReviewResultOutcome::Forgotten,
         40..=69 => ReviewResultOutcome::Partial,
@@ -2646,7 +2834,7 @@ fn evidence_weight(evidence: EvidenceStrength, outcome: ReviewResultOutcome) -> 
     }
 }
 
-fn update_fsrs(
+pub(crate) fn update_fsrs(
     previous: Option<&FsrsState>,
     outcome: ReviewResultOutcome,
     score: u8,
@@ -2968,7 +3156,9 @@ mod tests {
         ReviewCompletionInput, ReviewExchange, ReviewGapClassification, ReviewGapReport,
         ReviewGenerationAttempt, ReviewResultOutcome,
     };
-    use crate::review::contract::{parse_learning_document, ReviewMode};
+    use crate::review::contract::{
+        parse_learning_document, ReadinessAssessment, ReviewMode, UnitEvaluation,
+    };
     use crate::review::provider::{
         ProviderFailure, ProviderKind, ProviderRequest, ProviderResponse, StructuredAiProvider,
     };
@@ -3047,6 +3237,7 @@ mod tests {
             prompt: "O que a mitose produz?".to_string(),
             answer: "Duas celulas-filhas.".to_string(),
             assistance_used: false,
+            is_clarification: false,
         }];
 
         let attempt = super::continue_review_conversation(&provider, markdown, &exchanges).unwrap();
@@ -3414,12 +3605,14 @@ mod tests {
                 prompt: "Qual e a fonte?".to_string(),
                 answer: "Duas".to_string(),
                 assistance_used: false,
+                is_clarification: false,
             },
             ReviewExchange {
                 prompt_id: "turn-1".to_string(),
                 prompt: "Fale sobre a nota.".to_string(),
                 answer: "Ela trata da energia.".to_string(),
                 assistance_used: false,
+                is_clarification: false,
             },
         ];
 
@@ -3433,7 +3626,6 @@ mod tests {
         assert!(answers[0].get("options").is_none());
         assert!(answers[0].get("correctOptionIndex").is_none());
         assert_eq!(answers[1]["question"], "Fale sobre a nota.");
-        assert_eq!(answers[1]["userAnswer"], "Ela trata da energia.");
         assert_eq!(answers[1]["userAnswer"], "Ela trata da energia.");
     }
     #[test]
@@ -3647,6 +3839,7 @@ mod tests {
                     // errado? Nao: responde corretamente.
                     answer: "B) Energia quimica".to_string(),
                     assistance_used: false,
+                    is_clarification: false,
                 },
                 ReviewExchange {
                     prompt_id: "question-2".to_string(),
@@ -3654,12 +3847,14 @@ mod tests {
                     // Erra: a energia luminosa e a fonte, nao o resultado.
                     answer: "C) Energia luminosa".to_string(),
                     assistance_used: false,
+                    is_clarification: false,
                 },
                 ReviewExchange {
                     prompt_id: "question-3".to_string(),
                     prompt: "Quem realiza esse processo?".to_string(),
                     answer: "C) Plantas".to_string(),
                     assistance_used: false,
+                    is_clarification: false,
                 },
             ],
             prompts: prompts.clone(),
@@ -3801,6 +3996,7 @@ mod tests {
                     prompt: format!("Pergunta {index}"),
                     answer: format!("Resposta {index}"),
                     assistance_used: false,
+                    is_clarification: false,
                 })
                 .collect(),
             prompts: Vec::new(),
@@ -3996,6 +4192,7 @@ mod tests {
                     prompt: format!("Pergunta {index}"),
                     answer: format!("Resposta {index}"),
                     assistance_used: false,
+                    is_clarification: false,
                 })
                 .collect(),
             prompts: Vec::new(),
@@ -4222,6 +4419,7 @@ mod tests {
                     prompt: format!("Pergunta {index}"),
                     answer: format!("Resposta {index}"),
                     assistance_used: false,
+                    is_clarification: false,
                 })
                 .collect(),
             prompts: Vec::new(),
@@ -4291,6 +4489,7 @@ mod tests {
                     prompt: format!("Pergunta {index}"),
                     answer: format!("Resposta {index}"),
                     assistance_used: false,
+                    is_clarification: false,
                 })
                 .collect(),
             prompts: Vec::new(),
@@ -4318,6 +4517,176 @@ mod tests {
         assert_eq!(stored.revision, 1);
         assert!(stored.sessions.is_empty());
         assert!(stored.scheduling.last_review_at_unix_ms.is_none());
+    }
+
+    #[test]
+    fn a_frontmatter_only_change_during_the_call_completes_and_rebases_the_session() {
+        let vault = tempdir().unwrap();
+        let markdown =
+            "---\ntags: [revisao/prova]\n---\n# Fotossintese\n\nPlantas convertem energia luminosa em energia quimica.";
+        let document = ready_document(markdown);
+        let note_id = document.note.id.clone();
+        crate::review::storage::write_learning_document(vault.path(), &note_id, None, &document)
+            .unwrap();
+        let provider = FixedProvider {
+            response: json!({
+                "score": 80,
+                "summary": "O conteudo foi parcialmente lembrado.",
+                "gaps": [{
+                    "classification": "confused",
+                    "sourceQuote": "energia luminosa"
+                }]
+            }),
+            requests: Mutex::new(Vec::new()),
+        };
+        // O usuario adicionou uma tag durante a chamada: o corpo permaneceu
+        // identico, mas o frontmatter (e o hash do Markdown) mudou.
+        let changed_frontmatter =
+            "---\ntags: [revisao/prova, revisao/manter]\n---\n# Fotossintese\n\nPlantas convertem energia luminosa em energia quimica.";
+        let input = ReviewCompletionInput {
+            session_id: "session-frontmatter-1".to_string(),
+            note_id: note_id.clone(),
+            note_content_hash: document.note.content_hash.clone(),
+            mode: ReviewMode::Conversation,
+            provider: ProviderKind::Ollama,
+            exchanges: (1..=4)
+                .map(|index| ReviewExchange {
+                    prompt_id: format!("turn-{index}"),
+                    prompt: format!("Pergunta {index}"),
+                    answer: format!("Resposta {index}"),
+                    assistance_used: false,
+                    is_clarification: false,
+                })
+                .collect(),
+            prompts: Vec::new(),
+            target_unit_ids: vec!["unit-1".to_string()],
+            session_markdown: markdown.to_string(),
+        };
+
+        let attempt = complete_review_session(
+            vault.path(),
+            &note_id,
+            &provider,
+            markdown,
+            input,
+            1_730_000_000_000,
+            || Ok(changed_frontmatter.to_string()),
+        )
+        .unwrap();
+        assert!(matches!(attempt, ReviewCompletionAttempt::Valid { .. }));
+
+        let stored = crate::review::storage::load_learning_document(vault.path(), &note_id)
+            .unwrap()
+            .unwrap()
+            .document;
+        let current_hash = crate::review::evaluation::source_hash(changed_frontmatter);
+        // A versao atual (com a tag nova) e registrada e a prontidao permanece
+        // valida: o conteudo avaliado nao mudou, apenas o frontmatter.
+        assert_eq!(stored.note.content_hash, current_hash);
+        assert!(matches!(
+            stored.note.readiness,
+            ReadinessAssessment::Ready { .. }
+        ));
+        assert_eq!(stored.sessions.len(), 1);
+        assert_eq!(stored.sessions[0].note_content_hash, current_hash);
+        // A lacuna foi rebasada para a versao atual: o offset deslocou pelo
+        // delta do frontmatter (o corpo identico garante que o rebase e exato).
+        let delta = super::frontmatter_utf16_len(changed_frontmatter) as i64
+            - super::frontmatter_utf16_len(markdown) as i64;
+        let UnitEvaluation::Evaluated { gaps, .. } = &stored.sessions[0].unit_results[0].evaluation
+        else {
+            panic!("expected an evaluated unit");
+        };
+        assert_eq!(gaps.len(), 1);
+        let session_gap_start = u64::try_from(markdown.find("energia luminosa").unwrap()).unwrap();
+        assert_eq!(
+            gaps[0].source_start_utf16,
+            super::shift_offset(session_gap_start, delta)
+        );
+        // A proxima revisao foi agendada normalmente.
+        assert!(stored.scheduling.next_review_at_unix_ms.is_some());
+    }
+
+    #[test]
+    fn a_concurrent_policy_change_during_the_call_is_incorporated_instead_of_rejected() {
+        let vault = tempdir().unwrap();
+        let markdown = "# Fotossintese\n\nPlantas convertem energia luminosa em energia quimica.";
+        let document = ready_document(markdown);
+        let note_id = document.note.id.clone();
+        crate::review::storage::write_learning_document(vault.path(), &note_id, None, &document)
+            .unwrap();
+        let provider = FixedProvider {
+            response: json!({
+                "score": 100,
+                "summary": "O conteudo foi lembrado.",
+                "gaps": []
+            }),
+            requests: Mutex::new(Vec::new()),
+        };
+        let input = ReviewCompletionInput {
+            session_id: "session-policy-1".to_string(),
+            note_id: note_id.clone(),
+            note_content_hash: document.note.content_hash.clone(),
+            mode: ReviewMode::Conversation,
+            provider: ProviderKind::Ollama,
+            exchanges: (1..=4)
+                .map(|index| ReviewExchange {
+                    prompt_id: format!("turn-{index}"),
+                    prompt: format!("Pergunta {index}"),
+                    answer: format!("Resposta {index}"),
+                    assistance_used: false,
+                    is_clarification: false,
+                })
+                .collect(),
+            prompts: Vec::new(),
+            target_unit_ids: vec!["unit-1".to_string()],
+            session_markdown: markdown.to_string(),
+        };
+
+        let attempt = complete_review_session(
+            vault.path(),
+            &note_id,
+            &provider,
+            markdown,
+            input,
+            1_730_000_000_000,
+            || {
+                // A politica efetiva mudou concorrentemente durante a chamada
+                // (revisao 2 do documento): a conclusao deve incorpora-la em
+                // vez de a revisao otimista rejeitar a escrita com revisao 1.
+                let mut loaded =
+                    crate::review::storage::load_learning_document(vault.path(), &note_id)
+                        .unwrap()
+                        .unwrap()
+                        .document;
+                loaded.effective_policy.target_retention = 0.97;
+                loaded.revision = loaded.revision.saturating_add(1);
+                crate::review::storage::write_learning_document(
+                    vault.path(),
+                    &note_id,
+                    Some(1),
+                    &loaded,
+                )
+                .unwrap();
+                Ok(markdown.to_string())
+            },
+        )
+        .unwrap();
+        let ReviewCompletionAttempt::Valid { report } = attempt else {
+            panic!("expected a valid completion");
+        };
+        assert_eq!(report.overall_score, Some(100));
+
+        let stored = crate::review::storage::load_learning_document(vault.path(), &note_id)
+            .unwrap()
+            .unwrap()
+            .document;
+        // Revisao 1 (inicial) -> 2 (politica concorrente) -> 3 (conclusao).
+        assert_eq!(stored.revision, 3);
+        assert_eq!(stored.sessions.len(), 1);
+        // A sessao registra a politica efetiva mais recente, nao a do inicio.
+        assert_eq!(stored.sessions[0].effective_policy.target_retention, 0.97);
+        assert!(stored.scheduling.next_review_at_unix_ms.is_some());
     }
 
     #[test]
@@ -4408,6 +4777,7 @@ mod tests {
             prompt: "O que a mitose produz?".to_string(),
             answer: "Duas celulas.".to_string(),
             assistance_used: false,
+            is_clarification: false,
         }];
 
         let attempt = super::continue_review_conversation(&provider, markdown, &exchanges).unwrap();
@@ -4469,12 +4839,20 @@ mod tests {
     }
 
     fn conversation_exchanges(count: usize) -> Vec<super::ReviewExchange> {
+        conversation_exchanges_with_clarifications(count, 0)
+    }
+
+    fn conversation_exchanges_with_clarifications(
+        count: usize,
+        clarifications: usize,
+    ) -> Vec<super::ReviewExchange> {
         (0..count)
             .map(|index| super::ReviewExchange {
                 prompt_id: format!("turn-{}", index + 1),
                 prompt: format!("Pergunta {}?", index + 1),
                 answer: format!("Resposta {}.", index + 1),
                 assistance_used: false,
+                is_clarification: index < clarifications,
             })
             .collect()
     }
@@ -4835,6 +5213,7 @@ mod tests {
                         prompt: prompt.text.clone(),
                         answer: format!("{letter}) {}", prompt.options[correct]),
                         assistance_used: false,
+                        is_clarification: false,
                     }
                 })
                 .collect(),
@@ -4962,18 +5341,21 @@ mod tests {
                     // Acertou, mas com a dica exibida: lembranca assistida.
                     answer: "C) Plantas".to_string(),
                     assistance_used: true,
+                    is_clarification: false,
                 },
                 ReviewExchange {
                     prompt_id: "question-2".to_string(),
                     prompt: prompts[1].text.clone(),
                     answer: "B) Energia quimica".to_string(),
                     assistance_used: false,
+                    is_clarification: false,
                 },
                 ReviewExchange {
                     prompt_id: "question-3".to_string(),
                     prompt: prompts[2].text.clone(),
                     answer: "B) Energia quimica".to_string(),
                     assistance_used: false,
+                    is_clarification: false,
                 },
             ],
             prompts,
@@ -5056,6 +5438,7 @@ mod tests {
                     answer: format!("Resposta {index}"),
                     // A segunda resposta veio com o contexto revelado.
                     assistance_used: index == 2,
+                    is_clarification: false,
                 })
                 .collect(),
             prompts: Vec::new(),
@@ -5243,12 +5626,14 @@ mod tests {
                     prompt: prompts[0].text.clone(),
                     answer: answer(2, &prompts[0]),
                     assistance_used: false,
+                    is_clarification: false,
                 },
                 ReviewExchange {
                     prompt_id: "question-2".to_string(),
                     prompt: prompts[1].text.clone(),
                     answer: answer(0, &prompts[1]),
                     assistance_used: false,
+                    is_clarification: false,
                 },
                 ReviewExchange {
                     prompt_id: "question-3".to_string(),
@@ -5256,6 +5641,7 @@ mod tests {
                     // Opcao explicita `Nao sei`: nao chuta.
                     answer: "Nao sei".to_string(),
                     assistance_used: false,
+                    is_clarification: false,
                 },
             ],
             prompts,
@@ -5581,18 +5967,21 @@ mod tests {
                 prompt: prompts[0].text.clone(),
                 answer: "C) Energia luminosa".to_string(),
                 assistance_used: false,
+                is_clarification: false,
             },
             ReviewExchange {
                 prompt_id: "question-2".to_string(),
                 prompt: prompts[1].text.clone(),
                 answer: "O processo libera oxigenio".to_string(),
                 assistance_used: false,
+                is_clarification: false,
             },
             ReviewExchange {
                 prompt_id: "question-3".to_string(),
                 prompt: prompts[2].text.clone(),
                 answer: "A) Energia luminosa".to_string(),
                 assistance_used: false,
+                is_clarification: false,
             },
         ];
         let attempt = complete_review_session(
@@ -5629,18 +6018,21 @@ mod tests {
                 prompt: prompts[0].text.clone(),
                 answer: "C) Energia luminosa".to_string(),
                 assistance_used: false,
+                is_clarification: false,
             },
             ReviewExchange {
                 prompt_id: "question-2".to_string(),
                 prompt: prompts[1].text.clone(),
                 answer: "Libera hidrogenio".to_string(),
                 assistance_used: false,
+                is_clarification: false,
             },
             ReviewExchange {
                 prompt_id: "question-3".to_string(),
                 prompt: prompts[2].text.clone(),
                 answer: "A) Energia luminosa".to_string(),
                 assistance_used: false,
+                is_clarification: false,
             },
         ];
         let attempt = complete_review_session(
@@ -5830,5 +6222,215 @@ mod tests {
         .unwrap();
         assert_eq!(adjusted, Some(now + 4 * 86_400_000));
         assert!(!at_risk);
+    }
+
+    #[test]
+    fn conversation_continuation_rejects_an_empty_history_or_one_already_full() {
+        let markdown = "# Mitose\n\nA mitose produz duas celulas-filhas.";
+        let provider = FixedProvider {
+            response: json!({"shouldFinish": false, "prompt": "Pergunta?", "assistance": "Dica."}),
+            requests: Mutex::new(Vec::new()),
+        };
+        // Historico vazio: nao ha o que continuar.
+        let error = super::continue_review_conversation(&provider, markdown, &[]).unwrap_err();
+        assert!(error.to_string().contains("entre uma e cinco"));
+        // Cinco respostas ainda permitem o sexto turno; seis respostas ja
+        // encerram a conversa (maximo 6) e nao ha o que continuar.
+        let six_answers = conversation_exchanges(6);
+        let error =
+            super::continue_review_conversation(&provider, markdown, &six_answers).unwrap_err();
+        assert!(error.to_string().contains("entre uma e cinco"));
+        // Duplicatas de prompt_id no historico sao rejeitadas.
+        let mut duplicate = conversation_exchanges(2);
+        duplicate[1].prompt_id = "turn-1".to_string();
+        let error =
+            super::continue_review_conversation(&provider, markdown, &duplicate).unwrap_err();
+        assert!(error.to_string().contains("invalido"));
+    }
+
+    #[test]
+    fn conversation_ignores_should_finish_before_the_fourth_answer_and_honors_it_after() {
+        let markdown = "# Mitose\n\nA mitose produz duas celulas-filhas.";
+        // A IA pede para encerrar ja no segundo turno: o backend nao aceita
+        // encerrar antes da quarta resposta e devolve um turno normal.
+        let provider = FixedProvider {
+            response: json!({"shouldFinish": true, "prompt": "Pergunta?", "assistance": "Dica."}),
+            requests: Mutex::new(Vec::new()),
+        };
+        let attempt =
+            super::continue_review_conversation(&provider, markdown, &conversation_exchanges(2))
+                .unwrap();
+        let super::ConversationTurnAttempt::Valid {
+            prompt: Some(prompt),
+            should_finish,
+        } = attempt
+        else {
+            panic!("expected a forced continuation turn")
+        };
+        assert!(!should_finish);
+        assert_eq!(prompt.id, "turn-3");
+        // A partir da quarta resposta, o encerramento solicitado e aceito.
+        let provider = FixedProvider {
+            response: json!({"shouldFinish": true}),
+            requests: Mutex::new(Vec::new()),
+        };
+        let attempt =
+            super::continue_review_conversation(&provider, markdown, &conversation_exchanges(4))
+                .unwrap();
+        let super::ConversationTurnAttempt::Valid {
+            prompt: None,
+            should_finish,
+        } = attempt
+        else {
+            panic!("expected a finishing turn")
+        };
+        assert!(should_finish);
+    }
+
+    #[test]
+    fn conversation_rejects_a_third_clarification_turn_deterministically() {
+        let markdown = "# Mitose\n\nA mitose produz duas celulas-filhas.";
+        let provider = FixedProvider {
+            response: json!({
+                "shouldFinish": false,
+                "prompt": "Terceira pergunta de esclarecimento?",
+                "assistance": "Dica.",
+                "clarification": true
+            }),
+            requests: Mutex::new(Vec::new()),
+        };
+        // Duas respostas de esclarecimento ja usadas: a terceira e rejeitada
+        // sem virar um turno valido (o limite nao depende so da instrucao).
+        let exchanges = conversation_exchanges_with_clarifications(3, 2);
+        let attempt = super::continue_review_conversation(&provider, markdown, &exchanges).unwrap();
+        let super::ConversationTurnAttempt::Invalid { message, .. } = attempt else {
+            panic!("expected the third clarification to be rejected")
+        };
+        assert!(message.contains("dois esclarecimentos"));
+        // Com apenas um esclarecimento usado, o segundo ainda e aceito.
+        let exchanges = conversation_exchanges_with_clarifications(3, 1);
+        let attempt = super::continue_review_conversation(&provider, markdown, &exchanges).unwrap();
+        let super::ConversationTurnAttempt::Valid {
+            prompt: Some(prompt),
+            ..
+        } = attempt
+        else {
+            panic!("expected the second clarification to be accepted")
+        };
+        assert!(prompt.is_clarification);
+    }
+
+    #[test]
+    fn completion_rejects_a_conversation_with_the_wrong_number_of_answers() {
+        let vault = tempdir().unwrap();
+        let markdown = "# Mitose\n\nA mitose produz duas celulas-filhas.";
+        let document = ready_document(markdown);
+        crate::review::storage::write_learning_document(
+            vault.path(),
+            &document.note.id,
+            None,
+            &document,
+        )
+        .unwrap();
+        let provider = FixedProvider {
+            response: json!({"score": 80, "summary": "Ok.", "gaps": []}),
+            requests: Mutex::new(Vec::new()),
+        };
+        // Tres respostas: abaixo do minimo de 4 para a conversa.
+        let input = ReviewCompletionInput {
+            session_id: "session-count-3".to_string(),
+            note_id: document.note.id.clone(),
+            note_content_hash: document.note.content_hash.clone(),
+            mode: ReviewMode::Conversation,
+            provider: ProviderKind::Ollama,
+            exchanges: conversation_exchanges(3),
+            prompts: Vec::new(),
+            target_unit_ids: document.units.iter().map(|unit| unit.id.clone()).collect(),
+            session_markdown: markdown.to_string(),
+        };
+        let error = complete_review_session(
+            vault.path(),
+            &document.note.id,
+            &provider,
+            markdown,
+            input,
+            1_730_000_000_000,
+            || Ok(markdown.to_string()),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("quantidade de respostas"));
+        // Sete respostas: acima do maximo de 6 para a conversa.
+        let input = ReviewCompletionInput {
+            session_id: "session-count-7".to_string(),
+            note_id: document.note.id.clone(),
+            note_content_hash: document.note.content_hash.clone(),
+            mode: ReviewMode::Conversation,
+            provider: ProviderKind::Ollama,
+            exchanges: conversation_exchanges(7),
+            prompts: Vec::new(),
+            target_unit_ids: document.units.iter().map(|unit| unit.id.clone()).collect(),
+            session_markdown: markdown.to_string(),
+        };
+        let error = complete_review_session(
+            vault.path(),
+            &document.note.id,
+            &provider,
+            markdown,
+            input,
+            1_730_000_000_000,
+            || Ok(markdown.to_string()),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("quantidade de respostas"));
+    }
+
+    #[test]
+    fn conversation_without_assistance_reveals_pure_evidence_within_the_answer_limits() {
+        let vault = tempdir().unwrap();
+        let markdown = "# Mitose\n\nA mitose produz duas celulas-filhas.";
+        let document = ready_document(markdown);
+        crate::review::storage::write_learning_document(
+            vault.path(),
+            &document.note.id,
+            None,
+            &document,
+        )
+        .unwrap();
+        let provider = FixedProvider {
+            response: json!({"score": 100, "summary": "Lembrado.", "gaps": []}),
+            requests: Mutex::new(Vec::new()),
+        };
+        // Respostas no limite inferior (4) e superior (6) completam a sessao
+        // com evidencia pura quando nenhum contexto foi revelado.
+        for (label, count) in [("minimo", 4), ("maximo", 6)] {
+            let input = ReviewCompletionInput {
+                session_id: format!("session-{label}-{count}"),
+                note_id: document.note.id.clone(),
+                note_content_hash: document.note.content_hash.clone(),
+                mode: ReviewMode::Conversation,
+                provider: ProviderKind::Ollama,
+                exchanges: conversation_exchanges(count),
+                prompts: Vec::new(),
+                target_unit_ids: document.units.iter().map(|unit| unit.id.clone()).collect(),
+                session_markdown: markdown.to_string(),
+            };
+            let attempt = complete_review_session(
+                vault.path(),
+                &document.note.id,
+                &provider,
+                markdown,
+                input,
+                1_730_000_000_000,
+                || Ok(markdown.to_string()),
+            )
+            .unwrap();
+            let ReviewCompletionAttempt::Valid { report } = attempt else {
+                panic!("expected a valid completion at the {label} bound")
+            };
+            assert_eq!(
+                report.evidence,
+                crate::review::contract::EvidenceStrength::Conversation
+            );
+        }
     }
 }

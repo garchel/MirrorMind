@@ -39,6 +39,20 @@ pub struct LoadedLearningDocument {
     pub source: LearningDocumentSource,
 }
 
+/// Documento de aprendizado que nao pode ser carregado: o principal esta
+/// corrompido (ou ausente) e nenhum backup e valido. O usuario deve poder
+/// exportar o arquivo antes de descartar o aprendizado para recomecar.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnrecoverableLearningDocument {
+    /// Chave de armazenamento (identidade da nota) do arquivo irrecuperavel.
+    pub storage_key: String,
+    /// Caminho relativo da nota, quando o conteudo bruto ainda permite extrair
+    /// o campo `relativePath` mesmo com o JSON invalido. Ausente quando o
+    /// arquivo esta corrompido demais para qualquer leitura util.
+    pub relative_path: Option<String>,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct PolicyTransactionJournal {
@@ -1207,6 +1221,186 @@ fn find_valid_backup(
     Ok(None)
 }
 
+/// Lista os documentos de aprendizado que nao podem ser carregados: o
+/// principal esta corrompido ou ausente e nenhum backup e valido. O usuário
+/// pode exportar cada arquivo antes de descartar o aprendizado para recomecar
+/// a nota do zero.
+pub fn list_unrecoverable_learning_documents(
+    vault_root: &Path,
+) -> Result<Vec<UnrecoverableLearningDocument>> {
+    let _guard = STORAGE_ACCESS
+        .lock()
+        .map_err(|_| anyhow::anyhow!("O armazenamento de aprendizado esta indisponivel."))?;
+    recover_storage_transactions_unlocked(vault_root)?;
+    let directory = learning_directory(vault_root)?;
+    let mut unrecoverable = Vec::new();
+    for storage_key in list_learning_storage_keys_unlocked(vault_root, MAX_LEARNING_DOCUMENTS)? {
+        let target = document_path(&directory, &storage_key);
+        // Somente documentos que nao podem ser carregados sao irrecuperaveis:
+        // os saudaveis (ou ausentes sem backup) ficam de fora da lista.
+        if load_learning_document_unlocked(vault_root, &storage_key).is_ok() {
+            continue;
+        }
+        let relative_path = read_unrecoverable_relative_path(&target)?;
+        unrecoverable.push(UnrecoverableLearningDocument {
+            storage_key,
+            relative_path,
+        });
+    }
+    Ok(unrecoverable)
+}
+
+/// Exporta o arquivo principal e todos os backups de um documento irrecuperavel
+/// para um destino escolhido pelo usuario, preservando a evidencia antes de
+/// descartar o aprendizado. Devolve a quantidade de arquivos copiados.
+pub fn export_unrecoverable_learning_document(
+    vault_root: &Path,
+    storage_key: &str,
+    destination: &Path,
+) -> Result<usize> {
+    let _guard = STORAGE_ACCESS
+        .lock()
+        .map_err(|_| anyhow::anyhow!("O armazenamento de aprendizado esta indisponivel."))?;
+    recover_storage_transactions_unlocked(vault_root)?;
+    validate_storage_key(storage_key)?;
+    let directory = learning_directory(vault_root)?;
+    let target = document_path(&directory, storage_key);
+    // Um documento saudavel nao precisa de exportacao de recuperacao: recusa
+    // para nao confundir o usuario com um arquivo que carrega normalmente. Um
+    // documento corrompido (Err de leitura) e o caso alvo; ausente (None) nao
+    // tem o que exportar.
+    match load_learning_document_unlocked(vault_root, storage_key) {
+        Ok(Some(_)) => {
+            bail!("O documento de aprendizado esta saudavel; nao ha arquivo irrecuperavel para exportar.");
+        }
+        Ok(None) => {
+            bail!("Nao ha arquivo irrecuperavel para exportar.");
+        }
+        Err(_) => {}
+    }
+    let mut copied = 0usize;
+    for source in std::iter::once(target.clone())
+        .chain((1..=BACKUP_COUNT).map(|index| backup_path(&target, index)))
+    {
+        if !source.exists() {
+            continue;
+        }
+        ensure_regular_file_if_present(&source)?;
+        let suffix = if source == target {
+            String::new()
+        } else {
+            source
+                .file_name()
+                .and_then(|name| name.to_str())
+                .and_then(|name| name.rsplit_once(".bak."))
+                .map(|(_, index)| format!(".bak.{index}"))
+                .unwrap_or_default()
+        };
+        let mut destination_path = destination.to_path_buf();
+        if !suffix.is_empty() {
+            let file_name = destination
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("learning");
+            destination_path = destination.with_file_name(format!("{file_name}{suffix}"));
+        }
+        fs::copy(&source, &destination_path).with_context(|| {
+            format!(
+                "Nao foi possivel exportar o arquivo irrecuperavel '{}'.",
+                source.display()
+            )
+        })?;
+        copied += 1;
+    }
+    if copied == 0 {
+        bail!("Nao ha arquivo irrecuperavel para exportar.");
+    }
+    Ok(copied)
+}
+
+/// Remove o documento irrecuperavel (principal e backups) do armazenamento
+/// ativo, isolando os arquivos em quarentena para que a nota possa ser
+/// reavaliada e o aprendizado recomecar do zero. Devolve a quantidade de
+/// arquivos isolados.
+pub fn discard_unrecoverable_learning_document(
+    vault_root: &Path,
+    storage_key: &str,
+) -> Result<usize> {
+    let _guard = STORAGE_ACCESS
+        .lock()
+        .map_err(|_| anyhow::anyhow!("O armazenamento de aprendizado esta indisponivel."))?;
+    recover_storage_transactions_unlocked(vault_root)?;
+    validate_storage_key(storage_key)?;
+    let directory = learning_directory(vault_root)?;
+    let target = document_path(&directory, storage_key);
+    // Um documento saudavel usa o reinicio da nota, nao o descarte de
+    // recuperacao: somente o corrompido (Err de leitura) entra aqui.
+    match load_learning_document_unlocked(vault_root, storage_key) {
+        Ok(Some(_)) => {
+            bail!("O documento de aprendizado esta saudavel; use o reinicio da nota.");
+        }
+        Ok(None) => {
+            bail!("Nao ha arquivo irrecuperavel para descartar.");
+        }
+        Err(_) => {}
+    }
+    let mut discarded = 0usize;
+    for source in std::iter::once(target.clone())
+        .chain((1..=BACKUP_COUNT).map(|index| backup_path(&target, index)))
+    {
+        if !source.exists() {
+            continue;
+        }
+        ensure_regular_file_if_present(&source)?;
+        quarantine_target(&directory, &source, storage_key)?;
+        discarded += 1;
+    }
+    if discarded == 0 {
+        bail!("Nao ha arquivo irrecuperavel para descartar.");
+    }
+    Ok(discarded)
+}
+
+/// Tenta extrair o campo `relativePath` do conteudo bruto de um documento,
+/// mesmo quando o JSON esta invalido: procura a chave e o valor de string
+/// adjacente. A nota e identificada pelo caminho para que a interface possa
+/// vincular o arquivo irrecuperavel a nota aberta.
+fn read_unrecoverable_relative_path(target: &Path) -> Result<Option<String>> {
+    if !target.exists() {
+        return Ok(None);
+    }
+    let raw = fs::read(target)?;
+    let text = String::from_utf8_lossy(&raw);
+    Ok(extract_relative_path_from_raw(&text))
+}
+
+fn extract_relative_path_from_raw(text: &str) -> Option<String> {
+    for marker in ["\"relativePath\":", "\"relativePath\" :"] {
+        let mut search_from = 0usize;
+        while let Some(relative_index) = text[search_from..].find(marker) {
+            let value_start = search_from + relative_index + marker.len();
+            let value = text[value_start..].trim_start();
+            let Some(quote_start) = value.find('"') else {
+                break;
+            };
+            let value = &value[quote_start + 1..];
+            let Some(quote_end) = value.find('"') else {
+                break;
+            };
+            let candidate = &value[..quote_end];
+            if !candidate.trim().is_empty()
+                && candidate
+                    .chars()
+                    .all(|character| !matches!(character, '\0' | '\r' | '\n'))
+            {
+                return Some(candidate.to_string());
+            }
+            search_from += relative_index + marker.len();
+        }
+    }
+    None
+}
+
 fn publish_document(
     directory: &Path,
     target: &Path,
@@ -1449,8 +1643,10 @@ fn atomic_replace(target: &Path, replacement: &Path, backup: Option<&Path>) -> R
 #[cfg(test)]
 mod tests {
     use super::{
-        backup_path, document_path, ensure_learning_note_inside_vault, learning_directory,
-        list_learning_storage_keys_with_limit, load_learning_document,
+        backup_path, discard_unrecoverable_learning_document, document_path,
+        ensure_learning_note_inside_vault, export_unrecoverable_learning_document,
+        learning_directory, list_learning_storage_keys_with_limit,
+        list_unrecoverable_learning_documents, load_learning_document,
         policy_transaction_journal_path, reconcile_external_learning_paths,
         recover_relocation_transaction_unlocked, relocation_snapshot_directory,
         relocation_transaction_journal_path, source_hash, staged_path,
@@ -2160,6 +2356,86 @@ mod tests {
 
         assert!(load_learning_document(vault.path(), "note-1").is_err());
         assert_eq!(fs::read(&target).expect("preserved primary"), b"{invalid");
+    }
+
+    #[test]
+    fn lists_unrecoverable_documents_and_extracts_the_relative_path() {
+        let vault = tempdir().expect("vault");
+        let directory = learning_directory(vault.path()).expect("directory");
+        let corrupt = document_path(&directory, "note-corrupt");
+        // JSON parcial ainda com o campo relativePath legivel.
+        fs::write(
+            &corrupt,
+            b"{\"note\":{\"relativePath\":\"Biologia/ATP.md\"},\"units\":[{",
+        )
+        .expect("corrupt with readable path");
+        let hopeless = document_path(&directory, "note-hopeless");
+        fs::write(&hopeless, b"{invalid garbage").expect("unreadable corrupt");
+
+        let unrecoverable =
+            list_unrecoverable_learning_documents(vault.path()).expect("list unrecoverable");
+        let paths = unrecoverable
+            .iter()
+            .map(|document| {
+                (
+                    document.storage_key.as_str(),
+                    document.relative_path.as_deref(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert!(paths.contains(&("note-corrupt", Some("Biologia/ATP.md"))));
+        assert!(paths.contains(&("note-hopeless", None)));
+        assert_eq!(unrecoverable.len(), 2);
+    }
+
+    #[test]
+    fn exports_and_discards_an_unrecoverable_document_with_its_backups() {
+        let vault = tempdir().expect("vault");
+        let directory = learning_directory(vault.path()).expect("directory");
+        let target = document_path(&directory, "note-1");
+        fs::write(&target, b"{\"note\":{\"relativePath\":\"ATP.md\"},").expect("corrupt primary");
+        fs::write(&backup_path(&target, 1), b"{invalid backup").expect("corrupt backup one");
+        fs::write(&backup_path(&target, 2), b"{invalid backup two").expect("corrupt backup two");
+
+        let destination = tempdir().expect("destination");
+        let export_path = destination.path().join("atp.learning.json");
+        let copied = export_unrecoverable_learning_document(vault.path(), "note-1", &export_path)
+            .expect("export");
+        assert_eq!(copied, 3);
+        assert_eq!(
+            fs::read(&export_path).expect("primary exported"),
+            b"{\"note\":{\"relativePath\":\"ATP.md\"},"
+        );
+        assert!(destination.path().join("atp.learning.json.bak.1").exists());
+        assert!(destination.path().join("atp.learning.json.bak.2").exists());
+
+        // Um documento saudavel nao pode ser exportado como irrecuperavel.
+        let mut healthy = document();
+        healthy.note.id = "note-2".to_string();
+        write_learning_document(vault.path(), "note-2", None, &healthy).expect("healthy write");
+        let healthy_path = destination.path().join("healthy.json");
+        assert!(
+            export_unrecoverable_learning_document(vault.path(), "note-2", &healthy_path).is_err()
+        );
+        assert!(!healthy_path.exists());
+
+        // Descartar isola principal + backups em quarentena.
+        let discarded =
+            discard_unrecoverable_learning_document(vault.path(), "note-1").expect("discard");
+        assert_eq!(discarded, 3);
+        assert!(!target.exists());
+        assert!(!backup_path(&target, 1).exists());
+        assert!(!backup_path(&target, 2).exists());
+        // Nada saudavel foi tocado.
+        assert!(load_learning_document(vault.path(), "note-2")
+            .expect("healthy still loads")
+            .is_some());
+        // O descarte de um documento saudavel e recusado.
+        assert!(discard_unrecoverable_learning_document(vault.path(), "note-2").is_err());
+        // Depois do descarte, nao ha mais irrecuperaveis.
+        assert!(list_unrecoverable_learning_documents(vault.path())
+            .expect("relist")
+            .is_empty());
     }
 
     #[test]

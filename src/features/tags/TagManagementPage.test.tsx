@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TagManagementPage } from './TagManagementPage'
@@ -156,5 +156,105 @@ describe('TagManagementPage', () => {
 
     const dialog = await screen.findByRole('dialog', { name: /Criar #biologia-celular/i })
     expect(dialog).toHaveTextContent('Nenhuma nota existente será alterada')
+  })
+
+  it('renders nested tags as a tree: click expands children and shows the tag data', async () => {
+    getTagIndexMock.mockResolvedValue([
+      { tag: 'concurso', notePaths: ['concursos/edital.md'] },
+      { tag: 'concurso/matematica', notePaths: ['concursos/matematica.md'] },
+      { tag: 'concurso/matematica/algebra', notePaths: ['concursos/algebra.md'] },
+      { tag: 'extras/livros', notePaths: ['extras/leitura.md'] },
+    ])
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    // Tag que tambem e pasta: mostra os dados dela (sem a secao de aninhadas).
+    expect(await screen.findByRole('heading', { name: 'concurso' })).toBeInTheDocument()
+    expect(screen.getByText('Tag selecionada')).toBeInTheDocument()
+    expect(screen.getByText('Notas com esta tag')).toBeInTheDocument()
+    const noteList = screen.getByRole('region', { name: 'Notas com esta tag' })
+    expect(within(noteList).getByText('edital')).toBeInTheDocument()
+    expect(within(noteList).getByText('concursos/')).toBeInTheDocument()
+    expect(within(noteList).queryByText('algebra')).toBeNull()
+    expect(screen.queryByText('Tags abaixo')).toBeNull()
+
+    // Na arvore, a pasta esta recolhida: apenas o no raiz aparece, com o total
+    // agregado (3 notas) em vez do proprio (1).
+    const tree = screen.getByRole('tree')
+    expect(within(tree).queryByRole('button', { name: /matematica/ })).toBeNull()
+    expect(within(tree).getByRole('button', { name: /^#concurso · 3 notas$/ })).toBeInTheDocument()
+
+    // Clicar na pasta expande os aninhados (como uma arvore de arquivos).
+    await user.click(within(tree).getByRole('button', { name: /^#concurso · 3 notas$/ }))
+    expect(await within(tree).findByRole('button', { name: /^#concurso\/matematica · 2 notas$/ })).toBeInTheDocument()
+
+    // Clicar na tag aninhada seleciona-a e mostra os dados dela.
+    await user.click(within(tree).getByRole('button', { name: /^#concurso\/matematica · 2 notas$/ }))
+    expect(await screen.findByRole('heading', { name: /concurso\/matematica/i })).toBeInTheDocument()
+    expect(screen.getByText('Notas com esta tag')).toBeInTheDocument()
+    const nestedNoteList = screen.getByRole('region', { name: 'Notas com esta tag' })
+    expect(within(nestedNoteList).getByText('matematica')).toBeInTheDocument()
+    expect(within(nestedNoteList).getAllByText('concursos/')).toHaveLength(1)
+
+    // Pasta pura (sem tag direta): mostra o chamado de configuracao, sem as
+    // secoes de notas aninhadas, e o botao Configurar preenche o nome da tag.
+    await user.click(within(tree).getByRole('button', { name: /^#extras · 1 nota$/ }))
+    expect(await screen.findByRole('heading', { name: 'extras' })).toBeInTheDocument()
+    expect(screen.getByText('Hierarquia de tags')).toBeInTheDocument()
+    expect(screen.getByText('Pasta sem regra própria')).toBeInTheDocument()
+    expect(screen.getByText(/1 nota em 1 tag aninhada/)).toBeInTheDocument()
+    expect(screen.queryByText('Notas nesta hierarquia')).toBeNull()
+    expect(screen.queryByText('Tags abaixo')).toBeNull()
+    expect(screen.queryByText('extras/leitura.md')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: /^Configurar$/ }))
+    expect(await screen.findByLabelText('Nome da tag')).toHaveValue('extras')
+  })
+
+  it('warns when deleting a tag that has notes and nested tags', async () => {
+    getTagIndexMock.mockResolvedValue([
+      { tag: 'concurso', notePaths: ['concursos/edital.md'] },
+      { tag: 'concurso/matematica', notePaths: ['concursos/matematica.md'] },
+    ])
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    await user.click(await screen.findByRole('button', { name: /Excluir/i }))
+    const dialog = await screen.findByRole('dialog', { name: /Excluir #concurso/i })
+    expect(within(dialog).getByText('Notas usam esta tag')).toBeInTheDocument()
+    expect(within(dialog).getByText(/1 nota está associada a esta tag/)).toBeInTheDocument()
+    expect(within(dialog).getByText('Tags aninhadas')).toBeInTheDocument()
+    expect(within(dialog).getByText(/1 tag aninhada abaixo desta tag/)).toBeInTheDocument()
+  })
+
+  it('does not show warnings when deleting a tag without notes or nested tags', async () => {
+    getTagIndexMock.mockResolvedValue([{ tag: 'nova', notePaths: [] }])
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    await user.click(await screen.findByRole('button', { name: /Excluir/i }))
+    const dialog = await screen.findByRole('dialog', { name: /Excluir #nova/i })
+    expect(within(dialog).queryByText('Notas usam esta tag')).toBeNull()
+    expect(within(dialog).queryByText('Tags aninhadas')).toBeNull()
+  })
+
+  it('lists each note with its name and location', async () => {
+    getTagIndexMock.mockResolvedValue([{
+      tag: 'programacao',
+      notePaths: [
+        'Programacao/backend/apis-rest.md',
+        'Programacao/frontend/css.md',
+      ],
+    }])
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    expect(await screen.findByRole('heading', { name: 'programacao' })).toBeInTheDocument()
+    // Apenas o nome da nota e a sua localizacao — sem o caminho completo.
+    const noteList = screen.getByRole('region', { name: 'Notas com esta tag' })
+    expect(within(noteList).getByText('apis-rest')).toBeInTheDocument()
+    expect(within(noteList).getByText('css')).toBeInTheDocument()
+    expect(within(noteList).getByText('Programacao/backend/')).toBeInTheDocument()
+    expect(within(noteList).getByText('Programacao/frontend/')).toBeInTheDocument()
+    expect(within(noteList).queryByText('Programacao/backend/apis-rest.md')).toBeNull()
   })
 })

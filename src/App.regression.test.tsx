@@ -146,6 +146,26 @@ function createTauriHarness() {
           ]
         }
         return []
+      case 'audit_note_structure':
+        if (args?.relativePath === 'inicial.md') {
+          return {
+            noteWords: 40,
+            unitCount: 2,
+            findings: [
+              {
+                code: 'orphanPreamble',
+                severity: 'info',
+                message: 'Os paragrafos antes do primeiro titulo formam um preambulo sem rotulo de secao.',
+                suggestion: 'De um titulo ao preambulo (ex.: ## Introducao) para ele virar uma secao nomeada na revisao.',
+                sourceQuote: 'Texto inicial.',
+                sourceStartUtf16: 59,
+                sourceEndUtf16: 96,
+                edit: { kind: 'insertHeadingBefore', startUtf16: 59, endUtf16: null, insert: '## Introducao\n\n', ops: null },
+              },
+            ],
+          }
+        }
+        return { noteWords: 0, unitCount: 1, findings: [] }
       default:
         throw new Error(`Comando Tauri inesperado no teste: ${command}`)
     }
@@ -199,6 +219,23 @@ describe('Regressao do editor no workspace', () => {
 
     expect(screen.getByRole('button', { name: 'Tags associadas a nota' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Descricao da nota' })).not.toBeInTheDocument()
+  })
+
+  it('[auditoria estrutural] abre o painel, lista achados e aplica a sugestao no rascunho', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Auditoria estrutural da nota' }))
+
+    expect(await screen.findByText('Os paragrafos antes do primeiro titulo formam um preambulo sem rotulo de secao.')).toBeInTheDocument()
+    expect(invokeMock).toHaveBeenCalledWith('audit_note_structure', expect.objectContaining({ relativePath: 'inicial.md' }))
+
+    await user.click(screen.getByRole('button', { name: 'Aplicar no rascunho' }))
+    expect(screen.getByText('Aplicado no rascunho')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+    expect(screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })).toHaveTextContent('## Introducao')
   })
 
   it('[nota nova] salva ao confirmar o titulo com Enter e abre a nota criada', async () => {

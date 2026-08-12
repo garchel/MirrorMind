@@ -33,11 +33,24 @@ export const calibrationNoteItemSchema = z.object({
   title: z.string().min(1).max(1_024),
   observedUnitCount: z.number().int().nonnegative().max(2_000),
   totalUnitCount: z.number().int().positive().max(2_000),
+  // Tipo dominante das unidades da nota: ``section``, ``paragraph`` ou
+  // ``mixed`` (ex.: preambulo + secoes). Alimenta o substantivo do progresso.
+  unitKind: z.enum(['section', 'paragraph', 'mixed']),
 }).strict().superRefine((item, context) => {
   if (item.observedUnitCount >= item.totalUnitCount) {
     context.addIssue({ code: 'custom', message: 'A calibration note must still have unobserved units.' })
   }
 })
+
+export const readinessAttentionItemSchema = z.object({
+  noteId: z.string().min(1).max(256),
+  relativePath: z.string().min(1).max(1_024),
+  title: z.string().min(1).max(1_024),
+  status: z.enum(['unassessed', 'ready', 'ambiguous', 'insufficient', 'modified']),
+  assessedAtUnixMs: unixMillisecondsSchema.nullable(),
+  explanation: z.string().max(8_192),
+  issueCount: z.number().int().nonnegative().max(100),
+}).strict()
 
 export const vaultReviewDashboardSchema = z.object({
   enrolledNoteCount: z.number().int().nonnegative().max(100_000),
@@ -57,12 +70,22 @@ export const vaultReviewDashboardSchema = z.object({
   fragileUnitCount: z.number().int().nonnegative().max(2_000_000),
   calibrationNoteCount: z.number().int().nonnegative().max(100_000),
   calibrationNotes: z.array(calibrationNoteItemSchema).max(20),
+  readinessUnassessedNoteCount: z.number().int().nonnegative().max(100_000),
+  readinessReadyNoteCount: z.number().int().nonnegative().max(100_000),
+  readinessAmbiguousNoteCount: z.number().int().nonnegative().max(100_000),
+  readinessInsufficientNoteCount: z.number().int().nonnegative().max(100_000),
+  readinessModifiedNoteCount: z.number().int().nonnegative().max(100_000),
+  readinessAttentionNoteCount: z.number().int().nonnegative().max(100_000),
+  readinessAttentionNotes: z.array(readinessAttentionItemSchema).max(20),
 }).strict().superRefine((dashboard, context) => {
   if (dashboard.calibrationNotes.length > dashboard.calibrationNoteCount) {
     context.addIssue({ code: 'custom', message: 'The calibration list cannot exceed its count.' })
   }
   if (dashboard.expiredDeadlines.length > dashboard.expiredDeadlineNoteCount) {
     context.addIssue({ code: 'custom', message: 'The expired deadline list cannot exceed its count.' })
+  }
+  if (dashboard.readinessAttentionNotes.length > dashboard.readinessAttentionNoteCount) {
+    context.addIssue({ code: 'custom', message: 'The readiness attention list cannot exceed its count.' })
   }
   const offsets = dashboard.loadForecast.map((day) => day.dayOffset)
   const inOrder = offsets.every((offset, index) => offset === index)
@@ -75,6 +98,7 @@ export type UpcomingDeadlineItem = z.infer<typeof upcomingDeadlineItemSchema>
 export type ExpiredDeadlineItem = z.infer<typeof expiredDeadlineItemSchema>
 export type DailyLoadItem = z.infer<typeof dailyLoadItemSchema>
 export type CalibrationNoteItem = z.infer<typeof calibrationNoteItemSchema>
+export type ReadinessAttentionItem = z.infer<typeof readinessAttentionItemSchema>
 export type VaultReviewDashboard = z.infer<typeof vaultReviewDashboardSchema>
 
 export function parseVaultReviewDashboard(payload: unknown): VaultReviewDashboard {

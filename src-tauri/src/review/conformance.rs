@@ -435,7 +435,7 @@ fn both_adapters_reject_oversized_input_before_any_network_request() {
 }
 
 /// Constroi um documento de aprendizado pronto e inscrito para uma nota curta.
-fn ready_document(markdown: &str) -> LearningDocument {
+pub(crate) fn ready_document(markdown: &str) -> LearningDocument {
     let mut value: Value = serde_json::from_str(include_str!(
         "../../../tests/fixtures/review-learning-v1.json"
     ))
@@ -469,7 +469,7 @@ fn ready_document(markdown: &str) -> LearningDocument {
 
 /// Um plano de prova valido e fundamentado na nota, com os dois tipos
 /// (multipla escolha e resposta curta) e citacoes literais do Markdown.
-fn valid_exam_plan() -> Value {
+pub(crate) fn valid_exam_plan() -> Value {
     json!({
         "prompts": [
             {

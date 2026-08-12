@@ -39,6 +39,9 @@
 .review-setup fieldset strong { font-size:13px; }
 .review-setup fieldset span { color:#73736d; font-size:11px; line-height:1.45; }
 .review-start { justify-self:start; }
+.review-setup-plan { display:flex; align-items:center; gap:8px; border:1px dashed #d9d7d0; border-radius:8px; padding:10px 12px; background:color-mix(in srgb,var(--accent) 4%,#fbfaf6); color:#4d4d48 !important; }
+.review-setup-plan svg { flex:none; color:var(--accent); }
+.review-setup-plan.is-error { border-color:color-mix(in srgb,var(--danger) 40%,#d9d7d0); color:var(--danger) !important; }
 .review-consent-warning { border-left:3px solid var(--danger); padding:8px 12px; color:var(--danger) !important; }
 .review-question label { color:#4d4d48; font-size:12px; font-weight:700; }
 .review-options { display:grid; gap:10px; border:0; margin:0; padding:0; }
@@ -136,6 +139,52 @@
 .review-note-markdown mark[data-gap='confused'] { background: #ffe5a5; color: inherit; }
 
 .review-unit-score { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font: 700 11px/1.5 var(--mono); vertical-align: baseline; }
+.review-unit-score[data-unit-id] { cursor: pointer; transition: filter 0.15s ease, transform 0.15s ease; }
+.review-unit-score[data-unit-id]:hover { filter: brightness(0.92); transform: translateY(-1px); }
+
+/* Seletor de classificacao manual de um paragrafo (clique no badge de nota). */
+.review-reclassify-menu {
+  position: fixed;
+  z-index: 60;
+  width: 230px;
+  padding: 10px;
+  border: 1px solid #e3e1da;
+  border-radius: 10px;
+  background: #fbfaf6;
+  box-shadow: 0 10px 28px rgba(30, 30, 26, 0.16);
+}
+.review-reclassify-title { margin: 0 2px 8px; font-size: 12px; font-weight: 600; color: #4f4f49; }
+.review-reclassify-error { margin: 0 2px 8px; font-size: 12px; color: #8f2c1d; }
+.review-reclassify-options { display: grid; gap: 5px; }
+.review-reclassify-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.review-reclassify-option:hover { border-color: #e3e1da; background: #f3f1ea; }
+.review-reclassify-option:disabled { opacity: 0.55; cursor: default; }
+.review-reclassify-range {
+  min-width: 44px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font: 700 11px/1.5 var(--mono);
+  text-align: center;
+}
+.review-reclassify-option.is-forgotten .review-reclassify-range { background: #ffc9c2; color: #8f2c1d; }
+.review-reclassify-option.is-partial .review-reclassify-range { background: #ffe5a5; color: #7a5c10; }
+.review-reclassify-option.is-good .review-reclassify-range { background: #cfe3c4; color: #3f5239; }
+.review-reclassify-option.is-complete .review-reclassify-range { background: #8fc98a; color: #1d4d1d; }
+.review-reclassify-label { font-size: 13px; color: #4f4f49; }
 .review-unit-score.is-forgotten { background: #ffc9c2; color: #8f2c1d; }
 .review-unit-score.is-partial { background: #ffe5a5; color: #7a5c10; }
 .review-unit-score.is-good { background: #cfe3c4; color: #3f5239; }
@@ -149,3 +198,62 @@
 
 .review-coverage-note { margin: 0 0 14px; padding: 10px 12px; border: 1px dashed #d9d7d0; border-radius: 8px; background: #f7f6f1; color: #6b6a63; font-size: 12px; line-height: 1.5; }
 .review-coverage-note strong { color: #4f4f49; font-weight: 700; }
+
+/* Dialogo proprio de abandono de sessao (substitui window.confirm, que nao e
+   automatizavel nos testes E2E e destoa do padrao visual do app). */
+.review-abandon-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(32 30 27 / 48%);
+}
+
+.review-abandon-dialog {
+  width: min(420px, 100%);
+  padding: 20px 22px;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 10px;
+  background: var(--surface, #fffdf8);
+  box-shadow: 0 18px 54px rgb(23 22 20 / 22%);
+}
+
+.review-abandon-dialog .card-kicker { margin: 0; }
+
+.review-abandon-dialog h3 {
+  margin: 4px 0 8px;
+  color: #20201e;
+  font: 600 18px/1.3 var(--sans);
+}
+
+.review-abandon-dialog > p:not(.card-kicker) {
+  margin: 0;
+  color: #686862;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.review-abandon-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.review-abandon-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border: 1px solid #7c3f36;
+  border-radius: 6px;
+  background: #7c3f36;
+  color: #fdfbf5;
+  font: 600 12px var(--sans);
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.review-abandon-confirm:hover { background: #6a352d; border-color: #6a352d; }

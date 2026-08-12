@@ -64,6 +64,17 @@ pub fn build_learning_units_with_limits(
             next_context.as_deref(),
             &mut available,
         );
+        // Migracao de segmentacao por secoes: sem casamento exato, uma secao
+        // que agrupa varias unidades antigas (contidas no seu range) herda a
+        // fusao conservadora delas — a secao e tao fragil quanto seu pior
+        // paragrafo, e o agendamento nunca fica mais distante que o pior
+        // estado contido. Apenas agrupamentos reais (mais de uma unidade)
+        // disparam a fusao: um paragrafo unico inalterado ja casa por hash
+        // normalizado, e conteudo alterado nunca herda memoria.
+        let merged = matched
+            .is_none()
+            .then(|| merge_match(segment, &mut available))
+            .flatten();
         let (id, content_hash, fsrs, latest_evaluation) = match matched {
             Some(previous) => (
                 previous.id.clone(),
@@ -71,17 +82,46 @@ pub fn build_learning_units_with_limits(
                 previous.fsrs.clone(),
                 previous.latest_evaluation.clone(),
             ),
-            None => (
-                fresh_unit_id(&mut used_ids),
-                source_hash(&segment.content),
-                None,
-                None,
-            ),
+            None => match merged {
+                Some(contained) => {
+                    let anchor = contained[0];
+                    let projection = crate::review::contract::conservative_merge(
+                        contained.iter().filter_map(|unit| {
+                            unit.latest_evaluation
+                                .as_ref()
+                                .map(|evaluation| (evaluation, unit.fsrs.as_ref()))
+                        }),
+                    );
+                    let (fsrs, latest_evaluation) = match projection {
+                        Some((evaluation, fsrs)) => (Some(fsrs), Some(evaluation)),
+                        None => (None, None),
+                    };
+                    (
+                        anchor.id.clone(),
+                        source_hash(&segment.content),
+                        fsrs,
+                        latest_evaluation,
+                    )
+                }
+                None => (
+                    fresh_unit_id(&mut used_ids),
+                    source_hash(&segment.content),
+                    None,
+                    None,
+                ),
+            },
+        };
+        // Unidades agrupadas por secao carregam o tipo Section; blocos sem
+        // heading (notas sem estrutura ou preambulo) permanecem Paragraph.
+        let kind = if segment.section_path.is_empty() {
+            LearningUnitKind::Paragraph
+        } else {
+            LearningUnitKind::Section
         };
         units.push(LearningUnit {
             id,
             ordinal: index as u64,
-            kind: LearningUnitKind::Paragraph,
+            kind,
             content_hash,
             section_path: segment.section_path.clone(),
             identity: UnitIdentity {
@@ -104,22 +144,30 @@ struct ContentBlock<'a> {
     start_byte: usize,
     lines: Vec<(usize, &'a str)>,
     section_path: Vec<String>,
+    section_levels: Vec<usize>,
 }
 
-struct SegmentSpec {
-    section_path: Vec<String>,
-    start_utf16: u64,
-    end_utf16: u64,
-    content: String,
-    normalized_hash: String,
+pub(crate) struct SegmentSpec {
+    pub(crate) section_path: Vec<String>,
+    pub(crate) start_utf16: u64,
+    pub(crate) end_utf16: u64,
+    /// Limites em bytes no Markdown original — usados pela auditoria estrutural
+    /// para localizar os paragrafos dentro da secao (os offsets UTF-16 nao
+    /// mapeiam 1:1 para o texto original porque o conteudo e normalizado).
+    pub(crate) start_byte: usize,
+    pub(crate) end_byte: usize,
+    /// Nivel do heading proprio da secao (0 para preambulo sem titulo).
+    pub(crate) heading_level: usize,
+    pub(crate) content: String,
+    pub(crate) normalized_hash: String,
 }
 
-struct SegmentationPlan {
-    whole_note: bool,
-    segments: Vec<SegmentSpec>,
+pub(crate) struct SegmentationPlan {
+    pub(crate) whole_note: bool,
+    pub(crate) segments: Vec<SegmentSpec>,
 }
 
-fn segment_markdown(markdown: &str, max_whole_note_words: usize) -> SegmentationPlan {
+pub(crate) fn segment_markdown(markdown: &str, max_whole_note_words: usize) -> SegmentationPlan {
     let mut lines = Vec::new();
     let mut byte_cursor = 0usize;
     for raw in markdown.split_inclusive('\n') {
@@ -181,22 +229,61 @@ fn segment_markdown(markdown: &str, max_whole_note_words: usize) -> Segmentation
         };
     }
 
-    let segments = blocks
-        .iter()
-        .map(|block| {
-            let content = block_content(&block.lines);
-            SegmentSpec {
-                section_path: block.section_path.clone(),
-                start_utf16: utf16_offset(markdown, block.start_byte),
-                end_utf16: utf16_offset(markdown, block_end_byte(&block.lines)),
-                normalized_hash: source_hash(&normalize(&content)),
-                content,
-            }
-        })
-        .collect();
+    // Segmentacao por secoes: blocos consecutivos sob o mesmo caminho de
+    // heading formam uma unica unidade (cada secao folha vira um segmento).
+    // Blocos sem heading (preambulo antes do primeiro titulo) so agrupam entre
+    // si quando a nota possui alguma secao — o preambulo vira uma unidade de
+    // introducao. Sem nenhum heading nao ha estrutura para agrupar e cada
+    // bloco permanece individual, preservando a granulacao atual.
+    let has_any_heading = blocks.iter().any(|block| !block.section_path.is_empty());
+    let mut segments = Vec::with_capacity(blocks.len());
+    let mut group: Vec<&ContentBlock<'_>> = Vec::new();
+    for block in &blocks {
+        let groupable = !block.section_path.is_empty() || has_any_heading;
+        let same_section = group
+            .last()
+            .is_some_and(|last: &&ContentBlock| last.section_path == block.section_path);
+        if groupable && same_section {
+            group.push(block);
+            continue;
+        }
+        if !group.is_empty() {
+            segments.push(segment_from_group(markdown, &group));
+            group.clear();
+        }
+        group.push(block);
+    }
+    if !group.is_empty() {
+        segments.push(segment_from_group(markdown, &group));
+    }
     SegmentationPlan {
         whole_note: false,
         segments,
+    }
+}
+
+/// Converte um grupo de blocos consecutivos da mesma secao em um segmento: o
+/// conteudo e a concatenacao dos blocos, o range cobre do inicio do primeiro
+/// bloco ao fim do ultimo e o caminho de secao e o do grupo (o mesmo para
+/// todos).
+fn segment_from_group(markdown: &str, group: &[&ContentBlock<'_>]) -> SegmentSpec {
+    let content = group
+        .iter()
+        .map(|block| block_content(&block.lines))
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    SegmentSpec {
+        section_path: group[0].section_path.clone(),
+        start_utf16: utf16_offset(markdown, group[0].start_byte),
+        end_utf16: utf16_offset(
+            markdown,
+            block_end_byte(&group.last().expect("group is never empty").lines),
+        ),
+        start_byte: group[0].start_byte,
+        end_byte: block_end_byte(&group.last().expect("group is never empty").lines),
+        heading_level: group[0].section_levels.last().copied().unwrap_or(0),
+        normalized_hash: source_hash(&normalize(&content)),
+        content,
     }
 }
 
@@ -214,6 +301,7 @@ fn flush_block<'a>(
         start_byte,
         lines,
         section_path: sections.iter().map(|(_, text)| text.clone()).collect(),
+        section_levels: sections.iter().map(|(level, _)| *level).collect(),
     });
 }
 
@@ -231,7 +319,7 @@ fn block_end_byte(lines: &[(usize, &str)]) -> usize {
     byte_start + content.len()
 }
 
-fn heading_text(trimmed: &str) -> Option<(usize, &str)> {
+pub(crate) fn heading_text(trimmed: &str) -> Option<(usize, &str)> {
     let hash_count = trimmed
         .chars()
         .take_while(|character| *character == '#')
@@ -250,7 +338,7 @@ fn heading_text(trimmed: &str) -> Option<(usize, &str)> {
     Some((hash_count, text))
 }
 
-fn is_divider(trimmed: &str) -> bool {
+pub(crate) fn is_divider(trimmed: &str) -> bool {
     if trimmed.len() < 3 {
         return false;
     }
@@ -263,7 +351,14 @@ fn is_divider(trimmed: &str) -> bool {
 
 fn whole_note_unit(markdown: &str, content_hash: &str, previous: &[LearningUnit]) -> LearningUnit {
     let end = u64::try_from(markdown.encode_utf16().count()).unwrap_or(u64::MAX);
-    let normalized_hash = source_hash(&normalize(markdown));
+    // A identidade da unidade de nota inteira e o corpo sem o frontmatter:
+    // tags e aliases sao metadados, nao conteudo avaliado — altera-los nao
+    // deve reiniciar o estado de memoria do paragrafo unico (o mesmo criterio
+    // ja vale para paragrafos segmentados, que ignoram o frontmatter).
+    let body = crate::split_frontmatter_for_tags(markdown)
+        .map(|(_, body)| body)
+        .unwrap_or(markdown);
+    let normalized_hash = source_hash(&normalize(body));
     let matched = previous
         .iter()
         .find(|unit| unit.identity.normalized_content_hash == normalized_hash);
@@ -294,6 +389,31 @@ fn whole_note_unit(markdown: &str, content_hash: &str, previous: &[LearningUnit]
         fsrs,
         latest_evaluation,
     }
+}
+
+/// Unidades antigas totalmente contidas no range do segmento (fusao por
+/// migracao de segmentacao por secoes). Os contidos sao removidos do conjunto
+/// disponivel para nunca serem reaproveitados por outra secao; o primeiro por
+/// ordem de origem e o ancora (mantem o id). Devolve `None` sem alterar
+/// `available` quando nao ha um agrupamento real (zero ou uma unidade).
+fn merge_match<'a>(
+    segment: &SegmentSpec,
+    available: &mut Vec<&'a LearningUnit>,
+) -> Option<Vec<&'a LearningUnit>> {
+    let contained: Vec<&'a LearningUnit> = available
+        .iter()
+        .filter(|unit| {
+            unit.source_start_utf16 >= segment.start_utf16
+                && unit.source_end_utf16 <= segment.end_utf16
+        })
+        .copied()
+        .collect();
+    if contained.len() <= 1 {
+        return None;
+    }
+    let removed: HashSet<&str> = contained.iter().map(|unit| unit.id.as_str()).collect();
+    available.retain(|unit| !removed.contains(unit.id.as_str()));
+    Some(contained)
 }
 
 fn best_match<'a>(
@@ -345,7 +465,7 @@ fn fresh_unit_id(used_ids: &mut HashSet<String>) -> String {
     id
 }
 
-fn utf16_offset(markdown: &str, byte: usize) -> u64 {
+pub(crate) fn utf16_offset(markdown: &str, byte: usize) -> u64 {
     u64::try_from(markdown[..byte].encode_utf16().count()).unwrap_or(u64::MAX)
 }
 
@@ -359,7 +479,7 @@ mod tests {
     use super::{
         build_learning_units, build_learning_units_with_limits, normalize, MAX_WHOLE_NOTE_BLOCKS,
     };
-    use crate::review::contract::{LearningUnitKind, UnitEvaluation};
+    use crate::review::contract::{FsrsState, LearningUnitKind, UnitEvaluation};
     use crate::review::evaluation::source_hash;
 
     fn long_markdown(block_count: usize) -> String {
@@ -383,6 +503,45 @@ mod tests {
         );
         assert!(units[0].identity.previous_context_hash.is_none());
         assert!(units[0].identity.next_context_hash.is_none());
+    }
+
+    #[test]
+    fn whole_note_identity_ignores_frontmatter_changes() {
+        // Tags e aliases no frontmatter sao metadados, nao conteudo avaliado:
+        // altera-los nao deve reiniciar o estado de memoria do paragrafo unico.
+        let markdown = "---\ntags: [revisao/prova]\n---\n# ATP\nATP armazena energia.";
+        let mut units = build_learning_units(markdown, "sha256:one", &[]);
+        assert_eq!(units.len(), 1);
+        units[0].fsrs = Some(FsrsState {
+            difficulty: 5.0,
+            stability_days: 12.0,
+            retrievability: 0.85,
+            last_reviewed_at_unix_ms: 1_730_000_000_000,
+        });
+        units[0].latest_evaluation = Some(UnitEvaluation::Evaluated {
+            evaluated_at_unix_ms: 1_730_000_000_000,
+            score: 90,
+            outcome: crate::review::contract::RecallOutcome::Good,
+            evidence: crate::review::contract::EvidenceStrength::Conversation,
+            gaps: Vec::new(),
+        });
+        let changed_frontmatter =
+            "---\ntags: [revisao/prova, revisao/manter]\n---\n# ATP\nATP armazena energia.";
+        let rebuilt =
+            build_learning_units_with_limits(changed_frontmatter, "sha256:two", &units, 800);
+        assert_eq!(rebuilt.len(), 1);
+        // Mesma identidade e mesmo estado de memoria, apesar do frontmatter
+        // novo e do hash de conteudo novo.
+        assert_eq!(rebuilt[0].id, "unit-1");
+        assert!(rebuilt[0].fsrs.is_some());
+        assert!(matches!(
+            rebuilt[0].latest_evaluation,
+            Some(UnitEvaluation::Evaluated { .. })
+        ));
+        assert_eq!(
+            rebuilt[0].source_end_utf16,
+            changed_frontmatter.encode_utf16().count() as u64
+        );
     }
 
     #[test]
@@ -478,13 +637,98 @@ mod tests {
     fn section_path_tracks_the_heading_stack() {
         let markdown = "# Biologia\n\nParagrafo um.\n\n## Celula\n\nParagrafo dois.\n\n# Quimica\n\nParagrafo tres.\n\nParagrafo quatro.\n\nParagrafo cinco.\n\nParagrafo seis.\n\nParagrafo sete.";
         let units = build_learning_units(&markdown, "sha256:note", &[]);
+        // Uma unidade por secao: Biologia (um paragrafo), Celula (um paragrafo)
+        // e Quimica (cinco paragrafos agrupados).
+        assert_eq!(units.len(), 3);
         assert_eq!(units[0].section_path, vec!["Biologia".to_string()]);
         assert_eq!(
             units[1].section_path,
             vec!["Biologia".to_string(), "Celula".to_string()]
         );
         assert_eq!(units[2].section_path, vec!["Quimica".to_string()]);
-        assert_eq!(units[3].section_path, vec!["Quimica".to_string()]);
+    }
+
+    #[test]
+    fn consecutive_paragraphs_under_a_heading_group_into_one_section_unit() {
+        // 7 blocos (> 6) forcam a segmentacao; os paragrafos da mesma secao
+        // viram uma unidade Section, nao tres unidades Paragraph soltas.
+        let markdown = "# Fundamentos\n\nPrimeiro paragrafo da secao.\n\nSegundo paragrafo da secao.\n\nTerceiro paragrafo da secao.\n\n# Outra\n\nQuarto paragrafo.\n\nQuinto paragrafo.\n\nSexto paragrafo.\n\nSetimo paragrafo.";
+        let units = build_learning_units(&markdown, "sha256:note", &[]);
+        assert_eq!(units.len(), 2);
+        assert_eq!(units[0].kind, LearningUnitKind::Section);
+        assert_eq!(units[0].section_path, vec!["Fundamentos".to_string()]);
+        // O range de cada secao cobre do inicio do primeiro paragrafo ao fim do
+        // ultimo paragrafo dela, sem invadir a secao seguinte.
+        let utf16_len = |text: &str| text.encode_utf16().count() as u64;
+        let first_start = markdown.find("Primeiro paragrafo").expect("first block");
+        let first_end = markdown.find("Terceiro paragrafo").expect("third block")
+            + "Terceiro paragrafo da secao.".len();
+        assert_eq!(
+            units[0].source_start_utf16,
+            utf16_len(&markdown[..first_start])
+        );
+        assert_eq!(units[0].source_end_utf16, utf16_len(&markdown[..first_end]));
+        let second_start = markdown.find("Quarto paragrafo").expect("fourth block");
+        let second_end =
+            markdown.find("Setimo paragrafo").expect("seventh block") + "Setimo paragrafo.".len();
+        assert_eq!(units[1].kind, LearningUnitKind::Section);
+        assert_eq!(units[1].section_path, vec!["Outra".to_string()]);
+        assert_eq!(
+            units[1].source_start_utf16,
+            utf16_len(&markdown[..second_start])
+        );
+        assert_eq!(
+            units[1].source_end_utf16,
+            utf16_len(&markdown[..second_end])
+        );
+        // As secoes nao se sobrepoem e estao ordenadas.
+        assert!(units[0].source_end_utf16 <= units[1].source_start_utf16);
+    }
+
+    #[test]
+    fn paragraphs_before_the_first_heading_form_one_intro_unit() {
+        // 7 blocos forcam a segmentacao; o preambulo sem heading agrupa em uma
+        // unidade de introducao antes das secoes.
+        let markdown = "Introducao um.\n\nIntroducao dois.\n\nIntroducao tres.\n\n# Secao\n\nConteudo um.\n\nConteudo dois.\n\nConteudo tres.\n\nConteudo quatro.";
+        let units = build_learning_units(&markdown, "sha256:note", &[]);
+        assert_eq!(units.len(), 2);
+        assert_eq!(units[0].section_path, Vec::<String>::new());
+        assert_eq!(units[0].kind, LearningUnitKind::Paragraph);
+        assert_eq!(units[1].section_path, vec!["Secao".to_string()]);
+        assert_eq!(units[1].kind, LearningUnitKind::Section);
+    }
+
+    #[test]
+    fn a_note_without_headings_stays_per_paragraph() {
+        // Sem nenhum heading nao ha estrutura de secao: cada bloco permanece
+        // individual, mantendo a granulacao de revisao das notas longas.
+        let markdown = long_markdown(MAX_WHOLE_NOTE_BLOCKS + 1);
+        let units = build_learning_units(&markdown, "sha256:note", &[]);
+        assert_eq!(units.len(), MAX_WHOLE_NOTE_BLOCKS + 1);
+        assert!(units
+            .iter()
+            .all(|unit| unit.kind == LearningUnitKind::Paragraph));
+        assert!(units.iter().all(|unit| unit.section_path.is_empty()));
+    }
+
+    #[test]
+    fn headings_without_content_produce_no_section_unit() {
+        // Um heading que so tem sub-headings (sem conteudo proprio) nao vira
+        // unidade; apenas as secoes folha com conteudo aparecem.
+        let markdown = "# Topico\n\n## Algoritmos\n\nConteudo de algoritmos.\n\n## Complexidade\n\nConteudo de complexidade.\n\n# Outro\n\nParagrafo um.\n\nParagrafo dois.\n\nParagrafo tres.\n\nParagrafo quatro.\n\nParagrafo cinco.";
+        let units = build_learning_units(&markdown, "sha256:note", &[]);
+        // Topico nao vira unidade (sem conteudo proprio); Algoritmos,
+        // Complexidade e Outro aparecem.
+        assert_eq!(units.len(), 3);
+        assert_eq!(
+            units[0].section_path,
+            vec!["Topico".to_string(), "Algoritmos".to_string()]
+        );
+        assert_eq!(
+            units[1].section_path,
+            vec!["Topico".to_string(), "Complexidade".to_string()]
+        );
+        assert_eq!(units[2].section_path, vec!["Outro".to_string()]);
     }
 
     #[test]
@@ -604,6 +848,111 @@ mod tests {
             rebuilt[0].fsrs.is_none(),
             "changed whole note must reset memory"
         );
+    }
+
+    #[test]
+    fn re_segmenting_paragraphs_into_sections_merges_projection_conservatively() {
+        use crate::review::contract::{LearningUnit, RecallOutcome, UnitIdentity};
+        // O mesmo markdown com headings: a nota longa agora segmenta em duas
+        // secoes (A: 3 paragrafos, B: 4) em vez de sete paragrafos.
+        let paragraphs = (1..=7)
+            .map(|index| format!("Paragrafo {index} com conteudo substantivo para revisao."))
+            .collect::<Vec<_>>();
+        let markdown = format!(
+            "# A\n\n{}\n\n{}\n\n{}\n\n# B\n\n{}\n\n{}\n\n{}\n\n{}",
+            paragraphs[0],
+            paragraphs[1],
+            paragraphs[2],
+            paragraphs[3],
+            paragraphs[4],
+            paragraphs[5],
+            paragraphs[6]
+        );
+        let content_hash = source_hash(&markdown);
+        // Projecao: o pior dos tres primeiros e o unit-2 (30).
+        let projection = |score: u8, stability: f64| {
+            let outcome = if score <= 39 {
+                RecallOutcome::Forgotten
+            } else if score <= 69 {
+                RecallOutcome::Partial
+            } else {
+                RecallOutcome::Good
+            };
+            let fsrs = FsrsState {
+                difficulty: 5.0,
+                stability_days: stability,
+                retrievability: 0.7,
+                last_reviewed_at_unix_ms: 1_720_000_000_000,
+            };
+            let evaluation = UnitEvaluation::Evaluated {
+                score,
+                outcome,
+                evidence: crate::review::contract::EvidenceStrength::FreeRecall,
+                evaluated_at_unix_ms: 1_720_000_000_000,
+                gaps: Vec::new(),
+            };
+            (fsrs, evaluation)
+        };
+        let (fsrs_80, eval_80) = projection(80, 8.0);
+        let (fsrs_30, eval_30) = projection(30, 2.0);
+        let (fsrs_60, eval_60) = projection(60, 5.0);
+        // Unidades antigas do regime por paragrafo, com offsets no mesmo
+        // markdown (a migracao re-segmenta conteudo inalterado).
+        let mut old_units = Vec::new();
+        for (index, paragraph) in paragraphs.iter().enumerate() {
+            let start = u64::try_from(markdown.find(paragraph).expect("paragraph"))
+                .expect("offset")
+                .try_into()
+                .expect("u64");
+            let end = start + u64::try_from(paragraph.len()).expect("len");
+            let (fsrs, latest_evaluation) = match index {
+                0 => (Some(fsrs_80.clone()), Some(eval_80.clone())),
+                1 => (Some(fsrs_30.clone()), Some(eval_30.clone())),
+                2 => (Some(fsrs_60.clone()), Some(eval_60.clone())),
+                _ => (None, None),
+            };
+            old_units.push(LearningUnit {
+                id: format!("unit-{}", index + 1),
+                ordinal: index as u64,
+                kind: LearningUnitKind::Paragraph,
+                content_hash: source_hash(paragraph),
+                section_path: Vec::new(),
+                identity: UnitIdentity {
+                    signature_version: 1,
+                    normalized_content_hash: source_hash(&normalize(paragraph)),
+                    previous_context_hash: None,
+                    next_context_hash: None,
+                    approximate_start_utf16: start,
+                },
+                source_start_utf16: start,
+                source_end_utf16: end,
+                fsrs,
+                latest_evaluation,
+            });
+        }
+
+        let rebuilt = build_learning_units(&markdown, &content_hash, &old_units);
+        assert_eq!(rebuilt.len(), 2);
+
+        // A secao A herdou a identidade do primeiro contido e a projecao
+        // conservadora (pior nota e menor estabilidade: unit-2).
+        assert_eq!(rebuilt[0].id, "unit-1");
+        assert_eq!(rebuilt[0].kind, LearningUnitKind::Section);
+        assert_eq!(rebuilt[0].fsrs.as_ref(), Some(&fsrs_30));
+        assert_eq!(
+            serde_json::to_value(&rebuilt[0].latest_evaluation).expect("evaluation value"),
+            serde_json::to_value(Some(eval_30.clone())).expect("evaluation value")
+        );
+        let section_a_content = format!(
+            "{}\n\n{}\n\n{}",
+            paragraphs[0], paragraphs[1], paragraphs[2]
+        );
+        assert_eq!(rebuilt[0].content_hash, source_hash(&section_a_content));
+
+        // A secao B nao tinha projecao nos contidos: comeca sem memoria.
+        assert_eq!(rebuilt[1].id, "unit-4");
+        assert!(rebuilt[1].fsrs.is_none());
+        assert!(rebuilt[1].latest_evaluation.is_none());
     }
 
     #[test]

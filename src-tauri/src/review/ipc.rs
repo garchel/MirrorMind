@@ -1,10 +1,14 @@
 use super::contract::{ReviewMode, UnitEvaluation};
+use super::coverage::{select_session_units, SessionPlan};
 use super::credentials::{
     credential_status, delete_gemini_api_key, has_gemini_consent, save_gemini_api_key,
     set_gemini_consent, NativeCredentialStore,
 };
 use super::dashboard::{build_vault_review_dashboard, VaultReviewDashboard};
-use super::evaluation::{evaluate_readiness, source_hash, ReadinessAttempt};
+use super::evaluation::{
+    evaluate_readiness, source_hash, GroundedReadinessSource, ReadinessAttempt, ReadinessReport,
+    ReadinessStatus,
+};
 use super::gaps::{latest_review_gaps, latest_review_units, NoteReviewGapView, NoteReviewUnitView};
 use super::gemini::{GeminiProvider, GEMINI_MODEL};
 use super::notifications::{
@@ -18,11 +22,11 @@ use super::policy::{
     NoteReviewPolicyView,
 };
 use super::policy_config::{
-    apply_deadline_change as apply_deadline_change_in_root, load_vault_review_policy_config,
-    preview_deadline_change as preview_deadline_change_in_root, preview_vault_review_defaults,
-    preview_vault_review_tag_rules, set_vault_review_defaults, set_vault_review_tag_rules,
-    set_vault_segmentation, SegmentationLimits, VaultReviewDefaultsInput,
-    VaultReviewDefaultsPreview, VaultReviewPolicyConfigView,
+    apply_deadline_change as apply_deadline_change_in_root, load_segmentation_limits,
+    load_vault_review_policy_config, preview_deadline_change as preview_deadline_change_in_root,
+    preview_vault_review_defaults, preview_vault_review_tag_rules, set_vault_review_defaults,
+    set_vault_review_tag_rules, set_vault_segmentation, SegmentationLimits,
+    VaultReviewDefaultsInput, VaultReviewDefaultsPreview, VaultReviewPolicyConfigView,
 };
 use super::provider::{OllamaProvider, StructuredAiProvider, OLLAMA_ENDPOINT, OLLAMA_MODEL};
 use super::queue::{list_due_reviews, DueReviewItem};
@@ -36,14 +40,20 @@ use super::session::{
     ReviewGenerationAttempt, ReviewPrompt,
 };
 use super::state::{
-    load_note_review_state, persist_readiness_attempt,
+    load_note_review_state, persist_readiness_assessment, persist_readiness_attempt,
     reset_note_learning as reset_note_learning_state, set_manual_enrollment, NoteReadinessStatus,
     NoteReviewState, NoteSchedulingStatus,
 };
 use super::storage::{
-    load_learning_document, reconcile_external_learning_paths as reconcile_learning_paths,
+    discard_unrecoverable_learning_document as discard_unrecoverable_learning_in_root,
+    export_unrecoverable_learning_document as export_unrecoverable_learning_in_root,
+    list_unrecoverable_learning_documents, load_learning_document, load_learning_document_for_path,
+    reconcile_external_learning_paths as reconcile_learning_paths, write_learning_document,
+    UnrecoverableLearningDocument,
 };
+use super::structural_audit::{audit_note_structure as run_structural_audit, StructuralAudit};
 use super::tag_policy::TagReviewPolicyRule;
+use super::workload::{estimate_policy_workload, WorkloadEstimate};
 use anyhow::{bail, Context, Result as AnyResult};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -177,6 +187,10 @@ fn load_bound_session(
         if exchange.prompt_id != prompt.id
             || exchange.prompt != prompt.text
             || exchange.prompt_id.len() > 256
+            // O flag de esclarecimento vem do prompt emitido pelo backend e
+            // nao pode ser alterado pelo cliente: a contagem deterministica
+            // de esclarecimentos depende disso.
+            || exchange.is_clarification != prompt.is_clarification
         {
             return Err(
                 "As respostas nao correspondem as perguntas emitidas para esta sessao.".to_string(),
@@ -196,6 +210,11 @@ pub enum AiProviderSelection {
 fn provider_for_selection(
     selection: AiProviderSelection,
 ) -> Result<Box<dyn StructuredAiProvider>, String> {
+    // Builds E2E: provedor deterministico sem rede, ativado por ambiente.
+    #[cfg(feature = "e2e")]
+    if std::env::var_os("MIRRORMIND_E2E_MOCK_AI").is_some() {
+        return Ok(Box::new(crate::review::e2e_mock::MockE2eProvider));
+    }
     match selection {
         AiProviderSelection::Gemini => {
             let store = NativeCredentialStore::new();
@@ -302,10 +321,18 @@ pub(crate) async fn assess_note_readiness(
         let markdown =
             read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
         let provider = provider_for_selection(provider)?;
+        // A prontidao section-aware usa a mesma regra de segmentacao das
+        // sessoes, com o limite de palavras configurado no Vault: o plano de
+        // unidades (ranges + caminho de secao) vai no prompt para a IA
+        // avaliar a coerencia por secao.
+        let limits = load_segmentation_limits(&root).map_err(|error| error.to_string())?;
+        let max_whole_note_words =
+            usize::try_from(limits.max_whole_note_words).unwrap_or(usize::MAX);
 
         let attempt = evaluate_readiness(
             provider.as_ref(),
             &markdown,
+            max_whole_note_words,
             expected_source_hash.as_deref(),
         )
         .map_err(|error| error.to_string())?;
@@ -323,6 +350,34 @@ pub(crate) async fn assess_note_readiness(
     })
     .await
     .map_err(|_| "Nao foi possivel concluir a avaliacao da nota.".to_string())?
+}
+
+/// Auditoria estrutural deterministica da nota (sem IA): usa a regra de
+/// segmentacao por secoes para propor melhorias de estrutura que encaixem a
+/// nota na categorizacao de revisao. Leitura pura — nao altera nada.
+#[tauri::command]
+pub(crate) async fn audit_note_structure(
+    path: String,
+    relative_path: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<StructuralAudit, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let note_path =
+            crate::resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+        let markdown =
+            read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
+        let limits = load_segmentation_limits(&root).map_err(|error| error.to_string())?;
+        let max_whole_note_words =
+            usize::try_from(limits.max_whole_note_words).unwrap_or(usize::MAX);
+        Ok(run_structural_audit(&markdown, max_whole_note_words))
+    })
+    .await
+    .map_err(|_| "Nao foi possivel auditar a estrutura da nota.".to_string())?
 }
 
 #[tauri::command]
@@ -400,6 +455,42 @@ pub(crate) async fn start_note_review_session(
     })
     .await
     .map_err(|_| "Nao foi possivel iniciar a sessao de revisao.".to_string())?
+}
+
+/// Plano estimado de uma sessao antes de iniciar: quantas unidades serao
+/// cobertas, a fracao da nota, a duracao estimada e quantas sessoes seriam
+/// necessarias para cobrir tudo com o orcamento atual. Deterministico e sem
+/// IA — usa exatamente a mesma selecao de cobertura da sessao real, entao o
+/// que o usuario ve na preparacao e o que a sessao executara.
+#[tauri::command]
+pub(crate) async fn preview_review_session_plan(
+    path: String,
+    relative_path: String,
+    mode: ReviewMode,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<SessionPlan, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let note_path =
+            crate::resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+        let markdown =
+            read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
+        let now = current_unix_ms().map_err(|error| error.to_string())?;
+        let state = load_note_review_state(&root, &relative_path, &markdown, now)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "A nota ainda nao possui estado de aprendizado.".to_string())?;
+        let document = load_learning_document(&root, &state.note_id)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "O estado de aprendizado da nota nao existe.".to_string())?
+            .document;
+        Ok(select_session_units(&document, &markdown, mode).plan)
+    })
+    .await
+    .map_err(|_| "Nao foi possivel estimar a sessao de revisao.".to_string())?
 }
 
 #[tauri::command]
@@ -648,6 +739,76 @@ pub(crate) async fn set_note_review_enrollment(
     .map_err(|_| "Nao foi possivel alterar a participacao da nota nas revisoes.".to_string())?
 }
 
+/// Semeadura exclusiva de testes E2E: cria (ou atualiza) o estado de
+/// aprendizado de uma nota existente como `pronta + inscrita + vencida`
+/// usando somente codigo de dominio. Em builds sem a feature `e2e` o comando
+/// recusa; com a feature, qualquer invocacao vinda do app compilado para os
+/// testes funciona de forma deterministica (o hash real da nota e usado).
+#[tauri::command]
+pub(crate) async fn seed_e2e_review_state(
+    path: String,
+    relative_path: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<(), String> {
+    if !cfg!(feature = "e2e") {
+        return Err("O comando de semeadura E2E so existe em builds de teste.".to_string());
+    }
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let note_path =
+            crate::resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+        let markdown =
+            read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
+        let now = current_unix_ms().map_err(|error| error.to_string())?;
+        let quotes: Vec<String> = markdown
+            .split('\n')
+            .map(|line| line.trim().to_string())
+            .filter(|line| !line.is_empty())
+            .collect();
+        let grounded = |quote: String| {
+            let source_quote = quote.chars().take(320).collect::<String>();
+            let start_bytes = markdown.find(&source_quote).unwrap_or(0);
+            let start_utf16 = markdown[..start_bytes].encode_utf16().count() as u32;
+            let end_utf16 = start_utf16
+                + u32::try_from(source_quote.encode_utf16().count()).unwrap_or(u32::MAX);
+            GroundedReadinessSource {
+                source_quote,
+                source_start_utf16: start_utf16,
+                source_end_utf16: end_utf16,
+            }
+        };
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Semeadura E2E: nota pronta para revisao.".to_string(),
+            central_idea: quotes.first().cloned().map(grounded),
+            evaluable_points: quotes.iter().take(3).cloned().map(grounded).collect(),
+            issues: Vec::new(),
+        };
+        persist_readiness_assessment(&root, &relative_path, &markdown, &report, now)
+            .map_err(|error| error.to_string())?;
+        set_manual_enrollment(&root, &relative_path, &markdown, true, now)
+            .map_err(|error| error.to_string())?;
+        // Forca o vencimento imediato (a fila exige next_review <= now).
+        let loaded = load_learning_document_for_path(&root, &relative_path)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "O estado semeado nao foi criado.".to_string())?;
+        let note_id = loaded.document.note.id.clone();
+        let expected_revision = loaded.document.revision;
+        let mut document = loaded.document;
+        document.scheduling.next_review_at_unix_ms = Some(now.saturating_sub(1));
+        document.scheduling.status = crate::review::contract::SchedulingStatus::Due;
+        document.revision = document.revision.saturating_add(1);
+        write_learning_document(&root, &note_id, Some(expected_revision), &document)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel semear o estado E2E.".to_string())?
+}
+
 #[tauri::command]
 pub(crate) async fn reset_note_learning(
     path: String,
@@ -672,6 +833,102 @@ pub(crate) async fn reset_note_learning(
     })
     .await
     .map_err(|_| "Nao foi possivel reiniciar o aprendizado da nota.".to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn set_note_unit_classification(
+    path: String,
+    relative_path: String,
+    unit_id: String,
+    score: u8,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<NoteReviewState, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::review::state::set_unit_classification(
+            &root,
+            &relative_path,
+            &unit_id,
+            score,
+            current_unix_ms().map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel corrigir a classificacao da unidade.".to_string())?
+}
+
+/// Lista os documentos de aprendizado que nao podem ser carregados (principal
+/// corrompido ou ausente e nenhum backup valido), com o caminho relativo da
+/// nota quando ele ainda pode ser extraido do conteudo bruto. A interface usa
+/// essa lista para oferecer a exportacao do arquivo antes de descartar o
+/// aprendizado e recomecar.
+#[tauri::command]
+pub(crate) async fn get_unrecoverable_learning_documents(
+    path: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<Vec<UnrecoverableLearningDocument>, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        list_unrecoverable_learning_documents(&root).map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel listar os documentos irrecuperaveis.".to_string())?
+}
+
+/// Exporta o arquivo principal e os backups de um documento irrecuperavel para
+/// o destino escolhido pelo usuario (dialog de salvamento), preservando a
+/// evidencia antes de descartar o aprendizado. Devolve a quantidade de arquivos
+/// copiados.
+#[tauri::command]
+pub(crate) async fn export_unrecoverable_learning_document(
+    path: String,
+    storage_key: String,
+    destination_path: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<usize, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let destination = PathBuf::from(&destination_path);
+        export_unrecoverable_learning_in_root(&root, &storage_key, &destination)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel exportar o arquivo irrecuperavel.".to_string())?
+}
+
+/// Isola (quarentena) o documento irrecuperavel — principal e backups — para
+/// que a nota possa ser reavaliada e o aprendizado recomecar do zero. Deve ser
+/// usado somente depois que o usuario exportou o arquivo.
+#[tauri::command]
+pub(crate) async fn discard_unrecoverable_learning_document(
+    path: String,
+    storage_key: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<usize, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        discard_unrecoverable_learning_in_root(&root, &storage_key)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel descartar o arquivo irrecuperavel.".to_string())?
 }
 
 #[tauri::command]
@@ -707,6 +964,39 @@ pub(crate) async fn preview_vault_review_policy_defaults(
     })
     .await
     .map_err(|_| "Nao foi possivel calcular o impacto da politica do Vault.".to_string())?
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkloadEstimateInput {
+    first_review_interval_days: u64,
+    target_retention: f64,
+    min_interval_days: u64,
+    max_interval_days: u64,
+}
+
+/// Estimativa de carga de uma politica de revisao (simulacao deterministica de
+/// uma nota tipica com acertos consistentes), usada para calibrar os valores
+/// sem depender das notas reais do vault. Nao toca o vault: e um calculo puro.
+#[tauri::command]
+pub(crate) fn estimate_review_workload(
+    input: WorkloadEstimateInput,
+) -> Result<WorkloadEstimate, String> {
+    if input.first_review_interval_days == 0
+        || input.min_interval_days == 0
+        || input.max_interval_days < input.min_interval_days
+    {
+        return Err("Os intervalos da politica sao invalidos.".to_string());
+    }
+    if !(0.5..=0.99).contains(&input.target_retention) {
+        return Err("A retencao desejada deve ficar entre 50% e 99%.".to_string());
+    }
+    Ok(estimate_policy_workload(
+        input.first_review_interval_days,
+        input.target_retention,
+        input.min_interval_days,
+        input.max_interval_days,
+    ))
 }
 
 #[tauri::command]
@@ -1340,6 +1630,7 @@ mod tests {
             prompt: prompt.text,
             answer: "Minha resposta.".to_string(),
             assistance_used: false,
+            is_clarification: false,
         }];
         assert!(load_bound_session(
             &session_id,
@@ -1352,7 +1643,7 @@ mod tests {
             &valid
         )
         .is_ok());
-        let mut tampered = valid;
+        let mut tampered = valid.clone();
         tampered[0].prompt = "Pergunta fabricada.".to_string();
         assert!(load_bound_session(
             &session_id,
@@ -1363,6 +1654,21 @@ mod tests {
             "sha256:content",
             &ReviewMode::Exam,
             &tampered
+        )
+        .is_err());
+        // O flag de esclarecimento nao pode ser forjado pelo cliente: a
+        // contagem deterministica depende de vir do prompt emitido.
+        let mut forged_clarification = valid;
+        forged_clarification[0].is_clarification = true;
+        assert!(load_bound_session(
+            &session_id,
+            &root,
+            "Nota.md",
+            AiProviderSelection::Ollama,
+            "note-1",
+            "sha256:content",
+            &ReviewMode::Exam,
+            &forged_clarification
         )
         .is_err());
     }

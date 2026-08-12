@@ -786,6 +786,8 @@ fn get_tag_index(
     authorized_paths
         .ensure_authorized_vault_root(&root)
         .map_err(|error| error.to_string())?;
+    crate::tag_management::recover_pending_tag_operations(&root)
+        .map_err(|error| error.to_string())?;
     get_tag_index_in_root(&root).map_err(|error| error.to_string())
 }
 
@@ -972,7 +974,7 @@ fn collect_tags_in_markdown_line(
     }
 }
 
-fn split_frontmatter_for_tags(content: &str) -> Option<(&str, &str)> {
+pub(crate) fn split_frontmatter_for_tags(content: &str) -> Option<(&str, &str)> {
     let content = content.strip_prefix('\u{feff}').unwrap_or(content);
     let (remaining, delimiter) = content
         .strip_prefix("---\r\n")
@@ -5061,13 +5063,16 @@ pub fn run() {
             review::ipc::remove_gemini_api_key,
             review::ipc::check_ollama_review_status,
             review::ipc::assess_note_readiness,
+            review::ipc::audit_note_structure,
             review::ipc::get_note_review_state,
             review::ipc::list_due_review_queue,
             review::ipc::list_review_reports,
             review::ipc::get_retention_report,
             review::ipc::reset_note_learning,
+            review::ipc::set_note_unit_classification,
             review::ipc::set_note_review_enrollment,
             review::ipc::get_vault_review_policy_config,
+            review::ipc::estimate_review_workload,
             review::ipc::preview_vault_review_policy_defaults,
             review::ipc::preview_vault_review_policy_tag_rules,
             review::ipc::preview_vault_deadline_change,
@@ -5081,14 +5086,19 @@ pub fn run() {
             review::ipc::get_vault_review_dashboard,
             review::ipc::get_note_review_gaps,
             review::ipc::get_note_review_units,
+            review::ipc::get_unrecoverable_learning_documents,
+            review::ipc::export_unrecoverable_learning_document,
+            review::ipc::discard_unrecoverable_learning_document,
             review::ipc::get_review_notification_settings,
             review::ipc::set_review_notification_settings,
             review::ipc::check_review_notifications,
             review::ipc::send_review_test_notification,
             review::ipc::reconcile_external_learning_paths,
+            review::ipc::preview_review_session_plan,
             review::ipc::start_note_review_session,
             review::ipc::continue_note_review_conversation,
-            review::ipc::complete_note_review_session
+            review::ipc::complete_note_review_session,
+            review::ipc::seed_e2e_review_state
         ])
         .setup(|_app| {
             #[cfg(all(debug_assertions, not(feature = "e2e")))]

@@ -73,6 +73,30 @@ const dashboard = {
     title: 'Longa',
     observedUnitCount: 3,
     totalUnitCount: 8,
+    unitKind: 'paragraph',
+  }],
+  readinessUnassessedNoteCount: 2,
+  readinessReadyNoteCount: 8,
+  readinessAmbiguousNoteCount: 1,
+  readinessInsufficientNoteCount: 1,
+  readinessModifiedNoteCount: 1,
+  readinessAttentionNoteCount: 2,
+  readinessAttentionNotes: [{
+    noteId: 'note-3',
+    relativePath: 'Esboco.md',
+    title: 'Esboco',
+    status: 'insufficient',
+    assessedAtUnixMs: 1_730_000_000_000,
+    explanation: 'Apenas titulo e esboco.',
+    issueCount: 1,
+  }, {
+    noteId: 'note-4',
+    relativePath: 'Editada.md',
+    title: 'Editada',
+    status: 'modified',
+    assessedAtUnixMs: 1_720_000_000_000,
+    explanation: '',
+    issueCount: 0,
   }],
 }
 
@@ -107,13 +131,56 @@ describe('ReviewDashboardPage', () => {
     expect(screen.getByText('12')).toBeInTheDocument()
     expect(screen.getAllByText('3').length).toBeGreaterThan(0)
     expect(screen.getByText(/72%/)).toBeInTheDocument()
-    expect(screen.getByText(/2 parágrafos frágeis/)).toBeInTheDocument()
+    expect(screen.getByText(/2 unidades frágeis/)).toBeInTheDocument()
   })
 
   it('shows the awaiting-first-review card', async () => {
     renderPage()
     expect(await screen.findByText('Aguardando 1ª revisão')).toBeInTheDocument()
     expect(screen.getByText('4')).toBeInTheDocument()
+  })
+
+  it('renders the readiness quality section with counts and attention notes', async () => {
+    const onOpenNote = vi.fn()
+    renderPage(onOpenNote)
+
+    expect(await screen.findByRole('heading', { name: 'Qualidade das notas' })).toBeInTheDocument()
+    expect(screen.getByText('Prontas')).toBeInTheDocument()
+    expect(screen.getByText('Ambíguas')).toBeInTheDocument()
+    expect(screen.getByText('Insuficientes')).toBeInTheDocument()
+    expect(screen.getByText('Modificadas')).toBeInTheDocument()
+    expect(screen.getByText('Não avaliadas')).toBeInTheDocument()
+    expect(screen.getByText('Esboco')).toBeInTheDocument()
+    expect(screen.getByText('Editada')).toBeInTheDocument()
+    expect(screen.getByText('Apenas titulo e esboco.')).toBeInTheDocument()
+    expect(screen.getByText(/1 problema apontado/)).toBeInTheDocument()
+    expect(screen.getByText(/2 notas precisam de atenção/)).toBeInTheDocument()
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Abrir nota Esboco' }))
+    expect(onOpenNote).toHaveBeenCalledWith('Esboco.md')
+  })
+
+  it('shows an empty readiness state when no note needs attention', async () => {
+    getDashboardMock.mockResolvedValue({
+      ...dashboard,
+      readinessAttentionNoteCount: 0,
+      readinessAttentionNotes: [],
+    })
+    renderPage()
+    expect(await screen.findByText('Qualidade das notas')).toBeInTheDocument()
+    expect(screen.getByText(/Nenhuma nota precisa de atenção/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Abrir nota Esboco' })).not.toBeInTheDocument()
+  })
+
+  it('warns when the readiness attention list is truncated', async () => {
+    getDashboardMock.mockResolvedValue({
+      ...dashboard,
+      readinessAttentionNoteCount: 25,
+      readinessAttentionNotes: dashboard.readinessAttentionNotes,
+    })
+    renderPage()
+    expect(await screen.findByText(/25 notas precisam de atenção/)).toBeInTheDocument()
+    expect(screen.getByText(/lista está limitada aos primeiros itens/)).toBeInTheDocument()
   })
 
   it('renders the calibration section with partial retention progress and an open action', async () => {
@@ -127,6 +194,19 @@ describe('ReviewDashboardPage', () => {
     expect(screen.getByText('3 de 8 parágrafos · 5 restantes')).toBeInTheDocument()
     await userEvent.setup().click(screen.getByRole('button', { name: 'Abrir nota Longa' }))
     expect(onOpenNote).toHaveBeenCalledWith('Longa.md')
+  })
+
+  it('labels the calibration progress with seções when the note is segmented into sections', async () => {
+    getDashboardMock.mockResolvedValue({
+      ...dashboard,
+      calibrationNotes: [{
+        ...dashboard.calibrationNotes[0],
+        unitKind: 'section',
+      }],
+    })
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Em calibração' })).toBeInTheDocument()
+    expect(screen.getByText('3 de 8 seções · 5 restantes')).toBeInTheDocument()
   })
 
   it('warns when the calibration list is truncated beyond the first items', async () => {

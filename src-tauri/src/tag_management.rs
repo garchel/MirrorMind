@@ -1,8 +1,12 @@
-use crate::review::policy_config::{set_vault_review_tag_rules, VaultReviewPolicyConfigView};
+use crate::review::policy_config::{
+    load_vault_review_policy_config, set_vault_review_tag_rules, validate_tag_rules,
+    VaultReviewPolicyConfigView,
+};
 use crate::review::tag_policy::TagReviewPolicyRule;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use sha2::{Digest, Sha256};
+use std::collections::{BTreeSet, HashSet};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -14,6 +18,10 @@ use unicode_normalization::char::is_combining_mark;
 
 const MAX_TAG_MUTATION_NOTES: usize = 2_000;
 const MAX_TAG_MUTATION_BYTES: u64 = 64 * 1024 * 1024;
+const TAG_TRANSACTION_SCHEMA_VERSION: u32 = 1;
+const TAG_TRANSACTION_FILE: &str = ".tag-transaction.json";
+const TAG_TRANSACTION_DIRECTORY_PREFIX: &str = "tag-transaction";
+const MAX_TAG_TRANSACTION_BYTES: usize = 2 * 1024 * 1024;
 static NEXT_TAG_TRANSACTION_ID: AtomicU64 = AtomicU64::new(1);
 static TAG_MUTATION_ACCESS: Mutex<()> = Mutex::new(());
 
@@ -56,6 +64,35 @@ struct StagedTagUpdate {
     updated_content: Vec<u8>,
 }
 
+/// Diario duravel gravado antes do primeiro commit da transacao de tags.
+/// Registra os hashes dos originais e a configuracao-alvo para concluir ou
+/// reverter a operacao na proxima abertura do Vault apos uma interrupcao
+/// abrupta, seguindo o padrao da persistencia de aprendizado.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TagTransactionJournal {
+    schema_version: u32,
+    transaction_id: String,
+    expected_config_revision: u64,
+    tag_rules: Vec<TagReviewPolicyRule>,
+    notes: Vec<TagTransactionNote>,
+    created_at_unix_ms: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TagTransactionNote {
+    relative_path: String,
+    original_hash: String,
+    updated_hash: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TagNoteRecoveryState {
+    Original,
+    Updated,
+}
+
 #[tauri::command]
 pub(crate) async fn preview_tag_management_change(
     path: String,
@@ -67,10 +104,13 @@ pub(crate) async fn preview_tag_management_change(
     authorized_paths
         .ensure_authorized_vault_root(&root)
         .map_err(|error| error.to_string())?;
-    tauri::async_runtime::spawn_blocking(move || preview_change_in_root(&root, &change))
-        .await
-        .map_err(|_| "Nao foi possivel calcular o impacto da alteracao da tag.".to_string())?
-        .map_err(|error| error.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        recover_pending_tag_operations(&root)?;
+        preview_change_in_root(&root, &change)
+    })
+    .await
+    .map_err(|_| "Nao foi possivel calcular o impacto da alteracao da tag.".to_string())?
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -182,8 +222,11 @@ fn apply_change_in_root(
     let _guard = TAG_MUTATION_ACCESS
         .lock()
         .map_err(|_| anyhow::anyhow!("As tags estao temporariamente indisponiveis."))?;
+    recover_pending_tag_operations_unlocked(root)?;
     let (current, next) = normalize_change(change)?;
     validate_rule_transition(&tag_rules, current.as_deref(), next.as_deref())?;
+    let mut rules = tag_rules;
+    validate_tag_rules(&mut rules)?;
     let preview = preview_change_in_root(root, change)?;
     let mut expected = expected_affected_note_paths.to_vec();
     expected.sort();
@@ -208,8 +251,8 @@ fn apply_change_in_root(
         .as_millis()
         .try_into()
         .map_err(|_| anyhow::anyhow!("O relogio do sistema excedeu o limite suportado."))?;
-    let config = commit_tag_updates(root, updates, || {
-        set_vault_review_tag_rules(root, expected_revision, tag_rules, now)
+    let config = commit_tag_updates(root, updates, expected_revision, &rules, now, || {
+        set_vault_review_tag_rules(root, expected_revision, rules.clone(), now)
     })?;
     Ok(TagManagementResult {
         config,
@@ -313,42 +356,313 @@ fn rewrite_frontmatter_tags(
     if !tags.iter().any(|tag| tag == current) {
         return Ok(frontmatter.to_string());
     }
-    let mut next_tags = tags
-        .into_iter()
-        .filter(|tag| tag != current)
-        .collect::<BTreeSet<_>>();
-    if let Some(next) = next {
-        next_tags.insert(next.to_string());
-    }
-    let newline = if frontmatter.contains("\r\n") {
+    let Some((start, end)) = frontmatter_tags_property_range(frontmatter) else {
+        bail!("A propriedade tags do frontmatter nao pode ser alterada com seguranca.");
+    };
+    let rewritten = rewrite_tags_property(&frontmatter[start..end], current, next)
+        .context("A propriedade tags do frontmatter nao pode ser reescrita sem perda.")?;
+    Ok(format!(
+        "{}{}{}",
+        &frontmatter[..start],
+        rewritten,
+        &frontmatter[end..]
+    ))
+}
+
+fn line_without_ending(line: &str) -> &str {
+    line.strip_suffix('\n')
+        .unwrap_or(line)
+        .strip_suffix('\r')
+        .unwrap_or_else(|| line.strip_suffix('\n').unwrap_or(line))
+}
+
+/// Reescreve a propriedade `tags` do frontmatter por intervalos: renomeia ou
+/// remove somente os escalares iguais a `current`, preservando comentarios,
+/// aspas, recuo, ordem e as demais entradas. Estruturas que nao possam ser
+/// reescritas sem perda (anchors, sequencias aninhadas, scalares literal ou
+/// folded, flow multilinha) fazem a operacao ser rejeitada explicitamente.
+fn rewrite_tags_property(property: &str, current: &str, next: Option<&str>) -> Result<String> {
+    let newline = if property.contains("\r\n") {
         "\r\n"
     } else {
         "\n"
     };
-    let Some((start, end)) = frontmatter_tags_property_range(frontmatter) else {
-        bail!("A propriedade tags do frontmatter nao pode ser alterada com seguranca.");
-    };
-    let mut replacement = if next_tags.is_empty() {
-        "tags: []".to_string()
-    } else {
-        format!(
-            "tags:{newline}{}",
-            next_tags
-                .into_iter()
-                .map(|tag| format!("  - {tag}"))
-                .collect::<Vec<_>>()
-                .join(newline)
-        )
-    };
-    if end < frontmatter.len() {
-        replacement.push_str(newline);
+    let lines = property.split_inclusive('\n').collect::<Vec<_>>();
+    let first = lines.first().copied().unwrap_or(property);
+    let first_text = line_without_ending(first);
+    let after_key = first_text
+        .strip_prefix("tags:")
+        .context("A propriedade tags do frontmatter nao comeca com 'tags:'.")?;
+
+    let mut found = 0;
+    let mut unsupported = false;
+
+    let inline = after_key.trim_start();
+    if !inline.is_empty() && !inline.starts_with('#') {
+        let rewritten_after_key =
+            rewrite_inline_tags(after_key, current, next, &mut found, &mut unsupported)?;
+        if unsupported || found == 0 {
+            bail!("A propriedade tags do frontmatter nao pode ser reescrita sem perda.");
+        }
+        let mut result = match rewritten_after_key {
+            Some(rewritten) => format!("tags:{rewritten}{}", ending_of(first, newline)),
+            None => format!("tags: []{}", ending_of(first, newline)),
+        };
+        for line in &lines[1..] {
+            result.push_str(line);
+        }
+        return Ok(result);
     }
-    Ok(format!(
+
+    // Lista em bloco: a chave fica intacta e cada item e reescrito em seu
+    // proprio intervalo.
+    let mut result = String::new();
+    result.push_str(first);
+    let mut kept_items = 0;
+    for line in &lines[1..] {
+        let text = line_without_ending(line);
+        let trimmed = text.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            result.push_str(line);
+            continue;
+        }
+        let leading = text.len() - text.trim_start().len();
+        let after_dash = &text[leading..];
+        let Some(rest) = after_dash.strip_prefix('-') else {
+            // Linha de continuacao de um escalar multilinha: preservada.
+            result.push_str(line);
+            continue;
+        };
+        let item_offset = rest.len() - rest.trim_start().len();
+        if item_offset == 0 {
+            // `-texto` sem espaco nao e um item de lista YAML: preservado.
+            result.push_str(line);
+            continue;
+        }
+        let item_text = &rest[item_offset..];
+        if item_text.trim_start().starts_with('-') {
+            // Sequencia aninhada nao pode ser reescrita sem perda.
+            unsupported = true;
+            result.push_str(line);
+            continue;
+        }
+        match simple_scalar_value_range(item_text) {
+            Some((value_start, value_end)) => {
+                let value = &item_text[value_start..value_end];
+                if crate::normalize_tag(value).as_deref() == Some(current) {
+                    found += 1;
+                    if let Some(next) = next {
+                        kept_items += 1;
+                        result.push_str(&text[..leading]);
+                        result.push('-');
+                        result.push_str(&rest[..item_offset]);
+                        result.push_str(&item_text[..value_start]);
+                        result.push_str(next);
+                        result.push_str(&item_text[value_end..]);
+                        result.push_str(ending_of(line, newline));
+                    }
+                    // Remocao: a linha inteira (com seu comentario) sai.
+                } else {
+                    kept_items += 1;
+                    result.push_str(line);
+                }
+            }
+            None => {
+                unsupported = true;
+                result.push_str(line);
+            }
+        }
+    }
+    if unsupported || found == 0 {
+        bail!("A propriedade tags do frontmatter nao pode ser reescrita sem perda.");
+    }
+    if kept_items == 0 {
+        return Ok(format!("tags: []{}", ending_of(first, newline)));
+    }
+    Ok(result)
+}
+
+/// Final de linha da primeira linha, quando a propriedade termina com quebra.
+fn ending_of<'a>(first: &str, newline: &'a str) -> &'a str {
+    if first.ends_with('\n') {
+        newline
+    } else {
+        ""
+    }
+}
+
+/// Reescreve o texto depois de `tags:` (espacos, valor inline e comentario).
+/// Devolve `None` quando a lista ficou vazia (todas as ocorrencias removidas).
+fn rewrite_inline_tags(
+    after_key: &str,
+    current: &str,
+    next: Option<&str>,
+    found: &mut usize,
+    unsupported: &mut bool,
+) -> Result<Option<String>> {
+    let leading = after_key.len() - after_key.trim_start().len();
+    let body = &after_key[leading..];
+    let comment_start = body
+        .char_indices()
+        .find(|(index, character)| {
+            *character == '#' && (*index == 0 || body[..*index].ends_with(char::is_whitespace))
+        })
+        .map(|(index, _)| index);
+    let (value_area, trailing) = match comment_start {
+        Some(index) => {
+            // Inclui o espaco antes do `#` no trecho preservado para nao
+            // colar o comentario ao valor reescrito.
+            let value_end = body[..index].trim_end().len();
+            (&body[..value_end], &body[value_end..])
+        }
+        None => (body, ""),
+    };
+    let value_area = value_area.trim();
+    let rewritten_value = if value_area.starts_with('[') {
+        if !value_area.ends_with(']') {
+            *unsupported = true;
+            return Ok(None);
+        }
+        let inside = &value_area[1..value_area.len() - 1];
+        let (new_inside, empty) = rewrite_comma_entries(inside, current, next, found, unsupported)?;
+        if empty {
+            return Ok(None);
+        }
+        format!("[{new_inside}]")
+    } else {
+        let (new_area, empty) =
+            rewrite_comma_entries(value_area, current, next, found, unsupported)?;
+        if empty {
+            return Ok(None);
+        }
+        new_area
+    };
+    Ok(Some(format!(
         "{}{}{}",
-        &frontmatter[..start],
-        replacement,
-        &frontmatter[end..]
-    ))
+        &after_key[..leading],
+        rewritten_value,
+        trailing
+    )))
+}
+
+/// Reescreve uma lista de escalares separados por virgulas (flow ou plain
+/// inline), renomeando ou removendo os iguais a `current` e unindo os demais
+/// com o separador original. Devolve `true` quando a lista ficou vazia.
+fn rewrite_comma_entries(
+    entries: &str,
+    current: &str,
+    next: Option<&str>,
+    found: &mut usize,
+    unsupported: &mut bool,
+) -> Result<(String, bool)> {
+    let mut kept = Vec::new();
+    let mut separator = ", ";
+    let mut separated = false;
+    let mut position = 0;
+    while position < entries.len() {
+        while position < entries.len()
+            && entries[position..]
+                .chars()
+                .next()
+                .is_some_and(char::is_whitespace)
+        {
+            position += 1;
+        }
+        if position >= entries.len() {
+            break;
+        }
+        let entry_start = position;
+        let first = entries[position..].chars().next().unwrap();
+        if first == '"' || first == '\'' {
+            let after_open = position + 1;
+            let closing = entries[after_open..].find(first).ok_or_else(|| {
+                anyhow::anyhow!("A lista de tags possui uma aspa sem fechamento.")
+            })?;
+            position = after_open + closing + 1;
+        } else {
+            while position < entries.len() {
+                let character = entries[position..].chars().next().unwrap();
+                if character == ',' {
+                    break;
+                }
+                position += character.len_utf8();
+            }
+        }
+        let entry_end = position;
+        let entry_text = entries[entry_start..entry_end].trim();
+        match simple_scalar_value_range(entry_text) {
+            Some((value_start, value_end)) => {
+                let value = &entry_text[value_start..value_end];
+                if crate::normalize_tag(value).as_deref() == Some(current) {
+                    *found += 1;
+                    if let Some(next) = next {
+                        kept.push(format!(
+                            "{}{}{}",
+                            &entry_text[..value_start],
+                            next,
+                            &entry_text[value_end..]
+                        ));
+                    }
+                } else {
+                    kept.push(entry_text.to_string());
+                }
+            }
+            None => {
+                *unsupported = true;
+                kept.push(entry_text.to_string());
+            }
+        }
+        if position < entries.len() {
+            if entries[position..].starts_with(',') {
+                if !separated {
+                    separator = if entries[position + 1..].starts_with(char::is_whitespace) {
+                        ", "
+                    } else {
+                        ","
+                    };
+                    separated = true;
+                }
+                position += 1;
+            } else {
+                *unsupported = true;
+            }
+        }
+    }
+    if kept.is_empty() {
+        return Ok((String::new(), true));
+    }
+    Ok((kept.join(separator), false))
+}
+
+/// Intervalo do valor de um escalar YAML simples (plain ou entre aspas) dentro
+/// de `raw`, devolvendo (inicio, fim) do valor sem as aspas. Devolve `None`
+/// para estruturas que nao sao escalares simples (anchors, mapeamentos,
+/// sequencias aninhadas, escalares literal ou folded).
+fn simple_scalar_value_range(raw: &str) -> Option<(usize, usize)> {
+    if raw.is_empty() {
+        return Some((0, 0));
+    }
+    let first = raw.chars().next().unwrap();
+    if first == '"' || first == '\'' {
+        let closing = raw[1..].find(first)? + 1;
+        let after = &raw[closing + 1..];
+        if !after.trim().is_empty() && !after.trim_start().starts_with('#') {
+            return None;
+        }
+        Some((1, closing))
+    } else if matches!(first, '&' | '*' | '{' | '|' | '>') {
+        None
+    } else {
+        let end = raw
+            .char_indices()
+            .find(|(_, character)| character.is_whitespace() || matches!(character, ',' | ']'))
+            .map(|(index, _)| index)
+            .unwrap_or(raw.len());
+        if end == 0 {
+            return None;
+        }
+        Some((0, end))
+    }
 }
 
 fn frontmatter_tags_property_range(frontmatter: &str) -> Option<(usize, usize)> {
@@ -527,15 +841,6 @@ fn rewrite_tags_in_line(
     output
 }
 
-fn temporary_path(root: &Path, target: &Path, extension: &str) -> PathBuf {
-    let id = NEXT_TAG_TRANSACTION_ID.fetch_add(1, Ordering::Relaxed);
-    let name = target
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("note");
-    root.join(format!(".{name}.mirmind-tag-{id}.{extension}"))
-}
-
 fn verify_regular_note(root: &Path, path: &Path) -> Result<()> {
     let metadata = fs::symlink_metadata(path)
         .with_context(|| format!("Nao foi possivel verificar '{}'.", path.display()))?;
@@ -556,38 +861,62 @@ fn abort_tag_updates(
     error: anyhow::Error,
     staged: &[StagedTagUpdate],
     committed: usize,
+    metadata_directory: &Path,
+    transaction_directory: &Path,
 ) -> anyhow::Error {
-    let rollback = rollback_tag_updates(&staged[..committed]);
-    cleanup_tag_updates(staged);
-    match rollback {
-        Ok(()) => error,
+    match rollback_tag_updates(&staged[..committed]) {
+        Ok(()) => {
+            // O diario so e removido quando o rollback conseguiu restaurar tudo;
+            // caso contrario ele permanece para a recuperacao da proxima abertura.
+            let _ = cleanup_tag_transaction_files(metadata_directory, transaction_directory);
+            let _ = remove_tag_transaction_journal(metadata_directory);
+            error
+        }
         Err(rollback_error) => anyhow::anyhow!("{error}. {rollback_error}"),
     }
 }
 
-fn commit_tag_updates<T, F>(root: &Path, updates: Vec<PlannedTagUpdate>, finalize: F) -> Result<T>
+fn commit_tag_updates<T, F>(
+    root: &Path,
+    updates: Vec<PlannedTagUpdate>,
+    expected_config_revision: u64,
+    tag_rules: &[TagReviewPolicyRule],
+    now_unix_ms: u64,
+    finalize: F,
+) -> Result<T>
 where
     F: FnOnce() -> Result<T>,
 {
+    if updates.is_empty() {
+        return finalize();
+    }
+    let metadata_directory = tag_metadata_directory(root)?;
+    let transaction_id = unique_tag_suffix();
+    let transaction_directory = tag_transaction_directory(&metadata_directory, &transaction_id);
+    fs::create_dir(&transaction_directory)
+        .context("Nao foi possivel criar o diretorio da transacao de tags.")?;
+    sync_tag_directory(&metadata_directory)?;
+
     let mut staged = Vec::new();
     for update in updates {
         if let Err(error) = verify_regular_note(root, &update.path) {
-            cleanup_tag_updates(&staged);
+            let _ = cleanup_tag_transaction_files(&metadata_directory, &transaction_directory);
             return Err(error);
         }
         let current = match fs::read(&update.path) {
             Ok(current) => current,
             Err(error) => {
-                cleanup_tag_updates(&staged);
+                let _ = cleanup_tag_transaction_files(&metadata_directory, &transaction_directory);
                 return Err(error.into());
             }
         };
         if current != update.original_content {
-            cleanup_tag_updates(&staged);
+            let _ = cleanup_tag_transaction_files(&metadata_directory, &transaction_directory);
             bail!("Uma nota foi alterada antes da confirmacao. Nenhum arquivo foi sobrescrito.");
         }
-        let staged_path = temporary_path(root, &update.path, "tmp");
-        let backup_path = temporary_path(root, &update.path, "bak");
+        let index = staged.len();
+        let staged_path = transaction_directory.join(format!("stage-{index}.tmp"));
+        let backup_path = transaction_directory.join(format!("backup-{index}.bak"));
         let stage_result = (|| -> Result<()> {
             let mut file = OpenOptions::new()
                 .write(true)
@@ -600,7 +929,7 @@ where
         })();
         if let Err(error) = stage_result {
             let _ = fs::remove_file(&staged_path);
-            cleanup_tag_updates(&staged);
+            let _ = cleanup_tag_transaction_files(&metadata_directory, &transaction_directory);
             return Err(error);
         }
         staged.push(StagedTagUpdate {
@@ -616,23 +945,55 @@ where
         let current = match fs::read(&update.target_path) {
             Ok(current) => current,
             Err(error) => {
-                cleanup_tag_updates(&staged);
+                let _ = cleanup_tag_transaction_files(&metadata_directory, &transaction_directory);
                 return Err(error.into());
             }
         };
         if current != update.original_content {
-            cleanup_tag_updates(&staged);
+            let _ = cleanup_tag_transaction_files(&metadata_directory, &transaction_directory);
             bail!("Uma nota foi alterada durante a preparacao. Nenhum arquivo foi sobrescrito.");
         }
+    }
+
+    // Diario duravel gravado antes do primeiro commit: registra os hashes dos
+    // originais e a configuracao-alvo, permitindo concluir ou reverter a
+    // operacao na proxima abertura do Vault apos uma interrupcao abrupta.
+    if let Err(error) = write_tag_transaction_journal(
+        root,
+        &metadata_directory,
+        &transaction_id,
+        expected_config_revision,
+        tag_rules,
+        &staged,
+        now_unix_ms,
+    ) {
+        let _ = cleanup_tag_transaction_files(&metadata_directory, &transaction_directory);
+        return Err(error);
     }
 
     let mut committed = 0;
     for update in &staged {
         if let Err(error) = verify_regular_note(root, &update.target_path) {
-            return Err(abort_tag_updates(error, &staged, committed));
+            return Err(abort_tag_updates(
+                error,
+                &staged,
+                committed,
+                &metadata_directory,
+                &transaction_directory,
+            ));
         }
-        if let Err(error) = replace_with_backup(update) {
-            return Err(abort_tag_updates(error, &staged, committed));
+        if let Err(error) = replace_with_backup(
+            &update.target_path,
+            &update.staged_path,
+            &update.backup_path,
+        ) {
+            return Err(abort_tag_updates(
+                error,
+                &staged,
+                committed,
+                &metadata_directory,
+                &transaction_directory,
+            ));
         }
         committed += 1;
     }
@@ -646,30 +1007,39 @@ where
         Ok(())
     });
     if let Err(error) = verification {
-        return Err(abort_tag_updates(error, &staged, committed));
+        return Err(abort_tag_updates(
+            error,
+            &staged,
+            committed,
+            &metadata_directory,
+            &transaction_directory,
+        ));
     }
 
     match finalize() {
         Ok(value) => {
-            cleanup_tag_updates(&staged);
+            cleanup_tag_transaction_files(&metadata_directory, &transaction_directory)?;
+            remove_tag_transaction_journal(&metadata_directory)?;
             Ok(value)
         }
-        Err(error) => Err(abort_tag_updates(error, &staged, committed)),
+        Err(error) => Err(abort_tag_updates(
+            error,
+            &staged,
+            committed,
+            &metadata_directory,
+            &transaction_directory,
+        )),
     }
 }
 #[cfg(windows)]
-fn replace_with_backup(update: &StagedTagUpdate) -> Result<()> {
-    crate::replace_file_atomically(
-        &update.target_path,
-        &update.staged_path,
-        Some(&update.backup_path),
-    )
+fn replace_with_backup(target: &Path, staged: &Path, backup: &Path) -> Result<()> {
+    crate::replace_file_atomically(target, staged, Some(backup))
 }
 
 #[cfg(not(windows))]
-fn replace_with_backup(update: &StagedTagUpdate) -> Result<()> {
-    fs::hard_link(&update.target_path, &update.backup_path)?;
-    fs::rename(&update.staged_path, &update.target_path)?;
+fn replace_with_backup(target: &Path, staged: &Path, backup: &Path) -> Result<()> {
+    fs::hard_link(target, backup)?;
+    fs::rename(staged, target)?;
     Ok(())
 }
 
@@ -696,15 +1066,339 @@ fn rollback_tag_updates(updates: &[StagedTagUpdate]) -> Result<()> {
     }
 }
 
-fn cleanup_tag_updates(updates: &[StagedTagUpdate]) {
-    for update in updates {
-        if update.staged_path.exists() {
-            let _ = fs::remove_file(&update.staged_path);
+fn cleanup_tag_transaction_files(
+    metadata_directory: &Path,
+    transaction_directory: &Path,
+) -> Result<()> {
+    if transaction_directory.exists() {
+        fs::remove_dir_all(transaction_directory)?;
+        sync_tag_directory(metadata_directory)?;
+    }
+    Ok(())
+}
+
+fn tag_metadata_directory(root: &Path) -> Result<PathBuf> {
+    let directory = root.join(".mirmind");
+    if directory.exists() {
+        let metadata = fs::symlink_metadata(&directory)?;
+        if !metadata.is_dir() || metadata.file_type().is_symlink() {
+            bail!("O diretorio interno de configuracao e inseguro.");
         }
-        if update.backup_path.exists() {
-            let _ = fs::remove_file(&update.backup_path);
+    } else {
+        fs::create_dir(&directory)?;
+    }
+    Ok(directory)
+}
+
+fn tag_transaction_journal_path(directory: &Path) -> PathBuf {
+    directory.join(TAG_TRANSACTION_FILE)
+}
+
+fn tag_transaction_directory(directory: &Path, transaction_id: &str) -> PathBuf {
+    directory.join(format!(
+        "{TAG_TRANSACTION_DIRECTORY_PREFIX}-{transaction_id}"
+    ))
+}
+
+fn unique_tag_suffix() -> String {
+    let id = NEXT_TAG_TRANSACTION_ID.fetch_add(1, Ordering::Relaxed);
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    format!("{}-{timestamp}-{id}", std::process::id())
+}
+
+fn content_hash(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    format!("sha256:{digest:x}")
+}
+
+fn is_sha256_hash(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..].bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn read_bounded_bytes(path: &Path, maximum: usize) -> Result<Vec<u8>> {
+    let bytes = fs::read(path)?;
+    if bytes.len() > maximum {
+        bail!(
+            "O arquivo '{}' excede o limite seguro de leitura.",
+            path.display()
+        );
+    }
+    Ok(bytes)
+}
+
+fn ensure_regular_file_if_present(path: &Path) -> Result<()> {
+    if path.exists() {
+        let metadata = fs::symlink_metadata(path)?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            bail!(
+                "O arquivo '{}' nao e um arquivo regular seguro.",
+                path.display()
+            );
         }
     }
+    Ok(())
+}
+
+fn ensure_tag_transaction_directory(directory: &Path, metadata_directory: &Path) -> Result<()> {
+    if !directory.exists() {
+        bail!(
+            "O diretorio da transacao de tags '{}' nao existe.",
+            directory.display()
+        );
+    }
+    let metadata = fs::symlink_metadata(directory)?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        bail!("O diretorio da transacao de tags e inseguro.");
+    }
+    if !directory.starts_with(metadata_directory) {
+        bail!("O diretorio da transacao de tags esta fora do diretorio interno.");
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn sync_tag_directory(directory: &Path) -> Result<()> {
+    fs::File::open(directory)?.sync_all()?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn sync_tag_directory(_directory: &Path) -> Result<()> {
+    Ok(())
+}
+
+fn write_tag_transaction_journal(
+    root: &Path,
+    metadata_directory: &Path,
+    transaction_id: &str,
+    expected_config_revision: u64,
+    tag_rules: &[TagReviewPolicyRule],
+    staged: &[StagedTagUpdate],
+    now_unix_ms: u64,
+) -> Result<()> {
+    let journal_path = tag_transaction_journal_path(metadata_directory);
+    ensure_regular_file_if_present(&journal_path)?;
+    if journal_path.exists() {
+        bail!("Existe uma transacao de tags pendente.");
+    }
+    let journal = TagTransactionJournal {
+        schema_version: TAG_TRANSACTION_SCHEMA_VERSION,
+        transaction_id: transaction_id.to_string(),
+        expected_config_revision,
+        tag_rules: tag_rules.to_vec(),
+        notes: staged
+            .iter()
+            .map(|update| {
+                let relative_path = crate::to_relative_display(root, &update.target_path);
+                TagTransactionNote {
+                    relative_path,
+                    original_hash: content_hash(&update.original_content),
+                    updated_hash: content_hash(&update.updated_content),
+                }
+            })
+            .collect(),
+        created_at_unix_ms: now_unix_ms,
+    };
+    let bytes = serde_json::to_vec_pretty(&journal)?;
+    if bytes.len() > MAX_TAG_TRANSACTION_BYTES {
+        bail!("A transacao de tags excede o limite seguro do diario.");
+    }
+    let stage = metadata_directory.join(format!(
+        "{TAG_TRANSACTION_FILE}.stage-{}",
+        unique_tag_suffix()
+    ));
+    let mut file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&stage)?;
+    let publish_result = (|| -> Result<()> {
+        file.write_all(&bytes)?;
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&stage, &journal_path)?;
+        sync_tag_directory(metadata_directory)
+    })();
+    if publish_result.is_err() && stage.exists() {
+        let _ = fs::remove_file(&stage);
+    }
+    publish_result.context("Nao foi possivel registrar a transacao de tags.")
+}
+
+fn remove_tag_transaction_journal(metadata_directory: &Path) -> Result<()> {
+    let journal_path = tag_transaction_journal_path(metadata_directory);
+    if journal_path.exists() {
+        fs::remove_file(&journal_path)?;
+        sync_tag_directory(metadata_directory)?;
+    }
+    Ok(())
+}
+
+fn validate_tag_transaction_journal(journal: &TagTransactionJournal) -> Result<()> {
+    if journal.schema_version != TAG_TRANSACTION_SCHEMA_VERSION {
+        bail!("O diario da transacao de tags possui versao incompativel.");
+    }
+    if journal.notes.is_empty() || journal.notes.len() > MAX_TAG_MUTATION_NOTES {
+        bail!("O diario da transacao de tags possui um numero invalido de notas.");
+    }
+    let mut seen = HashSet::new();
+    for note in &journal.notes {
+        if note.relative_path.trim().is_empty()
+            || !note.relative_path.ends_with(".md")
+            || !seen.insert(note.relative_path.clone())
+        {
+            bail!("O diario da transacao de tags possui um caminho de nota invalido.");
+        }
+        if !is_sha256_hash(&note.original_hash) || !is_sha256_hash(&note.updated_hash) {
+            bail!("O diario da transacao de tags possui hashes invalidos.");
+        }
+        if note.original_hash == note.updated_hash {
+            bail!("O diario da transacao de tags registra uma alteracao vazia.");
+        }
+    }
+    Ok(())
+}
+
+fn tag_transaction_config_published(root: &Path, journal: &TagTransactionJournal) -> Result<bool> {
+    let current = load_vault_review_policy_config(root)?;
+    if current.revision != journal.expected_config_revision.saturating_add(1) {
+        return Ok(false);
+    }
+    let journal_rules = serde_json::to_vec(&journal.tag_rules)?;
+    let current_rules = serde_json::to_vec(&current.tag_rules)?;
+    Ok(journal_rules == current_rules)
+}
+
+pub(crate) fn recover_pending_tag_operations(root: &Path) -> Result<()> {
+    let _guard = TAG_MUTATION_ACCESS
+        .lock()
+        .map_err(|_| anyhow::anyhow!("As tags estao temporariamente indisponiveis."))?;
+    recover_pending_tag_operations_unlocked(root)
+}
+
+fn recover_pending_tag_operations_unlocked(root: &Path) -> Result<()> {
+    let metadata_directory = tag_metadata_directory(root)?;
+    let journal_path = tag_transaction_journal_path(&metadata_directory);
+    if !journal_path.exists() {
+        return Ok(());
+    }
+    ensure_regular_file_if_present(&journal_path)?;
+    let bytes = read_bounded_bytes(&journal_path, MAX_TAG_TRANSACTION_BYTES)?;
+    let journal: TagTransactionJournal =
+        serde_json::from_slice(&bytes).context("O diario da transacao de tags e invalido.")?;
+    validate_tag_transaction_journal(&journal)?;
+    let transaction_directory =
+        tag_transaction_directory(&metadata_directory, &journal.transaction_id);
+    ensure_tag_transaction_directory(&transaction_directory, &metadata_directory)?;
+
+    let mut states = Vec::with_capacity(journal.notes.len());
+    for note in &journal.notes {
+        let path = crate::resolve_note_path(root, &note.relative_path)?;
+        verify_regular_note(root, &path)?;
+        let bytes = fs::read(&path)
+            .with_context(|| format!("Nao foi possivel ler '{}'.", path.display()))?;
+        let hash = content_hash(&bytes);
+        if hash == note.original_hash {
+            states.push(TagNoteRecoveryState::Original);
+        } else if hash == note.updated_hash {
+            states.push(TagNoteRecoveryState::Updated);
+        } else {
+            bail!(
+                "A nota '{}' foi alterada durante a interrupcao da transacao de tags. Resolva a divergencia antes de continuar.",
+                note.relative_path
+            );
+        }
+    }
+
+    if tag_transaction_config_published(root, &journal)? {
+        complete_tag_transaction(root, &journal, &transaction_directory, &states)?;
+    } else {
+        rollback_tag_transaction(root, &journal, &transaction_directory, &states)?;
+    }
+
+    cleanup_tag_transaction_files(&metadata_directory, &transaction_directory)?;
+    remove_tag_transaction_journal(&metadata_directory)?;
+    Ok(())
+}
+
+fn complete_tag_transaction(
+    root: &Path,
+    journal: &TagTransactionJournal,
+    transaction_directory: &Path,
+    states: &[TagNoteRecoveryState],
+) -> Result<()> {
+    for (index, (note, state)) in journal.notes.iter().zip(states).enumerate() {
+        if *state == TagNoteRecoveryState::Updated {
+            continue;
+        }
+        // Uma nota ainda original com a configuracao publicada converge para o
+        // estado confirmado, aplicando o arquivo preparado da transacao.
+        let target = crate::resolve_note_path(root, &note.relative_path)?;
+        verify_regular_note(root, &target)?;
+        let staged = transaction_directory.join(format!("stage-{index}.tmp"));
+        let backup = transaction_directory.join(format!("backup-{index}.bak"));
+        if !staged.is_file() {
+            bail!(
+                "O arquivo preparado '{}' da transacao de tags nao existe.",
+                staged.display()
+            );
+        }
+        if backup.exists() {
+            let backup_bytes = fs::read(&backup)?;
+            if content_hash(&backup_bytes) != note.original_hash {
+                bail!("O backup '{}' divergiu do original.", backup.display());
+            }
+            fs::remove_file(&backup)?;
+        }
+        replace_with_backup(&target, &staged, &backup)?;
+    }
+    Ok(())
+}
+
+fn rollback_tag_transaction(
+    root: &Path,
+    journal: &TagTransactionJournal,
+    transaction_directory: &Path,
+    states: &[TagNoteRecoveryState],
+) -> Result<()> {
+    for (index, (note, state)) in journal.notes.iter().zip(states).enumerate().rev() {
+        let target = crate::resolve_note_path(root, &note.relative_path)?;
+        let backup = transaction_directory.join(format!("backup-{index}.bak"));
+        match state {
+            TagNoteRecoveryState::Updated => {
+                if !backup.is_file() {
+                    bail!(
+                        "O backup '{}' da nota '{}' nao existe.",
+                        backup.display(),
+                        note.relative_path
+                    );
+                }
+                let backup_bytes = fs::read(&backup)?;
+                if content_hash(&backup_bytes) != note.original_hash {
+                    bail!("O backup '{}' divergiu do original.", backup.display());
+                }
+                verify_regular_note(root, &target)?;
+                fs::remove_file(&target)?;
+                fs::rename(&backup, &target)?;
+            }
+            TagNoteRecoveryState::Original => {
+                // Interrupcao entre o hard link do backup e a substituicao deixa
+                // um backup orfao com o conteudo original: apenas remove.
+                if backup.exists() {
+                    let backup_bytes = fs::read(&backup)?;
+                    if content_hash(&backup_bytes) != note.original_hash {
+                        bail!("O backup '{}' divergiu do original.", backup.display());
+                    }
+                    fs::remove_file(&backup)?;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -753,10 +1447,93 @@ mod tests {
             rewrite_markdown_tag(markdown, "prova", Some("revisao/prova")).expect("rewrite");
         assert!(rewritten.contains("title: Aula\r\n"));
         assert!(rewritten.contains("aliases: [Teste]\r\n"));
-        assert!(rewritten.contains("tags:\r\n  - manter\r\n  - revisao/prova\r\n"));
+        // A ordem e a grafia originais sao preservadas: somente o escalar
+        // `Prova` foi renomeado, `manter` ficou intacto.
+        assert!(rewritten.contains("tags:\r\n  - revisao/prova\r\n  - manter\r\n"));
         assert!(rewritten.contains("#revisao/prova texto `#prova`"));
         assert!(rewritten.contains("<!-- #prova -->"));
         assert!(rewritten.contains("```\r\n#prova\r\n```"));
+    }
+
+    #[test]
+    fn rewriting_tags_preserves_comments_quotes_and_formatting() {
+        let frontmatter =
+            "title: Aula\r\ntags:\r\n  - \"Prova\"  # principal\r\n  - 'manter'\r\n  - estudo\r\naliases: [T]\r\n";
+        let rewritten =
+            rewrite_frontmatter_tags(frontmatter, "prova", Some("revisao/prova")).expect("rewrite");
+        assert_eq!(
+            rewritten,
+            "title: Aula\r\ntags:\r\n  - \"revisao/prova\"  # principal\r\n  - 'manter'\r\n  - estudo\r\naliases: [T]\r\n"
+        );
+    }
+
+    #[test]
+    fn rewriting_inline_tags_preserves_comments_and_flow_style() {
+        let rewritten = rewrite_frontmatter_tags(
+            "tags: prova # principal\r\n",
+            "prova",
+            Some("revisao/prova"),
+        )
+        .expect("rewrite");
+        assert_eq!(rewritten, "tags: revisao/prova # principal\r\n");
+        let rewritten = rewrite_frontmatter_tags(
+            "tags: [prova, \"manter\", 'estudo']\r\n",
+            "prova",
+            Some("revisao/prova"),
+        )
+        .expect("rewrite");
+        assert_eq!(rewritten, "tags: [revisao/prova, \"manter\", 'estudo']\r\n");
+        let rewritten =
+            rewrite_frontmatter_tags("tags: prova, manter\r\n", "prova", Some("revisao/prova"))
+                .expect("rewrite");
+        assert_eq!(rewritten, "tags: revisao/prova, manter\r\n");
+        let rewritten = rewrite_frontmatter_tags(
+            "tags: [prova, manter] # lista\r\n",
+            "prova",
+            Some("revisao/prova"),
+        )
+        .expect("rewrite");
+        assert_eq!(rewritten, "tags: [revisao/prova, manter] # lista\r\n");
+    }
+
+    #[test]
+    fn removing_tags_keeps_other_entries_and_their_comments() {
+        let rewritten = rewrite_frontmatter_tags(
+            "tags:\n  - prova\n  - manter  # manutencao\n",
+            "prova",
+            None,
+        )
+        .expect("rewrite");
+        assert_eq!(rewritten, "tags:\n  - manter  # manutencao\n");
+        let rewritten =
+            rewrite_frontmatter_tags("tags: [prova, manter]\n", "prova", None).expect("rewrite");
+        assert_eq!(rewritten, "tags: [manter]\n");
+        let rewritten =
+            rewrite_frontmatter_tags("tags: [prova]\n", "prova", None).expect("rewrite");
+        assert_eq!(rewritten, "tags: []\n");
+        let rewritten =
+            rewrite_frontmatter_tags("tags:\n  - prova\n", "prova", None).expect("rewrite");
+        assert_eq!(rewritten, "tags: []\n");
+    }
+
+    #[test]
+    fn rewriting_tags_rejects_structures_that_cannot_be_rewritten_without_loss() {
+        let error = rewrite_frontmatter_tags(
+            "tags:\n  - prova\n  - - aninhada\n",
+            "prova",
+            Some("revisao/prova"),
+        )
+        .expect_err("nested sequence");
+        assert!(error.to_string().contains("sem perda"));
+        // Um unico escalar entre aspas com virgula interna nao permite
+        // reescrever as tags individuais sem perda.
+        let error = rewrite_frontmatter_tags(
+            "tags: \"prova, manter\"\n",
+            "manter",
+            Some("revisao/manter"),
+        )
+        .expect_err("quoted comma scalar");
+        assert!(error.to_string().contains("sem perda"));
     }
 
     #[test]
@@ -790,6 +1567,7 @@ mod tests {
             .tag_rules
             .iter()
             .any(|rule| rule.tag == "revisao/prova-final"));
+        assert!(!tag_transaction_journal_path(&tag_metadata_directory(&root).unwrap()).exists());
     }
 
     #[test]
@@ -831,5 +1609,190 @@ mod tests {
         .expect_err("revision conflict");
         assert!(error.to_string().contains("alterada por outra operacao"));
         assert_eq!(fs::read_to_string(root.join("a.md")).unwrap(), "#prova");
+        // O diario e o diretorio da transacao nao sobram apos o rollback.
+        assert!(!tag_transaction_journal_path(&tag_metadata_directory(&root).unwrap()).exists());
+        let internal = root.join(".mirmind");
+        let leftovers = fs::read_dir(&internal)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(TAG_TRANSACTION_DIRECTORY_PREFIX)
+            })
+            .count();
+        assert_eq!(leftovers, 0);
+    }
+
+    fn simulate_interrupted_tag_transaction(
+        root: &Path,
+        entries: &[(&str, &str, &str)],
+        disk_state: &[(&str, &str)],
+        expected_config_revision: u64,
+        tag_rules: Vec<TagReviewPolicyRule>,
+        published: bool,
+    ) {
+        for (relative, content) in disk_state {
+            fs::write(root.join(relative), content).expect("disk state note");
+        }
+        let metadata = tag_metadata_directory(root).expect("metadata dir");
+        let transaction_id = unique_tag_suffix();
+        let transaction_directory = tag_transaction_directory(&metadata, &transaction_id);
+        fs::create_dir(&transaction_directory).expect("transaction dir");
+        let mut staged = Vec::new();
+        for (index, (relative, original, updated)) in entries.iter().enumerate() {
+            let target = root.join(relative);
+            let staged_path = transaction_directory.join(format!("stage-{index}.tmp"));
+            let backup_path = transaction_directory.join(format!("backup-{index}.bak"));
+            fs::write(&staged_path, updated).expect("staged note");
+            fs::write(&backup_path, original).expect("backup note");
+            staged.push(StagedTagUpdate {
+                target_path: target,
+                staged_path,
+                backup_path,
+                original_content: original.as_bytes().to_vec(),
+                updated_content: updated.as_bytes().to_vec(),
+            });
+        }
+        write_tag_transaction_journal(
+            root,
+            &metadata,
+            &transaction_id,
+            expected_config_revision,
+            &tag_rules,
+            &staged,
+            1_730_000_000_000,
+        )
+        .expect("journal");
+        if published {
+            set_vault_review_tag_rules(
+                root,
+                expected_config_revision,
+                tag_rules,
+                1_730_000_000_000,
+            )
+            .expect("publish config");
+        }
+    }
+
+    #[test]
+    fn interrupted_tag_transaction_with_no_committed_note_is_cleaned_up_on_next_open() {
+        let vault = tempdir().expect("vault");
+        let root = vault.path().canonicalize().expect("canonical vault");
+        simulate_interrupted_tag_transaction(
+            &root,
+            &[("a.md", "#prova", "#revisao/prova")],
+            &[("a.md", "#prova")],
+            0,
+            vec![balanced_rule("revisao/prova")],
+            false,
+        );
+        recover_pending_tag_operations(&root).expect("recover");
+        assert_eq!(fs::read_to_string(root.join("a.md")).unwrap(), "#prova");
+        assert!(!tag_transaction_journal_path(&tag_metadata_directory(&root).unwrap()).exists());
+        // O backup orfao (interrupcao entre hard link e substituicao) e removido.
+        let internal = root.join(".mirmind");
+        let leftovers = fs::read_dir(&internal)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(TAG_TRANSACTION_DIRECTORY_PREFIX)
+            })
+            .count();
+        assert_eq!(leftovers, 0);
+    }
+
+    #[test]
+    fn interrupted_tag_transaction_is_rolled_back_on_next_open() {
+        let vault = tempdir().expect("vault");
+        let root = vault.path().canonicalize().expect("canonical vault");
+        simulate_interrupted_tag_transaction(
+            &root,
+            &[
+                ("a.md", "#prova", "#revisao/prova"),
+                ("b.md", "#prova\n", "#revisao/prova\n"),
+            ],
+            &[("a.md", "#revisao/prova"), ("b.md", "#prova\n")],
+            0,
+            vec![balanced_rule("revisao/prova")],
+            false,
+        );
+        recover_pending_tag_operations(&root).expect("recover");
+        assert_eq!(fs::read_to_string(root.join("a.md")).unwrap(), "#prova");
+        assert_eq!(fs::read_to_string(root.join("b.md")).unwrap(), "#prova\n");
+        assert!(!tag_transaction_journal_path(&tag_metadata_directory(&root).unwrap()).exists());
+    }
+
+    #[test]
+    fn interrupted_tag_transaction_after_config_publish_is_completed_on_next_open() {
+        let vault = tempdir().expect("vault");
+        let root = vault.path().canonicalize().expect("canonical vault");
+        simulate_interrupted_tag_transaction(
+            &root,
+            &[("a.md", "#prova", "#revisao/prova")],
+            &[("a.md", "#revisao/prova")],
+            0,
+            vec![balanced_rule("revisao/prova")],
+            true,
+        );
+        recover_pending_tag_operations(&root).expect("recover");
+        assert_eq!(
+            fs::read_to_string(root.join("a.md")).unwrap(),
+            "#revisao/prova"
+        );
+        assert!(!tag_transaction_journal_path(&tag_metadata_directory(&root).unwrap()).exists());
+    }
+
+    #[test]
+    fn interrupted_tag_transaction_with_config_published_converges_remaining_notes() {
+        let vault = tempdir().expect("vault");
+        let root = vault.path().canonicalize().expect("canonical vault");
+        simulate_interrupted_tag_transaction(
+            &root,
+            &[
+                ("a.md", "#prova", "#revisao/prova"),
+                ("b.md", "#prova\n", "#revisao/prova\n"),
+            ],
+            &[("a.md", "#revisao/prova"), ("b.md", "#prova\n")],
+            0,
+            vec![balanced_rule("revisao/prova")],
+            true,
+        );
+        recover_pending_tag_operations(&root).expect("recover");
+        assert_eq!(
+            fs::read_to_string(root.join("a.md")).unwrap(),
+            "#revisao/prova"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("b.md")).unwrap(),
+            "#revisao/prova\n"
+        );
+        assert!(!tag_transaction_journal_path(&tag_metadata_directory(&root).unwrap()).exists());
+    }
+
+    #[test]
+    fn interrupted_tag_transaction_with_conflicting_edit_fails_without_changes() {
+        let vault = tempdir().expect("vault");
+        let root = vault.path().canonicalize().expect("canonical vault");
+        simulate_interrupted_tag_transaction(
+            &root,
+            &[("a.md", "#prova", "#revisao/prova")],
+            &[("a.md", "#conflito-externo")],
+            0,
+            vec![balanced_rule("revisao/prova")],
+            false,
+        );
+        let error = recover_pending_tag_operations(&root).expect_err("conflict");
+        assert!(error.to_string().contains("alterada durante a interrupcao"));
+        assert_eq!(
+            fs::read_to_string(root.join("a.md")).unwrap(),
+            "#conflito-externo"
+        );
+        // O diario permanece para nova tentativa apos resolver a divergencia.
+        assert!(tag_transaction_journal_path(&tag_metadata_directory(&root).unwrap()).exists());
     }
 }

@@ -504,6 +504,63 @@ pub fn migrate_learning_document(input: &str) -> Result<LearningDocument> {
     parse_learning_document(&serde_json::to_string(&value)?)
 }
 
+/// Fusao conservadora de projecoes de unidades: a pior avaliacao (menor
+/// nota; empate pela menor estabilidade) e o estado FSRS correspondente.
+/// Usada na migracao de segmentacao para secoes: a secao herdada e tao
+/// fragil quanto seu paragrafo mais fraco, e o agendamento (minimo entre as
+/// unidades) nunca fica mais distante do que o pior estado contido.
+pub(crate) fn conservative_merge<'a>(
+    candidates: impl Iterator<Item = (&'a UnitEvaluation, Option<&'a FsrsState>)>,
+) -> Option<(UnitEvaluation, FsrsState)> {
+    candidates
+        .filter_map(|(evaluation, fsrs)| match evaluation {
+            UnitEvaluation::Evaluated { score, .. } => {
+                let fsrs = fsrs?;
+                Some((
+                    (*score, fsrs.stability_days),
+                    (evaluation.clone(), fsrs.clone()),
+                ))
+            }
+            _ => None,
+        })
+        .min_by(|(left, _), (right, _)| {
+            left.0.cmp(&right.0).then_with(|| {
+                left.1
+                    .partial_cmp(&right.1)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+        })
+        .map(|(_, projection)| projection)
+}
+
+/// Projecao conservadora que uma unidade de secao herda da migracao de
+/// segmentacao: a fusao dos resultados avaliados mais recentes de cada
+/// unidade cujo range esta contido no da secao. Devolve `None` quando nao ha
+/// nenhum resultado avaliado contido.
+pub(crate) fn conservative_section_projection(
+    sessions: &[ReviewSession],
+    unit: &LearningUnit,
+) -> Option<(UnitEvaluation, FsrsState)> {
+    let mut seen = std::collections::HashSet::new();
+    let contained: Vec<&SessionUnitResult> = sessions
+        .iter()
+        .rev()
+        .flat_map(|session| session.unit_results.iter())
+        .filter(|result| {
+            let snapshot = &result.unit_snapshot;
+            result.evaluation.is_evaluated()
+                && snapshot.source_start_utf16 >= unit.source_start_utf16
+                && snapshot.source_end_utf16 <= unit.source_end_utf16
+                && seen.insert(snapshot.id.clone())
+        })
+        .collect();
+    conservative_merge(
+        contained
+            .into_iter()
+            .map(|result| (&result.evaluation, result.fsrs_after.as_ref())),
+    )
+}
+
 pub fn validate_session_against_markdown(
     document: &LearningDocument,
     session_id: &str,
@@ -661,6 +718,30 @@ impl LearningDocument {
                         bail!("A projecao atual da unidade diverge do historico mais recente.");
                     }
                 }
+                None if unit.kind == LearningUnitKind::Section => {
+                    // Migracao de segmentacao por secoes: a secao herdou a fusao
+                    // conservadora dos resultados avaliados contidos no seu range
+                    // (pior nota, menor estabilidade) — sem um resultado proprio
+                    // com o mesmo (id, content_hash).
+                    match conservative_section_projection(&self.sessions, unit) {
+                        Some((evaluation, fsrs)) => {
+                            if serde_json::to_value(&unit.latest_evaluation)?
+                                != serde_json::to_value(Some(&evaluation))?
+                                || unit.fsrs.as_ref() != Some(&fsrs)
+                            {
+                                bail!(
+                                    "A projecao da secao diverge da fusao conservadora das unidades contidas."
+                                );
+                            }
+                        }
+                        None if unit.latest_evaluation.is_some() || unit.fsrs.is_some() => {
+                            bail!(
+                                "Uma unidade sem historico correspondente nao pode ter projecao."
+                            );
+                        }
+                        None => {}
+                    }
+                }
                 None if unit.latest_evaluation.is_some() || unit.fsrs.is_some() => {
                     bail!("Uma unidade sem historico correspondente nao pode ter projecao.");
                 }
@@ -672,7 +753,7 @@ impl LearningDocument {
 }
 
 impl ReadinessAssessment {
-    fn issues(&self) -> &[ReadinessIssue] {
+    pub(crate) fn issues(&self) -> &[ReadinessIssue] {
         match self {
             Self::Unassessed { issues, .. }
             | Self::Ready { issues, .. }
@@ -998,7 +1079,7 @@ impl UnitEvaluation {
         Ok(())
     }
 
-    fn is_evaluated(&self) -> bool {
+    pub(crate) fn is_evaluated(&self) -> bool {
         matches!(self, Self::Evaluated { .. })
     }
 }
@@ -1343,6 +1424,69 @@ mod tests {
             &hashes,
         )
         .is_err());
+    }
+
+    #[test]
+    fn a_migrated_section_with_the_conservative_merge_passes_validation() {
+        // A fixture tem duas unidades de paragrafo avaliadas: unit-1 (85,
+        // estabilidade 4.5) e unit-2 (30, estabilidade 1.8). A migracao de
+        // segmentacao as funde em uma secao que herda a fusao conservadora — o
+        // pior resultado (unit-2), sem exigir um resultado proprio com o mesmo
+        // (id, contentHash).
+        let mut value: serde_json::Value =
+            serde_json::from_str(VALID_DOCUMENT).expect("fixture JSON");
+        let worst = &value["sessions"][0]["unitResults"][1];
+        let section = serde_json::json!({
+            "id": "unit-1",
+            "ordinal": 0,
+            "kind": "section",
+            "contentHash": "sha256:section-content",
+            "sectionPath": ["Fotossíntese"],
+            "identity": {
+                "signatureVersion": 1,
+                "normalizedContentHash": "sha256:section-normalized",
+                "previousContextHash": null,
+                "nextContextHash": null,
+                "approximateStartUtf16": 0,
+            },
+            "sourceStartUtf16": 0,
+            "sourceEndUtf16": 200,
+            "fsrs": worst["fsrsAfter"],
+            "latestEvaluation": worst["evaluation"],
+        });
+        value["units"] = serde_json::json!([section]);
+        parse_learning_document(&value.to_string()).expect("migrated section must validate");
+    }
+
+    #[test]
+    fn a_section_projection_diverging_from_the_conservative_merge_is_rejected() {
+        // A secao herdou o pior resultado (30); carregar uma projecao diferente
+        // (40) diverge da fusao conservadora dos contidos e deve ser rejeitada.
+        let mut value: serde_json::Value =
+            serde_json::from_str(VALID_DOCUMENT).expect("fixture JSON");
+        let worst = &value["sessions"][0]["unitResults"][1];
+        let mut evaluation = worst["evaluation"].clone();
+        evaluation["score"] = serde_json::json!(40);
+        let section = serde_json::json!({
+            "id": "unit-1",
+            "ordinal": 0,
+            "kind": "section",
+            "contentHash": "sha256:section-content",
+            "sectionPath": ["Fotossíntese"],
+            "identity": {
+                "signatureVersion": 1,
+                "normalizedContentHash": "sha256:section-normalized",
+                "previousContextHash": null,
+                "nextContextHash": null,
+                "approximateStartUtf16": 0,
+            },
+            "sourceStartUtf16": 0,
+            "sourceEndUtf16": 200,
+            "fsrs": worst["fsrsAfter"],
+            "latestEvaluation": evaluation,
+        });
+        value["units"] = serde_json::json!([section]);
+        assert!(parse_learning_document(&value.to_string()).is_err());
     }
 
     #[test]

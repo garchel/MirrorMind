@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, Layers, ListTodo, Minus, Pencil, Plus, RefreshCw, Target, TimerReset, TrendingUp, X } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, RefreshCw, Target, TimerReset, TrendingUp, X } from 'lucide-react'
 import { applyDeadlineChange, getVaultReviewPolicyConfig, previewDeadlineChange } from './vaultReviewPolicy'
 import { setNoteReviewPriority } from './reviewPolicy'
-import { forecastDayLabel, getVaultReviewDashboard, type CalibrationNoteItem, type DailyLoadItem, type ExpiredDeadlineItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
+import { forecastDayLabel, getVaultReviewDashboard, type CalibrationNoteItem, type DailyLoadItem, type ExpiredDeadlineItem, type ReadinessAttentionItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
 import './review-dashboard.css'
 
 type Props = {
@@ -421,7 +421,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
               icon={<TrendingUp size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Retenção média"
               value={formatPercentage(dashboard.averageRetrievability)}
-              hint={`Estabilidade média: ${formatStability(dashboard.averageStabilityDays)} · ${dashboard.fragileUnitCount} ${dashboard.fragileUnitCount === 1 ? 'parágrafo frágil' : 'parágrafos frágeis'}`}
+              hint={`Estabilidade média: ${formatStability(dashboard.averageStabilityDays)} · ${dashboard.fragileUnitCount} ${dashboard.fragileUnitCount === 1 ? 'unidade frágil' : 'unidades frágeis'}`}
             />
             <StatCard
               icon={<ListTodo size={18} strokeWidth={1.6} aria-hidden="true" />}
@@ -430,6 +430,17 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
               hint="Prontas e habilitadas, sem sessão concluída."
             />
           </div>
+
+          <ReadinessSection
+            unassessed={dashboard.readinessUnassessedNoteCount}
+            ready={dashboard.readinessReadyNoteCount}
+            ambiguous={dashboard.readinessAmbiguousNoteCount}
+            insufficient={dashboard.readinessInsufficientNoteCount}
+            modified={dashboard.readinessModifiedNoteCount}
+            attention={dashboard.readinessAttentionNotes}
+            attentionCount={dashboard.readinessAttentionNoteCount}
+            onOpenNote={onOpenNote}
+          />
 
           <DailyGoalSection completedToday={dashboard.completedTodayCount} forecast={dashboard.loadForecast} />
 
@@ -546,6 +557,108 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
   )
 }
 
+const READINESS_LABELS: Record<ReadinessAttentionItem['status'], string> = {
+  unassessed: 'Não avaliada',
+  ready: 'Pronta',
+  ambiguous: 'Ambígua',
+  insufficient: 'Insuficiente',
+  modified: 'Modificada',
+}
+
+function readinessStatusLabel(status: ReadinessAttentionItem['status']) {
+  return READINESS_LABELS[status]
+}
+
+function readinessDateLabel(assessedAtUnixMs: number | null) {
+  if (assessedAtUnixMs === null) return 'sem data'
+  const date = new Date(assessedAtUnixMs)
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+}
+
+function ReadinessSection({ unassessed, ready, ambiguous, insufficient, modified, attention, attentionCount, onOpenNote }: {
+  unassessed: number
+  ready: number
+  ambiguous: number
+  insufficient: number
+  modified: number
+  attention: ReadinessAttentionItem[]
+  attentionCount: number
+  onOpenNote: (relativePath: string) => void
+}) {
+  const totals = [
+    { key: 'ready', label: 'Prontas', value: ready },
+    { key: 'ambiguous', label: 'Ambíguas', value: ambiguous },
+    { key: 'insufficient', label: 'Insuficientes', value: insufficient },
+    { key: 'modified', label: 'Modificadas', value: modified },
+    { key: 'unassessed', label: 'Não avaliadas', value: unassessed },
+  ] as const
+
+  return (
+    <section className="review-dashboard-readiness" aria-labelledby="review-dashboard-readiness-title">
+      <div className="review-dashboard-section-heading">
+        <h3 id="review-dashboard-readiness-title">Qualidade das notas</h3>
+        <span>
+          {attentionCount} {attentionCount === 1 ? 'nota precisa' : 'notas precisam'} de atenção
+        </span>
+      </div>
+
+      <div className="review-dashboard-readiness-totals" aria-label="Contagens por estado de prontidão">
+        {totals.map(({ key, label, value }) => (
+          <div key={key} className={`review-dashboard-readiness-total is-${key}`}>
+            <strong>{value}</strong>
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {attention.length === 0 ? (
+        <p className="review-dashboard-readiness-empty">
+          Nenhuma nota precisa de atenção. Avalie novas notas para ver o resultado da qualidade aqui.
+        </p>
+      ) : (
+        <>
+          <ol className="review-dashboard-readiness-list" aria-label="Notas cuja qualidade exige atenção">
+            {attention.map((item) => (
+              <li key={item.noteId}>
+                <span className={`review-dashboard-readiness-badge is-${item.status}`}>
+                  {readinessStatusLabel(item.status)}
+                </span>
+                <div className="review-dashboard-readiness-copy">
+                  <strong>{item.title}</strong>
+                  <small>{item.relativePath}</small>
+                  {item.explanation ? (
+                    <p className="review-dashboard-readiness-explanation" title={item.explanation}>
+                      {item.explanation}
+                    </p>
+                  ) : null}
+                  <span className="review-dashboard-readiness-meta">
+                    Avaliada em {readinessDateLabel(item.assessedAtUnixMs)}
+                    {item.issueCount > 0 ? ` · ${item.issueCount} ${item.issueCount === 1 ? 'problema' : 'problemas'} apontados` : ''}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="secondary-button review-dashboard-readiness-open"
+                  onClick={() => onOpenNote(item.relativePath)}
+                  aria-label={`Abrir nota ${item.title}`}
+                >
+                  <FileText size={13} strokeWidth={1.6} aria-hidden="true" />
+                  Abrir
+                </button>
+              </li>
+            ))}
+          </ol>
+          {attentionCount > attention.length ? (
+            <p className="review-dashboard-readiness-empty">
+              Algumas notas precisam de atenção, mas a lista está limitada aos primeiros itens.
+            </p>
+          ) : null}
+        </>
+      )}
+    </section>
+  )
+}
+
 function CalibrationSection({ notes, count, onOpenNote }: {
   notes: CalibrationNoteItem[]
   count: number
@@ -585,7 +698,7 @@ function CalibrationSection({ notes, count, onOpenNote }: {
                     <span style={{ width: `${progress}%` }} />
                   </div>
                   <span className="review-dashboard-calibration-count">
-                    {item.observedUnitCount} de {item.totalUnitCount} parágrafos · {remaining} {remaining === 1 ? 'restante' : 'restantes'}
+                    {item.observedUnitCount} de {item.totalUnitCount} {item.unitKind === 'section' ? (item.totalUnitCount === 1 ? 'seção' : 'seções') : item.unitKind === 'paragraph' ? (item.totalUnitCount === 1 ? 'parágrafo' : 'parágrafos') : (item.totalUnitCount === 1 ? 'unidade' : 'unidades')} · {remaining} {remaining === 1 ? 'restante' : 'restantes'}
                   </span>
                   <button
                     type="button"

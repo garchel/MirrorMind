@@ -191,9 +191,9 @@ export function ReviewReportsPage({ vaultPath, onOpenNote }: Props) {
                   <small>tempo que o conteúdo resiste sem revisão</small>
                 </div>
                 <div className="retention-card">
-                  <span className="retention-card-label">Parágrafos frágeis</span>
+                  <span className="retention-card-label">Unidades frágeis</span>
                   <strong className="retention-card-value">{overall.fragileUnitCount}</strong>
-                  <small>retenção abaixo de 60% — revisem em breve</small>
+                  <small>retenção abaixo do limiar de fragilidade — revisem em breve</small>
                 </div>
                 <div className="retention-card">
                   <span className="retention-card-label">Sessões concluídas</span>

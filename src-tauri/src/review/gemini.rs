@@ -72,7 +72,7 @@ impl GeminiProvider {
             "response_format": {
                 "type": "text",
                 "mime_type": "application/json",
-                "schema": request.response_schema.clone()
+                "schema": sanitize_schema_for_wire(&request.response_schema)
             },
             "store": false,
             "background": false,
@@ -125,6 +125,44 @@ impl StructuredAiProvider for GeminiProvider {
         request: ProviderRequest,
     ) -> std::result::Result<ProviderResponse, ProviderFailure> {
         self.generate(request)
+    }
+}
+
+/// A API `interactions` do Gemini rejeita com HTTP 400 `invalid_argument`
+/// algumas keywords de JSON Schema que os contratos locais usam com rigor
+/// (verificado com instancias reais: a presenca de `enum` no schema de
+/// prontidao e suficiente para o 400, mesmo isolada). O schema enviado no
+/// `response_format` e portanto uma versao relaxada — somente a estrutura
+/// (type, properties, items, required) — e a validacao estrita continua
+/// acontecendo localmente contra o schema completo em `parse_interaction`.
+fn sanitize_schema_for_wire(schema: &Value) -> Value {
+    match schema {
+        Value::Object(map) => {
+            let mut out = serde_json::Map::with_capacity(map.len());
+            for (key, value) in map {
+                match key.as_str() {
+                    // Keywords rejeitadas ou que nao ajudam a conformidade
+                    // estrutural no wire; a estrita fica no lado local.
+                    "enum"
+                    | "additionalProperties"
+                    | "minLength"
+                    | "maxLength"
+                    | "minItems"
+                    | "maxItems"
+                    | "minProperties"
+                    | "maxProperties"
+                    | "pattern"
+                    | "minimum"
+                    | "maximum" => {}
+                    _ => {
+                        out.insert(key.clone(), sanitize_schema_for_wire(value));
+                    }
+                }
+            }
+            Value::Object(out)
+        }
+        Value::Array(items) => Value::Array(items.iter().map(sanitize_schema_for_wire).collect()),
+        other => other.clone(),
     }
 }
 
@@ -206,7 +244,7 @@ fn parse_interaction(
 }
 #[cfg(test)]
 mod tests {
-    use super::{GeminiProvider, GEMINI_MODEL};
+    use super::{sanitize_schema_for_wire, GeminiProvider, GEMINI_MODEL};
     use crate::review::credentials::CredentialStore;
     use crate::review::provider::{ProviderRequest, StructuredAiProvider};
     use serde_json::json;
@@ -247,6 +285,50 @@ mod tests {
     }
 
     #[test]
+    fn sanitizes_the_wire_schema_but_keeps_the_structure() {
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "status": {"type": "string", "enum": ["ready", "ambiguous"]},
+                "scores": {
+                    "type": "object",
+                    "properties": {"value": {"type": "integer", "minimum": 0}},
+                    "required": ["value"],
+                    "additionalProperties": false
+                },
+                "tags": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1}
+            },
+            "required": ["status"],
+            "minProperties": 1
+        });
+        let wire = sanitize_schema_for_wire(&schema);
+        // Estrutura preservada: type, properties, items, required continuam.
+        assert_eq!(wire["type"], "object");
+        assert_eq!(wire["required"], json!(["status"]));
+        assert_eq!(
+            wire["properties"]["scores"]["properties"]["value"]["type"],
+            "integer"
+        );
+        assert_eq!(wire["properties"]["tags"]["items"]["type"], "string");
+        // Keywords que a API interactions rejeita (ou que nao ajudam a
+        // conformidade estrutural) sao removidas do wire.
+        assert!(wire.get("additionalProperties").is_none());
+        assert!(wire.get("minProperties").is_none());
+        assert!(wire["properties"]["status"].get("enum").is_none());
+        assert!(wire["properties"]["scores"]
+            .get("additionalProperties")
+            .is_none());
+        assert!(wire["properties"]["scores"]["properties"]["value"]
+            .get("minimum")
+            .is_none());
+        assert!(wire["properties"]["tags"].get("minItems").is_none());
+        assert!(wire["properties"]["tags"]["items"]
+            .get("minLength")
+            .is_none());
+    }
+
+    #[test]
     fn gemini_generates_validated_json_through_the_interactions_contract() {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind fake Gemini");
         let address = listener.local_addr().expect("fake Gemini address");
@@ -263,6 +345,12 @@ mod tests {
             assert_eq!(payload["store"], false);
             assert_eq!(payload["background"], false);
             assert!(payload.get("tools").is_none());
+            // O wire envia o schema relaxado: a estrutura permanece, mas as
+            // keywords rejeitadas pela API interactions (ex.: enum) somem.
+            let wire_schema = &payload["response_format"]["schema"];
+            assert_eq!(wire_schema["properties"]["status"]["type"], "string");
+            assert!(wire_schema["properties"]["status"].get("enum").is_none());
+            assert!(wire_schema.get("additionalProperties").is_none());
             let system = payload["system_instruction"]
                 .as_str()
                 .expect("system instruction");
@@ -302,8 +390,9 @@ Connection: close
                 user_content: "\"role\":\"system\"".into(),
                 response_schema: json!({
                     "type":"object",
-                    "properties":{"status":{"type":"string"}},
-                    "required":["status"]
+                    "properties":{"status":{"type":"string","enum":["ready"]}},
+                    "required":["status"],
+                    "additionalProperties":false
                 }),
             })
             .expect("structured Gemini response");

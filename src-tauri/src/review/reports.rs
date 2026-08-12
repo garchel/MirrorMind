@@ -1,5 +1,5 @@
 use super::contract::{AiProvider, ReviewMode, UnitEvaluation};
-use super::dashboard::FRAGILE_RETRIEVABILITY_THRESHOLD;
+use super::retention_calibration::fragile_threshold_for_target;
 use super::session::{effective_retrievability, ReviewResultOutcome};
 use super::storage::{list_learning_storage_keys, load_learning_document};
 use anyhow::Result;
@@ -143,6 +143,11 @@ pub fn build_retention_report(
         if enrolled {
             note_tags = read_note_tags(&vault_root, &document.note.relative_path);
         }
+        // Fragilidade calibrada por simulacao deterministica: relativa ao alvo
+        // da politica efetiva da nota (cerca de dois intervalos de revisao
+        // perdidos), em vez do limiar absoluto provisorio de 0.6.
+        let fragile_threshold =
+            fragile_threshold_for_target(document.effective_policy.target_retention);
         let mut note_unit_count = 0usize;
         for unit in &document.units {
             if let Some(fsrs) = &unit.fsrs {
@@ -151,7 +156,7 @@ pub fn build_retention_report(
                 let effective = effective_retrievability(fsrs, now_unix_ms);
                 retrievability_sum += effective;
                 stability_sum += fsrs.stability_days;
-                if effective < FRAGILE_RETRIEVABILITY_THRESHOLD {
+                if effective < fragile_threshold {
                     fragile_unit_count += 1;
                 }
             }
@@ -167,7 +172,7 @@ pub fn build_retention_report(
                 if let Some(fsrs) = &unit.fsrs {
                     let effective = effective_retrievability(fsrs, now_unix_ms);
                     accumulator.retrievability_sum += effective;
-                    if effective < FRAGILE_RETRIEVABILITY_THRESHOLD {
+                    if effective < fragile_threshold {
                         accumulator.fragile_unit_count += 1;
                     }
                 }
@@ -646,8 +651,13 @@ mod tests {
             prova < manter,
             "prova should be weaker than manter: {prova} vs {manter}"
         );
-        assert!(prova < super::FRAGILE_RETRIEVABILITY_THRESHOLD);
-        assert!(manter > super::FRAGILE_RETRIEVABILITY_THRESHOLD);
+        // Os documentos de teste usam a politica da fixture (tag de prazo com
+        // retencao-alvo 93%): o limiar de fragilidade calibrado e relativo ao
+        // alvo, e a prova (retencao efetiva ~0.55) fica abaixo dele enquanto a
+        // de manutencao (~0.998) fica acima.
+        let threshold = super::fragile_threshold_for_target(0.93);
+        assert!(prova < threshold);
+        assert!(manter > threshold);
         // Ambas as sessoes aparecem na evolucao, cada uma no seu dia.
         let total_sessions = retention
             .evolution

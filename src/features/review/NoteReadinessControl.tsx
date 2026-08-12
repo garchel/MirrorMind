@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { CalendarCheck2, ChartColumnBig, Check, NotebookPen, RotateCcw, Search, X } from 'lucide-react'
+import { save } from '@tauri-apps/plugin-dialog'
+import { AlertTriangle, CalendarCheck2, ChartColumnBig, Check, Download, NotebookPen, RotateCcw, Search, X } from 'lucide-react'
 import 'katex/dist/katex.min.css'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
@@ -8,12 +9,16 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import {
   assessNoteReadiness,
+  discardUnrecoverableLearningDocument,
+  exportUnrecoverableLearningDocument,
   getNoteReviewState,
+  getUnrecoverableLearningDocuments,
   resetNoteLearning,
   reviewAiErrorMessage,
   setNoteReviewEnrollment,
 } from './ai'
-import type { NoteReviewState, ReadinessAttempt, ReviewAiProvider } from './ai'
+import type { NoteReviewState, ReadinessAttempt, ReviewAiProvider, UnrecoverableLearningDocument } from './ai'
+import { getVaultReviewPolicyConfig } from './vaultReviewPolicy'
 import { useReviewAiSettings } from './ReviewAiSettingsContext'
 import './review-ai.css'
 
@@ -23,6 +28,10 @@ type NoteReadinessControlProps = {
   sourceRevision: string
   isDirty: boolean
   disabled?: boolean
+  /** Tags presentes no Markdown da nota aberta (para o onboarding de perfil). */
+  noteTags?: string[]
+  /** Aplica uma tag ao frontmatter da nota (onboarding de perfil de revisao). */
+  onApplyTag?: (tag: string) => void
   /** Notifica o estado de prontidao mais recente (para indicadores externos). */
   onStatusChange?: (readiness: NoteReviewState['readiness'] | null) => void
   /** Informacoes necessarias para abrir uma sessao de revisao da nota. */
@@ -41,6 +50,8 @@ type AssessmentIdentity = {
   provider: ReviewAiProvider
   sourceHash: string
 }
+
+const EMPTY_TAGS: string[] = []
 
 function ReviewReportMarkdown({ content }: { content: string }) {
   return (
@@ -75,6 +86,8 @@ export function NoteReadinessControl({
   sourceRevision,
   isDirty,
   disabled = false,
+  noteTags = EMPTY_TAGS,
+  onApplyTag,
   onStatusChange,
   onStartReview,
 }: NoteReadinessControlProps) {
@@ -89,12 +102,17 @@ export function NoteReadinessControl({
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [resetBusy, setResetBusy] = useState(false)
   const [resetError, setResetError] = useState('')
+  const [unrecoverableDoc, setUnrecoverableDoc] = useState<UnrecoverableLearningDocument | null>(null)
+  const [recoveryBusy, setRecoveryBusy] = useState(false)
+  const [recoveryError, setRecoveryError] = useState('')
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false)
   const requestGenerationRef = useRef(0)
   const stateGenerationRef = useRef(0)
   const triggerButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useRef<HTMLElement>(null)
   const resetDialogRef = useRef<HTMLElement>(null)
+  const discardDialogRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     requestGenerationRef.current += 1
@@ -116,10 +134,35 @@ export function NoteReadinessControl({
     setStateLoading(true)
     void getNoteReviewState({ vaultPath, relativePath })
       .then((state) => {
-        if (stateGenerationRef.current === generation) setReviewState(state)
+        if (stateGenerationRef.current === generation) {
+          setReviewState(state)
+          // Estado carregou normalmente: nenhuma recuperacao pendente.
+          setUnrecoverableDoc(null)
+          setRecoveryError('')
+        }
       })
       .catch((cause) => {
-        if (stateGenerationRef.current === generation) setError(reviewAiErrorMessage(cause))
+        if (stateGenerationRef.current === generation) {
+          setError(reviewAiErrorMessage(cause))
+          // O carregamento falhou: a nota pode ter um documento de aprendizado
+          // irrecuperavel (principal corrompido e nenhum backup valido).
+          void (async () => {
+            try {
+              const documents = await getUnrecoverableLearningDocuments(vaultPath)
+              if (stateGenerationRef.current !== generation) return
+              const match = documents.find((document) => document.relativePath === relativePath)
+              // So oferece recuperacao quando ha vinculo claro com a nota
+              // aberta (ou um unico candidato no vault); nunca adivinha.
+              const target = match ?? (documents.length === 1 ? documents[0] : null)
+              if (target) {
+                setUnrecoverableDoc(target)
+                setError('')
+              }
+            } catch {
+              // O erro do carregamento ja foi exibido; a deteccao e detalhe.
+            }
+          })()
+        }
       })
       .finally(() => {
         if (stateGenerationRef.current === generation) setStateLoading(false)
@@ -130,6 +173,129 @@ export function NoteReadinessControl({
     requestGenerationRef.current += 1
     stateGenerationRef.current += 1
   }, [])
+
+  /** Perfis padrao de revisao (`#revisao/prova`, `#revisao/manter`,
+   *  `#revisao/leve`): quando a nota esta pronta e nenhuma tag de revisao foi
+   *  aplicada ainda, o menu sugere adotar um perfil para ativar a revisao com
+   *  uma politica adequada, em vez de deixar a nota sem adesao. */
+  const [suggestedProfiles, setSuggestedProfiles] = useState<string[]>([])
+  useEffect(() => {
+    let active = true
+    // So sugere na primeira avaliacao, com a nota pronta e limpa, quando o
+    // usuario ainda nao aplicou nenhuma tag de revisao configurada.
+    if (isDirty || !reviewState || reviewState.readiness !== 'ready' || !onApplyTag) {
+      setSuggestedProfiles([])
+      return
+    }
+    const appliedReviewTags = new Set(noteTags)
+    const alreadyHasReviewTag = (rules: { tag: string }[]) => rules.some((rule) => appliedReviewTags.has(rule.tag))
+    void getVaultReviewPolicyConfig(vaultPath)
+      .then((config) => {
+        if (!active) return
+        const reviewTags = config.tagRules.map((rule) => rule.tag)
+        if (alreadyHasReviewTag(config.tagRules)) {
+          setSuggestedProfiles([])
+          return
+        }
+        // Sugere os perfis padrao que ainda nao estao na nota.
+        const profiles = ['revisao/prova', 'revisao/manter', 'revisao/leve'].filter(
+          (tag) => reviewTags.includes(tag) && !appliedReviewTags.has(tag),
+        )
+        setSuggestedProfiles(profiles)
+      })
+      .catch(() => {
+        if (active) setSuggestedProfiles([])
+      })
+    return () => {
+      active = false
+    }
+  }, [isDirty, noteTags, onApplyTag, reviewState, vaultPath])
+
+  /** Exporta o arquivo irrecuperavel (principal + backups) para um destino
+   *  escolhido pelo usuario antes de descartar o aprendizado. */
+  async function performRecoveryExport() {
+    if (!unrecoverableDoc) return
+    const generation = stateGenerationRef.current
+    setRecoveryBusy(true)
+    setRecoveryError('')
+    try {
+      const segments = (unrecoverableDoc.relativePath ?? 'aprendizado')
+        .replace(/\\/g, '/')
+        .split('/')
+      const lastSegment = segments[segments.length - 1] ?? 'aprendizado'
+      const baseName = lastSegment.replace(/\.md$/i, '')
+      const destination = await save({
+        title: 'Exportar arquivo de aprendizado',
+        defaultPath: `${baseName}.learning.json`,
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      })
+      if (destination === null) return
+      await exportUnrecoverableLearningDocument({
+        vaultPath,
+        storageKey: unrecoverableDoc.storageKey,
+        destinationPath: destination,
+      })
+    } catch (cause) {
+      if (stateGenerationRef.current === generation) setRecoveryError(reviewAiErrorMessage(cause))
+    } finally {
+      if (stateGenerationRef.current === generation) setRecoveryBusy(false)
+    }
+  }
+
+  /** Descarta (quarentena) o documento irrecuperavel para a nota recomecar. */
+  async function performRecoveryDiscard() {
+    if (!unrecoverableDoc) return
+    const generation = stateGenerationRef.current
+    setRecoveryBusy(true)
+    setRecoveryError('')
+    try {
+      await discardUnrecoverableLearningDocument({
+        vaultPath,
+        storageKey: unrecoverableDoc.storageKey,
+      })
+      if (stateGenerationRef.current !== generation) return
+      setUnrecoverableDoc(null)
+      setDiscardConfirmOpen(false)
+      // Recarrega o estado: a nota volta a nao avaliada e pode recomecar.
+      const state = await getNoteReviewState({ vaultPath, relativePath })
+      if (stateGenerationRef.current === generation) setReviewState(state)
+      triggerButtonRef.current?.focus()
+    } catch (cause) {
+      if (stateGenerationRef.current === generation) setRecoveryError(reviewAiErrorMessage(cause))
+    } finally {
+      if (stateGenerationRef.current === generation) setRecoveryBusy(false)
+    }
+  }
+
+  function closeDiscardConfirm() {
+    if (recoveryBusy) return
+    setDiscardConfirmOpen(false)
+    setRecoveryError('')
+  }
+
+  function handleDiscardKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
+    if (event.key === 'Escape') {
+      if (!recoveryBusy) {
+        event.preventDefault()
+        closeDiscardConfirm()
+      }
+      return
+    }
+    if (event.key !== 'Tab') return
+    const focusable = discardDialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), [tabindex]:not([tabindex="-1"])',
+    )
+    if (!focusable?.length) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   useEffect(() => {
     if (attempt) closeButtonRef.current?.focus()
@@ -329,6 +495,11 @@ export function NoteReadinessControl({
             Meta de retenção em risco
           </span>
         ) : null}
+        {reviewState?.recoveredFromBackup ? (
+          <span className="note-recovery-badge" role="status" title="O arquivo principal de aprendizado estava corrompido ou ausente e foi restaurado de um backup (possivelmente de uma versão anterior).">
+            Aprendizado recuperado de backup
+          </span>
+        ) : null}
       </div>
       {reviewState?.report ? (
         <button
@@ -360,6 +531,30 @@ export function NoteReadinessControl({
         <CalendarCheck2 size={15} strokeWidth={1.5} aria-hidden="true" />
         <span>{enrollmentBusy ? 'Preparando…' : 'Fazer revisão agora'}</span>
       </button>
+      {suggestedProfiles.length > 0 ? (
+        <div className="note-profile-onboarding" role="region" aria-label="Adotar perfil de revisão">
+          <div className="note-profile-onboarding-heading">
+            <strong>Adotar perfil de revisão?</strong>
+            <small>A nota está pronta, mas ainda não tem uma tag de revisão. Escolha um perfil para ativar o agendamento com uma política adequada.</small>
+          </div>
+          <div className="note-profile-onboarding-options">
+            {suggestedProfiles.map((tag) => {
+              const label = tag === 'revisao/prova' ? 'Intensiva' : tag === 'revisao/manter' ? 'Equilibrada' : 'Leve'
+              const description = tag === 'revisao/prova'
+                ? 'Para conteúdo de prova e alta prioridade.'
+                : tag === 'revisao/manter'
+                  ? 'Boa retenção sem concentrar revisões.'
+                  : 'Para não esquecer completamente.'
+              return (
+                <button key={tag} type="button" className="secondary-button" onClick={() => onApplyTag?.(tag)}>
+                  <strong>{label}</strong>
+                  <small>#{tag} · {description}</small>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
       <button
         ref={triggerButtonRef}
         type="button"
@@ -391,6 +586,104 @@ export function NoteReadinessControl({
         </button>
       ) : null}
       {error && !attempt ? <p className="review-ai-toolbar-error" role="alert">{error}</p> : null}
+
+      {unrecoverableDoc ? (
+        <div className="note-recovery-banner" role="alert">
+          <span className="note-recovery-banner-icon" aria-hidden="true">
+            <AlertTriangle size={15} strokeWidth={1.6} />
+          </span>
+          <div className="note-recovery-banner-copy">
+            <strong>Aprendizado irrecuperável</strong>
+            <p>
+              O arquivo de aprendizado desta nota está corrompido e nenhum backup válido foi
+              encontrado. Exporte o arquivo para preservar o que houver e depois descarte para
+              reavaliar a nota do zero.
+            </p>
+            {unrecoverableDoc.relativePath ? (
+              <small>{unrecoverableDoc.relativePath}</small>
+            ) : null}
+            {recoveryError ? <p className="review-reset-error" role="alert">{recoveryError}</p> : null}
+          </div>
+          <div className="note-recovery-banner-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void performRecoveryExport()}
+              disabled={recoveryBusy}
+            >
+              <Download size={13} strokeWidth={1.6} aria-hidden="true" />
+              {recoveryBusy ? 'Exportando…' : 'Exportar arquivo'}
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                setRecoveryError('')
+                setDiscardConfirmOpen(true)
+              }}
+              disabled={recoveryBusy}
+            >
+              Descartar e reavaliar
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {discardConfirmOpen ? (
+        <div className="review-ai-dialog-backdrop" role="presentation">
+          <section
+            ref={discardDialogRef}
+            className="review-ai-dialog review-reset-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="review-discard-title"
+            aria-describedby="review-discard-description"
+            onKeyDown={handleDiscardKeyDown}
+          >
+            <header>
+              <div>
+                <p className="card-kicker">Recuperação de aprendizado</p>
+                <h2 id="review-discard-title">Descartar aprendizado irrecuperável?</h2>
+              </div>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={closeDiscardConfirm}
+                disabled={recoveryBusy}
+                aria-label="Cancelar descarte"
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            </header>
+            <div className="review-ai-report-body">
+              <p id="review-discard-description">
+                O arquivo de aprendizado desta nota não pode ser lido. Descartar remove os arquivos
+                corrompidos (em quarentena) e permite reavaliar a nota do zero — pontuações,
+                memória e agendamento anteriores ficam indisponíveis.
+              </p>
+              <p className="review-reset-hint">
+                Recomendado: use “Exportar arquivo” antes de descartar para preservar o conteúdo
+                original como evidência.
+              </p>
+              {recoveryError ? <p className="review-reset-error" role="alert">{recoveryError}</p> : null}
+            </div>
+            <div className="review-ai-dialog-actions">
+              <button type="button" className="secondary-button" onClick={closeDiscardConfirm} disabled={recoveryBusy}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="review-reset-confirm"
+                onClick={() => void performRecoveryDiscard()}
+                disabled={recoveryBusy}
+                autoFocus
+              >
+                {recoveryBusy ? 'Descartando…' : 'Descartar e reavaliar'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {resetConfirmOpen ? (
         <div className="review-ai-dialog-backdrop" role="presentation">
