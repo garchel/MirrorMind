@@ -1,8 +1,12 @@
+use super::comparability::{
+    build_divergence_report, evaluate_with_provider, DivergenceReport, CASES,
+    MARKDOWN as COMPARABILITY_MARKDOWN,
+};
 use super::contract::{ReviewMode, UnitEvaluation};
 use super::coverage::{select_session_units, SessionPlan};
 use super::credentials::{
     credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
-    has_gemini_consent, load_openai_compatible_provider, save_gemini_api_key,
+    has_gemini_consent, load_gemini_api_key, load_openai_compatible_provider, save_gemini_api_key,
     save_openai_compatible_provider, set_gemini_consent, NativeCredentialStore,
 };
 use super::dashboard::{build_vault_review_dashboard, VaultReviewDashboard};
@@ -270,6 +274,23 @@ fn provider_for_selection(
         }
     }
 }
+
+/// Descritor visual (visao multimodal) para a leitura de imagens na sessao:
+/// so existe para o Gemini, e apenas quando o provider ja foi autorizado (o
+/// proprio `provider_for_selection` exige o consentimento antes de construir
+/// o Gemini). Outros provedores devolvem `None` e as imagens permanecem
+/// listadas sem interpretacao visual.
+fn vision_describer_for_selection(
+    provider: &dyn StructuredAiProvider,
+) -> Option<std::sync::Arc<dyn super::session_sources::ImageDescriber>> {
+    if provider.kind() != super::provider::ProviderKind::Gemini {
+        return None;
+    }
+    let store = NativeCredentialStore::new();
+    let gemini = GeminiProvider::from_store(&store).ok()?;
+    Some(std::sync::Arc::new(gemini))
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiConfiguration {
@@ -406,6 +427,53 @@ pub async fn check_ollama_review_status() -> Result<OllamaStatus, String> {
     .map_err(|_| "Nao foi possivel concluir a verificacao do Ollama.".to_string())?
 }
 
+/// Comparabilidade REAL entre provedores: avalia a MESMA nota fixa, com as
+/// MESMAS perguntas e respostas, pelo caminho de producao em cada provedor
+/// disponivel (Ollama local + Gemini ou OpenAI-compatible configurado) e
+/// devolve o relatorio de divergencia. Nenhum lado falho derruba a operacao:
+/// o relatorio registra o erro legivel de cada lado.
+#[tauri::command]
+pub async fn run_provider_comparability() -> Result<DivergenceReport, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let store = NativeCredentialStore::new();
+        let ollama = OllamaProvider::new().map_err(|error| error.to_string())?;
+        let ollama_name = "ollama-qwen2.5:7b";
+        // Segundo lado: Gemini se configurado, senao OpenAI-compatible.
+        let remote_name: &'static str;
+        let remote: Box<dyn StructuredAiProvider>;
+        match load_gemini_api_key(&store).map_err(|error| error.to_string())? {
+            Some(api_key) => {
+                remote_name = "gemini-3.5-flash";
+                remote = Box::new(GeminiProvider::from_store(&store).map_err(|error| error.to_string())?);
+            }
+            None => match load_openai_compatible_provider(&store)
+                .map_err(|error| error.to_string())?
+            {
+                Some(configuration) => {
+                    remote_name = "openai-compatible";
+                    remote = Box::new(
+                        OpenAiCompatibleProvider::new(
+                            configuration.base_url,
+                            configuration.model,
+                            configuration.api_key,
+                        )
+                        .map_err(|error| error.to_string())?,
+                    );
+                }
+                None => {
+                    return Err("Nenhum provedor remoto configurado: configure o Gemini ou um provedor OpenAI-compatible para comparar com o Ollama.".to_string())
+                }
+            },
+        }
+        let ollama_outcome =
+            evaluate_with_provider(&ollama, ollama_name, COMPARABILITY_MARKDOWN, CASES);
+        let gemini_outcome = evaluate_with_provider(&*remote, remote_name, COMPARABILITY_MARKDOWN, CASES);
+        Ok(build_divergence_report(ollama_outcome, gemini_outcome))
+    })
+    .await
+    .map_err(|_| "Nao foi possivel concluir a comparacao de provedores.".to_string())?
+}
+
 /// Verifica os fatos de uma nota contra o conhecimento do modelo, em uma
 /// operacao SEPARADA da avaliacao de memoria: nunca altera o Markdown, nunca
 /// modifica pontuacoes de revisoes nem o estado DSR/FSRS. Distingue
@@ -503,12 +571,27 @@ pub(crate) async fn assess_note_synthesis(
         let markdown =
             read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
         // Material permitido da sessao: o Markdown da nota + o texto extraido
-        // dos anexos referenciados (PDFs e notas embutidas), claramente
-        // rotulado por fonte. Imagens ficam listadas como fontes consideradas
-        // sem texto (interpretacao visual exige OCR — fora do escopo local).
-        let material = super::session_sources::build_session_material(&root, &markdown)
-            .map_err(|error| error.to_string())?;
+        // dos anexos referenciados (PDFs, notas embutidas e, quando o provedor
+        // tem visao, a interpretacao das imagens), claramente rotulado por
+        // fonte. O descritor visual so existe para provedores com visao e
+        // autorizacao de egresso (Gemini); cada imagem reserva uma chamada de
+        // visao (parada dura de orcamento) ANTES de qualquer byte sair do
+        // Vault.
         let provider = provider_for_selection(provider)?;
+        let provider_kind = provider.kind();
+        let describer = vision_describer_for_selection(provider.as_ref());
+        let mut reserve_vision = |image_bytes: usize| {
+            super::usage::check_and_record_vision_call(&root, provider_kind, image_bytes)
+                .map(|_| ())
+                .map_err(anyhow::Error::from)
+        };
+        let material = super::session_sources::build_session_material(
+            &root,
+            &markdown,
+            describer.as_deref(),
+            &mut reserve_vision,
+        )
+        .map_err(|error| error.to_string())?;
         reserve_ai_call(&root, provider.as_ref(), material.len() + synthesis.len())?;
         super::synthesis::evaluate_synthesis(provider.as_ref(), &material, &synthesis)
             .map_err(|error| error.to_string())

@@ -38,6 +38,16 @@ const GEMINI_INPUT_USD_PER_1M: f64 = 0.30;
 const GEMINI_OUTPUT_USD_PER_1M: f64 = 1.50;
 /// Ollama e local: sem custo por token (apenas energia/computacao local).
 const LOCAL_USD_PER_1M: f64 = 0.0;
+/// Heuristica de tokens por imagem para a leitura visual (visao): tokens de
+/// entrada estimados por byte de imagem, aproximacao conservadora de tabela
+/// publica (imagens maiores custam mais) — configuravel em evolucao futura.
+const VISION_TOKENS_PER_BYTE: f64 = 1.0 / 2_000.0;
+/// Custos por milhao de tokens de entrada/saida da visao no Gemini
+/// (aproximacao de tabela publica, mais cara que texto).
+const VISION_INPUT_USD_PER_1M: f64 = 1.25;
+const VISION_OUTPUT_USD_PER_1M: f64 = 5.0;
+/// Saida estimada de uma descricao de imagem (texto curto).
+const ESTIMATED_VISION_OUTPUT_TOKENS: f64 = 500.0;
 
 const METADATA_DIRECTORY: &str = ".mirmind";
 const USAGE_FILE: &str = "review-usage.json";
@@ -76,6 +86,22 @@ pub fn estimate_call_cost_usd(provider: ProviderKind, input_chars: usize) -> f64
     input_tokens / 1_000_000.0 * input_usd + ESTIMATED_OUTPUT_TOKENS / 1_000_000.0 * output_usd
 }
 
+/// Estima o custo em USD de UMA descricao visual de imagem (visao
+/// multimodal) a partir do tamanho em bytes: tokens de entrada estimados por
+/// byte + saida textual curta. Provedores locais (Ollama) custam zero. Usado
+/// para reservar ANTES de enviar a imagem ao provedor.
+pub fn estimate_vision_call_cost_usd(provider: ProviderKind, image_bytes: usize) -> f64 {
+    let (input_usd, output_usd) = match provider {
+        ProviderKind::Ollama => (LOCAL_USD_PER_1M, LOCAL_USD_PER_1M),
+        ProviderKind::Gemini => (VISION_INPUT_USD_PER_1M, VISION_OUTPUT_USD_PER_1M),
+        // Preco desconhecido por servico: estimativa generica de nuvem.
+        ProviderKind::OpenAiCompatible => (VISION_INPUT_USD_PER_1M, VISION_OUTPUT_USD_PER_1M),
+    };
+    let input_tokens = image_bytes as f64 * VISION_TOKENS_PER_BYTE;
+    input_tokens / 1_000_000.0 * input_usd
+        + ESTIMATED_VISION_OUTPUT_TOKENS / 1_000_000.0 * output_usd
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderCallCount {
@@ -98,6 +124,10 @@ pub struct UsageRecord {
     /// Segundo unix em que a janela de minuto atual abriu.
     pub minute_start_unix: u64,
     pub calls_in_minute: u32,
+    /// Chamadas de leitura visual (descricao de imagem) no dia. Registros
+    /// antigos sem o campo leem como zero (compativel com dados existentes).
+    #[serde(default)]
+    pub vision_calls: u32,
 }
 
 impl UsageRecord {
@@ -130,6 +160,7 @@ pub struct UsageStatusView {
     pub estimated_cost_usd_month: f64,
     pub max_cost_per_month_usd: f64,
     pub monthly_exceeded: bool,
+    pub vision_calls: u32,
 }
 
 fn today_day(now_unix: u64) -> u64 {
@@ -176,6 +207,7 @@ fn fresh_record(day: u64, now_unix: u64) -> UsageRecord {
         estimated_cost_usd_month: 0.0,
         minute_start_unix: now_unix,
         calls_in_minute: 0,
+        vision_calls: 0,
     }
 }
 
@@ -245,6 +277,7 @@ fn status_view(record: &UsageRecord, limits: UsageLimits) -> UsageStatusView {
         estimated_cost_usd_month: record.estimated_cost_usd_month,
         max_cost_per_month_usd: limits.max_cost_per_month_usd,
         monthly_exceeded: record.estimated_cost_usd_month >= limits.max_cost_per_month_usd,
+        vision_calls: record.vision_calls,
     }
 }
 
@@ -299,6 +332,77 @@ pub(crate) fn check_and_record_call_with_limits(
         &serde_json::to_vec(&record).context("serializacao do registro de uso")?,
     )?;
     Ok(status_view(&record, limits))
+}
+
+/// Variante da reserva para a leitura visual (descricao de imagem): aplica as
+/// MESMAS paradas duras (diaria, por minuto e orcamento mensal) ANTES de
+/// enviar a imagem e, alem da chamada normal por provedor, incrementa o
+/// contador separado `vision_calls` para a interface.
+pub(crate) fn check_and_record_vision_call_with_limits(
+    vault_root: &Path,
+    provider: ProviderKind,
+    estimated_cost_usd: f64,
+    limits: UsageLimits,
+    now_unix: u64,
+) -> Result<UsageStatusView> {
+    let day = today_day(now_unix);
+    let current_month = month_key(now_unix);
+    let mut record = load_usage_record(vault_root, now_unix)?;
+    if record.day != day || record.month_key != current_month {
+        record = fresh_record(day, now_unix);
+    }
+    if now_unix.saturating_sub(record.minute_start_unix) >= 60 {
+        record.minute_start_unix = now_unix;
+        record.calls_in_minute = 0;
+    }
+    if record.total_calls() >= limits.max_calls_per_day {
+        bail!(
+            "Limite diario de chamadas de IA atingido ({}/{}). Volte amanha ou mude o provedor.",
+            record.total_calls(),
+            limits.max_calls_per_day
+        );
+    }
+    if record.calls_in_minute >= limits.max_calls_per_minute {
+        bail!(
+            "Muitas chamadas de IA em um minuto ({}). Aguarde um instante e tente de novo.",
+            limits.max_calls_per_minute
+        );
+    }
+    if limits.max_cost_per_month_usd > 0.0
+        && record.estimated_cost_usd_month + estimated_cost_usd > limits.max_cost_per_month_usd
+    {
+        bail!(
+            "Orcamento mensal de IA atingido (US$ {:.2} de US$ {:.2}). Aguarde o proximo mes ou use um provedor local.",
+            record.estimated_cost_usd_month,
+            limits.max_cost_per_month_usd
+        );
+    }
+    record.calls_in_minute += 1;
+    record.vision_calls += 1;
+    bump_provider(&mut record, provider_label(provider));
+    record.estimated_cost_usd += estimated_cost_usd;
+    record.estimated_cost_usd_month += estimated_cost_usd;
+    write_atomic(
+        &usage_file_path(vault_root),
+        &serde_json::to_vec(&record).context("serializacao do registro de uso")?,
+    )?;
+    Ok(status_view(&record, limits))
+}
+
+/// Reserva UMA chamada de leitura visual com os limites do prototipo,
+/// estimando o custo pelo tamanho da imagem em bytes.
+pub(crate) fn check_and_record_vision_call(
+    vault_root: &Path,
+    provider: ProviderKind,
+    image_bytes: usize,
+) -> Result<UsageStatusView> {
+    check_and_record_vision_call_with_limits(
+        vault_root,
+        provider,
+        estimate_vision_call_cost_usd(provider, image_bytes),
+        UsageLimits::default(),
+        now_unix_secs(),
+    )
 }
 
 /// Reserva uma chamada com os limites do prototipo, estimando o custo pelo
@@ -502,6 +606,71 @@ mod tests {
         // O acumulado mensal reiniciou; o diario tambem (outro dia).
         assert!((after.estimated_cost_usd_month - 0.01).abs() < 1e-9);
         assert_eq!(after.total_calls(), 1);
+    }
+
+    #[test]
+    fn vision_calls_are_counted_separately_and_cost_more_than_text() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let now = 1_800_000_000u64;
+        check_and_record_vision_call_with_limits(
+            root,
+            ProviderKind::Gemini,
+            0.01,
+            daily_only_limits(),
+            now,
+        )
+        .expect("reserve vision");
+        let record = load_usage_record(root, now).expect("load");
+        assert_eq!(record.vision_calls, 1);
+        assert_eq!(record.provider_calls("gemini"), 1);
+        assert_eq!(record.total_calls(), 1);
+        let status = check_and_record_vision_call_with_limits(
+            root,
+            ProviderKind::Gemini,
+            0.01,
+            daily_only_limits(),
+            now,
+        )
+        .expect("reserve vision again");
+        assert_eq!(status.vision_calls, 2);
+    }
+
+    #[test]
+    fn vision_respects_the_monthly_budget_before_sending_the_image() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let now = 1_800_000_000u64;
+        let tight = UsageLimits {
+            max_calls_per_day: 1_000,
+            max_calls_per_minute: 1_000,
+            max_cost_per_month_usd: 0.05,
+        };
+        check_and_record_vision_call_with_limits(root, ProviderKind::Gemini, 0.03, tight, now)
+            .expect("dentro do teto");
+        let error =
+            check_and_record_vision_call_with_limits(root, ProviderKind::Gemini, 0.03, tight, now)
+                .expect_err("teto estourado");
+        assert!(error.to_string().contains("Orcamento mensal"));
+        // Nenhuma imagem foi enviada: o contador de visao parou em 1.
+        let record = load_usage_record(root, now).expect("load");
+        assert_eq!(record.vision_calls, 1);
+    }
+
+    #[test]
+    fn estimates_vision_cost_grows_with_image_size_and_is_zero_locally() {
+        assert_eq!(
+            estimate_vision_call_cost_usd(ProviderKind::Ollama, 100_000),
+            0.0
+        );
+        let small = estimate_vision_call_cost_usd(ProviderKind::Gemini, 10_000);
+        let large = estimate_vision_call_cost_usd(ProviderKind::Gemini, 1_000_000);
+        assert!(small > 0.0);
+        assert!(large > small);
+        // Valor aproximado: 1M bytes ~ 500 tokens de entrada a US$1,25/M + 500
+        // tokens de saida a US$5,00/M.
+        let expected = 500.0 / 1_000_000.0 * 1.25 + 500.0 / 1_000_000.0 * 5.0;
+        assert!((large - expected).abs() < 1e-9);
     }
 
     #[test]

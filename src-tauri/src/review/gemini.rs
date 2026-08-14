@@ -48,6 +48,24 @@ impl GeminiProvider {
         })
     }
 
+    /// Descreve o conteudo visual de uma imagem (visao multimodal). Usado pela
+    /// leitura multimodal para incorporar a interpretacao de imagens ao
+    /// material permitido da sessao. Falhas devolvem `ProviderFailure` legivel.
+    pub fn describe_image(
+        &self,
+        mime_type: &str,
+        image_bytes: &[u8],
+    ) -> std::result::Result<String, ProviderFailure> {
+        describe_image_with_gemini(
+            &self.client,
+            &self.endpoint,
+            self.api_key.as_str(),
+            GEMINI_MODEL,
+            mime_type,
+            image_bytes,
+        )
+    }
+
     fn generate(
         &self,
         request: ProviderRequest,
@@ -126,6 +144,130 @@ impl StructuredAiProvider for GeminiProvider {
     ) -> std::result::Result<ProviderResponse, ProviderFailure> {
         self.generate(request)
     }
+}
+
+impl super::session_sources::ImageDescriber for GeminiProvider {
+    fn describe_image(
+        &self,
+        mime_type: &str,
+        image_bytes: &[u8],
+    ) -> anyhow::Result<String, String> {
+        self.describe_image(mime_type, image_bytes)
+            .map_err(|failure| {
+                if failure.validation_errors.is_empty() {
+                    failure.message
+                } else {
+                    format!(
+                        "{}: {}",
+                        failure.message,
+                        failure.validation_errors.join("; ")
+                    )
+                }
+            })
+    }
+}
+
+/// Limite de bytes de imagem enviada ao Gemini para descricao (protecao de
+/// custo e de abuso: imagem alem disso nao e enviada).
+pub const MAX_DESCRIBE_IMAGE_BYTES: usize = 4 * 1024 * 1024;
+
+/// Descreve o conteudo visual de uma imagem com o Gemini, enviando os bytes
+/// via `inline_data` no endpoint `:generateContent` (visao multimodal). Usado
+/// pela leitura multimodal para incorporar a interpretacao de imagens ao
+/// material permitido da sessao. Nenhum conteudo alem da imagem e enviado; o
+/// texto devolvido e usado somente no material da sessao.
+pub fn describe_image_with_gemini(
+    client: &reqwest::blocking::Client,
+    endpoint: &str,
+    api_key: &str,
+    model: &str,
+    mime_type: &str,
+    image_bytes: &[u8],
+) -> std::result::Result<String, ProviderFailure> {
+    if image_bytes.len() > MAX_DESCRIBE_IMAGE_BYTES {
+        return Err(ProviderFailure {
+            message: "A imagem e grande demais para a descricao visual.".to_string(),
+            raw_response: None,
+            validation_errors: vec!["Imagem acima do limite de descricao.".to_string()],
+        });
+    }
+    use base64::Engine as _;
+    let data = base64::engine::general_purpose::STANDARD.encode(image_bytes);
+    let generate_endpoint = endpoint
+        .trim_end_matches('/')
+        .rsplit_once('/')
+        .map(|(prefix, _)| format!("{prefix}/models/{model}:generateContent"))
+        .unwrap_or_else(|| {
+            format!(
+                "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+            )
+        });
+    let body = json!({
+        "contents": [{
+            "parts": [
+                {
+                    "text": "Descreva objetivamente o conteudo visual desta imagem, em portugues, listando elementos, texto legivel e contexto. Se a imagem nao tiver conteudo legivel, diga isso. Nao use Markdown."
+                },
+                {
+                    "inline_data": {
+                        "mime_type": mime_type,
+                        "data": data
+                    }
+                }
+            ]
+        }],
+        "generationConfig": { "temperature": 0, "maxOutputTokens": 1024 }
+    });
+    let response = client
+        .post(&generate_endpoint)
+        .header("x-goog-api-key", api_key)
+        .json(&body)
+        .send()
+        .map_err(gemini_transport_failure)?;
+    let status = response.status();
+    let raw_response = read_bounded(response).map_err(|message| ProviderFailure {
+        message,
+        raw_response: None,
+        validation_errors: Vec::new(),
+    })?;
+    let raw_response = raw_response.replace(api_key, "[REDACTED]");
+    if !status.is_success() {
+        return Err(ProviderFailure {
+            message: match status.as_u16() {
+                400 => "O Gemini rejeitou a descricao da imagem.".to_string(),
+                401 | 403 => "A credencial do Gemini foi recusada.".to_string(),
+                429 => "O limite temporario do Gemini foi atingido.".to_string(),
+                code => format!("O Gemini respondeu com o status HTTP {code}."),
+            },
+            raw_response: Some(raw_response),
+            validation_errors: Vec::new(),
+        });
+    }
+    let envelope: Value = serde_json::from_str(&raw_response).map_err(|_| ProviderFailure {
+        message: "O Gemini retornou uma resposta malformada.".to_string(),
+        raw_response: Some(raw_response.clone()),
+        validation_errors: vec!["Envelope JSON invalido.".to_string()],
+    })?;
+    let parts_text = envelope["candidates"]
+        .as_array()
+        .and_then(|candidates| candidates.first())
+        .and_then(|candidate| candidate["content"]["parts"].as_array())
+        .map(|parts| {
+            parts
+                .iter()
+                .filter_map(|part| part["text"].as_str())
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .unwrap_or_default();
+    if parts_text.trim().is_empty() {
+        return Err(ProviderFailure {
+            message: "O Gemini nao devolveu texto para a imagem.".to_string(),
+            raw_response: Some(raw_response),
+            validation_errors: vec!["Nenhum texto na resposta.".to_string()],
+        });
+    }
+    Ok(parts_text.trim().to_string())
 }
 
 /// A API `interactions` do Gemini rejeita com HTTP 400 `invalid_argument`
@@ -244,9 +386,13 @@ fn parse_interaction(
 }
 #[cfg(test)]
 mod tests {
-    use super::{sanitize_schema_for_wire, GeminiProvider, GEMINI_MODEL};
+    use super::{
+        describe_image_with_gemini, sanitize_schema_for_wire, GeminiProvider, GEMINI_MODEL,
+        MAX_DESCRIBE_IMAGE_BYTES,
+    };
     use crate::review::credentials::CredentialStore;
     use crate::review::provider::{ProviderRequest, StructuredAiProvider};
+    use reqwest::blocking::Client;
     use serde_json::json;
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
@@ -399,6 +545,72 @@ Connection: close
 
         assert_eq!(result.structured, json!({"status":"ready"}));
         server.join().expect("fake Gemini server");
+    }
+
+    #[test]
+    fn describes_an_image_through_generate_content_with_inline_data() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind fake Gemini");
+        let address = listener.local_addr().expect("fake Gemini address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept request");
+            let request = read_http_request(&mut stream);
+
+            assert!(request.starts_with("POST /v1beta/models/gemini-3.5-flash:generateContent "));
+            assert!(request.contains("x-goog-api-key: test-gemini-key-123"));
+            let (_, payload) = request.split_once("\r\n\r\n").expect("HTTP body");
+            let payload: serde_json::Value = serde_json::from_str(payload).expect("request JSON");
+            let parts = payload["contents"][0]["parts"].as_array().expect("parts");
+            let inline = parts
+                .iter()
+                .find(|part| part.get("inline_data").is_some())
+                .expect("inline_data part");
+            assert_eq!(inline["inline_data"]["mime_type"], "image/png");
+            // O base64 decodifica de volta para os bytes originais da imagem.
+            use base64::Engine as _;
+            let encoded = inline["inline_data"]["data"].as_str().expect("data");
+            let decoded = base64::engine::general_purpose::STANDARD
+                .decode(encoded)
+                .expect("valid base64");
+            assert_eq!(decoded, b"\x89PNG\r\n\x1a\n");
+            let body = r#"{"candidates":[{"content":{"parts":[{"text":"Diagrama de setas ligando fotossintese a glicose."}]}}]}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Length: {}
+Connection: close
+
+{}",
+                body.len(),
+                body
+            )
+            .expect("respond");
+        });
+
+        let provider = GeminiProvider::for_test(
+            format!("http://{address}/v1beta/interactions"),
+            "test-gemini-key-123".to_string(),
+        );
+        let description = provider
+            .describe_image("image/png", b"\x89PNG\r\n\x1a\n")
+            .expect("describe image");
+        assert!(description.contains("Diagrama de setas"));
+        server.join().expect("fake Gemini server");
+    }
+
+    #[test]
+    fn image_description_reports_a_legible_failure_for_oversized_images() {
+        let bytes = vec![0_u8; MAX_DESCRIBE_IMAGE_BYTES + 1];
+        let failure = describe_image_with_gemini(
+            &Client::new(),
+            "http://127.0.0.1:1/v1beta/interactions",
+            "test-gemini-key-123",
+            GEMINI_MODEL,
+            "image/png",
+            &bytes,
+        )
+        .expect_err("oversized image must be rejected");
+        assert!(failure.message.contains("grande demais"));
     }
 
     #[test]

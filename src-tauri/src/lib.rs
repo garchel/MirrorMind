@@ -6369,6 +6369,7 @@ pub fn run() {
             review::ipc::configure_openai_compatible_provider,
             review::ipc::remove_openai_compatible_provider,
             review::ipc::check_ollama_review_status,
+            review::ipc::run_provider_comparability,
             review::ipc::assess_note_readiness,
             review::ipc::assess_note_synthesis,
             review::ipc::note_session_sources,

@@ -13,6 +13,17 @@
 use anyhow::{bail, Result};
 use serde::Serialize;
 
+/// Interpreta o conteudo visual de uma imagem (visao multimodal). O backend
+/// usa o Gemini quando configurado e autorizado; provedores sem visao nao
+/// implementam e as imagens permanecem listadas sem texto (honesto).
+pub trait ImageDescriber {
+    /// Devolve uma descricao textual objetiva da imagem.
+    fn describe_image(&self, mime_type: &str, image_bytes: &[u8]) -> Result<String, String>;
+}
+
+/// Imagem considerada mas ainda nao interpretada visualmente.
+pub const IMAGE_NOT_DESCRIBED: &str = "imagem listada sem interpretacao visual";
+
 /// Extensao de anexo reconhecida como imagem pelo app.
 pub fn is_image_extension(extension: &str) -> bool {
     matches!(
@@ -360,11 +371,16 @@ pub fn resolve_session_sources(
 }
 
 /// Monta o material permitido de uma sessao a partir do Markdown da nota e do
-/// texto extraido dos anexos referenciados (`![[...]]` de PDFs e notas
-/// embutidas), rotulado por fonte. Imagens sao listadas por nome sem texto
-/// (interpretacao visual exige OCR — fora do escopo local). Retorna o
-/// Markdown aumentado, com cada anexo claramente delimitado.
-pub fn build_session_material(root: &std::path::Path, markdown: &str) -> Result<String> {
+/// texto extraido dos anexos referenciados (`![[...]]` de PDFs, notas
+/// embutidas e, quando um descritor visual esta disponivel, imagens),
+/// rotulado por fonte. Retorna o Markdown aumentado, com cada anexo
+/// claramente delimitado.
+pub fn build_session_material(
+    root: &std::path::Path,
+    markdown: &str,
+    describer: Option<&dyn ImageDescriber>,
+    reserve_vision: &mut dyn FnMut(usize) -> Result<()>,
+) -> Result<String> {
     let extracted = extract_attachment_references(markdown);
     let attachment_paths = crate::collect_attachment_files(root)?
         .into_iter()
@@ -376,6 +392,9 @@ pub fn build_session_material(root: &std::path::Path, markdown: &str) -> Result<
         .collect::<Vec<_>>();
     let mut sources = resolve_session_sources(&extracted, &attachment_paths, &markdown_paths);
     enrich_sources_with_extracted_text(root, &mut sources);
+    if let Some(describer) = describer {
+        enrich_sources_with_image_descriptions(root, &mut sources, describer, reserve_vision);
+    }
 
     let mut material = markdown.trim_end().to_string();
     for source in sources
@@ -391,6 +410,64 @@ pub fn build_session_material(root: &std::path::Path, markdown: &str) -> Result<
         material.push_str(source.extracted_text.as_deref().unwrap_or_default());
     }
     Ok(material)
+}
+
+/// Interpreta as imagens resolvidas com o descritor visual (visao): le o
+/// anexo com seguranca, chama `reserve` (parada dura de orcamento) ANTES de
+/// enviar os bytes e preenche `extracted_text` com a descricao. Falhas — de
+/// leitura, de orcamento ou do provedor — nunca removem a fonte: apenas
+/// deixam a descricao ausente (a lista continua honesta sobre o que foi
+/// considerado).
+pub fn enrich_sources_with_image_descriptions(
+    root: &std::path::Path,
+    sources: &mut [ResolvedSessionSource],
+    describer: &dyn ImageDescriber,
+    reserve: &mut dyn FnMut(usize) -> anyhow::Result<()>,
+) {
+    for source in sources.iter_mut() {
+        if source.kind != "image" {
+            continue;
+        }
+        let Some(relative_path) = source.relative_path.as_deref() else {
+            continue;
+        };
+        let Ok(bytes) = read_resolved_source(root, relative_path) else {
+            continue;
+        };
+        // Parada dura de custo ANTES da chamada: sem reserva, a imagem fica
+        // listada sem descricao e nenhum byte sai do Vault.
+        if reserve(bytes.len()).is_err() {
+            continue;
+        }
+        let mime_type = image_mime_type(relative_path);
+        if let Ok(description) = describer.describe_image(&mime_type, &bytes) {
+            let description = description.trim();
+            if !description.is_empty() {
+                source.extracted_text = Some(format!(
+                    "[Interpretacao visual da imagem {}] {}",
+                    source.raw_target, description
+                ));
+            }
+        }
+    }
+}
+
+/// MIME aproximado a partir da extensao do anexo (para `inline_data`).
+pub fn image_mime_type(relative_path: &str) -> String {
+    let extension = std::path::Path::new(relative_path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    match extension.as_str() {
+        "png" => "image/png".to_string(),
+        "jpg" | "jpeg" => "image/jpeg".to_string(),
+        "gif" => "image/gif".to_string(),
+        "webp" => "image/webp".to_string(),
+        "bmp" => "image/bmp".to_string(),
+        "svg" => "image/svg+xml".to_string(),
+        _ => "image/png".to_string(),
+    }
 }
 
 /// Incorpora o texto extraivel de cada fonte resolvida ao material permitido:
@@ -835,13 +912,85 @@ mod tests {
         fs::write(root.join("manual.pdf"), &pdf_bytes).expect("write pdf");
 
         let markdown = fs::read_to_string(root.join("nota.md")).expect("read note");
-        let material = build_session_material(&root, &markdown).expect("build material");
+        let material = build_session_material(&root, &markdown, None, &mut |_| Ok(()))
+            .expect("build material");
         assert!(material.contains("# Nota"));
         assert!(material.contains("Anexo considerado: manual.pdf"));
         assert!(
             material.contains("reacoes quimicas"),
             "o texto extraido do PDF deve entrar no material: {material}"
         );
+    }
+
+    struct FakeDescriber;
+
+    impl ImageDescriber for FakeDescriber {
+        fn describe_image(&self, _mime_type: &str, _image_bytes: &[u8]) -> Result<String, String> {
+            Ok("Diagrama de setas ligando fotossintese a glicose.".to_string())
+        }
+    }
+
+    #[test]
+    fn image_descriptions_enter_the_session_material_when_a_describer_exists() {
+        use std::fs;
+
+        let temporary_directory = tempfile::tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical");
+        fs::write(root.join("nota.md"), "# Nota\n\nVeja ![[diagrama.png]].\n").expect("write note");
+        fs::write(root.join("diagrama.png"), b"\x89PNG fake bytes").expect("write image");
+
+        let markdown = fs::read_to_string(root.join("nota.md")).expect("read note");
+        let material =
+            build_session_material(&root, &markdown, Some(&FakeDescriber), &mut |_| Ok(()))
+                .expect("build material");
+        assert!(material.contains("# Nota"));
+        assert!(material.contains("Anexo considerado: diagrama.png"));
+        assert!(
+            material.contains("Diagrama de setas ligando fotossintese a glicose."),
+            "a descricao da imagem deve entrar no material: {material}"
+        );
+
+        // Sem descritor, a imagem permanece listada sem texto (honesto).
+        let without_vision = build_session_material(&root, &markdown, None, &mut |_| Ok(()))
+            .expect("build material");
+        assert!(!without_vision.contains("Diagrama de setas"));
+    }
+
+    #[test]
+    fn vision_reservation_failure_keeps_the_image_listed_without_description() {
+        use std::fs;
+
+        let temporary_directory = tempfile::tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical");
+        fs::write(root.join("nota.md"), "# Nota\n\nVeja ![[diagrama.png]].\n").expect("write note");
+        fs::write(root.join("diagrama.png"), b"\x89PNG fake bytes").expect("write image");
+
+        let markdown = fs::read_to_string(root.join("nota.md")).expect("read note");
+        // A reserva sempre falha: a imagem nao pode ser enviada ao provedor.
+        let mut deny_all =
+            |_bytes: usize| -> anyhow::Result<()> { bail!("Orcamento mensal de IA atingido.") };
+        let material =
+            build_session_material(&root, &markdown, Some(&FakeDescriber), &mut deny_all)
+                .expect("build material");
+        assert!(
+            !material.contains("Diagrama de setas"),
+            "sem reserva, nenhum byte deve sair do Vault: {material}"
+        );
+    }
+
+    #[test]
+    fn image_mime_type_maps_common_extensions() {
+        assert_eq!(image_mime_type("media/grafico.png"), "image/png");
+        assert_eq!(image_mime_type("foto.JPG"), "image/jpeg");
+        assert_eq!(image_mime_type("anima.webp"), "image/webp");
+        assert_eq!(image_mime_type("vetor.svg"), "image/svg+xml");
+        assert_eq!(image_mime_type("sem-extensao"), "image/png");
     }
 
     #[test]

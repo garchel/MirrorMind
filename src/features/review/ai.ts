@@ -104,6 +104,7 @@ const usageStatusSchema = z.object({
   estimatedCostUsdMonth: z.number().nonnegative(),
   maxCostPerMonthUsd: z.number().nonnegative(),
   monthlyExceeded: z.boolean(),
+  visionCalls: z.number().int().nonnegative(),
 }).strict()
 
 export type ReviewAiConfiguration = z.infer<typeof aiConfigurationSchema>
@@ -450,4 +451,40 @@ export function reviewAiErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
   if (typeof error === 'string' && error.trim()) return error
   return 'Nao foi possivel concluir a operacao de IA.'
+}
+
+/** Resultado de UM provedor na comparabilidade real (mesma nota/perguntas/respostas). */
+export const comparabilityOutcomeSchema = z.object({
+  provider: z.string().min(1),
+  failure: z.string().nullable(),
+  gapBasedScore: z.number().int().min(0).max(100).nullable(),
+  assertionScores: z.array(z.number().int().min(0).max(100)),
+  overallScore: z.number().int().min(0).max(100).nullable(),
+  summaryPresent: z.boolean(),
+  gapCount: z.number().int().nonnegative(),
+  gapQuotes: z.array(z.string().min(1)),
+  inconclusiveCount: z.number().int().nonnegative(),
+}).strict()
+
+export const divergenceReportSchema = z.object({
+  noteWords: z.number().int().nonnegative(),
+  questionCount: z.number().int().nonnegative(),
+  providers: z.tuple([z.string().min(1), z.string().min(1)]),
+  ollama: comparabilityOutcomeSchema,
+  gemini: comparabilityOutcomeSchema,
+  scoreDelta: z.number().int().nullable(),
+  sharedGapQuotes: z.array(z.string().min(1)),
+  ollamaOnlyGapQuotes: z.array(z.string().min(1)),
+  geminiOnlyGapQuotes: z.array(z.string().min(1)),
+}).strict()
+
+export type DivergenceReport = z.infer<typeof divergenceReportSchema>
+
+/** Comparabilidade REAL entre provedores: avalia a MESMA nota fixa com as
+ * MESMAS perguntas e respostas em cada provedor disponivel (Ollama local +
+ * Gemini ou OpenAI-compatible) e devolve o relatorio de divergencia. Nenhum
+ * lado falho derruba a operacao. */
+export async function runProviderComparability(): Promise<DivergenceReport> {
+  const payload = await invoke('run_provider_comparability')
+  return divergenceReportSchema.parse(payload)
 }

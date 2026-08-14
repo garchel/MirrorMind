@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   getUsage: vi.fn(),
   removeGemini: vi.fn(),
   removeOpenAi: vi.fn(),
+  runComparability: vi.fn(),
   setGeminiConsent: vi.fn(),
 }))
 
@@ -28,6 +29,7 @@ vi.mock('./ai', async (importOriginal) => {
     getReviewUsageStatus: mocks.getUsage,
     removeGeminiApiKey: mocks.removeGemini,
     removeOpenAiCompatibleProvider: mocks.removeOpenAi,
+    runProviderComparability: mocks.runComparability,
     setGeminiDataConsent: mocks.setGeminiConsent,
   }
 })
@@ -71,6 +73,7 @@ describe('ReviewAiSettings', () => {
       estimatedCostUsdMonth: 0.5,
       maxCostPerMonthUsd: 20,
       monthlyExceeded: false,
+      visionCalls: 2,
     })
   })
 
@@ -170,6 +173,7 @@ describe('ReviewAiSettings', () => {
     expect(await screen.findByText('3 de 300')).toBeInTheDocument()
     expect(screen.getByText('1 de 20')).toBeInTheDocument()
     expect(screen.getByText('Provedor gemini')).toBeInTheDocument()
+    expect(screen.getByText('2 (visao — contadas no orcamento antes do envio)')).toBeInTheDocument()
   })
 
   it('hides the usage budget when no vault is available', () => {
@@ -193,4 +197,91 @@ describe('ReviewAiSettings', () => {
     resolveInitial(configuration)
     await Promise.resolve()
     expect(screen.getByRole('button', { name: 'Remover chave' })).toBeInTheDocument()
+  })
+
+  it('runs the provider comparison and renders the divergence report', async () => {
+    const user = userEvent.setup()
+    mocks.runComparability.mockResolvedValue({
+      noteWords: 5,
+      questionCount: 6,
+      providers: ['ollama-qwen2.5:7b', 'gemini-3.5-flash'],
+      scoreDelta: 5,
+      sharedGapQuotes: ['a clorofila absorve luz'],
+      ollamaOnlyGapQuotes: ['nas bandas verde'],
+      geminiOnlyGapQuotes: ['principal produto'],
+      ollama: {
+        provider: 'ollama-qwen2.5:7b',
+        failure: null,
+        gapBasedScore: 70,
+        assertionScores: [70, 80],
+        overallScore: 70,
+        summaryPresent: true,
+        gapCount: 2,
+        gapQuotes: ['a clorofila absorve luz', 'nas bandas verde'],
+        inconclusiveCount: 0,
+      },
+      gemini: {
+        provider: 'gemini-3.5-flash',
+        failure: null,
+        gapBasedScore: 75,
+        assertionScores: [75],
+        overallScore: 75,
+        summaryPresent: true,
+        gapCount: 1,
+        gapQuotes: ['a clorofila absorve luz'],
+        inconclusiveCount: 0,
+      },
+    })
+    renderSettings()
+
+    await user.click(screen.getByRole('button', { name: 'Comparar provedores' }))
+
+    expect(mocks.runComparability).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('Diferenca da nota (gemini-3.5-flash - ollama-qwen2.5:7b)')).toBeInTheDocument()
+    expect(screen.getByText('5 palavras · 6 perguntas · respostas fixas')).toBeInTheDocument()
+    expect(screen.getAllByText('a clorofila absorve luz').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('nas bandas verde').length).toBeGreaterThan(0)
+    expect(screen.getByText('Só ollama-qwen2.5:7b')).toBeInTheDocument()
+    expect(screen.getByText('Só gemini-3.5-flash')).toBeInTheDocument()
+  })
+
+  it('renders a readable failure when the comparison has no valid side', async () => {
+    const user = userEvent.setup()
+    mocks.runComparability.mockResolvedValue({
+      noteWords: 5,
+      questionCount: 6,
+      providers: ['ollama-qwen2.5:7b', 'gemini-3.5-flash'],
+      scoreDelta: null,
+      sharedGapQuotes: [],
+      ollamaOnlyGapQuotes: [],
+      geminiOnlyGapQuotes: [],
+      ollama: {
+        provider: 'ollama-qwen2.5:7b',
+        failure: 'Ollama indisponivel',
+        gapBasedScore: null,
+        assertionScores: [],
+        overallScore: null,
+        summaryPresent: false,
+        gapCount: 0,
+        gapQuotes: [],
+        inconclusiveCount: 0,
+      },
+      gemini: {
+        provider: 'gemini-3.5-flash',
+        failure: null,
+        gapBasedScore: 75,
+        assertionScores: [75],
+        overallScore: 75,
+        summaryPresent: true,
+        gapCount: 1,
+        gapQuotes: ['a clorofila absorve luz'],
+        inconclusiveCount: 0,
+      },
+    })
+    renderSettings()
+
+    await user.click(screen.getByRole('button', { name: 'Comparar provedores' }))
+
+    expect(await screen.findByText('indisponivel (algum lado sem nota valida)')).toBeInTheDocument()
+    expect(screen.getByText('Avaliacao invalida: Ollama indisponivel')).toBeInTheDocument()
   })})

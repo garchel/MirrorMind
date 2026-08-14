@@ -9,8 +9,9 @@ import {
   removeGeminiApiKey,
   removeOpenAiCompatibleProvider,
   reviewAiErrorMessage,
+  runProviderComparability,
 } from './ai'
-import type { OllamaStatus, ReviewAiConfiguration, ReviewAiProvider, UsageStatus } from './ai'
+import type { DivergenceReport, OllamaStatus, ReviewAiConfiguration, ReviewAiProvider, UsageStatus } from './ai'
 import { estimateManagedCallCostUsd } from './managedProvider'
 import { useReviewAiSettings } from './ReviewAiSettingsContext'
 import './review-ai.css'
@@ -31,6 +32,9 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
   const [openAiApiKey, setOpenAiApiKey] = useState('')
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null)
   const [usage, setUsage] = useState<UsageStatus | null>(null)
+  const [comparison, setComparison] = useState<DivergenceReport | null>(null)
+  const [comparisonLoading, setComparisonLoading] = useState(false)
+  const [comparisonError, setComparisonError] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const configurationGenerationRef = useRef(0)
@@ -128,6 +132,19 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
       setError(reviewAiErrorMessage(cause))
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function runComparison() {
+    setComparisonLoading(true)
+    setComparisonError('')
+    try {
+      setComparison(await runProviderComparability())
+    } catch (cause) {
+      setComparison(null)
+      setComparisonError(reviewAiErrorMessage(cause))
+    } finally {
+      setComparisonLoading(false)
     }
   }
 
@@ -300,11 +317,61 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           </div>
         </div>
       )}
+      <section className="review-ai-comparability" aria-labelledby="comparability-title">
+        <h3 id="comparability-title">Comparabilidade de provedores</h3>
+        <p className="review-ai-comparability-hint">
+          Avalia a mesma nota fixa, com as mesmas perguntas e respostas, no Ollama local e no provedor remoto
+          configurado (Gemini ou OpenAI-compatible). Nenhum lado falho derruba o relatorio.
+        </p>
+        <div className="review-ai-inline-actions">
+          <button type="button" className="secondary-button" onClick={() => void runComparison()} disabled={busy || comparisonLoading}>
+            {comparisonLoading ? 'Comparando…' : 'Comparar provedores'}
+          </button>
+        </div>
+        {comparisonError ? <p className="field-error" role="alert">{comparisonError}</p> : null}
+        {comparison ? (
+          <div className="review-ai-comparison-report" role="region" aria-label="Relatorio de divergencia">
+            <dl>
+              <div><dt>Cenario</dt><dd>{comparison.noteWords} palavras · {comparison.questionCount} perguntas · respostas fixas</dd></div>
+              {comparison.scoreDelta !== null ? (
+                <div><dt>Diferenca da nota ({comparison.providers[1]} - {comparison.providers[0]})</dt><dd>{comparison.scoreDelta}</dd></div>
+              ) : (
+                <div><dt>Diferenca da nota</dt><dd>indisponivel (algum lado sem nota valida)</dd></div>
+              )}
+              <div><dt>Lacunas compartilhadas</dt><dd>{comparison.sharedGapQuotes.length}</dd></div>
+              <div><dt>Só {comparison.providers[0]}</dt><dd>{comparison.ollamaOnlyGapQuotes.length}</dd></div>
+              <div><dt>Só {comparison.providers[1]}</dt><dd>{comparison.geminiOnlyGapQuotes.length}</dd></div>
+            </dl>
+            {[comparison.ollama, comparison.gemini].map((outcome) => (
+              <article key={outcome.provider} className="review-ai-comparison-provider">
+                <h4>{outcome.provider}</h4>
+                {outcome.failure ? (
+                  <p className="field-error">Avaliacao invalida: {outcome.failure}</p>
+                ) : (
+                  <>
+                    <dl>
+                      <div><dt>Nota geral</dt><dd>{outcome.overallScore ?? '-'}</dd></div>
+                      <div><dt>Lacunas</dt><dd>{outcome.gapCount}</dd></div>
+                      <div><dt>Inconclusivas</dt><dd>{outcome.inconclusiveCount}</dd></div>
+                    </dl>
+                    {outcome.gapQuotes.length > 0 ? (
+                      <ul className="review-ai-comparison-quotes">
+                        {outcome.gapQuotes.map((quote) => <li key={quote}>{quote}</li>)}
+                      </ul>
+                    ) : null}
+                  </>
+                )}
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </section>
       {usage ? (
         <dl className="review-ai-usage">
           <div><dt>Chamadas de IA hoje</dt><dd>{usage.totalCalls} de {usage.maxCallsPerDay}{usage.exceeded ? ' (orçamento atingido)' : ''}</dd></div>
           <div><dt>Nos ultimos 60s</dt><dd>{usage.callsInMinute} de {usage.maxCallsPerMinute}</dd></div>
           <div><dt>Custo estimado hoje</dt><dd>US$ {usage.estimatedCostUsd.toFixed(2)}</dd></div>
+          <div><dt>Descricoes de imagem hoje</dt><dd>{usage.visionCalls} (visao — contadas no orcamento antes do envio)</dd></div>
           <div><dt>Custo estimado no mes</dt><dd>US$ {usage.estimatedCostUsdMonth.toFixed(2)} de US$ {usage.maxCostPerMonthUsd.toFixed(2)}{usage.monthlyExceeded ? ' (orçamento mensal atingido)' : ''}</dd></div>
           {usage.providerCalls.map((entry) => (
             <div key={entry.provider}><dt>Provedor {entry.provider}</dt><dd>{entry.calls}</dd></div>

@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod adversarial;
-#[cfg(test)]
 pub(crate) mod comparability;
 #[cfg(test)]
 pub(crate) mod conformance;

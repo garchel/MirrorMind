@@ -18,6 +18,7 @@ use super::session::{
     evaluate_conversation_with_provider, score_for_gap_coverage, score_for_unit_assertions,
     ConversationEvaluationFailure, PromptKind, ReviewExchange, ReviewPrompt,
 };
+use serde::Serialize;
 
 /// Nota fixa (frases curtas e distintas) para dar material as perguntas. As
 /// mesmas frases alimentam os DOIS provedores, sem depender de geracao.
@@ -68,7 +69,8 @@ pub const CASES: &[ComparabilityCase] = &[
 /// (mesmo calculo da producao), scores por afirmacao quando o modelo
 /// decompoe os paragrafos, e as citacoes das lacunas (normalizadas) para
 /// comparar conjuntos entre provedores.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProviderEvaluationOutcome {
     pub provider: &'static str,
     /// Erro legivel quando a avaliacao nao foi valida (sem score).
@@ -89,50 +91,50 @@ pub struct ProviderEvaluationOutcome {
 }
 
 /// Relatorio de divergencia entre dois provedores para o MESMO cenario.
-#[derive(Debug)]
+/// Os campos derivados (delta de nota e conjuntos de lacunas) sao calculados
+/// na construcao e serializados para o frontend.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DivergenceReport {
     pub note_words: usize,
     pub question_count: usize,
     pub providers: [&'static str; 2],
     pub ollama: ProviderEvaluationOutcome,
     pub gemini: ProviderEvaluationOutcome,
+    /// Diferenca absoluta da nota geral (gemini - ollama); None quando algum
+    /// lado nao produziu nota valida.
+    pub score_delta: Option<i64>,
+    /// Lacunas (por citacao normalizada) apontadas por AMBOS os provedores.
+    pub shared_gap_quotes: Vec<String>,
+    /// Lacunas apontadas apenas pelo primeiro provedor (Ollama).
+    pub ollama_only_gap_quotes: Vec<String>,
+    /// Lacunas apontadas apenas pelo segundo provedor (Gemini/compatible).
+    pub gemini_only_gap_quotes: Vec<String>,
 }
 
 impl DivergenceReport {
     /// Diferenca absoluta da nota geral (gemini - ollama).
     pub fn score_delta(&self) -> Option<i64> {
-        match (self.ollama.overall_score, self.gemini.overall_score) {
-            (Some(ollama), Some(gemini)) => Some(i64::from(gemini) - i64::from(ollama)),
-            _ => None,
-        }
+        self.score_delta
     }
 
     /// Lacunas (por citacao normalizada) apontadas por AMBOS os provedores.
     pub fn shared_gap_quotes(&self) -> Vec<&str> {
-        self.ollama
-            .gap_quotes
-            .iter()
-            .filter(|quote| self.gemini.gap_quotes.contains(quote))
-            .map(String::as_str)
-            .collect()
+        self.shared_gap_quotes.iter().map(String::as_str).collect()
     }
 
     /// Lacunas apontadas apenas pelo Ollama.
     pub fn ollama_only_gap_quotes(&self) -> Vec<&str> {
-        self.ollama
-            .gap_quotes
+        self.ollama_only_gap_quotes
             .iter()
-            .filter(|quote| !self.gemini.gap_quotes.contains(quote))
             .map(String::as_str)
             .collect()
     }
 
     /// Lacunas apontadas apenas pelo Gemini.
     pub fn gemini_only_gap_quotes(&self) -> Vec<&str> {
-        self.gemini
-            .gap_quotes
+        self.gemini_only_gap_quotes
             .iter()
-            .filter(|quote| !self.ollama.gap_quotes.contains(quote))
             .map(String::as_str)
             .collect()
     }
@@ -341,18 +343,47 @@ pub fn evaluate_with_provider(
     }
 }
 
-/// Monta o relatorio de divergencia a partir dos dois lados.
+/// Monta o relatorio de divergencia a partir dos dois lados, calculando os
+/// campos derivados (delta de nota e conjuntos de lacunas) na construcao.
 pub fn build_divergence_report(
     ollama: ProviderEvaluationOutcome,
     gemini: ProviderEvaluationOutcome,
 ) -> DivergenceReport {
     let note_words = MARKDOWN.split_whitespace().count();
+    let score_delta = match (ollama.overall_score, gemini.overall_score) {
+        (Some(ollama_score), Some(gemini_score)) => {
+            Some(i64::from(gemini_score) - i64::from(ollama_score))
+        }
+        _ => None,
+    };
+    let shared_gap_quotes = ollama
+        .gap_quotes
+        .iter()
+        .filter(|quote| gemini.gap_quotes.contains(quote))
+        .cloned()
+        .collect::<Vec<_>>();
+    let ollama_only_gap_quotes = ollama
+        .gap_quotes
+        .iter()
+        .filter(|quote| !gemini.gap_quotes.contains(quote))
+        .cloned()
+        .collect::<Vec<_>>();
+    let gemini_only_gap_quotes = gemini
+        .gap_quotes
+        .iter()
+        .filter(|quote| !ollama.gap_quotes.contains(quote))
+        .cloned()
+        .collect::<Vec<_>>();
     DivergenceReport {
         note_words,
         question_count: CASES.len(),
         providers: [ollama.provider, gemini.provider],
         ollama,
         gemini,
+        score_delta,
+        shared_gap_quotes,
+        ollama_only_gap_quotes,
+        gemini_only_gap_quotes,
     }
 }
 
