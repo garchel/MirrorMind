@@ -27,11 +27,49 @@ describe('review session IPC contracts', () => {
       mode: 'exam',
     })
     expect(plan).toMatchObject({ targetUnitCount: 5, totalUnitCount: 10 })
+    // Respostas antigas do preview (sem pontos) continuam validas: default vazio.
+    expect(plan.unitEvaluablePoints).toEqual([])
     expect(invoke).toHaveBeenCalledWith('preview_review_session_plan', {
       path: 'C:\\Vault',
       relativePath: 'Biologia/Fotossintese.md',
       mode: 'exam',
     })
+  })
+
+  it('accepts the evaluable points of each target unit in the plan', async () => {
+    invoke.mockResolvedValue({
+      targetUnitCount: 2,
+      totalUnitCount: 4,
+      coverageFraction: 0.5,
+      estimatedMinutes: 3,
+      expectedSessionsToCover: 2,
+      unitEvaluablePoints: [
+        { unitId: 'unit-1', ordinal: 0, kind: 'paragraph', points: ['A fotossintese transforma energia luminosa em energia quimica.', 'O processo libera oxigenio.'] },
+        { unitId: 'unit-2', ordinal: 1, kind: 'paragraph', points: [] },
+      ],
+    })
+    const plan = await previewReviewSessionPlan({
+      vaultPath: 'C:\\Vault',
+      relativePath: 'Biologia/Fotossintese.md',
+      mode: 'exam',
+    })
+    expect(plan.unitEvaluablePoints).toHaveLength(2)
+    expect(plan.unitEvaluablePoints[0].points[1]).toBe('O processo libera oxigenio.')
+    expect(plan.unitEvaluablePoints[1].kind).toBe('paragraph')
+    // Ponto fora dos limites de contrato e rejeitado.
+    invoke.mockResolvedValue({
+      targetUnitCount: 1,
+      totalUnitCount: 1,
+      coverageFraction: 1,
+      estimatedMinutes: 1,
+      expectedSessionsToCover: 1,
+      unitEvaluablePoints: [{ unitId: 'unit-1', ordinal: 0, kind: 'invented', points: ['x'] }],
+    })
+    await expect(previewReviewSessionPlan({
+      vaultPath: 'C:\\Vault',
+      relativePath: 'Nota.md',
+      mode: 'exam',
+    })).rejects.toThrow()
   })
 
   it('rejects a plan that covers more units than exist or exceeds one session of coverage', async () => {
@@ -120,6 +158,112 @@ describe('review session IPC contracts', () => {
       outcome: 'valid',
       report: { overallScore: 72, outcome: 'good', units: [{ score: 72 }] },
     })
+  })
+
+  it('accepts unit assertions and defaults them to empty for legacy reports', () => {
+    const withAssertions = parseReviewCompletionAttempt({
+      outcome: 'valid',
+      report: {
+        sessionId: 'session-1',
+        overallScore: 50,
+        outcome: 'partial',
+        summary: 'Lembrou a maior parte do paragrafo.',
+        markdown: 'ATP armazena energia para uso celular e libera ADP.',
+        units: [{
+          id: 'unit-1', ordinal: 0, kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 48,
+          sectionPath: [], evaluated: true, score: 50, outcome: 'partial',
+          assertions: [
+            { text: 'ATP armazena energia.', status: 'remembered', sourceQuote: 'armazena energia', sourceStartUtf16: 4, sourceEndUtf16: 20 },
+            { text: 'A hidrolise libera ADP.', status: 'partial', sourceQuote: 'libera ADP', sourceStartUtf16: 34, sourceEndUtf16: 45 },
+            { text: 'A energia vem da clorofila.', status: 'contradicted', sourceQuote: 'energia para uso celular', sourceStartUtf16: 4, sourceEndUtf16: 27 },
+          ],
+        }],
+        gaps: [],
+        completedAtUnixMs: 1_730_000_000_000,
+        nextReviewAtUnixMs: 1_730_604_800_000,
+      },
+    })
+    expect(withAssertions.outcome).toBe('valid')
+    if (withAssertions.outcome === 'valid') {
+      const unit = withAssertions.report.units[0]
+      expect(unit.assertions).toHaveLength(3)
+      expect(unit.assertions[1]).toMatchObject({ text: 'A hidrolise libera ADP.', status: 'partial' })
+      expect(unit.assertions[2].status).toBe('contradicted')
+      // Identificacao do cerne: ausente na resposta -> secundaria (default).
+      expect(unit.assertions.every((assertion) => assertion.centrality === 'secondary')).toBe(true)
+    }
+
+    // Classificacao central/secundaria e preservada quando o provedor envia.
+    const withCentrality = parseReviewCompletionAttempt({
+      outcome: 'valid',
+      report: {
+        sessionId: 'session-3',
+        overallScore: 33,
+        outcome: 'forgotten',
+        summary: 'Esqueceu a ideia central.',
+        markdown: 'A fotossintese converte energia luminosa em quimica.',
+        units: [{
+          id: 'unit-1', ordinal: 0, kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 52,
+          sectionPath: [], evaluated: true, score: 33, outcome: 'forgotten',
+          assertions: [
+            { text: 'A fotossintese converte energia', status: 'missing', centrality: 'central', sourceQuote: 'converte energia luminosa', sourceStartUtf16: 15, sourceEndUtf16: 43 },
+            { text: 'libera oxigenio', status: 'remembered', centrality: 'secondary', sourceQuote: 'em quimica', sourceStartUtf16: 44, sourceEndUtf16: 52 },
+          ],
+        }],
+        gaps: [],
+        completedAtUnixMs: 1_730_000_000_000,
+        nextReviewAtUnixMs: 1_730_604_800_000,
+      },
+    })
+    expect(withCentrality.outcome).toBe('valid')
+    if (withCentrality.outcome === 'valid') {
+      expect(withCentrality.report.units[0].assertions[0].centrality).toBe('central')
+      expect(withCentrality.report.units[0].assertions[1].centrality).toBe('secondary')
+    }
+
+    // Dados antigos (avaliacao por lacunas) nao carregam o campo: o default
+    // vazio mantem a compatibilidade e o relatorio continua valido.
+    const legacy = parseReviewCompletionAttempt({
+      outcome: 'valid',
+      report: {
+        sessionId: 'session-2',
+        overallScore: 72,
+        outcome: 'good',
+        summary: 'Bom dominio.',
+        markdown: 'A energia luminosa alimenta a fotossintese.',
+        units: [{
+          id: 'unit-1', ordinal: 0, kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 46,
+          sectionPath: [], evaluated: true, score: 72, outcome: 'good',
+        }],
+        gaps: [{ classification: 'confused', sourceQuote: 'energia luminosa', sourceStartUtf16: 2, sourceEndUtf16: 18 }],
+        completedAtUnixMs: 1_730_000_000_000,
+        nextReviewAtUnixMs: 1_730_604_800_000,
+      },
+    })
+    expect(legacy.outcome).toBe('valid')
+    if (legacy.outcome === 'valid') {
+      expect(legacy.report.units[0].assertions).toEqual([])
+    }
+
+    // Status fora do contrato e rejeitado.
+    expect(() => parseReviewCompletionAttempt({
+      outcome: 'valid',
+      report: {
+        sessionId: 'session-3',
+        overallScore: 72,
+        outcome: 'good',
+        summary: 'Bom dominio.',
+        markdown: 'A energia luminosa alimenta a fotossintese.',
+        units: [{
+          id: 'unit-1', ordinal: 0, kind: 'paragraph', sourceStartUtf16: 0, sourceEndUtf16: 46,
+          sectionPath: [], evaluated: true, score: 72, outcome: 'good',
+          assertions: [{ text: 'x', status: 'inventado', sourceQuote: 'x', sourceStartUtf16: 0, sourceEndUtf16: 1 }],
+        }],
+        gaps: [],
+        completedAtUnixMs: 1_730_000_000_000,
+        nextReviewAtUnixMs: 1_730_604_800_000,
+      },
+    })).toThrow()
   })
 
   it('rejects a report whose overall score is not the rounded mean of the units', () => {

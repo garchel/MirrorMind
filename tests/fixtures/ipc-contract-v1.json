@@ -25,8 +25,11 @@
         "showUnsupportedFiles": true,
         "promptDelete": false,
         "trashOption": "local",
-        "userIgnoreFilters": ["Arquivo/"]
+        "userIgnoreFilters": ["Arquivo/"],
+        "ignoredPreferenceFields": []
       },
+      "obsidianAppearance": null,
+      "obsidianIgnoredConfigFiles": [],
       "metadata": {
         "isInitialized": true,
         "rootPath": "C:\\Vaults\\Estudos\\.mirmind",
@@ -52,8 +55,11 @@
         "showUnsupportedFiles": null,
         "promptDelete": null,
         "trashOption": null,
-        "userIgnoreFilters": []
+        "userIgnoreFilters": [],
+        "ignoredPreferenceFields": []
       },
+      "obsidianAppearance": null,
+      "obsidianIgnoredConfigFiles": [],
       "metadata": {
         "isInitialized": true,
         "rootPath": "C:\\Vaults\\Estudos\\.mirmind",
@@ -69,6 +75,8 @@
       ],
       "isObsidianVault": true,
       "obsidianPreferences": null,
+      "obsidianAppearance": null,
+      "obsidianIgnoredConfigFiles": [],
       "metadata": {
         "isInitialized": true,
         "rootPath": "C:\\Vaults\\Estudos\\.mirmind",
@@ -124,6 +132,8 @@
         { "name": "projeto.md", "relativePath": "projetos/projeto.md" }
       ],
       "isObsidianVault": true,
+      "obsidianAppearance": null,
+      "obsidianIgnoredConfigFiles": [],
       "metadata": {
         "isInitialized": true,
         "rootPath": "C:\\Vaults\\Estudos\\.mirmind",

@@ -17,6 +17,17 @@ export type VaultMetadata = {
   missing: string[]
 }
 
+export type ObsidianAppearance = {
+  theme?: string | null
+  accentColor?: string | null
+  baseFontSize?: number | null
+  cssTheme?: string | null
+  interfaceFontFamily?: string | null
+  textFontFamily?: string | null
+  monospaceFontFamily?: string | null
+  ignoredAppearanceFields: string[]
+}
+
 export type VaultSummary = {
   name: string
   path: string
@@ -24,6 +35,8 @@ export type VaultSummary = {
   notePreviews: NotePreview[]
   isObsidianVault: boolean
   obsidianPreferences: ObsidianPreferences | null
+  obsidianAppearance: ObsidianAppearance | null
+  obsidianIgnoredConfigFiles: string[]
   metadata: VaultMetadata
 }
 
@@ -38,6 +51,7 @@ export type ObsidianPreferences = {
   promptDelete: boolean | null
   trashOption: string | null
   userIgnoreFilters: string[]
+  ignoredPreferenceFields: string[]
 }
 
 export type CreateVaultForm = {
@@ -91,6 +105,7 @@ const obsidianPreferencesSchema = z.object({
   promptDelete: z.boolean().nullable(),
   trashOption: z.string().max(1024).nullable(),
   userIgnoreFilters: z.array(z.string().max(1024)).max(256),
+  ignoredPreferenceFields: z.array(z.string().max(256)).default([]),
 })
 
 const vaultSummarySchema = z.object({
@@ -105,6 +120,17 @@ const vaultSummarySchema = z.object({
   ),
   isObsidianVault: z.boolean(),
   obsidianPreferences: obsidianPreferencesSchema.nullish().transform((preferences) => preferences ?? null),
+  obsidianAppearance: z.object({
+    theme: z.string().max(64).nullable().optional(),
+    accentColor: z.string().max(64).nullable().optional(),
+    baseFontSize: z.number().nullable().optional(),
+    cssTheme: z.string().max(256).nullable().optional(),
+    interfaceFontFamily: z.string().max(512).nullable().optional(),
+    textFontFamily: z.string().max(512).nullable().optional(),
+    monospaceFontFamily: z.string().max(512).nullable().optional(),
+    ignoredAppearanceFields: z.array(z.string().max(256)).default([]),
+  }).nullish().transform((appearance) => appearance ?? null),
+  obsidianIgnoredConfigFiles: z.array(z.string().max(256)).default([]),
   metadata: z.object({
     isInitialized: z.boolean(),
     rootPath: z.string(),
@@ -144,6 +170,73 @@ const specialVaultFileSchema = z.object({
 const specialVaultInventorySchema = z.object({
   files: z.array(specialVaultFileSchema).max(500),
   truncated: z.boolean(),
+})
+
+export const unreadableReasonSchema = z.enum(['notUtf8', 'unreadable', 'tagIndexFailure'])
+
+export const scanDiagnosticsSchema = z.object({
+  unreadableDirectories: z.array(z.string()),
+  unreadableFiles: z.array(
+    z.object({
+      relativePath: z.string(),
+      reason: unreadableReasonSchema,
+    }),
+  ),
+  renameRecoveryConflicts: z.array(z.string()),
+  attachmentsTruncated: z.boolean().default(false),
+})
+
+export type ScanDiagnostics = z.infer<typeof scanDiagnosticsSchema>
+
+export const EMPTY_SCAN_DIAGNOSTICS: ScanDiagnostics = {
+  unreadableDirectories: [],
+  unreadableFiles: [],
+  renameRecoveryConflicts: [],
+  attachmentsTruncated: false,
+}
+
+export function hasScanDiagnostics(diagnostics: ScanDiagnostics) {
+  return (
+    diagnostics.unreadableDirectories.length > 0 ||
+    diagnostics.unreadableFiles.length > 0 ||
+    diagnostics.renameRecoveryConflicts.length > 0 ||
+    diagnostics.attachmentsTruncated
+  )
+}
+
+export function scanDiagnosticsSummary(diagnostics: ScanDiagnostics) {
+  const parts: string[] = []
+  const fileCount = diagnostics.unreadableFiles.length
+  const dirCount = diagnostics.unreadableDirectories.length
+  const conflictCount = diagnostics.renameRecoveryConflicts.length
+  if (dirCount > 0) {
+    parts.push(`${dirCount} ${dirCount === 1 ? 'pasta ilegivel' : 'pastas ilegiveis'}`)
+  }
+  if (fileCount > 0) {
+    parts.push(`${fileCount} ${fileCount === 1 ? 'arquivo nao legivel' : 'arquivos nao legiveis'}`)
+  }
+  if (conflictCount > 0) {
+    parts.push(
+      `${conflictCount} ${conflictCount === 1 ? 'conflito' : 'conflitos'} de renomeacao interrompida`,
+    )
+  }
+  if (diagnostics.attachmentsTruncated) {
+    parts.push('inventario de anexos limitado')
+  }
+  const paths = [
+    ...diagnostics.unreadableDirectories.map((path) => `Pasta: ${path}`),
+    ...diagnostics.unreadableFiles.map((file) => `Arquivo: ${file.relativePath}`),
+    ...diagnostics.renameRecoveryConflicts.map((path) => `Conflito: ${path}`),
+  ].slice(0, 5)
+  return { parts, paths }
+}
+
+const vaultInventorySchema = z.object({
+  notes: z.array(notePreviewSchema),
+  folders: z.array(z.string()),
+  attachments: z.array(z.string()),
+  specialFiles: specialVaultInventorySchema,
+  diagnostics: scanDiagnosticsSchema.default(EMPTY_SCAN_DIAGNOSTICS),
 })
 
 const recentVaultPreferenceSchema = z.object({
@@ -240,12 +333,22 @@ export function parseNoteDocument(payload: unknown) {
   return noteDocumentSchema.parse(payload)
 }
 
+export function parseNoteDocumentList(payload: unknown) {
+  return z.array(noteDocumentSchema).parse(payload)
+}
+
 export function parseNoteList(payload: unknown) {
   return z.array(notePreviewSchema).parse(payload)
 }
 
 export function parseSpecialVaultInventory(payload: unknown): SpecialVaultInventory {
   return specialVaultInventorySchema.parse(payload)
+}
+
+export type VaultInventory = z.infer<typeof vaultInventorySchema>
+
+export function parseVaultInventory(payload: unknown): VaultInventory {
+  return vaultInventorySchema.parse(payload)
 }
 
 export function parseRecentVaultPreference(payload: unknown) {

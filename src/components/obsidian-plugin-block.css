@@ -1,0 +1,91 @@
+/* Blocos de plugins do Obsidian (Dataview, Tasks) renderizados somente leitura. */
+.obsidian-plugin-block {
+  margin: 14px 0;
+  border: 1px solid var(--border, rgba(28, 36, 39, 0.14));
+  border-radius: 10px;
+  background: var(--panel, #fffef9);
+  overflow: hidden;
+}
+
+.obsidian-plugin-block-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, rgba(28, 36, 39, 0.1));
+  color: var(--muted, #7e7466);
+}
+
+.obsidian-plugin-block-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.obsidian-plugin-block-language {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--code-bg, rgba(39, 47, 51, 0.08));
+  color: var(--muted, #7e7466);
+  font: 10px var(--mono);
+}
+
+.obsidian-plugin-block-tasks {
+  margin: 0;
+  padding: 8px 14px;
+  list-style: none;
+}
+
+.obsidian-plugin-block-tasks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.obsidian-plugin-block-tasks li.is-checked {
+  color: var(--muted, #7e7466);
+  text-decoration: line-through;
+}
+
+.obsidian-plugin-block-check {
+  flex-shrink: 0;
+  color: var(--accent, #c46a2b);
+}
+
+.obsidian-plugin-block-note,
+.obsidian-plugin-block-warning {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.obsidian-plugin-block-note {
+  color: var(--muted, #7e7466);
+}
+
+.obsidian-plugin-block-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  border-top: 1px solid var(--border, rgba(28, 36, 39, 0.1));
+  background: var(--code-bg, rgba(39, 47, 51, 0.06));
+  color: var(--muted, #7e7466);
+}
+
+.obsidian-plugin-block-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.obsidian-plugin-block-source {
+  margin: 0;
+  padding: 10px 14px;
+  overflow: auto;
+  font: 12px/1.5 var(--mono);
+  color: var(--text-h, #1c2427);
+  white-space: pre-wrap;
+}

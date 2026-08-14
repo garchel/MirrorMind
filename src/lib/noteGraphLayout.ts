@@ -79,6 +79,13 @@ export function accumulateObsidianForces2D(params: {
   centerRadius?: number
   /** Forca da center force por unidade alem do anel. Padrao: base. */
   centerStrength?: number
+  /** Centros dos grupos (pasta) por caminho; quando presentes, cada no e
+   * puxado para o centro do proprio grupo (agrupamento visual por pasta). */
+  groupCenters?: Map<string, NoteGraphPosition>
+  /** Raio interno da mola do grupo: dentro dele o no fica livre. */
+  groupInnerRadius?: number
+  /** Forca da mola do grupo por unidade alem do raio interno. */
+  groupStrength?: number
   /** Resfriamento: 1 durante o arrasto; decai no ambiente/assentamento. */
   alpha?: number
   /** Passo de tempo em segundos. */
@@ -163,6 +170,29 @@ export function accumulateObsidianForces2D(params: {
       const pull = (dist - ringRadius) * ringStrength * scale
       velocity.x += (dx / dist) * pull
       velocity.y += (dy / dist) * pull
+    }
+  }
+
+  // 4) Mola do grupo (agrupamento por pasta): cada no e puxado de volta para
+  // o centro da propria pasta quando ultrapassa o raio interno — mantem os
+  // clusters coesos sem travar a repulsao nem as molas das arestas.
+  const groupCenters = params.groupCenters
+  if (groupCenters) {
+    const groupInnerRadius = params.groupInnerRadius ?? 12
+    const groupStrength = params.groupStrength ?? 0.05
+    for (const path of paths) {
+      const current = positions.get(path)
+      const velocity = velocities.get(path)
+      const center = groupCenters.get(path)
+      if (!current || !velocity || !center) continue
+      const dx = center.x - current.x
+      const dy = center.y - current.y
+      const dist = Math.hypot(dx, dy)
+      if (dist > groupInnerRadius) {
+        const pull = (dist - groupInnerRadius) * groupStrength * scale
+        velocity.x += (dx / dist) * pull
+        velocity.y += (dy / dist) * pull
+      }
     }
   }
 }

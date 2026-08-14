@@ -1,13 +1,16 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../../lib/tauri'
 import { z } from 'zod'
 
-export type ReviewAiProvider = 'gemini' | 'ollama'
+export type ReviewAiProvider = 'gemini' | 'ollama' | 'openAiCompatible' | 'managed'
 
 const aiConfigurationSchema = z.object({
   geminiConfigured: z.boolean(),
   geminiModel: z.string().min(1),
   ollamaEndpoint: z.literal('http://127.0.0.1:11434/v1'),
   ollamaModel: z.literal('qwen2.5:7b'),
+  openAiCompatibleConfigured: z.boolean(),
+  openAiCompatibleBaseUrl: z.string().nullable(),
+  openAiCompatibleModel: z.string().nullable(),
 }).strict()
 
 const groundedSourceSchema = z.object({
@@ -86,10 +89,28 @@ const ollamaStatusSchema = z.object({
   modelInstalled: z.boolean(),
 }).strict()
 
+const usageStatusSchema = z.object({
+  day: z.number().int().nonnegative(),
+  providerCalls: z.array(z.object({
+    provider: z.string().min(1),
+    calls: z.number().int().nonnegative(),
+  }).strict()),
+  totalCalls: z.number().int().nonnegative(),
+  maxCallsPerDay: z.number().int().positive(),
+  callsInMinute: z.number().int().nonnegative(),
+  maxCallsPerMinute: z.number().int().positive(),
+  exceeded: z.boolean(),
+  estimatedCostUsd: z.number().nonnegative(),
+  estimatedCostUsdMonth: z.number().nonnegative(),
+  maxCostPerMonthUsd: z.number().nonnegative(),
+  monthlyExceeded: z.boolean(),
+}).strict()
+
 export type ReviewAiConfiguration = z.infer<typeof aiConfigurationSchema>
 export type ReadinessAttempt = z.infer<typeof readinessAttemptSchema>
 export type NoteReviewState = z.infer<typeof noteReviewStateSchema>
 export type OllamaStatus = z.infer<typeof ollamaStatusSchema>
+export type UsageStatus = z.infer<typeof usageStatusSchema>
 export type UnrecoverableLearningDocument = z.infer<typeof unrecoverableLearningDocumentSchema>
 
 export async function getReviewAiConfiguration(): Promise<ReviewAiConfiguration> {
@@ -103,12 +124,45 @@ export async function configureGeminiApiKey(apiKey: string): Promise<ReviewAiCon
 export async function setGeminiDataConsent(consent: boolean): Promise<void> {
   await invoke('set_gemini_data_consent', { consent })
 }
+
+/** Pede a confirmacao nativa do SO (fora do renderer) para autorizar o envio
+ * ao Gemini. Retorna true somente quando o usuario confirma no dialogo do
+ * sistema operacional — uma interface comprometida nao consegue falsifica-lo. */
+export async function confirmGeminiDataConsent(): Promise<boolean> {
+  return await invoke<boolean>('confirm_gemini_data_consent')
+}
 export async function removeGeminiApiKey(): Promise<ReviewAiConfiguration> {
   return aiConfigurationSchema.parse(await invoke('remove_gemini_api_key'))
 }
 
+/** Configura o servidor OpenAI-compatible (endereco, modelo e chave). A chave
+ * fica no cofre nativo do sistema e nunca no Vault. */
+export async function configureOpenAiCompatibleProvider(input: {
+  baseUrl: string
+  model: string
+  apiKey: string
+}): Promise<ReviewAiConfiguration> {
+  return aiConfigurationSchema.parse(
+    await invoke('configure_openai_compatible_provider', {
+      baseUrl: input.baseUrl,
+      model: input.model,
+      apiKey: input.apiKey,
+    }),
+  )
+}
+
+export async function removeOpenAiCompatibleProvider(): Promise<ReviewAiConfiguration> {
+  return aiConfigurationSchema.parse(await invoke('remove_openai_compatible_provider'))
+}
+
 export async function checkOllamaReviewStatus(): Promise<OllamaStatus> {
   return ollamaStatusSchema.parse(await invoke('check_ollama_review_status'))
+}
+
+/** Estado de consumo de IA do Vault: chamadas por provedor no dia, custo
+ * estimado (dia e mes) e limites vigentes. */
+export async function getReviewUsageStatus(vaultPath: string): Promise<UsageStatus> {
+  return usageStatusSchema.parse(await invoke('review_usage_status', { path: vaultPath }))
 }
 
 export async function assessNoteReadiness(input: {
@@ -124,6 +178,125 @@ export async function assessNoteReadiness(input: {
     expectedSourceHash: input.expectedSourceHash ?? null,
   })
   return readinessAttemptSchema.parse(payload)
+}
+
+const synthesisDimensionSchema = z.object({
+  score: z.number().int().min(0).max(100),
+  explanation: z.string().min(1),
+  quote: z.string().min(1),
+  sourceQuote: z.string().nullable(),
+}).strict()
+
+const synthesisAttemptSchema = z.discriminatedUnion('outcome', [
+  z.object({
+    outcome: z.literal('valid'),
+    sourceHash: z.string().startsWith('sha256:'),
+    report: z.object({
+      overallScore: z.number().int().min(0).max(100),
+      dimensions: z.object({
+        core: synthesisDimensionSchema,
+        connections: synthesisDimensionSchema,
+        application: synthesisDimensionSchema,
+        gaps: synthesisDimensionSchema,
+      }).strict(),
+      observations: z.array(z.object({ text: z.string().min(1) }).strict()).max(5),
+    }).strict(),
+  }).strict(),
+  z.object({
+    outcome: z.literal('invalid'),
+    sourceHash: z.string().startsWith('sha256:'),
+    message: z.string().min(1),
+    rawResponse: z.string().nullable(),
+    validationErrors: z.array(z.string().min(1)),
+  }).strict(),
+])
+
+export type SynthesisAttempt = z.infer<typeof synthesisAttemptSchema>
+export type SynthesisDimension = z.infer<typeof synthesisDimensionSchema>
+
+const factFindingSchema = z.object({
+  claim: z.string().min(1),
+  status: z.enum(['confirmed', 'divergent', 'uncertain']),
+  reason: z.string().min(1),
+  source: z.string().nullable(),
+  quote: z.string().min(1),
+}).strict()
+
+const factCheckAttemptSchema = z.discriminatedUnion('outcome', [
+  z.object({
+    outcome: z.literal('valid'),
+    sourceHash: z.string().startsWith('sha256:'),
+    report: z.object({
+      overallSummary: z.string().min(1),
+      findings: z.array(factFindingSchema).min(1).max(50),
+    }).strict(),
+  }).strict(),
+  z.object({
+    outcome: z.literal('invalid'),
+    sourceHash: z.string().startsWith('sha256:'),
+    message: z.string().min(1),
+    rawResponse: z.string().nullable(),
+    validationErrors: z.array(z.string().min(1)),
+  }).strict(),
+])
+
+export type FactCheckAttempt = z.infer<typeof factCheckAttemptSchema>
+
+/** Verifica os fatos de uma nota contra o conhecimento do modelo, em operacao
+ * separada da avaliacao de memoria: nao altera a nota nem as pontuacoes. */
+export async function verifyNoteFacts(input: {
+  vaultPath: string
+  relativePath: string
+  provider: ReviewAiProvider
+}): Promise<FactCheckAttempt> {
+  const payload = await invoke('verify_note_facts', {
+    path: input.vaultPath,
+    relativePath: input.relativePath,
+    provider: input.provider,
+  })
+  return factCheckAttemptSchema.parse(payload)
+}
+
+export const sessionSourceSchema = z.object({
+  rawTarget: z.string().min(1),
+  kind: z.enum(['image', 'document', 'markdown', 'unknown']),
+  relativePath: z.string().nullable(),
+  sizeBytes: z.number().nonnegative().nullable(),
+  reason: z.string().nullable(),
+  extractedText: z.string().nullable().optional(),
+}).strict()
+
+export type SessionSource = z.infer<typeof sessionSourceSchema>
+
+/** Lista as fontes consideradas de uma sessao: anexos `![[...]]` referenciados
+ * pela nota e resolvidos com seguranca contra o inventario do Vault. */
+export async function getNoteSessionSources(input: {
+  vaultPath: string
+  relativePath: string
+}): Promise<SessionSource[]> {
+  const payload = await invoke('note_session_sources', {
+    path: input.vaultPath,
+    relativePath: input.relativePath,
+  })
+  return z.array(sessionSourceSchema).parse(payload)
+}
+
+/** Avalia o modelo mental integrado (sintese) que o usuario escreveu sobre a
+ * nota, em quatro dimensoes: cerne, conexoes, aplicacao e lacunas. Avaliacao
+ * formativa — nao altera DSR/FSRS nem proximas datas. */
+export async function assessNoteSynthesis(input: {
+  vaultPath: string
+  relativePath: string
+  synthesis: string
+  provider: ReviewAiProvider
+}): Promise<SynthesisAttempt> {
+  const payload = await invoke('assess_note_synthesis', {
+    path: input.vaultPath,
+    relativePath: input.relativePath,
+    synthesis: input.synthesis,
+    provider: input.provider,
+  })
+  return synthesisAttemptSchema.parse(payload)
 }
 
 const structuralAuditEditOpSchema = z.object({
@@ -258,6 +431,21 @@ export async function discardUnrecoverableLearningDocument(input: {
     storageKey: input.storageKey,
   }))
 }
+/** Adiciona ao final da nota um conhecimento extra sugerido pela IA apos a
+ * confirmacao explicita do usuario na interface. O backend grava com a mesma
+ * seguranca de `save_note` (caminho autorizado, historico e indice atualizados). */
+export async function appendKnowledgeSuggestionToNote(input: {
+  vaultPath: string
+  relativePath: string
+  text: string
+}): Promise<void> {
+  await invoke('append_knowledge_suggestion_to_note', {
+    path: input.vaultPath,
+    relativePath: input.relativePath,
+    text: input.text,
+  })
+}
+
 export function reviewAiErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
   if (typeof error === 'string' && error.trim()) return error

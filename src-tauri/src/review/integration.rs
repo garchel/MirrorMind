@@ -14,6 +14,9 @@
 //!   credencial: Ollama indisponivel (diagnostico legivel) e chave Gemini
 //!   invalida via `MIRRORMIND_REAL_GEMINI_INVALID_KEY`.
 
+use super::comparability::{
+    build_divergence_report, evaluate_with_provider, CASES, MARKDOWN as COMPARABILITY_MARKDOWN,
+};
 use super::conformance::ready_document;
 use super::credentials::{load_gemini_api_key, NativeCredentialStore};
 use super::evaluation::{evaluate_readiness, ReadinessAttempt};
@@ -99,6 +102,32 @@ fn is_quota_exhaustion(message: &str, body: &str) -> bool {
     message.contains("limite temporario")
         || body.contains("too_many_requests")
         || body.contains("exceeded your current quota")
+}
+
+/// Comparabilidade REAL: a MESMA nota, as MESMAS perguntas e as MESMAS
+/// respostas avaliadas por cada provedor (mesmo caminho de producao), com
+/// relatorio de divergencia impresso para diagnostico. Nenhuma falha de um
+/// lado derruba o teste: o relatorio registra o erro legivel — o valor desta
+/// suite e tornar as divergencias (e as falhas) visiveis e estaveis, nao
+/// decidir o melhor provedor.
+fn run_comparability_report(
+    ollama: &dyn StructuredAiProvider,
+    gemini: &dyn StructuredAiProvider,
+    ollama_name: &'static str,
+    gemini_name: &'static str,
+) {
+    let ollama_outcome = evaluate_with_provider(ollama, ollama_name, COMPARABILITY_MARKDOWN, CASES);
+    let gemini_outcome = evaluate_with_provider(gemini, gemini_name, COMPARABILITY_MARKDOWN, CASES);
+    let report = build_divergence_report(ollama_outcome, gemini_outcome);
+    eprintln!("\n{}", report.render());
+    // Invariantes estruturais: o relatorio sempre e montado e sempre descreve
+    // os dois lados (com nota ou com o erro legivel de cada um).
+    assert_eq!(report.providers, [ollama_name, gemini_name]);
+    let valid_sides = [&report.ollama, &report.gemini]
+        .iter()
+        .filter(|outcome| outcome.overall_score.is_some())
+        .count();
+    eprintln!("[integracoes reais] comparabilidade: {valid_sides} de 2 lados com avaliacao valida");
 }
 
 fn run_full_session(provider: &dyn StructuredAiProvider, session_prefix: &str) {
@@ -292,6 +321,56 @@ fn real_gemini_full_session_roundtrip_when_key_configured() {
     };
     let provider = GeminiProvider::for_test(GEMINI_ENDPOINT.to_string(), key);
     run_full_session(&provider, "gemini-real");
+}
+
+/// Requer AMBOS os provedores reais (Ollama local com `qwen2.5:7b` e chave
+/// Gemini). Pula com diagnostico quando qualquer lado estiver indisponivel;
+/// exaustao de quota do Gemini tambem e condicao ambiental (skip).
+#[test]
+fn real_gemini_vs_ollama_comparability_when_both_available() {
+    load_dotenv_if_present();
+    if !gated(ENV_SUCCESS) {
+        skip(&format!("{ENV_SUCCESS} ausente"));
+        return;
+    }
+    let ollama = match OllamaProvider::new() {
+        Ok(provider) => provider,
+        Err(error) => {
+            skip(&format!("OllamaProvider::new falhou: {error}"));
+            return;
+        }
+    };
+    match ollama.check_readiness() {
+        Ok(status) if status.reachable && status.model_installed => {}
+        Ok(status) => {
+            skip(&format!(
+                "Ollama acessivel mas modelo {OLLAMA_MODEL} ausente (reachable={})",
+                status.reachable
+            ));
+            return;
+        }
+        Err(failure) => {
+            skip(&format!("Ollama indisponivel: {}", failure.message));
+            return;
+        }
+    }
+    let store = NativeCredentialStore::new();
+    let env_key = std::env::var("GEMINI_API_KEY")
+        .ok()
+        .map(|key| key.trim().to_string())
+        .filter(|key| !key.is_empty());
+    let store_key = if env_key.is_some() {
+        None
+    } else {
+        load_gemini_api_key(&store).expect("leitura do cofre nativo")
+    };
+    let key = env_key.or(store_key);
+    let Some(key) = key else {
+        skip("nenhuma chave Gemini disponivel (GEMINI_API_KEY ou cofre nativo)");
+        return;
+    };
+    let gemini = GeminiProvider::for_test(GEMINI_ENDPOINT.to_string(), key);
+    run_comparability_report(&ollama, &gemini, "ollama-qwen2.5:7b", "gemini-3.5-flash");
 }
 
 #[test]

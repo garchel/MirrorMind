@@ -257,4 +257,69 @@ describe('TagManagementPage', () => {
     expect(within(noteList).getByText('Programacao/frontend/')).toBeInTheDocument()
     expect(within(noteList).queryByText('Programacao/backend/apis-rest.md')).toBeNull()
   })
+
+  it('disables creating rules at the 100-rule limit and explains why', async () => {
+    getConfigMock.mockResolvedValue({
+      ...config,
+      tagRules: Array.from({ length: 100 }, (_, index) => ({ ...rule, tag: `tag-${index}` })),
+    })
+    getTagIndexMock.mockResolvedValue([
+      { tag: 'prova', notePaths: ['materias/biologia.md'] },
+      { tag: 'extras/livros', notePaths: ['materias/leitura.md'] },
+    ])
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    const createButton = await screen.findByRole('button', { name: 'Criar tag' })
+    expect(createButton).toBeDisabled()
+    expect(screen.getByText(/Limite de 100 regras de tag/i)).toBeInTheDocument()
+
+    // Configurar cria uma regra nova para a tag existente e tambem fica bloqueado.
+    await user.click(screen.getByRole('button', { name: /^#extras · 1 nota$/ }))
+    expect(await screen.findByRole('button', { name: /^Configurar$/ })).toBeDisabled()
+  })
+
+  it('keeps creating rules enabled below the limit', async () => {
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+    expect(await screen.findByRole('button', { name: 'Criar tag' })).toBeEnabled()
+  })
+
+  it('traps focus in the impact dialog and closes it with Escape', async () => {
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    await user.click(await screen.findByRole('button', { name: /Editar/i }))
+    const reviewButton = screen.getByRole('button', { name: 'Revisar alterações' })
+    await user.click(reviewButton)
+
+    const dialog = await screen.findByRole('dialog', { name: /Salvar alterações em #prova/i })
+    // Foco inicial dentro do dialogo.
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+
+    // Tab e Shift+Tab permanecem dentro do dialogo.
+    await user.tab()
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+    await user.tab({ shift: true })
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+
+    // Escape fecha quando a operacao nao esta ocupada e restaura o foco.
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: /Salvar alterações em #prova/i })).toBeNull()
+    expect(reviewButton).toHaveFocus()
+  })
+
+  it('traps focus in the delete dialog and restores it when closed', async () => {
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    const deleteButton = await screen.findByRole('button', { name: /Excluir/i })
+    await user.click(deleteButton)
+
+    const dialog = await screen.findByRole('dialog', { name: /Excluir #prova/i })
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: /Excluir #prova/i })).toBeNull()
+    expect(deleteButton).toHaveFocus()
+  })
 })

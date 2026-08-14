@@ -1,0 +1,125 @@
+/* Visualizacao somente leitura de arquivos especiais (Canvas/Excalidraw). */
+.special-file-viewer {
+  width: min(720px, 92vw);
+  max-height: 84vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.special-file-viewer .move-item-heading {
+  padding-bottom: 10px;
+}
+
+.special-file-viewer-metrics {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 4px;
+}
+
+.special-file-viewer-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgb(46 107 79 / 9%);
+  color: #2e6b4f;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.special-file-viewer-type {
+  padding: 4px 9px;
+  border: 1px solid #d8d6cf;
+  border-radius: 999px;
+  color: #5f5f57;
+  font: 11px var(--mono);
+}
+
+.special-file-viewer-type small {
+  color: #9a9a92;
+}
+
+.special-file-viewer-nodes {
+  flex: 1;
+  min-height: 0;
+  margin: 10px 16px 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  border: 1px solid #e2e0d8;
+  border-radius: 8px;
+}
+
+.special-file-viewer-nodes li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgb(28 36 39 / 5%);
+  font-size: 12px;
+}
+
+.special-file-viewer-nodes li:last-child {
+  border-bottom: none;
+}
+
+.special-file-viewer-node-type {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--code-bg, rgba(39, 47, 51, 0.08));
+  color: #6a6a62;
+  font: 10px var(--mono);
+}
+
+.special-file-viewer-node-text {
+  color: #3d3d38;
+  white-space: pre-wrap;
+}
+
+.special-file-viewer-raw {
+  flex: 1;
+  min-height: 0;
+  margin: 10px 16px 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid #e2e0d8;
+  border-radius: 8px;
+  background: #fffef9;
+  font: 11px/1.5 var(--mono);
+  color: #3d3d38;
+  white-space: pre-wrap;
+}
+
+.special-file-viewer-note,
+.special-file-viewer-unknown,
+.special-file-viewer-files-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 12px 16px 0;
+  padding: 9px 12px;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.special-file-viewer-note {
+  background: rgb(190 76 58 / 9%);
+  border: 1px solid rgb(190 76 58 / 25%);
+  color: #8a3b2c;
+}
+
+.special-file-viewer-unknown {
+  color: #8a8a82;
+}
+
+.special-file-viewer-files-note {
+  margin-top: 10px;
+  background: var(--code-bg, rgba(39, 47, 51, 0.06));
+  color: #6a6a62;
+}

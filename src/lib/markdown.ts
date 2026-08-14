@@ -34,7 +34,11 @@ export function replaceMarkdownBlock(content: string, blockIndex: number, replac
   return `${content.slice(0, block.start)}${replacement}${content.slice(block.end)}`
 }
 
-const FRONTMATTER_PATTERN = /^(---\r?\n)([\s\S]*?)(\r?\n---)(?:\r?\n)?/
+// Tolerancia a BOM UTF-8: notas criadas por outras ferramentas podem comecar
+// com o marcador de ordem de bytes. O BOM entra no cabecalho capturado (grupo
+// 1), nunca no YAML (grupo 2), e os offsets de `match` continuam relativos ao
+// conteudo original — entao edicoes de corpo preservam o BOM byte a byte.
+const FRONTMATTER_PATTERN = /^(\uFEFF?---\r?\n)([\s\S]*?)(\r?\n---)(?:\r?\n)?/
 
 function frontmatterMatch(content: string) {
   return content.match(FRONTMATTER_PATTERN)
@@ -920,4 +924,17 @@ export function findMarkdownWordAtOffset(markdown: string, offset: number, maxLe
 
   const trimmed = word.trim()
   return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength - 1)}…` : trimmed
+}
+
+/**
+ * Anexa um wikilink ao final do conteudo, preservando o texto existente e
+ * separando por um paragrafo em branco. Conteudo vazio (ou so espacos) vira
+ * apenas o link. Retorna o conteudo original quando o link ja aparece literal
+ * no texto (evita duplicar a mesma conexao).
+ */
+export function appendWikilinkToContent(content: string, link: string): string {
+  const normalized = content.replace(/\s+$/, '')
+  if (normalized.length === 0) return `${link}\n`
+  if (content.includes(link)) return content
+  return `${normalized}\n\n${link}\n`
 }

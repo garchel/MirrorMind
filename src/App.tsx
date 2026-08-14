@@ -1,11 +1,13 @@
 import { Fragment, lazy, Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { CSSProperties, DragEvent, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import type { EditorState } from '@codemirror/state'
-import { convertFileSrc, invoke } from '@tauri-apps/api/core'
+import { convertFileSrc } from '@tauri-apps/api/core'
+import { invoke } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Download, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { CiStickyNote } from 'react-icons/ci'
 import 'katex/dist/katex.min.css'
@@ -27,12 +29,9 @@ import { ObsidianPdfEmbed } from './components/ObsidianPdfEmbed'
 import { NoteReadinessControl, type ReviewStartInfo } from './features/review/NoteReadinessControl'
 import { applyStructuralAuditEdit } from './features/review/structuralAuditApply'
 import { NoteReviewPolicyControl } from './features/review/NoteReviewPolicyControl'
-import { ReviewDashboardPage } from './features/review/ReviewDashboardPage'
 import type { ExpiredDeadlineItem, UpcomingDeadlineItem } from './features/review/reviewDashboard'
-import { ReviewQueuePage } from './features/review/ReviewQueuePage'
-import { ReviewReportsPage } from './features/review/ReviewReportsPage'
-import { ReviewSessionPage } from './features/review/ReviewSessionPage'
-import { auditNoteStructure, type StructuralAudit } from './features/review/ai'
+import { auditNoteStructure, verifyNoteFacts, type FactCheckAttempt, type StructuralAudit } from './features/review/ai'
+import { useReviewAiSettings } from './features/review/ReviewAiSettingsContext'
 import { getNoteReviewGaps, type NoteReviewGap } from './features/review/noteReviewGaps'
 import { getNoteReviewUnits, type NoteReviewUnit } from './features/review/noteReviewUnits'
 import { annotateReviewMarkdown } from './features/review/reportMarkdown'
@@ -43,9 +42,9 @@ import { checkReviewNotifications, type ReviewNotificationCheck } from './featur
 import { localDayStartUnixMs } from './features/review/reviewDashboard'
 import { SegmentationSettings } from './features/review/SegmentationSettings'
 import { VaultReviewPolicySettings } from './features/review/VaultReviewPolicySettings'
-import { TagManagementPage } from './features/tags/TagManagementPage'
+
 import { remarkObsidianCallouts } from './lib/remarkObsidianCallouts'
-import { createVaultScanCoordinator, diffVaultNotePaths, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
+import { canApplyInventoryIncrementally, createVaultScanCoordinator, diffVaultNotePaths, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
 import { findTextMatches } from './lib/findMatches'
 import { findReadMatches, type ReadFindMatch } from './lib/readFind'
 import { applyWikilinkEdit, buildWikilinkIndex, getWikilinkBacklinks, getWikilinkTargets, removeWikilinkEntry } from './lib/wikilinkIndex'
@@ -79,16 +78,19 @@ import {
   isVaultPathAffected,
   normalizeRecoveredNotePath,
   parseNoteDocument,
-  parseNoteList,
+  parseNoteDocumentList,
   parseHistoryStatus,
   parseRecentVaultPreference,
-  parseSpecialVaultInventory,
+  parseVaultInventory,
   parseVaultSummary,
   remapVaultPath,
+  hasScanDiagnostics,
+  scanDiagnosticsSummary,
   suggestVaultName,
+  type ScanDiagnostics,
 } from './lib/vault'
 import './App.css'
-import { countMarkdownWords, detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownFrontmatterSource, getMarkdownPreviewText, normalizeMarkdownTag, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderWikiLinksAsMarkdown, replaceMarkdownBody, resolveObsidianAttachmentPath, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable, type FrontmatterValue, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
+import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownFrontmatterSource, getMarkdownPreviewText, normalizeMarkdownTag, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderWikiLinksAsMarkdown, replaceMarkdownBody, resolveObsidianAttachmentPath, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable, type FrontmatterValue, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
 import { nextPopoverShiftX } from './lib/selectionPopover'
 import {
   accumulateObsidianForces2D,
@@ -96,6 +98,32 @@ import {
   OBSIDIAN_PHYSICS_2D,
   type NoteGraphLayoutLink,
 } from './lib/noteGraphLayout'
+import { buildGraph2dGroupCentersForGroups, buildGraphGroups, buildGroupMaps } from './lib/graphGrouping'
+import { GRAPH_RENDER_LIMIT_DEFAULT, selectRenderedGraphDocuments } from './lib/graphCulling'
+import { TagIndex } from './lib/tagIndex'
+import { normalizePluginLanguage } from './lib/pluginBlocks'
+import { ObsidianPluginBlock } from './components/ObsidianPluginBlock'
+import { SpecialFileViewer } from './components/SpecialFileViewer'
+import {
+  clampFontSize,
+  clampHistoryLimit,
+  effectiveThemeMode,
+  fontFamilyCss,
+  normalizeFontFamily,
+  normalizeThemeMode,
+  FONT_FAMILIES,
+  MAX_FONT_SIZE,
+  MAX_HISTORY_LIMIT,
+  MIN_FONT_SIZE,
+  MIN_HISTORY_LIMIT,
+  THEME_MODES,
+  DEFAULT_FONT_SIZE,
+  DEFAULT_HISTORY_LIMIT,
+  type EditorFontFamily,
+  type ThemeMode,
+} from './lib/appearance'
+import { buildGraphSvg, downloadPng, downloadSvg, graphNodeExportColor } from './lib/graphExport'
+import type { Graph3DExportRequest, Graph3DExportScene } from './components/NoteGraph3D'
 
 type TrashItem = {
   id: string
@@ -276,6 +304,16 @@ const MAX_RICH_MARKDOWN_LENGTH = 1_000_000
 // three.js e pesado (~600 KB): carregado sob demanda, apenas quando o usuario
 // abre o modo 3D do grafo pela primeira vez.
 const NoteGraph3D = lazy(() => import('./components/NoteGraph3D').then((module) => ({ default: module.NoteGraph3D })))
+
+// Paginas secundarias (revisao e tags) sao carregadas sob demanda: o codigo
+// (e as dependencias exclusivas de cada pagina) so entra no bundle inicial
+// quando o usuario navega ate elas.
+const ReviewDashboardPage = lazy(() => import('./features/review/ReviewDashboardPage').then((module) => ({ default: module.ReviewDashboardPage })))
+const ReviewQueuePage = lazy(() => import('./features/review/ReviewQueuePage').then((module) => ({ default: module.ReviewQueuePage })))
+const ReviewReportsPage = lazy(() => import('./features/review/ReviewReportsPage').then((module) => ({ default: module.ReviewReportsPage })))
+const ReviewSessionPage = lazy(() => import('./features/review/ReviewSessionPage').then((module) => ({ default: module.ReviewSessionPage })))
+const TagManagementPage = lazy(() => import('./features/tags/TagManagementPage').then((module) => ({ default: module.TagManagementPage })))
+const BasesPage = lazy(() => import('./features/bases/BasesPage').then((module) => ({ default: module.BasesPage })))
 const MARKDOWN_SANITIZE_SCHEMA = {
   ...defaultSchema,
   tagNames: [...(defaultSchema.tagNames ?? []), 'mark'],
@@ -315,6 +353,7 @@ function safeDecodeURIComponent(value: string) {
 }
 
 function App() {
+  const { provider: reviewProvider } = useReviewAiSettings()
   const [vault, setVault] = useState<VaultSummary | null>(null)
   const [notes, setNotes] = useState<NotePreview[]>([])
   const [folders, setFolders] = useState<string[]>([])
@@ -374,6 +413,16 @@ function App() {
   const graphPhysicsRef = useRef<Graph2DPhysics | null>(null)
   const graphPhysicsFrameRef = useRef<number | null>(null)
   const graphPhysicsLastTimeRef = useRef<number | null>(null)
+  // Worker de layout: simula o ambiente 2D fora da thread de interface. O
+  // requestId distingue simulacoes; as posicoes recebidas alimentam o DOM e
+  // sao a fonte "viva" para um arrasto comecar de onde os nos estao.
+  const graphPhysicsWorkerRef = useRef<Worker | null>(null)
+  const graphWorkerAmbientIdRef = useRef(0)
+  const graphWorkerPositionsRef = useRef<Map<string, GraphPosition> | null>(null)
+  const graphSurfaceSizeRef = useRef<{ width: number; height: number } | null>(null)
+  // Centros dos grupos por pasta (percentuais 0-100) para a mola de grupo da
+  // fisica 2D; atualizado a cada render com os nos visiveis atuais.
+  const graphGroupCentersRef = useRef<Map<string, GraphPosition> | null>(null)
   const graphLoadRequestRef = useRef(0)
   const wikiLinkPreviewCacheRef = useRef(new Map<string, WikiLinkPreview>())
   const hoveredWikiLinkPathRef = useRef<string | null>(null)
@@ -399,7 +448,7 @@ function App() {
   const [draggedNotePath, setDraggedNotePath] = useState<string | null>(null)
   const [dropFolderPath, setDropFolderPath] = useState<string | null>(null)
   const [justReleasedDrag, setJustReleasedDrag] = useState(false)
-  const [workspacePage, setWorkspacePage] = useState<'notes' | 'review' | 'dashboard' | 'reports' | 'tags' | 'graph' | 'shortcuts' | 'settings' | 'trash'>('notes')
+  const [workspacePage, setWorkspacePage] = useState<'notes' | 'review' | 'dashboard' | 'reports' | 'tags' | 'bases' | 'graph' | 'shortcuts' | 'settings' | 'trash'>('notes')
 
   // Fora da pagina de notas, o explorador de arquivos colapsa para dar espaco
   // ao conteudo da pagina; ao voltar para notas, expande de volta.
@@ -415,6 +464,12 @@ function App() {
   const [structuralAuditLoading, setStructuralAuditLoading] = useState(false)
   const [structuralAuditError, setStructuralAuditError] = useState<string | null>(null)
   const [structuralAuditAppliedIndex, setStructuralAuditAppliedIndex] = useState<number | null>(null)
+  // Verificacao factual opcional: operacao separada da avaliacao de memoria,
+  // informativa, sem alterar a nota nem as pontuacoes.
+  const [factCheckOpen, setFactCheckOpen] = useState(false)
+  const [factCheck, setFactCheck] = useState<FactCheckAttempt | null>(null)
+  const [factCheckLoading, setFactCheckLoading] = useState(false)
+  const [factCheckError, setFactCheckError] = useState<string | null>(null)
   const [notificationLastCheck, setNotificationLastCheck] = useState<ReviewNotificationCheck | null>(null)
   const [reviewGaps, setReviewGaps] = useState<NoteReviewGap[]>([])
   const [reviewUnits, setReviewUnits] = useState<NoteReviewUnit[]>([])
@@ -422,23 +477,61 @@ function App() {
     () => (localStorage.getItem('mirrormind.review-gap-mode') as ReviewGapMode | null) ?? 'hover',
   )
   const [graphDocuments, setGraphDocuments] = useState<GraphDocument[]>([])
+  // Indice de tags em memoria: cada nota extrai suas tags uma vez por versao do
+  // conteudo e o resultado e reutilizado no grafo (filtro e lista de tags),
+  // evitando reprocessar o YAML de todas as notas a cada renderizacao.
+  const graphTagIndexRef = useRef(new TagIndex())
   // Indice de wikilinks em memoria. E construido quando o grafo abre e passa a
   // ser atualizado incrementalmente (applyWikilinkEdit) a cada salvamento,
   // evitando reextrair e re-resolver os links de todas as notas.
   const graphWikilinkIndexRef = useRef<ReturnType<typeof buildWikilinkIndex> | null>(null)
   const graphWikilinkIndex = graphWikilinkIndexRef.current
+  // Indice de tags sincronizado quando o conjunto de documentos muda (nao a
+  // cada render): extrai tags somente das notas cujo conteudo mudou e mantem a
+  // lista de tags do grafo e o filtro O(1) por nota durante a renderizacao.
+  const graphTagIndex = useMemo(() => {
+    const index = graphTagIndexRef.current
+    index.sync(graphDocuments)
+    return index
+  }, [graphDocuments])
   // Indice do Vault inteiro, construido em segundo plano ao abrir o Vault e
   // atualizado incrementalmente (save/rename/exclusao). Alimenta a aba de
   // backlinks e o ranqueamento do autocomplete sem depender do grafo aberto.
   const vaultWikilinkIndexRef = useRef<ReturnType<typeof buildWikilinkIndex> | null>(null)
   const vaultWikilinkIndexLoadedPathRef = useRef<string | null>(null)
   const vaultWikilinkIndexRequestRef = useRef(0)
+  // Cache dos CONTEUDOS de todas as notas do Vault, populado pela leitura
+  // unificada (`read_vault_notes`) da indexacao em segundo plano. O grafo
+  // reutiliza esse cache quando fresco (mesmo Vault e mesmo conjunto de notas),
+  // evitando a releitura duplicada ao abrir o grafo; entradas sao atualizadas
+  // em salvamentos e o cache e descartado em rename/move/exclusao, troca de
+  // Vault e mudanca estrutural vinda do watcher.
+  const vaultNoteContentsRef = useRef<{
+    vaultPath: string
+    documents: Map<string, GraphDocument>
+  } | null>(null)
+  // Atualiza o cache de conteudos com o estado salvo de UMA nota (mesma fonte
+  // dos indices em memoria, para o grafo refletir edicoes sem re-leitura).
+  function updateVaultNoteContents(relativePath: string, name: string, content: string) {
+    const cached = vaultNoteContentsRef.current
+    if (!cached) return
+    cached.documents.set(relativePath, { relativePath, name, content })
+  }
   // Nota: o indicador de indexacao em segundo plano foi removido junto com a
   // faixa de status do canto inferior direito; o indice continua sendo
   // construido por buildVaultWikilinkIndex sem feedback visual dedicado.
   const [isGraphLoading, setGraphLoading] = useState(false)
+  // Progresso do carregamento em lotes (null = sem leitura em andamento).
+  const [graphLoadProgress, setGraphLoadProgress] = useState<number | null>(null)
   const [graphNodeOverrides, setGraphNodeOverrides] = useState<Record<string, GraphPosition>>({})
   const [graphViewport, setGraphViewport] = useState<GraphViewport>({ scale: 1, x: 0, y: 0 })
+  // Renderizacao seletiva: limite de nos desenhados por cena (acima dele, so
+  // o viewport + contexto e renderizado) e tamanho da superficie medido.
+  const [graphRenderLimit, setGraphRenderLimit] = useState(() => {
+    const value = Number(localStorage.getItem('mirrormind.graph2d.render-limit'))
+    return Number.isFinite(value) && value >= 50 ? Math.round(value) : GRAPH_RENDER_LIMIT_DEFAULT
+  })
+  const [graphSurfaceSize, setGraphSurfaceSize] = useState<{ width: number; height: number } | null>(null)
   const [graphMode3d, setGraphMode3d] = useState(false)
   const [graph3dLayoutVersion, setGraph3dLayoutVersion] = useState(0)
   const [graphQuery, setGraphQuery] = useState('')
@@ -447,6 +540,16 @@ function App() {
   const [showGraphOrphans, setShowGraphOrphans] = useState(true)
   const [showOnlyGraphOrphans, setShowOnlyGraphOrphans] = useState(false)
   const [graphHideAllNames, setGraphHideAllNames] = useState(false)
+  const [graphGroupByFolder, setGraphGroupByFolder] = useState(false)
+  const [graphGroupByTag, setGraphGroupByTag] = useState(false)
+  // Tag principal opcional do agrupamento por tag (desempate de notas com
+  // varias tags) e overrides de cor por grupo, ambos persistidos por Vault.
+  const [graphPrimaryTag, setGraphPrimaryTag] = useState('')
+  const [graphColorOverrides, setGraphColorOverrides] = useState<Record<string, string>>({})
+  const [graphExportOpen, setGraphExportOpen] = useState(false)
+  const [graphExportScale, setGraphExportScale] = useState(2)
+  const [graphExportRequest, setGraphExportRequest] = useState<Graph3DExportRequest | null>(null)
+  const graphExportRequestIdRef = useRef(0)
   // Configuracoes do grafo 3D (tamanho/orbita/arestas), persistidas por vault.
   const [graph3dNodeSize, setGraph3dNodeSize] = useState(() => {
     const value = Number(localStorage.getItem('mirrormind.graph3d.node-size'))
@@ -538,6 +641,7 @@ function App() {
     }
     graphPhysicsRef.current = null
     graphPhysicsLastTimeRef.current = null
+    stopGraph2dWorkerAmbient()
     setGraphHoverPath(null)
   }, [graphMode3d, workspacePage])
   // Header flutuante do grafo com opacidade variavel: aparece com o mouse e
@@ -576,6 +680,7 @@ function App() {
   const [graphHoverPath, setGraphHoverPath] = useState<string | null>(null)
   const [graphDetailOpen, setGraphDetailOpen] = useState(false)
   const [graphMode, setGraphMode] = useState<GraphMode>('global')
+  const [graphLocalDepth, setGraphLocalDepth] = useState(1)
   const [shortcuts, setShortcuts] = useState<WorkspaceShortcuts>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('mirrormind.shortcuts') ?? '{}') as Partial<WorkspaceShortcuts>
@@ -602,6 +707,26 @@ function App() {
   const [readingFont, setReadingFont] = useState<ReadingFont>(
     () => (localStorage.getItem('mirrormind.reading-font') as ReadingFont | null) ?? 'sans',
   )
+  // Aparencia: tema (claro/escuro/seguir Obsidian), fonte do editor/leitura
+  // (familia + tamanho) e limite do historico de desfazer/refazer, persistidos.
+  const [themeMode, setThemeMode] = useState<ThemeMode>(
+    () => normalizeThemeMode(localStorage.getItem('mirrormind.appearance.theme')),
+  )
+  const [editorFontFamily, setEditorFontFamily] = useState<EditorFontFamily>(
+    () => normalizeFontFamily(localStorage.getItem('mirrormind.appearance.font-family')),
+  )
+  const [editorFontSize, setEditorFontSize] = useState<number>(
+    () => {
+      const stored = localStorage.getItem('mirrormind.appearance.font-size')
+      return stored === null ? DEFAULT_FONT_SIZE : clampFontSize(Number(stored))
+    },
+  )
+  const [historyLimit, setHistoryLimit] = useState<number>(
+    () => {
+      const stored = localStorage.getItem('mirrormind.appearance.history-limit')
+      return stored === null ? DEFAULT_HISTORY_LIMIT : clampHistoryLimit(Number(stored))
+    },
+  )
   const [readingWidth, setReadingWidth] = useState<ReadingWidth>(
     () => (localStorage.getItem('mirrormind.reading-width') as ReadingWidth | null) ?? 'comfortable',
   )
@@ -625,7 +750,8 @@ function App() {
     localStorage.setItem('mirrormind.graph2d.velocity-decay', String(graph2dVelocityDecay))
     localStorage.setItem('mirrormind.graph2d.link-distance', String(graph2dLinkDistance))
     localStorage.setItem('mirrormind.graph2d.center-force', String(graph2dCenterForce))
-  }, [graph2dCenterForce, graph2dLinkDistance, graph2dLinkStiffness, graph2dRepulsionStrength, graph2dVelocityDecay])
+    localStorage.setItem('mirrormind.graph2d.render-limit', String(graphRenderLimit))
+  }, [graph2dCenterForce, graph2dLinkDistance, graph2dLinkStiffness, graph2dRepulsionStrength, graph2dVelocityDecay, graphRenderLimit])
   // Resumo diario de revisoes vencidas: verifica a cada 5 minutos enquanto ha
   // um vault aberto. O backend garante no maximo uma notificacao por dia local.
   useEffect(() => {
@@ -683,10 +809,18 @@ function App() {
   const [recoveredNotePath, setRecoveredNotePath] = useState('')
   const [showNoteLinkDialog, setShowNoteLinkDialog] = useState(false)
   const [noteLinkQuery, setNoteLinkQuery] = useState('')
+  const [graphConnectSource, setGraphConnectSource] = useState<GraphDocument | null>(null)
+  const [graphConnectQuery, setGraphConnectQuery] = useState('')
   const [tagIndex, setTagIndex] = useState<TagSummary[]>([])
   const [attachments, setAttachments] = useState<string[]>([])
   const [specialFiles, setSpecialFiles] = useState<SpecialVaultFile[]>([])
   const [specialFilesTruncated, setSpecialFilesTruncated] = useState(false)
+  // Visualizacao somente leitura de Canvas/Excalidraw (nunca edita o arquivo).
+  const [specialFileViewer, setSpecialFileViewer] = useState<SpecialVaultFile | null>(null)
+  const [specialFileViewerContent, setSpecialFileViewerContent] = useState<string | null>(null)
+  const [specialFileViewerError, setSpecialFileViewerError] = useState<string | null>(null)
+  const [vaultDiagnostics, setVaultDiagnostics] = useState<ScanDiagnostics | null>(null)
+  const [diagnosticsDismissed, setDiagnosticsDismissed] = useState(false)
   const [showSpecialFilesDialog, setShowSpecialFilesDialog] = useState(false)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [tagFilterQuery, setTagFilterQuery] = useState('')
@@ -697,6 +831,8 @@ function App() {
   const [tagName, setTagName] = useState('')
   const [historyStatus, setHistoryStatus] = useState<HistoryStatus>({ canUndo: false, canRedo: false })
   const [loading, setLoading] = useState(false)
+  const [wikilinkIndexProgress, setWikilinkIndexProgress] = useState<{ processed: number; total: number } | null>(null)
+  const [wikilinkIndexCancelled, setWikilinkIndexCancelled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [autoSaveState, setAutoSaveState] = useState<'idle' | 'pending' | 'saving' | 'saved'>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -728,6 +864,7 @@ function App() {
   const readingStyle = {
     '--reading-font': readingFont === 'serif' ? 'Georgia, serif' : readingFont === 'mono' ? 'var(--mono)' : 'var(--sans)',
     '--reading-max-width': readingWidth === 'compact' ? '640px' : readingWidth === 'wide' ? '1040px' : '820px',
+    '--reading-font-size': `${editorFontSize}px`,
   } as CSSProperties
   const handleVaultSelection = useEffectEvent(async (selectedVault: VaultSummary) => {
     await refreshNotes(selectedVault.path)
@@ -902,14 +1039,32 @@ function App() {
         remapWorkspacePathsForExternalChange(renamePaths[0], renamePaths[1])
       }
 
-      const [notePayload, nextFolders, specialFilesPayload] = await Promise.all([
-        invoke<unknown>('list_notes', { path: vaultPath }),
-        invoke<string[]>('list_folders', { path: vaultPath }),
-        invoke<unknown>('list_special_files', { path: vaultPath }),
-      ])
+      // Inventario incremental: mudancas simples de anexos/pastas (criacao,
+      // remocao ou renomeacao, sem nota ou arquivo especial envolvido e sem
+      // rescan/modify) sao aplicadas ao inventario em memoria no backend em
+      // vez de re-varrer o Vault inteiro. A reconciliacao periodica (30s) e a
+      // varredura manual continuam corrigindo qualquer divergencia.
+      if (canApplyInventoryIncrementally(change)) {
+        const updated = await invoke<unknown>('apply_vault_inventory_changes', {
+          path: vaultPath,
+          changes: [change],
+        }).catch(() => null)
+        if (activeVaultPathRef.current !== vaultPath) return
+        if (updated) {
+          const inventory = parseVaultInventory(updated)
+          setFolders(inventory.folders)
+          setAttachments(inventory.attachments)
+        }
+        return
+      }
+
+      // Varredura unificada: uma unica passagem no backend produz notas,
+      // pastas, anexos e arquivos especiais (em vez de quatro varreduras).
+      const inventory = parseVaultInventory(await invoke<unknown>('scan_vault_inventory', { path: vaultPath }))
       if (activeVaultPathRef.current !== vaultPath) return
-      const nextNotes = parseNoteList(notePayload)
-      const nextSpecialInventory = parseSpecialVaultInventory(specialFilesPayload)
+      const nextNotes = inventory.notes
+      const nextFolders = inventory.folders
+      const nextSpecialInventory = inventory.specialFiles
       const nextSpecialFiles = nextSpecialInventory.files
       const previousNotePaths = notesRef.current.map((note) => note.relativePath)
       const nextNotePaths = nextNotes.map((note) => note.relativePath)
@@ -963,13 +1118,12 @@ function App() {
       setFolders(nextFolders)
       setSpecialFiles(nextSpecialFiles)
       setSpecialFilesTruncated(nextSpecialInventory.truncated)
-      const [nextTagIndex, nextAttachments] = await Promise.all([
-        invoke<TagSummary[]>('get_tag_index', { path: vaultPath }),
-        invoke<string[]>('list_attachments', { path: vaultPath }),
-      ])
+      setVaultDiagnostics(inventory.diagnostics)
+      setDiagnosticsDismissed(false)
+      const nextTagIndex = await invoke<TagSummary[]>('get_tag_index', { path: vaultPath })
       if (activeVaultPathRef.current !== vaultPath) return
       setTagIndex(nextTagIndex)
-      setAttachments(nextAttachments)
+      setAttachments(inventory.attachments)
       const activePath = renamePaths && activeNoteRef.current
         ? remapVaultPath(activeNoteRef.current.relativePath, renamePaths[0], renamePaths[1])
         : activeNoteRef.current?.relativePath
@@ -1007,12 +1161,15 @@ function App() {
       setWikiLinkPreview(null)
       setExternalNoteConflict(null)
       setExternalRemovedNote(null)
+      graphTagIndexRef.current = new TagIndex()
       externalRemovedNoteQueueRef.current = []
       setRecoveredNotePath('')
       setTagIndex([])
       setAttachments([])
       setSpecialFiles([])
       setSpecialFilesTruncated(false)
+      setVaultDiagnostics(null)
+      setDiagnosticsDismissed(false)
       setShowSpecialFilesDialog(false)
       setSelectedTags([])
       setTagFilterQuery('')
@@ -1032,7 +1189,7 @@ function App() {
   useEffect(() => {
     if (!vault) return
     try {
-      const stored = JSON.parse(localStorage.getItem(`mirrormind.graph.${vault.path}`) ?? '{}') as Partial<{ positions: Record<string, GraphPosition>; viewport: GraphViewport; folder: string; tag: string; showOrphans: boolean; hideAllNames: boolean; mode: GraphMode }>
+      const stored = JSON.parse(localStorage.getItem(`mirrormind.graph.${vault.path}`) ?? '{}') as Partial<{ positions: Record<string, GraphPosition>; viewport: GraphViewport; folder: string; tag: string; showOrphans: boolean; hideAllNames: boolean; mode: GraphMode; localDepth: number; groupByFolder: boolean; groupByTag: boolean; primaryTag: string; colorOverrides: Record<string, string> }>
       setGraphNodeOverrides(stored.positions ?? {})
       setGraphViewport(stored.viewport ?? { scale: 1, x: 0, y: 0 })
       setGraphFolder(stored.folder ?? '')
@@ -1040,6 +1197,11 @@ function App() {
       setShowGraphOrphans(stored.showOrphans ?? true)
       setGraphHideAllNames(stored.hideAllNames ?? false)
       setGraphMode(stored.mode ?? 'global')
+      setGraphLocalDepth(stored.localDepth ?? 1)
+      setGraphGroupByFolder(stored.groupByFolder ?? false)
+      setGraphGroupByTag(stored.groupByTag ?? false)
+      setGraphPrimaryTag(stored.primaryTag ?? '')
+      setGraphColorOverrides(stored.colorOverrides ?? {})
     } catch {
       setGraphNodeOverrides({})
     }
@@ -1055,8 +1217,13 @@ function App() {
       showOrphans: showGraphOrphans,
       hideAllNames: graphHideAllNames,
       mode: graphMode,
+      localDepth: graphLocalDepth,
+      groupByFolder: graphGroupByFolder,
+      groupByTag: graphGroupByTag,
+      primaryTag: graphPrimaryTag,
+      colorOverrides: graphColorOverrides,
     }))
-  }, [graphFolder, graphHideAllNames, graphMode, graphNodeOverrides, graphTag, graphViewport, showGraphOrphans, vault])
+  }, [graphColorOverrides, graphFolder, graphGroupByFolder, graphGroupByTag, graphHideAllNames, graphLocalDepth, graphMode, graphNodeOverrides, graphPrimaryTag, graphTag, graphViewport, showGraphOrphans, vault])
 
   // Ao abrir a pagina do grafo, ajusta o viewport para que todas as notas
   // fiquem visiveis (encaixa o conteudo no painel), independente do zoom/pan
@@ -1183,6 +1350,36 @@ function App() {
   useEffect(() => {
     localStorage.setItem('mirrormind.reading-width', readingWidth)
   }, [readingWidth])
+
+  // Aparencia: persiste tema, fonte e historico e aplica o tema no documento
+  // (atributo `data-theme` lido pelo CSS) e as variaveis de fonte/leitura.
+  useEffect(() => {
+    localStorage.setItem('mirrormind.appearance.theme', themeMode)
+  }, [themeMode])
+
+  useEffect(() => {
+    localStorage.setItem('mirrormind.appearance.font-family', editorFontFamily)
+  }, [editorFontFamily])
+
+  useEffect(() => {
+    localStorage.setItem('mirrormind.appearance.font-size', String(editorFontSize))
+  }, [editorFontSize])
+
+  useEffect(() => {
+    localStorage.setItem('mirrormind.appearance.history-limit', String(historyLimit))
+  }, [historyLimit])
+
+  const effectiveTheme = effectiveThemeMode(themeMode, vault?.obsidianAppearance ?? null)
+  useEffect(() => {
+    document.documentElement.dataset.theme = effectiveTheme
+  }, [effectiveTheme])
+
+  // Fonte do editor/leitura: familia e tamanho aplicados no espaco de trabalho
+  // via variaveis CSS consumidas pelo editor (CodeMirror) e pelo modo Leitura.
+  const editorFontStyle = {
+    '--editor-font-family': fontFamilyCss(editorFontFamily),
+    '--editor-font-size': `${editorFontSize}px`,
+  } as CSSProperties
 
   useEffect(() => {
     localStorage.setItem('mirrormind.reading-line-wrap', String(isReadingLineWrapEnabled))
@@ -1358,8 +1555,32 @@ function App() {
     saving,
   ])
 
+  // Progresso da (re)construcao do indice de wikilinks durante uma
+  // renomeacao/movimentacao (eventos emitidos pelo backend).
+  useEffect(() => {
+    if (!vault) return
+    let disposed = false
+    let unlisten: (() => void) | undefined
+    void listen<{ processed: number; total: number }>('wikilink-index-progress', (event) => {
+      if (disposed) return
+      const { processed, total } = event.payload
+      if (typeof processed !== 'number' || typeof total !== 'number' || total < 1) return
+      setWikilinkIndexProgress({ processed: Math.min(processed, total), total })
+    }).then((cleanup) => {
+      if (disposed) cleanup()
+      else unlisten = cleanup
+    })
+    return () => {
+      disposed = true
+      unlisten?.()
+      setWikilinkIndexProgress(null)
+      setWikilinkIndexCancelled(false)
+    }
+  }, [vault])
+
   useEffect(() => {
     markdownEditorStateCacheRef.current.clear()
+    vaultNoteContentsRef.current = null
     setMarkdownHistoryStatus({ canUndo: false, canRedo: false })
   }, [vault?.path])
 
@@ -1548,31 +1769,25 @@ function App() {
     }
   }
 
-  /** Constroi o indice de wikilinks do Vault inteiro em segundo plano, em lotes,
-   *  para nao bloquear a interface em Vaults grandes. Alimenta backlinks e
-   *  autocomplete sem exigir que o grafo esteja aberto. */
+  /** Constroi o indice de wikilinks do Vault inteiro em segundo plano com a
+   *  leitura unificada (`read_vault_notes`, UMA chamada IPC em vez de N
+   *  `read_note`). Alimenta backlinks e autocomplete sem exigir que o grafo
+   *  esteja aberto e popula o cache de conteudos que o grafo reutiliza. */
   async function buildVaultWikilinkIndex(vaultPath: string) {
     const requestId = vaultWikilinkIndexRequestRef.current + 1
     vaultWikilinkIndexRequestRef.current = requestId
     vaultWikilinkIndexLoadedPathRef.current = vaultPath
     try {
-      const noteList = await invoke<unknown>('list_notes', { path: vaultPath })
-      const allNotes = parseNoteList(noteList)
-      const contents: Array<{ relativePath: string; content: string }> = []
-      const batchSize = 64
-      for (let index = 0; index < allNotes.length; index += batchSize) {
-        if (requestId !== vaultWikilinkIndexRequestRef.current || vaultWikilinkIndexLoadedPathRef.current !== vaultPath) return
-        const batch = allNotes.slice(index, index + batchSize)
-        const loaded = await Promise.all(batch.map(async (note) => {
-          const payload = await invoke<unknown>('read_note', { path: vaultPath, relativePath: note.relativePath })
-          return parseNoteDocument(payload)
-        }))
-        for (const note of loaded) contents.push({ relativePath: note.relativePath, content: note.content })
-        // Deixa a interface respirar entre lotes.
-        await new Promise((resolve) => setTimeout(resolve, 0))
-      }
+      const allNotes = parseNoteDocumentList(
+        await invoke<unknown>('read_vault_notes', { path: vaultPath }),
+      )
       if (requestId !== vaultWikilinkIndexRequestRef.current || vaultWikilinkIndexLoadedPathRef.current !== vaultPath) return
+      const contents = allNotes.map((note) => ({ relativePath: note.relativePath, content: note.content }))
       vaultWikilinkIndexRef.current = buildWikilinkIndex(contents)
+      vaultNoteContentsRef.current = {
+        vaultPath,
+        documents: new Map(allNotes.map((note) => [note.relativePath, note])),
+      }
       // Atualiza os backlinks da nota ativa com o indice pronto.
       if (vault && activeNoteRef.current && activeNoteRef.current.relativePath !== '__new_note__') {
         setBacklinks(resolveBacklinksFromIndex(vaultWikilinkIndexRef.current, activeNoteRef.current.relativePath))
@@ -1584,19 +1799,34 @@ function App() {
     }
   }
 
+  async function retryVaultDiagnostics() {
+    if (!vault) return
+    try {
+      const inventory = parseVaultInventory(
+        await invoke<unknown>('scan_vault_inventory', { path: vault.path }),
+      )
+      setVaultDiagnostics(inventory.diagnostics)
+      setDiagnosticsDismissed(false)
+      setStatus('Varredura refeita.')
+    } catch {
+      setVaultDiagnostics(null)
+      setStatus('Nao foi possivel refazer a varredura do vault.')
+    }
+  }
+
   async function refreshNotes(vaultPath: string, preferredPath?: string) {
     setLoading(true)
     setError(null)
 
     try {
-      const notePayload = await invoke<unknown>('list_notes', {
-        path: vaultPath,
-      })
-      const nextNotes = parseNoteList(notePayload)
-      const nextFolders = await invoke<string[]>('list_folders', { path: vaultPath })
+      // Varredura unificada: uma unica passagem no backend produz notas,
+      // pastas, anexos e arquivos especiais.
+      const inventory = parseVaultInventory(await invoke<unknown>('scan_vault_inventory', { path: vaultPath }))
+      const nextNotes = inventory.notes
+      const nextFolders = inventory.folders
       const nextTagIndex = await invoke<TagSummary[]>('get_tag_index', { path: vaultPath })
-      const nextAttachments = await invoke<string[]>('list_attachments', { path: vaultPath })
-      const nextSpecialInventory = parseSpecialVaultInventory(await invoke<unknown>('list_special_files', { path: vaultPath }))
+      const nextAttachments = inventory.attachments
+      const nextSpecialInventory = inventory.specialFiles
       const nextSpecialFiles = nextSpecialInventory.files
       const nextFavorites = await invoke<string[]>('list_favorites', { path: vaultPath })
       const nextTemplates = await invoke<NoteTemplate[]>('list_templates', { path: vaultPath })
@@ -1608,6 +1838,8 @@ function App() {
       setSpecialFilesTruncated(nextSpecialInventory.truncated)
       setFavorites(nextFavorites)
       setTemplates(nextTemplates)
+      setVaultDiagnostics(inventory.diagnostics)
+      setDiagnosticsDismissed(false)
 
       if (nextNotes.length === 0) {
         setActiveNote(null)
@@ -1632,6 +1864,23 @@ function App() {
       setStatus('Falha ao carregar a lista de notas do vault.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function openSpecialFileViewer(file: SpecialVaultFile) {
+    if (!vault || (file.kind !== 'canvas' && file.kind !== 'excalidraw')) return
+    setSpecialFileViewer(file)
+    setSpecialFileViewerContent(null)
+    setSpecialFileViewerError(null)
+    try {
+      const payload = await invoke<number[]>('read_special_vault_file', {
+        path: vault.path,
+        relativePath: file.relativePath,
+      })
+      const bytes = payload instanceof Array ? payload : Array.from(payload as ArrayLike<number>)
+      setSpecialFileViewerContent(new TextDecoder().decode(Uint8Array.from(bytes)))
+    } catch (cause) {
+      setSpecialFileViewerError(cause instanceof Error ? cause.message : 'Nao foi possivel ler o arquivo especial.')
     }
   }
 
@@ -1753,6 +2002,28 @@ function App() {
     }
   }
 
+  /** Verificacao factual opcional (separada da avaliacao de memoria): compara
+   *  as afirmacoes da nota com o conhecimento do modelo, distingue fatos
+   *  confirmados/divergentes/incertos e NUNCA altera a nota nem as pontuacoes. */
+  async function runFactCheck() {
+    if (!vault || !activeNote || isNewNoteDraft) return
+    setFactCheckLoading(true)
+    setFactCheckError(null)
+    setFactCheck(null)
+    try {
+      const result = await verifyNoteFacts({
+        vaultPath: vault.path,
+        relativePath: activeNote.relativePath,
+        provider: reviewProvider,
+      })
+      setFactCheck(result)
+    } catch (error) {
+      setFactCheckError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setFactCheckLoading(false)
+    }
+  }
+
   /** Aplica uma sugestao com edicao determinista ao rascunho do editor. O
    *  usuario revisa no editor e salva — nunca editamos o Markdown sozinhos. */
   function handleApplyStructuralAuditEdit(index: number) {
@@ -1781,7 +2052,26 @@ function App() {
     setStructuralAudit(null)
     setStructuralAuditError(null)
     setStructuralAuditAppliedIndex(null)
+    setFactCheckOpen(false)
+    setFactCheck(null)
+    setFactCheckError(null)
   }, [activeNote?.relativePath])
+
+  /** Le todos os conteudos do Vault em UMA chamada IPC (`read_vault_notes`),
+   *  ouvindo o progresso emitido pelo backend para a UI nao parecer travada em
+   *  Vaults grandes. O listener e removido ao concluir. */
+  async function readAllVaultNotesWithProgress(requestId: number, vaultPath: string) {
+    const unlistenProgress = await listen<{ processed: number; total: number }>('vault-notes-read-progress', (event) => {
+      if (requestId === graphLoadRequestRef.current && vault?.path === vaultPath) {
+        setGraphLoadProgress(event.payload.processed)
+      }
+    })
+    try {
+      return parseNoteDocumentList(await invoke<unknown>('read_vault_notes', { path: vaultPath }))
+    } finally {
+      unlistenProgress()
+    }
+  }
 
   async function openGraphPage() {
     if (!vault) return
@@ -1791,24 +2081,52 @@ function App() {
     setWorkspacePage('graph')
     setGraphDetailOpen(false)
     setGraphLoading(true)
+    setGraphLoadProgress(0)
     setError(null)
 
     try {
-      const documents = await Promise.all(notes.map(async (note) => {
-        const payload = await invoke<unknown>('read_note', { path: vaultPath, relativePath: note.relativePath })
-        return parseNoteDocument(payload)
-      }))
+      // Reutiliza o cache de conteudos da indexacao em segundo plano quando
+      // fresco (mesmo Vault e MESMO conjunto de notas): abrir o grafo nao
+      // rele NADA. Mudancas estruturais (notas criadas/removidas/renomeadas
+      // pelo app ou externamente) tornam o conjunto diferente e caem na
+      // leitura unificada abaixo.
+      const cached = vaultNoteContentsRef.current
+      if (
+        cached
+        && cached.vaultPath === vaultPath
+        && cached.documents.size === notes.length
+        && notes.every((note) => cached.documents.has(note.relativePath))
+      ) {
+        const documents = [...cached.documents.values()]
+        setGraphDocuments(documents)
+        // Indexa os conteudos em memoria para o grafo e os backlinks.
+        graphWikilinkIndexRef.current = buildWikilinkIndex(documents)
+        setFocusedGraphPath(activeNote?.relativePath ?? null)
+        return
+      }
+
+      // Leitura unificada: UMA chamada devolve todos os conteudos (o backend
+      // emite progresso em lotes). A troca de Vault ou um novo pedido
+      // incrementam `graphLoadRequestRef` e descartam o resultado.
+      const allNotes = await readAllVaultNotesWithProgress(requestId, vaultPath)
       if (requestId !== graphLoadRequestRef.current || vault.path !== vaultPath) return
-      setGraphDocuments(documents)
-      // Indexa todos os conteudos recém-lidos em memoria para o grafo e os backlinks.
-      graphWikilinkIndexRef.current = buildWikilinkIndex(documents.map(({ relativePath, content }) => ({ relativePath, content })))
+      setGraphDocuments(allNotes)
+      // Indexa os conteudos recém-lidos em memoria para o grafo e os backlinks.
+      graphWikilinkIndexRef.current = buildWikilinkIndex(allNotes)
+      vaultNoteContentsRef.current = {
+        vaultPath,
+        documents: new Map(allNotes.map((note) => [note.relativePath, note])),
+      }
       setFocusedGraphPath(activeNote?.relativePath ?? null)
     } catch {
       if (requestId !== graphLoadRequestRef.current) return
       setGraphDocuments([])
       setError('Nao foi possivel carregar as conexoes entre as notas.')
     } finally {
-      if (requestId === graphLoadRequestRef.current) setGraphLoading(false)
+      if (requestId === graphLoadRequestRef.current) {
+        setGraphLoading(false)
+        setGraphLoadProgress(null)
+      }
     }
   }
 
@@ -1826,6 +2144,7 @@ function App() {
     }
     graphPhysicsRef.current = null
     graphPhysicsLastTimeRef.current = null
+    stopGraph2dWorkerAmbient()
     setGraphNodeOverrides({})
     startGraph2dAmbientSimulation()
   }
@@ -1894,6 +2213,7 @@ function App() {
       linkRest: settings.linkDistance,
       repulsionStrength: settings.repulsionStrength,
       centerStrength: OBSIDIAN_PHYSICS_2D.centerStrength * (settings.centerForce / 100),
+      groupCenters: graphGroupCentersRef.current ?? undefined,
       alpha: params.alpha,
       delta: params.delta,
     })
@@ -2005,18 +2325,18 @@ function App() {
    * cada render — assim, qualquer re-render do React por outro motivo (hover,
    * drawer...) re-sincroniza o DOM com as posicoes REAIS da fisica, sem que os
    * nos "pulem" para posicoes antigas do VDOM. */
-  function writeGraph2dPositionsToDom(positions: Map<string, GraphPosition>) {
-    const surfaceSize = graphPhysicsRef.current?.surfaceSize
+  function writeGraph2dPositionsToDom(positions: Map<string, GraphPosition>, surfaceSize?: { width: number; height: number } | null) {
+    const resolvedSurfaceSize = surfaceSize !== undefined ? surfaceSize : (graphPhysicsRef.current?.surfaceSize ?? null)
     for (const [path, element] of graph2dNodeElementsRef.current) {
       const position = positions.get(path)
       if (!element || !position) continue
-      if (surfaceSize && surfaceSize.width > 0 && surfaceSize.height > 0) {
+      if (resolvedSurfaceSize && resolvedSurfaceSize.width > 0 && resolvedSurfaceSize.height > 0) {
         // Posiciona por transform translate (px) — composicao GPU, sem forcar
         // layout a cada frame. Zera o left/top percentual uma unica vez; as
         // escritas de transform so mudam quando a posicao muda.
         if (element.style.left !== '0px') element.style.left = '0px'
         if (element.style.top !== '0px') element.style.top = '0px'
-        const transform = `translate(${(position.x / 100) * surfaceSize.width}px, ${(position.y / 100) * surfaceSize.height}px)`
+        const transform = `translate(${(position.x / 100) * resolvedSurfaceSize.width}px, ${(position.y / 100) * resolvedSurfaceSize.height}px)`
         if (element.style.transform !== transform) element.style.transform = transform
       } else {
         // Sem tamanho capturado (fallback): posiciona por left/top %.
@@ -2080,7 +2400,7 @@ function App() {
       const title = document.name.replace(/\.md$/i, '').toLowerCase()
       const matchesQuery = !graphQuery.trim() || title.includes(graphQuery.trim().toLowerCase())
       const matchesFolder = !graphFolder || document.relativePath.startsWith(`${graphFolder}/`)
-      const matchesTag = !graphTag || extractMarkdownTags(document.content).includes(graphTag)
+      const matchesTag = !graphTag || graphTagIndexRef.current.tagsOf(document.relativePath).includes(graphTag)
       const isOrphan = (degreeByPath[document.relativePath] ?? 0) === 0
       return matchesQuery && matchesFolder && matchesTag && (graphMode === 'global' || localGraphPaths.has(document.relativePath)) && (showOnlyGraphOrphans ? isOrphan : showGraphOrphans || !isOrphan)
     })
@@ -2105,8 +2425,10 @@ function App() {
       if (!visiblePaths.has(document.relativePath)) return
       if (!ignoreExisting) {
         // A simulacao em andamento e a fonte mais atual (arrasto no meio de uma
-        // simulacao continua de onde os nos estao, sem "pulos").
+        // simulacao continua de onde os nos estao, sem "pulos"). Quando o
+        // ambiente roda no worker, as posicoes dele sao a fonte viva.
         const live = graphPhysicsRef.current?.positions.get(document.relativePath)
+          ?? graphWorkerPositionsRef.current?.get(document.relativePath)
         const override = graphNodeOverrides[document.relativePath]
         if (live) {
           positions.set(document.relativePath, live)
@@ -2127,15 +2449,90 @@ function App() {
     return { positions, velocities }
   }
 
+  /** Cria (lazy) o worker de layout e conecta as mensagens. Devolve null
+   * quando o ambiente nao oferece Worker (ex.: testes jsdom) — o chamador cai
+   * no loop da thread principal. */
+  function ensureGraphPhysicsWorker(): Worker | null {
+    if (graphPhysicsWorkerRef.current) return graphPhysicsWorkerRef.current
+    if (typeof Worker === 'undefined') return null
+    try {
+      const worker = new Worker(new URL('./workers/graphPhysics.worker.ts', import.meta.url), { type: 'module' })
+      worker.onmessage = (event: MessageEvent<{ type: string; requestId: number; positions?: Record<string, GraphPosition> }>) => {
+        const message = event.data
+        if (message.requestId !== graphWorkerAmbientIdRef.current) return
+        if (message.type === 'ambient-step' && message.positions) {
+          graphWorkerPositionsRef.current = new Map(Object.entries(message.positions))
+          writeGraph2dPositionsToDom(graphWorkerPositionsRef.current, graphSurfaceSizeRef.current)
+        } else if (message.type === 'ambient-settled' && message.positions) {
+          graphWorkerPositionsRef.current = new Map(Object.entries(message.positions))
+          setGraphNodeOverrides((previous) => ({ ...previous, ...message.positions }))
+          graphWorkerAmbientIdRef.current = 0
+        }
+      }
+      worker.onerror = () => {
+        // Worker indisponivel em tempo de execucao: encerra e volta ao loop
+        // da thread principal na proxima chamada.
+        graphPhysicsWorkerRef.current = null
+        graphWorkerAmbientIdRef.current = 0
+      }
+      graphPhysicsWorkerRef.current = worker
+      return worker
+    } catch {
+      return null
+    }
+  }
+
+  /** Cancela a simulacao ambiente do worker (se houver). */
+  function stopGraph2dWorkerAmbient() {
+    if (graphPhysicsWorkerRef.current) {
+      graphPhysicsWorkerRef.current.postMessage({ type: 'stop' })
+    }
+    graphWorkerAmbientIdRef.current = 0
+  }
+
+  /** Roda o big bang no worker: a thread de interface fica livre enquanto a
+   * fisica integra (muitos nos). Devolve true quando assumiu (o DOM sera
+   * atualizado pelos passos do worker) e false para cair no loop local. */
+  function startGraph2dWorkerAmbient(visiblePaths: Set<string>, edges: NoteGraphLayoutLink[], forceBigBang: boolean): boolean {
+    const worker = ensureGraphPhysicsWorker()
+    if (!worker) return false
+    const { positions } = buildGraph2dPositions(visiblePaths, true, forceBigBang)
+    const requestId = graphWorkerAmbientIdRef.current + 1
+    graphWorkerAmbientIdRef.current = requestId
+    graphWorkerPositionsRef.current = positions
+    const surfaceElement = graphSurfaceRef.current
+    graphSurfaceSizeRef.current = surfaceElement && surfaceElement.clientWidth > 0 ? { width: surfaceElement.clientWidth, height: surfaceElement.clientHeight } : null
+    const settings = graphPhysicsSettingsRef.current
+    worker.postMessage({
+      type: 'ambient-start',
+      requestId,
+      paths: [...visiblePaths],
+      positions: Object.fromEntries(positions),
+      edges,
+      settings: {
+        linkStiffness: settings.linkStiffness,
+        linkRest: settings.linkDistance,
+        repulsionStrength: settings.repulsionStrength,
+        velocityDecay: settings.velocityDecay,
+        centerStrength: OBSIDIAN_PHYSICS_2D.centerStrength * (settings.centerForce / 100),
+      },
+      groupCenters: graphGroupCentersRef.current ? Object.fromEntries(graphGroupCentersRef.current) : undefined,
+    })
+    return true
+  }
+
   /** Simulacao ambiente do grafo 2D (big bang estilo Obsidian): todos os nos
    * visiveis partem do centro com pequena perturbacao e se espalham pelas
    * forcas (molas + repulsao 1/d² + center force), com alpha decaindo ate
    * assentar. Os orfaos (sem conexao) sao atraidos ao anel central. Roda ao
    * abrir o grafo 2D (big bang forcado: `forceBigBang`) e no botao
-   * Reorganizar; qualquer arrasto a cancela. */
+   * Reorganizar; qualquer arrasto a cancela. Quando o ambiente oferece um
+   * Worker, a simulacao roda FORA da thread de interface (layout em worker);
+   * senao, cai no loop local em rAF. */
   function startGraph2dAmbientSimulation(forceBigBang = false) {
     const { visibleGraphDocuments, visiblePaths, edges } = getGraph2dSimulationState()
     if (graphSurfaceRef.current === null || visibleGraphDocuments.length === 0) return
+    if (startGraph2dWorkerAmbient(visiblePaths, edges, forceBigBang)) return
     const { positions, velocities } = buildGraph2dPositions(visiblePaths, true, forceBigBang)
     const surfaceElement = graphSurfaceRef.current
     graphPhysicsRef.current = {
@@ -2165,7 +2562,47 @@ function App() {
     const forceBigBang = graphPhysicsRef.current === null
     const timeoutId = window.setTimeout(() => startGraph2dAmbientSimulation(forceBigBang), 120)
     return () => window.clearTimeout(timeoutId)
-  }, [workspacePage, graphMode3d, isGraphLoading, graphDocuments, graphMode, graphFolder, graphTag, showGraphOrphans, showOnlyGraphOrphans])
+  }, [workspacePage, graphMode3d, isGraphLoading, graphDocuments, graphMode, graphFolder, graphTag, graphGroupByFolder, showGraphOrphans, showOnlyGraphOrphans])
+
+  // Mede o tamanho da superficie 2D (para a renderizacao seletiva e o
+  // posicionamento do worker). Sem tamanho conhecido (jsdom/desconhecido),
+  // nada e cortado e tudo e renderizado.
+  useEffect(() => {
+    if (workspacePage !== 'graph' || graphMode3d || isGraphLoading) return
+    const update = () => {
+      const element = graphSurfaceRef.current
+      if (element && element.clientWidth > 0 && element.clientHeight > 0) {
+        setGraphSurfaceSize({ width: element.clientWidth, height: element.clientHeight })
+      } else {
+        setGraphSurfaceSize(null)
+      }
+    }
+    update()
+    if (typeof ResizeObserver !== 'undefined') {
+      // Usa o contentRect do entry (medida sem forcar layout) em vez de
+      // reler clientWidth a cada callback.
+      const observer = new ResizeObserver((entries) => {
+        const entry = entries[0]
+        if (entry && entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+          setGraphSurfaceSize({ width: entry.contentRect.width, height: entry.contentRect.height })
+        } else {
+          update()
+        }
+      })
+      if (graphSurfaceRef.current) observer.observe(graphSurfaceRef.current)
+      return () => observer.disconnect()
+    }
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [graphMode3d, isGraphLoading, workspacePage])
+
+  // Encerra o worker de layout ao desmontar o App.
+  useEffect(() => () => {
+    if (graphPhysicsWorkerRef.current) {
+      graphPhysicsWorkerRef.current.terminate()
+      graphPhysicsWorkerRef.current = null
+    }
+  }, [])
 
   /** Inicia o arrasto de um no no grafo 2D (modelo Obsidian): o no segurado
    * vira o UNICO ponto fixado (pinned) e todo o grafo visivel flui pelas mesmas
@@ -2177,6 +2614,9 @@ function App() {
     graphNodeDragRef.current = relativePath
     graphSkipNodeClickRef.current = false
     setFocusedGraphPath(relativePath)
+    // O arrasto assume o controle: cancela a simulacao ambiente do worker (as
+    // posicoes dele viram a fonte viva abaixo, sem "pulos" para o layout antigo).
+    stopGraph2dWorkerAmbient()
     const { visiblePaths, edges } = getGraph2dSimulationState()
     const { positions, velocities } = buildGraph2dPositions(visiblePaths, false)
     const startPosition = positions.get(relativePath) ?? { x: 50, y: 50 }
@@ -2360,6 +2800,12 @@ function App() {
     setDraftsByPath({})
   }
 
+  async function cancelWikilinkIndexBuild() {
+    if (!vault) return
+    setWikilinkIndexCancelled(true)
+    await invoke('cancel_wikilink_index_build', { path: vault.path }).catch(() => undefined)
+  }
+
   async function renameVaultItem() {
     if (!vault || !renameTarget || !renameName.trim()) return
     const target = renameTarget
@@ -2374,6 +2820,8 @@ function App() {
     }
 
     setLoading(true)
+    setWikilinkIndexProgress(null)
+    setWikilinkIndexCancelled(false)
     try {
       await persistWorkspaceDraftsBeforePathChange(vault.path)
       await invoke('rename_vault_item', {
@@ -2405,6 +2853,9 @@ function App() {
         }
         vaultWikilinkIndexRef.current = nextIndex
       }
+      // Renomear/mover muda caminhos: o cache de conteudos do grafo perde a
+      // validade e e reconstruido na proxima leitura unificada.
+      vaultNoteContentsRef.current = null
       await refreshNotes(vault.path, remapPath(activeNote?.relativePath ?? ''))
       if (target.type === 'note' && activeNote?.relativePath === target.path) {
         void loadBrokenLinks(destinationPath, vault.path)
@@ -2413,6 +2864,8 @@ function App() {
       setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel renomear o item.')
     } finally {
       setLoading(false)
+      setWikilinkIndexProgress(null)
+      setWikilinkIndexCancelled(false)
     }
   }
 
@@ -2493,6 +2946,8 @@ function App() {
     }
 
     setLoading(true)
+    setWikilinkIndexProgress(null)
+    setWikilinkIndexCancelled(false)
     try {
       await persistWorkspaceDraftsBeforePathChange(vault.path)
       await invoke('move_vault_item', {
@@ -2516,6 +2971,8 @@ function App() {
       setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel mover o item.')
     } finally {
       setLoading(false)
+      setWikilinkIndexProgress(null)
+      setWikilinkIndexCancelled(false)
     }
   }
 
@@ -2524,6 +2981,8 @@ function App() {
     const name = relativePath.split('/').at(-1) ?? relativePath
     const destinationPath = destinationFolder ? `${destinationFolder}/${name}` : name
     setLoading(true)
+    setWikilinkIndexProgress(null)
+    setWikilinkIndexCancelled(false)
     try {
       await persistWorkspaceDraftsBeforePathChange(vault.path)
       await invoke('move_vault_item', { path: vault.path, relativePath, destinationFolder, itemType: 'note' })
@@ -2533,6 +2992,7 @@ function App() {
       setStatus('Nota movida por arrastar e soltar.')
       await refreshNotes(vault.path, activeNote?.relativePath === relativePath ? destinationPath : undefined)
       if (activeNote?.relativePath === relativePath) {
+
         void loadBrokenLinks(destinationPath, vault.path)
       }
     } catch (caughtError) {
@@ -2633,6 +3093,9 @@ function App() {
         }
         for (const sourcePath of indexadoraSources) void syncIndexadoraPath(sourcePath)
       }
+      // Exclusao muda o conjunto de notas: o cache de conteudos do grafo
+      // perde a validade e e reconstruido na proxima leitura unificada.
+      vaultNoteContentsRef.current = null
       await refreshNotes(vault.path, '')
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel excluir o item.')
@@ -2688,6 +3151,11 @@ function App() {
     if (!targetVaultPath) {
       return
     }
+
+    // Navegar para uma nota existente encerra o rascunho de nova nota: sem
+    // isso, autosave, indicador e historico continuavam tratando a nota aberta
+    // como se fosse a nova nota nao salva.
+    setIsNewNoteDraft(false)
 
     setLoading(true)
     setError(null)
@@ -2883,6 +3351,8 @@ function App() {
           parsedNote.content,
         )
       }
+      // O cache de conteudos do grafo acompanha o salvamento.
+      updateVaultNoteContents(parsedNote.relativePath, parsedNote.name, parsedNote.content)
       void syncIndexadorasAfterSave(parsedNote, previousTargets)
       if (isStillActive) setStatus(`Nota salva: ${parsedNote.relativePath}`)
       void loadBacklinks(parsedNote.relativePath, vault.path)
@@ -2926,6 +3396,7 @@ function App() {
       if (vaultWikilinkIndexRef.current) {
         vaultWikilinkIndexRef.current = applyWikilinkEdit(vaultWikilinkIndexRef.current, path, synced)
       }
+      updateVaultNoteContents(path, note.name, synced)
       return true
     } catch {
       // Falha ao gravar uma indexadora nunca derruba o salvamento original.
@@ -3139,6 +3610,9 @@ function App() {
 
   async function openDailyNote() {
     if (!vault) return
+
+    // A nota diaria e uma nota existente: encerra o rascunho de nova nota.
+    setIsNewNoteDraft(false)
 
     const relativePath = formatDailyNotePath(new Date())
     let created = false
@@ -3679,6 +4153,17 @@ function App() {
         remarkPlugins={[remarkGfm, remarkMath, remarkObsidianCallouts]}
         rehypePlugins={[rehypeRaw, [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA], rehypeKatex]}
         components={{
+          pre: ({ children }) => {
+            // Blocos de plugins (Dataview, Tasks): renderizacao SOMENTE LEITURA
+            // (nunca executa `dataviewjs` nem altera a fonte). Blocos normais
+            // continuam como <pre> padrao.
+            const codeChild = Array.isArray(children) ? children[0] : children
+            const className = (codeChild as { props?: { className?: unknown } } | null)?.props?.className
+            const language = typeof className === 'string' ? normalizePluginLanguage(className.replace(/^language-/, '')) : null
+            const source = String((codeChild as { props?: { children?: unknown } } | null)?.props?.children ?? '')
+            if (language) return <ObsidianPluginBlock language={language} source={source} />
+            return <pre>{children}</pre>
+          },
           a: ({ href, children }) => {
             const internalPrefix = 'https://mirrormind.local/note/'
             if (href?.startsWith(internalPrefix)) {
@@ -3847,6 +4332,113 @@ function App() {
     setNoteLinkQuery('')
   }
 
+  /** Cria uma conexao no grafo: anexa `[[Nota Alvo]]` na nota focada e salva.
+   *  Quando a nota tem rascunho nao salvo (aberto ou em outra aba), o link e
+   *  incorporado ao rascunho e o salvamento ocorre pelo fluxo normal; caso
+   *  contrario, le o arquivo do disco, anexa e salva em segundo plano. */
+  async function createGraphConnection(source: GraphDocument, target: NotePreview) {
+    if (!vault || !source) return
+    setGraphConnectSource(null)
+    setGraphConnectQuery('')
+    const targetPath = target.relativePath.replace(/\.md$/i, '')
+    const link = `[[${targetPath}]]`
+    const sourceLabel = source.name.replace(/\.md$/i, '')
+    setStatus(`Conectando ${sourceLabel} a ${targetPath}...`)
+    try {
+      const isActive = activeNote?.relativePath === source.relativePath && !isNewNoteDraft
+      const pendingDraft = isActive ? null : (draftsByPathRef.current[source.relativePath] ?? null)
+      const baseContent = isActive ? draftContent : pendingDraft
+      if (baseContent !== null) {
+        const updated = appendWikilinkToContent(baseContent, link)
+        if (updated === baseContent) {
+          setStatus(`A nota ja referencia ${targetPath}.`)
+          return
+        }
+        if (isActive) {
+          setDraftContent(updated)
+          await saveActiveNote(false, updated)
+        } else {
+          await saveGraphNoteInBackground(source.relativePath, updated, true)
+        }
+        setGraphDocuments((current) => current.map((document) => document.relativePath === source.relativePath ? { ...document, content: updated } : document))
+        setStatus(`Conexao criada: ${sourceLabel} -> ${targetPath}`)
+        return
+      }
+      const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath: source.relativePath })
+      const latest = parseNoteDocument(payload)
+      const updated = appendWikilinkToContent(latest.content, link)
+      if (updated === latest.content) {
+        setStatus(`A nota ja referencia ${targetPath}.`)
+        return
+      }
+      await saveGraphNoteInBackground(source.relativePath, updated, false)
+      setGraphDocuments((current) => current.map((document) => document.relativePath === source.relativePath ? { ...document, content: updated } : document))
+      setStatus(`Conexao criada: ${sourceLabel} -> ${targetPath}`)
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error ? caughtError.message : 'Nao foi possivel criar a conexao.'
+      setError(message)
+      setStatus('Falha ao criar a conexao.')
+    }
+  }
+
+  /** Revela a nota no explorador: expande as pastas-ancestrais, abre a nota
+   *  (selecionando-a na arvore) e rola ate o item. */
+  async function revealNoteInExplorer(relativePath: string) {
+    setWorkspacePage('notes')
+    const segments = relativePath.split('/').filter(Boolean)
+    const ancestorIds = segments.slice(0, -1).map((_, index) => segments.slice(0, index + 1).join('/'))
+    setExpandedFolderIds((current) => new Set([...current, ...ancestorIds]))
+    await openNote(relativePath)
+    requestAnimationFrame(() => {
+      document.querySelector('.tree-note.is-active')?.scrollIntoView({ block: 'nearest' })
+    })
+  }
+
+  /** Salva uma nota que nao e a ativa, atualizando os indices em memoria do
+   *  grafo e do vault e sincronizando as notas indexadoras afetadas. Quando
+   *  `clearPendingDraft` e true, o rascunho pendente da nota (salvo junto com
+   *  o link) e removido para nao ressurgir em um proximo salvamento. */
+  async function saveGraphNoteInBackground(relativePath: string, content: string, clearPendingDraft: boolean) {
+    if (!vault) return
+    const previousTargets = graphWikilinkIndexRef.current?.entries.get(relativePath)?.targets
+      ?? vaultWikilinkIndexRef.current?.entries.get(relativePath)?.targets
+      ?? []
+    const savedPayload = await invoke<unknown>('save_note', {
+      path: vault.path,
+      relativePath,
+      content,
+    })
+    const savedNote = parseNoteDocument(savedPayload)
+    if (clearPendingDraft) {
+      setDraftsByPath((current) => {
+        if (!(relativePath in current)) return current
+        const { [relativePath]: _clearedDraft, ...remaining } = current
+        return remaining
+      })
+    }
+    if (graphWikilinkIndexRef.current) {
+      graphWikilinkIndexRef.current = applyWikilinkEdit(
+        graphWikilinkIndexRef.current,
+        relativePath,
+        content,
+      )
+    }
+    if (vaultWikilinkIndexRef.current) {
+      vaultWikilinkIndexRef.current = applyWikilinkEdit(
+        vaultWikilinkIndexRef.current,
+        relativePath,
+        content,
+      )
+    }
+    updateVaultNoteContents(relativePath, savedNote.name, content)
+    void syncIndexadorasAfterSave(savedNote, previousTargets)
+    void refreshHistoryStatus(vault.path)
+    void invoke<TagSummary[]>('get_tag_index', { path: vault.path })
+      .then(setTagIndex)
+      .catch(() => undefined)
+  }
+
   function insertTag() {
     const selection = getActiveEditorSelection()
     const normalizedTag = normalizeMarkdownTag(tagName)
@@ -3997,12 +4589,47 @@ function App() {
     }, {})
     const orphanGraphDocuments = graphDocuments.filter((document) => (allGraphDegreeByPath[document.relativePath] ?? 0) === 0)
     const localGraphCenterPath = focusedGraphPath ?? activeNote?.relativePath ?? null
-    const localGraphPaths = new Set(localGraphCenterPath
-      ? [localGraphCenterPath, ...allGraphLinks.flatMap((link) => link.source === localGraphCenterPath ? [link.target] : link.target === localGraphCenterPath ? [link.source] : [])]
-      : [])
+    // Grafo local por profundidade: BFS a partir do centro ate `graphLocalDepth`
+    // saltos; `localGraphBeyond` sao as notas alcancaveis alem dessa profundidade
+    // (usadas no aviso de resultado limitado).
+    const localGraphReached = new Set<string>()
+    if (localGraphCenterPath) localGraphReached.add(localGraphCenterPath)
+    let localGraphFrontier = localGraphCenterPath ? [localGraphCenterPath] : []
+    for (let hop = 1; hop <= graphLocalDepth; hop++) {
+      const nextLevel = new Set<string>()
+      for (const node of localGraphFrontier) {
+        for (const link of allGraphLinks) {
+          if (link.source === node && !localGraphReached.has(link.target)) nextLevel.add(link.target)
+          else if (link.target === node && !localGraphReached.has(link.source)) nextLevel.add(link.source)
+        }
+      }
+      for (const path of nextLevel) localGraphReached.add(path)
+      localGraphFrontier = [...nextLevel]
+    }
+    const localGraphBeyond = new Set<string>()
+    for (const node of localGraphFrontier) {
+      for (const link of allGraphLinks) {
+        if (link.source === node && !localGraphReached.has(link.target)) localGraphBeyond.add(link.target)
+        else if (link.target === node && !localGraphReached.has(link.source)) localGraphBeyond.add(link.source)
+      }
+    }
+    const localGraphPaths = localGraphReached
     const graphFolders = [...new Set(graphDocuments.map((document) => document.relativePath.split('/').slice(0, -1).join('/')).filter(Boolean))].sort()
-    const graphTags = [...new Set(graphDocuments.flatMap((document) => extractMarkdownTags(document.content)))].sort()
+    const graphTags = graphTagIndex.allTags()
     const focusedGraphDocument = graphDocuments.find((document) => document.relativePath === focusedGraphPath) ?? null
+    // Notas candidatas a nova conexao no grafo: exclui a propria nota de origem
+    // e as que ja sao alvo de uma saida existente (pelo indice em memoria). A
+    // origem pode ser o no focado (drawer) ou uma nota orfa (painel de limpeza).
+    const connectSourceIndexTargets = graphConnectSource
+      ? new Set(graphWikilinkIndexRef.current ? getWikilinkTargets(graphWikilinkIndexRef.current, graphConnectSource.relativePath) : [])
+      : new Set<string>()
+    const graphConnectNotes = graphConnectSource
+      ? notes.filter((note) =>
+          note.relativePath !== graphConnectSource.relativePath
+          && !connectSourceIndexTargets.has(note.relativePath)
+          && note.relativePath.toLowerCase().includes(graphConnectQuery.trim().toLowerCase()),
+        )
+      : []
     const focusedIncomingLinks = focusedGraphPath ? allGraphLinks.filter((link) => link.target === focusedGraphPath) : []
     const focusedOutgoingLinks = focusedGraphPath ? allGraphLinks.filter((link) => link.source === focusedGraphPath) : []
     // Notas que referenciam a selecionada (para os chips clicaveis no drawer).
@@ -4014,7 +4641,7 @@ function App() {
       const title = document.name.replace(/\.md$/i, '').toLowerCase()
       const matchesQuery = !graphQuery.trim() || title.includes(graphQuery.trim().toLowerCase())
       const matchesFolder = !graphFolder || document.relativePath.startsWith(`${graphFolder}/`)
-      const matchesTag = !graphTag || extractMarkdownTags(document.content).includes(graphTag)
+      const matchesTag = !graphTag || graphTagIndex.tagsOf(document.relativePath).includes(graphTag)
       const isOrphan = (allGraphDegreeByPath[document.relativePath] ?? 0) === 0
       return matchesQuery && matchesFolder && matchesTag && (graphMode === 'global' || localGraphPaths.has(document.relativePath)) && (showOnlyGraphOrphans ? isOrphan : showGraphOrphans || !isOrphan)
     })
@@ -4035,11 +4662,13 @@ function App() {
         ])
       : null
     const graphNodePositions = graphDocuments.reduce<Record<string, GraphPosition>>((positions, document, index) => {
-      // Posicoes da simulacao ativa (lidas do mapa vivo em graphPhysicsRef) tem
+      // Posicoes da simulacao ativa (lidas do mapa vivo em graphPhysicsRef,
+      // ou do worker de layout quando o ambiente roda fora da thread) tem
       // prioridade sobre o layout persistido; o restante cai no override ou no
       // circulo. Assim qualquer render do React durante uma simulacao mostra as
       // posicoes REAIS (sem "pulos" para posicoes antigas).
       const live = graphPhysicsRef.current?.positions.get(document.relativePath)
+        ?? graphWorkerPositionsRef.current?.get(document.relativePath)
       if (live) {
         positions[document.relativePath] = live
         return positions
@@ -4049,6 +4678,146 @@ function App() {
       positions[document.relativePath] = graphNodeOverrides[document.relativePath] ?? { x: 50 + Math.cos(angle) * radius, y: 50 + Math.sin(angle) * radius }
       return positions
     }, {})
+    // Renderizacao seletiva: acima do limite configuravel, desenha apenas os
+    // nos dentro do viewport (com margem) mais o contexto (no focado, no
+    // hover e seus vizinhos). Sem tamanho de superficie conhecido, nada e
+    // cortado. O resultado resumido exibe a contagem parcial e um aviso.
+    const renderedGraphDocuments = selectRenderedGraphDocuments({
+      documents: visibleGraphDocuments,
+      positions: graphNodePositions,
+      viewport: graphViewport,
+      surfaceSize: graphSurfaceSize,
+      limit: graphRenderLimit,
+      priorityPaths: focusedGraphPath || graphHoverPath
+        ? new Set([...(focusedGraphPath ? [focusedGraphPath] : []), ...(graphHoverNeighbors ?? [])])
+        : undefined,
+    })
+    const graphRenderedPaths = new Set(renderedGraphDocuments.map((document) => document.relativePath))
+    const graphIsSummarized = renderedGraphDocuments.length < visibleGraphDocuments.length
+    // Tipo de agrupamento ativo: pasta tem prioridade sobre tag.
+    const graphGroupingKind: 'folder' | 'tag' | null = graphGroupByFolder
+      ? 'folder'
+      : graphGroupByTag
+        ? 'tag'
+        : null
+    // Centros dos grupos (pasta ou tag) para a mola da fisica 2D: atualizado
+    // no render com o conjunto visivel atual; a fisica le em
+    // graphGroupCentersRef.
+    graphGroupCentersRef.current = graphGroupingKind && !graphMode3d
+      ? buildGraph2dGroupCentersForGroups(buildGraphGroups(visibleGraphDocuments, {
+          kind: graphGroupingKind,
+          tagsOfPath: (path) => graphTagIndexRef.current.tagsOf(path),
+          primaryTag: graphPrimaryTag || undefined,
+        }))
+      : null
+    // Mapas de grupos (pasta ou tag) para legenda, cores e exportacao
+    // (somente com o agrupamento ativo; null economiza o calculo no uso diario).
+    const graphGroupMaps = graphGroupingKind
+      ? buildGroupMaps(graphDocuments, {
+          kind: graphGroupingKind,
+          tagsOfPath: (path) => graphTagIndexRef.current.tagsOf(path),
+          primaryTag: graphPrimaryTag || undefined,
+          colorOverrides: graphColorOverrides,
+        })
+      : null
+
+    const graphExportLegend = graphGroupMaps
+      ? graphGroupMaps.groups.map((group) => ({ label: group.label, color: group.color }))
+      : []
+
+    /** Monta o SVG do grafo 2D atual (posicoes percentuais -> pixels). */
+    function buildGraph2dSvg(): string | null {
+      const width = 1200
+      const height = 800
+      const scaleX = (width - 40) / 100
+      const scaleY = (height - 40) / 100
+      const toPixels = (position: GraphPosition) => ({ x: 20 + position.x * scaleX, y: 20 + position.y * scaleY })
+      const nodes = visibleGraphDocuments.flatMap((document) => {
+        const position = graphNodePositions[document.relativePath]
+        if (!position) return []
+        const group = graphGroupMaps?.groupByPath[document.relativePath]
+        const groupColor = group !== undefined ? graphGroupMaps?.groupColorByPath[group] : undefined
+        const pixel = toPixels(position)
+        return [{
+          x: pixel.x,
+          y: pixel.y,
+          radius: 7,
+          color: graphNodeExportColor({
+            degree: graphDegreeByPath[document.relativePath] ?? 0,
+            isCurrent: document.relativePath === activeNote?.relativePath,
+            isFocused: focusedGraphPath === document.relativePath,
+            folderColor: groupColor,
+          }),
+          label: document.name.replace(/\.md$/i, ''),
+        }]
+      })
+      const links = graphLinks.flatMap((link) => {
+        const source = graphNodePositions[link.source]
+        const target = graphNodePositions[link.target]
+        if (!source || !target) return []
+        const start = toPixels(source)
+        const end = toPixels(target)
+        const focused = focusedGraphPath === link.source || focusedGraphPath === link.target
+        return [{ x1: start.x, y1: start.y, x2: end.x, y2: end.y, color: focused ? '#8fd4f2' : '#50688a' }]
+      })
+      return buildGraphSvg({
+        width,
+        height,
+        nodes,
+        links,
+        legend: graphExportLegend,
+        title: 'Grafo das notas',
+      })
+    }
+
+    /** Entrega o arquivo exportado (SVG direto ou PNG rasterizado localmente). */
+    async function deliverGraphExport(svg: string, format: 'svg' | 'png') {
+      const stamp = new Date().toISOString().slice(0, 10)
+      const filename = `mirrormind-grafo-${stamp}.${format}`
+      if (format === 'svg') {
+        downloadSvg(svg, filename)
+      } else {
+        const rasterized = await downloadPng(svg, filename, graphExportScale)
+        if (!rasterized) setStatus('Exportacao PNG indisponivel neste dispositivo.')
+      }
+    }
+
+    /** Resposta do grafo 3D com a cena projetada (id confere o pedido). */
+    function handleGraph3dExport(requestId: number, scene: Graph3DExportScene | null) {
+      const request = graphExportRequest
+      if (!request || request.id !== requestId) return
+      setGraphExportRequest(null)
+      if (!scene || scene.nodes.length === 0) {
+        setStatus('A cena do grafo 3D ainda nao esta pronta para exportar.')
+        return
+      }
+      const svg = buildGraphSvg({
+        width: scene.width,
+        height: scene.height,
+        nodes: scene.nodes,
+        links: scene.links,
+        legend: graphExportLegend,
+        title: 'Grafo das notas',
+      })
+      void deliverGraphExport(svg, request.format)
+    }
+
+    /** Inicia a exportacao: 3D pede a cena ao componente; 2D monta direto. */
+    function handleGraphExport(format: 'svg' | 'png') {
+      setGraphExportOpen(false)
+      if (graphMode3d) {
+        const id = graphExportRequestIdRef.current + 1
+        graphExportRequestIdRef.current = id
+        setGraphExportRequest({ id, format, scale: graphExportScale })
+        return
+      }
+      const svg = buildGraph2dSvg()
+      if (!svg) {
+        setStatus('O grafo ainda nao esta pronto para exportar.')
+        return
+      }
+      void deliverGraphExport(svg, format)
+    }
     const paletteCommands: PaletteCommand[] = [
       { id: 'new-note', label: 'Criar nova nota', description: 'Abre uma nova nota com foco no titulo.' },
       { id: 'daily-note', label: 'Abrir nota diaria', description: 'Cria ou abre a nota de hoje em Diarias.' },
@@ -4073,6 +4842,7 @@ function App() {
           '--note-hover-color': noteHoverColor,
           '--tab-hover-color': tabHoverColor,
           '--tab-hover-text-color': tabHoverTextColor,
+          ...editorFontStyle,
         } as CSSProperties}
         data-builder-name="workspace-shell"
       >
@@ -4138,6 +4908,16 @@ function App() {
           >
             <Hash size={17} strokeWidth={1.5} aria-hidden="true" />
             <span className="rail-label">Tags</span>
+          </button>
+          <button
+            type="button"
+            className={`rail-button${workspacePage === 'bases' ? ' is-active' : ''}`}
+            onClick={() => setWorkspacePage('bases')}
+            aria-label="Abrir bases de notas"
+            title="Bases"
+          >
+            <Table2 size={17} strokeWidth={1.5} aria-hidden="true" />
+            <span className="rail-label">Bases</span>
           </button>
           <button
             type="button"
@@ -4222,6 +5002,22 @@ function App() {
                   <strong>{vault.metadata.isInitialized ? 'Prontos' : 'Pendentes'}</strong>
                 </li>
               </ul>
+              {vault.obsidianPreferences?.ignoredPreferenceFields.length ||
+              vault.obsidianIgnoredConfigFiles.length ? (
+                <p className="obsidian-config-note" title="Apenas os nomes sao informados; nenhum conteudo de plugin e exposto.">
+                  Config Obsidian:{' '}
+                  {vault.obsidianPreferences?.ignoredPreferenceFields.length
+                    ? ` ${vault.obsidianPreferences.ignoredPreferenceFields.length} campo(s) ignorado(s) em app.json`
+                    : ''}
+                  {vault.obsidianPreferences?.ignoredPreferenceFields.length &&
+                  vault.obsidianIgnoredConfigFiles.length
+                    ? ' ·'
+                    : ''}
+                  {vault.obsidianIgnoredConfigFiles.length
+                    ? ` ${vault.obsidianIgnoredConfigFiles.length} config(s) nao aplicada(s)`
+                    : ''}
+                </p>
+              ) : null}
             </div>
 
             <div className="sidebar-block sidebar-block--stretch">
@@ -4278,6 +5074,13 @@ function App() {
                   </div>
                 </div>
               </div>
+              {vaultDiagnostics && !diagnosticsDismissed && hasScanDiagnostics(vaultDiagnostics) ? (
+                <VaultDiagnosticsBanner
+                  diagnostics={vaultDiagnostics}
+                  onDismiss={() => setDiagnosticsDismissed(true)}
+                  onRetry={() => void retryVaultDiagnostics()}
+                />
+              ) : null}
               <div className="workspace-tree">
                 <div className={`vault-file-tree${dropFolderPath === '' ? ' is-root-drop-target' : ''}`} data-builder-name="vault-file-tree" data-drop-folder="">
                   {favoriteNotes.length > 0 ? <div className="favorite-notes"><span>Fixadas</span>{favoriteNotes.map((note) => <button key={note.relativePath} type="button" onClick={() => void openNote(note.relativePath)}><Star size={12} fill="currentColor" aria-hidden="true" />{note.name.replace(/\.md$/i, '')}</button>)}</div> : null}
@@ -4557,6 +5360,68 @@ function App() {
                         </Popover>
                       ) : null}
                       {!isNewNoteDraft ? (
+                        <Popover open={factCheckOpen} onOpenChange={(open) => {
+                          setFactCheckOpen(open)
+                          if (open && factCheck === null && factCheckError === null) void runFactCheck()
+                        }}>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="secondary-button structural-audit-trigger"
+                              aria-label="Verificar fatos da nota"
+                              title="Verificacao factual opcional — compara as afirmacoes com conhecimento externo, sem alterar a nota nem as pontuacoes"
+                            >
+                              <CheckCircle2 size={15} strokeWidth={1.5} aria-hidden="true" />
+                              <span>Verificar fatos</span>
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" sideOffset={6} className="structural-audit-panel fact-check-panel">
+                            <header className="structural-audit-header">
+                              <strong>Verificacao factual</strong>
+                              <small>Compara as afirmacoes da nota com conhecimento externo — nao altera a nota nem as revisoes.</small>
+                            </header>
+                            {factCheckLoading ? (
+                              <div className="structural-audit-state">Verificando os fatos…</div>
+                            ) : factCheckError ? (
+                              <div className="structural-audit-state is-error">
+                                <span>{factCheckError}</span>
+                                <button type="button" className="secondary-button" onClick={() => void runFactCheck()}>Tentar novamente</button>
+                              </div>
+                            ) : factCheck === null ? (
+                              <div className="structural-audit-state">Abra a verificacao para analisar os fatos.</div>
+                            ) : factCheck.outcome === 'invalid' ? (
+                              <div className="structural-audit-state is-error">
+                                <span>{factCheck.message}</span>
+                                {factCheck.validationErrors.length > 0 ? (
+                                  <ul>{factCheck.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <div className="fact-check-results">
+                                <p className="fact-check-summary">{factCheck.report.overallSummary}</p>
+                                <ul>
+                                  {factCheck.report.findings.map((finding, index) => (
+                                    <li key={`${finding.claim}-${index}`} className={`fact-check-finding is-${finding.status}`}>
+                                      <div className="fact-check-finding-head">
+                                        <span className="fact-check-status">
+                                          {finding.status === 'confirmed' ? 'Confirmado' : finding.status === 'divergent' ? 'Divergente' : 'Incerto'}
+                                        </span>
+                                        <p>{finding.claim}</p>
+                                      </div>
+                                      {finding.quote && finding.quote !== finding.claim ? (
+                                        <pre className="structural-audit-quote">{finding.quote}</pre>
+                                      ) : null}
+                                      <p className="fact-check-reason">{finding.reason}</p>
+                                      {finding.source ? <p className="fact-check-source">Fonte: {finding.source}</p> : null}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+                      ) : null}
+                      {!isNewNoteDraft ? (
                         <Popover open={structuralAuditOpen} onOpenChange={setStructuralAuditOpen}>
                           <PopoverTrigger asChild>
                             <button
@@ -4790,6 +5655,7 @@ function App() {
                     ref={markdownCodeEditorRef}
                     ariaLabel={`Editor Markdown da nota ${activeNote.name.replace(/\.md$/i, '')}`}
                     documentKey={activeNote.relativePath}
+                    historyLimit={historyLimit}
                     spellCheck={isSpellCheckEnabled}
                     stateCache={markdownEditorStateCacheRef.current}
                     autocompleteData={markdownAutocompleteData}
@@ -4815,6 +5681,7 @@ function App() {
                       ariaLabel={`Editor Markdown (Misto) da nota ${activeNote.name.replace(/\.md$/i, '')}`}
                       documentKey={`${activeNote.relativePath}::misto::gfm`}
                       livePreview
+                      historyLimit={historyLimit}
                       spellCheck={isSpellCheckEnabled}
                       stateCache={markdownEditorStateCacheRef.current}
                       autocompleteData={markdownAutocompleteData}
@@ -4918,46 +5785,59 @@ function App() {
               </div>
             )}
               </>
-            ) : workspacePage === 'review' ? (
-              activeReviewItem ? (
-                <ReviewSessionPage
-                  vaultPath={vault.path}
-                  item={activeReviewItem}
-                  onExit={() => setActiveReviewItem(null)}
-                  onCompleted={() => undefined}
-                />
-              ) : (
-                <ReviewQueuePage
-                  vaultPath={vault.path}
-                  onStartReview={setActiveReviewItem}
-                  onOpenNote={(relativePath) => {
-                    setWorkspacePage('notes')
-                    void openNote(relativePath)
-                  }}
-                />
-              )
-            ) : workspacePage === 'dashboard' ? (
-              <ReviewDashboardPage
-                vaultPath={vault.path}
-                onOpenNote={(relativePath) => {
-                  setWorkspacePage('notes')
-                  void openNote(relativePath)
-                }}
-                onStartReview={(item) => void handleStartReviewFromDeadline(item)}
-              />
-            ) : workspacePage === 'reports' ? (
-              <ReviewReportsPage
-                vaultPath={vault.path}
-                onOpenNote={(relativePath) => {
-                  setWorkspacePage('notes')
-                  void openNote(relativePath)
-                }}
-              />
-            ) : workspacePage === 'tags' ? (
-              <TagManagementPage
-                vaultPath={vault.path}
-                onTagsChanged={synchronizeTagChanges}
-              />
+            ) : workspacePage === 'review' || workspacePage === 'dashboard' || workspacePage === 'reports' || workspacePage === 'tags' || workspacePage === 'bases' ? (
+              <Suspense fallback={<p className="workspace-page-loading">Carregando pagina...</p>}>
+                {workspacePage === 'review' ? (
+                  activeReviewItem ? (
+                    <ReviewSessionPage
+                      vaultPath={vault.path}
+                      item={activeReviewItem}
+                      onExit={() => setActiveReviewItem(null)}
+                      onCompleted={() => undefined}
+                    />
+                  ) : (
+                    <ReviewQueuePage
+                      vaultPath={vault.path}
+                      onStartReview={setActiveReviewItem}
+                      onOpenNote={(relativePath) => {
+                        setWorkspacePage('notes')
+                        void openNote(relativePath)
+                      }}
+                    />
+                  )
+                ) : workspacePage === 'dashboard' ? (
+                  <ReviewDashboardPage
+                    vaultPath={vault.path}
+                    onOpenNote={(relativePath) => {
+                      setWorkspacePage('notes')
+                      void openNote(relativePath)
+                    }}
+                    onStartReview={(item) => void handleStartReviewFromDeadline(item)}
+                  />
+                ) : workspacePage === 'reports' ? (
+                  <ReviewReportsPage
+                    vaultPath={vault.path}
+                    onOpenNote={(relativePath) => {
+                      setWorkspacePage('notes')
+                      void openNote(relativePath)
+                    }}
+                  />
+                ) : workspacePage === 'bases' ? (
+                  <BasesPage
+                    vaultPath={vault.path}
+                    notePreviews={notes}
+                    onOpenNote={(relativePath) => {
+                      setWorkspacePage('notes')
+                      void openNote(relativePath)
+                    }}
+                  />
+                ) : (
+                  <TagManagementPage
+                    vaultPath={vault.path}
+                    onTagsChanged={synchronizeTagChanges}
+                  />
+                )}
+              </Suspense>
             ) : workspacePage === 'graph' ? (
               <section
                 className="workspace-page graph-page"
@@ -4967,7 +5847,11 @@ function App() {
                 onWheel={pokeGraphUi}
               >
                 {isGraphLoading ? (
-                  <p className="graph-empty-state graph-empty-state-overlay">Lendo os links das notas...</p>
+                  <p className="graph-empty-state graph-empty-state-overlay" role="status">
+                    {graphLoadProgress !== null && graphLoadProgress > 0
+                      ? `Lendo os links das notas... (${graphLoadProgress} de ${notes.length} notas)`
+                      : 'Lendo os links das notas...'}
+                  </p>
                 ) : graphDocuments.length === 0 ? (
                   <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota disponivel para montar o grafo.</p>
                 ) : (
@@ -4986,6 +5870,13 @@ function App() {
                         <button type="button" role="radio" aria-checked={graphMode3d} className={graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(true)} title="Grafo 3D com pulsos eletricos">3D</button>
                       </div>
                       <select value={graphMode} onChange={(event) => setGraphMode(event.target.value as GraphMode)} aria-label="Modo do grafo"><option value="global">Grafo global</option><option value="local">Grafo local</option></select>
+                      {graphMode === 'local' ? (
+                        <select value={graphLocalDepth} onChange={(event) => setGraphLocalDepth(Number(event.target.value))} aria-label="Profundidade do grafo local">
+                          <option value={1}>1 salto</option>
+                          <option value={2}>2 saltos</option>
+                          <option value={3}>3 saltos</option>
+                        </select>
+                      ) : null}
                       <select value={graphFolder} onChange={(event) => setGraphFolder(event.target.value)} aria-label="Filtrar pasta do grafo"><option value="">Todas as pastas</option>{graphFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}</select>
                       <select value={graphTag} onChange={(event) => setGraphTag(event.target.value)} aria-label="Filtrar tag do grafo"><option value="">Todas as tags</option>{graphTags.map((tag) => <option key={tag} value={tag}>#{tag}</option>)}</select>
                       <span className="graph-header-sep" aria-hidden="true" />
@@ -5002,6 +5893,28 @@ function App() {
                       <button type="button" className="secondary-button" onClick={() => void openGraphPage()} disabled={isGraphLoading} aria-label="Atualizar grafo">
                         <RefreshCw size={15} strokeWidth={1.5} aria-hidden="true" />
                       </button>
+                      <Popover open={graphExportOpen} onOpenChange={setGraphExportOpen}>
+                        <PopoverTrigger asChild>
+                          <button type="button" className="secondary-button graph-export-button" aria-label="Exportar grafo" title="Exportar grafo como SVG ou PNG">
+                            <Download size={15} strokeWidth={1.5} aria-hidden="true" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" sideOffset={6} className="graph-export-popover">
+                          <p className="graph-settings-header-title"><Download size={14} strokeWidth={1.75} aria-hidden="true" /><strong>Exportar grafo</strong></p>
+                          <label className="graph-settings-row">
+                            <span>Resolucao PNG<small>Multiplicador de pixels</small></span>
+                            <select value={graphExportScale} onChange={(event) => setGraphExportScale(Number(event.target.value))} aria-label="Resolucao do PNG exportado">
+                              <option value={1}>1x</option>
+                              <option value={2}>2x</option>
+                              <option value={3}>3x</option>
+                            </select>
+                          </label>
+                          <div className="graph-export-actions">
+                            <button type="button" className="secondary-button" onClick={() => handleGraphExport('svg')} aria-label="Exportar grafo como SVG">SVG</button>
+                            <button type="button" className="secondary-button" onClick={() => handleGraphExport('png')} aria-label="Exportar grafo como PNG">PNG</button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <Popover open={graphSettingsOpen} onOpenChange={setGraphSettingsOpenSynced}>
                         <PopoverTrigger asChild>
                           <button type="button" className="secondary-button graph-settings-button" aria-label="Configuracoes do grafo" title="Configuracoes do grafo">
@@ -5092,6 +6005,73 @@ function App() {
                               <input type="checkbox" checked={graphHideAllNames} onChange={(event) => setGraphHideAllNames(event.target.checked)} />
                               <span className="graph-settings-toggle-track" aria-hidden="true" />
                             </label>
+                            <label className="graph-settings-toggle">
+                              <span>Agrupar por pasta<small>Clusters e cores por pasta com legenda</small></span>
+                              <input type="checkbox" checked={graphGroupByFolder} onChange={(event) => setGraphGroupByFolder(event.target.checked)} aria-label="Agrupar por pasta" />
+                              <span className="graph-settings-toggle-track" aria-hidden="true" />
+                            </label>
+                            <label className="graph-settings-toggle">
+                              <span>Agrupar por tag<small>Clusters e cores pela tag principal com legenda</small></span>
+                              <input type="checkbox" checked={graphGroupByTag} onChange={(event) => setGraphGroupByTag(event.target.checked)} aria-label="Agrupar por tag" />
+                              <span className="graph-settings-toggle-track" aria-hidden="true" />
+                            </label>
+                            {graphGroupByTag ? (
+                              <label className="graph-settings-row">
+                                <span>Tag principal<small>Usada para desempatar notas com varias tags</small></span>
+                                <select
+                                  value={graphPrimaryTag}
+                                  onChange={(event) => setGraphPrimaryTag(event.target.value)}
+                                  aria-label="Tag principal do agrupamento por tag"
+                                >
+                                  <option value="">Primeira tag da nota</option>
+                                  {graphTagIndexRef.current.allTags().map((tag) => (
+                                    <option key={tag} value={tag}>#{tag}</option>
+                                  ))}
+                                </select>
+                              </label>
+                            ) : null}
+                            {graphGroupMaps ? (
+                              <section className="graph-settings-colors" aria-label="Cores dos grupos">
+                                <p className="graph-settings-colors-title"><Palette size={12} strokeWidth={1.75} aria-hidden="true" /> Cores dos grupos</p>
+                                {graphGroupMaps.groups.slice(0, 12).map((group) => {
+                                  const override = graphColorOverrides[group.key]
+                                  return (
+                                    <label key={group.key} className="graph-settings-color-row">
+                                      <input
+                                        type="color"
+                                        value={override && /^#[0-9a-fA-F]{6}$/.test(override) ? override : group.color}
+                                        onChange={(event) => setGraphColorOverrides((current) => ({ ...current, [group.key]: event.target.value }))}
+                                        aria-label={`Cor do grupo ${group.label}`}
+                                      />
+                                      <span className="graph-settings-color-label" title={group.label}>{group.label}</span>
+                                      {override ? (
+                                        <button
+                                          type="button"
+                                          className="graph-settings-color-reset"
+                                          onClick={() => setGraphColorOverrides((current) => {
+                                            const next = { ...current }
+                                            delete next[group.key]
+                                            return next
+                                          })}
+                                          aria-label={`Restaurar cor padrao do grupo ${group.label}`}
+                                        >Restaurar</button>
+                                      ) : null}
+                                    </label>
+                                  )
+                                })}
+                                {Object.keys(graphColorOverrides).length > 0 ? (
+                                  <button
+                                    type="button"
+                                    className="graph-settings-color-reset-all"
+                                    onClick={() => setGraphColorOverrides({})}
+                                  >Restaurar todas as cores</button>
+                                ) : null}
+                              </section>
+                            ) : null}
+                            <label className="graph-settings-row">
+                              <span>Limite de nos renderizados<small>Acima dele, so o viewport e o contexto aparecem</small></span>
+                              <input type="number" min={50} max={5000} step={50} value={graphRenderLimit} onChange={(event) => setGraphRenderLimit(updateNumberSetting(event.target.value, graphRenderLimit, 50, 5000))} aria-label="Limite de nos renderizados no grafo 2D" />
+                            </label>
                           </section>
                           <p className="graph-settings-note"><Info size={12} strokeWidth={1.75} aria-hidden="true" /> Sincronizado com a pagina de Configuracoes.</p>
                         </PopoverContent>
@@ -5113,6 +6093,11 @@ function App() {
                           maxEdgeLength={graph3dMaxEdgeLength}
                           minEdgeLength={graph3dMinEdgeLength}
                           degreeGrowth={graph3dDegreeGrowth}
+                          groupByPath={graphGroupMaps?.groupByPath}
+                          groupColorByPath={graphGroupMaps?.groupColorByPath}
+                          groupingEnabled={Boolean(graphGroupingKind)}
+                          exportRequest={graphExportRequest}
+                          onGraphExport={handleGraph3dExport}
                           onFocus={(path) => { setFocusedGraphPath(path); setGraphDetailOpen(Boolean(path)) }}
                           onOpenNote={(relativePath) => { setWorkspacePage('notes'); void openNote(relativePath) }}
                         />
@@ -5142,6 +6127,7 @@ function App() {
                       <div className="note-graph-world" style={{ transform: `translate(${graphViewport.x}px, ${graphViewport.y}px) scale(${graphViewport.scale})` }}>
                         <svg className="note-graph-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                           {graphLinks.map((link) => {
+                            if (!graphRenderedPaths.has(link.source) || !graphRenderedPaths.has(link.target)) return null
                             const source = graphNodePositions[link.source]
                             const target = graphNodePositions[link.target]
                             const isFocused = focusedGraphPath === link.source || focusedGraphPath === link.target
@@ -5154,7 +6140,7 @@ function App() {
                             }} />
                           })}
                         </svg>
-                      {visibleGraphDocuments.map((document) => {
+                      {renderedGraphDocuments.map((document) => {
                         const position = graphNodePositions[document.relativePath]
                         const degree = graphDegreeByPath[document.relativePath] ?? 0
                         const isCurrent = document.relativePath === activeNote?.relativePath
@@ -5218,8 +6204,9 @@ function App() {
                             aria-label={`Abrir nota ${document.name.replace(/\.md$/i, '')} no grafo`}
                             title={`${document.name.replace(/\.md$/i, '')}${degree ? `, ${degree} conexao(oes)` : ''}`}
                           >
-                            {/* Bolinha sempre circular; cresce com as conexoes. */}
-                            <span className="note-graph-node-dot" style={{ '--graph-scale': 1 + Math.min(degree, 8) * 0.13 } as CSSProperties} />
+                            {/* Bolinha sempre circular; cresce com as conexoes. Com
+                               agrupamento por pasta, a cor vem do grupo. */}
+                            <span className="note-graph-node-dot" style={{ '--graph-scale': 1 + Math.min(degree, 8) * 0.13, ...(graphGroupingKind && graphGroupMaps ? { '--node-folder-color': graphGroupMaps.groupColorByPath[graphGroupMaps.groupByPath[document.relativePath] ?? ''] } : {}) } as CSSProperties} />
                             <span className={`note-graph-node-label${showLabel ? '' : ' is-hidden'}`}>{document.name.replace(/\.md$/i, '')}</span>
                           </button>
                         )
@@ -5227,10 +6214,31 @@ function App() {
                       </div>
                     </div>
                     )}
+                    {graphGroupingKind && graphGroupMaps && graphGroupMaps.groups.length > 0 ? (
+                      <aside className="graph-group-legend" aria-label={graphGroupingKind === 'folder' ? 'Legenda das pastas do grafo' : 'Legenda das tags do grafo'}>
+                        {graphGroupMaps.groups.map((group) => (
+                          <span key={group.key} className="graph-group-legend-row" title={`${group.label}: ${group.paths.length} ${group.paths.length === 1 ? 'nota' : 'notas'}`}>
+                            <span className="graph-group-legend-swatch" style={{ background: group.color }} aria-hidden="true" />
+                            <span className="graph-group-legend-name">{group.label}</span>
+                            <span className="graph-group-legend-count">{group.paths.length}</span>
+                          </span>
+                        ))}
+                      </aside>
+                    ) : null}
                     <div className="graph-summary-counter" aria-label="Resumo do grafo">
-                      <span>{visibleGraphDocuments.length} {visibleGraphDocuments.length === 1 ? 'nota' : 'notas'}</span>
+                      {graphIsSummarized ? (
+                        <span>{renderedGraphDocuments.length} de {visibleGraphDocuments.length} notas</span>
+                      ) : (
+                        <span>{visibleGraphDocuments.length} {visibleGraphDocuments.length === 1 ? 'nota' : 'notas'}</span>
+                      )}
                       <span>{graphLinks.length} {graphLinks.length === 1 ? 'conexao' : 'conexoes'}</span>
                     </div>
+                    {graphIsSummarized ? (
+                      <p className="graph-culling-note" role="status">Grafo resumido: exibindo {renderedGraphDocuments.length} de {visibleGraphDocuments.length} nos no viewport (limite de {graphRenderLimit}). Aproxime ou reduza o limite nas configuracoes para ver os demais.</p>
+                    ) : null}
+                    {graphMode === 'local' && localGraphBeyond.size > 0 ? (
+                      <p className="graph-local-limit-note">Grafo local limitado: {localGraphBeyond.size} {localGraphBeyond.size === 1 ? 'nota esta' : 'notas estao'} alem de {graphLocalDepth} {graphLocalDepth === 1 ? 'salto' : 'saltos'} de {localGraphCenterPath?.split('/').at(-1)?.replace(/\.md$/i, '') ?? 'a nota central'}.</p>
+                    ) : null}
                     <Drawer direction="right" open={graphDetailOpen && Boolean(focusedGraphDocument)} onOpenChange={(open) => { if (!open) { setGraphDetailOpen(false); setFocusedGraphPath(null) } }}>
                       <DrawerContent className="graph-note-drawer">
                         {focusedGraphDocument ? (
@@ -5277,6 +6285,12 @@ function App() {
                                 <ExternalLink size={14} strokeWidth={1.75} aria-hidden="true" /> Abrir nota
                               </button>
                               <div className="graph-note-drawer-actions-grid">
+                                <button type="button" className="secondary-button" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(focusedGraphDocument) }} title={`Criar uma conexao de ${focusedGraphDocument.name.replace(/\.md$/i, '')} para outra nota`}>
+                                  <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Criar conexao
+                                </button>
+                                <button type="button" className="secondary-button" onClick={() => void revealNoteInExplorer(focusedGraphDocument.relativePath)} title="Revelar no explorador de notas">
+                                  <PanelLeft size={14} strokeWidth={1.75} aria-hidden="true" /> Revelar no explorador
+                                </button>
                                 <button type="button" className="secondary-button" onClick={() => void copyGraphWikiLink(focusedGraphDocument.relativePath)}>
                                   <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Copiar wikilink
                                 </button>
@@ -5292,7 +6306,7 @@ function App() {
                     {showOnlyGraphOrphans ? (
                       <section className="graph-orphan-panel" aria-label="Notas nao conectadas">
                         <div><p className="card-kicker">Limpeza do vault</p><h3>{orphanGraphDocuments.length} notas nao conectadas</h3></div>
-                        {orphanGraphDocuments.length > 0 ? <div className="graph-orphan-list">{orphanGraphDocuments.map((document) => <div key={document.relativePath}><span>{document.name.replace(/\.md$/i, '')}</span><button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(document.relativePath) }}>Abrir</button></div>)}</div> : <p>Nenhuma nota isolada com os filtros atuais.</p>}
+                        {orphanGraphDocuments.length > 0 ? <div className="graph-orphan-list">{orphanGraphDocuments.map((document) => <div key={document.relativePath}><span>{document.name.replace(/\.md$/i, '')}</span><div className="graph-orphan-actions"><button type="button" className="secondary-button" onClick={() => void revealNoteInExplorer(document.relativePath)} title="Revelar no explorador de notas">Revelar</button><button type="button" className="secondary-button" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(document) }} title={`Criar uma conexao de ${document.name.replace(/\.md$/i, '')} para outra nota`}>Conectar</button><button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(document.relativePath) }}>Abrir</button></div></div>)}</div> : <p>Nenhuma nota isolada com os filtros atuais.</p>}
                       </section>
                     ) : null}
                     {visibleGraphDocuments.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota corresponde aos filtros atuais.</p> : graphLinks.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Ainda nao ha links internos entre estas notas. Use <code>[[Nome da nota]]</code> para criar conexoes.</p> : null}
@@ -5433,6 +6447,86 @@ function App() {
                 <p className="card-kicker">Configuracoes</p>
                 <h2>Configuracoes do vault</h2>
                 <p>Personalize a escrita, a leitura e o comportamento do workspace.</p>
+                <div className="settings-section" aria-labelledby="appearance-preferences-title">
+                  <p className="card-kicker" id="appearance-preferences-title">Aparencia</p>
+                  <div className="settings-toggle">
+                    <span>
+                      <strong>Tema</strong>
+                      <small>Escuro aplica contraste noturno em toda a interface. Seguir Obsidian importa o tema do `appearance.json` sem sobrescrever o `.obsidian`.</small>
+                    </span>
+                    <div className="settings-segmented" role="radiogroup" aria-label="Tema da interface">
+                      {THEME_MODES.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={themeMode === option.value}
+                          className={themeMode === option.value ? 'is-active' : ''}
+                          onClick={() => setThemeMode(option.value)}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Fonte do editor e da leitura</strong>
+                      <small>Familia aplicada aos modos Edicao, Misto e Leitura.</small>
+                    </span>
+                    <select className="settings-select" value={editorFontFamily} onChange={(event) => setEditorFontFamily(event.target.value as EditorFontFamily)} aria-label="Familia da fonte do editor e da leitura">
+                      {FONT_FAMILIES.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Tamanho da fonte</strong>
+                      <small>Medida base do texto do editor e da leitura em pixels.</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={MIN_FONT_SIZE}
+                      max={MAX_FONT_SIZE}
+                      step={1}
+                      value={editorFontSize}
+                      onChange={(event) => setEditorFontSize(clampFontSize(Number(event.target.value)))}
+                      aria-label="Tamanho da fonte do editor e da leitura"
+                    />
+                  </label>
+                  {vault?.obsidianAppearance?.baseFontSize ? (
+                    <label className="settings-toggle">
+                      <span>
+                        <strong>Tamanho do Obsidian</strong>
+                        <small>O Vault declara baseFontSize de {Math.round(vault.obsidianAppearance.baseFontSize)}px. Aplica sem alterar o `.obsidian`.</small>
+                      </span>
+                      <button type="button" className="secondary-button" onClick={() => setEditorFontSize(clampFontSize(vault.obsidianAppearance?.baseFontSize ?? DEFAULT_FONT_SIZE))}>Usar tamanho do Obsidian</button>
+                    </label>
+                  ) : null}
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Limite do historico</strong>
+                      <small>Acoes de desfazer/refazer mantidas por nota no editor ({DEFAULT_HISTORY_LIMIT} por padrao).</small>
+                    </span>
+                    <input
+                      className="settings-number"
+                      type="number"
+                      min={MIN_HISTORY_LIMIT}
+                      max={MAX_HISTORY_LIMIT}
+                      step={5}
+                      value={historyLimit}
+                      onChange={(event) => setHistoryLimit(clampHistoryLimit(Number(event.target.value)))}
+                      aria-label="Limite do historico de desfazer e refazer"
+                    />
+                  </label>
+                  {vault?.obsidianAppearance?.ignoredAppearanceFields.length ? (
+                    <p className="settings-note" role="status">
+                      {vault.obsidianAppearance.ignoredAppearanceFields.length} campo(s) de `appearance.json` com tipo invalido foram ignorados sem descartar os demais.
+                    </p>
+                  ) : null}
+                </div>
                 <label className="settings-toggle">
                   <span>
                     <strong>Auto Save</strong>
@@ -5733,7 +6827,7 @@ function App() {
                     }).then(setNotificationLastCheck).catch(() => undefined)
                   }}
                 />
-                <ReviewAiSettings />
+                <ReviewAiSettings vaultPath={vault.path} />
               </section>
             )}
           </section>
@@ -5828,7 +6922,19 @@ function App() {
                 {specialFiles.map((file) => (
                   <article key={file.relativePath} className="special-file-row">
                     <div>
-                      <strong>{file.name}</strong>
+                      {(file.kind === 'canvas' || file.kind === 'excalidraw') ? (
+                        <button
+                          type="button"
+                          className="special-file-open-button"
+                          onClick={() => void openSpecialFileViewer(file)}
+                          aria-label={`Visualizar ${file.name}`}
+                          title="Visualizar somente leitura"
+                        >
+                          {file.name}
+                        </button>
+                      ) : (
+                        <strong>{file.name}</strong>
+                      )}
                       <code>{file.relativePath}</code>
                     </div>
                     <span className={`special-file-kind is-${file.kind}`}>{SPECIAL_FILE_LABELS[file.kind]}</span>
@@ -5838,6 +6944,32 @@ function App() {
               </div>
             </section>
           </div>
+        ) : null}
+        {specialFileViewer ? (
+          specialFileViewerContent !== null ? (
+            <SpecialFileViewer
+              file={specialFileViewer}
+              content={specialFileViewerContent}
+              onClose={() => setSpecialFileViewer(null)}
+            />
+          ) : specialFileViewerError !== null ? (
+            <div className="note-search-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSpecialFileViewer(null) }}>
+              <section className="note-search-modal" role="dialog" aria-modal="true" aria-label={`Erro ao visualizar ${specialFileViewer.name}`}>
+                <div className="move-item-heading">
+                  <strong>{specialFileViewer.name}</strong>
+                  <span>Nao foi possivel ler o arquivo para visualizacao.</span>
+                  <button autoFocus type="button" className="modal-close-button" onClick={() => setSpecialFileViewer(null)} aria-label="Fechar erro de visualizacao"><X size={15} aria-hidden="true" /></button>
+                </div>
+                <p className="field-error" role="alert">{specialFileViewerError}</p>
+              </section>
+            </div>
+          ) : (
+            <div className="note-search-backdrop" role="presentation">
+              <section className="note-search-modal" role="dialog" aria-modal="true" aria-label={`Lendo ${specialFileViewer.name}`}>
+                <p className="special-files-limit-notice" role="status">Lendo o arquivo para visualizacao...</p>
+              </section>
+            </div>
+          )
         ) : null}
         {showNoteSearch ? (
           <div className="note-search-backdrop" role="presentation">
@@ -5919,6 +7051,23 @@ function App() {
             </section>
           </div>
         ) : null}
+        {graphConnectSource ? createPortal(
+          <div className="note-search-backdrop" role="presentation" style={{ pointerEvents: 'auto' }}>
+            <section className="note-search-modal" role="dialog" aria-modal="true" aria-label="Criar conexao no grafo">
+              <input autoFocus value={graphConnectQuery} onChange={(event) => setGraphConnectQuery(event.target.value)} placeholder="Buscar nota para conectar" aria-label="Buscar nota para conectar" />
+              <div className="note-search-results">
+                {graphConnectNotes.map((note) => (
+                  <button key={note.relativePath} type="button" onClick={() => void createGraphConnection(graphConnectSource, note)}>{note.relativePath.replace(/\.md$/i, '')}</button>
+                ))}
+                {graphConnectNotes.length === 0 ? <p>Nenhuma outra nota disponivel para conectar.</p> : null}
+              </div>
+              <div className="folder-dialog-actions">
+                <button type="button" className="secondary-button" onClick={() => setGraphConnectSource(null)}>Cancelar</button>
+              </div>
+            </section>
+          </div>,
+          document.body,
+        ) : null}
         {showTagDialog ? (
           <div className="note-search-backdrop" role="presentation">
             <section className="note-search-modal" role="dialog" aria-modal="true" aria-label="Inserir tag">
@@ -5945,6 +7094,16 @@ function App() {
           <div className="note-search-backdrop" role="presentation">
             <section className="note-search-modal" role="dialog" aria-modal="true" aria-label={`Renomear ${renameTarget.type === 'note' ? 'nota' : 'pasta'}`}>
               <input autoFocus value={renameName} onChange={(event) => setRenameName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void renameVaultItem() }} placeholder="Novo nome" aria-label="Novo nome" />
+              {wikilinkIndexProgress ? (
+                <p className="wikilink-index-progress" role="status">
+                  Indexando wikilinks... ({wikilinkIndexProgress.processed} de {wikilinkIndexProgress.total} notas)
+                  {!wikilinkIndexCancelled ? (
+                    <button type="button" className="secondary-button" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</button>
+                  ) : (
+                    <span className="wikilink-index-cancelled">Indexacao cancelada; usando varredura completa.</span>
+                  )}
+                </p>
+              ) : null}
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={() => setRenameTarget(null)}>Cancelar</button>
                 <button type="button" onClick={() => void renameVaultItem()} disabled={!renameName.trim() || loading}>Renomear</button>
@@ -5968,6 +7127,16 @@ function App() {
                   </button>
                 ))}
               </div>
+              {wikilinkIndexProgress ? (
+                <p className="wikilink-index-progress" role="status">
+                  Indexando wikilinks... ({wikilinkIndexProgress.processed} de {wikilinkIndexProgress.total} notas)
+                  {!wikilinkIndexCancelled ? (
+                    <button type="button" className="secondary-button" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</button>
+                  ) : (
+                    <span className="wikilink-index-cancelled">Indexacao cancelada; usando varredura completa.</span>
+                  )}
+                </p>
+              ) : null}
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={() => setMoveTarget(null)}>Cancelar</button>
                 <button type="button" onClick={() => void moveVaultItem()} disabled={loading}>Mover</button>
@@ -6135,6 +7304,50 @@ function App() {
       ) : null}
       <BuilderModeControl enabled={isBuilderModeEnabled} onEnabledChange={setBuilderModeEnabled} />
     </main>
+  )
+}
+
+function VaultDiagnosticsBanner({
+  diagnostics,
+  onDismiss,
+  onRetry,
+}: {
+  diagnostics: ScanDiagnostics
+  onDismiss: () => void
+  onRetry: () => void
+}) {
+  const { parts, paths } = scanDiagnosticsSummary(diagnostics)
+  return (
+    <div className="vault-diagnostics-banner" role="status" aria-live="polite">
+      <div className="vault-diagnostics-icon" aria-hidden="true">
+        <FileWarning size={15} strokeWidth={1.5} />
+      </div>
+      <div className="vault-diagnostics-text">
+        <p className="vault-diagnostics-title">Leitura parcial do vault</p>
+        <p className="vault-diagnostics-detail">
+          {parts.join(' · ') || 'Algumas pastas ou notas nao puderam ser lidas.'} A parte
+          valida continua disponivel e nada foi sobrescrito.
+        </p>
+        {paths.length > 0 ? (
+          <ul className="vault-diagnostics-paths">
+            {paths.map((path) => <li key={path}>{path}</li>)}
+          </ul>
+        ) : null}
+      </div>
+      <div className="vault-diagnostics-actions">
+        <button type="button" className="secondary-button" onClick={onRetry}>
+          Tentar novamente
+        </button>
+        <button
+          type="button"
+          className="vault-diagnostics-dismiss"
+          onClick={onDismiss}
+          aria-label="Fechar aviso de leitura parcial"
+        >
+          <span aria-hidden="true">&#10005;</span>
+        </button>
+      </div>
+    </div>
   )
 }
 

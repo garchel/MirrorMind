@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../lib/tauri'
 import { getMarkdownBody } from '../lib/markdown'
 import { extractObsidianEmbedFragment } from '../lib/obsidianEmbed'
 import { parseNoteDocument } from '../lib/vault'

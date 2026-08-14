@@ -428,6 +428,7 @@ mod tests {
             evidence: crate::review::contract::EvidenceStrength::FreeRecall,
             evaluated_at_unix_ms: reviewed_at,
             gaps: Vec::new(),
+            assertions: Vec::new(),
         };
         let snapshot = UnitSnapshot {
             id: unit.id.clone(),
@@ -545,6 +546,7 @@ mod tests {
             evidence: crate::review::contract::EvidenceStrength::FreeRecall,
             evaluated_at_unix_ms: reviewed_at,
             gaps: Vec::new(),
+            assertions: Vec::new(),
         };
         document.sessions = vec![crate::review::contract::ReviewSession {
             id: "retention-session".to_string(),

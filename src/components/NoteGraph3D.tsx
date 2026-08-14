@@ -16,12 +16,51 @@ export type NoteGraph3DLink = {
   target: string
 }
 
+/** Cena projetada da camera atual, pronta para a exportacao SVG/PNG. */
+export type Graph3DExportScene = {
+  width: number
+  height: number
+  nodes: Array<{
+    path: string
+    x: number
+    y: number
+    radius: number
+    color: string
+    label: string
+  }>
+  links: Array<{
+    x1: number
+    y1: number
+    x2: number
+    y2: number
+    color: string
+  }>
+}
+
+export type Graph3DExportRequest = {
+  /** Identificador unico do pedido (incrementado a cada clique). */
+  id: number
+  format: 'svg' | 'png'
+  /** Multiplicador de pixels da rasterizacao PNG. */
+  scale: number
+}
+
 type Props = {
   nodes: NoteGraph3DNode[]
   links: NoteGraph3DLink[]
   degreeByPath: Record<string, number>
   focusedPath: string | null
   currentPath: string | null
+  /** Chave de grupo de cada nota (pasta ou tag, agrupamento ativo). */
+  groupByPath?: Record<string, string>
+  /** Cor de cada grupo (hex). */
+  groupColorByPath?: Record<string, string>
+  /** Liga o agrupamento visual (layout + cores por pasta ou tag). */
+  groupingEnabled?: boolean
+  /** Pedido de exportacao: ao mudar, o componente projeta a cena e responde. */
+  exportRequest?: Graph3DExportRequest | null
+  /** Resposta da exportacao (null quando a cena nao esta pronta). */
+  onGraphExport?: (requestId: number, scene: Graph3DExportScene | null) => void
   /** Incrementado pelo botao "Reorganizar" para recalcular o layout 3D. */
   layoutVersion: number
   /** Oculta o nome de todas as notas; o nome aparece apenas no hover do no. */
@@ -200,6 +239,9 @@ type Engine = {
   fitCamera: () => void
   /** Reaplica os estilos de todos os nos (usado quando as configuracoes mudam). */
   refreshStyles: () => void
+  /** Projeta a cena atual pela camera e devolve nos/arestas em pixels (para a
+   * exportacao SVG/PNG). Null quando a cena ainda nao foi montada. */
+  exportSceneData: () => Graph3DExportScene | null
   dispose: () => void
 }
 
@@ -211,14 +253,29 @@ function labelLodDegree(distance: number) {
   return 0
 }
 
-function nodeColor(degree: number, focused: boolean, current: boolean) {
+function nodeColor(degree: number, focused: boolean, current: boolean, folderColorHex?: string) {
   // Paleta clara proposital: o fundo e escuro (navy) e os nos usam material
   // nao-iluminado, entao a cor escolhida aqui e exatamente a cor renderizada.
+  // Foco e nota atual mantem prioridade; com agrupamento por pasta ou tag, a
+  // cor do grupo substitui a paleta por grau (consistencia visual com a legenda).
   if (current) return new THREE.Color(0xffc96b)
   if (focused) return new THREE.Color(0xb5f0ff)
+  if (folderColorHex) return new THREE.Color(folderColorHex)
   if (degree === 0) return new THREE.Color(0x93a7c4)
   if (degree <= 2) return new THREE.Color(0x82b7f2)
   return new THREE.Color(0x5fe6b4)
+}
+
+/** Cor do grupo de um no (hex) quando o agrupamento esta ativo, senao null. */
+function groupColorFor(data: {
+  groupingEnabled?: boolean
+  groupByPath?: Record<string, string>
+  groupColorByPath?: Record<string, string>
+}, path: string): string | undefined {
+  if (!data.groupingEnabled) return undefined
+  const group = data.groupByPath?.[path]
+  if (group === undefined) return undefined
+  return data.groupColorByPath?.[group]
 }
 
 function buildLabel(name: string, focused: boolean, current: boolean) {
@@ -244,24 +301,31 @@ export function NoteGraph3D({
   maxEdgeLength,
   minEdgeLength,
   degreeGrowth,
+  groupByPath,
+  groupColorByPath,
+  groupingEnabled,
+  exportRequest,
+  onGraphExport,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const engineRef = useRef<Engine | null>(null)
   const [webglAvailable] = useState(supportsWebGL)
 
   // Ultimos valores de props: as closures do motor three leem sempre daqui.
-  const dataRef = useRef({ nodes, links, degreeByPath, focusedPath, currentPath, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth })
-  dataRef.current = { nodes, links, degreeByPath, focusedPath, currentPath, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth }
+  const dataRef = useRef({ nodes, links, degreeByPath, focusedPath, currentPath, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth, groupByPath, groupColorByPath, groupingEnabled })
+  dataRef.current = { nodes, links, degreeByPath, focusedPath, currentPath, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth, groupByPath, groupColorByPath, groupingEnabled }
   const onFocusRef = useRef(onFocus)
   onFocusRef.current = onFocus
   const onOpenNoteRef = useRef(onOpenNote)
   onOpenNoteRef.current = onOpenNote
+  const onGraphExportRef = useRef(onGraphExport)
+  onGraphExportRef.current = onGraphExport
 
   // Reconstroi o grafo quando o conjunto de nos, o layout ou a configuracao
   // de distancia mudam (a "Distancia entre nos" escala o layout inteiro).
   const sceneKey = useMemo(
-    () => nodes.map((node) => node.relativePath).join('\u0000') + '#' + layoutVersion + '#' + nodeSpacing,
-    [layoutVersion, nodeSpacing, nodes],
+    () => nodes.map((node) => node.relativePath).join('\u0000') + '#' + layoutVersion + '#' + nodeSpacing + '#' + (groupingEnabled ? 'group' : 'flat'),
+    [groupingEnabled, layoutVersion, nodeSpacing, nodes],
   )
 
   // Montagem unica do motor three.js.
@@ -419,7 +483,7 @@ export function NoteGraph3D({
       const current = path === data.currentPath
       const glow = glows.get(path) ?? 0
       const hover = engineRef.current?.hoverPath === path
-      const color = nodeColor(degree, focused, current)
+      const color = nodeColor(degree, focused, current, groupColorFor(data, path))
         .lerp(new THREE.Color(0xd9f7ff), Math.min(1, glow * 0.9))
         .lerp(new THREE.Color(0xffffff), hover ? 0.38 : 0)
       // O hover apenas clareia a cor — nao cresce mais o no.
@@ -532,8 +596,14 @@ export function NoteGraph3D({
 
     function updateGraph() {
       const data = currentData()
-      // A configuracao "Distancia entre nos" escala o layout inteiro.
-      const layout = createForceGraph3DLayout(data.nodes, data.links, 200, { nodeSpacing: data.nodeSpacing })
+      // A configuracao "Distancia entre nos" escala o layout inteiro; com
+      // agrupamento por pasta, o layout agrupa os nos pelo centro da pasta.
+      const layout = createForceGraph3DLayout(data.nodes, data.links, 200, {
+        nodeSpacing: data.nodeSpacing,
+        groupOf: data.groupingEnabled && data.groupByPath
+          ? (node) => data.groupByPath?.[node.relativePath] ?? ''
+          : undefined,
+      })
 
       positions.clear()
       instancePaths.length = 0
@@ -613,7 +683,7 @@ export function NoteGraph3D({
           dummy.scale.setScalar(radius)
           dummy.updateMatrix()
           nodesMesh!.setMatrixAt(index, dummy.matrix)
-          nodesMesh!.setColorAt(index, nodeColor(degree, focused, current))
+          nodesMesh!.setColorAt(index, nodeColor(degree, focused, current, groupColorFor(data, node.relativePath)))
         })
         nodesMesh.instanceMatrix.needsUpdate = true
         if (nodesMesh.instanceColor) nodesMesh.instanceColor.needsUpdate = true
@@ -636,7 +706,7 @@ export function NoteGraph3D({
           const halo = new THREE.Sprite(haloMaterial.clone())
           halo.position.copy(position)
           halo.scale.setScalar(nodeRadius(degree, focused) * ORB_HALO_SCALE)
-          halo.material.color.copy(nodeColor(degree, focused, node.relativePath === data.currentPath))
+          halo.material.color.copy(nodeColor(degree, focused, node.relativePath === data.currentPath, groupColorFor(data, node.relativePath)))
           scene.add(halo)
           halos.set(node.relativePath, halo)
         }
@@ -1265,6 +1335,70 @@ export function NoteGraph3D({
       refreshStyles() {
         for (const path of instancePaths) applyNodeStyle(path)
       },
+      exportSceneData() {
+        const data = currentData()
+        if (positions.size === 0 || !nodesMesh) return null
+        const width = container.clientWidth
+        const height = Math.max(container.clientHeight, 1)
+        const halfHeight = height / 2
+        const fovTangent = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
+        const projected = new THREE.Vector3()
+        const color = new THREE.Color()
+        const nameByPath = new Map(data.nodes.map((node) => [node.relativePath, node.name]))
+
+        const projectWorld = (world: THREE.Vector3): { x: number; y: number; z: number } | null => {
+          projected.copy(world).project(camera)
+          // Apenas nos/arestas na frente da camera (fora do plano traseiro).
+          if (projected.z > 1) return null
+          return {
+            x: ((projected.x + 1) / 2) * width,
+            y: ((1 - projected.y) / 2) * height,
+            z: projected.z,
+          }
+        }
+
+        const sceneNodes: Graph3DExportScene['nodes'] = []
+        for (const [path, position] of positions) {
+          const screen = projectWorld(position)
+          const instanceIndex = pathToInstance.get(path)
+          if (!screen || instanceIndex === undefined) continue
+          const degree = data.degreeByPath[path] ?? 0
+          const worldRadius = nodeRadius(degree, path === data.focusedPath)
+          const distance = camera.position.distanceTo(position)
+          const radiusPx = Math.max(2, (worldRadius * halfHeight) / (Math.max(distance, 0.001) * fovTangent))
+          nodesMesh.getColorAt(instanceIndex, color)
+          sceneNodes.push({
+            path,
+            x: screen.x,
+            y: screen.y,
+            radius: radiusPx,
+            color: `#${color.getHexString()}`,
+            label: (nameByPath.get(path) ?? path).replace(/\.md$/i, ''),
+          })
+        }
+
+        const focusedEdgeColor = '#8fd4f2'
+        const baseEdgeColor = '#50688a'
+        const sceneLinks: Graph3DExportScene['links'] = []
+        for (const link of data.links) {
+          const source = positions.get(link.source)
+          const target = positions.get(link.target)
+          if (!source || !target) continue
+          const start = projectWorld(source)
+          const end = projectWorld(target)
+          if (!start || !end) continue
+          const focused = data.focusedPath === link.source || data.focusedPath === link.target
+          sceneLinks.push({
+            x1: start.x,
+            y1: start.y,
+            x2: end.x,
+            y2: end.y,
+            color: focused ? focusedEdgeColor : baseEdgeColor,
+          })
+        }
+
+        return { width, height, nodes: sceneNodes, links: sceneLinks }
+      },
       fitCamera() {
         if (positions.size === 0) return
         let minX = Infinity
@@ -1380,6 +1514,15 @@ export function NoteGraph3D({
     engineRef.current?.refreshStyles()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeSize, degreeGrowth])
+
+  // Exportacao: ao receber um pedido novo, projeta a cena atual pela camera e
+  // devolve os dados para o App montar o SVG/PNG (a rasterizacao fica no App).
+  useEffect(() => {
+    if (!exportRequest) return
+    const scene = engineRef.current?.exportSceneData() ?? null
+    onGraphExportRef.current?.(exportRequest.id, scene)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exportRequest])
 
   if (!webglAvailable) {
     return (

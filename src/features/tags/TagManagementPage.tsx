@@ -262,6 +262,62 @@ function TagTreeBranch({ nodes, selected, expanded, querying, onSelect }: TagTre
   )
 }
 
+/** Foco inicial, contenção de Tab/Shift+Tab, fechamento com Escape (quando
+ *  a operação não estiver ocupada) e restauração do foco ao fechar, para os
+ *  diálogos modais de impacto desta página. */
+function useDialogFocus(
+  open: boolean,
+  dialogRef: { current: HTMLElement | null },
+  onClose: () => void,
+) {
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (!open) return
+    const dialog = dialogRef.current
+    if (!dialog) return
+    previousFocusRef.current = document.activeElement as HTMLElement | null
+    const focusable = dialog.querySelector<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )
+    ;(focusable ?? dialog).focus()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onCloseRef.current()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusableElements = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      )
+      if (focusableElements.length === 0) {
+        event.preventDefault()
+        return
+      }
+      const first = focusableElements[0]
+      const last = focusableElements[focusableElements.length - 1]
+      const active = document.activeElement as HTMLElement | null
+      if (event.shiftKey && (active === first || !dialog.contains(active))) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (active === last || !dialog.contains(active))) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previousFocusRef.current?.focus?.()
+    }
+  }, [open, dialogRef])
+}
+
 export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   const [config, setConfig] = useState<VaultReviewPolicyConfig | null>(null)
   const [tagIndex, setTagIndex] = useState<TagSummary[]>([])
@@ -282,6 +338,14 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   useEffect(() => {
     selectedTagRef.current = selectedTag
   }, [selectedTag])
+  const impactDialogRef = useRef<HTMLElement | null>(null)
+  const deleteDialogRef = useRef<HTMLElement | null>(null)
+  useDialogFocus(Boolean(pending), impactDialogRef, () => {
+    if (!busy) setPending(null)
+  })
+  useDialogFocus(Boolean(pendingDelete), deleteDialogRef, () => {
+    if (!busy) setPendingDelete(null)
+  })
 
   useEffect(() => {
     const generation = generationRef.current + 1
@@ -318,6 +382,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
     () => config ? buildEntries(tagIndex, config) : [],
     [config, tagIndex],
   )
+  const atRuleLimit = (config?.tagRules.length ?? 0) >= 100
   const selected = entries.find((entry) => entry.tag === selectedTag) ?? null
   const tree = useMemo(() => buildTagTree(entries), [entries])
   const filteredTree = useMemo(() => filterTagTree(tree, query), [tree, query])
@@ -362,6 +427,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   }
 
   function startCreate(prefillTag = '') {
+    if (atRuleLimit) return
     setSelectedTag(null)
     setDraft(draftFor(prefillTag))
     setMode('create')
@@ -522,10 +588,20 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
           <h2 id="tag-management-title">Tags do vault</h2>
           <p>Gerencie a classificação das notas e a política de revisão que cada tag transmite.</p>
         </div>
-        <button type="button" onClick={() => startCreate()} disabled={busy || loading}>
-          <Plus size={16} aria-hidden="true" />
-          Criar tag
-        </button>
+        <div className="tag-header-actions">
+          {atRuleLimit ? (
+            <p className="tag-limit-note" role="status">Limite de 100 regras de tag atingido — edite ou exclua uma regra existente antes de criar outra.</p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => startCreate()}
+            disabled={busy || loading || atRuleLimit}
+            title={atRuleLimit ? 'Limite de 100 regras de tag atingido' : undefined}
+          >
+            <Plus size={16} aria-hidden="true" />
+            Criar tag
+          </button>
+        </div>
       </header>
 
       <div className="tag-management-layout">
@@ -683,7 +759,13 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                       <button type="button" className="secondary-button danger-button" onClick={() => void requestDelete()} disabled={busy}><Trash2 size={15} aria-hidden="true" />Excluir</button>
                     </>
                   ) : (
-                    <button type="button" className="secondary-button" onClick={() => startCreate(selectedTag)} disabled={busy} title={`Criar uma regra de revisão para #${selectedTag}`}>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => startCreate(selectedTag)}
+                      disabled={busy || atRuleLimit}
+                      title={atRuleLimit ? 'Limite de 100 regras de tag atingido' : `Criar uma regra de revisão para #${selectedTag}`}
+                    >
                       <Settings size={15} aria-hidden="true" />Configurar
                     </button>
                   )}
@@ -764,7 +846,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
 
       {pending ? (
         <div className="tag-impact-backdrop" role="presentation">
-          <section className="tag-impact-modal" role="dialog" aria-modal="true" aria-labelledby="tag-impact-title">
+          <section ref={impactDialogRef} className="tag-impact-modal" role="dialog" aria-modal="true" aria-labelledby="tag-impact-title">
             <div className="tag-impact-heading">
               <div><p className="card-kicker">Confirme o impacto</p><h3 id="tag-impact-title">{pending.title}</h3></div>
               <button type="button" className="secondary-button tag-icon-button" onClick={() => setPending(null)} disabled={busy} aria-label="Fechar confirmação"><X size={16} /></button>
@@ -791,7 +873,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
 
       {pendingDelete ? (
         <div className="tag-impact-backdrop" role="presentation">
-          <section className="tag-impact-modal tag-delete-modal" role="dialog" aria-modal="true" aria-labelledby="tag-delete-title">
+          <section ref={deleteDialogRef} className="tag-impact-modal tag-delete-modal" role="dialog" aria-modal="true" aria-labelledby="tag-delete-title">
             <div className="tag-impact-heading">
               <div><p className="card-kicker">Excluir tag</p><h3 id="tag-delete-title">{pendingDelete.title}</h3></div>
               <button type="button" className="secondary-button tag-icon-button" onClick={() => setPendingDelete(null)} disabled={busy} aria-label="Fechar confirmação"><X size={16} /></button>

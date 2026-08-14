@@ -30,6 +30,28 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Tema escuro (caderno noturno): redefine as variaveis nucleares; o App.css
+ * aplica as superficies do workspace na secao [data-theme='dark']. */
+:root[data-theme='dark'] {
+  --text: #b8b8ae;
+  --text-h: #e8e6dd;
+  --muted: #8f8f85;
+  --bg: #23201b;
+  --panel: rgba(41, 37, 31, 0.92);
+  --hero-bg: #2a261f;
+  --border: rgba(232, 230, 221, 0.12);
+  --border-strong: rgba(232, 230, 221, 0.24);
+  --code-bg: rgba(232, 230, 221, 0.08);
+  --accent: #d98a4a;
+  --button-bg: #e8e6dd;
+  --button-secondary: #35312a;
+  --button-text: #23201b;
+  --success: #5aa07f;
+  --danger: #c96a4e;
+  --panel-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
 #root {
   width: 100%;
   margin: 0 auto;
@@ -50,6 +72,18 @@ body {
   background:
     radial-gradient(circle at top, rgba(255, 255, 255, 0.46), transparent 32%),
     linear-gradient(180deg, #f0e7d7 0%, #e5dcc8 100%);
+}
+
+:root[data-theme='dark'] body {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 32%),
+    linear-gradient(180deg, #26221c 0%, #1d1a16 100%);
+}
+
+:root[data-theme='dark'] body::before {
+  background-image:
+    linear-gradient(rgba(232, 230, 221, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 230, 221, 0.05) 1px, transparent 1px);
 }
 
 body::before {

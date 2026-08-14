@@ -24,7 +24,7 @@ const ownedRun = process.env.MIRRORMIND_E2E_RUN_ROOT
   : createOwnedRunRoot(resultsRoot)
 const { runRoot, ownerToken } = ownedRun
 const phase = process.env.MIRRORMIND_E2E_PHASE ?? 'single'
-if (!['create-and-save', 'reopen', 'rename-and-move', 'verify-rename-and-move', 'trash-and-restore', 'verify-trash-restore', 'session-abandon', 'single'].includes(phase)) throw new Error(`Unexpected E2E phase: ${phase}`)
+if (!['create-and-save', 'reopen', 'rename-and-move', 'verify-rename-and-move', 'trash-and-restore', 'verify-trash-restore', 'external-change-conflict', 'verify-external-change', 'automatic-detect', 'session-abandon', 'open-obsidian-vault', 'verify-open-obsidian-vault', 'safe-failure', 'verify-safe-failure', 'attachment-complete', 'verify-attachment', 'configure-settings', 'verify-settings-reopen', 'verify-settings-autoload', 'single'].includes(phase)) throw new Error(`Unexpected E2E phase: ${phase}`)
 
 // Builds E2E usam o provedor deterministico (sem rede) quando presente:
 // a jornada de abandono depende de iniciar uma sessao real no app compilado.
@@ -124,7 +124,7 @@ export const config = {
   ],
   outputDir: join(resultsRoot, 'logs', phase),
   logLevel: 'info',
-  waitforTimeout: 15_000,
+  waitforTimeout: 30_000,
   connectionRetryTimeout: 120_000,
   connectionRetryCount: 1,
   mochaOpts: {
@@ -147,7 +147,24 @@ export const config = {
     const artifactDirectory = join(artifactsRoot, safeArtifactName(test.title))
     mkdirSync(artifactDirectory, { recursive: true })
     await browser.saveScreenshot(join(artifactDirectory, 'window.png')).catch(() => undefined)
+    const domSnapshot = await browser.execute(() => ({
+      readyState: document.readyState,
+      url: location.href,
+      hasWdioTauri: 'wdioTauri' in window,
+      bodyText: (document.body?.innerText ?? '').slice(0, 2_000),
+      actionCards: document.querySelectorAll('article.action-card').length,
+      recentVaultModal: !!document.querySelector('.recent-vault-modal'),
+      workspaceShell: !!document.querySelector('.workspace-shell'),
+    })).catch((error) => ({ executeError: String(error) }))
+    writeFileSync(join(artifactDirectory, 'dom-snapshot.json'), JSON.stringify(domSnapshot, null, 2))
     writeFileSync(join(artifactDirectory, 'vault-tree.json'), JSON.stringify(inventoryTree(vaultParent), null, 2))
+    const recentVaultFile = join(appData, 'recent-vault.json')
+    writeFileSync(join(artifactDirectory, 'recent-vault-preference.json'), JSON.stringify({
+      expectedPath: recentVaultFile,
+      exists: existsSync(recentVaultFile),
+      content: existsSync(recentVaultFile) ? readFileSync(recentVaultFile, 'utf8') : null,
+      appDataEntries: inventoryTree(appData),
+    }, null, 2))
     writeFileSync(join(artifactDirectory, 'failure.txt'), String(result.error?.stack ?? result.error ?? 'Unknown E2E failure'))
   },
   onComplete() {

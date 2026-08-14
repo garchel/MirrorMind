@@ -5,9 +5,14 @@ use std::sync::Mutex;
 const SERVICE_NAME: &str = "com.mirrormind.desktop";
 const GEMINI_ACCOUNT: &str = "gemini-api-key";
 const GEMINI_CONSENT_ACCOUNT: &str = "gemini-content-consent-v1";
+const OPENAI_COMPATIBLE_BASE_URL_ACCOUNT: &str = "openai-compatible-base-url";
+const OPENAI_COMPATIBLE_MODEL_ACCOUNT: &str = "openai-compatible-model";
+const OPENAI_COMPATIBLE_API_KEY_ACCOUNT: &str = "openai-compatible-api-key";
 const CONSENT_MARKER: &str = "accepted";
 const MIN_CREDENTIAL_LENGTH: usize = 16;
 const MAX_CREDENTIAL_LENGTH: usize = 4_096;
+const MAX_BASE_URL_LENGTH: usize = 512;
+const MAX_MODEL_LENGTH: usize = 256;
 
 pub trait CredentialStore: Send + Sync {
     fn set_secret(&self, account: &str, secret: &str) -> Result<()>;
@@ -128,6 +133,107 @@ pub fn delete_gemini_api_key(store: &dyn CredentialStore) -> Result<()> {
         .map_err(|_| anyhow!("Nao foi possivel remover a chave do Gemini com seguranca."))
 }
 
+pub(crate) fn validate_openai_compatible_base_url(base_url: &str) -> Result<&str> {
+    let base_url = base_url.trim();
+    if base_url.is_empty() || base_url.len() > MAX_BASE_URL_LENGTH {
+        bail!("O endereco do servidor OpenAI-compatible e invalido.");
+    }
+    if let Some((scheme, rest)) = base_url.split_once("://") {
+        if !matches!(scheme, "http" | "https") || rest.is_empty() {
+            bail!("O endereco do servidor precisa usar http ou https.");
+        }
+    } else {
+        bail!("O endereco do servidor precisa incluir o protocolo (http ou https).");
+    }
+    Ok(base_url)
+}
+
+pub(crate) fn validate_openai_compatible_model(model: &str) -> Result<&str> {
+    let model = model.trim();
+    if model.is_empty() || model.len() > MAX_MODEL_LENGTH {
+        bail!("O modelo do servidor OpenAI-compatible e invalido.");
+    }
+    if model
+        .bytes()
+        .any(|byte| !byte.is_ascii_graphic() || matches!(byte, b'"' | b'\\'))
+    {
+        bail!("O modelo do servidor OpenAI-compatible e invalido.");
+    }
+    Ok(model)
+}
+
+pub fn save_openai_compatible_provider(
+    store: &dyn CredentialStore,
+    base_url: &str,
+    model: &str,
+    api_key: &str,
+) -> Result<()> {
+    let base_url = validate_openai_compatible_base_url(base_url)?;
+    let model = validate_openai_compatible_model(model)?;
+    let api_key = api_key.trim();
+    if api_key.is_empty() || api_key.len() > MAX_CREDENTIAL_LENGTH {
+        bail!("A chave do servidor OpenAI-compatible e invalida.");
+    }
+    store
+        .set_secret(OPENAI_COMPATIBLE_BASE_URL_ACCOUNT, base_url)
+        .and_then(|_| store.set_secret(OPENAI_COMPATIBLE_MODEL_ACCOUNT, model))
+        .and_then(|_| store.set_secret(OPENAI_COMPATIBLE_API_KEY_ACCOUNT, api_key))
+        .map_err(|_| anyhow!("Nao foi possivel salvar a configuracao do servidor com seguranca."))
+}
+
+pub fn delete_openai_compatible_provider(store: &dyn CredentialStore) -> Result<()> {
+    store
+        .delete_secret(OPENAI_COMPATIBLE_BASE_URL_ACCOUNT)
+        .and_then(|_| {
+            store
+                .delete_secret(OPENAI_COMPATIBLE_MODEL_ACCOUNT)
+                .and_then(|_| store.delete_secret(OPENAI_COMPATIBLE_API_KEY_ACCOUNT))
+        })
+        .map_err(|_| anyhow!("Nao foi possivel remover a configuracao do servidor com seguranca."))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OpenAiCompatibleConfiguration {
+    pub base_url: String,
+    pub model: String,
+    pub api_key: String,
+}
+
+/// Le a configuracao completa do provedor OpenAI-compatible; ausente ou
+/// corrompida (inserida fora do app) retorna `None` sem vazar o segredo.
+pub fn load_openai_compatible_provider(
+    store: &dyn CredentialStore,
+) -> Result<Option<OpenAiCompatibleConfiguration>> {
+    let base_url = store
+        .get_secret(OPENAI_COMPATIBLE_BASE_URL_ACCOUNT)
+        .map_err(|_| anyhow!("Nao foi possivel ler a configuracao do servidor com seguranca."))?;
+    let Some(base_url) = base_url else {
+        return Ok(None);
+    };
+    let model = store
+        .get_secret(OPENAI_COMPATIBLE_MODEL_ACCOUNT)
+        .map_err(|_| anyhow!("Nao foi possivel ler a configuracao do servidor com seguranca."))?;
+    let api_key = store
+        .get_secret(OPENAI_COMPATIBLE_API_KEY_ACCOUNT)
+        .map_err(|_| anyhow!("Nao foi possivel ler a chave do servidor com seguranca."))?;
+    let (Some(model), Some(api_key)) = (model, api_key) else {
+        return Ok(None);
+    };
+    let base_url = match validate_openai_compatible_base_url(&base_url) {
+        Ok(valid) => valid.to_string(),
+        Err(_) => return Ok(None),
+    };
+    let model = match validate_openai_compatible_model(&model) {
+        Ok(valid) => valid.to_string(),
+        Err(_) => return Ok(None),
+    };
+    Ok(Some(OpenAiCompatibleConfiguration {
+        base_url,
+        model,
+        api_key,
+    }))
+}
+
 pub fn credential_status(store: &dyn CredentialStore) -> Result<CredentialStatus> {
     Ok(CredentialStatus {
         gemini_configured: load_gemini_api_key(store)?.is_some(),
@@ -137,8 +243,10 @@ pub fn credential_status(store: &dyn CredentialStore) -> Result<CredentialStatus
 #[cfg(test)]
 mod tests {
     use super::{
-        credential_status, delete_gemini_api_key, has_gemini_consent, load_gemini_api_key,
-        save_gemini_api_key, set_gemini_consent, CredentialStore, GEMINI_ACCOUNT,
+        credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
+        has_gemini_consent, load_gemini_api_key, load_openai_compatible_provider,
+        save_gemini_api_key, save_openai_compatible_provider, set_gemini_consent, CredentialStore,
+        GEMINI_ACCOUNT,
     };
     use anyhow::{bail, Result};
     use std::collections::HashMap;
@@ -235,6 +343,49 @@ mod tests {
         let error = save_gemini_api_key(&store, secret).expect_err("store failure");
         assert!(!error.to_string().contains(secret));
     }
+    #[test]
+    fn stores_reads_and_removes_the_open_ai_compatible_provider() {
+        let store = MemoryCredentialStore::default();
+        assert!(load_openai_compatible_provider(&store)
+            .expect("initial load")
+            .is_none());
+
+        save_openai_compatible_provider(
+            &store,
+            "https://api.example.com/v1/",
+            " my-model ",
+            " sk-secret-key ",
+        )
+        .expect("save provider");
+
+        let configuration = load_openai_compatible_provider(&store)
+            .expect("load provider")
+            .expect("configured");
+        assert_eq!(configuration.base_url, "https://api.example.com/v1/");
+        assert_eq!(configuration.model, "my-model");
+        assert_eq!(configuration.api_key, "sk-secret-key");
+
+        delete_openai_compatible_provider(&store).expect("remove provider");
+        assert!(load_openai_compatible_provider(&store)
+            .expect("load after remove")
+            .is_none());
+    }
+
+    #[test]
+    fn rejects_invalid_open_ai_compatible_endpoints_and_models() {
+        let store = MemoryCredentialStore::default();
+        assert!(save_openai_compatible_provider(&store, "ftp://host", "model", "key").is_err());
+        assert!(save_openai_compatible_provider(&store, "sem-protocolo", "model", "key").is_err());
+        assert!(
+            save_openai_compatible_provider(&store, "https://host", "model\nquebrado", "key")
+                .is_err()
+        );
+        assert!(save_openai_compatible_provider(&store, "https://host", "model", "  ").is_err());
+        assert!(load_openai_compatible_provider(&store)
+            .expect("nothing persisted")
+            .is_none());
+    }
+
     #[test]
     fn rejects_an_invalid_key_inserted_outside_the_application() {
         let store = MemoryCredentialStore::default();

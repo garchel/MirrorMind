@@ -42,6 +42,8 @@ type MarkdownCodeEditorProps = {
   autoFocus?: boolean
   documentKey: string
   livePreview?: boolean
+  /** Limite do historico de desfazer/refazer (CodeMirror `history.minDepth`). */
+  historyLimit?: number
   onBlur?: () => void
   onChange: (value: string) => void
   onHistoryChange: (status: MarkdownEditorHistoryStatus) => void
@@ -235,7 +237,7 @@ const findHighlighter = StateField.define<DecorationSet>({
 })
 
 function MarkdownCodeEditorComponent(
-  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, documentKey, livePreview = false, onBlur, onChange, onHistoryChange, onSearchRequest, onSessionChange, session, spellCheck = true, stateCache, value }: MarkdownCodeEditorProps,
+  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, documentKey, historyLimit = 100, livePreview = false, onBlur, onChange, onHistoryChange, onSearchRequest, onSessionChange, session, spellCheck = true, stateCache, value }: MarkdownCodeEditorProps,
   ref: ForwardedRef<MarkdownCodeEditorHandle>,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -290,7 +292,7 @@ function MarkdownCodeEditorComponent(
         head: Math.min(editorSession?.selectionEnd ?? editorSession?.selectionStart ?? 0, document.length),
       },
       extensions: [
-        history(),
+        history({ minDepth: historyLimit }),
         // GFM como base: tabelas, tarefas, riscado e links de autolink ganham
         // nos na arvore sintatica, a mesma base do modo Leitura (remark-gfm).
         markdown({ base: markdownLanguage, codeLanguages: languages }),
@@ -354,7 +356,7 @@ function MarkdownCodeEditorComponent(
         }),
       ],
     })
-  }, [])
+  }, [historyLimit])
 
   useImperativeHandle(ref, () => ({
     getSelection() {

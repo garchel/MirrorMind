@@ -524,6 +524,7 @@ mod tests {
             outcome: crate::review::contract::RecallOutcome::Good,
             evidence: crate::review::contract::EvidenceStrength::Conversation,
             gaps: Vec::new(),
+            assertions: Vec::new(),
         });
         let changed_frontmatter =
             "---\ntags: [revisao/prova, revisao/manter]\n---\n# ATP\nATP armazena energia.";
@@ -748,6 +749,7 @@ mod tests {
             evidence: crate::review::contract::EvidenceStrength::FreeRecall,
             evaluated_at_unix_ms: 1_720_000_000_000,
             gaps: Vec::new(),
+            assertions: Vec::new(),
         });
 
         let edited = original.replace(
@@ -890,6 +892,7 @@ mod tests {
                 evidence: crate::review::contract::EvidenceStrength::FreeRecall,
                 evaluated_at_unix_ms: 1_720_000_000_000,
                 gaps: Vec::new(),
+                assertions: Vec::new(),
             };
             (fsrs, evaluation)
         };

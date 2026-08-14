@@ -1,5 +1,9 @@
-use super::contract::{LearningDocument, LearningUnit, ReviewMode, UnitEvaluation};
+use super::contract::{
+    LearningDocument, LearningUnit, LearningUnitKind, ReviewMode, UnitEvaluation,
+};
+use super::session::{is_enunciado_stopword, normalize_for_grounding};
 use serde::Serialize;
+use std::collections::HashSet;
 
 /// Resultado da cobertura adaptativa de uma sessao: as unidades que a sessao
 /// deve avaliar, os intervalos UTF-16 dessas unidades no Markdown original
@@ -11,6 +15,20 @@ pub struct SessionCoverage {
     pub target_ranges_utf16: Vec<(u64, u64)>,
     pub session_markdown: String,
     pub plan: SessionPlan,
+}
+
+/// Pontos avaliáveis de uma unidade-alvo: frases substantivas extraidas
+/// deterministicamente do texto da unidade (sem classificar central ou
+/// secundario — a classificacao e a ponderacao por centralidade sao a V2,
+/// linha `Identificacao e priorizacao do cerne`). Exibidos no plano da sessao
+/// para o usuario ver o que sera testado antes de iniciar.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnitEvaluablePoints {
+    pub unit_id: String,
+    pub ordinal: u32,
+    pub kind: LearningUnitKind,
+    pub points: Vec<String>,
 }
 
 /// Plano estimado de uma sessao, derivado deterministicamente da selecao de
@@ -29,6 +47,9 @@ pub struct SessionPlan {
     pub estimated_minutes: u32,
     /// Sessoes estimadas para cobrir todas as unidades com este orcamento.
     pub expected_sessions_to_cover: u32,
+    /// Pontos avaliáveis por unidade-alvo (frases substantivas do texto), para
+    /// o plano mostrar o que a sessao testara. Sem classificacao na V1.
+    pub unit_evaluable_points: Vec<UnitEvaluablePoints>,
 }
 
 /// Segundos estimados por resposta, por modo: na prova, multipla escolha leva
@@ -197,12 +218,30 @@ pub fn select_session_units(
         .map(|unit| (unit.source_start_utf16, unit.source_end_utf16))
         .collect::<Vec<_>>();
     let session_markdown = slice_units_utf16(markdown, &target_ranges_utf16);
+    // Pontos avaliáveis por unidade-alvo: frases substantivas do texto de cada
+    // unidade, extraidas deterministicamente (sem IA) para o plano mostrar o
+    // que a sessao testara antes de iniciar.
+    let unit_evaluable_points = document
+        .units
+        .iter()
+        .filter(|unit| target_ids.contains(&unit.id))
+        .map(|unit| UnitEvaluablePoints {
+            unit_id: unit.id.clone(),
+            ordinal: u32::try_from(unit.ordinal).unwrap_or(u32::MAX),
+            kind: unit.kind.clone(),
+            points: extract_evaluable_points(&slice_units_utf16(
+                markdown,
+                &[(unit.source_start_utf16, unit.source_end_utf16)],
+            )),
+        })
+        .collect::<Vec<_>>();
     let plan = SessionPlan {
         target_unit_count: u32::try_from(target_ids.len()).unwrap_or(u32::MAX),
         total_unit_count: u32::try_from(total).unwrap_or(u32::MAX),
         coverage_fraction: rounded_fraction(target_ids.len(), total),
         estimated_minutes: estimated_minutes(&mode, target_ids.len()),
         expected_sessions_to_cover: expected_sessions(target_ids.len(), total),
+        unit_evaluable_points,
     };
     SessionCoverage {
         target_unit_ids: target_ids,
@@ -234,10 +273,123 @@ fn expected_sessions(target: usize, total: usize) -> u32 {
     ((total + target - 1) / target) as u32
 }
 
+/// Limite de pontos avaliáveis por unidade no plano da sessao (evita payloads
+/// gigantes em notas longas).
+const MAX_EVALUABLE_POINTS_PER_UNIT: usize = 8;
+/// Comprimento maximo em caracteres de cada ponto exibido no plano.
+const MAX_POINT_CHARS: usize = 160;
+/// Comprimento minimo em caracteres de um ponto para nao virar fragmento.
+const MIN_POINT_CHARS: usize = 10;
+
+/// Limpa um fragmento do Markdown para exibicao como ponto avaliável: remove
+/// marcadores de heading, enfase, codigo, riscado e LaTeX, e colapsa
+/// whitespace. Mantem o texto e os acentos (diferente de
+/// `normalize_for_grounding`, que e para comparacao).
+fn clean_fragment_for_display(text: &str) -> String {
+    let mut cleaned = String::with_capacity(text.len());
+    let mut in_latex = false;
+    let mut last_was_space = false;
+    for ch in text.chars() {
+        match ch {
+            '#' | '*' | '`' | '_' | '~' | '>' => continue,
+            '$' => {
+                in_latex = !in_latex;
+                continue;
+            }
+            _ if in_latex => continue,
+            _ if ch.is_whitespace() => {
+                if !last_was_space && !cleaned.is_empty() {
+                    cleaned.push(' ');
+                    last_was_space = true;
+                }
+            }
+            _ => {
+                cleaned.push(ch);
+                last_was_space = false;
+            }
+        }
+    }
+    cleaned.trim().to_string()
+}
+
+/// Divide um texto limpo em sentencas, terminando em `.`, `!`, `?` ou `;`
+/// (o terminador fica na propria sentenca).
+fn split_sentences(text: &str) -> Vec<&str> {
+    let mut sentences = Vec::new();
+    let mut start = 0;
+    for (index, ch) in text.char_indices() {
+        if matches!(ch, '.' | '!' | '?' | ';') {
+            let end = index + ch.len_utf8();
+            sentences.push(&text[start..end]);
+            start = end;
+        }
+    }
+    if start < text.len() {
+        sentences.push(&text[start..]);
+    }
+    sentences
+}
+
+/// Corta um texto em `max_chars` caracteres (fronteira de caractere), com
+/// reticencias quando truncado.
+fn truncate_chars(text: &str, max_chars: usize) -> String {
+    let mut count = 0;
+    let mut end = 0;
+    for (index, ch) in text.char_indices() {
+        if count >= max_chars {
+            break;
+        }
+        count += 1;
+        end = index + ch.len_utf8();
+    }
+    let mut result = text[..end].to_string();
+    if result.len() < text.len() {
+        result.push('…');
+    }
+    result
+}
+
+/// Identifica os pontos avaliáveis de uma unidade: frases substantivas do seu
+/// texto, deterministicas e sem classificar central/secundario. Um ponto e uma
+/// sentenca com conteudo — ao menos um termo significativo (4+ caracteres que
+/// nao seja stopword de enunciado, apos normalizar) e comprimento minimo —,
+/// deduplicada, truncada e limitada por unidade.
+pub(crate) fn extract_evaluable_points(text: &str) -> Vec<String> {
+    let cleaned = clean_fragment_for_display(text);
+    let mut points = Vec::new();
+    let mut seen = HashSet::new();
+    for sentence in split_sentences(&cleaned) {
+        let sentence = sentence.trim();
+        if sentence.chars().count() < MIN_POINT_CHARS {
+            continue;
+        }
+        // Titulos e fragmentos (``Fotossintese``, ``Paragrafo curto.``) nao
+        // viram ponto: exige ao menos 4 palavras de conteudo.
+        if sentence.split_whitespace().count() < 4 {
+            continue;
+        }
+        let has_content = sentence.split_whitespace().any(|word| {
+            let normalized = normalize_for_grounding(word);
+            normalized.len() >= 4 && !is_enunciado_stopword(&normalized)
+        });
+        if !has_content {
+            continue;
+        }
+        let point = truncate_chars(sentence, MAX_POINT_CHARS);
+        if seen.insert(point.clone()) {
+            points.push(point);
+        }
+        if points.len() >= MAX_EVALUABLE_POINTS_PER_UNIT {
+            break;
+        }
+    }
+    points
+}
+
 /// Converte um deslocamento UTF-16 do Markdown para o deslocamento em bytes do
 /// caractere que o contem (os intervalos das unidades caem sempre em fronteiras
 /// de caractere, pois vem da segmentacao).
-fn utf16_to_byte(markdown: &str, utf16_offset: u64) -> usize {
+pub(crate) fn utf16_to_byte(markdown: &str, utf16_offset: u64) -> usize {
     let mut count = 0u64;
     for (byte_index, character) in markdown.char_indices() {
         if count >= utf16_offset {
@@ -258,7 +410,7 @@ fn utf16_to_byte(markdown: &str, utf16_offset: u64) -> usize {
 
 /// Extrai e une o texto das unidades-alvo: e o unico Markdown que a IA recebe
 /// na sessao, garantindo que perguntas e avaliacao fiquem dentro do escopo.
-fn slice_units_utf16(markdown: &str, ranges: &[(u64, u64)]) -> String {
+pub(crate) fn slice_units_utf16(markdown: &str, ranges: &[(u64, u64)]) -> String {
     ranges
         .iter()
         .map(|(start, end)| {
@@ -322,6 +474,7 @@ mod tests {
             evidence: crate::review::contract::EvidenceStrength::FreeRecall,
             evaluated_at_unix_ms: 1_720_000_000_000,
             gaps: Vec::new(),
+            assertions: Vec::new(),
         })
     }
 
@@ -566,5 +719,46 @@ mod tests {
         assert_eq!(coverage.plan.coverage_fraction, 1.0);
         assert_eq!(coverage.plan.expected_sessions_to_cover, 1);
         assert_eq!(coverage.plan.estimated_minutes, 1);
+    }
+
+    #[test]
+    fn the_session_plan_carries_evaluable_points_per_target_unit() {
+        let markdown = "# Fotossintese\n\nA fotossintese transforma energia luminosa em energia quimica.\nO processo ocorre nos cloroplastos e libera oxigenio.\n\nParagrafo curto.";
+        let document = document_with_units(&markdown, &[]);
+        let coverage = select_session_units(&document, &markdown, ReviewMode::Exam);
+        // As unidades-alvo trazem seus pontos; a nota inteira (nota curta) e
+        // uma unica unidade, e o paragrafo curto nao gera ponto (fragmento).
+        assert_eq!(coverage.plan.unit_evaluable_points.len(), 1);
+        let unit = &coverage.plan.unit_evaluable_points[0];
+        assert_eq!(unit.kind, LearningUnitKind::WholeNote);
+        assert_eq!(unit.points.len(), 2);
+        assert!(unit.points[0].contains("transforma energia luminosa"));
+        assert!(unit.points[1].contains("cloroplastos"));
+    }
+
+    #[test]
+    fn extract_evaluable_points_splits_cleans_dedupes_and_caps() {
+        // Marcacao Markdown e LaTeX sao removidos para exibicao.
+        let text = "**Local:** Tilacoides.\n\nA fotolise libera $\\text{O}_2$ e protons.\n\nA fotolise libera $\\text{O}_2$ e protons.\n\n# Titulo sem corpo.";
+        let points = super::extract_evaluable_points(text);
+        // A primeira sentenca e curta demais? "Local: Tilacoides." tem 17
+        // caracteres — suficiente; a duplicada e deduplicada; o heading nao
+        // gera sentenca propria (fica unido ao paragrafo seguinte ou e curto).
+        assert!(!points.is_empty());
+        assert!(points.len() <= super::MAX_EVALUABLE_POINTS_PER_UNIT);
+        // Nenhum ponto exibe marcacao ou LaTeX.
+        for point in &points {
+            assert!(!point.contains('$'));
+            assert!(!point.contains("**"));
+            assert!(!point.contains('#'));
+        }
+        // Sem conteudo substantivo: so conectivos e curtas.
+        assert!(super::extract_evaluable_points("Sim. Nao. Talvez.").is_empty());
+        assert!(super::extract_evaluable_points("# Apenas um titulo").is_empty());
+        // Truncamento: sentenca longa e cortada com reticencias.
+        let long = format!("{}", "x".repeat(10)) + &"a ".repeat(100);
+        let truncated = super::truncate_chars(&long, 40);
+        assert!(truncated.chars().count() <= 41);
+        assert!(truncated.ends_with('…'));
     }
 }

@@ -2,18 +2,22 @@ import { describe, expect, it } from 'vitest'
 import {
   buildNoteTree,
   buildVaultPathPreview,
+  EMPTY_SCAN_DIAGNOSTICS,
   formatDailyNotePath,
   formatNoteTitleAsPath,
   formatVaultNameError,
   getVaultModeLabel,
+  hasScanDiagnostics,
   isVaultPathAffected,
   normalizeRecoveredNotePath,
   parseNoteDocument,
+  parseNoteDocumentList,
   parseNoteList,
   parseRecentVaultPreference,
   parseSpecialVaultInventory,
   parseVaultSummary,
   remapVaultPath,
+  scanDiagnosticsSummary,
 } from './vault'
 import { formatShortcut, matchesShortcut } from './keyboard-shortcuts'
 import { extractMarkdownTags, extractObsidianWikiLinks, formatMarkdownSelection, parseObsidianWikiLink, renderWikiLinksAsMarkdown, resolveObsidianAttachmentPath, resolveObsidianWikiLinkPath, splitMarkdownBlocks } from './markdown'
@@ -187,6 +191,8 @@ https://exemplo.test/#fragmento`
         notePreviews: [],
         isObsidianVault: true,
         obsidianPreferences: null,
+        obsidianAppearance: null,
+        obsidianIgnoredConfigFiles: [],
         metadata: {
           isInitialized: false,
           rootPath: 'C:\\Notes\\.mirmind',
@@ -250,6 +256,18 @@ https://exemplo.test/#fragmento`
       }),
     ).not.toThrow()
     expect(() => parseNoteDocument({ name: 'Note' })).toThrow()
+  })
+
+  it('validates the unified note-content list payload (read_vault_notes)', () => {
+    expect(() =>
+      parseNoteDocumentList([
+        { name: 'a.md', relativePath: 'Notas/a.md', content: '# A' },
+        { name: 'b.md', relativePath: 'b.md', content: '# B' },
+      ]),
+    ).not.toThrow()
+    expect(() =>
+      parseNoteDocumentList([{ name: 'a.md', relativePath: 'Notas/a.md' }]),
+    ).toThrow()
   })
 
   it('validates read-only special vault file payloads', () => {
@@ -329,5 +347,61 @@ https://exemplo.test/#fragmento`
 
     expect(tree[0]).toMatchObject({ type: 'folder', name: 'projetos' })
     expect(tree[0].children?.[0]).toMatchObject({ type: 'folder', name: 'rascunhos' })
+  })
+})
+
+describe('scan diagnostics', () => {
+  it('detects partial read issues without exposing content', () => {
+    expect(
+      hasScanDiagnostics({
+        unreadableDirectories: ['legado'],
+        unreadableFiles: [{ relativePath: 'quebrada.md', reason: 'notUtf8' }],
+        renameRecoveryConflicts: ['conflito.md'],
+        attachmentsTruncated: false,
+      }),
+    ).toBe(true)
+    expect(
+      hasScanDiagnostics({
+        unreadableDirectories: [],
+        unreadableFiles: [],
+        renameRecoveryConflicts: [],
+        attachmentsTruncated: false,
+      }),
+    ).toBe(false)
+    expect(hasScanDiagnostics({ ...EMPTY_SCAN_DIAGNOSTICS, attachmentsTruncated: true })).toBe(true)
+  })
+
+  it('summarizes counts and sample paths in a stable order', () => {
+    const summary = scanDiagnosticsSummary({
+      unreadableDirectories: ['legado'],
+      unreadableFiles: [
+        { relativePath: 'b.md', reason: 'notUtf8' },
+        { relativePath: 'a.md', reason: 'tagIndexFailure' },
+      ],
+      renameRecoveryConflicts: ['conflito.md'],
+      attachmentsTruncated: true,
+    })
+    expect(summary.parts).toEqual([
+      '1 pasta ilegivel',
+      '2 arquivos nao legiveis',
+      '1 conflito de renomeacao interrompida',
+      'inventario de anexos limitado',
+    ])
+    expect(summary.paths).toEqual([
+      'Pasta: legado',
+      'Arquivo: b.md',
+      'Arquivo: a.md',
+      'Conflito: conflito.md',
+    ])
+  })
+
+  it('limits the sample paths to avoid overwhelming the banner', () => {
+    const summary = scanDiagnosticsSummary({
+      unreadableDirectories: ['p1', 'p2', 'p3', 'p4'],
+      unreadableFiles: [],
+      renameRecoveryConflicts: [],
+      attachmentsTruncated: false,
+    })
+    expect(summary.paths.length).toBeLessThanOrEqual(5)
   })
 })

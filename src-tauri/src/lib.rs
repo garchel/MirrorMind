@@ -40,10 +40,20 @@ const ATTACHMENTS_DIR: &str = "attachments";
 const MAX_OBSIDIAN_APP_CONFIG_BYTES: u64 = 1024 * 1024;
 const MAX_OBSIDIAN_PREFERENCE_UTF16_UNITS: usize = 1024;
 const MAX_OBSIDIAN_IGNORE_FILTERS: usize = 256;
+/// Formatos tratados como anexos (além das quatro localizacoes documentadas,
+/// ampliados para o conjunto que o Obsidian armazena/abre e os formatos que ele
+/// delega a plugins — o inventario continua read-only e nunca executa nada).
 const SUPPORTED_ATTACHMENT_EXTENSIONS: &[&str] = &[
-    "avif", "bmp", "flac", "gif", "jpeg", "jpg", "m4a", "mkv", "mov", "mp3", "mp4", "ogg", "pdf",
-    "png", "svg", "wav", "webm", "webp",
+    "aac", "apng", "avif", "avi", "bin", "bmp", "csv", "doc", "docx", "eot", "epub", "flac", "flv",
+    "gif", "gz", "heic", "heif", "html", "ics", "jpeg", "jpg", "json", "m4a", "m4v", "mkv", "mov",
+    "mp3", "mp4", "mpg", "mpeg", "numbers", "odt", "oga", "ogg", "ogv", "opus", "otf", "pages",
+    "pdf", "png", "ppt", "pptx", "psd", "rar", "rtf", "srt", "svg", "tar", "tif", "tiff", "ttf",
+    "txt", "wav", "webm", "webp", "wmv", "xls", "xlsx", "xml", "yaml", "yml", "zip", "7z",
 ];
+/// Limite explicito de anexos no inventario da varredura unificada: Vaults com
+/// muitos anexos nao inflam a resposta; o excedente e sinalizado por
+/// `attachmentsTruncated` (nunca silencioso).
+const MAX_ATTACHMENT_INVENTORY_FILES: usize = 5_000;
 const TEMPLATES_FILE: &str = "templates.json";
 const MAX_PDF_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
 const WATCHER_DUPLICATE_WINDOW: Duration = Duration::from_millis(250);
@@ -131,6 +141,12 @@ struct VaultSummary {
     note_previews: Vec<NotePreview>,
     is_obsidian_vault: bool,
     obsidian_preferences: Option<ObsidianPreferences>,
+    /// Preferencias visuais read-only de `appearance.json` (importaveis, nunca
+    /// sobrescritas).
+    obsidian_appearance: Option<ObsidianAppearance>,
+    /// Configuracoes read-only conhecidas presentes em `.obsidian` que o app
+    /// valida mas nao aplica (nomes apenas; nenhum conteudo e exposto).
+    obsidian_ignored_config_files: Vec<String>,
     metadata: VaultMetadata,
 }
 
@@ -148,6 +164,33 @@ struct ObsidianPreferences {
     trash_option: Option<String>,
     #[serde(default)]
     user_ignore_filters: Vec<String>,
+    /// Campos conhecidos presentes em `app.json` com tipo invalido, ignorados
+    /// sem descartar as demais preferencias validas (nomes apenas).
+    #[serde(default)]
+    ignored_preference_fields: Vec<String>,
+}
+
+/// Preferencias visuais read-only de `appearance.json` (tema, acento, fonte e
+/// tamanho base) que o app pode IMPORTAR sem nunca sobrescrever o `.obsidian`.
+/// Campos com tipo invalido ficam `None`; nenhum conteudo de plugin e exposto.
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ObsidianAppearance {
+    /// `obsidian` (escuro) ou `moonstone` (claro).
+    theme: Option<String>,
+    /// Cor de acento em hexadecimal (ex.: `#c46a2b`).
+    accent_color: Option<String>,
+    /// Tamanho base da fonte do editor/leitura (px, geralmente 16).
+    base_font_size: Option<f64>,
+    /// Tema CSS do `cssTheme` (nome apenas, nunca aplicado).
+    css_theme: Option<String>,
+    /// Familias de fonte declaradas (nomes apenas, sem conteudo).
+    interface_font_family: Option<String>,
+    text_font_family: Option<String>,
+    monospace_font_family: Option<String>,
+    /// Nomes de campos com tipo invalido, ignorados sem descartar os validos.
+    #[serde(default)]
+    ignored_appearance_fields: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -163,6 +206,15 @@ struct NoteDocument {
     name: String,
     relative_path: String,
     content: String,
+}
+
+/// Progresso da leitura unificada das notas do Vault (notas processadas /
+/// total), emitido ao frontend durante o comando `read_vault_notes`.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VaultNotesReadProgress {
+    processed: usize,
+    total: usize,
 }
 
 #[derive(Serialize)]
@@ -188,6 +240,9 @@ struct TagSummary {
 }
 
 const MAX_SPECIAL_VAULT_FILES: usize = 500;
+/// Amostra maxima de notas diagnosticadas por varredura (falhas parciais de
+/// leitura), mantendo a indexacao responsiva em Vaults grandes.
+const DIAGNOSTIC_NOTE_LIMIT: usize = 256;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -197,7 +252,7 @@ enum SpecialVaultFileKind {
     Unknown,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SpecialVaultFile {
     name: String,
@@ -239,6 +294,27 @@ fn select_existing_vault(
     app: AppHandle,
     authorized_paths: State<AuthorizedPaths>,
 ) -> Result<Option<VaultSummary>, String> {
+    // Build E2E: a jornada grava o caminho do fixture em um marcador dentro do
+    // runRoot antes de clicar (o caminho so existe no momento do teste); sem o
+    // marcador, o fluxo normal abre o dialogo nativo de pasta.
+    #[cfg(feature = "e2e")]
+    if let Ok(run_root) = std::env::var("MIRRORMIND_E2E_RUN_ROOT") {
+        let marker = Path::new(&run_root).join("e2e-existing-vault.json");
+        if let Ok(content) = fs::read_to_string(&marker) {
+            if let Ok(Some(existing_path)) = serde_json::from_str::<Option<String>>(&content) {
+                let canonical_root = canonicalize_directory(Path::new(&existing_path))
+                    .map_err(|error| error.to_string())?;
+                authorized_paths
+                    .authorize_vault_root(&canonical_root)
+                    .map_err(|error| error.to_string())?;
+                let vault =
+                    inspect_vault_path(&canonical_root).map_err(|error| error.to_string())?;
+                let _ = persist_recent_vault(&app, &canonical_root);
+                return Ok(Some(vault));
+            }
+        }
+    }
+
     let selected = app
         .dialog()
         .file()
@@ -371,6 +447,369 @@ fn list_notes(
     collect_markdown_files(&root)
         .map(|paths| build_note_previews(&root, &paths))
         .map_err(|error| error.to_string())
+}
+
+/// Inventario completo do Vault em UMA unica varredura compartilhada (notas,
+/// pastas, anexos e arquivos especiais). Os comandos individuais (`list_notes`,
+/// `list_folders`, `list_attachments`, `list_special_files`) continuam
+/// disponiveis como visoes da MESMA varredura unificada.
+#[tauri::command]
+fn scan_vault_inventory(
+    path: String,
+    inventory_state: State<VaultInventoryState>,
+    authorized_paths: State<AuthorizedPaths>,
+) -> Result<VaultInventory, String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+
+    let mut scan = scan_vault_unified(&root).map_err(|error| error.to_string())?;
+    // Recupera renomeacoes interrompidas por crash ANTES de montar o
+    // inventario, para que o estado refletido ja esteja consistente. A
+    // recuperacao altera conteudos (roll forward), nunca o conjunto de
+    // caminhos — a varredura unica permanece valida.
+    match review::rename_journal::recover_pending_rename_transaction(&root) {
+        Ok(conflicts) => scan.diagnostics.rename_recovery_conflicts = conflicts,
+        Err(error) => {
+            log::warn!("could not recover a pending rename transaction while scanning: {error}");
+        }
+    }
+    diagnose_unreadable_notes(&root, &scan.notes, &mut scan.diagnostics);
+    // Limite explicito de anexos no INVENTARIO (a varredura compartilhada e as
+    // colecoes pontuais continuam completas para resolucao de embeds).
+    scan.diagnostics.attachments_truncated =
+        truncate_attachment_inventory(&mut scan.attachments, MAX_ATTACHMENT_INVENTORY_FILES);
+    // Base do inventario incremental para eventos do watcher nesta sessao.
+    inventory_state.store(&root, scan.clone());
+    Ok(VaultInventory {
+        notes: build_note_previews(&root, &scan.notes),
+        folders: scan
+            .folders
+            .iter()
+            .map(|folder| to_relative_display(&root, folder))
+            .collect(),
+        attachments: scan
+            .attachments
+            .iter()
+            .map(|attachment| to_relative_display(&root, attachment))
+            .collect(),
+        special_files: SpecialVaultInventory {
+            files: scan.special_files,
+            truncated: scan.special_files_truncated,
+        },
+        diagnostics: scan.diagnostics,
+    })
+}
+
+/// Aplica mudancas do watcher ao inventario bruto armazenado, SEM re-varrer o
+/// Vault: criacao/remocao/renomeacao de anexos, pastas e (defensivamente)
+/// notas/arquivos especiais usam a MESMA classificacao da varredura. Tipos
+/// `modify`/`rescan` sao ignorados aqui (o chamador usa a varredura completa).
+/// O resultado e reordenado e deduplicado como a varredura faz.
+#[tauri::command]
+fn apply_vault_inventory_changes(
+    path: String,
+    changes: Vec<VaultFileSystemChange>,
+    inventory_state: State<VaultInventoryState>,
+    authorized_paths: State<AuthorizedPaths>,
+) -> Result<VaultInventory, String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+
+    let key = root.to_string_lossy().into_owned();
+    let mut latest = inventory_state
+        .latest
+        .lock()
+        .expect("vault inventory state poisoned");
+    let Some(scan) = latest.get_mut(&key) else {
+        return Err("O inventario do Vault ainda nao foi escaneado nesta sessao.".to_string());
+    };
+    for change in &changes {
+        apply_vault_scan_change(scan, &root, change);
+    }
+    scan.notes.sort();
+    scan.notes.dedup();
+    scan.folders.sort();
+    scan.folders.dedup();
+    scan.attachments.sort();
+    scan.attachments.dedup();
+    scan.special_files
+        .sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+    scan.special_files
+        .dedup_by(|left, right| left.relative_path == right.relative_path);
+    scan.diagnostics.attachments_truncated =
+        truncate_attachment_inventory(&mut scan.attachments, MAX_ATTACHMENT_INVENTORY_FILES);
+    Ok(VaultInventory {
+        notes: build_note_previews(&root, &scan.notes),
+        folders: scan
+            .folders
+            .iter()
+            .map(|folder| to_relative_display(&root, folder))
+            .collect(),
+        attachments: scan
+            .attachments
+            .iter()
+            .map(|attachment| to_relative_display(&root, attachment))
+            .collect(),
+        special_files: SpecialVaultInventory {
+            files: scan.special_files.clone(),
+            truncated: scan.special_files_truncated,
+        },
+        diagnostics: scan.diagnostics.clone(),
+    })
+}
+
+/// Aplica UMA mudanca do watcher ao inventario bruto, com a mesma
+/// classificacao da varredura unificada (nota, anexo, arquivo especial, pasta).
+fn apply_vault_scan_change(scan: &mut VaultScan, root: &Path, change: &VaultFileSystemChange) {
+    match change.kind {
+        VaultFileSystemChangeKind::Create => {
+            for relative in &change.paths {
+                insert_inventory_path(scan, root, relative);
+            }
+        }
+        VaultFileSystemChangeKind::Remove => {
+            for relative in &change.paths {
+                remove_inventory_path(scan, root, relative);
+            }
+        }
+        VaultFileSystemChangeKind::Rename => {
+            if change.paths.len() >= 2 {
+                rename_inventory_path(scan, root, &change.paths[0], &change.paths[1]);
+            }
+        }
+        VaultFileSystemChangeKind::Modify | VaultFileSystemChangeKind::Rescan => {}
+    }
+}
+
+fn inventory_note_path(path: &Path) -> bool {
+    let name = path
+        .file_name()
+        .and_then(|segment| segment.to_str())
+        .unwrap_or_default()
+        .to_lowercase();
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_lowercase);
+    extension.as_deref() == Some("md") && !name.ends_with(".excalidraw.md")
+}
+
+fn is_supported_attachment_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            SUPPORTED_ATTACHMENT_EXTENSIONS
+                .iter()
+                .any(|supported| extension.eq_ignore_ascii_case(supported))
+        })
+}
+
+/// Insere um caminho recem-criado no inventario, classificando como a varredura
+/// faz (diretorio, nota, anexo, arquivo especial; symlinks e desconhecidos fora).
+fn insert_inventory_path(scan: &mut VaultScan, root: &Path, relative: &str) {
+    let absolute = root.join(relative);
+    if let Ok(metadata) = fs::symlink_metadata(&absolute) {
+        if metadata.file_type().is_symlink() {
+            return;
+        }
+        if metadata.is_dir() {
+            if !scan.folders.contains(&absolute) {
+                scan.folders.push(absolute);
+            }
+            return;
+        }
+    }
+    if inventory_note_path(&absolute) {
+        if !scan.notes.contains(&absolute) {
+            scan.notes.push(absolute);
+        }
+        return;
+    }
+    if is_supported_attachment_path(&absolute) {
+        if !scan.attachments.contains(&absolute) {
+            scan.attachments.push(absolute);
+        }
+        return;
+    }
+    if let Some(kind) = special_vault_file_kind(&absolute) {
+        let relative_display = to_relative_display(root, &absolute);
+        let name = absolute
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        if scan
+            .special_files
+            .iter()
+            .all(|file| file.relative_path != relative_display)
+        {
+            if scan.special_files.len() < MAX_SPECIAL_VAULT_FILES {
+                scan.special_files.push(SpecialVaultFile {
+                    name,
+                    relative_path: relative_display,
+                    kind,
+                });
+            } else {
+                scan.special_files_truncated = true;
+            }
+        }
+    }
+}
+
+/// Remove um caminho (ou, sendo pasta, tudo sob ele) do inventario.
+fn remove_inventory_path(scan: &mut VaultScan, root: &Path, relative: &str) {
+    let absolute = root.join(relative);
+    let absolute_prefix = format!("{}/", absolute.to_string_lossy());
+    scan.notes.retain(|path| {
+        let display = path.to_string_lossy();
+        path != &absolute && !display.starts_with(&absolute_prefix)
+    });
+    scan.attachments.retain(|path| {
+        let display = path.to_string_lossy();
+        path != &absolute && !display.starts_with(&absolute_prefix)
+    });
+    scan.folders.retain(|path| {
+        let display = path.to_string_lossy();
+        path != &absolute && !display.starts_with(&absolute_prefix)
+    });
+    let relative_prefix = format!("{}/", relative.replace('\\', "/"));
+    scan.special_files.retain(|file| {
+        file.relative_path != relative && !file.relative_path.starts_with(&relative_prefix)
+    });
+}
+
+/// Renomeia um caminho (pasta: tudo sob ela) no inventario, usando o proprio
+/// inventario para descobrir a categoria. Caminhos desconhecidos caem para a
+/// classificacao por extensao no destino.
+fn rename_inventory_path(scan: &mut VaultScan, root: &Path, from: &str, to: &str) {
+    let from_absolute = root.join(from);
+    let to_absolute = root.join(to);
+    let is_folder = scan.folders.iter().any(|folder| folder == &from_absolute)
+        || fs::symlink_metadata(&to_absolute).is_ok_and(|metadata| metadata.is_dir());
+
+    if is_folder {
+        let mut found = false;
+        for folder in &mut scan.folders {
+            if folder == &from_absolute {
+                *folder = to_absolute.clone();
+                found = true;
+            } else if let Ok(suffix) = folder.strip_prefix(&from_absolute) {
+                *folder = to_absolute.join(suffix);
+                found = true;
+            }
+        }
+        for note in &mut scan.notes {
+            if let Ok(suffix) = note.strip_prefix(&from_absolute) {
+                *note = to_absolute.join(suffix);
+                found = true;
+            }
+        }
+        for attachment in &mut scan.attachments {
+            if let Ok(suffix) = attachment.strip_prefix(&from_absolute) {
+                *attachment = to_absolute.join(suffix);
+                found = true;
+            }
+        }
+        let from_prefix = format!("{}/", from.replace('\\', "/"));
+        let to_prefix = format!("{}/", to.replace('\\', "/"));
+        for file in &mut scan.special_files {
+            if let Some(suffix) = file.relative_path.strip_prefix(&from_prefix) {
+                file.relative_path = format!("{to_prefix}{suffix}");
+                found = true;
+            }
+        }
+        if !found {
+            insert_inventory_path(scan, root, to);
+        }
+        return;
+    }
+
+    let mut moved = false;
+    for note in &mut scan.notes {
+        if *note == from_absolute {
+            *note = to_absolute.clone();
+            moved = true;
+        }
+    }
+    for attachment in &mut scan.attachments {
+        if *attachment == from_absolute {
+            *attachment = to_absolute.clone();
+            moved = true;
+        }
+    }
+    for file in &mut scan.special_files {
+        if file.relative_path == from {
+            file.relative_path = to.to_string();
+            moved = true;
+        }
+    }
+    if !moved {
+        insert_inventory_path(scan, root, to);
+    }
+}
+
+/// Aplica o limite explicito de anexos do inventario, retornando se truncou.
+fn truncate_attachment_inventory(attachments: &mut Vec<PathBuf>, limit: usize) -> bool {
+    if attachments.len() > limit {
+        attachments.truncate(limit);
+        true
+    } else {
+        false
+    }
+}
+
+/// Diagnostica falhas parciais de leitura das notas (amostra limitada para
+/// manter a varredura responsiva em Vaults grandes): Markdown nao UTF-8,
+/// leitura indisponivel e falha na extracao de tags. Nunca expoe conteudo.
+fn diagnose_unreadable_notes(
+    root: &Path,
+    note_paths: &[PathBuf],
+    diagnostics: &mut ScanDiagnostics,
+) {
+    for note_path in note_paths
+        .iter()
+        .take(DIAGNOSTIC_NOTE_LIMIT.min(note_paths.len()))
+    {
+        let relative_path = to_relative_display(root, note_path);
+        let bytes = match fs::read(note_path) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                log::warn!("unreadable note '{}': {error}", note_path.display());
+                diagnostics.unreadable_files.push(UnreadableFile {
+                    relative_path,
+                    reason: UnreadableReason::Unreadable,
+                });
+                continue;
+            }
+        };
+        let content = match String::from_utf8(bytes) {
+            Ok(content) => content,
+            Err(_) => {
+                diagnostics.unreadable_files.push(UnreadableFile {
+                    relative_path,
+                    reason: UnreadableReason::NotUtf8,
+                });
+                continue;
+            }
+        };
+        if let Err(error) = extract_tags(&content) {
+            log::warn!(
+                "tag index failure for note '{}': {error}",
+                note_path.display()
+            );
+            diagnostics.unreadable_files.push(UnreadableFile {
+                relative_path,
+                reason: UnreadableReason::TagIndexFailure,
+            });
+        }
+    }
+    diagnostics
+        .unreadable_files
+        .sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
 }
 
 #[tauri::command]
@@ -567,6 +1006,76 @@ fn read_pdf_attachment(
         .map_err(|error| error.to_string())
 }
 
+/// Limite de bytes para a leitura de arquivos especiais (Canvas/Excalidraw).
+const MAX_SPECIAL_VAULT_FILE_BYTES: u64 = 8 * 1024 * 1024;
+
+/// Le um arquivo especial do Vault (`.canvas` ou `.excalidraw`) como JSON cru,
+/// read-only: restrito a extensoes conhecidas, sem symlink, dentro do Vault,
+/// com limite de tamanho e sem seguir o componente final (TOCTOU).
+#[tauri::command]
+fn read_special_vault_file(
+    path: String,
+    relative_path: String,
+    authorized_paths: State<AuthorizedPaths>,
+) -> Result<tauri::ipc::Response, String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    let bytes = read_special_vault_file_in_root(&root, &relative_path)
+        .map_err(|error| error.to_string())?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+fn read_special_vault_file_in_root(root: &Path, relative_path: &str) -> Result<Vec<u8>> {
+    let canonical_root = canonicalize_directory(root)?;
+    let normalized = relative_path.trim().replace('\\', "/");
+    let candidate = Path::new(&normalized);
+    if normalized.is_empty()
+        || candidate.is_absolute()
+        || candidate.components().any(|component| match component {
+            std::path::Component::Normal(segment) => segment.to_string_lossy().starts_with('.'),
+            _ => true,
+        })
+        || !candidate
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| {
+                extension.eq_ignore_ascii_case("canvas")
+                    || extension.eq_ignore_ascii_case("excalidraw")
+            })
+    {
+        bail!("Escolha um arquivo Canvas ou Excalidraw valido do Vault.");
+    }
+
+    let requested = canonical_root.join(candidate);
+    if fs::symlink_metadata(&requested).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+        bail!("Links simbolicos nao podem ser usados como arquivos especiais.");
+    }
+    let canonical_requested = requested
+        .canonicalize()
+        .map_err(|error| anyhow::anyhow!(error).context("Arquivo especial indisponivel."))?;
+    if !canonical_requested.starts_with(&canonical_root) {
+        bail!("O arquivo especial precisa permanecer dentro do Vault.");
+    }
+    let metadata = fs::metadata(&canonical_requested).map_err(|error| {
+        anyhow::anyhow!(error).context("Nao foi possivel inspecionar o arquivo especial.")
+    })?;
+    if !metadata.is_file() {
+        bail!("O caminho escolhido nao e um arquivo regular.");
+    }
+    if metadata.len() > MAX_SPECIAL_VAULT_FILE_BYTES {
+        bail!("O arquivo especial e grande demais para visualizar.");
+    }
+    let bytes = read_regular_file_no_follow(
+        &canonical_requested,
+        &canonical_root,
+        MAX_SPECIAL_VAULT_FILE_BYTES,
+    )
+    .ok_or_else(|| anyhow::anyhow!("Nao foi possivel ler o arquivo especial."))?;
+    Ok(bytes)
+}
+
 fn read_pdf_attachment_in_root(root: &Path, relative_path: &str) -> Result<Vec<u8>> {
     let canonical_root = canonicalize_directory(root)?;
     let normalized = relative_path.trim().replace('\\', "/");
@@ -652,6 +1161,61 @@ fn read_note(
         relative_path: to_relative_display(&root, &note_path),
         content,
     })
+}
+
+/// Leitura unificada: devolve TODOS os conteudos das notas do Vault em UMA
+/// chamada IPC, em vez de N chamadas `read_note` (indexacao em segundo plano,
+/// grafo e Bases). Progresso emitido em lotes para a UI nao congelar sem
+/// feedback em Vaults grandes.
+#[tauri::command]
+fn read_vault_notes(
+    path: String,
+    app: AppHandle,
+    authorized_paths: State<AuthorizedPaths>,
+) -> Result<Vec<NoteDocument>, String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    let note_paths = collect_markdown_files(&root).map_err(|error| error.to_string())?;
+
+    read_vault_notes_in_root(&root, &note_paths, |processed, total| {
+        let _ = app.emit(
+            "vault-notes-read-progress",
+            VaultNotesReadProgress { processed, total },
+        );
+    })
+    .map_err(|error| error.to_string())
+}
+
+/// Nucelo puro (sem IPC) da leitura unificada, testavel com um Vault temporario.
+/// `on_progress` recebe (processadas, total) a cada lote de 256 notas e no final.
+fn read_vault_notes_in_root(
+    root: &Path,
+    note_paths: &[PathBuf],
+    mut on_progress: impl FnMut(usize, usize),
+) -> Result<Vec<NoteDocument>> {
+    const PROGRESS_BATCH: usize = 256;
+    let total = note_paths.len();
+    let mut documents = Vec::with_capacity(total);
+    for (index, note_path) in note_paths.iter().enumerate() {
+        let content = fs::read_to_string(note_path)
+            .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
+        documents.push(NoteDocument {
+            name: note_path
+                .file_name()
+                .and_then(|segment| segment.to_str())
+                .unwrap_or_default()
+                .to_string(),
+            relative_path: to_relative_display(root, note_path),
+            content,
+        });
+        let processed = index + 1;
+        if processed % PROGRESS_BATCH == 0 || processed == total {
+            on_progress(processed, total);
+        }
+    }
+    Ok(documents)
 }
 
 #[tauri::command]
@@ -1084,7 +1648,7 @@ struct WikiLinkTarget {
     fragment: Option<String>,
 }
 
-fn extract_wiki_link_targets(content: &str) -> Vec<WikiLinkTarget> {
+pub(crate) fn extract_wiki_link_targets(content: &str) -> Vec<WikiLinkTarget> {
     let mut links = Vec::new();
     let mut fence: Option<(u8, usize)> = None;
     let mut in_html_comment = false;
@@ -1889,10 +2453,29 @@ struct PlannedWikiLinkUpdate {
     updated_content: Vec<u8>,
 }
 
+#[cfg(test)]
 fn prepare_wiki_link_updates(
     root: &Path,
     path_changes: &[(String, String)],
     available_paths_before_change: &[String],
+) -> Result<Vec<PlannedWikiLinkUpdate>> {
+    prepare_wiki_link_updates_with_candidates(
+        root,
+        path_changes,
+        available_paths_before_change,
+        None,
+    )
+}
+
+/// Prepara as atualizacoes de links lendo apenas as notas candidatas quando o
+/// indice de wikilinks esta disponivel (`Some(candidates)`), evitando reler
+/// toda a arvore Markdown em cada renomeacao. O filtro e um superconjunto
+/// seguro: toda nota que a reescrita poderia alterar esta em `candidates`.
+fn prepare_wiki_link_updates_with_candidates(
+    root: &Path,
+    path_changes: &[(String, String)],
+    available_paths_before_change: &[String],
+    candidates: Option<&HashSet<String>>,
 ) -> Result<Vec<PlannedWikiLinkUpdate>> {
     let available_paths_after_change = available_paths_before_change
         .iter()
@@ -1906,6 +2489,11 @@ fn prepare_wiki_link_updates(
         .collect::<Vec<_>>();
     let mut updates = Vec::new();
     for note_relative_path in available_paths_before_change {
+        if let Some(candidates) = candidates {
+            if !candidates.contains(note_relative_path) {
+                continue;
+            }
+        }
         let note_path = resolve_note_path(root, note_relative_path)?;
         let note_path_after_change = path_changes
             .iter()
@@ -2322,11 +2910,80 @@ fn note_path_changes_for_item(
     Ok((available_paths, path_changes))
 }
 
+/// Núcleo testavel do append de conhecimento extra: le a nota, adiciona o texto
+/// como citacao ao final e grava com historico. O texto ja foi confirmado pelo
+/// usuario na interface; aqui apenas o append e validado e executado.
+fn append_knowledge_suggestion_in_root(
+    root: &Path,
+    relative_path: &str,
+    text: &str,
+) -> Result<NoteDocument> {
+    let text = text.trim();
+    if text.is_empty() || text.encode_utf16().count() > 8_192 {
+        bail!("A sugestao de conhecimento extra e invalida.");
+    }
+    let note_path = resolve_note_path(root, relative_path)?;
+    let before_content = fs::read_to_string(&note_path)
+        .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
+    let mut content = before_content.trim_end().to_string();
+    if !content.is_empty() {
+        content.push_str("\n\n");
+    }
+    content.push_str("> ");
+    content.push_str(text);
+    content.push('\n');
+    fs::write(&note_path, content.as_bytes())
+        .with_context(|| format!("Nao foi possivel salvar '{}'.", note_path.display()))?;
+    if before_content != content {
+        record_history(
+            root,
+            HistoryCommand::SaveNote {
+                relative_path: relative_path.to_string(),
+                before_content,
+                after_content: content.clone(),
+            },
+        )?;
+    }
+    Ok(NoteDocument {
+        name: note_path
+            .file_name()
+            .and_then(|segment| segment.to_str())
+            .unwrap_or_default()
+            .to_string(),
+        relative_path: to_relative_display(root, &note_path),
+        content,
+    })
+}
+
+/// Adiciona conhecimento extra sugerido pela IA (e confirmado pelo usuario) ao
+/// final da nota. Nenhum conteudo e alterado sem a chamada explicita do
+/// cliente apos a confirmacao na interface: o comando apenas executa o append
+/// ja aprovado, com a mesma seguranca de escrita de `save_note` (caminho
+/// autorizado, historico e indice de wikilinks atualizados).
+#[tauri::command]
+fn append_knowledge_suggestion_to_note(
+    path: String,
+    relative_path: String,
+    text: String,
+    index_state: State<WikilinkIndexState>,
+    authorized_paths: State<AuthorizedPaths>,
+) -> Result<NoteDocument, String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    let document = append_knowledge_suggestion_in_root(&root, &relative_path, &text)
+        .map_err(|error| error.to_string())?;
+    update_wikilink_index_after_save(&root, &relative_path, &document.content, &index_state);
+    Ok(document)
+}
+
 #[tauri::command]
 fn save_note(
     path: String,
     relative_path: String,
     content: String,
+    index_state: State<WikilinkIndexState>,
     authorized_paths: State<AuthorizedPaths>,
 ) -> Result<NoteDocument, String> {
     let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
@@ -2334,7 +2991,12 @@ fn save_note(
         .ensure_authorized_vault_root(&root)
         .map_err(|error| error.to_string())?;
 
-    save_note_in_root(&root, &relative_path, &content).map_err(|error| error.to_string())
+    let document =
+        save_note_in_root(&root, &relative_path, &content).map_err(|error| error.to_string())?;
+    // Mantem o cache em memoria do indice de wikilinks fresco: uma edicao entre
+    // renomeacoes nao deve forcar a reconstrucao completa do indice.
+    update_wikilink_index_after_save(&root, &relative_path, &content, &index_state);
+    Ok(document)
 }
 
 fn save_note_in_root(root: &Path, relative_path: &str, content: &str) -> Result<NoteDocument> {
@@ -2370,6 +3032,7 @@ fn save_note_in_root(root: &Path, relative_path: &str, content: &str) -> Result<
 fn create_note(
     path: String,
     relative_path: String,
+    index_state: State<WikilinkIndexState>,
     authorized_paths: State<AuthorizedPaths>,
 ) -> Result<NoteDocument, String> {
     let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
@@ -2400,6 +3063,9 @@ fn create_note(
     )
     .map_err(|error| error.to_string())?;
 
+    // Uma nota nova entra no cache em memoria do indice de wikilinks.
+    update_wikilink_index_after_save(&root, &relative_path, &initial_content, &index_state);
+
     Ok(NoteDocument {
         name: note_path
             .file_name()
@@ -2419,6 +3085,95 @@ fn write_new_file(path: &Path, content: &[u8]) -> Result<()> {
         .with_context(|| format!("Nao foi possivel criar '{}'.", path.display()))?;
     file.write_all(content)
         .with_context(|| format!("Nao foi possivel escrever '{}'.", path.display()))
+}
+
+/// Grava bytes em um arquivo regular fechando a janela TOCTOU do componente
+/// final: a abertura usa no-follow (unix: `O_NOFOLLOW`; Windows:
+/// `FILE_FLAG_OPEN_REPARSE_POINT`, que nao segue o link), e o handle aberto e
+/// verificado como arquivo regular nao-simbolico ANTES de qualquer truncamento
+/// ou escrita. O caminho tambem e revalidado por canonicalizacao (que segue
+/// symlinks) para que um parent trocado por um link apontando para fora do
+/// Vault seja rejeitado antes da gravacao. A janela residual de troca
+/// concorrente de diretorios intermediarios em Windows (sem `openat`) e
+/// documentada como limite conhecido desta camada.
+pub(crate) fn write_file_regular_no_follow(
+    path: &Path,
+    canonical_root: &Path,
+    bytes: &[u8],
+) -> Result<()> {
+    let mut options = OpenOptions::new();
+    options.write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.custom_flags(libc::O_NOFOLLOW);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt as _;
+        use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT;
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT as u32);
+    }
+    // Abre SEM truncar: o handle e verificado como regular antes de qualquer
+    // mutacao, para que um symlink trocado no ultimo instante nunca seja
+    // truncado ou reescrito.
+    let mut file = options
+        .open(path)
+        .with_context(|| format!("Nao foi possivel abrir '{}'.", path.display()))?;
+    let metadata = file
+        .metadata()
+        .with_context(|| format!("Nao foi possivel inspecionar '{}'.", path.display()))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        bail!("'{}' nao e um arquivo regular seguro.", path.display());
+    }
+    let canonical = path
+        .canonicalize()
+        .with_context(|| format!("Nao foi possivel verificar '{}'.", path.display()))?;
+    if !canonical.starts_with(canonical_root) {
+        bail!("'{}' aponta para fora do Vault.", path.display());
+    }
+    file.set_len(0)
+        .with_context(|| format!("Nao foi possivel preparar '{}'.", path.display()))?;
+    file.write_all(bytes)
+        .with_context(|| format!("Nao foi possivel escrever '{}'.", path.display()))?;
+    file.flush()
+        .with_context(|| format!("Nao foi possivel finalizar '{}'.", path.display()))
+}
+
+/// Copia sincronizada byte a byte (fallback para filesystems sem hard links).
+pub(crate) fn copy_file_synced(source: &Path, target: &Path) -> Result<()> {
+    let mut input = fs::File::open(source)
+        .with_context(|| format!("Nao foi possivel ler '{}'.", source.display()))?;
+    let mut output = fs::File::create(target)
+        .with_context(|| format!("Nao foi possivel criar '{}'.", target.display()))?;
+    std::io::copy(&mut input, &mut output)
+        .with_context(|| format!("Nao foi possivel copiar '{}'.", source.display()))?;
+    output
+        .sync_all()
+        .with_context(|| format!("Nao foi possivel sincronizar '{}'.", target.display()))
+}
+
+/// Reserva `target` a partir de `source` com hard link quando o filesystem
+/// suporta; caso contrario (FAT/exFAT/redes), usa copia sincronizada. Retorna
+/// `true` quando o fallback por copia foi usado. A funcao de hard link e
+/// injetada para permitir testes do caminho de fallback.
+pub(crate) fn hard_link_or_copy(
+    source: &Path,
+    target: &Path,
+    hard_link: impl FnOnce(&Path, &Path) -> std::io::Result<()>,
+) -> Result<bool> {
+    match hard_link(source, target) {
+        Ok(()) => Ok(false),
+        Err(error) => {
+            log::warn!(
+                "hard link indisponivel para '{}' -> '{}' ({error}); usando copia sincronizada.",
+                source.display(),
+                target.display()
+            );
+            copy_file_synced(source, target)?;
+            Ok(true)
+        }
+    }
 }
 
 fn recover_note_in_root(root: &Path, relative_path: &str, content: &str) -> Result<NoteDocument> {
@@ -2552,12 +3307,9 @@ fn move_vault_path_without_overwrite(source: &Path, target: &Path, is_note: bool
         bail!("Movimentacao segura de pastas nao suportada nesta plataforma.");
     }
 
-    fs::hard_link(source, target).with_context(|| {
-        format!(
-            "Nao foi possivel reservar o destino seguro '{}'.",
-            target.display()
-        )
-    })?;
+    // Reserva o destino com hard link quando o filesystem suporta; senao usa
+    // copia sincronizada (fallback explicito para FAT/exFAT/redes).
+    hard_link_or_copy(source, target, |a, b| fs::hard_link(a, b))?;
     if let Err(error) = fs::remove_file(source) {
         let _ = fs::remove_file(target);
         return Err(error)
@@ -2566,12 +3318,196 @@ fn move_vault_path_without_overwrite(source: &Path, target: &Path, is_note: bool
     Ok(())
 }
 
+/// Mantem o indice de wikilinks coerente apos uma renomeacao concluida: notas
+/// movidas reutilizam as chaves, notas atualizadas recebem as novas chaves e o
+/// resultado e persistido para a proxima sessao. Falhas aqui nunca invalidam a
+/// renomeacao (o indice apenas sera reconstruido na proxima vez).
+fn update_wikilink_index_after_rename(
+    root: &Path,
+    wiki_index: Option<review::wikilink_index::WikilinkIndex>,
+    path_changes: &[(String, String)],
+    planned_link_updates: &[PlannedWikiLinkUpdate],
+    index_state: Option<&WikilinkIndexState>,
+) {
+    let Some(mut index) = wiki_index else {
+        return;
+    };
+    let updated = planned_link_updates
+        .iter()
+        .map(|update| {
+            (
+                to_relative_display(root, &update.path_after_change),
+                String::from_utf8(update.updated_content.clone()).unwrap_or_default(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let result = review::wikilink_index::apply_rename(&mut index, root, path_changes, &updated);
+    if let Some(index_state) = index_state {
+        index_state.store(root, Some(index.clone()));
+    }
+    if let Err(error) = result.and_then(|()| review::wikilink_index::persist(root, &index)) {
+        log::warn!("could not update the wikilink index after rename: {error}");
+    }
+}
+
+/// Carrega o indice de wikilinks para uma renomeacao/movimentacao, preferindo o
+/// cache em memoria (atualizado incrementalmente em salvamentos, criacoes,
+/// exclusoes e renomeacoes) quando presente e fresco; o frescor e sempre
+/// validado por stat. `Some(None)` no cache = indisponivel por limites nesta
+/// sessao: pula a reconstrucao repetida e usa a varredura completa.
+fn load_fresh_index_for_rename(
+    root: &Path,
+    available_paths: &[String],
+    hooks: &review::wikilink_index::BuildHooks,
+    index_state: Option<&WikilinkIndexState>,
+) -> Result<Option<review::wikilink_index::WikilinkIndex>> {
+    if let Some(index_state) = index_state {
+        match index_state.cached(root) {
+            Some(Some(index)) => {
+                let current = review::wikilink_index::fingerprint_map(root, available_paths)?;
+                if review::wikilink_index::notes_fingerprints(&index) == &current {
+                    return Ok(Some(index));
+                }
+                log::debug!("wikilink index cache stale; rebuilding");
+            }
+            Some(None) => {
+                log::debug!("wikilink index unavailable (limits); skipping rebuild");
+                return Ok(None);
+            }
+            None => {}
+        }
+    }
+    let index =
+        review::wikilink_index::load_fresh_for_rename_with_hooks(root, available_paths, hooks)?;
+    if let Some(index_state) = index_state {
+        // `None` por limites vira cache de indisponivel (nao repete a
+        // reconstrucao cara); `None` por cancelamento do usuario NAO e cacheado
+        // para que a proxima renomeacao possa tentar de novo.
+        let cancelled = hooks.should_cancel.as_ref().is_some_and(|check| check());
+        if !cancelled {
+            index_state.store(root, index.clone());
+        }
+    }
+    Ok(index)
+}
+
+/// Atualiza o cache em memoria do indice de wikilinks apos um salvamento,
+/// criacao ou restauracao de nota (sem tocar o disco: a persistencia acontece
+/// na proxima renomeacao). Sem cache, a operacao e um no-op e a proxima
+/// renomeacao valida/reconstroi como antes. Falhas aqui nunca invalidam a
+/// operacao de escrita.
+fn update_wikilink_index_after_save(
+    root: &Path,
+    relative_path: &str,
+    content: &str,
+    index_state: &WikilinkIndexState,
+) {
+    let key = WikilinkIndexState::root_key(root);
+    let mut cache = index_state.cache.lock().expect("wikilink cache poisoned");
+    if let Some(Some(index)) = cache.get_mut(&key) {
+        if let Err(error) =
+            review::wikilink_index::refresh_note(index, root, relative_path, content)
+        {
+            log::warn!("could not update the wikilink index after save: {error}");
+        }
+    }
+}
+
+/// Remove notas do cache em memoria do indice de wikilinks (exclusao/lixeira).
+fn remove_notes_from_wikilink_index_with_state(
+    root: &Path,
+    relative_paths: &[String],
+    index_state: &WikilinkIndexState,
+) {
+    if relative_paths.is_empty() {
+        return;
+    }
+    let key = WikilinkIndexState::root_key(root);
+    let mut cache = index_state.cache.lock().expect("wikilink cache poisoned");
+    if let Some(Some(index)) = cache.get_mut(&key) {
+        for relative_path in relative_paths {
+            review::wikilink_index::remove_note(index, relative_path);
+        }
+    }
+}
+
+/// Entradas do journal duravel a partir das atualizacoes planejadas de links:
+/// cada nota cujo conteudo muda entra com os bytes exatos antes e depois.
+fn journal_entries_for_planned_updates(
+    root: &Path,
+    planned: &[PlannedWikiLinkUpdate],
+) -> Result<Vec<review::rename_journal::RenameJournalEntry>> {
+    planned
+        .iter()
+        .map(|update| {
+            Ok(review::rename_journal::RenameJournalEntry {
+                relative_path: to_relative_display(root, &update.path_after_change),
+                before_content: String::from_utf8(update.original_content.clone())
+                    .context("Uma nota afetada nao esta codificada como UTF-8.")?,
+                after_content: String::from_utf8(update.updated_content.clone())
+                    .context("O conteudo atualizado de uma nota nao e UTF-8.")?,
+            })
+        })
+        .collect()
+}
+
+/// Decide o destino do journal apos o resultado da operacao: sucesso limpa o
+/// journal; erro com estado fisico consistente (movimento aconteceu ou foi
+/// revertido) tambem limpa; estado ambiguo mantem o journal para a recuperacao
+/// no proximo startup. O erro original sempre e propagado.
+fn resolve_rename_journal_after_outcome(
+    root: &Path,
+    source_relative: &str,
+    destination_relative: &str,
+    outcome: Result<usize>,
+) -> Result<()> {
+    match outcome {
+        Ok(_) => review::rename_journal::complete_rename_transaction(root),
+        Err(error) => {
+            let source = root.join(source_relative);
+            let destination = root.join(destination_relative);
+            let source_exists = fs::symlink_metadata(&source).is_ok();
+            let destination_exists = fs::symlink_metadata(&destination).is_ok();
+            if source_exists != destination_exists {
+                if let Err(cleanup) = review::rename_journal::complete_rename_transaction(root) {
+                    log::warn!("could not clean rename journal after failed rename: {cleanup}");
+                }
+            } else {
+                log::warn!(
+                    "rename failed with ambiguous state; journal kept for recovery: {error}"
+                );
+            }
+            Err(error)
+        }
+    }
+}
+
+/// Constroi os hooks de progresso/cancelamento da (re)construcao do indice de
+/// wikilinks para uma operacao do backend: o progresso e emitido ao frontend
+/// como `wikilink-index-progress` e o cancelamento le a flag do estado.
+fn wikilink_index_build_hooks(
+    app: AppHandle,
+    cancel_flag: Arc<AtomicBool>,
+) -> review::wikilink_index::BuildHooks {
+    review::wikilink_index::BuildHooks {
+        on_progress: Some(Box::new(move |processed: usize, total: usize| {
+            let _ = app.emit(
+                "wikilink-index-progress",
+                WikiLinkIndexProgress { processed, total },
+            );
+        })),
+        should_cancel: Some(Box::new(move || cancel_flag.load(Ordering::Acquire))),
+    }
+}
+
 #[tauri::command]
 fn rename_vault_item(
     path: String,
     relative_path: String,
     new_name: String,
     item_type: String,
+    app: AppHandle,
+    index_state: State<WikilinkIndexState>,
     authorized_paths: State<AuthorizedPaths>,
 ) -> Result<(), String> {
     let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
@@ -2579,8 +3515,18 @@ fn rename_vault_item(
         .ensure_authorized_vault_root(&root)
         .map_err(|error| error.to_string())?;
 
-    rename_vault_item_in_root(&root, &relative_path, &new_name, &item_type)
-        .map_err(|error| error.to_string())
+    index_state.set_cancel(&root, false);
+    let cancel_flag = index_state.cancel_flag(&root);
+    let hooks = wikilink_index_build_hooks(app, cancel_flag);
+    rename_vault_item_in_root_with_state(
+        &root,
+        &relative_path,
+        &new_name,
+        &item_type,
+        &hooks,
+        Some(&index_state),
+    )
+    .map_err(|error| error.to_string())
 }
 
 fn rename_vault_item_in_root(
@@ -2588,6 +3534,24 @@ fn rename_vault_item_in_root(
     relative_path: &str,
     new_name: &str,
     item_type: &str,
+) -> Result<()> {
+    rename_vault_item_in_root_with_state(
+        root,
+        relative_path,
+        new_name,
+        item_type,
+        &review::wikilink_index::BuildHooks::default(),
+        None,
+    )
+}
+
+fn rename_vault_item_in_root_with_state(
+    root: &Path,
+    relative_path: &str,
+    new_name: &str,
+    item_type: &str,
+    hooks: &review::wikilink_index::BuildHooks,
+    index_state: Option<&WikilinkIndexState>,
 ) -> Result<()> {
     let is_note = match item_type {
         "note" => true,
@@ -2614,10 +3578,33 @@ fn rename_vault_item_in_root(
 
     let (available_paths_before_change, path_changes) =
         note_path_changes_for_item(root, &source, &destination, is_note)?;
-    let planned_link_updates =
-        prepare_wiki_link_updates(root, &path_changes, &available_paths_before_change)?;
+    // Indice escalavel: quando disponivel e fresco, le apenas as notas que
+    // PODEM referenciar o item (superconjunto seguro) em vez da arvore inteira.
+    let wiki_index =
+        load_fresh_index_for_rename(root, &available_paths_before_change, hooks, index_state)?;
+    let candidates = wiki_index
+        .as_ref()
+        .map(|index| review::wikilink_index::candidates(index, &path_changes));
+    let planned_link_updates = prepare_wiki_link_updates_with_candidates(
+        root,
+        &path_changes,
+        &available_paths_before_change,
+        candidates.as_ref(),
+    )?;
+    let journal_entries = journal_entries_for_planned_updates(root, &planned_link_updates)?;
+    let source_relative = to_relative_display(root, &source);
+    let destination_relative = to_relative_display(root, &destination);
 
-    review::storage::with_relocated_learning_documents(root, &path_changes, || {
+    // Journal duravel: registra a transacao ANTES de qualquer mutacao para que
+    // uma queda de energia no meio seja concluida ou diagnosticada no startup.
+    review::rename_journal::begin_rename_transaction(
+        root,
+        is_note,
+        &source_relative,
+        &destination_relative,
+        &journal_entries,
+    )?;
+    let outcome = review::storage::with_relocated_learning_documents(root, &path_changes, || {
         move_vault_path_without_overwrite(&source, &destination, is_note)
             .with_context(|| format!("Nao foi possivel renomear '{}'.", source.display()))?;
         if let Err(error) = update_wiki_links_for_note_path_change(root, &planned_link_updates) {
@@ -2632,8 +3619,23 @@ fn rename_vault_item_in_root(
             return Err(error);
         }
         Ok(())
-    })?;
-    Ok(())
+    });
+    let result = resolve_rename_journal_after_outcome(
+        root,
+        &source_relative,
+        &destination_relative,
+        outcome,
+    );
+    if result.is_ok() {
+        update_wikilink_index_after_rename(
+            root,
+            wiki_index,
+            &path_changes,
+            &planned_link_updates,
+            index_state,
+        );
+    }
+    result
 }
 
 #[tauri::command]
@@ -2642,6 +3644,8 @@ fn move_vault_item(
     relative_path: String,
     destination_folder: String,
     item_type: String,
+    app: AppHandle,
+    index_state: State<WikilinkIndexState>,
     authorized_paths: State<AuthorizedPaths>,
 ) -> Result<(), String> {
     let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
@@ -2649,8 +3653,18 @@ fn move_vault_item(
         .ensure_authorized_vault_root(&root)
         .map_err(|error| error.to_string())?;
 
-    move_vault_item_in_root(&root, &relative_path, &destination_folder, &item_type)
-        .map_err(|error| error.to_string())
+    index_state.set_cancel(&root, false);
+    let cancel_flag = index_state.cancel_flag(&root);
+    let hooks = wikilink_index_build_hooks(app, cancel_flag);
+    move_vault_item_in_root_with_state(
+        &root,
+        &relative_path,
+        &destination_folder,
+        &item_type,
+        &hooks,
+        Some(&index_state),
+    )
+    .map_err(|error| error.to_string())
 }
 
 fn move_vault_item_in_root(
@@ -2658,6 +3672,24 @@ fn move_vault_item_in_root(
     relative_path: &str,
     destination_folder: &str,
     item_type: &str,
+) -> Result<()> {
+    move_vault_item_in_root_with_state(
+        root,
+        relative_path,
+        destination_folder,
+        item_type,
+        &review::wikilink_index::BuildHooks::default(),
+        None,
+    )
+}
+
+fn move_vault_item_in_root_with_state(
+    root: &Path,
+    relative_path: &str,
+    destination_folder: &str,
+    item_type: &str,
+    hooks: &review::wikilink_index::BuildHooks,
+    index_state: Option<&WikilinkIndexState>,
 ) -> Result<()> {
     let is_note = match item_type {
         "note" => true,
@@ -2698,9 +3730,31 @@ fn move_vault_item_in_root(
     }
     let (available_paths_before_change, path_changes) =
         note_path_changes_for_item(root, &source, &target, is_note)?;
-    let planned_link_updates =
-        prepare_wiki_link_updates(root, &path_changes, &available_paths_before_change)?;
-    review::storage::with_relocated_learning_documents(root, &path_changes, || {
+    // Indice escalavel: le apenas as notas candidatas (superconjunto seguro).
+    let wiki_index =
+        load_fresh_index_for_rename(root, &available_paths_before_change, hooks, index_state)?;
+    let candidates = wiki_index
+        .as_ref()
+        .map(|index| review::wikilink_index::candidates(index, &path_changes));
+    let planned_link_updates = prepare_wiki_link_updates_with_candidates(
+        root,
+        &path_changes,
+        &available_paths_before_change,
+        candidates.as_ref(),
+    )?;
+    let journal_entries = journal_entries_for_planned_updates(root, &planned_link_updates)?;
+    let source_relative = to_relative_display(root, &source);
+    let target_relative = to_relative_display(root, &target);
+
+    // Journal duravel: registra a transacao ANTES de qualquer mutacao.
+    review::rename_journal::begin_rename_transaction(
+        root,
+        is_note,
+        &source_relative,
+        &target_relative,
+        &journal_entries,
+    )?;
+    let outcome = review::storage::with_relocated_learning_documents(root, &path_changes, || {
         move_vault_path_without_overwrite(&source, &target, is_note)
             .with_context(|| format!("Nao foi possivel mover '{}'.", source.display()))?;
         if let Err(error) = update_wiki_links_for_note_path_change(root, &planned_link_updates) {
@@ -2713,7 +3767,28 @@ fn move_vault_item_in_root(
             return Err(error);
         }
         Ok(())
-    })?;
+    });
+    let result =
+        resolve_rename_journal_after_outcome(root, &source_relative, &target_relative, outcome);
+    if result.is_ok() {
+        update_wikilink_index_after_rename(
+            root,
+            wiki_index,
+            &path_changes,
+            &planned_link_updates,
+            index_state,
+        );
+    }
+    result
+}
+
+#[tauri::command]
+fn cancel_wikilink_index_build(
+    path: String,
+    index_state: State<WikilinkIndexState>,
+) -> Result<(), String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    index_state.set_cancel(&root, true);
     Ok(())
 }
 
@@ -2722,6 +3797,7 @@ fn delete_vault_item(
     path: String,
     relative_path: String,
     item_type: String,
+    index_state: State<WikilinkIndexState>,
     authorized_paths: State<AuthorizedPaths>,
 ) -> Result<(), String> {
     let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
@@ -2729,7 +3805,15 @@ fn delete_vault_item(
         .ensure_authorized_vault_root(&root)
         .map_err(|error| error.to_string())?;
 
-    delete_vault_item_in_root(&root, &relative_path, &item_type).map_err(|error| error.to_string())
+    let removed_notes = if item_type == "note" {
+        vec![relative_path.clone()]
+    } else {
+        index_state.notes_under(&root, &relative_path)
+    };
+    delete_vault_item_in_root(&root, &relative_path, &item_type)
+        .map_err(|error| error.to_string())?;
+    remove_notes_from_wikilink_index_with_state(&root, &removed_notes, &index_state);
+    Ok(())
 }
 
 #[tauri::command]
@@ -2990,6 +4074,13 @@ fn attachment_directory_for_note(root: &Path, note_relative_path: &str) -> Resul
     Ok(root.join(ATTACHMENTS_DIR).join(relative_parent))
 }
 
+/// Diretorio de anexos configurado em `attachmentFolderPath`.
+///
+/// Para uma nota AINDA NAO salva (rascunho, `note_relative_path` vazio), um
+/// valor relativo `./pasta` e resolvido contra a RAIZ do Vault (o rascunho
+/// ainda nao tem pasta); os anexos importados durante o rascunho permanecem no
+/// lugar ao salvar, com referencia por caminho relativo ao Vault. Quando a nota
+/// existe, `./pasta` resolve relativo a pasta da nota, como o Obsidian faz.
 fn obsidian_attachment_directory(root: &Path, note_relative_path: &str) -> Result<Option<PathBuf>> {
     let Some(configured_path) =
         read_obsidian_preferences(root).and_then(|preferences| preferences.attachment_folder_path)
@@ -3045,33 +4136,137 @@ fn obsidian_attachment_directory(root: &Path, note_relative_path: &str) -> Resul
     Ok(Some(base.join(relative_path)))
 }
 
-fn read_obsidian_preferences(root: &Path) -> Option<ObsidianPreferences> {
-    let canonical_root = root.canonicalize().ok()?;
-    let config_path = root.join(".obsidian").join("app.json");
-    let link_metadata = fs::symlink_metadata(&config_path).ok()?;
-    if link_metadata.file_type().is_symlink() || !link_metadata.is_file() {
-        return None;
+/// Le um arquivo regular com abertura no-follow e validacao pelo MESMO handle
+/// (nunca pelo caminho resolvido antes), fechando a janela TOCTOU de troca por
+/// symlink entre a verificacao e a leitura. Retorna `None` quando o arquivo nao
+/// e um regular seguro dentro do Vault ou excede `max` bytes.
+fn read_regular_file_no_follow(path: &Path, canonical_root: &Path, max: u64) -> Option<Vec<u8>> {
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.custom_flags(libc::O_NOFOLLOW);
     }
-    let canonical_config = config_path.canonicalize().ok()?;
-    if !canonical_config.starts_with(&canonical_root) {
-        return None;
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt as _;
+        use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT;
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT as u32);
     }
-
-    let mut file = fs::File::open(canonical_config).ok()?;
+    let mut file = options.open(path).ok()?;
     let metadata = file.metadata().ok()?;
-    if !metadata.is_file() || metadata.len() > MAX_OBSIDIAN_APP_CONFIG_BYTES {
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return None;
+    }
+    let canonical = path.canonicalize().ok()?;
+    if !canonical.starts_with(canonical_root) {
+        return None;
+    }
+    if metadata.len() > max {
         return None;
     }
     let mut bytes = Vec::with_capacity(metadata.len() as usize);
     Read::by_ref(&mut file)
-        .take(MAX_OBSIDIAN_APP_CONFIG_BYTES + 1)
+        .take(max + 1)
         .read_to_end(&mut bytes)
         .ok()?;
-    if bytes.len() as u64 > MAX_OBSIDIAN_APP_CONFIG_BYTES {
+    if bytes.len() as u64 > max {
         return None;
     }
-    let content = String::from_utf8(bytes).ok()?;
-    let mut preferences = serde_json::from_str::<ObsidianPreferences>(&content).ok()?;
+    Some(bytes)
+}
+
+/// Configuracoes read-only reconhecidas do Obsidian (validadas como JSON, mas
+/// nunca aplicadas nem expostas em conteudo): a whitelist evolui conforme novos
+/// formatos sem tratar esses arquivos como notas ou anexos.
+const KNOWN_OBSIDIAN_CONFIG_FILES: &[&str] = &[
+    "app.json",
+    "appearance.json",
+    "community-plugins.json",
+    "core-plugins.json",
+    "daily-notes.json",
+    "graph.json",
+    "hotkeys.json",
+    "workspace.json",
+];
+
+/// Preferencias read-only do `app.json` com parse TOLERANTE por campo: um campo
+/// conhecido com tipo invalido e ignorado (registrado em `ignored_preference_fields`)
+/// sem descartar as demais preferencias validas.
+fn parse_obsidian_preferences(content: &str) -> Option<ObsidianPreferences> {
+    let value: serde_json::Value = serde_json::from_str(content).ok()?;
+    let object = value.as_object()?;
+
+    // Campos string conhecidos: extrai com tipo, registrando como ignorados os
+    // que estao presentes mas com tipo invalido.
+    const STRING_FIELDS: &[&str] = &[
+        "newFileLocation",
+        "newFileFolderPath",
+        "attachmentFolderPath",
+        "newLinkFormat",
+        "trashOption",
+    ];
+    let string_values = STRING_FIELDS
+        .iter()
+        .map(|name| {
+            object
+                .get(*name)
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string)
+        })
+        .collect::<Vec<_>>();
+    let mut ignored_preference_fields = Vec::new();
+    for (name, extracted) in STRING_FIELDS.iter().zip(string_values.iter()) {
+        if object.contains_key(*name) && extracted.is_none() {
+            ignored_preference_fields.push((*name).to_string());
+        }
+    }
+    const BOOL_FIELDS: &[&str] = &[
+        "useMarkdownLinks",
+        "alwaysUpdateLinks",
+        "showUnsupportedFiles",
+        "promptDelete",
+    ];
+    let bool_values = BOOL_FIELDS
+        .iter()
+        .map(|name| object.get(*name).and_then(serde_json::Value::as_bool))
+        .collect::<Vec<_>>();
+    for (name, extracted) in BOOL_FIELDS.iter().zip(bool_values.iter()) {
+        if object.contains_key(*name) && extracted.is_none() {
+            ignored_preference_fields.push((*name).to_string());
+        }
+    }
+    let mut filters = Vec::new();
+    match object.get("userIgnoreFilters") {
+        Some(serde_json::Value::Array(items)) => {
+            for item in items {
+                if let Some(text) = item.as_str() {
+                    filters.push(text.to_string());
+                } else {
+                    ignored_preference_fields.push("userIgnoreFilters".to_string());
+                }
+            }
+        }
+        Some(_) => ignored_preference_fields.push("userIgnoreFilters".to_string()),
+        None => {}
+    }
+    ignored_preference_fields.sort();
+    ignored_preference_fields.dedup();
+
+    let mut preferences = ObsidianPreferences {
+        new_file_location: string_values[0].clone(),
+        new_file_folder_path: string_values[1].clone(),
+        attachment_folder_path: string_values[2].clone(),
+        new_link_format: string_values[3].clone(),
+        use_markdown_links: bool_values[0],
+        always_update_links: bool_values[1],
+        show_unsupported_files: bool_values[2],
+        prompt_delete: bool_values[3],
+        trash_option: string_values[4].clone(),
+        user_ignore_filters: filters,
+        ignored_preference_fields,
+    };
 
     fn bounded(value: &mut Option<String>) {
         if value
@@ -3093,6 +4288,98 @@ fn read_obsidian_preferences(root: &Path) -> Option<ObsidianPreferences> {
         .user_ignore_filters
         .truncate(MAX_OBSIDIAN_IGNORE_FILTERS);
     Some(preferences)
+}
+
+/// Preferencias read-only do `app.json` com abertura no-follow (TOCTOU) e
+/// parse tolerante por campo.
+fn read_obsidian_preferences(root: &Path) -> Option<ObsidianPreferences> {
+    let canonical_root = root.canonicalize().ok()?;
+    let config_path = root.join(".obsidian").join("app.json");
+    let bytes =
+        read_regular_file_no_follow(&config_path, &canonical_root, MAX_OBSIDIAN_APP_CONFIG_BYTES)?;
+    let content = String::from_utf8(bytes).ok()?;
+    parse_obsidian_preferences(&content)
+}
+
+/// Preferencias visuais read-only de `appearance.json` com parse TOLERANTE:
+/// um campo conhecido com tipo invalido e ignorado (registrado em
+/// `ignored_appearance_fields`) sem descartar as preferencias validas.
+fn parse_obsidian_appearance(content: &str) -> Option<ObsidianAppearance> {
+    let value: serde_json::Value = serde_json::from_str(content).ok()?;
+    let object = value.as_object()?;
+    let mut ignored = Vec::new();
+
+    let mut string_field = |name: &str| match object.get(name) {
+        Some(serde_json::Value::String(text)) => Some(text.to_string()),
+        Some(_) => {
+            ignored.push(name.to_string());
+            None
+        }
+        None => None,
+    };
+
+    let theme = string_field("theme");
+    let accent_color = string_field("accentColor");
+    let css_theme = string_field("cssTheme");
+    let interface_font_family = string_field("interfaceFontFamily");
+    let text_font_family = string_field("textFontFamily");
+    let monospace_font_family = string_field("monospaceFontFamily");
+    let base_font_size = match object.get("baseFontSize") {
+        Some(serde_json::Value::Number(number)) => number.as_f64().filter(|size| *size > 0.0),
+        Some(_) => {
+            ignored.push("baseFontSize".to_string());
+            None
+        }
+        None => None,
+    };
+
+    ignored.sort();
+    ignored.dedup();
+    Some(ObsidianAppearance {
+        theme,
+        accent_color,
+        base_font_size,
+        css_theme,
+        interface_font_family,
+        text_font_family,
+        monospace_font_family,
+        ignored_appearance_fields: ignored,
+    })
+}
+
+/// Preferencias visuais de `appearance.json` com abertura no-follow (TOCTOU) e
+/// parse tolerante por campo. Nunca escreve no `.obsidian`.
+fn read_obsidian_appearance(root: &Path) -> Option<ObsidianAppearance> {
+    let canonical_root = root.canonicalize().ok()?;
+    let config_path = root.join(".obsidian").join("appearance.json");
+    let bytes =
+        read_regular_file_no_follow(&config_path, &canonical_root, MAX_OBSIDIAN_APP_CONFIG_BYTES)?;
+    let content = String::from_utf8(bytes).ok()?;
+    parse_obsidian_appearance(&content)
+}
+
+/// Diagnosticos das configuracoes read-only presentes em `.obsidian`: nomes das
+/// configuracoes conhecidas que o app NAO aplica (apenas valida como JSON),
+/// sem expor nenhum conteudo ou dado de plugin.
+fn ignored_obsidian_config_files(root: &Path) -> Vec<String> {
+    let canonical_root = match root.canonicalize() {
+        Ok(root) => root,
+        Err(_) => return Vec::new(),
+    };
+    let obsidian_dir = root.join(".obsidian");
+    let mut ignored = Vec::new();
+    for file_name in KNOWN_OBSIDIAN_CONFIG_FILES {
+        if *file_name == "app.json" {
+            continue;
+        }
+        let path = obsidian_dir.join(file_name);
+        if read_regular_file_no_follow(&path, &canonical_root, MAX_OBSIDIAN_APP_CONFIG_BYTES)
+            .is_some()
+        {
+            ignored.push((*file_name).to_string());
+        }
+    }
+    ignored
 }
 
 fn unique_attachment_path(
@@ -3234,6 +4521,15 @@ fn create_vault(
 }
 
 fn recent_vault_preference_path(app: &AppHandle) -> Result<PathBuf> {
+    // Build E2E: o Windows resolve a pasta de configuracao pela Known Folder
+    // API (nao pelo env APPDATA), entao a preferencia iria parar na APPDATA
+    // real do usuario e vazar entre execucoes (ex.: o "nao perguntar" da
+    // jornada de configuracoes quebrava as reaberturas seguintes). Em E2E, o
+    // arquivo fica isolado no run corrente.
+    #[cfg(feature = "e2e")]
+    if let Ok(run_root) = std::env::var("MIRRORMIND_E2E_RUN_ROOT") {
+        return Ok(Path::new(&run_root).join("appdata").join(RECENT_VAULT_FILE));
+    }
     Ok(app.path().app_config_dir()?.join(RECENT_VAULT_FILE))
 }
 
@@ -3286,6 +4582,8 @@ fn inspect_vault_path(root: &Path) -> Result<VaultSummary> {
         note_previews: previews,
         is_obsidian_vault: canonical_root.join(".obsidian").is_dir(),
         obsidian_preferences: read_obsidian_preferences(&canonical_root),
+        obsidian_appearance: read_obsidian_appearance(&canonical_root),
+        obsidian_ignored_config_files: ignored_obsidian_config_files(&canonical_root),
         metadata: inspect_metadata(&canonical_root),
     })
 }
@@ -3399,21 +4697,229 @@ fn validate_relative_path_components(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn collect_markdown_files(root: &Path) -> Result<Vec<PathBuf>> {
+/// Motivo de uma falha parcial de leitura registrada na indexacao. Nunca
+/// expoe o conteudo do arquivo — apenas o caminho e a classificacao.
+#[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+enum UnreadableReason {
+    /// Markdown legivel, mas nao codificado como UTF-8 (impede leitura e tags).
+    NotUtf8,
+    /// Leitura indisponivel (permissao, bloqueio ou erro de I/O).
+    Unreadable,
+    /// Leitura ok, mas a extracao de tags falhou (ex.: excesso de tags).
+    TagIndexFailure,
+}
+
+/// Um arquivo com falha parcial de leitura, identificado por caminho relativo
+/// e motivo — sem dados sensiveis.
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct UnreadableFile {
+    relative_path: String,
+    reason: UnreadableReason,
+}
+
+/// Diagnosticos da varredura: falhas parciais de leitura que nunca devem ser
+/// apresentadas silenciosamente como inventario completo. A parte valida do
+/// inventario permanece disponivel; o usuario e avisado do que nao foi lido e
+/// pode tentar novamente.
+#[derive(Serialize, Clone, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct ScanDiagnostics {
+    unreadable_directories: Vec<String>,
+    unreadable_files: Vec<UnreadableFile>,
+    /// Notas cuja renomeacao interrompida nao pode ser concluida porque
+    /// receberam edicao concorrente (nada foi sobrescrito).
+    rename_recovery_conflicts: Vec<String>,
+    /// O inventario de anexos excedeu o limite seguro e foi truncado (nunca
+    /// apresentado silenciosamente como lista completa).
+    attachments_truncated: bool,
+}
+
+/// Inventario completo de UMA varredura unificada do Vault (notas, pastas,
+/// anexos e arquivos especiais classificados em uma unica passagem).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VaultInventory {
+    notes: Vec<NotePreview>,
+    folders: Vec<String>,
+    attachments: Vec<String>,
+    special_files: SpecialVaultInventory,
+    diagnostics: ScanDiagnostics,
+}
+
+/// Resultado bruto (caminhos) da varredura unificada, antes de montar os
+/// previews/caminhos relativos da resposta IPC.
+#[derive(Clone)]
+struct VaultScan {
+    notes: Vec<PathBuf>,
+    folders: Vec<PathBuf>,
+    attachments: Vec<PathBuf>,
+    special_files: Vec<SpecialVaultFile>,
+    special_files_truncated: bool,
+    diagnostics: ScanDiagnostics,
+}
+
+/// Varredura UNIFICADA do Vault: uma unica passagem recursiva classifica cada
+/// arquivo uma unica vez (nota Markdown, anexo suportado, arquivo especial ou
+/// ignorado) e coleta as pastas — em vez das quatro varreduras independentes
+/// anteriores. Preserva exatamente os limites de seguranca (protecao contra
+/// loops de symlink, exclusao de diretorios internos `.mirmind`/dot) e a
+/// responsividade (cap de arquivos especiais durante o walk).
+fn scan_vault_unified(root: &Path) -> Result<VaultScan> {
     let canonical_root = canonicalize_directory(root)?;
-    let mut notes = Vec::new();
+    let mut scan = VaultScan {
+        notes: Vec::new(),
+        folders: Vec::new(),
+        attachments: Vec::new(),
+        special_files: Vec::new(),
+        special_files_truncated: false,
+        diagnostics: ScanDiagnostics::default(),
+    };
     let mut visited_directories = HashSet::new();
-    visit_directory(
+    visit_unified_vault_directory(
         &canonical_root,
         &canonical_root,
         &mut visited_directories,
-        &mut notes,
+        &mut scan,
     );
-    notes.sort();
-    Ok(notes)
+    scan.notes.sort();
+    scan.folders.sort();
+    scan.attachments.sort();
+    scan.special_files
+        .sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+    if scan.special_files.len() > MAX_SPECIAL_VAULT_FILES {
+        scan.special_files.truncate(MAX_SPECIAL_VAULT_FILES);
+        scan.special_files_truncated = true;
+    }
+    Ok(scan)
 }
 
-fn collect_markdown_files_strict(root: &Path) -> Result<Vec<PathBuf>> {
+/// Passo recursivo da varredura unificada. Classifica cada arquivo em uma
+/// unica categoria, com a mesma precedencia das varreduras originais:
+/// 1) nota `.md` (exceto `.excalidraw.md`, que e arquivo especial);
+/// 2) anexo com extensao suportada (incluindo dotfiles, como antes);
+/// 3) arquivo especial (nunca dotfile) — canvas/excalidraw por nome, o resto
+///    como Unknown. Diretorios internos sao excluidos; symlinks sao ignorados.
+fn visit_unified_vault_directory(
+    directory: &Path,
+    canonical_root: &Path,
+    visited_directories: &mut HashSet<PathBuf>,
+    scan: &mut VaultScan,
+) {
+    let canonical_directory = match directory.canonicalize() {
+        Ok(path) => path,
+        Err(error) => {
+            log::warn!(
+                "skipping unreadable directory '{}': {error}",
+                directory.display()
+            );
+            scan.diagnostics
+                .unreadable_directories
+                .push(to_relative_display(canonical_root, directory));
+            return;
+        }
+    };
+    if !canonical_directory.starts_with(canonical_root)
+        || !visited_directories.insert(canonical_directory)
+    {
+        return;
+    }
+    let entries = match fs::read_dir(directory) {
+        Ok(entries) => entries,
+        Err(error) => {
+            log::warn!("skipping directory '{}': {error}", directory.display());
+            scan.diagnostics
+                .unreadable_directories
+                .push(to_relative_display(canonical_root, directory));
+            return;
+        }
+    };
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => {
+                log::warn!(
+                    "skipping unreadable entry in '{}': {error}",
+                    directory.display()
+                );
+                continue;
+            }
+        };
+        let path = entry.path();
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(error) => {
+                log::warn!(
+                    "skipping entry with unreadable file type '{}': {error}",
+                    path.display()
+                );
+                continue;
+            }
+        };
+        if file_type.is_symlink() {
+            continue;
+        }
+        if file_type.is_dir() {
+            if path
+                .file_name()
+                .and_then(|segment| segment.to_str())
+                .is_some_and(|name| name == METADATA_DIR || name.starts_with('.'))
+            {
+                continue;
+            }
+            scan.folders.push(path.clone());
+            visit_unified_vault_directory(&path, canonical_root, visited_directories, scan);
+            continue;
+        }
+        if !file_type.is_file() {
+            continue;
+        }
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default();
+        let extension = path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(str::to_lowercase);
+        let is_attachment = extension.as_deref().is_some_and(|extension| {
+            SUPPORTED_ATTACHMENT_EXTENSIONS
+                .iter()
+                .any(|supported| extension.eq_ignore_ascii_case(supported))
+        });
+        if extension.as_deref() == Some("md")
+            && !file_name.to_lowercase().ends_with(".excalidraw.md")
+        {
+            scan.notes.push(path);
+        } else if is_attachment {
+            scan.attachments.push(path);
+        } else if let Some(kind) = special_vault_file_kind(&path) {
+            // Cap durante o walk (mesmo limite de antes): pastas/notas continuam
+            // sendo visitadas, mas arquivos especiais alem do limite nao entram.
+            if scan.special_files.len() < MAX_SPECIAL_VAULT_FILES {
+                scan.special_files.push(SpecialVaultFile {
+                    name: path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string(),
+                    relative_path: to_relative_display(canonical_root, &path),
+                    kind,
+                });
+            } else {
+                scan.special_files_truncated = true;
+            }
+        }
+    }
+}
+
+pub(crate) fn collect_markdown_files(root: &Path) -> Result<Vec<PathBuf>> {
+    Ok(scan_vault_unified(root)?.notes)
+}
+
+pub(crate) fn collect_markdown_files_strict(root: &Path) -> Result<Vec<PathBuf>> {
     fn visit(
         directory: &Path,
         canonical_root: &Path,
@@ -3489,34 +4995,20 @@ fn collect_markdown_files_strict(root: &Path) -> Result<Vec<PathBuf>> {
     Ok(notes)
 }
 
-fn collect_attachment_files(root: &Path) -> Result<Vec<PathBuf>> {
-    let canonical_root = canonicalize_directory(root)?;
-    let mut attachments = Vec::new();
-    let mut visited_directories = HashSet::new();
-    visit_attachment_directory(
-        &canonical_root,
-        &canonical_root,
-        &mut visited_directories,
-        &mut attachments,
-    );
-    attachments.sort();
-    Ok(attachments)
+pub(crate) fn collect_attachment_files(root: &Path) -> Result<Vec<PathBuf>> {
+    Ok(scan_vault_unified(root)?.attachments)
 }
 
 fn collect_special_vault_files(root: &Path) -> Result<SpecialVaultInventory> {
-    let canonical_root = root.canonicalize()?;
-    let mut visited_directories = HashSet::new();
-    let mut files = Vec::new();
-    visit_special_vault_directory(
-        &canonical_root,
-        &canonical_root,
-        &mut visited_directories,
-        &mut files,
-    );
-    files.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
-    let truncated = files.len() > MAX_SPECIAL_VAULT_FILES;
-    files.truncate(MAX_SPECIAL_VAULT_FILES);
-    Ok(SpecialVaultInventory { files, truncated })
+    let scan = scan_vault_unified(root)?;
+    Ok(SpecialVaultInventory {
+        files: scan.special_files,
+        truncated: scan.special_files_truncated,
+    })
+}
+
+fn collect_folders(root: &Path) -> Result<Vec<PathBuf>> {
+    Ok(scan_vault_unified(root)?.folders)
 }
 
 fn special_vault_file_kind(path: &Path) -> Option<SpecialVaultFileKind> {
@@ -3542,294 +5034,6 @@ fn special_vault_file_kind(path: &Path) -> Option<SpecialVaultFileKind> {
         return None;
     }
     Some(SpecialVaultFileKind::Unknown)
-}
-
-fn visit_special_vault_directory(
-    directory: &Path,
-    canonical_root: &Path,
-    visited_directories: &mut HashSet<PathBuf>,
-    files: &mut Vec<SpecialVaultFile>,
-) {
-    if files.len() > MAX_SPECIAL_VAULT_FILES {
-        return;
-    }
-    let canonical_directory = match directory.canonicalize() {
-        Ok(path) => path,
-        Err(error) => {
-            log::warn!(
-                "skipping unreadable special-file directory '{}': {error}",
-                directory.display()
-            );
-            return;
-        }
-    };
-    if !canonical_directory.starts_with(canonical_root)
-        || !visited_directories.insert(canonical_directory)
-    {
-        return;
-    }
-
-    let entries = match fs::read_dir(directory) {
-        Ok(entries) => entries,
-        Err(error) => {
-            log::warn!(
-                "skipping unreadable special-file directory '{}': {error}",
-                directory.display()
-            );
-            return;
-        }
-    };
-    for entry in entries.flatten() {
-        if files.len() > MAX_SPECIAL_VAULT_FILES {
-            return;
-        }
-        let path = entry.path();
-        let Ok(file_type) = entry.file_type() else {
-            continue;
-        };
-        if file_type.is_symlink() {
-            continue;
-        }
-        if file_type.is_dir() {
-            if path
-                .file_name()
-                .and_then(|segment| segment.to_str())
-                .is_some_and(|name| name == METADATA_DIR || name.starts_with('.'))
-            {
-                continue;
-            }
-            visit_special_vault_directory(&path, canonical_root, visited_directories, files);
-            continue;
-        }
-        if !file_type.is_file() {
-            continue;
-        }
-        let Some(kind) = special_vault_file_kind(&path) else {
-            continue;
-        };
-        files.push(SpecialVaultFile {
-            name: path
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string(),
-            relative_path: to_relative_display(canonical_root, &path),
-            kind,
-        });
-    }
-}
-
-fn collect_folders(root: &Path) -> Result<Vec<PathBuf>> {
-    let canonical_root = canonicalize_directory(root)?;
-    let mut folders = Vec::new();
-    let mut visited_directories = HashSet::new();
-    visit_folders(
-        &canonical_root,
-        &canonical_root,
-        &mut visited_directories,
-        &mut folders,
-    );
-    folders.sort();
-    Ok(folders)
-}
-
-fn visit_folders(
-    directory: &Path,
-    canonical_root: &Path,
-    visited_directories: &mut HashSet<PathBuf>,
-    folders: &mut Vec<PathBuf>,
-) {
-    let canonical_directory = match directory.canonicalize() {
-        Ok(path) => path,
-        Err(error) => {
-            log::warn!(
-                "skipping unreadable directory '{}': {error}",
-                directory.display()
-            );
-            return;
-        }
-    };
-    if !canonical_directory.starts_with(canonical_root)
-        || !visited_directories.insert(canonical_directory)
-    {
-        return;
-    }
-
-    let entries = match fs::read_dir(directory) {
-        Ok(entries) => entries,
-        Err(error) => {
-            log::warn!("skipping directory '{}': {error}", directory.display());
-            return;
-        }
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let Ok(file_type) = entry.file_type() else {
-            continue;
-        };
-        if file_type.is_symlink() || !file_type.is_dir() {
-            continue;
-        }
-        let Some(name) = path.file_name().and_then(|segment| segment.to_str()) else {
-            continue;
-        };
-        if name == METADATA_DIR || name.starts_with('.') {
-            continue;
-        }
-        folders.push(path.clone());
-        visit_folders(&path, canonical_root, visited_directories, folders);
-    }
-}
-
-fn visit_directory(
-    directory: &Path,
-    canonical_root: &Path,
-    visited_directories: &mut HashSet<PathBuf>,
-    notes: &mut Vec<PathBuf>,
-) {
-    let canonical_directory = match directory.canonicalize() {
-        Ok(path) => path,
-        Err(error) => {
-            log::warn!(
-                "skipping unreadable directory '{}': {error}",
-                directory.display()
-            );
-            return;
-        }
-    };
-
-    if !canonical_directory.starts_with(canonical_root)
-        || !visited_directories.insert(canonical_directory)
-    {
-        return;
-    }
-
-    let entries = match fs::read_dir(directory) {
-        Ok(entries) => entries,
-        Err(error) => {
-            log::warn!("skipping directory '{}': {error}", directory.display());
-            return;
-        }
-    };
-
-    for entry in entries {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(error) => {
-                log::warn!(
-                    "skipping unreadable entry in '{}': {error}",
-                    directory.display()
-                );
-                continue;
-            }
-        };
-        let path = entry.path();
-        let file_type = match entry.file_type() {
-            Ok(file_type) => file_type,
-            Err(error) => {
-                log::warn!(
-                    "skipping entry with unreadable file type '{}': {error}",
-                    path.display()
-                );
-                continue;
-            }
-        };
-
-        if file_type.is_symlink() {
-            continue;
-        }
-
-        if file_type.is_dir() {
-            if path
-                .file_name()
-                .and_then(|segment| segment.to_str())
-                .is_some_and(|name| name == METADATA_DIR || name.starts_with('.'))
-            {
-                continue;
-            }
-
-            visit_directory(&path, canonical_root, visited_directories, notes);
-            continue;
-        }
-
-        let file_name = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or_default();
-        if file_type.is_file()
-            && path
-                .extension()
-                .and_then(|extension| extension.to_str())
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
-            && !file_name.to_lowercase().ends_with(".excalidraw.md")
-        {
-            notes.push(path);
-        }
-    }
-}
-
-fn visit_attachment_directory(
-    directory: &Path,
-    canonical_root: &Path,
-    visited_directories: &mut HashSet<PathBuf>,
-    attachments: &mut Vec<PathBuf>,
-) {
-    let canonical_directory = match directory.canonicalize() {
-        Ok(path) => path,
-        Err(error) => {
-            log::warn!(
-                "skipping unreadable attachment directory '{}': {error}",
-                directory.display()
-            );
-            return;
-        }
-    };
-    if !canonical_directory.starts_with(canonical_root)
-        || !visited_directories.insert(canonical_directory)
-    {
-        return;
-    }
-
-    let entries = match fs::read_dir(directory) {
-        Ok(entries) => entries,
-        Err(error) => {
-            log::warn!(
-                "skipping attachment directory '{}': {error}",
-                directory.display()
-            );
-            return;
-        }
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let Ok(file_type) = entry.file_type() else {
-            continue;
-        };
-        if file_type.is_symlink() {
-            continue;
-        }
-        if file_type.is_dir() {
-            if path
-                .file_name()
-                .and_then(|segment| segment.to_str())
-                .is_some_and(|name| name == METADATA_DIR || name.starts_with('.'))
-            {
-                continue;
-            }
-            visit_attachment_directory(&path, canonical_root, visited_directories, attachments);
-        } else if file_type.is_file()
-            && path
-                .extension()
-                .and_then(|extension| extension.to_str())
-                .is_some_and(|extension| {
-                    SUPPORTED_ATTACHMENT_EXTENSIONS
-                        .iter()
-                        .any(|supported| extension.eq_ignore_ascii_case(supported))
-                })
-        {
-            attachments.push(path);
-        }
-    }
 }
 
 fn inspect_metadata(root: &Path) -> VaultMetadata {
@@ -4188,7 +5392,7 @@ fn ensure_metadata_layout(root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn to_relative_display(root: &Path, path: &Path) -> String {
+pub(crate) fn to_relative_display(root: &Path, path: &Path) -> String {
     path.strip_prefix(root)
         .map(|relative| relative.to_string_lossy().replace('\\', "/"))
         .unwrap_or_else(|_| path.display().to_string())
@@ -4200,7 +5404,7 @@ struct AuthorizedPaths {
     parent_directories: Mutex<HashSet<PathBuf>>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 enum VaultFileSystemChangeKind {
     Create,
@@ -4228,7 +5432,7 @@ impl PartialEq<&str> for VaultFileSystemChangeKind {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct VaultFileSystemChange {
     kind: VaultFileSystemChangeKind,
@@ -4265,6 +5469,8 @@ fn ipc_contract_fixture() -> serde_json::Value {
             ],
             is_obsidian_vault: true,
             obsidian_preferences,
+            obsidian_appearance: None,
+            obsidian_ignored_config_files: Vec::new(),
             metadata: VaultMetadata {
                 is_initialized: true,
                 root_path: "C:\\Vaults\\Estudos\\.mirmind".to_string(),
@@ -4284,6 +5490,7 @@ fn ipc_contract_fixture() -> serde_json::Value {
         prompt_delete: Some(false),
         trash_option: Some("local".to_string()),
         user_ignore_filters: vec!["Arquivo/".to_string()],
+        ignored_preference_fields: Vec::new(),
     };
     let current_vault_summary = vault_summary("Estudos", Some(preferences));
     let partially_nullable_vault_summary = vault_summary(
@@ -4299,6 +5506,7 @@ fn ipc_contract_fixture() -> serde_json::Value {
             prompt_delete: None,
             trash_option: None,
             user_ignore_filters: Vec::new(),
+            ignored_preference_fields: Vec::new(),
         }),
     );
     let nullable_vault_summary = vault_summary("Estudos sem preferencias", None);
@@ -4417,6 +5625,94 @@ impl Drop for RunningVaultWatcher {
 struct ActiveVaultWatcher {
     id: u64,
     _watcher: RunningVaultWatcher,
+}
+
+/// Progresso da (re)construcao do indice de wikilinks (notas processadas /
+/// total), emitido ao frontend durante uma renomeacao/movimentacao.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WikiLinkIndexProgress {
+    processed: usize,
+    total: usize,
+}
+
+/// Estado em memoria do indice de wikilinks de renomeacao, por Vault:
+/// - `cache`: indice atualizado incrementalmente em salvamentos, criacoes,
+///   exclusoes e renomeacoes — evita reconstruir o indice inteiro quando ha
+///   edicoes entre renomeacoes (o frescor continua validado por stat no uso);
+///   `Some(None)` significa indisponivel por limites e pula reconstrucoes
+///   repetidas dentro da sessao.
+/// - `cancel_flags`: cancelamento da (re)construcao em andamento, acionado pelo
+///   usuario no frontend; o rebuild abortado faz a renomeacao cair para a
+///   varredura completa (comportamento anterior).
+#[derive(Default)]
+pub struct WikilinkIndexState {
+    cache: Mutex<HashMap<String, Option<review::wikilink_index::WikilinkIndex>>>,
+    cancel_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
+}
+
+impl WikilinkIndexState {
+    fn root_key(root: &Path) -> String {
+        root.to_string_lossy().into_owned()
+    }
+
+    fn cancel_flag(&self, root: &Path) -> Arc<AtomicBool> {
+        let key = Self::root_key(root);
+        let mut flags = self
+            .cancel_flags
+            .lock()
+            .expect("wikilink cancel flags poisoned");
+        flags.entry(key).or_default().clone()
+    }
+
+    fn set_cancel(&self, root: &Path, cancelled: bool) {
+        let flag = self.cancel_flag(root);
+        flag.store(cancelled, Ordering::Release);
+    }
+
+    fn cached(&self, root: &Path) -> Option<Option<review::wikilink_index::WikilinkIndex>> {
+        let key = Self::root_key(root);
+        let cache = self.cache.lock().expect("wikilink cache poisoned");
+        cache.get(&key).cloned()
+    }
+
+    fn store(&self, root: &Path, index: Option<review::wikilink_index::WikilinkIndex>) {
+        let key = Self::root_key(root);
+        let mut cache = self.cache.lock().expect("wikilink cache poisoned");
+        cache.insert(key, index);
+    }
+
+    /// Caminhos relativos das notas sob uma pasta (para remover do cache ao
+    /// excluir a pasta), lidos do proprio indice quando disponivel — sem varredura.
+    fn notes_under(&self, root: &Path, folder_relative: &str) -> Vec<String> {
+        let key = Self::root_key(root);
+        let prefix = format!("{}/", folder_relative.trim_end_matches('/'));
+        let cache = self.cache.lock().expect("wikilink cache poisoned");
+        match cache.get(&key) {
+            Some(Some(index)) => review::wikilink_index::note_paths(index)
+                .filter(|path| path.starts_with(&prefix))
+                .map(str::to_string)
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+}
+
+/// Ultimo inventario bruto por Vault, mantido para a aplicacao INCREMENTAL de
+/// mudancas do watcher (criacao, remocao ou renomeacao de anexos/pastas sem
+/// nota envolvida), evitando re-varrer o Vault inteiro a cada evento. A
+/// reconciliacao periodica e manual continua fazendo a varredura completa.
+#[derive(Default)]
+pub struct VaultInventoryState {
+    latest: Mutex<HashMap<String, VaultScan>>,
+}
+
+impl VaultInventoryState {
+    fn store(&self, root: &Path, scan: VaultScan) {
+        let key = root.to_string_lossy().into_owned();
+        let mut latest = self.latest.lock().expect("vault inventory state poisoned");
+        latest.insert(key, scan);
+    }
 }
 
 #[derive(Default)]
@@ -5018,6 +6314,8 @@ pub fn run() {
     builder
         .manage(AuthorizedPaths::default())
         .manage(VaultWatcherState::default())
+        .manage(WikilinkIndexState::default())
+        .manage(VaultInventoryState::default())
         .invoke_handler(tauri::generate_handler![
             select_existing_vault,
             get_recent_vault_preference,
@@ -5027,6 +6325,9 @@ pub fn run() {
             initialize_vault_metadata,
             create_vault,
             list_notes,
+            read_vault_notes,
+            scan_vault_inventory,
+            apply_vault_inventory_changes,
             list_templates,
             search_notes,
             list_favorites,
@@ -5039,10 +6340,12 @@ pub fn run() {
             list_folders,
             list_attachments,
             read_pdf_attachment,
+            read_special_vault_file,
             list_special_files,
             rename_vault_item,
             move_vault_item,
             delete_vault_item,
+            cancel_wikilink_index_build,
             list_trash,
             restore_trash_item,
             permanently_delete_trash_item,
@@ -5057,12 +6360,19 @@ pub fn run() {
             get_history_status,
             watch_vault,
             unwatch_vault,
+            append_knowledge_suggestion_to_note,
             review::ipc::get_review_ai_configuration,
             review::ipc::configure_gemini_api_key,
             review::ipc::set_gemini_data_consent,
+            review::ipc::confirm_gemini_data_consent,
             review::ipc::remove_gemini_api_key,
+            review::ipc::configure_openai_compatible_provider,
+            review::ipc::remove_openai_compatible_provider,
             review::ipc::check_ollama_review_status,
             review::ipc::assess_note_readiness,
+            review::ipc::assess_note_synthesis,
+            review::ipc::note_session_sources,
+            review::ipc::verify_note_facts,
             review::ipc::audit_note_structure,
             review::ipc::get_note_review_state,
             review::ipc::list_due_review_queue,
@@ -5098,6 +6408,7 @@ pub fn run() {
             review::ipc::start_note_review_session,
             review::ipc::continue_note_review_conversation,
             review::ipc::complete_note_review_session,
+            review::ipc::review_usage_status,
             review::ipc::seed_e2e_review_state
         ])
         .setup(|_app| {
@@ -5118,21 +6429,27 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_history_command, attachment_directory_for_note, classify_vault_file_system_change,
-        collect_attachment_files, collect_folders, collect_markdown_files,
-        collect_special_vault_files, delete_vault_item_in_root, ensure_metadata_layout,
-        extract_tags, extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root,
-        get_tag_index_in_root, import_attachment_in_root, inspect_metadata, inspect_vault_path,
+        append_knowledge_suggestion_in_root, apply_history_command, apply_vault_scan_change,
+        attachment_directory_for_note, classify_vault_file_system_change, collect_attachment_files,
+        collect_folders, collect_markdown_files, collect_special_vault_files, copy_file_synced,
+        delete_vault_item_in_root, diagnose_unreadable_notes, ensure_metadata_layout, extract_tags,
+        extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root, get_tag_index_in_root,
+        hard_link_or_copy, import_attachment_in_root, inspect_metadata, inspect_vault_path,
         list_trash_in_root, move_vault_item_in_root, move_vault_path_without_overwrite,
-        permanently_delete_trash_item_in_root, prepare_wiki_link_updates, read_history,
-        read_pdf_attachment_in_root, read_trash_entries, record_history, recover_note_in_root,
-        rename_vault_item_in_root, resolve_folder_path, resolve_note_path,
-        restore_trash_item_in_root, save_note_in_root, search_notes_in_root, to_relative_display,
-        update_wiki_links_for_note_path_change, update_wiki_links_for_note_path_change_with_hook,
-        update_wiki_links_for_note_path_change_with_hooks, validate_vault_name, write_new_file,
-        write_trash_entries, HistoryCommand, PendingRenameBuffer, PlannedWikiLinkUpdate,
-        RecentVaultPreference, SpecialVaultFileKind, VaultFileSystemChangeKind, ASSESSMENTS_DIR,
-        ATTACHMENTS_DIR, CONFIG_FILE, MAX_PDF_ATTACHMENT_BYTES, MAX_SPECIAL_VAULT_FILES,
+        obsidian_attachment_directory, permanently_delete_trash_item_in_root,
+        prepare_wiki_link_updates, read_history, read_pdf_attachment_in_root,
+        read_special_vault_file_in_root, read_trash_entries, read_vault_notes_in_root,
+        record_history, recover_note_in_root, rename_vault_item_in_root,
+        rename_vault_item_in_root_with_state, resolve_folder_path, resolve_note_path,
+        restore_trash_item_in_root, save_note_in_root, scan_vault_unified, search_notes_in_root,
+        to_relative_display, truncate_attachment_inventory, update_wiki_links_for_note_path_change,
+        update_wiki_links_for_note_path_change_with_hook,
+        update_wiki_links_for_note_path_change_with_hooks, update_wikilink_index_after_save,
+        validate_vault_name, write_file_regular_no_follow, write_new_file, write_trash_entries,
+        HistoryCommand, PendingRenameBuffer, PlannedWikiLinkUpdate, RecentVaultPreference,
+        SpecialVaultFileKind, UnreadableReason, VaultFileSystemChange, VaultFileSystemChangeKind,
+        WikilinkIndexState, ASSESSMENTS_DIR, ATTACHMENTS_DIR, CONFIG_FILE,
+        MAX_ATTACHMENT_INVENTORY_FILES, MAX_PDF_ATTACHMENT_BYTES, MAX_SPECIAL_VAULT_FILES,
         METADATA_DIR, REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
     };
     use crate::review::{
@@ -5151,7 +6468,7 @@ mod tests {
     #[cfg(windows)]
     use super::{
         queue_pending_watcher_modification, start_vault_watcher, start_vault_watcher_with_capacity,
-        VaultFileSystemChange, VaultWatcherState,
+        VaultWatcherState,
     };
     #[cfg(windows)]
     use std::{
@@ -5963,6 +7280,59 @@ mod tests {
     }
 
     #[test]
+    fn read_vault_notes_returns_all_note_contents_in_one_pass() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join("Notas")).expect("create notas folder");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian folder");
+        fs::create_dir_all(root.join(".mirmind")).expect("create mirmind folder");
+        fs::write(root.join("Notas").join("a.md"), "# A\n\nConteudo A").expect("write a");
+        fs::write(root.join("b.md"), "# B").expect("write b");
+        fs::write(
+            root.join(".obsidian").join("interna.md"),
+            "# Obsidian interna",
+        )
+        .expect("write obsidian note");
+        fs::write(root.join(".mirmind").join("meta.md"), "# Meta").expect("write meta note");
+        fs::write(root.join("anexo.txt"), "nao e nota").expect("write txt");
+
+        let note_paths = collect_markdown_files(&root).expect("collect");
+        let mut progress_calls = Vec::new();
+        let documents = read_vault_notes_in_root(&root, &note_paths, |processed, total| {
+            progress_calls.push((processed, total));
+        })
+        .expect("read all notes");
+
+        let mut by_path = documents
+            .iter()
+            .map(|document| (document.relative_path.clone(), document.content.clone()))
+            .collect::<Vec<_>>();
+        by_path.sort();
+        assert_eq!(
+            by_path,
+            vec![
+                ("Notas/a.md".to_string(), "# A\n\nConteudo A".to_string()),
+                ("b.md".to_string(), "# B".to_string()),
+            ]
+        );
+        // Progresso final emitido (total == quantidade de notas; as pastas
+        // internas (.obsidian/.mirmind) ficam de fora da leitura unificada).
+        assert_eq!(progress_calls, vec![(2, 2)]);
+    }
+
+    #[test]
+    fn read_vault_notes_handles_empty_vault() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let note_paths = collect_markdown_files(root).expect("collect");
+        let documents = read_vault_notes_in_root(root, &note_paths, |_, _| {}).expect("read all");
+        assert!(documents.is_empty());
+    }
+
+    #[test]
     fn obsidian_regression_matrix_study_vault() {
         run_obsidian_regression_scenario(&ObsidianRegressionScenario {
             name: "study vault",
@@ -5980,6 +7350,262 @@ mod tests {
             indexed_notes: &["Diarias/2026-07-14.md", "Projetos/Roadmap.md"],
             editable_note: "Projetos/Roadmap.md",
         });
+    }
+
+    /// Matriz de regressao Obsidian: CRLF e BOM preservados byte a byte.
+    /// A leitura nunca converte quebras de linha nem remove o marcador BOM, e o
+    /// salvamento grava EXATAMENTE os bytes do conteudo (sem normalizar, sem
+    /// injetar quebra final, sem adicionar BOM). Tags e frontmatter sao
+    /// detectados com CRLF e com BOM na mesma nota.
+    #[test]
+    fn obsidian_matrix_crlf_and_bom_are_byte_faithful() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        ensure_metadata_layout(&root).expect("initialize metadata");
+
+        // BOM UTF-8 (EF BB BF) + frontmatter com CRLF + corpo com CRLF.
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"\xef\xbb\xbf---\r\n");
+        bytes.extend_from_slice(b"tags:\r\n  - estudo/quimica\r\n  - provas\r\n---\r\n\r\n");
+        bytes.extend_from_slice(
+            b"# Liga\xc3\xa7\xc3\xb5es Qu\xc3\xadmicas\r\n\r\nTexto com \r\nquebras CRLF.\r\n",
+        );
+        let note = root.join("quimica.md");
+        fs::write(&note, &bytes).expect("write CRLF+BOM note");
+
+        // Leitura bruta: bytes intactos (BOM, CRLF, acentos NFC).
+        assert_eq!(fs::read(&note).expect("read raw"), bytes);
+        // Leitura como nota: o conteudo carrega com BOM e CRLF preservados.
+        let content = fs::read_to_string(&note).expect("read as note");
+        assert!(content.starts_with('\u{feff}'));
+        assert!(content.contains("\r\nquebras CRLF."));
+        // Tags com CRLF + BOM no mesmo arquivo.
+        assert_eq!(
+            extract_tags(&content).expect("extract tags"),
+            vec!["estudo/quimica", "provas"]
+        );
+
+        // Salvamento: exatamente os bytes dados, sem normalizacao.
+        let appended = format!("{content}\r\nObservacao final.\r\n");
+        save_note_in_root(&root, "quimica.md", &appended).expect("save CRLF note");
+        let mut expected = bytes.clone();
+        expected.extend_from_slice(b"\r\nObservacao final.\r\n");
+        assert_eq!(
+            fs::read(&note).expect("read saved bytes"),
+            expected,
+            "save must write exactly the given bytes (CRLF preserved, no BOM change)"
+        );
+        // Reabertura como nota devolve o conteudo exato.
+        assert_eq!(
+            fs::read_to_string(&note).expect("reopen note"),
+            appended,
+            "reopening must return the exact edited Markdown"
+        );
+
+        // Controle: nota com quebras LF continua LF apos salvar (nada vira CRLF).
+        let lf_only = root.join("lf.md");
+        let lf_bytes = b"# Titulo\n\nCorpo com LF.\n".to_vec();
+        fs::write(&lf_only, &lf_bytes).expect("write LF note");
+        let lf_content = fs::read_to_string(&lf_only).expect("read LF note");
+        save_note_in_root(&root, "lf.md", &lf_content).expect("save LF note");
+        assert_eq!(
+            fs::read(&lf_only).expect("read LF bytes"),
+            lf_bytes,
+            "save must not convert LF to CRLF"
+        );
+    }
+
+    #[test]
+    fn append_knowledge_suggestion_adds_a_confirmed_quote_at_the_end() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let note = root.join("quimica.md");
+        fs::write(&note, "# Quimica\n\nA agua e H2O.\n").expect("write note");
+
+        let document = append_knowledge_suggestion_in_root(
+            &root,
+            "quimica.md",
+            "O usuario relacionou a agua com a tensao superficial.",
+        )
+        .expect("append suggestion");
+        let content = fs::read_to_string(&note).expect("reopen note");
+        assert!(content.contains("> O usuario relacionou a agua com a tensao superficial."));
+        // O texto vai ao final, como citacao, sem tocar no corpo existente.
+        assert!(content.starts_with("# Quimica\n\nA agua e H2O."));
+        assert!(document.content.ends_with("tensao superficial.\n"));
+        // O documento devolvido reflete o conteudo gravado.
+        assert_eq!(document.content, content);
+        // O historico registra o append como um save.
+        let history = read_history(&root).expect("read history");
+        let has_save =
+            |commands: &[HistoryCommand]| {
+                commands.iter().any(|command| matches!(
+                command,
+                HistoryCommand::SaveNote { relative_path, .. } if relative_path == "quimica.md"
+            ))
+            };
+        assert!(has_save(&history.undo) || has_save(&history.redo));
+
+        // Texto vazio ou acima do limite e rejeitado sem tocar o arquivo.
+        let before = fs::read_to_string(&note).expect("read before");
+        assert!(append_knowledge_suggestion_in_root(&root, "quimica.md", "   ").is_err());
+        assert!(
+            append_knowledge_suggestion_in_root(&root, "quimica.md", &"x".repeat(9_000)).is_err()
+        );
+        assert_eq!(fs::read_to_string(&note).expect("read after"), before);
+    }
+
+    /// Unicode NFC/NFD no conteudo e nos nomes: acentos compostos e decompostos
+    /// sao bytes distintos e permanecem exatos apos salvar; uma nota NFD
+    /// resolve, salva e relê pelo proprio caminho NFD; um wikilink NFC resolve
+    /// para a nota NFC (comparacao e por forma normalizada a minusculas).
+    #[test]
+    fn obsidian_matrix_unicode_nfc_nfd_round_trips() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        ensure_metadata_layout(&root).expect("initialize metadata");
+
+        // Conteudo NFD: 'a' + U+0301 (acento agudo combinante) no lugar de 'a'.
+        let nfd_content = "# Aula de Qu\u{69}\u{301}mica\n\nF\u{6f}\u{301}rmula de prova\n";
+        let nfd_note = root.join("aula-\u{69}\u{301}mica.md");
+        fs::write(&nfd_note, nfd_content).expect("write NFD note");
+        save_note_in_root(&root, "aula-\u{69}\u{301}mica.md", nfd_content)
+            .expect("save NFD note by its own name");
+        assert_eq!(
+            fs::read(&nfd_note).expect("read NFD bytes"),
+            nfd_content.as_bytes(),
+            "NFD content must round-trip byte for byte"
+        );
+
+        // Conteudo NFC (acento precomposto) e um byte diferente do NFD.
+        let nfc_content = "# Aula de Qu\u{ed}mica\n";
+        assert_ne!(nfd_content.as_bytes(), nfc_content.as_bytes());
+        let nfc_note = root.join("quimica-nfc.md");
+        fs::write(&nfc_note, nfc_content).expect("write NFC note");
+        save_note_in_root(&root, "quimica-nfc.md", nfc_content).expect("save NFC note");
+        assert_eq!(
+            fs::read(&nfc_note).expect("read NFC bytes"),
+            nfc_content.as_bytes(),
+            "NFC content must round-trip byte for byte"
+        );
+
+        // Wikilink NFC resolvendo para a nota NFC de nome NFC.
+        let linked = root.join("indice.md");
+        fs::write(&linked, "[[quimica-nfc]]\n").expect("write index note");
+        let backlinks = get_backlinks_in_root(&root, "quimica-nfc.md").expect("backlinks");
+        assert_eq!(
+            backlinks
+                .iter()
+                .map(|link| link.relative_path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["indice.md"]
+        );
+    }
+
+    /// Nomes com espacos: resolvem, salvam, indexam e aparecem em backlinks
+    /// (o wikilink usa o caminho com espacos, sem normalizacao de espacos).
+    #[test]
+    fn obsidian_matrix_names_with_spaces_resolve_save_and_backlink() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        ensure_metadata_layout(&root).expect("initialize metadata");
+
+        let folder = "Minhas Notas 2026";
+        let note_relative = "Minhas Notas 2026/nota importante (final).md";
+        let note_path = root.join(note_relative);
+        fs::create_dir_all(note_path.parent().expect("parent")).expect("create folder");
+        fs::write(&note_path, "# Nota Importante\n\nConteudo da nota.\n")
+            .expect("write note with spaces");
+
+        assert!(resolve_note_path(&root, note_relative).is_ok());
+        save_note_in_root(&root, note_relative, "# Nota Importante\n\nEditada.\n")
+            .expect("save note with spaces");
+        assert_eq!(
+            fs::read_to_string(&note_path).expect("reopen note"),
+            "# Nota Importante\n\nEditada.\n"
+        );
+
+        let indexed = collect_markdown_files(&root)
+            .expect("collect")
+            .into_iter()
+            .map(|path| to_relative_display(&root, &path))
+            .collect::<Vec<_>>();
+        assert!(indexed.iter().any(|path| path == note_relative));
+        assert!(collect_folders(&root)
+            .expect("folders")
+            .iter()
+            .any(|path| { to_relative_display(&root, path) == folder }));
+
+        let source = root.join("indice.md");
+        fs::write(&source, "[[Minhas Notas 2026/nota importante (final)]]\n")
+            .expect("write index note");
+        let backlinks = get_backlinks_in_root(&root, note_relative).expect("backlinks");
+        assert_eq!(
+            backlinks
+                .iter()
+                .map(|link| link.relative_path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["indice.md"]
+        );
+    }
+
+    /// Symlink de diretorio dentro do Vault apontando para fora: a varredura
+    /// ignora o diretorio inteiro (o conteudo externo nunca entra no inventario
+    /// nem em loops), e o salvamento atraves do diretorio simbolico e rejeitado
+    /// pelo confinamento — nada e escrito fora do Vault.
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn obsidian_matrix_symlinked_directory_never_escapes_the_vault() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        ensure_metadata_layout(&root).expect("initialize metadata");
+        let outside = tempdir().expect("outside temp dir");
+        fs::write(outside.path().join("segredo.md"), "# Segredo\n").expect("write outside note");
+
+        let link = root.join("link-externo");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(outside.path(), &link).expect("create directory symlink");
+        #[cfg(windows)]
+        if !create_windows_directory_symlink_if_available(
+            outside.path(),
+            &link,
+            "matrix symlinked directory",
+        ) {
+            return;
+        }
+
+        // A varredura nao enxerga nada fora do Vault.
+        let indexed = collect_markdown_files(&root)
+            .expect("collect")
+            .into_iter()
+            .map(|path| to_relative_display(&root, &path))
+            .collect::<Vec<_>>();
+        assert_eq!(indexed, Vec::<String>::new());
+
+        // Resolver e salvar atraves do symlink e rejeitado pelo confinamento.
+        assert!(resolve_note_path(&root, "link-externo/segredo.md").is_err());
+        assert!(save_note_in_root(&root, "link-externo/novo.md", "# Novo\n").is_err());
+        assert!(!outside.path().join("novo.md").exists());
+        assert_eq!(
+            fs::read_to_string(outside.path().join("segredo.md")).expect("outside intact"),
+            "# Segredo\n",
+            "the external file must never be touched"
+        );
     }
 
     #[test]
@@ -6107,7 +7733,7 @@ mod tests {
             "image",
         )
         .expect("write attachment");
-        fs::write(root.join("Notas").join("rascunho.txt"), "unsupported")
+        fs::write(root.join("Notas").join("rascunho.xyz"), "unsupported")
             .expect("write unsupported file");
 
         assert_eq!(
@@ -6165,6 +7791,523 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(collected, vec!["projetos", "projetos/vazios"]);
+    }
+
+    #[test]
+    fn scan_vault_unified_classifies_everything_in_one_pass() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let canonical_root = root.canonicalize().expect("canonical root");
+        fs::create_dir_all(root.join("projetos").join("vazios")).expect("create folders");
+        fs::create_dir_all(root.join(METADATA_DIR)).expect("create metadata dir");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian dir");
+        fs::write(root.join("nota.md"), "# Nota").expect("write note");
+        fs::write(root.join("projetos").join("nested.md"), "# Nested").expect("write nested");
+        fs::write(root.join("imagem.png"), "png").expect("write attachment");
+        fs::write(root.join("projetos").join("diagrama.canvas"), "{}").expect("write canvas");
+        fs::write(root.join("quadro.excalidraw.md"), "{}").expect("write excalidraw");
+        fs::write(root.join("arquivo.xyz"), "{}").expect("write unknown special");
+        fs::write(root.join(".escondida.md"), "# Hidden").expect("write hidden note");
+        fs::write(root.join(".segredo.png"), "png").expect("write hidden attachment");
+        fs::write(root.join(".privado.canvas"), "{}").expect("write hidden canvas");
+        fs::write(root.join(METADATA_DIR).join("interno.md"), "# Interno")
+            .expect("write internal note");
+        fs::write(root.join(METADATA_DIR).join("interno.png"), "png")
+            .expect("write internal attachment");
+
+        let scan = scan_vault_unified(root).expect("scan vault");
+        let relative = |path: &std::path::Path| {
+            path.strip_prefix(&canonical_root)
+                .expect("relative path")
+                .to_string_lossy()
+                .replace('\\', "/")
+        };
+        assert_eq!(
+            scan.notes
+                .iter()
+                .map(|path| relative(path))
+                .collect::<Vec<_>>(),
+            vec![".escondida.md", "nota.md", "projetos/nested.md"]
+        );
+        assert_eq!(
+            scan.attachments
+                .iter()
+                .map(|path| relative(path))
+                .collect::<Vec<_>>(),
+            vec![".segredo.png", "imagem.png"]
+        );
+        assert_eq!(
+            scan.folders
+                .iter()
+                .map(|path| relative(path))
+                .collect::<Vec<_>>(),
+            vec!["projetos", "projetos/vazios"]
+        );
+        let specials = scan
+            .special_files
+            .iter()
+            .map(|file| file.relative_path.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            specials,
+            vec![
+                "arquivo.xyz",
+                "projetos/diagrama.canvas",
+                "quadro.excalidraw.md"
+            ]
+        );
+        assert!(!scan.special_files_truncated);
+        // As colecoes pontuais delegam para a MESMA varredura unificada.
+        assert_eq!(collect_markdown_files(root).expect("notes"), scan.notes);
+        assert_eq!(
+            collect_attachment_files(root).expect("attachments"),
+            scan.attachments
+        );
+        assert_eq!(collect_folders(root).expect("folders"), scan.folders);
+        // Vault saudavel: nenhum diagnostico de falha parcial.
+        assert!(scan.diagnostics.unreadable_directories.is_empty());
+        assert!(scan.diagnostics.unreadable_files.is_empty());
+    }
+
+    #[test]
+    fn diagnose_unreadable_notes_flags_non_utf8_and_tag_failures() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let canonical_root = root.canonicalize().expect("canonical root");
+        fs::write(root.join("ok.md"), "# Ok\n").expect("write ok note");
+        // Markdown com bytes invalidos para UTF-8 (ex.: legado em outra
+        // codificacao) — legivel como arquivo, inacessivel como conteudo.
+        fs::write(root.join("legado.md"), [0xC3, 0x28, 0x41, 0x42]).expect("write legacy note");
+
+        let mut diagnostics = scan_vault_unified(&canonical_root)
+            .expect("scan vault")
+            .diagnostics;
+        let notes = scan_vault_unified(&canonical_root)
+            .expect("scan notes")
+            .notes;
+        diagnose_unreadable_notes(&canonical_root, &notes, &mut diagnostics);
+
+        assert!(diagnostics.unreadable_directories.is_empty());
+        assert_eq!(
+            diagnostics.unreadable_files,
+            vec![super::UnreadableFile {
+                relative_path: "legado.md".to_string(),
+                reason: UnreadableReason::NotUtf8,
+            }]
+        );
+    }
+
+    #[test]
+    fn write_file_regular_no_follow_rejects_symlink_as_final_component() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let target = tempdir().expect("outside temp dir");
+        let outside_file = target.path().join("fora.md");
+        fs::write(&outside_file, "conteudo externo").expect("write outside");
+        let link = root.join("nota-link.md");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&outside_file, &link).expect("create file symlink");
+        #[cfg(windows)]
+        if !create_windows_file_symlink_if_available(&outside_file, &link, "no-follow write") {
+            return;
+        }
+
+        // O helper com no-follow nunca escreve atraves do symlink.
+        assert!(
+            write_file_regular_no_follow(&link, &root, b"conteudo novo").is_err(),
+            "writing through a symlink must be rejected"
+        );
+        assert_eq!(
+            fs::read_to_string(&outside_file).expect("outside intact"),
+            "conteudo externo",
+            "the external file must never be touched"
+        );
+    }
+
+    #[test]
+    fn hard_link_or_copy_falls_back_to_synced_copy_when_hard_link_fails() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let source = root.join("origem.bin");
+        let target = root.join("destino.bin");
+        fs::write(&source, b"bytes exatos 1\x00\x02\x03").expect("write source");
+
+        // Fallback por copia quando o filesystem nao oferece hard links.
+        let used_copy = hard_link_or_copy(&source, &target, |_, _| {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "filesystem sem hard links",
+            ))
+        })
+        .expect("copy fallback");
+        assert!(used_copy);
+        assert_eq!(
+            fs::read(&target).expect("read target"),
+            b"bytes exatos 1\x00\x02\x03",
+            "the copy must be byte faithful"
+        );
+        assert!(source.exists(), "the source must remain intact");
+
+        // Caminho normal (hard link) continua reservando sem copiar.
+        let other = root.join("outro.bin");
+        let used_copy =
+            hard_link_or_copy(&source, &other, |a, b| fs::hard_link(a, b)).expect("hard link");
+        assert!(!used_copy);
+        assert_eq!(
+            fs::read(&other).expect("read other"),
+            b"bytes exatos 1\x00\x02\x03"
+        );
+    }
+
+    #[test]
+    fn copy_file_synced_preserves_bytes_exactly() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let source = root.join("origem.bin");
+        let target = root.join("destino.bin");
+        let bytes = (0_u8..=255).collect::<Vec<_>>();
+        fs::write(&source, &bytes).expect("write source");
+        copy_file_synced(&source, &target).expect("copy");
+        assert_eq!(fs::read(&target).expect("read target"), bytes);
+    }
+
+    #[test]
+    fn expanded_attachment_formats_are_inventoried_with_case_and_unicode_tolerance() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let canonical_root = root.canonicalize().expect("canonical root");
+        // Formatos ampliados (armazenados ou delegados a plugins pelo Obsidian),
+        // com extensao em maiusculas e nomes Unicode com espacos.
+        for name in [
+            "relatorio.docx",
+            "planilha.CSV",
+            "audio.OPUS",
+            "capa.epub",
+            "arquivo - copia.png",
+            "apresentacao - conferencia.pptx",
+            "dados - copia.json",
+            "legenda.srt",
+            "fonte - light.ttf",
+            "backup - 2026.zip",
+        ] {
+            fs::write(root.join(name), "conteudo").expect("write attachment");
+        }
+        let scan = scan_vault_unified(&canonical_root).expect("scan vault");
+        let relative = |path: &std::path::Path| {
+            path.strip_prefix(&canonical_root)
+                .expect("relative path")
+                .to_string_lossy()
+                .replace('\\', "/")
+        };
+        let mut names = scan
+            .attachments
+            .iter()
+            .map(|path| relative(path))
+            .collect::<Vec<_>>();
+        names.sort();
+        assert_eq!(
+            names,
+            vec![
+                "apresentacao - conferencia.pptx",
+                "arquivo - copia.png",
+                "audio.OPUS",
+                "backup - 2026.zip",
+                "capa.epub",
+                "dados - copia.json",
+                "fonte - light.ttf",
+                "legenda.srt",
+                "planilha.CSV",
+                "relatorio.docx",
+            ]
+        );
+    }
+
+    #[test]
+    fn inventory_truncates_attachments_over_the_explicit_limit() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        let canonical_root = root.canonicalize().expect("canonical root");
+        for index in 0..MAX_ATTACHMENT_INVENTORY_FILES + 3 {
+            fs::write(root.join(format!("anexo-{index:05}.bin")), "conteudo")
+                .expect("write attachment");
+        }
+        let mut scan = scan_vault_unified(&canonical_root).expect("scan vault");
+        let truncated =
+            truncate_attachment_inventory(&mut scan.attachments, MAX_ATTACHMENT_INVENTORY_FILES);
+        assert!(truncated);
+        assert_eq!(scan.attachments.len(), MAX_ATTACHMENT_INVENTORY_FILES);
+
+        // Abaixo do limite, nada e cortado.
+        let mut small = scan.attachments.iter().take(2).cloned().collect::<Vec<_>>();
+        assert!(!truncate_attachment_inventory(
+            &mut small,
+            MAX_ATTACHMENT_INVENTORY_FILES
+        ));
+        assert_eq!(small.len(), 2);
+    }
+
+    #[test]
+    fn draft_attachments_with_note_relative_folder_resolve_against_vault_root() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+        fs::write(
+            root.join(".obsidian").join("app.json"),
+            r#"{ "attachmentFolderPath": "./pasta" }"#,
+        )
+        .expect("write obsidian config");
+
+        // Rascunho (nota ainda nao salva, caminho vazio): `./pasta` resolve
+        // contra a raiz do Vault.
+        let draft = obsidian_attachment_directory(&root, "").expect("draft folder");
+        assert_eq!(draft, Some(root.join("pasta")));
+
+        // Nota salva em subpasta: `./pasta` resolve relativo a pasta da nota.
+        fs::create_dir_all(root.join("materias")).expect("create note folder");
+        fs::write(root.join("materias").join("aula.md"), "# Aula").expect("write note");
+        let note = obsidian_attachment_directory(&root, "materias/aula.md").expect("note folder");
+        assert_eq!(note, Some(root.join("materias").join("pasta")));
+    }
+
+    #[test]
+    fn obsidian_attachment_directory_handles_all_documented_forms() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+        fs::create_dir_all(root.join("materias")).expect("create note folder");
+        fs::write(root.join("materias").join("aula.md"), "# Aula").expect("write note");
+
+        let configure = |value: &str| {
+            fs::write(
+                root.join(".obsidian").join("app.json"),
+                format!(r#"{{ "attachmentFolderPath": {value:?} }}"#),
+            )
+            .expect("write app.json");
+        };
+
+        // Raiz do Vault: vazio e "/".
+        for value in ["", "/"] {
+            configure(value);
+            assert_eq!(
+                obsidian_attachment_directory(&root, "materias/aula.md").expect("root"),
+                Some(root.to_path_buf()),
+                "value {value:?} must resolve to the vault root"
+            );
+        }
+
+        // Mesma pasta da nota: "." e "./".
+        for value in [".", "./"] {
+            configure(value);
+            assert_eq!(
+                obsidian_attachment_directory(&root, "materias/aula.md").expect("note folder"),
+                Some(root.join("materias")),
+                "value {value:?} must resolve to the note folder"
+            );
+        }
+
+        // Subpasta da nota: "./pasta", barra final normalizada e caixa preservada.
+        for value in ["./pasta", "./pasta/"] {
+            configure(value);
+            assert_eq!(
+                obsidian_attachment_directory(&root, "materias/aula.md").expect("note subfolder"),
+                Some(root.join("materias").join("pasta")),
+                "value {value:?} must resolve relative to the note folder"
+            );
+        }
+        configure("./Pasta");
+        assert_eq!(
+            obsidian_attachment_directory(&root, "materias/aula.md").expect("note subfolder case"),
+            Some(root.join("materias").join("Pasta"))
+        );
+
+        // Pasta fixa relativa a raiz: "media" e "media/".
+        for value in ["media", "media/"] {
+            configure(value);
+            assert_eq!(
+                obsidian_attachment_directory(&root, "materias/aula.md").expect("fixed folder"),
+                Some(root.join("media")),
+                "value {value:?} must resolve against the vault root"
+            );
+        }
+
+        // Rascunho (nota ainda nao salva): "./pasta" resolve contra a raiz.
+        configure("./pasta");
+        assert_eq!(
+            obsidian_attachment_directory(&root, "").expect("draft"),
+            Some(root.join("pasta"))
+        );
+
+        // Rejeicoes: absoluto, parent, segmentos com ponto e diretorios internos.
+        for value in [
+            "/abs",
+            "../fora",
+            "media/../fora",
+            ".obsidian",
+            "./.obsidian",
+            "./../fora",
+        ] {
+            configure(value);
+            assert!(
+                obsidian_attachment_directory(&root, "materias/aula.md").is_err(),
+                "value {value:?} must be rejected as unsafe"
+            );
+        }
+    }
+
+    #[test]
+    fn obsidian_matrix_attachments_case_unicode_spaces_and_dotfiles() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join("midia")).expect("create media folder");
+        let supported = [
+            ("Foto.PNG", "midia/Foto.PNG"),
+            ("Fotografia.JPEG", "midia/Fotografia.JPEG"),
+            ("caf\u{e9} (especial).png", "midia/caf\u{e9} (especial).png"),
+            (
+                "aula-\u{69}\u{301}mica.png",
+                "midia/aula-\u{69}\u{301}mica.png",
+            ),
+            ("v1.2.3.png", "midia/v1.2.3.png"),
+            (".oculto.png", "midia/.oculto.png"),
+        ];
+        for (name, _) in supported {
+            fs::write(root.join("midia").join(name), "attachment").expect("write attachment");
+        }
+        // Nao anexos: sem extensao, extensao desconhecida e nota Markdown.
+        fs::write(root.join("midia").join("sem-extensao"), "text").expect("write no extension");
+        fs::write(root.join("midia").join("rascunho.xyz"), "text").expect("write unsupported");
+        fs::write(root.join("midia").join("plano.md"), "# Plano").expect("write note");
+
+        let mut collected = collect_attachment_files(&root)
+            .expect("collect attachments")
+            .into_iter()
+            .map(|path| to_relative_display(&root, &path))
+            .collect::<Vec<_>>();
+        let mut expected = supported
+            .iter()
+            .map(|(_, relative)| relative.to_string())
+            .collect::<Vec<_>>();
+        collected.sort();
+        expected.sort();
+        assert_eq!(collected, expected);
+    }
+
+    #[test]
+    fn incremental_inventory_matches_a_full_scan_after_watcher_changes() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join("media")).expect("create media folder");
+        fs::write(root.join("media").join("a.png"), "img").expect("write a");
+        fs::write(root.join("media").join("b.png"), "img").expect("write b");
+        fs::write(root.join("nota.md"), "# Nota").expect("write note");
+        fs::create_dir_all(root.join("pastas")).expect("create pastas folder");
+
+        let mut scan = scan_vault_unified(&root).expect("base scan");
+
+        // Cria um anexo fora do app.
+        fs::write(root.join("media").join("c.png"), "img").expect("write c");
+        apply_vault_scan_change(
+            &mut scan,
+            &root,
+            &VaultFileSystemChange {
+                kind: VaultFileSystemChangeKind::Create,
+                paths: vec!["media/c.png".to_string()],
+            },
+        );
+
+        // Remove um anexo fora do app.
+        fs::remove_file(root.join("media").join("a.png")).expect("remove a");
+        apply_vault_scan_change(
+            &mut scan,
+            &root,
+            &VaultFileSystemChange {
+                kind: VaultFileSystemChangeKind::Remove,
+                paths: vec!["media/a.png".to_string()],
+            },
+        );
+
+        // Renomeia um anexo fora do app.
+        fs::rename(
+            root.join("media").join("b.png"),
+            root.join("media").join("b2.png"),
+        )
+        .expect("rename b");
+        apply_vault_scan_change(
+            &mut scan,
+            &root,
+            &VaultFileSystemChange {
+                kind: VaultFileSystemChangeKind::Rename,
+                paths: vec!["media/b.png".to_string(), "media/b2.png".to_string()],
+            },
+        );
+
+        // Cria pasta e nota dentro dela (fora do app).
+        fs::create_dir_all(root.join("novas")).expect("create novas folder");
+        fs::write(root.join("novas").join("x.md"), "# X").expect("write x");
+        apply_vault_scan_change(
+            &mut scan,
+            &root,
+            &VaultFileSystemChange {
+                kind: VaultFileSystemChangeKind::Create,
+                paths: vec!["novas".to_string(), "novas/x.md".to_string()],
+            },
+        );
+
+        // Renomeia uma pasta com conteudo (fora do app).
+        fs::create_dir_all(root.join("movida")).expect("create movida folder");
+        fs::write(root.join("movida").join("d.png"), "img").expect("write d");
+        fs::write(root.join("movida").join("y.md"), "# Y").expect("write y");
+        apply_vault_scan_change(
+            &mut scan,
+            &root,
+            &VaultFileSystemChange {
+                kind: VaultFileSystemChangeKind::Create,
+                paths: vec![
+                    "movida".to_string(),
+                    "movida/d.png".to_string(),
+                    "movida/y.md".to_string(),
+                ],
+            },
+        );
+        fs::rename(root.join("movida"), root.join("renomeada")).expect("rename folder");
+        apply_vault_scan_change(
+            &mut scan,
+            &root,
+            &VaultFileSystemChange {
+                kind: VaultFileSystemChangeKind::Rename,
+                paths: vec!["movida".to_string(), "renomeada".to_string()],
+            },
+        );
+
+        // O inventario incremental coincide com uma varredura completa fresca.
+        scan.notes.sort();
+        scan.folders.sort();
+        scan.attachments.sort();
+        let fresh = scan_vault_unified(&root).expect("fresh scan");
+        let mut fresh_notes = fresh.notes;
+        fresh_notes.sort();
+        let mut fresh_folders = fresh.folders;
+        fresh_folders.sort();
+        let mut fresh_attachments = fresh.attachments;
+        fresh_attachments.sort();
+        assert_eq!(scan.notes, fresh_notes);
+        assert_eq!(scan.folders, fresh_folders);
+        assert_eq!(scan.attachments, fresh_attachments);
     }
 
     #[test]
@@ -6387,6 +8530,70 @@ mod tests {
         );
     }
 
+    /// NTFS: uma nota mantida aberta por OUTRO processo (share mode sem
+    /// FILE_SHARE_WRITE) deve fazer o save falhar com erro claro, sem gravar
+    /// bytes parciais e sem corromper o conteudo existente — a falha de
+    /// concorrencia nunca pode produzir uma escrita pela metade.
+    #[cfg(windows)]
+    #[test]
+    fn save_never_truncates_a_note_locked_by_another_process() {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::Foundation::{CloseHandle, GENERIC_READ};
+        use windows_sys::Win32::Storage::FileSystem::{
+            CreateFileW, FILE_SHARE_READ, OPEN_EXISTING,
+        };
+
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let note = root.join("concorrencia.md");
+        fs::write(&note, "conteudo original intacto").expect("write note");
+
+        // Abre o arquivo como outro processo faria, SEM compartilhar escrita:
+        // enquanto o handle existir, qualquer gravacao concorrente falha.
+        let wide = note
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect::<Vec<_>>();
+        let handle = unsafe {
+            CreateFileW(
+                wide.as_ptr(),
+                GENERIC_READ,
+                FILE_SHARE_READ,
+                std::ptr::null(),
+                OPEN_EXISTING,
+                0,
+                std::ptr::null_mut(),
+            )
+        };
+        assert!(!handle.is_null(), "abrir o arquivo como outro processo");
+
+        let error = save_note_in_root(&root, "concorrencia.md", "escrita concorrente")
+            .err()
+            .expect("save sob lock de outro processo");
+        assert!(
+            error.to_string().contains("Nao foi possivel salvar"),
+            "a falha deve ser clara, nao generica: {error}"
+        );
+        // Nenhuma escrita parcial: os bytes originais permanecem exatos.
+        assert_eq!(
+            fs::read_to_string(&note).expect("reopen note"),
+            "conteudo original intacto"
+        );
+
+        unsafe { CloseHandle(handle) };
+        // Depois que o outro processo libera o arquivo, o mesmo save funciona.
+        save_note_in_root(&root, "concorrencia.md", "escrita concorrente")
+            .expect("save apos liberar o lock");
+        assert_eq!(
+            fs::read_to_string(&note).expect("reopen saved note"),
+            "escrita concorrente"
+        );
+    }
+
     #[test]
     fn resolve_note_path_rejects_parent_traversal() {
         let temporary_directory = tempdir().expect("temp dir");
@@ -6505,6 +8712,152 @@ mod tests {
         assert!(root.join("estudos").join("resumo.md").is_file());
         assert!(!root.join("materias").exists());
         assert!(rename_vault_item_in_root(&root, "estudos", "../fora", "folder").is_err());
+    }
+
+    #[test]
+    fn consecutive_renames_use_the_wikilink_index_and_keep_links_consistent() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::write(root.join("alvo.md"), "# Alvo").expect("write target");
+        fs::write(root.join("a.md"), "# A\n[[alvo]]\n").expect("write referrer");
+        fs::write(root.join("isolada.md"), "# Isolada").expect("write unrelated note");
+
+        // Primeira renomeacao: sem indice no disco, reconstrói e persiste.
+        rename_vault_item_in_root(&root, "alvo.md", "alvo-2", "note").expect("first rename");
+        assert_eq!(
+            fs::read_to_string(root.join("a.md")).expect("read referrer"),
+            "# A\n[[alvo-2]]\n"
+        );
+
+        // Segunda renomeacao: o indice persistido esta fresco (nada mudou por
+        // fora) e e usado para ler apenas as notas candidatas.
+        rename_vault_item_in_root(&root, "alvo-2.md", "alvo-3", "note").expect("second rename");
+        assert_eq!(
+            fs::read_to_string(root.join("a.md")).expect("read referrer"),
+            "# A\n[[alvo-3]]\n"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("isolada.md")).expect("unrelated note intact"),
+            "# Isolada"
+        );
+        // O indice foi persistido durante a segunda renomeacao.
+        assert!(root
+            .join(METADATA_DIR)
+            .join(".wikilink-index.json")
+            .is_file());
+    }
+
+    #[test]
+    fn saves_between_renames_keep_the_index_cache_fresh() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::write(root.join("alvo.md"), "# Alvo").expect("write target");
+        fs::write(root.join("a.md"), "# A\n[[alvo]]\n").expect("write referrer");
+        fs::write(root.join("isolada.md"), "# Isolada").expect("write unrelated note");
+
+        let state = WikilinkIndexState::default();
+        let rebuild_count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let rebuild_count_capture = rebuild_count.clone();
+        let hooks = crate::review::wikilink_index::BuildHooks {
+            on_progress: Some(Box::new(move |_processed, _total| {
+                rebuild_count_capture.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            })),
+            should_cancel: None,
+        };
+
+        // Primeira renomeacao: sem indice, reconstroi (progresso reportado).
+        rename_vault_item_in_root_with_state(
+            &root,
+            "alvo.md",
+            "alvo-2",
+            "note",
+            &hooks,
+            Some(&state),
+        )
+        .expect("first rename");
+        assert!(
+            rebuild_count.load(std::sync::atomic::Ordering::Relaxed) > 0,
+            "first rename must rebuild the index"
+        );
+
+        // Edicao normal (salvamento) entre renomeacoes: o cache em memoria e
+        // atualizado sem tocar o disco.
+        fs::write(root.join("a.md"), "# A\n[[alvo-2]] e mais texto\n").expect("edit note");
+        update_wikilink_index_after_save(&root, "a.md", "# A\n[[alvo-2]] e mais texto\n", &state);
+
+        // Segunda renomeacao: o cache esta fresco (validado por stat) e a
+        // reconstrucao NAO acontece.
+        let before = rebuild_count.load(std::sync::atomic::Ordering::Relaxed);
+        rename_vault_item_in_root_with_state(
+            &root,
+            "alvo-2.md",
+            "alvo-3",
+            "note",
+            &hooks,
+            Some(&state),
+        )
+        .expect("second rename");
+        assert_eq!(
+            rebuild_count.load(std::sync::atomic::Ordering::Relaxed),
+            before,
+            "a fresh cache must not rebuild the index"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("a.md")).expect("read referrer"),
+            "# A\n[[alvo-3]] e mais texto\n"
+        );
+    }
+
+    #[test]
+    fn cancelling_the_index_rebuild_falls_back_to_the_full_scan() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::write(root.join("alvo.md"), "# Alvo").expect("write target");
+        fs::write(root.join("a.md"), "# A\n[[alvo]]\n").expect("write referrer");
+        fs::write(root.join("isolada.md"), "# Isolada").expect("write unrelated note");
+
+        let state = WikilinkIndexState::default();
+        state.set_cancel(&root, true);
+        let cancel_flag = state.cancel_flag(&root);
+        let hooks = crate::review::wikilink_index::BuildHooks {
+            on_progress: None,
+            should_cancel: Some(Box::new(move || {
+                cancel_flag.load(std::sync::atomic::Ordering::Acquire)
+            })),
+        };
+
+        // A reconstrucao do indice e cancelada: a renomeacao cai para a
+        // varredura completa (comportamento anterior) e conclui com os links
+        // consistentes, sem persistir indice parcial.
+        rename_vault_item_in_root_with_state(
+            &root,
+            "alvo.md",
+            "alvo-2",
+            "note",
+            &hooks,
+            Some(&state),
+        )
+        .expect("rename with cancelled index");
+        assert_eq!(
+            fs::read_to_string(root.join("a.md")).expect("read referrer"),
+            "# A\n[[alvo-2]]\n"
+        );
+        assert!(
+            !root
+                .join(METADATA_DIR)
+                .join(".wikilink-index.json")
+                .exists(),
+            "a cancelled rebuild must not persist a partial index"
+        );
     }
 
     #[test]
@@ -7375,6 +9728,183 @@ mod tests {
             .expect("inspect invalid obsidian vault")
             .obsidian_preferences
             .is_none());
+    }
+
+    #[test]
+    fn obsidian_preferences_ignore_invalid_typed_fields_without_discarding_valid_ones() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian config folder");
+        fs::write(
+            root.join(".obsidian").join("app.json"),
+            r#"{
+              "newFileLocation": "folder",
+              "attachmentFolderPath": 123,
+              "useMarkdownLinks": true,
+              "promptDelete": "sim",
+              "userIgnoreFilters": ["Arquivo/", 42]
+            }"#,
+        )
+        .expect("write obsidian config");
+
+        let preferences = inspect_vault_path(&root)
+            .expect("inspect obsidian vault")
+            .obsidian_preferences
+            .expect("preferences");
+        assert_eq!(preferences.new_file_location.as_deref(), Some("folder"));
+        assert_eq!(preferences.use_markdown_links, Some(true));
+        assert_eq!(preferences.attachment_folder_path, None);
+        assert_eq!(preferences.prompt_delete, None);
+        assert_eq!(
+            preferences.user_ignore_filters,
+            vec!["Arquivo/".to_string()]
+        );
+        assert_eq!(
+            preferences.ignored_preference_fields,
+            vec!["attachmentFolderPath", "promptDelete", "userIgnoreFilters"]
+        );
+    }
+
+    #[test]
+    fn ignored_obsidian_config_files_list_names_without_exposing_plugin_data() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join(".obsidian").join("plugins")).expect("create obsidian dir");
+        fs::write(
+            root.join(".obsidian").join("appearance.json"),
+            "{ \"theme\": \"obsidian\" }",
+        )
+        .expect("write appearance config");
+        fs::write(root.join(".obsidian").join("workspace.json"), "{ invalido")
+            .expect("write workspace config");
+        // Dados de plugins jamais sao listados nem expostos.
+        fs::write(
+            root.join(".obsidian").join("plugins").join("data.json"),
+            "segredo-do-plugin",
+        )
+        .expect("write plugin data");
+
+        let summary = inspect_vault_path(&root).expect("inspect obsidian vault");
+        assert_eq!(
+            summary.obsidian_ignored_config_files,
+            vec!["appearance.json", "workspace.json"]
+        );
+        assert!(
+            !summary
+                .obsidian_ignored_config_files
+                .iter()
+                .any(|name| name.contains("plugins")),
+            "plugin data must never be exposed"
+        );
+    }
+
+    #[test]
+    fn vault_summary_reads_obsidian_appearance_without_modifying_it() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian dir");
+        let appearance_json = br##"{
+  "theme": "obsidian",
+  "accentColor": "#c46a2b",
+  "baseFontSize": 18,
+  "cssTheme": "Minimal",
+  "textFontFamily": "Georgia",
+  "monospaceFontFamily": "Cascadia Code"
+}"##;
+        let config_path = root.join(".obsidian").join("appearance.json");
+        fs::write(&config_path, appearance_json).expect("write appearance config");
+
+        let summary = inspect_vault_path(&root).expect("inspect vault");
+        let appearance = summary
+            .obsidian_appearance
+            .expect("read supported obsidian appearance");
+        assert_eq!(appearance.theme.as_deref(), Some("obsidian"));
+        assert_eq!(appearance.accent_color.as_deref(), Some("#c46a2b"));
+        assert_eq!(appearance.base_font_size, Some(18.0));
+        assert_eq!(appearance.css_theme.as_deref(), Some("Minimal"));
+        assert_eq!(appearance.text_font_family.as_deref(), Some("Georgia"));
+        assert_eq!(
+            appearance.monospace_font_family.as_deref(),
+            Some("Cascadia Code")
+        );
+        assert!(appearance.ignored_appearance_fields.is_empty());
+        // O arquivo nunca e sobrescrito.
+        assert_eq!(
+            fs::read(&config_path).expect("reread appearance config"),
+            appearance_json
+        );
+    }
+
+    #[test]
+    fn obsidian_appearance_tolerates_invalid_field_types_and_missing_file() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join(".obsidian")).expect("create obsidian dir");
+        // Campos com tipo invalido sao ignorados sem descartar os validos.
+        fs::write(
+            root.join(".obsidian").join("appearance.json"),
+            "{ \"theme\": 7, \"accentColor\": \"#123456\", \"baseFontSize\": \"grande\" }",
+        )
+        .expect("write appearance config");
+
+        let summary = inspect_vault_path(&root).expect("inspect vault");
+        let appearance = summary
+            .obsidian_appearance
+            .expect("read tolerant obsidian appearance");
+        assert_eq!(appearance.theme, None);
+        assert_eq!(appearance.accent_color.as_deref(), Some("#123456"));
+        assert_eq!(appearance.base_font_size, None);
+        assert_eq!(
+            appearance.ignored_appearance_fields,
+            vec!["baseFontSize", "theme"]
+        );
+
+        // Vault sem appearance.json: campo ausente, sem falha.
+        let empty_root = tempdir().expect("empty temp dir");
+        let empty_summary = inspect_vault_path(empty_root.path()).expect("inspect empty vault");
+        assert!(empty_summary.obsidian_appearance.is_none());
+    }
+
+    #[test]
+    fn read_special_vault_file_reads_canvas_and_excalidraw_within_the_vault_only() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join("desenhos")).expect("create folder");
+        let canvas = br#"{ "nodes": [ { "id": "a", "type": "text" } ], "edges": [] }"#;
+        let excalidraw = br#"{ "type": "excalidraw", "elements": [] }"#;
+        fs::write(root.join("Planejamento.canvas"), canvas).expect("write canvas");
+        fs::write(root.join("desenhos").join("Quadro.excalidraw"), excalidraw)
+            .expect("write excalidraw");
+
+        assert_eq!(
+            read_special_vault_file_in_root(&root, "Planejamento.canvas").expect("read canvas"),
+            canvas
+        );
+        assert_eq!(
+            read_special_vault_file_in_root(&root, "desenhos/Quadro.excalidraw")
+                .expect("read excalidraw"),
+            excalidraw
+        );
+        // Fora do conjunto permitido: notas, PDFs, dotfiles, absolutos e..
+        assert!(read_special_vault_file_in_root(&root, "Planejamento.canvas.md").is_err());
+        assert!(read_special_vault_file_in_root(&root, ".obsidian/appearance.json").is_err());
+        assert!(read_special_vault_file_in_root(&root, "/absoluto.canvas").is_err());
+        assert!(read_special_vault_file_in_root(&root, "../fora.canvas").is_err());
     }
 
     #[test]

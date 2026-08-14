@@ -36,6 +36,9 @@ Este catalogo atribui um identificador estavel a cada uma das 65 features marcad
 | `QA-B1-07` | Renomear arquivos e pastas | Direta | `RUST` + `E2E-WIN`: renomeacao real de nota/pasta, abas, links e reabertura | Coberto no Windows; falta ampliar a matriz desktop. |
 | `QA-B1-08` | Mover arquivos e pastas | Direta | `RUST` + `E2E-WIN`: movimentos reais, destinos, links, bytes e reabertura | Coberto no Windows; falta ampliar a matriz desktop. |
 | `QA-B1-09` | Excluir com lixeira | Direta | `RUST`: excluir, restaurar, remover definitivamente e retencao | Falta jornada visual completa. |
+| `QA-B1-10` | Diagnostico de leitura parcial | Direta | `RUST` (`diagnose_unreadable_notes_flags_non_utf8_and_tag_failures`): nota nao UTF-8 classificada sem expor conteudo, vault saudavel sem diagnosticos; `VAULT` (helpers de resumo/limite); `APP` (`[diagnostico]`): banner de leitura parcial com contagem, caminhos e fechamento; saudavel sem banner | Amostra limitada a 256 notas; diretorio ilegivel dificil de forcar em Windows (permissao). |
+| `QA-B1-11` | Transacao duravel de renomeacao | Direta | `RUST` (`review::rename_journal`): escrita/limpeza do journal, roll forward apos interrupcao (movimento feito, links pendentes), limpeza quando o movimento nunca comecou, nunca sobrescreve edicao concorrente e rejeita journal escapando do Vault; integracao verde em `rename_vault_item_*`/`move_vault_item_*` | Falta simulacao E2E de queda de energia real; sync de diretorio e no-op fora de unix. |
+| `QA-B1-12` | TOCTOU e fallback sem hard links | Direta | `RUST` (`write_file_regular_no_follow_rejects_symlink_as_final_component`): escrita no-follow nunca atravessa symlink e arquivo externo intacto; `hard_link_or_copy_falls_back_to_synced_copy_when_hard_link_fails` (fallback por injecao); `copy_file_synced_preserves_bytes_exactly` | Windows: janela residual documentada de troca concorrente de diretorios intermediarios (sem `openat`); fallback real depende de filesystem sem hard links (testado por injecao). |
 
 ## Bloco 2: Editor Markdown
 
@@ -111,9 +114,11 @@ Este catalogo atribui um identificador estavel a cada uma das 65 features marcad
 | `QA-B8-08` | Anexos compativeis | Direta | `VAULT`, `RUST`: quatro destinos, seguranca e concorrencia | Falta jornada desktop e filesystems multiplataforma. |
 | `QA-B8-09` | Arquivos e configuracoes `.obsidian/` | Direta | `VAULT`, `RUST`: whitelist, limites, symlink e bytes preservados | Falta contrato IPC ponta a ponta. |
 | `QA-B8-10` | Plugins e arquivos especiais | Direta | `VAULT`, `APP`, `RUST`: inventario read-only e limite | Falta E2E desktop. |
-| `QA-B8-11` | Deteccao de mudancas externas | Direta | `RUST` e `APP`: watcher, rename, remocao e reconciliacao | Conflito de modificacao continua parcial. |
+| `QA-B8-11` | Deteccao de mudancas externas | Direta | `RUST` e `APP`: watcher, rename, remocao e reconciliacao | Jornada E2E `external-change-conflict.e2e.mjs` cobre conflito de modificacao (rascunho vs externo, escolha do usuario), remocao externa com restauracao e a fase `automatic-detect` valida a deteccao automatica sem Ctrl+S (dialogo sozinho com rascunho; recarga silenciosa sem rascunho). |
 | `QA-B8-12` | Renomeacao compativel | Direta | `RUST` + `E2E-WIN`: semantica transacional e jornada real com links/abas/reabertura | macOS ainda nao integra a matriz E2E. |
 | `QA-B8-13` | Matriz de regressao Obsidian | Direta | `MATRIX-FE` e `RUST`: round-trip e preservacao de arvore | Falta executar a matriz em Windows e macOS. |
+| `QA-B8-14` | Matriz byte a byte (CRLF/BOM/Unicode/espacos) | Direta | `RUST` (`obsidian_matrix_crlf_and_bom_are_byte_faithful`, `obsidian_matrix_unicode_nfc_nfd_round_trips`, `obsidian_matrix_names_with_spaces_resolve_save_and_backlink`): leitura/salvamento exatos, sem conversao de quebras, BOM preservado, NFC/NFD distintos, espacos em resolve/save/backlinks; `MATRIX-FE` (BOM+CRLF): frontmatter, edicao de corpo e mutacao de propriedade preservando BOM/CRLF | Windows/Linux executados; falta macOS na CI. |
+| `QA-B8-15` | Confinamento por symlink | Direta | `RUST` (`obsidian_matrix_symlinked_directory_never_escapes_the_vault` + `resolve_note_path_rejects_a_symbolic_link_as_the_final_note` + suites NTFS de junction): varredura ignora o diretorio simbolico, resolve/save rejeitam o escape, arquivo externo nunca tocado | Windows exige Developer Mode/SeCreateSymbolicLinkPrivilege (diagnostico NTFS_CAPABILITY_UNAVAILABLE na CI). |
 
 ## Bloco 6: Configuracoes
 
@@ -160,7 +165,7 @@ Camadas independentes significam fronteiras diferentes, por exemplo componente e
 | `QA-B7-06` | Edicao de frontmatter remove ou reserializa dados | `MD`/`MATRIX-FE` + `APP` | **Atende**. |
 | `QA-B7-11` | Drag and drop escreve fora do Vault ou insere link incorreto | Nenhuma regressao direta | **Pendente**: faltam as duas camadas. |
 | `QA-B7-12` | Rename/move quebra links ou aplica transacao parcial | `VAULT`/`APP` + `RUST` | **Atende**. |
-| `QA-B7-14` | Mudanca externa sobrescreve rascunho ou deixa estado inconsistente | `APP` + `RUST` | **Atende**, com cenarios de conflito ainda incompletos. |
+| `QA-B7-14` | Mudanca externa sobrescreve rascunho ou deixa estado inconsistente | `APP` + `RUST` | **Atende**; jornada E2E valida preservacao do rascunho, ambas as escolhas do dialogo de conflito e bytes reconciliados. |
 | `QA-B8-01` | Implementacao viola o contrato de preservacao V1 | `FIXTURE`/`MATRIX-FE` + `RUST` | **Atende**. |
 | `QA-B8-03` | Frontmatter Obsidian sofre perda silenciosa | `MD`/`MATRIX-FE` + `RUST` | **Atende**. |
 | `QA-B8-04` | Sintaxe desconhecida e removida/reformatada | `MD`/`FIXTURE` + `RUST` | **Atende**. |

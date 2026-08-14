@@ -178,6 +178,11 @@ pub enum UnitEvaluation {
         evidence: EvidenceStrength,
         evaluated_at_unix_ms: u64,
         gaps: Vec<EvaluationGap>,
+        // Decomposicao do paragrafo em afirmacoes avaliaveis (pontuacao por
+        // afirmacao). Opcional por compatibilidade: dados antigos e avaliacoes
+        // sem decomposicao ficam vazios e a pontuacao deriva das lacunas.
+        #[serde(default)]
+        assertions: Vec<AssertionReport>,
     },
     Inconclusive {
         evaluated_at_unix_ms: u64,
@@ -189,6 +194,54 @@ pub enum UnitEvaluation {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct EvaluationGap {
     pub classification: GapClassification,
+    pub source_quote: String,
+    pub source_start_utf16: u64,
+    pub source_end_utf16: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AssertionStatus {
+    /// A afirmacao foi lembrada corretamente.
+    Remembered,
+    /// A afirmacao foi lembrada apenas parcialmente.
+    Partial,
+    /// A afirmacao nao foi lembrada.
+    Missing,
+    /// O usuario afirmou algo que contradiz a nota.
+    Contradicted,
+}
+
+/// Grau de importancia de uma afirmacao para a nota (identificacao do cerne):
+/// afirmacoes centrais sao a ideia essencial da nota e pesam mais na
+/// pontuacao e na calibracao DSR/FSRS (uma falha central estabiliza menos que
+/// uma periferica). Default `Secondary` por compatibilidade com dados antigos
+/// que nao traziam a classificacao.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AssertionCentrality {
+    /// Ideia essencial da nota: falhas aqui sao lacunas centrais.
+    Central,
+    /// Detalhe periferico: falhas aqui sao menos graves para o cerne.
+    Secondary,
+}
+
+impl Default for AssertionCentrality {
+    fn default() -> Self {
+        Self::Secondary
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssertionReport {
+    pub text: String,
+    pub status: AssertionStatus,
+    /// Classificacao central/secundaria da afirmacao (identificacao do cerne).
+    /// Default `Secondary` por compatibilidade: dados antigos e avaliacoes sem
+    /// classificacao nao carregam como centrais.
+    #[serde(default)]
+    pub centrality: AssertionCentrality,
     pub source_quote: String,
     pub source_start_utf16: u64,
     pub source_end_utf16: u64,
@@ -361,6 +414,7 @@ pub enum SchedulingStatus {
 pub enum AiProvider {
     Gemini,
     Ollama,
+    OpenAiCompatible,
 }
 
 pub fn parse_learning_document(input: &str) -> Result<LearningDocument> {

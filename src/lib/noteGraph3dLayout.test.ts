@@ -108,6 +108,61 @@ describe('createForceGraph3DLayout', () => {
     expect(maxRadius).toBeGreaterThan(8)
   })
 
+  it('agrupa nos da mesma pasta proximos aos centros do proprio grupo', () => {
+    const groupedNodes = [
+      { relativePath: 'raiz.md' },
+      { relativePath: 'Notas/Quimica.md' },
+      { relativePath: 'Notas/Fisica.md' },
+      { relativePath: 'Notas/Biologia.md' },
+      { relativePath: 'Diarios/2026.md' },
+      { relativePath: 'Diarios/2025.md' },
+    ]
+    const links = [{ source: 'Notas/Quimica.md', target: 'Diarios/2026.md' }]
+    const groupOf = (node: { relativePath: string }) => node.relativePath.split('/').slice(0, -1).join('/')
+    const positions = createForceGraph3DLayout(groupedNodes, links, 140, { groupOf })
+
+    // Nos do mesmo grupo ficam mais proximos entre si do que de outros grupos.
+    const notasInner = distance(positions.get('Notas/Quimica.md')!, positions.get('Notas/Fisica.md')!)
+    const notasOuter = distance(positions.get('Notas/Quimica.md')!, positions.get('Diarios/2026.md')!)
+    expect(notasInner).toBeLessThan(notasOuter)
+
+    const diariosInner = distance(positions.get('Diarios/2026.md')!, positions.get('Diarios/2025.md')!)
+    const diariosOuter = distance(positions.get('Diarios/2026.md')!, positions.get('Notas/Fisica.md')!)
+    expect(diariosInner).toBeLessThan(diariosOuter)
+
+    // Centro de cada grupo afastado do centro do mundo (clusters distintos).
+    const notasCenter = {
+      x: (positions.get('Notas/Quimica.md')!.x + positions.get('Notas/Fisica.md')!.x + positions.get('Notas/Biologia.md')!.x) / 3,
+      y: (positions.get('Notas/Quimica.md')!.y + positions.get('Notas/Fisica.md')!.y + positions.get('Notas/Biologia.md')!.y) / 3,
+      z: (positions.get('Notas/Quimica.md')!.z + positions.get('Notas/Fisica.md')!.z + positions.get('Notas/Biologia.md')!.z) / 3,
+    }
+    const diariosCenter = {
+      x: (positions.get('Diarios/2026.md')!.x + positions.get('Diarios/2025.md')!.x) / 2,
+      y: (positions.get('Diarios/2026.md')!.y + positions.get('Diarios/2025.md')!.y) / 2,
+      z: (positions.get('Diarios/2026.md')!.z + positions.get('Diarios/2025.md')!.z) / 2,
+    }
+    expect(distance(notasCenter, diariosCenter)).toBeGreaterThan(5)
+  })
+
+  it('o layout agrupado e deterministico e mantem os nos dentro de uma esfera razoavel', () => {
+    const groupedNodes = [
+      { relativePath: 'raiz.md' },
+      { relativePath: 'Notas/Quimica.md' },
+      { relativePath: 'Diarios/2026.md' },
+    ]
+    const groupOf = (node: { relativePath: string }) => node.relativePath.split('/').slice(0, -1).join('/')
+    const first = createForceGraph3DLayout(groupedNodes, [], 140, { groupOf })
+    const second = createForceGraph3DLayout(groupedNodes, [], 140, { groupOf })
+    for (const node of groupedNodes) {
+      const a = first.get(node.relativePath)!
+      const b = second.get(node.relativePath)!
+      expect(a.x).toBeCloseTo(b.x)
+      expect(a.y).toBeCloseTo(b.y)
+      expect(a.z).toBeCloseTo(b.z)
+      expect(Math.hypot(a.x, a.y, a.z)).toBeLessThan(40)
+    }
+  })
+
   it('escala o layout pela configuracao "Distancia entre nos"', () => {
     const links = [
       { source: 'a.md', target: 'b.md' },

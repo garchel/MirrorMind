@@ -634,6 +634,7 @@ pub fn set_unit_classification(
         evidence: crate::review::contract::EvidenceStrength::FreeRecall,
         evaluated_at_unix_ms: now_unix_ms,
         gaps: Vec::new(),
+        assertions: Vec::new(),
     };
     // Atualiza o registro mais recente da unidade no historico de sessoes,
     // preservando o snapshot: a projecao da unidade e o historico permanecem
@@ -1157,6 +1158,7 @@ mod tests {
             evidence: crate::review::contract::EvidenceStrength::FreeRecall,
             evaluated_at_unix_ms: session_at,
             gaps: Vec::new(),
+            assertions: Vec::new(),
         };
         loaded.document.sessions = vec![crate::review::contract::ReviewSession {
             id: "session-reset".to_string(),
@@ -1829,6 +1831,7 @@ mod tests {
             evidence: crate::review::contract::EvidenceStrength::FreeRecall,
             evaluated_at_unix_ms: session_at,
             gaps: Vec::new(),
+            assertions: Vec::new(),
         };
         let fsrs_at = crate::review::contract::FsrsState {
             difficulty: 5.0,
@@ -1869,8 +1872,8 @@ mod tests {
         let unit_count = loaded.document.units.len();
 
         // A unidade tinha estabilidade 2 dias; a reclassificacao para 100 deve
-        // elevar a estabilidade (completo 2.5x, evidencia livre) e reagendar
-        // para mais longe.
+        // elevar a estabilidade pela formula FSRS-5 de acerto completo (grade 4,
+        // evidencia livre) e reagendar para mais longe.
         let corrected_at = 1_720_300_000_000;
         let state = set_unit_classification(vault.path(), "ATP.md", &unit_id, 100, corrected_at)
             .expect("reclassify");
@@ -1894,7 +1897,9 @@ mod tests {
             })
         ));
         let stability = unit.fsrs.as_ref().expect("fsrs").stability_days;
-        assert!((stability - 5.0).abs() < 1e-9);
+        // FSRS-5: acerto completo (grade 4) a partir de S=2, D=5, R efetivo no
+        // instante da correcao.
+        assert!((stability - 12.05229333579815).abs() < 1e-9);
         // O historico de sessoes permanece intacto (a sessao injetada segue la).
         assert_eq!(reloaded.sessions.len(), 1);
         // A proxima revisao veio do reagendamento pelo estado da unidade.

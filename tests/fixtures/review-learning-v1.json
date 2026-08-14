@@ -58,7 +58,8 @@
                                                                 "sourceStartUtf16":  24,
                                                                 "sourceEndUtf16":  40
                                                             }
-                                                        ]
+                                                        ],
+                                                        "assertions":  []
                                            },
                       "sourceStartUtf16":  0,
                       "sourceEndUtf16":  100
@@ -97,7 +98,8 @@
                                                                 "sourceStartUtf16":  145,
                                                                 "sourceEndUtf16":  163
                                                             }
-                                                        ]
+                                                        ],
+                                                        "assertions":  []
                                            },
                       "sourceStartUtf16":  100,
                       "sourceEndUtf16":  200
@@ -171,7 +173,8 @@
                                                                                      "sourceStartUtf16":  24,
                                                                                      "sourceEndUtf16":  40
                                                                                  }
-                                                                             ]
+                                                                             ],
+                                                                             "assertions":  []
                                                                 },
                                                  "fsrsBefore":  null,
                                                  "fsrsAfter":  {
@@ -213,7 +216,8 @@
                                                                                      "sourceStartUtf16":  145,
                                                                                      "sourceEndUtf16":  163
                                                                                  }
-                                                                             ]
+                                                                             ],
+                                                                             "assertions":  []
                                                                 },
                                                  "fsrsBefore":  null,
                                                  "fsrsAfter":  {

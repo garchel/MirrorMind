@@ -560,7 +560,7 @@ function mathDecorations(token: Extract<MaskToken, { kind: 'math' }>, doc: Text)
   return ranges
 }
 
-function tokenDecorations(token: MaskToken): DecorRange[] {
+function tokenDecorations(token: MaskToken, doc: Text): DecorRange[] {
   switch (token.kind) {
     case 'bold':
     case 'italic':
@@ -601,14 +601,24 @@ function tokenDecorations(token: MaskToken): DecorRange[] {
       return [{ from: token.from, to: token.to, decoration: Decoration.replace({ widget: new BulletWidget('•') }) }]
     case 'task':
       return [{ from: token.from, to: token.to, decoration: Decoration.replace({ widget: new CheckboxWidget(token.checked) }) }]
-    case 'fence':
+    case 'fence': {
+      // Replaces `hidden` NUNCA cruzam quebras de linha: o CodeMirror proibe
+      // substituir quebras de linha via plugins (RangeError). O conteudo fica
+      // na propria marca (pode cruzar linhas); as faixas de ocultacao ficam
+      // dentro de UMA linha — o resto da linha de abertura e o inicio da
+      // linha de fechamento. Faixas vazias sao descartadas (tambem invalidas).
+      const openLineTo = doc.lineAt(token.openTo).to
+      const closeLineFrom = doc.lineAt(token.closeFrom).from
+      const hideAfterOpenTo = Math.min(token.contentFrom, openLineTo)
+      const hideBeforeCloseFrom = Math.max(token.contentTo, closeLineFrom)
       return [
         { from: token.openFrom, to: token.openTo, decoration: hidden },
-        { from: token.openTo, to: token.contentFrom, decoration: hidden },
+        { from: token.openTo, to: hideAfterOpenTo, decoration: hidden },
         { from: token.contentFrom, to: token.contentTo, decoration: fenceContentMark },
-        { from: token.contentTo, to: token.closeFrom, decoration: hidden },
+        { from: hideBeforeCloseFrom, to: token.closeFrom, decoration: hidden },
         { from: token.closeFrom, to: token.closeTo, decoration: hidden },
-      ]
+      ].filter((range) => range.from < range.to)
+    }
     case 'tableRow':
       return []
     case 'math':
@@ -1434,7 +1444,7 @@ function buildDecorations(view: EditorView) {
       }
     }
     if (inTable) continue
-    push(token.kind === 'math' ? mathDecorations(token, doc) : tokenDecorations(token))
+    push(token.kind === 'math' ? mathDecorations(token, doc) : tokenDecorations(token, doc))
   }
 
   for (let index = firstLine; index <= lastLine; index += 1) {
@@ -1453,7 +1463,7 @@ function buildDecorations(view: EditorView) {
       for (const token of tokens) {
         if (token.kind !== 'fence') continue
         if (isTokenRevealed(token, carets, doc)) continue
-        push(tokenDecorations(token))
+        push(tokenDecorations(token, doc))
       }
       continue
     }
@@ -1465,7 +1475,7 @@ function buildDecorations(view: EditorView) {
     for (const token of allTokens) {
       if (token.kind === 'fence' || token.kind === 'math' || token.kind === 'hr') continue
       if (isTokenRevealed(token, carets, doc)) continue
-      push(tokenDecorations(token))
+      push(tokenDecorations(token, doc))
     }
   }
 

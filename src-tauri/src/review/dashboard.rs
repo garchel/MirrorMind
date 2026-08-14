@@ -629,6 +629,7 @@ mod tests {
             evidence: crate::review::contract::EvidenceStrength::FreeRecall,
             evaluated_at_unix_ms: now,
             gaps: Vec::new(),
+            assertions: Vec::new(),
         };
         let session = crate::review::contract::ReviewSession {
             id: format!("dashboard-session-{}", second.note_id),
@@ -760,6 +761,7 @@ mod tests {
             evidence: crate::review::contract::EvidenceStrength::FreeRecall,
             evaluated_at_unix_ms: now,
             gaps: Vec::new(),
+            assertions: Vec::new(),
         };
         let session = |completed_at: u64| crate::review::contract::ReviewSession {
             id: format!("session-{completed_at}"),
@@ -1092,6 +1094,7 @@ mod tests {
                 evidence: crate::review::contract::EvidenceStrength::FreeRecall,
                 evaluated_at_unix_ms: reviewed_at_unix_ms,
                 gaps: Vec::new(),
+                assertions: Vec::new(),
             };
             units[index].fsrs = Some(fsrs.clone());
             units[index].latest_evaluation = Some(evaluation.clone());
@@ -1274,6 +1277,7 @@ mod tests {
             evidence: crate::review::contract::EvidenceStrength::FreeRecall,
             evaluated_at_unix_ms: last_reviewed_at_unix_ms,
             gaps: Vec::new(),
+            assertions: Vec::new(),
         };
         let snapshot = crate::review::contract::UnitSnapshot {
             id: unit.id.clone(),

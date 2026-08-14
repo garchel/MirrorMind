@@ -1,6 +1,7 @@
 // oxlint-disable react/only-export-components -- provider and its guarded hook form one public boundary.
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { setGeminiDataConsent } from './ai'
+import { canUseManagedProvider, MANAGED_PROVIDER_UNAVAILABLE_MESSAGE, SCAFFOLD_MANAGED_STATUS, type ManagedProviderStatus } from './managedProvider'
 import type { ReactNode } from 'react'
 import type { ReviewAiProvider } from './ai'
 
@@ -12,12 +13,19 @@ type ReviewAiSettingsValue = {
   setProvider: (provider: ReviewAiProvider) => void
   geminiConsent: boolean
   setGeminiConsent: (consent: boolean) => void
+  /** Status da conta gerenciada pela assinatura (scaffolding pre-venda). */
+  managedStatus: ManagedProviderStatus
+  canUseManaged: (estimatedCostUsd: number) => boolean
+  managedUnavailableMessage: string
 }
 
 const ReviewAiSettingsContext = createContext<ReviewAiSettingsValue | null>(null)
 
+const STORED_PROVIDERS: readonly ReviewAiProvider[] = ['gemini', 'openAiCompatible']
+
 function storedProvider(): ReviewAiProvider {
-  return window.localStorage.getItem(PROVIDER_KEY) === 'gemini' ? 'gemini' : 'ollama'
+  const stored = window.localStorage.getItem(PROVIDER_KEY) as ReviewAiProvider | null
+  return stored && STORED_PROVIDERS.includes(stored) ? stored : 'ollama'
 }
 
 export function ReviewAiSettingsProvider({ children }: { children: ReactNode }) {
@@ -40,6 +48,10 @@ export function ReviewAiSettingsProvider({ children }: { children: ReactNode }) 
     setProvider,
     geminiConsent,
     setGeminiConsent,
+    managedStatus: SCAFFOLD_MANAGED_STATUS,
+    canUseManaged: (estimatedCostUsd: number) =>
+      canUseManagedProvider(SCAFFOLD_MANAGED_STATUS, estimatedCostUsd),
+    managedUnavailableMessage: MANAGED_PROVIDER_UNAVAILABLE_MESSAGE,
   }), [geminiConsent, provider])
 
   return <ReviewAiSettingsContext value={value}>{children}</ReviewAiSettingsContext>

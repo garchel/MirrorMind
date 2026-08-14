@@ -128,6 +128,21 @@ const evaluationGapSchema = z.object({
   { message: 'sourceEndUtf16 must be greater than sourceStartUtf16' },
 )
 
+const assertionReportSchema = z.object({
+  text: shortTextSchema,
+  status: z.enum(['remembered', 'partial', 'missing', 'contradicted']),
+  // Identificacao do cerne: afirmacoes centrais pesam mais na pontuacao e na
+  // calibracao DSR/FSRS. Default secundaria por compatibilidade com dados
+  // antigos que nao traziam a classificacao.
+  centrality: z.enum(['central', 'secondary']).default('secondary'),
+  sourceQuote: shortTextSchema,
+  sourceStartUtf16: uint32Schema,
+  sourceEndUtf16: uint32Schema,
+}).strict().refine(
+  ({ sourceStartUtf16, sourceEndUtf16 }) => sourceEndUtf16 > sourceStartUtf16,
+  { message: 'sourceEndUtf16 must be greater than sourceStartUtf16' },
+)
+
 const evaluatedUnitResultSchema = z.object({
   kind: z.literal('evaluated'),
   score: z.number().int().min(0).max(100),
@@ -137,6 +152,9 @@ const evaluatedUnitResultSchema = z.object({
   evidence: z.enum(['recognition', 'freeRecall', 'conversation', 'assistedRecognition', 'assistedConversation']),
   evaluatedAtUnixMs: unixMillisecondsSchema,
   gaps: z.array(evaluationGapSchema).max(LIMITS.gaps),
+  // Decomposicao do paragrafo em afirmacoes avaliaveis (pontuacao por
+  // afirmacao). Default vazio por compatibilidade com dados antigos.
+  assertions: z.array(assertionReportSchema).max(LIMITS.units).default([]),
 }).strict().superRefine(({ score, outcome, gaps }, context) => {
   const expectedOutcome = score < 40
     ? 'forgotten'

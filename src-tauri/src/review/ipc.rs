@@ -1,8 +1,9 @@
 use super::contract::{ReviewMode, UnitEvaluation};
 use super::coverage::{select_session_units, SessionPlan};
 use super::credentials::{
-    credential_status, delete_gemini_api_key, has_gemini_consent, save_gemini_api_key,
-    set_gemini_consent, NativeCredentialStore,
+    credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
+    has_gemini_consent, load_openai_compatible_provider, save_gemini_api_key,
+    save_openai_compatible_provider, set_gemini_consent, NativeCredentialStore,
 };
 use super::dashboard::{build_vault_review_dashboard, VaultReviewDashboard};
 use super::evaluation::{
@@ -28,7 +29,9 @@ use super::policy_config::{
     set_vault_review_tag_rules, set_vault_segmentation, SegmentationLimits,
     VaultReviewDefaultsInput, VaultReviewDefaultsPreview, VaultReviewPolicyConfigView,
 };
-use super::provider::{OllamaProvider, StructuredAiProvider, OLLAMA_ENDPOINT, OLLAMA_MODEL};
+use super::provider::{
+    OllamaProvider, OpenAiCompatibleProvider, StructuredAiProvider, OLLAMA_ENDPOINT, OLLAMA_MODEL,
+};
 use super::queue::{list_due_reviews, DueReviewItem};
 use super::reports::{
     build_retention_report as collect_retention_report,
@@ -205,6 +208,24 @@ fn load_bound_session(
 pub enum AiProviderSelection {
     Gemini,
     Ollama,
+    OpenAiCompatible,
+}
+
+/// Reserva uma chamada de IA no orcamento do Vault ANTES do custo acontecer,
+/// estimando o custo pelo tamanho do prompt em caracteres (para o teto mensal
+/// e a medicao exibida). O provedor E2E deterministico (sem rede e sem custo)
+/// fica fora do orcamento.
+fn reserve_ai_call(
+    vault_root: &Path,
+    provider: &dyn StructuredAiProvider,
+    input_chars: usize,
+) -> Result<(), String> {
+    if std::env::var_os("MIRRORMIND_E2E_MOCK_AI").is_some() {
+        return Ok(());
+    }
+    super::usage::check_and_record_call(vault_root, provider.kind(), input_chars)
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 fn provider_for_selection(
@@ -231,6 +252,22 @@ fn provider_for_selection(
         AiProviderSelection::Ollama => Ok(Box::new(
             OllamaProvider::new().map_err(|error| error.to_string())?,
         )),
+        AiProviderSelection::OpenAiCompatible => {
+            let store = NativeCredentialStore::new();
+            let configuration =
+                load_openai_compatible_provider(&store).map_err(|error| error.to_string())?;
+            let configuration = configuration.ok_or_else(|| {
+                "Configure um servidor OpenAI-compatible antes de usa-lo na revisao.".to_string()
+            })?;
+            Ok(Box::new(
+                OpenAiCompatibleProvider::new(
+                    configuration.base_url,
+                    configuration.model,
+                    configuration.api_key,
+                )
+                .map_err(|error| error.to_string())?,
+            ))
+        }
     }
 }
 #[derive(Debug, Serialize)]
@@ -240,6 +277,9 @@ pub struct AiConfiguration {
     gemini_model: &'static str,
     ollama_endpoint: &'static str,
     ollama_model: &'static str,
+    open_ai_compatible_configured: bool,
+    open_ai_compatible_base_url: Option<String>,
+    open_ai_compatible_model: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -259,14 +299,43 @@ pub struct SegmentationRecalcProgress {
 
 #[tauri::command]
 pub fn get_review_ai_configuration() -> Result<AiConfiguration, String> {
-    let status =
-        credential_status(&NativeCredentialStore::new()).map_err(|error| error.to_string())?;
+    let store = NativeCredentialStore::new();
+    let status = credential_status(&store).map_err(|error| error.to_string())?;
+    let open_ai_compatible = load_openai_compatible_provider(&store)
+        .map_err(|error| error.to_string())?
+        .map(|configuration| (configuration.base_url, configuration.model));
     Ok(AiConfiguration {
         gemini_configured: status.gemini_configured,
         gemini_model: GEMINI_MODEL,
         ollama_endpoint: OLLAMA_ENDPOINT,
         ollama_model: OLLAMA_MODEL,
+        open_ai_compatible_configured: open_ai_compatible.is_some(),
+        open_ai_compatible_base_url: open_ai_compatible
+            .as_ref()
+            .map(|(base_url, _)| base_url.clone()),
+        open_ai_compatible_model: open_ai_compatible.map(|(_, model)| model),
     })
+}
+
+/// Configura o provedor OpenAI-compatible (endereco, modelo e chave) no cofre
+/// nativo. Endereco e modelo ficam visiveis na configuracao; a chave nunca
+/// sai do cofre.
+#[tauri::command]
+pub fn configure_openai_compatible_provider(
+    base_url: String,
+    model: String,
+    api_key: String,
+) -> Result<AiConfiguration, String> {
+    save_openai_compatible_provider(&NativeCredentialStore::new(), &base_url, &model, &api_key)
+        .map_err(|error| error.to_string())?;
+    get_review_ai_configuration()
+}
+
+#[tauri::command]
+pub fn remove_openai_compatible_provider() -> Result<AiConfiguration, String> {
+    delete_openai_compatible_provider(&NativeCredentialStore::new())
+        .map_err(|error| error.to_string())?;
+    get_review_ai_configuration()
 }
 
 #[tauri::command]
@@ -278,7 +347,42 @@ pub fn configure_gemini_api_key(api_key: String) -> Result<AiConfiguration, Stri
 
 #[tauri::command]
 pub fn set_gemini_data_consent(consent: bool) -> Result<(), String> {
-    set_gemini_consent(&NativeCredentialStore::new(), consent).map_err(|error| error.to_string())
+    if consent {
+        // O consentimento so e concedido pelo dialogo nativo
+        // (confirm_gemini_data_consent): uma interface comprometida nao pode
+        // autoautorizar o egresso chamando este comando diretamente. A
+        // revogacao continua permitida e a persistencia do flag so acontece
+        // quando o usuario confirma no dialogo do sistema operacional.
+        return Ok(());
+    }
+    set_gemini_consent(&NativeCredentialStore::new(), false).map_err(|error| error.to_string())
+}
+
+/// Concede o consentimento de envio ao Gemini SOMENTE pelo dialogo nativo do
+/// sistema operacional (fora do renderer): uma interface comprometida nao
+/// consegue falsificar a confirmacao, pois quem desenha o dialogo e o SO. O
+/// consentimento e persistido no cofre apenas quando o usuario confirma
+/// (`Autorizar`); cancelar nao altera nada. O egresso continua sendo
+/// bloqueado no backend enquanto o flag confiavel estiver ausente.
+#[tauri::command]
+pub fn confirm_gemini_data_consent(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+    let confirmed = app
+        .dialog()
+        .message("O MirrorMind enviara apenas o Markdown da nota selecionada e os dados da sessao atual ao Gemini, servico externo da Google. Nada sera enviado sem esta autorizacao, e voce pode revoga-la a qualquer momento nas configuracoes.")
+        .title("Autorizar envio ao Gemini")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Autorizar".to_string(),
+            "Cancelar".to_string(),
+        ))
+        .blocking_show();
+    if confirmed {
+        set_gemini_consent(&NativeCredentialStore::new(), true)
+            .map_err(|error| error.to_string())?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 #[tauri::command]
 pub fn remove_gemini_api_key() -> Result<AiConfiguration, String> {
@@ -302,6 +406,117 @@ pub async fn check_ollama_review_status() -> Result<OllamaStatus, String> {
     .map_err(|_| "Nao foi possivel concluir a verificacao do Ollama.".to_string())?
 }
 
+/// Verifica os fatos de uma nota contra o conhecimento do modelo, em uma
+/// operacao SEPARADA da avaliacao de memoria: nunca altera o Markdown, nunca
+/// modifica pontuacoes de revisoes nem o estado DSR/FSRS. Distingue
+/// claramente fatos confirmados, divergentes e incertos, com fontes/razoes.
+#[tauri::command]
+pub(crate) async fn verify_note_facts(
+    path: String,
+    relative_path: String,
+    provider: AiProviderSelection,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<super::fact_check::FactCheckAttempt, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let note_path =
+            crate::resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+        let markdown =
+            read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
+        let provider = provider_for_selection(provider)?;
+        reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
+        super::fact_check::verify_note_facts(provider.as_ref(), &markdown)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel concluir a verificacao factual.".to_string())?
+}
+
+/// Lista as fontes consideradas de uma sessao de revisao: os anexos
+/// referenciados pela nota (`![[...]]` de imagens/PDFs e notas embutidas),
+/// resolvidos com seguranca contra o inventario do Vault. A sessao indica
+/// claramente quais fontes foram consideradas no material permitido; a
+/// interpretacao visual do conteudo de imagens/PDFs e uma evolucao futura.
+#[tauri::command]
+pub(crate) async fn note_session_sources(
+    path: String,
+    relative_path: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<Vec<super::session_sources::ResolvedSessionSource>, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let note_path =
+            crate::resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+        let markdown =
+            read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
+        let extracted = super::session_sources::extract_attachment_references(&markdown);
+        let attachment_paths = crate::collect_attachment_files(&root)
+            .map_err(|error| error.to_string())?
+            .into_iter()
+            .map(|path| crate::to_relative_display(&root, &path))
+            .collect::<Vec<_>>();
+        let markdown_paths = crate::collect_markdown_files(&root)
+            .map_err(|error| error.to_string())?
+            .into_iter()
+            .map(|path| crate::to_relative_display(&root, &path))
+            .collect::<Vec<_>>();
+        let mut sources = super::session_sources::resolve_session_sources(
+            &extracted,
+            &attachment_paths,
+            &markdown_paths,
+        );
+        super::session_sources::enrich_sources_with_extracted_text(&root, &mut sources);
+        Ok(sources)
+    })
+    .await
+    .map_err(|_| "Nao foi possivel listar as fontes da sessao.".to_string())?
+}
+
+/// Avalia o modelo mental integrado (sintese) que o usuario construiu de uma
+/// nota, em quatro dimensoes separadas (cerne, conexoes, aplicacao e
+/// integracao de lacunas). Avaliacao formativa: nao altera o estado DSR/FSRS
+/// nem as proximas datas de revisao.
+#[tauri::command]
+pub(crate) async fn assess_note_synthesis(
+    path: String,
+    relative_path: String,
+    synthesis: String,
+    provider: AiProviderSelection,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<super::synthesis::SynthesisAttempt, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let note_path =
+            crate::resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+        let markdown =
+            read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
+        // Material permitido da sessao: o Markdown da nota + o texto extraido
+        // dos anexos referenciados (PDFs e notas embutidas), claramente
+        // rotulado por fonte. Imagens ficam listadas como fontes consideradas
+        // sem texto (interpretacao visual exige OCR — fora do escopo local).
+        let material = super::session_sources::build_session_material(&root, &markdown)
+            .map_err(|error| error.to_string())?;
+        let provider = provider_for_selection(provider)?;
+        reserve_ai_call(&root, provider.as_ref(), material.len() + synthesis.len())?;
+        super::synthesis::evaluate_synthesis(provider.as_ref(), &material, &synthesis)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel concluir a avaliacao da sintese.".to_string())?
+}
+
 #[tauri::command]
 pub(crate) async fn assess_note_readiness(
     path: String,
@@ -321,6 +536,7 @@ pub(crate) async fn assess_note_readiness(
         let markdown =
             read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
         let provider = provider_for_selection(provider)?;
+        reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
         // A prontidao section-aware usa a mesma regra de segmentacao das
         // sessoes, com o limite de palavras configurado no Vault: o plano de
         // unidades (ranges + caminho de secao) vai no prompt para a IA
@@ -425,6 +641,7 @@ pub(crate) async fn start_note_review_session(
         }
         let provider_selection = provider;
         let provider = provider_for_selection(provider_selection)?;
+        reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
         let (attempt, coverage) = start_review_session_with_coverage(
             provider.as_ref(),
             &document,
@@ -538,6 +755,7 @@ pub(crate) async fn continue_note_review_conversation(
             &exchanges,
         )?;
         let provider = provider_for_selection(provider)?;
+        reserve_ai_call(&root, provider.as_ref(), bound.session_markdown.len())?;
         // A conversa continua com o subset das unidades-alvo (cobertura
         // adaptativa), para os turnos nunca sairem do escopo da sessao.
         let attempt =
@@ -599,6 +817,7 @@ pub(crate) async fn complete_note_review_session(
             return Err("A sessao ainda possui perguntas sem resposta.".to_string());
         }
         let provider = provider_for_selection(provider)?;
+        reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
         let input = ReviewCompletionInput {
             session_id: session_id.clone(),
             note_id: note_id.clone(),
@@ -635,6 +854,26 @@ pub(crate) async fn complete_note_review_session(
     .await
     .map_err(|_| "Nao foi possivel concluir a sessao de revisao.".to_string())?
 }
+
+/// Estado de consumo de IA do Vault: chamadas por provedor no dia, limites
+/// vigentes e se o orcamento foi estourado. Medicao visivel para o usuario.
+#[tauri::command]
+pub(crate) async fn review_usage_status(
+    path: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<super::usage::UsageStatusView, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        super::usage::usage_status(&root).map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel ler o uso de IA do Vault.".to_string())?
+}
+
 #[tauri::command]
 pub(crate) async fn list_due_review_queue(
     path: String,
@@ -1673,7 +1912,7 @@ mod tests {
         .is_err());
     }
     #[test]
-    fn accepts_only_the_two_v1_provider_identifiers() {
+    fn accepts_the_three_v1_provider_identifiers() {
         assert_eq!(
             serde_json::from_str::<AiProviderSelection>("\"gemini\"").unwrap(),
             AiProviderSelection::Gemini
@@ -1681,6 +1920,10 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<AiProviderSelection>("\"ollama\"").unwrap(),
             AiProviderSelection::Ollama
+        );
+        assert_eq!(
+            serde_json::from_str::<AiProviderSelection>("\"openAiCompatible\"").unwrap(),
+            AiProviderSelection::OpenAiCompatible
         );
         assert!(serde_json::from_str::<AiProviderSelection>("\"openAi\"").is_err());
     }

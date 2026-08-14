@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../../lib/tauri'
 import { z } from 'zod'
 
 function validateIntervalOrder(

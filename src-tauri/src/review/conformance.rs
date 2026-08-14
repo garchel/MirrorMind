@@ -14,7 +14,9 @@
 //! provando que o rascunho da sessao e identico independentemente do provedor.
 
 use super::gemini::GeminiProvider;
-use super::provider::{OllamaProvider, ProviderKind, ProviderRequest, StructuredAiProvider};
+use super::provider::{
+    OllamaProvider, OpenAiCompatibleProvider, ProviderKind, ProviderRequest, StructuredAiProvider,
+};
 use super::session::start_review_session_with_coverage;
 use crate::review::contract::{parse_learning_document, AiProvider, LearningDocument, ReviewMode};
 use crate::review::evaluation::source_hash;
@@ -411,7 +413,11 @@ fn both_adapters_reject_oversized_input_before_any_network_request() {
         response_schema: json!({ "type": "object" }),
     };
     // Nenhuma conexao e tentada: o limite e validado antes do transporte.
-    for provider_kind in [ProviderKind::Ollama, ProviderKind::Gemini] {
+    for provider_kind in [
+        ProviderKind::Ollama,
+        ProviderKind::Gemini,
+        ProviderKind::OpenAiCompatible,
+    ] {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
         listener.set_nonblocking(true).expect("nonblocking");
         let address = listener.local_addr().expect("address");
@@ -422,6 +428,13 @@ fn both_adapters_reject_oversized_input_before_any_network_request() {
                 format!("http://{address}/v1beta/interactions"),
                 "test-gemini-key-123".to_string(),
             )
+            .generate_structured(oversized.clone()),
+            ProviderKind::OpenAiCompatible => OpenAiCompatibleProvider::new(
+                format!("http://{address}/v1"),
+                "model".to_string(),
+                "sk-test-key".to_string(),
+            )
+            .expect("build provider")
             .generate_structured(oversized.clone()),
         };
         let failure = result.expect_err("oversized input");
@@ -480,9 +493,9 @@ pub(crate) fn valid_exam_plan() -> Value {
                 "sourceQuote": "A fotossintese transforma energia luminosa em energia quimica."
             },
             {
-                "text": "Qual e a principal fonte de energia da fotossintese?",
+                "text": "O que a fotossintese produz ao final do processo?",
                 "assistance": "Onde a planta obtem energia?",
-                "options": ["Luz solar", "Calor do solo", "Vento", "Agua gelada"],
+                "options": ["Energia quimica", "Energia termica", "Energia cinetica", "Energia nuclear"],
                 "correctOptionIndex": 0,
                 "sourceQuote": "A fotossintese transforma energia luminosa em energia quimica."
             },

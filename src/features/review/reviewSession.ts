@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../../lib/tauri'
 import { z } from 'zod'
 import type { ReviewAiProvider } from './ai'
 
@@ -74,12 +74,24 @@ const reviewSessionDraftSchema = z.object({
 // para cobrir tudo. Derivado deterministicamente da selecao de cobertura no
 // backend (sem consultar a IA) — o que o usuario ve na preparacao e o que a
 // sessao executara.
+// Pontos avaliáveis por unidade-alvo (frases substantivas do texto, extraídas
+// deterministicamente no backend): o plano mostra o que a sessão testará antes
+// de iniciar. Sem classificação central/secundária na V1.
+const reviewUnitEvaluablePointsSchema = z.object({
+  unitId: z.string().min(1).max(256),
+  ordinal: z.number().int().nonnegative().max(2_000),
+  kind: z.enum(['wholeNote', 'section', 'paragraph']),
+  points: z.array(boundedText).max(8),
+}).strict()
+
 const reviewSessionPlanSchema = z.object({
   targetUnitCount: z.number().int().positive().max(2_000),
   totalUnitCount: z.number().int().positive().max(2_000),
   coverageFraction: z.number().min(0).max(1),
   estimatedMinutes: z.number().int().positive().max(24 * 60),
   expectedSessionsToCover: z.number().int().positive().max(2_000),
+  // Default vazio por compatibilidade com respostas antigas do preview.
+  unitEvaluablePoints: z.array(reviewUnitEvaluablePointsSchema).max(2_000).default([]),
 }).strict().superRefine((plan, context) => {
   if (plan.targetUnitCount > plan.totalUnitCount) {
     context.addIssue({ code: 'custom', message: 'The session plan cannot cover more units than exist.' })
@@ -130,6 +142,22 @@ const reviewGapSchema = z.object({
   }
 })
 
+const reviewAssertionReportSchema = z.object({
+  text: boundedText,
+  status: z.enum(['remembered', 'partial', 'missing', 'contradicted']),
+  // Identificacao do cerne: afirmacoes centrais pesam mais na pontuacao e na
+  // calibracao DSR/FSRS. Default secundaria por compatibilidade com respostas
+  // antigas do provedor sem a classificacao.
+  centrality: z.enum(['central', 'secondary']).default('secondary'),
+  sourceQuote: boundedText,
+  sourceStartUtf16: z.number().int().nonnegative().max(4_294_967_295),
+  sourceEndUtf16: z.number().int().positive().max(4_294_967_295),
+}).strict().superRefine((assertion, context) => {
+  if (assertion.sourceEndUtf16 <= assertion.sourceStartUtf16) {
+    context.addIssue({ code: 'custom', message: 'Assertion source ranges must be non-empty.' })
+  }
+})
+
 const reviewUnitReportSchema = z.object({
   id: z.string().min(1).max(256),
   ordinal: z.number().int().nonnegative().max(2_000),
@@ -148,6 +176,9 @@ const reviewUnitReportSchema = z.object({
   inconclusive: z.boolean().default(false),
   score: z.number().int().min(0).max(100),
   outcome: z.enum(['forgotten', 'partial', 'good', 'complete']),
+  // Afirmacoes avaliadas do paragrafo (pontuacao por afirmacao). Default vazio
+  // por compatibilidade: dados antigos e avaliacoes por lacuna nao carregam.
+  assertions: z.array(reviewAssertionReportSchema).max(2_000).default([]),
 }).strict().superRefine((unit, context) => {
   if (unit.sourceEndUtf16 <= unit.sourceStartUtf16) {
     context.addIssue({ code: 'custom', message: 'Unit source ranges must be non-empty.' })
@@ -172,6 +203,10 @@ const reviewCompletionReportSchema = z.object({
   markdown: z.string().max(2_000_000),
   units: z.array(reviewUnitReportSchema).min(1).max(2_000),
   gaps: z.array(reviewGapSchema).max(200),
+  // Conhecimento extra trazido pelo usuario na conversa e ausente na nota,
+  // fora da pontuacao: a interface pode oferecer adiciona-lo com confirmacao
+  // explicita. Default vazio por compatibilidade com relatorios antigos.
+  knowledgeSuggestions: z.array(boundedText).max(20).default([]),
   completedAtUnixMs: safeTimestamp,
   // Força da evidência que fundamentou o agendamento: a prova objetiva é
   // reconhecimento (evidência mais fraca de recuperação espontânea) e a
@@ -207,7 +242,10 @@ const reviewCompletionReportSchema = z.object({
   if (report.nextReviewAtUnixMs <= report.completedAtUnixMs) {
     issue('The next review must be after completion.')
   }
-  if ((report.overallScore === 100) !== (report.gaps.length === 0)) {
+  // Com a pontuacao por afirmacao, um relatorio pode omitir lacunas mesmo com
+  // nota abaixo de 100: as falhas ficam na decomposicao em afirmacoes.
+  const hasAssertions = report.units.some((unit) => unit.assertions.length > 0)
+  if (report.gaps.length === 0 && report.overallScore !== 100 && !hasAssertions) {
     issue('Only a perfect result can omit grounded gaps.')
   }
   const evaluatedUnits = report.units.filter((unit) => unit.evaluated)
@@ -233,7 +271,7 @@ const reviewCompletionReportSchema = z.object({
     const insideGaps = report.gaps.filter((gap) => (
       unit.sourceStartUtf16 <= gap.sourceStartUtf16 && gap.sourceEndUtf16 <= unit.sourceEndUtf16
     )).length
-    if ((unit.score === 100) !== (insideGaps === 0)) {
+    if (unit.assertions.length === 0 && (unit.score === 100) !== (insideGaps === 0)) {
       issue('A unit scores 100 if and only if no gap is attributed to it.')
     }
   }

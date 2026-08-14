@@ -1,4 +1,40 @@
 .review-session-page { gap: 28px; max-width: 960px; }
+
+/* Revisao de sintese: avaliacao formativa do modelo mental integrado. */
+.review-synthesis-sources { margin-top:16px; border:1px solid #d9d7d0; border-radius:8px; padding:12px 14px; background:#fbfaf6; }
+.review-synthesis-sources h3 { margin:0 0 4px; font-size:13px; }
+.review-synthesis-sources > p { margin:0 0 8px; font-size:12px; color:#686862; }
+.review-synthesis-sources ul { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+.review-synthesis-sources li { display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; font-size:12px; }
+.review-synthesis-sources li strong { font-size:12px; }
+.review-synthesis-source-kind { color:#1a5f8a; font-size:11px; font-weight:700; text-transform:lowercase; }
+.review-synthesis-source-path { color:#8a8a82; font-size:11px; }
+.review-synthesis-source-missing { color:#b3261e; font-size:11px; }
+.review-synthesis-source-text { width:100%; color:#3c3c37; font-size:11px; line-height:1.5; }
+.review-synthesis-sources > small { display:block; margin-top:8px; color:#8a8a82; font-size:11px; line-height:1.5; }
+.review-synthesis-field { display:grid; gap:6px; margin-top:14px; }
+.review-synthesis-field span { color:#4d4d48; font-size:12px; font-weight:700; }
+.review-synthesis-field textarea { min-height:180px; resize:vertical; padding:12px; border:1px solid #d9d7d0; border-radius:8px; background:#fff; color:inherit; font:inherit; line-height:1.65; }
+.review-synthesis-error { color:#b3261e; font-size:13px; line-height:1.6; }
+.review-synthesis-error ul { margin:6px 0 0; padding-left:18px; }
+.review-synthesis-header { display:flex; align-items:center; gap:18px; margin-top:6px; }
+.review-synthesis-header p { margin:0; color:#686862; font-size:13px; line-height:1.6; }
+.review-synthesis-dimensions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:16px; }
+.review-synthesis-dimension { border:1px solid #d9d7d0; border-radius:8px; padding:14px; background:#fbfaf6; }
+.review-synthesis-dimension > header { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.review-synthesis-dimension header strong { display:block; font-size:14px; }
+.review-synthesis-dimension header small { color:#686862; font-size:11px; }
+.review-synthesis-score { flex:none; min-width:42px; text-align:center; border-radius:8px; padding:4px 8px; font:700 16px/1 var(--serif); }
+.review-synthesis-score.is-band-complete { background:#e6f4ea; color:#1e7b34; }
+.review-synthesis-score.is-band-good { background:#e8f1f8; color:#1a5f8a; }
+.review-synthesis-score.is-band-partial { background:#fdf3e3; color:#9a6700; }
+.review-synthesis-score.is-band-forgotten { background:#fdeceb; color:#b3261e; }
+.review-synthesis-dimension > p { margin:10px 0 0; font-size:13px; line-height:1.6; color:#3c3c37; }
+.review-synthesis-dimension blockquote { margin:10px 0 0; padding-left:10px; border-left:3px solid #d9d7d0; color:#686862; font-size:12px; line-height:1.55; }
+.review-synthesis-source { margin:8px 0 0; font-size:11px; color:#8a8a82; }
+.review-synthesis-observations { list-style:none; margin:16px 0 0; padding:0; display:grid; gap:8px; }
+.review-synthesis-observations li { display:flex; gap:8px; align-items:flex-start; font-size:13px; line-height:1.55; color:#3c3c37; }
+.review-synthesis-observations svg { flex:none; margin-top:2px; color:var(--accent); }
 /* Relatorio em duas colunas ocupando a largura total: nota a esquerda, resumo a direita */
 .review-report-page { max-width: none; width: 100%; }
 /* Pagina de relatorio e um workspace de altura fixa: topbar e header fixos, colunas rolam sozinhas */
@@ -43,6 +79,14 @@
 .review-setup-plan svg { flex:none; color:var(--accent); }
 .review-setup-plan.is-error { border-color:color-mix(in srgb,var(--danger) 40%,#d9d7d0); color:var(--danger) !important; }
 .review-consent-warning { border-left:3px solid var(--danger); padding:8px 12px; color:var(--danger) !important; }
+/* Pontos avaliáveis por unidade no plano da sessao */
+.review-setup-points { display:grid; gap:10px; }
+.review-setup-points h3 { margin:0; color:#4d4d48; font-size:12px; font-weight:700; }
+.review-setup-points > ul { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+.review-setup-points > ul > li { display:grid; gap:4px; border:1px solid #e3e1da; border-radius:8px; padding:10px 12px; background:#fbfaf6; }
+.review-setup-points-label { margin:0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:#6f6b5f; }
+.review-setup-points li li { margin:0; padding-left:14px; color:#4d4d48; font-size:12px; line-height:1.55; list-style:square; }
+.review-setup-points li li + li { margin-top:2px; }
 .review-question label { color:#4d4d48; font-size:12px; font-weight:700; }
 .review-options { display:grid; gap:10px; border:0; margin:0; padding:0; }
 .review-options legend { margin-bottom:2px; color:#4d4d48; font-size:12px; font-weight:700; }
@@ -95,6 +139,38 @@
 .review-gap-quote ul, .review-gap-quote ol { padding-left:18px; }
 .review-gap-quote strong { font-weight:700; }
 .review-gap-quote .katex-display { max-width:100%; margin:2px 0; padding:2px 0; overflow-x:auto; overflow-y:hidden; }
+/* Decomposicao por afirmacao (pontuacao por afirmacao) */
+.review-assertions { display:grid; gap:14px; width:100%; }
+.review-assertions h3 { font-size:13px; }
+.review-assertions-unit { display:grid; gap:8px; }
+.review-assertions-unit-label { margin:0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:#6f6b5f; }
+.review-assertions-unit ul { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+.review-assertions-unit li { display:grid; grid-template-columns:86px 1fr; gap:12px; align-items:start; border-bottom:1px solid #e3e1da; padding:8px 0; font-size:12px; }
+.review-assertions-unit li > .review-assertion-status { font-weight:700; }
+.review-assertions-unit li > .review-assertion-centrality { grid-column: 2; justify-self:start; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; }
+.review-assertion-centrality.is-central { color:#7a4a12; background:#fdecc8; }
+.review-assertion-centrality.is-secondary { color:#6f6b5f; background:#efece2; }
+.review-knowledge { display:grid; gap:10px; }
+.review-knowledge h3 { font-size:13px; margin:0; }
+.review-knowledge-hint { display:flex; gap:8px; align-items:flex-start; margin:0; font-size:12px; color:#6f6b5f; }
+.review-knowledge ul { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
+.review-knowledge li { display:grid; gap:8px; padding:10px; border:1px solid #e3e1da; border-radius:10px; background:#faf8f2; }
+.review-knowledge-text { font-size:12px; line-height:1.5; }
+.review-knowledge-add { justify-self:start; }
+.review-knowledge-added { display:flex; gap:6px; align-items:center; margin:0; font-size:12px; color:#2f6b33; font-weight:600; }
+.review-knowledge-error { margin:0; font-size:12px; color:#a12828; }
+.review-knowledge-confirm-text { padding:10px 12px; border-radius:8px; background:#f2efe6; font-size:13px; line-height:1.5; }
+.review-assertion-text { min-width:0; }
+.review-assertion-quote { min-width:0; padding:6px 10px; border-radius:7px; color:inherit; background:#f2efe6; }
+.review-assertions-unit li.is-remembered .review-assertion-quote { background:#cde8cf; }
+.review-assertions-unit li.is-partial .review-assertion-quote { background:#ffe5a5; }
+.review-assertions-unit li.is-missing .review-assertion-quote { background:#ffc9c2; }
+.review-assertions-unit li.is-contradicted .review-assertion-quote { background:#ffb4c8; }
+.review-assertion-quote > *:first-child { margin-top:0; }
+.review-assertion-quote > *:last-child { margin-bottom:0; }
+.review-assertion-quote p, .review-assertion-quote ul, .review-assertion-quote ol { margin:2px 0; }
+.review-assertion-quote ul, .review-assertion-quote ol { padding-left:18px; }
+.review-assertion-quote .katex-display { max-width:100%; margin:2px 0; padding:2px 0; overflow-x:auto; overflow-y:hidden; }
 /* Markdown + math dentro das alternativas, dica e lacunas */
 .review-option-text > * { margin:0; }
 .review-option-text .katex-display { max-width:100%; overflow-x:auto; overflow-y:hidden; }

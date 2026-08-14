@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countMarkdownWords, detectUnsupportedMarkdownFeatures, findMarkdownWordAtOffset, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownDescription, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderObsidianCalloutsAsMarkdown, renderWikiLinksAsMarkdown, replaceMarkdownBlock, replaceMarkdownBody, setMarkdownDescription, setMarkdownFrontmatterProperties, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable } from './markdown'
+import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, findMarkdownWordAtOffset, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownDescription, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderObsidianCalloutsAsMarkdown, renderWikiLinksAsMarkdown, replaceMarkdownBlock, replaceMarkdownBody, setMarkdownDescription, setMarkdownFrontmatterProperties, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable } from './markdown'
 
 describe('note description frontmatter', () => {
   it('creates and reads the description property without changing the body', () => {
@@ -308,5 +308,26 @@ describe('findMarkdownWordAtOffset', () => {
   it('trims long tokens to a readable size', () => {
     const longCode = 'a '.concat('x'.repeat(60))
     expect(findMarkdownWordAtOffset(longCode, 40).length).toBeLessThanOrEqual(32)
+  })
+})
+
+describe('appendWikilinkToContent', () => {
+  it('appends the link after a blank line, preserving the existing text', () => {
+    expect(appendWikilinkToContent('Nota existente', '[[Outra]]')).toBe('Nota existente\n\n[[Outra]]\n')
+    expect(appendWikilinkToContent('Linha 1\nLinha 2', '[[Outra]]')).toBe('Linha 1\nLinha 2\n\n[[Outra]]\n')
+  })
+
+  it('does not duplicate a link already present in the content', () => {
+    const content = 'Texto com [[Outra]] no meio'
+    expect(appendWikilinkToContent(content, '[[Outra]]')).toBe(content)
+  })
+
+  it('turns empty or whitespace-only content into just the link', () => {
+    expect(appendWikilinkToContent('', '[[Outra]]')).toBe('[[Outra]]\n')
+    expect(appendWikilinkToContent('   \n\n  ', '[[Outra]]')).toBe('[[Outra]]\n')
+  })
+
+  it('keeps a single trailing newline on a note that already ends with one', () => {
+    expect(appendWikilinkToContent('Nota\n', '[[Outra]]')).toBe('Nota\n\n[[Outra]]\n')
   })
 })

@@ -34,6 +34,7 @@ describe('IPC contract serialized by Rust', () => {
       promptDelete: null,
       trashOption: null,
       userIgnoreFilters: [],
+      ignoredPreferenceFields: [],
     })
     expect(parseVaultSummary(fixture.current.nullableVaultSummary).obsidianPreferences).toBeNull()
     expect(parseNoteDocument(fixture.current.noteDocument).relativePath).toBe('notas/aula.md')

@@ -22,8 +22,8 @@ use super::provider::{
 };
 use super::session::{
     complete_review_session, start_review_session_with_coverage, PromptKind,
-    ReviewCompletionAttempt, ReviewCompletionInput, ReviewExchange, ReviewGenerationAttempt,
-    ReviewPrompt,
+    ReviewCompletionAttempt, ReviewCompletionInput, ReviewExchange, ReviewGapClassification,
+    ReviewGenerationAttempt, ReviewPrompt, ReviewResultOutcome,
 };
 use serde_json::{json, Value};
 use std::sync::Mutex;
@@ -484,5 +484,170 @@ fn transcript_injection_never_reaches_the_evaluation_prompt_nor_loosens_validati
         .system_instructions
         .contains("Ignore a avaliacao"));
     assert!(requests[0].user_content.contains("Ignore a avaliacao"));
+    assert!(stored_sessions(&vault, &document.note.id).is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// Memoria vs veracidade (fixtures adversariais)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn evaluation_instructions_forbid_factual_checking_and_external_knowledge() {
+    // Contrato das instrucoes privilegiadas: a avaliacao de memoria nunca
+    // corrige a realidade nem credita conhecimento externo. Fixa as clausulas
+    // para que edicoes futuras do prompt nao as percam silenciosamente.
+    for clause in [
+        "nao verifique a verdade factual",
+        "Nao use conhecimento externo",
+        "nao penalize nem bonifique informacoes fora da nota",
+    ] {
+        assert!(
+            super::session::EVALUATION_INSTRUCTIONS.contains(clause),
+            "a avaliacao final deve conter: {clause}"
+        );
+    }
+    // A geracao (prova e conversa) tambem carrega a proibicao de conhecimento
+    // externo e a instrucao de nao cobrar nada ausente da nota.
+    assert!(super::session::EXAM_INSTRUCTIONS.contains("Nao use conhecimento externo"));
+    assert!(super::session::EXAM_INSTRUCTIONS.contains("nao cobre nada ausente da nota"));
+    assert!(super::session::CONVERSATION_INSTRUCTIONS.contains("Nao use conhecimento externo"));
+}
+
+#[test]
+fn a_faithful_recall_of_a_factually_false_note_scores_perfectly_without_factual_judgment() {
+    // A nota e factualmente falsa: a avaliacao de memoria nunca deve corrigir
+    // a realidade. O usuario recorda a nota fielmente, o avaliador pontua 100
+    // sem lacunas e a validacao local nao injeta julgamento factual em nenhum
+    // lugar do pipeline (score, resumo ou estado DSR/FSRS).
+    let markdown = "# Terra\n\nA Terra e plana e imovel.\n\nO Sol gira ao redor da Terra.";
+    let (vault, document) = write_ready_document(markdown);
+    let mut exchanges = conversation_exchanges();
+    exchanges[0].answer = "A Terra e plana e imovel.".to_string();
+    exchanges[1].answer = "O Sol gira ao redor da Terra.".to_string();
+    let provider = FixedProvider {
+        response: json!({
+            "score": 100,
+            "summary": "Lembrou a nota fielmente.",
+            "gaps": []
+        }),
+        requests: Mutex::new(Vec::new()),
+    };
+    let attempt = complete_review_session(
+        vault.path(),
+        &document.note.id,
+        &provider,
+        markdown,
+        conversation_completion_input(&document, markdown, exchanges),
+        1_730_000_000_000,
+        || Ok(markdown.to_string()),
+    )
+    .expect("complete");
+    let ReviewCompletionAttempt::Valid { report } = attempt else {
+        panic!("expected the faithful recall to be accepted as perfect")
+    };
+    assert_eq!(report.overall_score, Some(100));
+    assert_eq!(report.outcome, Some(ReviewResultOutcome::Complete));
+    assert!(report.gaps.is_empty());
+    // A separacao esta no contrato enviado ao provedor, nao apenas no codigo.
+    let requests = provider.requests.lock().expect("request lock");
+    let instructions = &requests[0].system_instructions;
+    assert!(instructions.contains("nao verifique a verdade factual"));
+    assert!(instructions.contains("nao penalize nem bonifique informacoes fora da nota"));
+    // A sessao e persistida com score 100 (memoria perfeita da nota).
+    assert!(!stored_sessions(&vault, &document.note.id).is_empty());
+}
+
+#[test]
+fn external_true_knowledge_is_not_credited_as_recall() {
+    // O conhecimento externo verdadeiro nao conta como lembranca da nota: o
+    // avaliador descontou por um trecho real da nota e a validacao local
+    // aceita o desconto fundamentado — a nota reflete memoria apenas.
+    let markdown = "# ATP\n\nATP armazena energia para uso celular.";
+    let (vault, document) = write_ready_document(markdown);
+    let mut exchanges = conversation_exchanges();
+    // Factualmente verdadeiro, mas ausente da nota (conhecimento externo).
+    exchanges[0].answer = "ATP e a moeda energetica da celula.".to_string();
+    let provider = FixedProvider {
+        response: json!({
+            "score": 50,
+            "summary": "O conteudo da nota nao foi lembrado.",
+            "gaps": [{
+                "classification": "forgotten",
+                "sourceQuote": "ATP armazena energia para uso celular"
+            }]
+        }),
+        requests: Mutex::new(Vec::new()),
+    };
+    let attempt = complete_review_session(
+        vault.path(),
+        &document.note.id,
+        &provider,
+        markdown,
+        conversation_completion_input(&document, markdown, exchanges),
+        1_730_000_000_000,
+        || Ok(markdown.to_string()),
+    )
+    .expect("complete");
+    let ReviewCompletionAttempt::Valid { report } = attempt else {
+        panic!("expected the memory-only discount to be accepted")
+    };
+    // A nota reflete memoria apenas: o score deriva da cobertura da lacuna
+    // fundamentada (bem abaixo de 100), nao do conhecimento externo citado.
+    let score = report.overall_score.expect("valid session carries a score");
+    assert!(
+        score > 0 && score < 50,
+        "expected a discounted memory score, got {score}"
+    );
+    assert_eq!(
+        report.gaps[0].classification,
+        ReviewGapClassification::Forgotten
+    );
+    assert_eq!(
+        report.gaps[0].source_quote,
+        "ATP armazena energia para uso celular"
+    );
+}
+
+#[test]
+fn an_evaluator_cannot_penalize_a_faithful_recall_with_a_fabricated_fragment() {
+    // O inverso: o avaliador confunde memoria com veracidade e tenta descontar
+    // a recordacao fiel corrigindo a realidade ("a Terra gira" nao esta na
+    // nota). A lacuna fabricada nao tem fundamento local e a avaliacao inteira
+    // e rejeitada sem persistir nada.
+    let markdown = "# Terra\n\nA Terra e plana e imovel.";
+    let (vault, document) = write_ready_document(markdown);
+    let provider = FixedProvider {
+        response: json!({
+            "score": 40,
+            "summary": "Corrige a realidade: a Terra gira.",
+            "gaps": [{
+                "classification": "forgotten",
+                "sourceQuote": "A Terra gira"
+            }]
+        }),
+        requests: Mutex::new(Vec::new()),
+    };
+    let attempt = complete_review_session(
+        vault.path(),
+        &document.note.id,
+        &provider,
+        markdown,
+        conversation_completion_input(&document, markdown, conversation_exchanges()),
+        1_730_000_000_000,
+        || Ok(markdown.to_string()),
+    )
+    .expect("complete");
+    let ReviewCompletionAttempt::Invalid {
+        validation_errors, ..
+    } = attempt
+    else {
+        panic!("expected the veracity-flavored fabricated gap to be rejected")
+    };
+    assert!(
+        validation_errors
+            .iter()
+            .any(|error| error.contains("nao existe no Markdown")),
+        "grounding error expected: {validation_errors:?}"
+    );
     assert!(stored_sessions(&vault, &document.note.id).is_empty());
 }

@@ -35,20 +35,60 @@ export function createForceGraph3DLayout(
   nodes: Graph3DNode[],
   links: Graph3DLink[],
   iterations = 140,
-  options?: { nodeSpacing?: number },
+  options?: { nodeSpacing?: number; groupOf?: (node: Graph3DNode) => string; groupSpacing?: number },
 ): Map<string, Graph3DPosition> {
   const scale = (options?.nodeSpacing ?? 8) / 8
   const positions = new Map<string, Graph3DPosition>()
+  const groupOf = options?.groupOf
+  const groupRingRadius = options?.groupSpacing ?? 16
 
-  nodes.forEach((node, index) => {
-    const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1) - Math.PI / 2
-    const height = nodes.length > 1 ? (index / (nodes.length - 1) - 0.5) * 13 : 0
-    positions.set(node.relativePath, {
-      x: Math.cos(angle) * 9,
-      y: height,
-      z: Math.sin(angle) * 9,
+  // Agrupamento por pasta: cada grupo ganha um centro deterministico em um
+  // anel no plano XZ (alternando a altura), e cada no inicia proximo ao
+  // centro do proprio grupo em um pequeno anel interno.
+  const groupCenters = new Map<string, Graph3DPosition>()
+  if (groupOf) {
+    const groups = new Map<string, string[]>()
+    for (const node of nodes) {
+      const group = groupOf(node)
+      const members = groups.get(group) ?? []
+      members.push(node.relativePath)
+      groups.set(group, members)
+    }
+    const groupNames = [...groups.keys()].sort((left, right) => left.localeCompare(right))
+    const rootIndex = groupNames.indexOf('')
+    if (rootIndex !== -1) {
+      const [root] = groupNames.splice(rootIndex, 1)
+      groupNames.unshift(root)
+    }
+    groupNames.forEach((group, groupIndex) => {
+      const groupAngle = (Math.PI * 2 * groupIndex) / Math.max(groupNames.length, 1) - Math.PI / 2
+      const center = {
+        x: Math.cos(groupAngle) * groupRingRadius,
+        y: (groupIndex % 2 === 0 ? 1 : -1) * 2.5,
+        z: Math.sin(groupAngle) * groupRingRadius,
+      }
+      groupCenters.set(group, center)
+      const members = groups.get(group) ?? []
+      members.forEach((path, memberIndex) => {
+        const innerAngle = (Math.PI * 2 * memberIndex) / Math.max(members.length, 1) - Math.PI / 2
+        positions.set(path, {
+          x: center.x + Math.cos(innerAngle) * 2.6,
+          y: center.y + (memberIndex % 3) * 1.1,
+          z: center.z + Math.sin(innerAngle) * 2.6,
+        })
+      })
     })
-  })
+  } else {
+    nodes.forEach((node, index) => {
+      const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1) - Math.PI / 2
+      const height = nodes.length > 1 ? (index / (nodes.length - 1) - 0.5) * 13 : 0
+      positions.set(node.relativePath, {
+        x: Math.cos(angle) * 9,
+        y: height,
+        z: Math.sin(angle) * 9,
+      })
+    })
+  }
 
   for (let iteration = 0; iteration < iterations; iteration += 1) {
     const displacement = new Map<string, Graph3DPosition>()
@@ -91,6 +131,28 @@ export function createForceGraph3DLayout(
       to.x -= (deltaX / distance) * force
       to.y -= (deltaY / distance) * force
       to.z -= (deltaZ / distance) * force
+    }
+
+    // Mola do grupo: cada no e puxado de volta para o centro da propria pasta
+    // quando ultrapassa o raio interno — mantem os clusters coesos sem impedir
+    // a repulsao par-a-par nem as arestas internas.
+    if (groupOf) {
+      for (const node of nodes) {
+        const center = groupCenters.get(groupOf(node))
+        if (!center) continue
+        const position = positions.get(node.relativePath)!
+        const movement = displacement.get(node.relativePath)!
+        const dx = center.x - position.x
+        const dy = center.y - position.y
+        const dz = center.z - position.z
+        const distance = Math.hypot(dx, dy, dz)
+        if (distance > 3.4) {
+          const pull = (distance - 3.4) * 0.09
+          movement.x += (dx / distance) * pull
+          movement.y += (dy / distance) * pull
+          movement.z += (dz / distance) * pull
+        }
+      }
     }
 
     for (const node of nodes) {

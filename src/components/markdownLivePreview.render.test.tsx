@@ -344,4 +344,17 @@ describe('markdownLivePreview render (jsdom)', () => {
     const value = onChange.mock.calls.at(-1)?.[0] as string
     expect(value).toContain('| A |')
   })
+
+  it('mascara blocos de codigo com conteudo em varias linhas sem cruzar quebras de linha', async () => {
+    // Regressao: os replaces `hidden` das cercas cruzavam a quebra de linha
+    // quando o conteudo comecava na linha seguinte (RangeError do CodeMirror).
+    const container = await renderLive('# Titulo\n\n```js\nconst x = 1\nconst y = 2\n```\n\nFim')
+    await waitFor(() => expect(container.querySelector('.cm-editor')).not.toBeNull())
+    const content = container.querySelector('.cm-content')
+    // O editor continua vivo, com o conteudo preservado e sem a cercas visiveis
+    // (o conteudo do bloco permanece cru dentro do pre real do CodeMirror).
+    expect(content?.textContent).toContain('const x = 1')
+    expect(content?.textContent).toContain('const y = 2')
+    expect(content?.textContent).not.toContain('```js')
+  })
 })

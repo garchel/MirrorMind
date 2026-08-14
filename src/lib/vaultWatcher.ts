@@ -44,6 +44,20 @@ export function diffVaultNotePaths(previousPaths: string[], nextPaths: string[])
   return { removedPaths, createdPaths }
 }
 
+/** Mudancas que o inventario incremental pode aplicar SEM re-varrer o Vault:
+ * criacao/remocao/renomeacao de anexos e pastas, sem nota ou arquivo especial
+ * envolvido e sem rescan/modify. Qualquer outra mudanca exige a varredura
+ * completa (reconciliacao periodica e manual permanecem como rede de seguranca). */
+export function canApplyInventoryIncrementally(change?: VaultFileSystemChange): boolean {
+  if (!change || change.kind === 'rescan' || change.kind === 'modify') return false
+  if (change.paths.length > 2) return false
+  return change.paths.every((path) => (
+    !/\.md$/i.test(path)
+    && !/\.excalidraw$/i.test(path)
+    && !/\.canvas$/i.test(path)
+  ))
+}
+
 export type VaultWatcherQueueAction = 'debounce' | 'rescan' | 'unchanged'
 
 type VaultScan = (change?: VaultFileSystemChange) => Promise<void>

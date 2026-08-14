@@ -113,6 +113,58 @@ describe('accumulateObsidianForces2D', () => {
     expect(velocities.get('a')).toBeUndefined()
   })
 
+  it('a mola do grupo puxa os nos para o centro da propria pasta', () => {
+    const positions = positionsOf([
+      ['a', { x: 90, y: 50 }], // longe do centro do grupo
+      ['b', { x: 20, y: 50 }],
+    ])
+    const velocities = velocitiesOf(['a', 'b'])
+    accumulateObsidianForces2D({
+      paths: ['a', 'b'],
+      positions,
+      velocities,
+      groupCenters: new Map([
+        ['a', { x: 70, y: 50 }],
+        ['b', { x: 30, y: 50 }],
+      ]),
+      groupInnerRadius: 5,
+      delta: 1 / 60,
+    })
+    // a e puxado para a esquerda (ao centro 70); b para a direita (ao 30).
+    expect(velocities.get('a')!.x).toBeLessThan(0)
+    expect(velocities.get('b')!.x).toBeGreaterThan(0)
+  })
+
+  it('a mola do grupo nao age dentro do raio interno (no livre)', () => {
+    const positions = positionsOf([['a', { x: 71, y: 50 }]]) // a 1 do centro 70
+    const velocities = velocitiesOf(['a'])
+    accumulateObsidianForces2D({
+      paths: ['a'],
+      positions,
+      velocities,
+      groupCenters: new Map([['a', { x: 70, y: 50 }]]),
+      groupInnerRadius: 5,
+      delta: 1 / 60,
+    })
+    expect(velocities.get('a')).toEqual({ x: 0, y: 0 })
+  })
+
+  it('o alpha escala a mola do grupo (resfriamento)', () => {
+    const full = positionsOf([['a', { x: 90, y: 50 }]])
+    const cooled = positionsOf([['b', { x: 90, y: 50 }]])
+    const fullVelocities = velocitiesOf(['a'])
+    const cooledVelocities = velocitiesOf(['b'])
+    accumulateObsidianForces2D({
+      paths: ['a'], positions: full, velocities: fullVelocities,
+      groupCenters: new Map([['a', { x: 70, y: 50 }]]), groupInnerRadius: 5, delta: 1 / 60,
+    })
+    accumulateObsidianForces2D({
+      paths: ['b'], positions: cooled, velocities: cooledVelocities,
+      groupCenters: new Map([['b', { x: 70, y: 50 }]]), groupInnerRadius: 5, alpha: 0.5, delta: 1 / 60,
+    })
+    expect(Math.abs(cooledVelocities.get('b')!.x)).toBeCloseTo(Math.abs(fullVelocities.get('a')!.x) * 0.5, 10)
+  })
+
   it('o alpha escala todas as forcas (resfriamento da simulacao)', () => {
     const full = positionsOf([
       ['a', { x: 49, y: 50 }],

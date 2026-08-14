@@ -4,12 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
 import { ReviewSessionPage } from './ReviewSessionPage'
 
-const { startMock, completeMock, continueMock, reclassifyMock, previewMock } = vi.hoisted(() => ({
+const { startMock, completeMock, continueMock, reclassifyMock, previewMock, synthesisMock, sourcesMock } = vi.hoisted(() => ({
   startMock: vi.fn(),
   completeMock: vi.fn(),
   continueMock: vi.fn(),
   reclassifyMock: vi.fn(),
   previewMock: vi.fn(),
+  synthesisMock: vi.fn(),
+  sourcesMock: vi.fn(),
 }))
 
 vi.mock('./reviewSession', async (importOriginal) => ({
@@ -22,6 +24,8 @@ vi.mock('./reviewSession', async (importOriginal) => ({
 
 vi.mock('./ai', async (importOriginal) => ({
   ...await importOriginal<typeof import('./ai')>(),
+  assessNoteSynthesis: synthesisMock,
+  getNoteSessionSources: sourcesMock,
   setNoteUnitClassification: reclassifyMock,
 }))
 
@@ -29,6 +33,8 @@ const item = {
   noteId: 'note-1', relativePath: 'Biologia/Fotossintese.md', title: 'Fotossintese',
   nextReviewAtUnixMs: 1, priorityWeight: 3, deadlineAtUnixMs: null, preferredMode: 'exam' as const, isFirstReview: true,
 }
+
+const VAULT_PATH = 'C:\\Vault'
 
 const reportMarkdown = 'A energia luminosa alimenta a fotossintese.'
 const perfectMarkdown = 'ATP armazena energia para uso celular.'
@@ -90,7 +96,7 @@ async function answerExamQuestion(user: ReturnType<typeof userEvent.setup>, opti
 function renderPage(onExit = vi.fn(), onCompleted = vi.fn()) {
   return { onExit, onCompleted, ...render(
     <ReviewAiSettingsProvider>
-      <ReviewSessionPage vaultPath="C:\\Vault" item={item} onExit={onExit} onCompleted={onCompleted} />
+      <ReviewSessionPage vaultPath={VAULT_PATH} item={item} onExit={onExit} onCompleted={onCompleted} />
     </ReviewAiSettingsProvider>,
   ) }
 }
@@ -103,6 +109,9 @@ describe('ReviewSessionPage', () => {
     continueMock.mockReset()
     reclassifyMock.mockReset()
     previewMock.mockReset()
+    synthesisMock.mockReset()
+    sourcesMock.mockReset()
+    sourcesMock.mockResolvedValue([])
     previewMock.mockResolvedValue({
       targetUnitCount: 4, totalUnitCount: 10, coverageFraction: 0.4,
       estimatedMinutes: 6, expectedSessionsToCover: 3,
@@ -139,6 +148,40 @@ describe('ReviewSessionPage', () => {
     await user.click(screen.getByRole('radio', { name: /Modo prova/ }))
     await screen.findByText(/Nao foi possivel estimar a sessao/)
     expect(startMock).not.toHaveBeenCalled()
+  })
+
+  it('shows the evaluable points of each target unit on the setup screen', async () => {
+    previewMock.mockResolvedValue({
+      targetUnitCount: 2, totalUnitCount: 4, coverageFraction: 0.5,
+      estimatedMinutes: 3, expectedSessionsToCover: 2,
+      unitEvaluablePoints: [
+        {
+          unitId: 'unit-1', ordinal: 0, kind: 'paragraph',
+          points: [
+            'A fotossintese transforma energia luminosa em energia quimica.',
+            'O processo libera oxigenio.',
+          ],
+        },
+        { unitId: 'unit-2', ordinal: 1, kind: 'paragraph', points: [] },
+      ],
+    })
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByRole('heading', { name: 'O que esta sessão testará' })
+    expect(screen.getByText('Parágrafo 1')).toBeInTheDocument()
+    expect(screen.getByText('A fotossintese transforma energia luminosa em energia quimica.')).toBeInTheDocument()
+    expect(screen.getByText('O processo libera oxigenio.')).toBeInTheDocument()
+    // Unidade sem pontos nao aparece na lista.
+    expect(screen.queryByText('Parágrafo 2')).not.toBeInTheDocument()
+    // Sem pontos em nenhuma unidade, a secao nao e exibida.
+    previewMock.mockResolvedValue({
+      targetUnitCount: 1, totalUnitCount: 1, coverageFraction: 1,
+      estimatedMinutes: 1, expectedSessionsToCover: 1, unitEvaluablePoints: [],
+    })
+    await user.click(screen.getByRole('radio', { name: /Modo conversa/ }))
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'O que esta sessão testará' })).not.toBeInTheDocument()
+    })
   })
 
   it('explains that an objective exam is weaker evidence for scheduling', async () => {
@@ -766,5 +809,81 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
     await user.click(screen.getByRole('heading', { name: 'Nota avaliada' }))
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(reclassifyMock).not.toHaveBeenCalled()
+  })
+
+  it('evaluates the user synthesis across the four dimensions without altering memory', async () => {
+    synthesisMock.mockResolvedValue({
+      outcome: 'valid',
+      sourceHash: 'sha256:content',
+      report: {
+        overallScore: 72,
+        dimensions: {
+          core: { score: 80, explanation: 'Captura a ideia central.', quote: 'A fotossintese converte luz em energia.', sourceQuote: null },
+          connections: { score: 60, explanation: 'Conecta clorofila e luz.', quote: 'A clorofila absorve a luz.', sourceQuote: null },
+          application: { score: 75, explanation: 'Aplica em exemplo proprio.', quote: 'Isso explica plantas de sombra.', sourceQuote: null },
+          gaps: { score: 50, explanation: 'Admite duvida sobre a fase escura.', quote: 'Nao lembro a fase escura.', sourceQuote: null },
+        },
+        observations: [{ text: 'Conecte mais os conceitos.' }],
+      },
+    })
+    renderPage()
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('radio', { name: /Revisão de síntese/ }))
+    await user.type(screen.getByLabelText('Sua síntese da nota'), 'A fotossintese converte luz em energia. A clorofila absorve a luz. Isso explica plantas de sombra. Nao lembro a fase escura.')
+    await user.click(screen.getByRole('button', { name: 'Avaliar síntese' }))
+
+    expect(await screen.findByText('Resultado da síntese')).toBeInTheDocument()
+    expect(synthesisMock).toHaveBeenCalledWith({
+      vaultPath: VAULT_PATH,
+      relativePath: item.relativePath,
+      synthesis: 'A fotossintese converte luz em energia. A clorofila absorve a luz. Isso explica plantas de sombra. Nao lembro a fase escura.',
+      provider: 'ollama',
+    })
+    expect(screen.getByText('72')).toBeInTheDocument()
+    expect(screen.getByText('Cerne')).toBeInTheDocument()
+    expect(screen.getByText('Conexões')).toBeInTheDocument()
+    expect(screen.getByText('Aplicação')).toBeInTheDocument()
+    expect(screen.getByText('Lacunas')).toBeInTheDocument()
+    expect(startMock).not.toHaveBeenCalled()
+    expect(completeMock).not.toHaveBeenCalled()
+  })
+
+  it('lists the attachment sources considered by the synthesis session', async () => {
+    sourcesMock.mockResolvedValue([
+      { rawTarget: 'grafico.png', kind: 'image', relativePath: 'media/grafico.png', sizeBytes: 1024, reason: null },
+      { rawTarget: 'manual.pdf', kind: 'document', relativePath: null, sizeBytes: null, reason: 'anexo não encontrado no inventário do Vault' },
+      { rawTarget: 'fonte', kind: 'markdown', relativePath: 'fonte.md', sizeBytes: null, reason: null },
+    ])
+    renderPage()
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('radio', { name: /Revisão de síntese/ }))
+
+    expect(await screen.findByRole('heading', { name: 'Fontes consideradas' })).toBeInTheDocument()
+    expect(sourcesMock).toHaveBeenCalledWith({ vaultPath: VAULT_PATH, relativePath: item.relativePath })
+    expect(screen.getByText('grafico.png')).toBeInTheDocument()
+    expect(screen.getByText('media/grafico.png')).toBeInTheDocument()
+    expect(screen.getByText('manual.pdf')).toBeInTheDocument()
+    expect(screen.getByText('fonte.md')).toBeInTheDocument()
+  })
+
+  it('shows the evaluation error when the synthesis cannot be validated', async () => {
+    synthesisMock.mockResolvedValue({
+      outcome: 'invalid',
+      sourceHash: 'sha256:content',
+      message: 'O relatorio de sintese nao esta fundamentado nos textos.',
+      rawResponse: null,
+      validationErrors: ['A citacao deve ser literal exata.'],
+    })
+    renderPage()
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('radio', { name: /Revisão de síntese/ }))
+    await user.type(screen.getByLabelText('Sua síntese da nota'), 'A fotossintese converte luz em energia. A clorofila absorve a luz. Isso explica plantas de sombra. Nao lembro a fase escura.')
+    await user.click(screen.getByRole('button', { name: 'Avaliar síntese' }))
+
+    expect(await screen.findByText('O relatorio de sintese nao esta fundamentado nos textos.')).toBeInTheDocument()
+    expect(screen.getByText('A citacao deve ser literal exata.')).toBeInTheDocument()
   })
 })
