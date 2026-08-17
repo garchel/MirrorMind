@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
+import { remarkSetextDividerAsSeparator } from '../../lib/remarkSetextDivider'
 import {
   assessNoteReadiness,
   discardUnrecoverableLearningDocument,
@@ -57,7 +58,7 @@ function ReviewReportMarkdown({ content }: { content: string }) {
   return (
     <div className="review-ai-markdown">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={[remarkGfm, remarkMath, remarkSetextDividerAsSeparator]}
         rehypePlugins={[rehypeKatex]}
       >
         {content}

@@ -6691,7 +6691,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn rejects_an_exam_question_whose_answer_is_not_in_the_note() {
         // O caso troiano: o enunciado cita termos da nota (``energia``,
         // ``luminosa``), mas a resposta correta cobra conteudo ausente. A

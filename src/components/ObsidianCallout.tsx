@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { AlertTriangle, Bug, CheckCircle2, CircleHelp, Flame, Info, Lightbulb, ListTodo, NotebookPen, Quote } from 'lucide-react'
 
 type ObsidianCalloutProps = {
-  children: ReactNode
+  children?: ReactNode
   defaultCollapsed: boolean
   foldable: boolean
   title: ReactNode

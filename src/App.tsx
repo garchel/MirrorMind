@@ -1,4 +1,4 @@
-import { Fragment, lazy, Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CSSProperties, DragEvent, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import type { EditorState } from '@codemirror/state'
@@ -11,21 +11,11 @@ import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, C
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { CiStickyNote } from 'react-icons/ci'
 import 'katex/dist/katex.min.css'
-import ReactMarkdown from 'react-markdown'
-import rehypeKatex from 'rehype-katex'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import rehypeRaw from 'rehype-raw'
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { BuilderModeControl } from './components/BuilderModeControl'
 import { MarkdownCodeEditor } from './components/MarkdownCodeEditor'
-import { NoteTagPicker } from './components/NoteTagPicker'
-import { Badge } from './components/ui/badge'
+import type { FrontmatterPanelData, FrontmatterRow, LinkTarget } from './components/markdownLivePreview'
 import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from './components/ui/drawer'
-import { ObsidianCallout } from './components/ObsidianCallout'
-import { ObsidianNoteEmbed } from './components/ObsidianNoteEmbed'
-import { ObsidianPdfEmbed } from './components/ObsidianPdfEmbed'
 import { NoteReadinessControl, type ReviewStartInfo } from './features/review/NoteReadinessControl'
 import { applyStructuralAuditEdit } from './features/review/structuralAuditApply'
 import { NoteReviewPolicyControl } from './features/review/NoteReviewPolicyControl'
@@ -34,7 +24,6 @@ import { auditNoteStructure, verifyNoteFacts, type FactCheckAttempt, type Struct
 import { useReviewAiSettings } from './features/review/ReviewAiSettingsContext'
 import { getNoteReviewGaps, type NoteReviewGap } from './features/review/noteReviewGaps'
 import { getNoteReviewUnits, type NoteReviewUnit } from './features/review/noteReviewUnits'
-import { annotateReviewMarkdown } from './features/review/reportMarkdown'
 import { getDueReviewQueue, type DueReviewItem } from './features/review/reviewQueue'
 import { ReviewAiSettings } from './features/review/ReviewAiSettings'
 import { ReviewNotificationSettings } from './features/review/ReviewNotificationSettings'
@@ -43,7 +32,6 @@ import { localDayStartUnixMs } from './features/review/reviewDashboard'
 import { SegmentationSettings } from './features/review/SegmentationSettings'
 import { VaultReviewPolicySettings } from './features/review/VaultReviewPolicySettings'
 
-import { remarkObsidianCallouts } from './lib/remarkObsidianCallouts'
 import { canApplyInventoryIncrementally, createVaultScanCoordinator, diffVaultNotePaths, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
 import { findTextMatches } from './lib/findMatches'
 import { findReadMatches, type ReadFindMatch } from './lib/readFind'
@@ -90,7 +78,8 @@ import {
   type ScanDiagnostics,
 } from './lib/vault'
 import './App.css'
-import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownFrontmatterSource, getMarkdownPreviewText, normalizeMarkdownTag, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderWikiLinksAsMarkdown, replaceMarkdownBody, resolveObsidianAttachmentPath, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable, type FrontmatterValue, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
+import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, normalizeMarkdownTag, removeMarkdownFrontmatterProperty, replaceMarkdownBody, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, transformMarkdownTable, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
+import { FrontmatterPanelForm } from './components/FrontmatterPanelForm'
 import { nextPopoverShiftX } from './lib/selectionPopover'
 import {
   accumulateObsidianForces2D,
@@ -101,8 +90,6 @@ import {
 import { buildGraph2dGroupCentersForGroups, buildGraphGroups, buildGroupMaps } from './lib/graphGrouping'
 import { GRAPH_RENDER_LIMIT_DEFAULT, selectRenderedGraphDocuments } from './lib/graphCulling'
 import { TagIndex } from './lib/tagIndex'
-import { normalizePluginLanguage } from './lib/pluginBlocks'
-import { ObsidianPluginBlock } from './components/ObsidianPluginBlock'
 import { SpecialFileViewer } from './components/SpecialFileViewer'
 import {
   clampFontSize,
@@ -164,12 +151,6 @@ type BrokenLink = {
   sourceRelativePath: string
 }
 
-type WikiLinkPreview = {
-  relativePath: string
-  title: string
-  summary: string
-}
-
 type ExternalNoteConflict = {
   externalNote: NoteDocument
   localContent: string
@@ -192,7 +173,6 @@ type TagSummary = {
 type NoteSearchResult = { name: string; relativePath: string; excerpt: string }
 type NoteTemplate = { id: string; name: string; content: string }
 type PaletteCommand = { id: string; label: string; description: string; disabled?: boolean }
-type FrontmatterPropertyEditor = { originalKey: string | null; key: string; value: string }
 type ExplorerContextMenu = {
   x: number
   y: number
@@ -296,11 +276,6 @@ function updateNumberSetting(raw: string, current: number, min: number, max: num
 }
 
 const AUTO_SAVE_DELAY_MS = 650
-const MAX_CALLOUT_DEPTH = 24
-const MAX_EMBED_DEPTH = 4
-const MAX_EMBEDS_PER_NOTE_RENDER = 16
-const MAX_PDF_EMBEDS_PER_NOTE_RENDER = 4
-const MAX_RICH_MARKDOWN_LENGTH = 1_000_000
 // three.js e pesado (~600 KB): carregado sob demanda, apenas quando o usuario
 // abre o modo 3D do grafo pela primeira vez.
 const NoteGraph3D = lazy(() => import('./components/NoteGraph3D').then((module) => ({ default: module.NoteGraph3D })))
@@ -314,24 +289,6 @@ const ReviewReportsPage = lazy(() => import('./features/review/ReviewReportsPage
 const ReviewSessionPage = lazy(() => import('./features/review/ReviewSessionPage').then((module) => ({ default: module.ReviewSessionPage })))
 const TagManagementPage = lazy(() => import('./features/tags/TagManagementPage').then((module) => ({ default: module.TagManagementPage })))
 const BasesPage = lazy(() => import('./features/bases/BasesPage').then((module) => ({ default: module.BasesPage })))
-const MARKDOWN_SANITIZE_SCHEMA = {
-  ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames ?? []), 'mark'],
-  attributes: {
-    ...defaultSchema.attributes,
-    mark: ['dataGap'],
-    // Mesmo allowlist do relatorio: permite apenas os badges de pontuacao por
-    // paragrafo (span.review-unit-score). rehype-sanitize remove handlers e
-    // scripts, entao nao ha execucao; classes arbitrarias nao passam.
-    span: ['className', 'title', 'dataScore', 'dataOutcome', 'dataEvaluated', 'dataInconclusive'],
-    blockquote: [
-      ...(defaultSchema.attributes?.blockquote ?? []),
-      'dataCalloutFold',
-      'dataCalloutTitle',
-      'dataCalloutType',
-    ],
-  },
-}
 
 const LIMITED_MARKDOWN_FEATURE_LABELS: Record<string, string> = {
   html: 'HTML sanitizado',
@@ -344,14 +301,6 @@ function formatTrashDate(day: number) {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(day * 86_400_000))
 }
 
-function safeDecodeURIComponent(value: string) {
-  try {
-    return decodeURIComponent(value)
-  } catch {
-    return null
-  }
-}
-
 function App() {
   const { provider: reviewProvider } = useReviewAiSettings()
   const [vault, setVault] = useState<VaultSummary | null>(null)
@@ -360,11 +309,6 @@ function App() {
   const [activeNote, setActiveNote] = useState<NoteDocument | null>(null)
   const [isInlineTitleEditing, setInlineTitleEditing] = useState(false)
   const [inlineTitle, setInlineTitle] = useState('')
-  const [isFrontmatterActionsOpen, setFrontmatterActionsOpen] = useState(false)
-  const [isFrontmatterEditorOpen, setFrontmatterEditorOpen] = useState(false)
-  const [frontmatterDraft, setFrontmatterDraft] = useState('')
-  const [frontmatterError, setFrontmatterError] = useState<string | null>(null)
-  const [frontmatterPropertyEditor, setFrontmatterPropertyEditor] = useState<FrontmatterPropertyEditor | null>(null)
   const [openTabs, setOpenTabs] = useState<string[]>([])
   const [draftContent, setDraftContent] = useState('')
   const [isNewNoteDraft, setIsNewNoteDraft] = useState(false)
@@ -375,6 +319,9 @@ function App() {
   // direcao de abertura (acima/abaixo da linha do cursor da selecao) e shiftX
   // (correcao horizontal para o popover inteiro ficar dentro do painel).
   const [selectionPopover, setSelectionPopover] = useState<{ flip: boolean; shiftX: number; x: number; y: number } | null>(null)
+  /** Painel integrado de propriedades (frontmatter): aberto pelo arrow down do
+   * cabecalho; sincronizado com o editor via `onFrontmatterExpandedChange`. */
+  const [frontmatterPanelOpen, setFrontmatterPanelOpen] = useState(false)
   const selectionPopoverRef = useRef<HTMLDivElement | null>(null)
   const [isMarkdownToolsOpen, setMarkdownToolsOpen] = useState(false)
   const [markdownToolsOrientation, setMarkdownToolsOrientation] = useState<'horizontal' | 'vertical'>('vertical')
@@ -424,8 +371,6 @@ function App() {
   // fisica 2D; atualizado a cada render com os nos visiveis atuais.
   const graphGroupCentersRef = useRef<Map<string, GraphPosition> | null>(null)
   const graphLoadRequestRef = useRef(0)
-  const wikiLinkPreviewCacheRef = useRef(new Map<string, WikiLinkPreview>())
-  const hoveredWikiLinkPathRef = useRef<string | null>(null)
   const openingWikiLinkPathsRef = useRef(new Set<string>())
   const inlineTitleRenameQueueRef = useRef<Promise<void>>(Promise.resolve())
   const inlineTitleRenamePathRef = useRef<string | null>(null)
@@ -803,7 +748,6 @@ function App() {
   const [trashItems, setTrashItems] = useState<TrashItem[]>([])
   const [backlinks, setBacklinks] = useState<Backlink[]>([])
   const [brokenLinks, setBrokenLinks] = useState<BrokenLink[]>([])
-  const [wikiLinkPreview, setWikiLinkPreview] = useState<WikiLinkPreview | null>(null)
   const [externalNoteConflict, setExternalNoteConflict] = useState<ExternalNoteConflict | null>(null)
   const [externalRemovedNote, setExternalRemovedNote] = useState<ExternalRemovedNote | null>(null)
   const [recoveredNotePath, setRecoveredNotePath] = useState('')
@@ -846,9 +790,20 @@ function App() {
   })
 
   const isDirty = activeNote !== null && draftContent !== activeNote.content
+  // Lacunas da ultima revisao para o motor unico (modo Leitura = Misto
+  // read-only): mesma condicao do classico — desliga com o modo 'off' ou com
+  // a nota editada (offsets ficam obsoletos). `bodyOffset` desloca os offsets
+  // (que incluem o frontmatter) quando o doc do editor nao tem frontmatter.
+  const reviewGapData = reviewGapMode !== 'off' && !isDirty
+    ? {
+      gaps: reviewGaps,
+      units: reviewUnits,
+      enabled: true,
+      bodyOffset: draftContent.length - getMarkdownBody(draftContent).length,
+    }
+    : null
   const noteTags = extractMarkdownTags(draftContent)
   const frontmatterProperties = getMarkdownFrontmatterProperties(draftContent)
-  const visibleFrontmatterProperties = Object.entries(frontmatterProperties).filter(([key]) => key !== 'description' && key !== 'tags')
   const noteBody = getMarkdownBody(draftContent)
   const noteWordCount = useMemo(() => countMarkdownWords(draftContent), [draftContent])
   const canUndoActiveEditor = editorMode === 'edit'
@@ -1158,7 +1113,6 @@ function App() {
       setDraftsByPath({})
       setBacklinks([])
       setBrokenLinks([])
-      setWikiLinkPreview(null)
       setExternalNoteConflict(null)
       setExternalRemovedNote(null)
       graphTagIndexRef.current = new TagIndex()
@@ -3173,6 +3127,9 @@ function App() {
         }))
       }
       setActiveNote(parsedNote)
+      // Painel de propriedades fecha ao trocar de nota (o editor e recriado
+      // com o frontmatter colapsado na barra).
+      setFrontmatterPanelOpen(false)
       setOpenTabs((currentTabs) =>
         currentTabs.includes(parsedNote.relativePath)
           ? currentTabs
@@ -3231,6 +3188,9 @@ function App() {
       panelScrollRef.current[`${activePath}:${editorMode}`] = editorPanelRef.current.scrollTop
     }
     setEditorMode(nextMode)
+    // O editor e recriado ao trocar de modo: o painel de propriedades volta
+    // para a barra colapsada (estado do App sincronizado).
+    setFrontmatterPanelOpen(false)
   }
 
   // Restaura a posicao de leitura ao trocar de modo e, ao trocar de nota, leva
@@ -3257,6 +3217,15 @@ function App() {
       return result.error ? currentContent : result.content
     })
     setStatus(`Tag aplicada: #${tag}`)
+  }
+
+  function removeTag(tag: string) {
+    setDraftContent((currentContent) => {
+      const nextTags = extractMarkdownTags(currentContent).filter((item) => item !== tag)
+      const result = setMarkdownFrontmatterPropertySource(currentContent, 'tags', nextTags.map((item) => `- ${item}`).join('\n'))
+      return result.error ? currentContent : result.content
+    })
+    setStatus(`Tag removida: #${tag}`)
   }
 
   async function saveActiveNote(isAutomatic = false, contentOverride?: string) {
@@ -3660,8 +3629,37 @@ function App() {
     markdownCodeEditorRef.current?.focus()
   }
 
+  // Navegacao dos links do modo Misto: o widget clicavel aparece quando a
+  // mascara esta ativa (cursor longe do link). Nota interna abre no app;
+  // URL externa abre em nova janela/aba.
+  function handleMixedOpenLink(target: LinkTarget) {
+    if (target.kind === 'note') {
+      void openWikiLink(target.path, target.fragment ?? null)
+    } else {
+      window.open(target.href, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  // Imagens do modo Misto: ativo local do vault (via `mirrormind.local/asset/`)
+  // e resolvido para URL utilizavel (convertFileSrc), como no modo Leitura.
+  function resolveMixedAssetUrl(relativePath: string) {
+    if (!vault) return relativePath
+    return convertFileSrc(`${vault.path}${vault.path.includes('\\') ? '\\' : '/'}${relativePath}`)
+  }
+
+  // Embeds de nota do modo Misto: le o corpo (sem frontmatter) da nota
+  // incorporada `![[nota]]`, como o ObsidianNoteEmbed faz no modo Leitura.
+  // Normaliza a extensao: `![[inicial]]` busca `inicial.md` (o inventario so
+  // lista notas .md; o Leitura classico resolvia o caminho pelo inventario).
+  function resolveMixedEmbedBody(relativePath: string): Promise<string> {
+    if (!vault) return Promise.resolve('')
+    const notePath = relativePath.toLowerCase().endsWith('.md') ? relativePath : `${relativePath}.md`
+    return invoke<unknown>('read_note', { path: vault.path, relativePath: notePath })
+      .then((payload) => getMarkdownBody(parseNoteDocument(payload).content))
+  }
+
   // Sessao do editor atualmente visivel (Edicao usa a chave do caminho; Misto
-  // usa a chave composta). Leitura nao tem editor e nunca abre o popover.
+  // usa a chave composta). Leitura (read-only) nunca abre o popover de selecao.
   const activeEditorSession = useMemo(() => {
     if (editorMode === 'read' || !activeNote) return null
     const key = editorMode === 'edit' ? activeNote.relativePath : `${activeNote.relativePath}::misto::gfm`
@@ -3756,6 +3754,16 @@ function App() {
   // roubar o cursor do usuario enquanto digita na nota).
   useEffect(() => {
     if (!noteFindOpen) return
+    // Modo Leitura: navegacao e destaque sao feitos pelo DOM (readFindMatches/
+    // selectReadFindMatch); nao toca no editor — os offsets do texto-fonte
+    // (com frontmatter) nao batem com o doc `noteBody` do Leitura.
+    if (editorMode === 'read') {
+      if (lastNoteFindQueryRef.current !== noteFindQuery) {
+        lastNoteFindQueryRef.current = noteFindQuery
+        setNoteFindIndex(0)
+      }
+      return
+    }
     // Ao trocar de modo, o editor pode ter sido montado do zero (ex.: Leitura
     // -> Edicao com a busca aberta); reaplica o destaque sem mover a selecao.
     markdownCodeEditorRef.current?.setFindQuery(noteFindQuery)
@@ -3879,83 +3887,52 @@ function App() {
     event.preventDefault()
   }
 
-  function formatFrontmatterPropertyValue(value: FrontmatterValue) {
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
-    if (value === null) return 'null'
-    const seen = new WeakSet<object>()
-    try {
-      return JSON.stringify(value, (_key, nestedValue: unknown) => {
-        if (typeof nestedValue !== 'object' || nestedValue === null) return nestedValue
-        if (seen.has(nestedValue)) return '[referencia circular]'
-        seen.add(nestedValue)
-        return nestedValue
-      })
-    } catch {
-      return '[valor YAML]'
+  /** Dados do painel integrado de frontmatter (modo Misto): linhas chave/valor
+   * (o valor e a fonte YAML crua de cada propriedade, para edicao estruturada
+   * sem perder listas/objetos), a secao de Tags (badges + sugestoes do botao
+   * "+") e os backlinks ("Referenciada por"). A propriedade `tags` e
+   * EXCLUIDA das linhas — e renderizada pela secao de Tags. */
+  function getFrontmatterPanelData(): FrontmatterPanelData {
+    const rows = Object.keys(frontmatterProperties)
+      .filter((key) => key.toLowerCase() !== 'tags')
+      .map((key) => ({
+        key,
+        value: getMarkdownFrontmatterPropertySource(draftContent, key) ?? '',
+      }))
+    const backlinkEntries = backlinks.map((backlink) => ({
+      name: backlink.name.replace(/\.md$/i, ''),
+      relativePath: backlink.relativePath,
+    }))
+    return {
+      rows,
+      tags: noteTags,
+      availableTags: tagIndex.map((entry) => entry.tag),
+      backlinks: backlinkEntries,
     }
   }
 
-  function openFrontmatterEditor() {
-    setFrontmatterDraft(getMarkdownFrontmatterSource(draftContent))
-    setFrontmatterError(null)
-    setFrontmatterPropertyEditor(null)
-    setFrontmatterEditorOpen(true)
-  }
-
-  function openFrontmatterPropertyEditor(key?: string, value?: FrontmatterValue) {
-    setFrontmatterPropertyEditor({
-      originalKey: key ?? null,
-      key: key ?? '',
-      value: key ? (getMarkdownFrontmatterPropertySource(draftContent, key) ?? '') : value === undefined ? '' : formatFrontmatterPropertyInput(value),
-    })
-    setFrontmatterError(null)
-    setFrontmatterEditorOpen(false)
-  }
-
-  function saveFrontmatterProperty() {
-    if (!frontmatterPropertyEditor) return
-    const normalizedKey = frontmatterPropertyEditor.key.trim()
-    if (!normalizedKey) {
-      setFrontmatterError('Informe o nome da propriedade.')
-      return
+  /** Aplica as linhas editadas do painel ao draft, preservando o restante do
+   * YAML byte a byte: remove as propriedades que sairam e grava/atualiza as
+   * presentes (criando o bloco quando a nota nao tinha frontmatter). Retorna
+   * a mensagem de erro (exibida no painel) ou null. */
+  function applyFrontmatterPanel(rows: FrontmatterRow[]): string | null {
+    let content = draftContent
+    const targetKeys = new Set(rows.map((row) => row.key.trim().toLowerCase()))
+    for (const key of Object.keys(frontmatterProperties)) {
+      if (targetKeys.has(key.toLowerCase())) continue
+      const removed = removeMarkdownFrontmatterProperty(content, key)
+      if (removed.error) return removed.error
+      content = removed.content
     }
-    if (!frontmatterPropertyEditor.originalKey && Object.hasOwn(frontmatterProperties, normalizedKey)) {
-      setFrontmatterError('Ja existe uma propriedade com esse nome.')
-      return
+    for (const row of rows) {
+      const key = row.key.trim()
+      if (!key) continue
+      const result = setMarkdownFrontmatterPropertySource(content, key, row.value)
+      if (result.error) return result.error
+      content = result.content
     }
-
-    const result = setMarkdownFrontmatterPropertySource(
-      draftContent,
-      normalizedKey,
-      frontmatterPropertyEditor.value,
-    )
-    if (result.error) {
-      setFrontmatterError(result.error)
-      return
-    }
-    setDraftContent(result.content)
-    setFrontmatterPropertyEditor(null)
-  }
-
-  function deleteFrontmatterProperty() {
-    if (!frontmatterPropertyEditor?.originalKey) return
-    const result = removeMarkdownFrontmatterProperty(draftContent, frontmatterPropertyEditor.originalKey)
-    if (result.error) {
-      setFrontmatterError(result.error)
-      return
-    }
-    setDraftContent(result.content)
-    setFrontmatterPropertyEditor(null)
-  }
-
-  function saveFrontmatterProperties() {
-    const parsed = parseFrontmatterPropertiesInput(frontmatterDraft)
-    if (parsed.error || !parsed.properties) {
-      setFrontmatterError(parsed.error ?? 'Propriedades invalidas.')
-      return
-    }
-    setDraftContent((currentContent) => setMarkdownFrontmatterSource(currentContent, frontmatterDraft))
-    setFrontmatterEditorOpen(false)
+    setDraftContent(content)
+    return null
   }
 
   function selectMarkdownTool(format: MarkdownFormat) {
@@ -4053,41 +4030,13 @@ function App() {
     await importAttachmentFromPath(sourcePath)
   }
 
-  async function showWikiLinkPreview(relativePath: string) {
-    if (!vault) return
-    hoveredWikiLinkPathRef.current = relativePath
-    const cacheKey = `${vault.path}::${relativePath}`
-    const cachedPreview = wikiLinkPreviewCacheRef.current.get(cacheKey)
-    if (cachedPreview) {
-      setWikiLinkPreview(cachedPreview)
-      return
-    }
-
-    try {
-      const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath })
-      const note = parseNoteDocument(payload)
-      const preview = {
-        relativePath,
-        title: note.name.replace(/\.md$/i, ''),
-        summary: getMarkdownPreviewText(note.content),
-      }
-      wikiLinkPreviewCacheRef.current.set(cacheKey, preview)
-      if (hoveredWikiLinkPathRef.current === relativePath) setWikiLinkPreview(preview)
-    } catch {
-      if (hoveredWikiLinkPathRef.current === relativePath) setWikiLinkPreview(null)
-    }
-  }
-
-  function hideWikiLinkPreview(relativePath: string) {
-    if (hoveredWikiLinkPathRef.current !== relativePath) return
-    hoveredWikiLinkPathRef.current = null
-    setWikiLinkPreview(null)
-  }
-
   function scrollToWikiHeading(fragment: string) {
     if (!fragment) return
+    // Motor unico: as linhas sao `.cm-line` e os titulos sao spans mascarados
+    // com a classe `cm-live-hN` (nao `<hN>` reais) — o Leitura classico
+    // (article ReactMarkdown) foi aposentado.
     if (fragment.startsWith('^')) {
-      const blocks = document.querySelectorAll<HTMLElement>('.markdown-reading p, .markdown-reading li, .markdown-reading blockquote, .markdown-reading table, .markdown-reading ul, .markdown-reading ol, .markdown-reading pre, .markdown-mixed p, .markdown-mixed li, .markdown-mixed blockquote, .markdown-mixed table, .markdown-mixed ul, .markdown-mixed ol, .markdown-mixed pre')
+      const blocks = document.querySelectorAll<HTMLElement>('.markdown-mixed .cm-line')
       const block = [...blocks].find((candidate) => candidate.textContent?.trim().endsWith(fragment))
       const target = block?.textContent?.trim() === fragment && block.previousElementSibling instanceof HTMLElement
         ? block.previousElementSibling
@@ -4096,10 +4045,11 @@ function App() {
       return
     }
     const targetPath = fragment.split('#').map((segment) => segment.trim().replace(/\s+/g, ' ').toLowerCase()).filter(Boolean)
-    const headings = document.querySelectorAll<HTMLElement>('.markdown-reading h1, .markdown-reading h2, .markdown-reading h3, .markdown-reading h4, .markdown-reading h5, .markdown-reading h6, .markdown-mixed h1, .markdown-mixed h2, .markdown-mixed h3, .markdown-mixed h4, .markdown-mixed h5, .markdown-mixed h6')
+    const headings = document.querySelectorAll<HTMLElement>('.markdown-mixed [class~="cm-live-h1"], .markdown-mixed [class~="cm-live-h2"], .markdown-mixed [class~="cm-live-h3"], .markdown-mixed [class~="cm-live-h4"], .markdown-mixed [class~="cm-live-h5"], .markdown-mixed [class~="cm-live-h6"]')
     const hierarchy: string[] = []
     const heading = [...headings].find((candidate) => {
-      const level = Number(candidate.tagName.slice(1))
+      const levelMatch = candidate.className.match(/cm-live-h([1-6])/)
+      const level = levelMatch ? Number(levelMatch[1]) : 1
       const title = candidate.textContent?.trim().replace(/\s+/g, ' ').toLowerCase() ?? ''
       hierarchy.length = level - 1
       hierarchy[level - 1] = title
@@ -4114,8 +4064,20 @@ function App() {
 
   async function openWikiLink(relativePath: string, fragment: string | null) {
     if (!vault) return
-    const existingPath = notes.find((note) => note.relativePath.toLowerCase() === relativePath.toLowerCase())?.relativePath
-    const targetPath = existingPath ?? relativePath
+    // Resolve o wikilink contra o inventario de notas (mesma logica do
+    // renderer classico): `[[#fragmento]]` sem caminho vira a nota atual,
+    // `[[alvo]]` sem extensao experimenta o sufixo `.md` (o inventario so
+    // lista notas .md) e caminhos inexistentes (ex.: `[[nova/pagina]]`)
+    // permanecem como estao, para criacao.
+    const available = notes.map((note) => note.relativePath)
+    const sourcePath = activeNote?.relativePath ?? ''
+    const resolveCandidate = (candidate: string) => resolveObsidianWikiLinkPath(candidate, sourcePath, available)
+    let resolvedPath = resolveCandidate(relativePath)
+    if (resolvedPath === relativePath && !relativePath.toLowerCase().endsWith('.md')) {
+      resolvedPath = resolveCandidate(`${relativePath}.md`)
+    }
+    const existingPath = notes.find((note) => note.relativePath.toLowerCase() === resolvedPath.toLowerCase())?.relativePath
+    const targetPath = existingPath ?? resolvedPath
 
     if (activeNote?.relativePath.toLowerCase() === targetPath.toLowerCase()) {
       if (fragment) window.setTimeout(() => scrollToWikiHeading(fragment), 0)
@@ -4142,183 +4104,6 @@ function App() {
 
     await openNote(targetPath)
     if (fragment) window.setTimeout(() => scrollToWikiHeading(fragment), 0)
-  }
-
-  let renderedNoteEmbedCount = 0
-  let renderedPdfEmbedCount = 0
-
-  function renderMarkdownDocument(content: string, onToggleChecklist?: (lineNumber: number) => void, lineOffset = 0, depth = 0, sourcePath = activeNote?.relativePath ?? '') {
-    return (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath, remarkObsidianCallouts]}
-        rehypePlugins={[rehypeRaw, [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA], rehypeKatex]}
-        components={{
-          pre: ({ children }) => {
-            // Blocos de plugins (Dataview, Tasks): renderizacao SOMENTE LEITURA
-            // (nunca executa `dataviewjs` nem altera a fonte). Blocos normais
-            // continuam como <pre> padrao.
-            const codeChild = Array.isArray(children) ? children[0] : children
-            const className = (codeChild as { props?: { className?: unknown } } | null)?.props?.className
-            const language = typeof className === 'string' ? normalizePluginLanguage(className.replace(/^language-/, '')) : null
-            const source = String((codeChild as { props?: { children?: unknown } } | null)?.props?.children ?? '')
-            if (language) return <ObsidianPluginBlock language={language} source={source} />
-            return <pre>{children}</pre>
-          },
-          a: ({ href, children }) => {
-            const internalPrefix = 'https://mirrormind.local/note/'
-            if (href?.startsWith(internalPrefix)) {
-              const url = new URL(href)
-              const relativePath = safeDecodeURIComponent(url.pathname.slice('/note/'.length))
-              if (!relativePath) return <span>{children}</span>
-              const fragment = url.searchParams.get('fragment')
-              const preview = wikiLinkPreview?.relativePath === relativePath ? wikiLinkPreview : null
-              return (
-                <span className="wiki-link-preview-anchor" onMouseEnter={() => void showWikiLinkPreview(relativePath)} onMouseLeave={() => hideWikiLinkPreview(relativePath)}>
-                  <button type="button" className="wiki-link" onClick={() => void openWikiLink(relativePath, fragment)}>{children}</button>
-                  {preview ? (
-                    <span className="wiki-link-preview" role="tooltip">
-                      <strong>{preview.title}</strong>
-                      <small>{preview.summary || 'Esta nota ainda nao possui conteudo.'}</small>
-                    </span>
-                  ) : null}
-                </span>
-              )
-            }
-            return <a href={href}>{children}</a>
-          },
-          p: ({ children, node }) => {
-            const embeddedImage = node?.children.length === 1 ? node.children[0] : null
-            const embeddedSource = embeddedImage?.type === 'element' && embeddedImage.tagName === 'img'
-              ? embeddedImage.properties?.src
-              : null
-            const embeddedAlt = embeddedImage?.type === 'element' && embeddedImage.tagName === 'img'
-              ? embeddedImage.properties?.alt
-              : null
-            const internalAssetPrefix = 'https://mirrormind.local/asset/'
-            if (typeof embeddedSource === 'string' && embeddedSource.startsWith(internalAssetPrefix) && vault) {
-              const relativeAssetPath = safeDecodeURIComponent(embeddedSource.slice(internalAssetPrefix.length))
-              if (relativeAssetPath?.toLowerCase().endsWith('.pdf')) {
-                const normalizedAssetPath = relativeAssetPath.replace(/\\/g, '/').toLowerCase()
-                const inventoriedPath = attachments.find((path) => path.replace(/\\/g, '/').toLowerCase() === normalizedAssetPath)
-                if (!inventoriedPath || relativeAssetPath.includes('..') || relativeAssetPath.startsWith('/')) return null
-                if (renderedPdfEmbedCount >= MAX_PDF_EMBEDS_PER_NOTE_RENDER) {
-                  return <p className="obsidian-pdf-embed is-limited">Limite de PDFs incorporados atingido.</p>
-                }
-                renderedPdfEmbedCount += 1
-                const title = typeof embeddedAlt === 'string' && embeddedAlt
-                  ? embeddedAlt
-                  : inventoriedPath.split('/').at(-1) ?? 'PDF'
-                return <ObsidianPdfEmbed vaultPath={vault.path} relativePath={inventoriedPath} title={title} />
-              }
-            }
-            const internalEmbedPrefix = 'https://mirrormind.local/embed/'
-            if (typeof embeddedSource !== 'string' || !embeddedSource.startsWith(internalEmbedPrefix) || !vault) return <p>{children}</p>
-
-            const url = new URL(embeddedSource)
-            const relativePath = safeDecodeURIComponent(url.pathname.slice('/embed/'.length))
-            if (!relativePath) return null
-            if (depth >= MAX_EMBED_DEPTH || renderedNoteEmbedCount >= MAX_EMBEDS_PER_NOTE_RENDER) {
-              return <p className="obsidian-note-embed is-limited">Limite de notas incorporadas atingido.</p>
-            }
-            renderedNoteEmbedCount += 1
-            return (
-              <ObsidianNoteEmbed
-                vaultPath={vault.path}
-                relativePath={relativePath}
-                fragment={url.searchParams.get('fragment')}
-                renderContent={(embeddedContent) => renderMarkdown(embeddedContent, undefined, 0, depth + 1, relativePath)}
-              />
-            )
-          },
-          img: ({ src, alt }) => {
-            const internalAssetPrefix = 'https://mirrormind.local/asset/'
-            const isInternalVaultAsset = src?.startsWith(internalAssetPrefix) ?? false
-            const relativeAssetPath = isInternalVaultAsset && src
-              ? safeDecodeURIComponent(src.slice(internalAssetPrefix.length))
-              : src
-            const isSafeVaultAsset = isInternalVaultAsset && relativeAssetPath && !relativeAssetPath.includes('..') && !relativeAssetPath.startsWith('/')
-            if (isInternalVaultAsset && !isSafeVaultAsset) return null
-            const assetUrl = isSafeVaultAsset && vault && '__TAURI_INTERNALS__' in window
-              ? convertFileSrc(`${vault.path}${vault.path.includes('\\') ? '\\' : '/'}${relativeAssetPath}`)
-              : src
-            return <img src={assetUrl} alt={alt ?? ''} />
-          },
-          input: ({ checked, node, ...inputProps }) => {
-            if (inputProps.type !== 'checkbox') return <input {...inputProps} />
-            const lineNumber = node?.position?.start.line
-            return <input {...inputProps} type="checkbox" checked={Boolean(checked)} onChange={() => {
-              if (lineNumber) onToggleChecklist?.(lineOffset + lineNumber)
-            }} />
-          },
-          blockquote: ({ children, node }) => {
-            const calloutType = node?.properties?.dataCalloutType
-            if (typeof calloutType !== 'string') return <blockquote>{children}</blockquote>
-
-            const calloutFold = node?.properties?.dataCalloutFold
-            const calloutTitle = node?.properties?.dataCalloutTitle
-            return (
-              <ObsidianCallout
-                defaultCollapsed={calloutFold === '-'}
-                foldable={calloutFold === '-' || calloutFold === '+'}
-                title={typeof calloutTitle === 'string' && calloutTitle ? renderMarkdownInline(calloutTitle) : null}
-                type={calloutType}
-              >
-                {children}
-              </ObsidianCallout>
-            )
-          },
-        }}
-      >
-        {renderWikiLinksAsMarkdown(
-          content,
-          (linkPath) => resolveObsidianWikiLinkPath(linkPath, sourcePath, notes.map((note) => note.relativePath)),
-          (attachmentPath) => resolveObsidianAttachmentPath(attachmentPath, sourcePath, attachments),
-        )}
-      </ReactMarkdown>
-    )
-  }
-
-  function renderMarkdownInline(content: string) {
-    return (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw, [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA], rehypeKatex]}
-        allowedElements={['a', 'br', 'code', 'del', 'em', 'strong']}
-        unwrapDisallowed
-      >
-        {content}
-      </ReactMarkdown>
-    )
-  }
-
-  function renderMarkdown(content: string, onToggleChecklist?: (lineNumber: number) => void, lineOffset = 0, depth = 0, sourcePath = activeNote?.relativePath ?? ''): ReactNode {
-    if (content.length > MAX_RICH_MARKDOWN_LENGTH) {
-      return <pre className="markdown-preserved-raw">{content}</pre>
-    }
-    if (depth >= MAX_CALLOUT_DEPTH) return renderMarkdownDocument(content, onToggleChecklist, lineOffset, depth, sourcePath)
-
-    const segments = parseObsidianCalloutSegments(content)
-    if (segments.length === 1 && segments[0].kind === 'markdown') {
-      return renderMarkdownDocument(segments[0].content, onToggleChecklist, lineOffset + segments[0].startLine - 1, depth, sourcePath)
-    }
-
-    return segments.map((segment, index) => {
-      const segmentOffset = lineOffset + segment.startLine - 1
-      if (segment.kind === 'markdown') {
-        return <Fragment key={`${segment.startLine}-${index}`}>{renderMarkdownDocument(segment.content, onToggleChecklist, segmentOffset, depth, sourcePath)}</Fragment>
-      }
-      return (
-        <ObsidianCallout
-          defaultCollapsed={segment.defaultCollapsed}
-          foldable={segment.foldable}
-          key={`${segment.startLine}-${index}`}
-          title={segment.title ? renderMarkdownInline(segment.title) : null}
-          type={segment.type}
-        >
-          {renderMarkdown(segment.content, onToggleChecklist, segmentOffset, depth + 1, sourcePath)}
-        </ObsidianCallout>
-      )
-    })
   }
 
   function insertInternalLink(note: NotePreview) {
@@ -5208,85 +4993,10 @@ function App() {
                         {activeNote.name.replace(/\.md$/i, '')}
                       </button>
                     )}
-                    <div className="note-properties" aria-label="Propriedades da nota">
-                      {visibleFrontmatterProperties.map(([key, value]) => (
-                        <button type="button" className="note-property-chip" key={key} onClick={() => openFrontmatterPropertyEditor(key, value)} aria-label={`Editar propriedade ${key}`} title={`Editar ${key}`}>
-                          <strong>{key}</strong> {formatFrontmatterPropertyValue(value)}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Linha de tags SEMPRE presente: o badge "(tags:)" abre o menu
-                        para adicionar tags; as tags atuais aparecem como badges. */}
-                    <div className="note-tag-list" aria-label="Tags da nota">
-                      <NoteTagPicker
-                        availableTags={tagIndex.map((entry) => entry.tag)}
-                        onApply={applyExistingTag}
-                        relativePath={activeNote.relativePath}
-                        tags={noteTags}
-                        vaultPath={vault.path}
-                      />
-                      {activeTags.map((tag) => (
-                        <Badge key={tag} variant="secondary">#{tag}</Badge>
-                      ))}
-                    </div>
-                    <div id="frontmatter-actions" className={`frontmatter-actions-disclosure${isFrontmatterActionsOpen ? ' is-open' : ''}`} aria-hidden={!isFrontmatterActionsOpen}>
-                      <div className="frontmatter-actions-content">
-                        <button type="button" className="secondary-button" onClick={() => openFrontmatterPropertyEditor()}>Nova propriedade</button>
-                        <button type="button" className="secondary-button" onClick={openFrontmatterEditor}>YAML completo</button>
-                      </div>
-                    </div>
-                    {frontmatterPropertyEditor ? (
-                      <div className="frontmatter-editor frontmatter-property-editor">
-                        <label htmlFor="frontmatter-property-key">Nome da propriedade</label>
-                        <input
-                          id="frontmatter-property-key"
-                          value={frontmatterPropertyEditor.key}
-                          onChange={(event) => setFrontmatterPropertyEditor((current) => current ? { ...current, key: event.target.value } : null)}
-                          disabled={frontmatterPropertyEditor.originalKey !== null}
-                          autoFocus
-                          spellCheck={false}
-                        />
-                        <label htmlFor="frontmatter-property-value">Valor YAML</label>
-                        <textarea
-                          id="frontmatter-property-value"
-                          value={frontmatterPropertyEditor.value}
-                          onChange={(event) => setFrontmatterPropertyEditor((current) => current ? { ...current, value: event.target.value } : null)}
-                          placeholder={'texto, [lista] ou\nchave: valor'}
-                          spellCheck={false}
-                        />
-                        <small>Edite texto, numeros, listas ou objetos. As demais propriedades permanecem exatamente como estao no arquivo.</small>
-                        {frontmatterError ? <p className="field-error">{frontmatterError}</p> : null}
-                        <div>
-                          {frontmatterPropertyEditor.originalKey ? <button type="button" className="danger-button" onClick={deleteFrontmatterProperty}>Remover</button> : null}
-                          <button type="button" className="secondary-button" onClick={() => setFrontmatterPropertyEditor(null)}>Cancelar</button>
-                          <button type="button" onClick={saveFrontmatterProperty}>Aplicar</button>
-                        </div>
-                      </div>
-                    ) : null}
-                    {isFrontmatterEditorOpen ? (
-                      <div className="frontmatter-editor">
-                        <label htmlFor="frontmatter-properties">Propriedades YAML</label>
-                        <textarea id="frontmatter-properties" value={frontmatterDraft} onChange={(event) => setFrontmatterDraft(event.target.value)} placeholder={'source: livro\ntags:\n  - estudo\nreview:\n  interval: 7'} spellCheck={false} />
-                        <small>Use YAML completo: valores, listas, objetos e estruturas aninhadas sao preservados.</small>
-                        {frontmatterError ? <p className="field-error">{frontmatterError}</p> : null}
-                        <div>
-                          <button type="button" className="secondary-button" onClick={() => setFrontmatterEditorOpen(false)}>Cancelar</button>
-                          <button type="button" onClick={saveFrontmatterProperties}>Aplicar</button>
-                        </div>
-                      </div>
-                    ) : null}
                     {unsupportedMarkdownFeatures.length > 0 ? (
                       <p className="markdown-preservation-notice" role="status">
                         Compatibilidade limitada, fonte preservada: {unsupportedMarkdownFeatures.map((feature) => LIMITED_MARKDOWN_FEATURE_LABELS[feature] ?? feature).join(', ')}.
                       </p>
-                    ) : null}
-                    {!isNewNoteDraft && backlinks.length > 0 ? (
-                      <div className="backlink-list" aria-label="Backlinks">
-                        <span>Referenciada por</span>
-                        {backlinks.map((backlink) => (
-                          <button key={backlink.relativePath} type="button" onClick={() => void openNote(backlink.relativePath)}>{backlink.name.replace(/\.md$/i, '')}</button>
-                        ))}
-                      </div>
                     ) : null}
                     {!isNewNoteDraft && brokenLinks.length > 0 ? (
                       <div className="backlink-list broken-link-list" aria-label="Links quebrados">
@@ -5605,17 +5315,36 @@ function App() {
                       </button>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
-                    className={`editor-disclosure-button${isFrontmatterActionsOpen ? ' is-open' : ''}`}
-                    onClick={() => setFrontmatterActionsOpen((isOpen) => !isOpen)}
-                    title="Ações das propriedades"
-                    aria-label="Ações das propriedades"
-                    aria-controls="frontmatter-actions"
-                    aria-expanded={isFrontmatterActionsOpen}
-                  >
-                    <ChevronDown size={16} strokeWidth={1.7} aria-hidden="true" />
-                  </button>
+                  {editorMode === 'mixed' ? (
+                    <div className="frontmatter-menu">
+                      {/* Arrow down: fica em cima da borda inferior do header e,
+                          ao clicar, desce junto com a borda (animacao slide
+                          down) — o menu integrado abre dentro do header. */}
+                      <button
+                        type="button"
+                        className={`editor-disclosure-button${frontmatterPanelOpen ? ' is-open' : ''}`}
+                        onClick={() => setFrontmatterPanelOpen((isOpen) => !isOpen)}
+                        aria-expanded={frontmatterPanelOpen}
+                        aria-controls="frontmatter-menu-panel"
+                        title={frontmatterPanelOpen ? 'Recolher propriedades da nota' : 'Expandir propriedades da nota'}
+                      >
+                        <ChevronDown size={16} strokeWidth={1.5} aria-hidden="true" />
+                      </button>
+                      {frontmatterPanelOpen ? (
+                        <div className="frontmatter-menu-collapse">
+                          <div id="frontmatter-menu-panel" className="frontmatter-menu-panel">
+                            <FrontmatterPanelForm
+                              {...getFrontmatterPanelData()}
+                              onApplyTag={applyExistingTag}
+                              onRemoveTag={removeTag}
+                              onApply={applyFrontmatterPanel}
+                              onOpenBacklink={(relativePath) => void openNote(relativePath)}
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div id="note-editor" className="editor-content" ref={editorContentRef} data-builder-name="editor-content">
@@ -5673,9 +5402,41 @@ function App() {
                     }}
                   />
                 ) : editorMode === 'read' ? (
-                  <article ref={editorPanelRef} className={`markdown-reading${isReadingLineWrapEnabled ? '' : ' is-line-wrap-disabled'}${reviewGapMode !== 'off' && !isDirty ? ' has-gap-marks' : ''}${reviewGapMode === 'hover' ? ' is-gap-hover-only' : ''}`} style={readingStyle}>{renderMarkdown(reviewGapMode !== 'off' && !isDirty ? annotateReviewMarkdown(draftContent, reviewGaps, reviewUnits) : noteBody, (lineNumber) => setDraftContent((currentContent) => replaceMarkdownBody(currentContent, toggleChecklistAtLine(noteBody, lineNumber))))}</article>
+                  <section ref={editorPanelRef} className={`markdown-mixed markdown-reading-engine${reviewGapData ? ' has-gap-marks' : ''}${reviewGapMode === 'hover' ? ' is-gap-hover-only' : ''}`} style={readingStyle}>
+                    <MarkdownCodeEditor
+                      ref={markdownCodeEditorRef}
+                      ariaLabel={`Leitura da nota ${activeNote.name.replace(/\.md$/i, '')}`}
+                      documentKey={`${activeNote.relativePath}::leitura`}
+                      livePreview
+                      readOnly
+                      lineWrap={isReadingLineWrapEnabled}
+                      historyLimit={historyLimit}
+                      spellCheck={isSpellCheckEnabled}
+                      stateCache={markdownEditorStateCacheRef.current}
+                      autocompleteData={markdownAutocompleteData}
+                      onBlur={() => setSelectionPopover(null)}
+                      onOpenLink={handleMixedOpenLink}
+                      resolveAssetUrl={resolveMixedAssetUrl}
+                      getEmbedContent={resolveMixedEmbedBody}
+                      vaultPath={vault?.path}
+                      reviewGapData={reviewGapData}
+                      onSearchRequest={openNoteFind}
+                      value={noteBody}
+                      // O doc do Leitura e `noteBody` (sem frontmatter): o merge
+                      // preserva o frontmatter do draft ao alternar um checkbox.
+                      onChange={(content) => setDraftContent((current) => replaceMarkdownBody(current, content))}
+                      onHistoryChange={setMarkdownHistoryStatus}
+                      onSessionChange={(session) => {
+                        setEditorSessionsByPath((currentSessions) => ({
+                          ...currentSessions,
+                          [`${activeNote.relativePath}::leitura`]: session,
+                        }))
+                      }}
+                      session={editorSessionsByPath[`${activeNote.relativePath}::leitura`]}
+                    />
+                  </section>
                 ) : (
-                  <section ref={editorPanelRef} className="markdown-mixed">
+                  <section ref={editorPanelRef} className={`markdown-mixed${reviewGapData ? ' has-gap-marks' : ''}${reviewGapMode === 'hover' ? ' is-gap-hover-only' : ''}`}>
                     <MarkdownCodeEditor
                       ref={markdownCodeEditorRef}
                       ariaLabel={`Editor Markdown (Misto) da nota ${activeNote.name.replace(/\.md$/i, '')}`}
@@ -5686,6 +5447,10 @@ function App() {
                       stateCache={markdownEditorStateCacheRef.current}
                       autocompleteData={markdownAutocompleteData}
                       onBlur={() => setSelectionPopover(null)}
+                      onOpenLink={handleMixedOpenLink}
+                      resolveAssetUrl={resolveMixedAssetUrl}
+                      getEmbedContent={resolveMixedEmbedBody}
+                      vaultPath={vault?.path}
                       onSearchRequest={openNoteFind}
                       value={draftContent}
                       onChange={setDraftContent}

@@ -135,6 +135,7 @@ impl UsageRecord {
         self.calls_by_provider.iter().map(|entry| entry.calls).sum()
     }
 
+    #[cfg(test)]
     pub fn provider_calls(&self, provider: &str) -> u32 {
         self.calls_by_provider
             .iter()

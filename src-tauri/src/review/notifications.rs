@@ -8,7 +8,6 @@ use tauri::Manager;
 
 const NOTIFICATION_SETTINGS_FILE: &str = "review-notifications.json";
 const DAY_MS: u64 = 86_400_000;
-const MINUTES_PER_DAY: u32 = 24 * 60;
 
 /// Preferencia global de notificacoes de revisao, persistida na pasta de
 /// configuracao da aplicacao (nao no Vault). Um unico resumo diario evita uma

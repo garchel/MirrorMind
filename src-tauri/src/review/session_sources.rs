@@ -546,7 +546,7 @@ pub fn read_resolved_source(root: &std::path::Path, relative_path: &str) -> Resu
         bail!("O anexo e grande demais para o material da sessao.");
     }
     use std::io::Read;
-    let mut file = std::fs::File::open(&canonical_requested)
+    let file = std::fs::File::open(&canonical_requested)
         .map_err(|error| anyhow::anyhow!(error).context("Nao foi possivel abrir o anexo."))?;
     let mut bytes = Vec::new();
     file.take(MAX_SOURCE_BYTES + 1)

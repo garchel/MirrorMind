@@ -8,7 +8,7 @@ import { languages } from '@codemirror/language-data'
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
 import { EditorState, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
 import { Decoration, type DecorationSet, EditorView, keymap } from '@codemirror/view'
-import { markdownLivePreview } from './markdownLivePreview'
+import { markdownLivePreview, reviewGapDataEffect, type LinkTarget, type ReviewGapData } from './markdownLivePreview'
 import { getMarkdownAutocompleteResult, type MarkdownAutocompleteData } from '../lib/markdown-autocomplete'
 import { findTextMatches } from '../lib/findMatches'
 
@@ -47,8 +47,27 @@ type MarkdownCodeEditorProps = {
   onBlur?: () => void
   onChange: (value: string) => void
   onHistoryChange: (status: MarkdownEditorHistoryStatus) => void
+  /** Navegacao de links no modo Misto (widget clicavel quando mascara ativa). */
+  onOpenLink?: (target: LinkTarget) => void
   onSearchRequest?: () => void
   onSessionChange: (session: MarkdownEditorSession) => void
+  /** Modo leitura (spike do motor unico): bloqueia edicao, caret e revelacao. */
+  readOnly?: boolean
+  /** Resolve um ativo do vault (caminho relativo) para URL utilizavel
+   * (imagens do modo Misto; convertFileSrc no app). */
+  resolveAssetUrl?: (relativePath: string) => string | undefined
+  /** Le o corpo (sem frontmatter) de uma nota incorporada `![[nota]]` no modo
+   * Misto (embeds de nota). Sem ele, os embeds nao sao renderizados. */
+  getEmbedContent?: (relativePath: string) => Promise<string>
+  /** Caminho do vault, necessario para os embeds de PDF no modo Misto. */
+  vaultPath?: string
+  /** Lacunas da ultima revisao (gap marks do modo Leitura) no motor unico.
+   * Muda assincronamente apos o fetch; o componente dispara
+   * `reviewGapDataEffect` para atualizar as decoracoes sem recriar o editor. */
+  reviewGapData?: ReviewGapData | null
+  /** Quebra de linha automatica (EditorView.lineWrapping). Padrao: true;
+   * o modo Leitura read-only respeita a preferencia `reading-line-wrap`. */
+  lineWrap?: boolean
   session?: MarkdownEditorSession
   spellCheck?: boolean
   stateCache?: Map<string, EditorState>
@@ -237,7 +256,7 @@ const findHighlighter = StateField.define<DecorationSet>({
 })
 
 function MarkdownCodeEditorComponent(
-  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, documentKey, historyLimit = 100, livePreview = false, onBlur, onChange, onHistoryChange, onSearchRequest, onSessionChange, session, spellCheck = true, stateCache, value }: MarkdownCodeEditorProps,
+  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, documentKey, getEmbedContent, historyLimit = 100, lineWrap = true, livePreview = false, onBlur, onChange, onHistoryChange, onOpenLink, onSearchRequest, onSessionChange, readOnly = false, resolveAssetUrl, reviewGapData, session, spellCheck = true, stateCache, value, vaultPath }: MarkdownCodeEditorProps,
   ref: ForwardedRef<MarkdownCodeEditorHandle>,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -258,6 +277,17 @@ function MarkdownCodeEditorComponent(
   const spellCheckRef = useRef(spellCheck)
   const ariaLabelRef = useRef(ariaLabel)
   const livePreviewRef = useRef(livePreview)
+  const lineWrapRef = useRef(lineWrap)
+  const onOpenLinkRef = useRef(onOpenLink)
+  const readOnlyRef = useRef(readOnly)
+  const resolveAssetUrlRef = useRef(resolveAssetUrl)
+  const getEmbedContentRef = useRef(getEmbedContent)
+  const vaultPathRef = useRef(vaultPath)
+  const reviewGapDataRef = useRef(reviewGapData)
+
+  getEmbedContentRef.current = getEmbedContent
+  vaultPathRef.current = vaultPath
+  reviewGapDataRef.current = reviewGapData
 
   onChangeRef.current = onChange
   onBlurRef.current = onBlur
@@ -268,10 +298,22 @@ function MarkdownCodeEditorComponent(
   spellCheckRef.current = spellCheck
   ariaLabelRef.current = ariaLabel
   livePreviewRef.current = livePreview
+  lineWrapRef.current = lineWrap
+  onOpenLinkRef.current = onOpenLink
+  readOnlyRef.current = readOnly
+  resolveAssetUrlRef.current = resolveAssetUrl
 
   useEffect(() => {
     viewRef.current?.contentDOM.setAttribute('spellcheck', String(spellCheck))
   }, [spellCheck])
+
+  // Lacunas da revisao chegam assincronamente (fetch); dispara o efeito para
+  // o campo de gap marks atualizar as decoracoes sem recriar o editor.
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({ effects: reviewGapDataEffect.of(reviewGapData ?? null) })
+  }, [reviewGapData])
 
   useEffect(() => {
     viewRef.current?.contentDOM.setAttribute('aria-label', ariaLabel)
@@ -300,12 +342,23 @@ function MarkdownCodeEditorComponent(
         search({ top: true }),
         findQueryField,
         findHighlighter,
+        ...(readOnlyRef.current
+          ? [EditorState.readOnly.of(true), EditorView.editable.of(false)]
+          : []),
         autocompletion({
           activateOnTyping: true,
           override: [(context) => contextualCompletions(context, autocompleteDataRef.current)],
         }),
-        ...(livePreviewRef.current ? markdownLivePreview : []),
-        EditorView.lineWrapping,
+        ...(livePreviewRef.current
+          ? markdownLivePreview({
+            getOpenLink: () => onOpenLinkRef.current,
+            getAssetUrl: (relativePath) => resolveAssetUrlRef.current?.(relativePath),
+            getEmbedContent: (relativePath) => getEmbedContentRef.current?.(relativePath) ?? Promise.resolve(''),
+            vaultPath: vaultPathRef.current,
+            getReviewGapData: () => reviewGapDataRef.current ?? null,
+          })
+          : []),
+        ...(lineWrapRef.current ? [EditorView.lineWrapping] : []),
         EditorView.contentAttributes.of({
           'aria-label': ariaLabelRef.current,
           spellcheck: String(spellCheckRef.current),

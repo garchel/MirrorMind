@@ -3965,30 +3965,6 @@ button:disabled {
   position: relative;
 }
 
-.workspace-shell .editor-disclosure-button {
-  position: absolute;
-  bottom: -15px;
-  left: 50%;
-  display: grid;
-  width: 30px;
-  min-width: 30px;
-  min-height: 30px;
-  padding: 0;
-  place-items: center;
-  transform: translateX(-50%);
-  border: 1px solid #e6e4de;
-  border-radius: 50%;
-  background: #fbfaf6;
-  color: #595950;
-  cursor: default;
-  z-index: 2;
-}
-
-.workspace-shell .editor-disclosure-button:hover:not(:disabled) {
-  transform: translateX(-50%);
-  background: #fbfaf6;
-}
-
 .workspace-shell .history-actions {
   display: flex;
   gap: 2px;
@@ -4429,7 +4405,6 @@ button:disabled {
 }
 
 .workspace-shell .editor-content > .editor-panel--edit,
-.workspace-shell .editor-content > .markdown-reading,
 .workspace-shell .editor-content > .markdown-mixed,
 .workspace-shell .editor-content > .codemirror-markdown-editor {
   grid-row: auto;
@@ -4592,21 +4567,11 @@ button:disabled {
 }
 
 .workspace-shell .editor-panel--edit,
-.workspace-shell .markdown-reading,
 .workspace-shell .markdown-mixed {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 28px max(40px, 7vw);
-}
-
-.workspace-shell .markdown-reading {
-  font-family: var(--reading-font, var(--sans));
-}
-
-.workspace-shell .markdown-reading > * {
-  width: min(100%, var(--reading-max-width, 820px));
-  margin-inline: auto;
 }
 
 /* A troca entre Edicao, Misto e Leitura entra suavemente, sem refluir a tela. */
@@ -4621,14 +4586,12 @@ button:disabled {
   }
 }
 
-.workspace-shell .editor-content > .markdown-reading,
 .workspace-shell .editor-content > .markdown-mixed,
 .workspace-shell .editor-content > .markdown-mixed > .codemirror-markdown-editor {
   animation: editor-panel-in 150ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .workspace-shell .editor-content > .markdown-reading,
   .workspace-shell .editor-content > .markdown-mixed,
   .workspace-shell .editor-content > .markdown-mixed > .codemirror-markdown-editor {
     animation: none;
@@ -4636,80 +4599,63 @@ button:disabled {
 }
 
 /* Blocos largos (codigo e tabelas) rolam dentro do proprio painel. */
-.workspace-shell .markdown-reading pre,
 .workspace-shell .markdown-mixed pre {
   overflow-x: auto;
   max-width: 100%;
 }
 
-.workspace-shell .markdown-reading table,
 .workspace-shell .markdown-mixed table {
   display: block;
   max-width: 100%;
   overflow-x: auto;
 }
 
-.workspace-shell .markdown-reading :is(th, td) {
-  border: 1px solid #d9d7d0;
-  padding: 4px 10px;
-}
-
-.workspace-shell .markdown-reading th {
-  background: #efede6;
-  font-weight: 600;
-}
-
-.workspace-shell .markdown-reading.is-line-wrap-disabled,
-.workspace-shell .markdown-reading.is-line-wrap-disabled * {
-  overflow-wrap: normal;
-  white-space: nowrap;
-}
-
-.workspace-shell .markdown-reading mark[data-gap] {
+/* Lacunas da revisao no motor unico (modo Misto / Leitura read-only): as
+   marcas sao decoracoes do CodeMirror (span `.cm-live-gap`), com o mesmo
+   visual do classico (`mark[data-gap]`). Os badges `review-unit-score` usam
+   os estilos base globais de review-session.css. */
+.workspace-shell .markdown-mixed .cm-live-gap {
   padding: 1px 3px;
   border-radius: 5px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
 
-.workspace-shell .markdown-reading mark[data-gap='forgotten'] {
+.workspace-shell .markdown-mixed .cm-live-gap.is-forgotten {
   background: #ffc9c2;
   color: inherit;
 }
 
-.workspace-shell .markdown-reading mark[data-gap='confused'] {
+.workspace-shell .markdown-mixed .cm-live-gap.is-confused {
   background: #ffe5a5;
   color: inherit;
 }
 
-/* Modo 'somente no hover': os marca-textos so ganham fundo quando o artigo
-   (ou o painel do editor) recebe hover — sem re-render no mouseenter. */
-.workspace-shell .markdown-reading.is-gap-hover-only mark[data-gap] {
+/* Modo 'somente no hover' no motor unico: os marca-textos so ganham fundo
+   quando a secao do editor recebe hover/foco (mesmo comportamento do
+   classico). */
+.workspace-shell .markdown-mixed.is-gap-hover-only .cm-live-gap {
   background: transparent;
   transition: background 140ms ease;
 }
 
-.workspace-shell .markdown-reading.is-gap-hover-only:hover mark[data-gap],
-.workspace-shell .markdown-reading.is-gap-hover-only:focus-within mark[data-gap] {
+.workspace-shell .markdown-mixed.is-gap-hover-only:hover .cm-live-gap,
+.workspace-shell .markdown-mixed.is-gap-hover-only:focus-within .cm-live-gap {
   background: #ffc9c2;
 }
 
-.workspace-shell .markdown-reading.is-gap-hover-only:hover mark[data-gap='confused'],
-.workspace-shell .markdown-reading.is-gap-hover-only:focus-within mark[data-gap='confused'] {
+.workspace-shell .markdown-mixed.is-gap-hover-only:hover .cm-live-gap.is-confused,
+.workspace-shell .markdown-mixed.is-gap-hover-only:focus-within .cm-live-gap.is-confused {
   background: #ffe5a5;
 }
 
-/* Badges de pontuacao por paragrafo no modo Leitura: os estilos base e as
-   cores das faixas vêm de review-session.css (bundlado globalmente pelo
-   Vite); aqui so controlamos o comportamento 'somente no hover', que
-   acompanha os marca-textos (surgem apenas com hover/foco). */
-.workspace-shell .markdown-reading.is-gap-hover-only .review-unit-score {
+.workspace-shell .markdown-mixed.is-gap-hover-only .review-unit-score {
   opacity: 0;
   transition: opacity 140ms ease;
 }
 
-.workspace-shell .markdown-reading.is-gap-hover-only:hover .review-unit-score,
-.workspace-shell .markdown-reading.is-gap-hover-only:focus-within .review-unit-score {
+.workspace-shell .markdown-mixed.is-gap-hover-only:hover .review-unit-score,
+.workspace-shell .markdown-mixed.is-gap-hover-only:focus-within .review-unit-score {
   opacity: 1;
 }
 
@@ -4760,29 +4706,6 @@ button:disabled {
   color: #252521;
   font: 15px/1.75 var(--mono);
   resize: none;
-}
-
-.markdown-reading {
-  color: #252521;
-  line-height: 1.7;
-}
-
-.markdown-reading h1,
-.markdown-reading h2,
-.markdown-reading h3 {
-  color: #20201e;
-  font-family: var(--sans);
-}
-
-.markdown-reading img {
-  display: block;
-  max-width: min(100%, 860px);
-  max-height: 580px;
-  margin: 18px 0;
-  border: 1px solid #d9d7d0;
-  border-radius: 6px;
-  background: #fbfaf6;
-  object-fit: contain;
 }
 
 /* Modo Misto (live preview): um unico editor continuo que mascara a sintaxe
@@ -4880,6 +4803,415 @@ button:disabled {
   margin: 9px 0;
   border-radius: 2px;
   background: #d9d7d0;
+}
+
+/* Imagem do modo Misto: mesmo visual do modo Leitura. */
+.markdown-mixed .cm-live-image {
+  display: block;
+  max-width: min(100%, 860px);
+  max-height: 580px;
+  margin: 18px 0;
+  border: 1px solid #d9d7d0;
+  border-radius: 6px;
+  background: #fbfaf6;
+  object-fit: contain;
+}
+
+/* Embed de nota/PDF do modo Misto: bloco real com o conteudo da nota
+   incorporada (editor aninhado somente leitura com o mesmo motor) ou o
+   ObsidianPdfEmbed do Leitura. Mesmo visual do `.obsidian-note-embed`. */
+.markdown-mixed .cm-live-embed {
+  box-sizing: border-box;
+  /* O embed ocupa a largura total disponivel (como o `.obsidian-note-embed`
+     do Leitura): sem limite de 820px, para o conteudo da nota incorporada
+     nao ser cortado a direita. */
+  width: 100%;
+  margin-block: 12px;
+  padding: 12px 14px;
+  border: 1px solid #d9d6ce;
+  border-left: 3px solid #8d9b88;
+  border-radius: 5px;
+  background: #faf9f3;
+  color: #343532;
+}
+
+.markdown-mixed .cm-live-embed .cm-live-embed-status {
+  color: #73736d;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.markdown-mixed .cm-live-embed .cm-live-embed-status.is-missing,
+.markdown-mixed .cm-live-embed-limited {
+  color: #73736d;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Editor aninhado do embed: somente leitura, sem bordas nem scroll proprio
+   (cresce com o conteudo e a altura e medida pelo widget de bloco). */
+.markdown-mixed .cm-live-embed .cm-editor {
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.markdown-mixed .cm-live-embed .cm-editor .cm-scroller {
+  /* Conteudo mais largo que o embed (formulas longas, tabelas) rola
+     horizontalmente em vez de ser cortado a direita. */
+  overflow-x: auto;
+}
+
+.markdown-mixed .cm-live-embed .cm-live-embed-body > .cm-editor {
+  margin: -12px -14px;
+  padding: 12px 14px;
+}
+
+/* Callout do modo Misto: bloco real com o MESMO visual do Leitura (o
+   `.obsidian-callout` renderizado pelo widget reaproveita as regras
+   `.workspace-shell .obsidian-callout`). O conteudo vira um editor aninhado
+   somente leitura com o mesmo motor; o fold nativo usa <details>/<summary>. */
+.markdown-mixed .cm-live-callout .cm-editor {
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.markdown-mixed .cm-live-callout .cm-editor .cm-scroller {
+  overflow-x: auto;
+}
+
+.markdown-mixed .cm-live-callout .obsidian-callout-content > .cm-live-callout-body {
+  min-width: 0;
+}
+
+/* Bloco de plugin (Dataview/Tasks) do modo Misto: o ObsidianPluginBlock do
+   Leitura renderizado dentro do widget (o CSS proprio do componente ja vem
+   com o import dele). Largura total, sem limites de coluna. */
+.markdown-mixed .cm-live-plugin-block {
+  width: 100%;
+  margin-block: 12px;
+}
+
+/* Bloco oculto do frontmatter no documento: substitui o YAML inicial por um
+   espaco de zero altura (o resumo e a edicao estruturada ficam na barra
+   inferior do cabecalho do App). */
+.markdown-mixed .cm-live-frontmatter-hidden {
+  height: 0;
+  overflow: hidden;
+}
+
+/* Painel integrado de propriedades (design do usuario): substitui o YAML cru
+   por um formulario estruturado (chave + valor) com a lista de backlinks
+   ("Referenciada por"). O bloco `---`...`---` nunca e exibido. */
+/* Painel integrado de propriedades (modo Misto): sem borda, titulo nem
+   botoes de Aplicar/Cancelar — parece fazer parte do header. As mudancas
+   gravam ao vivo (debounce) no rascunho. */
+/* Painel em 2 colunas (Tags | Propriedades) para ocupar melhor a largura do
+   header; os backlinks ficam na linha de baixo, na largura toda. */
+.workspace-shell .frontmatter-panel {
+  box-sizing: border-box;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(190px, 0.9fr) minmax(0, 1.5fr);
+  column-gap: 26px;
+  color: #343532;
+}
+
+.workspace-shell .frontmatter-panel-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.workspace-shell .frontmatter-panel-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(140px, 2fr) auto;
+  align-items: start;
+  gap: 6px;
+}
+
+.workspace-shell .frontmatter-panel-key,
+.workspace-shell .frontmatter-panel-value {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d8d6cf;
+  border-radius: 4px;
+  background: #fffefa;
+  color: #343532;
+  font: inherit;
+  font-size: 12px;
+}
+
+.workspace-shell .frontmatter-panel-key {
+  font-family: var(--mono);
+  /* Mesma altura do campo de valor (1 linha): mesmo line-height do textarea
+     (1.45), entao a caixa do nome e do valor tem exatamente a mesma altura. */
+  line-height: 1.45;
+}
+
+.workspace-shell .frontmatter-panel-value {
+  min-height: 30px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.workspace-shell .frontmatter-panel-key:focus,
+.workspace-shell .frontmatter-panel-value:focus {
+  outline: 1px solid #8d9b88;
+  border-color: #8d9b88;
+}
+
+.workspace-shell .frontmatter-panel-remove {
+  min-height: auto;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #8a4b39;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.workspace-shell .frontmatter-panel-remove:hover {
+  background: #f1ded8;
+}
+
+.workspace-shell .frontmatter-panel .field-error {
+  margin: 8px 0 0;
+  color: #8a4b39;
+  font-size: 11px;
+}
+
+/* Cabecalho das secoes (Tags e Propriedades): o botao "+" fica logo APOS a
+   palavra, sem borda. */
+.workspace-shell .frontmatter-panel-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workspace-shell .frontmatter-panel-add {
+  display: inline-grid;
+  padding: 2px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #7a786f;
+  cursor: pointer;
+}
+
+.workspace-shell .frontmatter-panel-add:hover {
+  color: #252521;
+  background: transparent;
+}
+
+/* Popover de propriedades comuns: apenas os icones (grid), com tooltip de
+   rotulo/chave (ex.: telefone → phone). O conteudo e portalado FORA do
+   .workspace-shell, entao os seletores partem de .ui-popover-content. */
+.ui-popover-content.frontmatter-property-popover {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  width: 170px;
+  min-width: 0;
+  padding: 6px;
+}
+
+.ui-popover-content.frontmatter-property-popover .frontmatter-property-item {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #343532;
+  cursor: pointer;
+}
+
+.ui-popover-content.frontmatter-property-popover .frontmatter-property-item:hover {
+  background: #efede4;
+}
+
+/* Popover de tags: campo de digitacao na primeira linha (autofoco; Enter
+   cria a tag) e as tags existentes filtradas em 1 coluna (maximo de 5
+   visiveis, scrollavel; permanece aberto com o mouse dentro). */
+.ui-popover-content.frontmatter-tag-popover {
+  width: 232px;
+  min-width: 0;
+  padding: 6px;
+}
+
+.ui-popover-content.frontmatter-tag-popover input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d8d6cf;
+  border-radius: 5px;
+  background: #fffefa;
+  color: #343532;
+  font: inherit;
+  font-size: 12px;
+}
+
+.ui-popover-content.frontmatter-tag-popover input:focus {
+  outline: 1px solid #8d9b88;
+  border-color: #8d9b88;
+}
+
+.ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list {
+  display: grid;
+  gap: 2px;
+  max-height: 158px; /* ~5 itens visiveis */
+  margin-top: 6px;
+  overflow-y: auto;
+  overflow-x: hidden; /* sem rolagem lateral */
+}
+
+.ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list button {
+  min-width: 0;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #343532;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list button:hover {
+  background: #efede4;
+}
+
+.ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-hint {
+  margin: 6px 4px 2px;
+  color: #7a786f;
+  font-size: 11px;
+}
+
+.workspace-shell .frontmatter-panel-empty {
+  color: #a5a299;
+  font-size: 11px;
+}
+
+/* Linha da chave: icone da propriedade + input da chave. */
+.workspace-shell .frontmatter-panel-key-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workspace-shell .frontmatter-panel-row-icon {
+  flex: none;
+  display: grid;
+  color: #8d9b88;
+  place-items: center;
+}
+
+/* Secoes do painel (Tags, Propriedades, Referenciada por): sem separadores
+   (bordas) — apenas o rotulo, para o menu parecer parte do header. No grid
+   de 2 colunas, Tags fica na coluna 1 e Propriedades na coluna 2;
+   Referenciada por ocupa a linha inteira. */
+.workspace-shell .frontmatter-panel-section {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding-top: 6px;
+}
+
+.workspace-shell .frontmatter-panel-tags {
+  grid-column: 1;
+}
+
+.workspace-shell .frontmatter-panel-props {
+  grid-column: 2;
+}
+
+.workspace-shell .frontmatter-panel-backlinks {
+  grid-column: 1 / -1;
+  margin-top: 14px;
+}
+
+.workspace-shell .frontmatter-panel-section-title {
+  color: #73736d;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Linha de tags: MESMA implementacao das tags abaixo do titulo da nota
+   (NoteTagPicker + badges), com a mesma espacamento do `.note-tag-list`. */
+.workspace-shell .frontmatter-panel-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Badge de tag com botao de remocao (X) dentro, visivel no hover. O X ocupa
+   SEMPRE o espaco dele na badge (width 16px fixo; apenas a opacidade muda no
+   hover), entao a badge nunca muda de tamanho ao expandir — evita que uma
+   badge na borda da linha estoure a largura maxima e quebre o wrap. */
+.workspace-shell .frontmatter-panel-tag-badge {
+  max-width: 100%;
+}
+
+.workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove {
+  display: inline-grid;
+  width: 16px;
+  min-width: 16px;
+  height: 14px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 140ms ease, background-color 140ms ease;
+}
+
+.workspace-shell .frontmatter-panel-tag-badge:hover .frontmatter-panel-tag-remove,
+.workspace-shell .frontmatter-panel-tag-badge:focus-within .frontmatter-panel-tag-remove {
+  opacity: 1;
+}
+
+.workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove:hover,
+.workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove:focus-visible {
+  background: rgb(28 36 39 / 12%);
+  color: #8a4b39;
+}
+
+.workspace-shell .frontmatter-panel-backlink-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.workspace-shell .frontmatter-panel-backlink {
+  min-height: auto;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: #e5eee5;
+  color: #31533a;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.workspace-shell .frontmatter-panel-backlink:hover {
+  background: #cfdccc;
 }
 
 /* Tabela do modo Misto: um <table> real, com a MESMA aparencia do modo
@@ -4999,6 +5331,108 @@ button:disabled {
   color: #20201e;
 }
 
+/* Menu integrado de propriedades (modo Misto): linha propria do grid do
+   header (grid-column 1/-1). O arrow down fica EM CIMA da borda inferior do
+   header (metade para dentro, metade para fora) e, ao clicar, desce junto
+   com a borda — o painel abre dentro do proprio header (abaixo das acoes),
+   sem borda nem fundo proprio, parecendo parte dele. O painel usa um grid
+   de 2 colunas (Tags | Propriedades) para ocupar melhor a largura do
+   header, com os backlinks embaixo, na largura toda. */
+/* O menu estica na largura toda do conteudo do header (o header ja tem o
+   padding horizontal `max(40px, 7vw)`, entao o painel respeita as mesmas
+   margens do eixo x). Sem `justify-items: center`: o collapse e o painel
+   usam width 100% para ocupar de ponta a ponta. */
+.workspace-shell .frontmatter-menu {
+  grid-column: 1 / -1;
+  display: grid;
+}
+
+.workspace-shell .frontmatter-menu-collapse {
+  width: 100%;
+}
+
+.workspace-shell .frontmatter-menu-panel {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 12px;
+  /* O arrow down sobrepoe a borda inferior (metade para dentro): o conteudo
+     do painel nao pode encostar nele. */
+  padding-bottom: 18px;
+}
+
+/* Arrow down da barra inferior do header: posicionado SOBRE a borda inferior
+   (bottom negativo = metade para fora), abre/fecha o menu integrado (tags +
+   propriedades + backlinks). O chevron gira quando aberto. */
+.workspace-shell .editor-disclosure-button {
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  transform: translateX(-50%);
+  border: 1px solid #e6e4de;
+  border-radius: 50%;
+  background: #fbfaf6;
+  color: #595950;
+  cursor: pointer;
+}
+
+/* O hover NAO movimenta o arrow (a regra global button:hover aplica
+   translateY(-1px), que sobrescreveria o translateX(-50%) do centramento e
+   deslocaria o botao para a direita): mantemos o centramento explicito.
+   O unico efeito de transform e o giro de 180° quando aberto (is-open). */
+.workspace-shell .editor-disclosure-button:hover:not(:disabled) {
+  transform: translateX(-50%);
+  border-color: #aaa79e;
+  background: #f1efe7;
+  color: #252521;
+}
+
+.workspace-shell .editor-disclosure-button.is-open svg {
+  transform: rotate(180deg);
+}
+
+.workspace-shell .editor-disclosure-button svg {
+  transition: transform 280ms cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+/* O painel abre com animacao de slide down: a altura da linha cresce de 0
+   ate o conteudo, fazendo a borda inferior do header (e o arrow sobre ela)
+   descer junto. Easing suave (cubic-bezier com saida lenta) para a barra
+   descer de forma natural. */
+.workspace-shell .frontmatter-menu-collapse {
+  overflow: hidden;
+  animation: frontmatter-menu-slide-down 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes frontmatter-menu-slide-down {
+  from {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    max-height: 1600px;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell .editor-disclosure-button svg {
+    transition: none;
+  }
+
+  .workspace-shell .frontmatter-menu-collapse {
+    animation: none;
+  }
+}
+
 .workspace-shell .backlink-list {
   display: flex;
   flex-wrap: wrap;
@@ -5011,62 +5445,6 @@ button:disabled {
 
 .workspace-shell .backlink-list > span {
   margin-right: 2px;
-}
-
-.workspace-shell .backlink-list button,
-.workspace-shell .wiki-link {
-  min-height: auto;
-  padding: 1px 5px;
-  border: 0;
-  border-radius: 3px;
-  background: #e5eee5;
-  color: #31533a;
-  font: inherit;
-}
-
-.workspace-shell .wiki-link-preview-anchor {
-  position: relative;
-  display: inline-flex;
-}
-
-.workspace-shell .wiki-link-preview {
-  position: absolute;
-  z-index: 20;
-  bottom: calc(100% + 8px);
-  left: 0;
-  display: grid;
-  width: min(280px, 72vw);
-  gap: 5px;
-  padding: 10px 11px;
-  border: 1px solid #d2d0c9;
-  border-radius: 6px;
-  background: #fffef9;
-  box-shadow: 0 8px 22px rgba(43, 41, 33, 0.16);
-  color: #292925;
-  pointer-events: none;
-  text-align: left;
-}
-
-.workspace-shell .wiki-link-preview strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-}
-
-.workspace-shell .wiki-link-preview small {
-  display: -webkit-box;
-  overflow: hidden;
-  color: #64645d;
-  font-size: 11px;
-  line-height: 1.4;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-.workspace-shell .backlink-list button:hover,
-.workspace-shell .wiki-link:hover {
-  background: #cfdccc;
 }
 
 .workspace-shell .obsidian-note-embed {
@@ -5380,127 +5758,6 @@ button:disabled {
   color: #5d7664;
 }
 
-.workspace-shell .note-properties {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.workspace-shell .note-property-chip {
-  padding: 3px 6px;
-  border: 1px solid #ddd9d0;
-  background: #f7f5ef;
-  color: #66665f;
-  font-size: 11px;
-}
-
-.workspace-shell .note-property-chip:hover {
-  border-color: #aaa79e;
-  background: #ebe8df;
-  color: #252521;
-}
-
-.workspace-shell .note-properties .secondary-button {
-  min-height: 25px;
-  padding: 3px 7px;
-  font-size: 11px;
-}
-
-.workspace-shell .frontmatter-actions-disclosure {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 180ms ease-out;
-}
-
-.workspace-shell .frontmatter-actions-disclosure.is-open {
-  grid-template-rows: 1fr;
-}
-
-.workspace-shell .frontmatter-actions-content {
-  display: flex;
-  min-height: 0;
-  gap: 6px;
-  overflow: hidden;
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 140ms ease-out, transform 180ms ease-out;
-}
-
-.workspace-shell .frontmatter-actions-disclosure.is-open .frontmatter-actions-content {
-  margin-top: 8px;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.workspace-shell .editor-disclosure-button.is-open svg {
-  transform: rotate(180deg);
-}
-
-.workspace-shell .editor-disclosure-button svg {
-  transition: transform 180ms ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .workspace-shell .frontmatter-actions-disclosure,
-  .workspace-shell .frontmatter-actions-content,
-  .workspace-shell .editor-disclosure-button svg {
-    transition: none;
-  }
-}
-
-.workspace-shell .frontmatter-editor {
-  display: grid;
-  gap: 7px;
-  width: min(100%, 430px);
-  margin-top: 9px;
-  padding: 10px;
-  border: 1px solid #d8d6cf;
-  background: #fbfaf6;
-}
-
-.workspace-shell .frontmatter-editor label {
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.workspace-shell .frontmatter-editor textarea,
-.workspace-shell .frontmatter-editor input {
-  min-height: 96px;
-  padding: 8px;
-  border: 1px solid #d8d6cf;
-  background: #fffefa;
-  font-family: var(--mono);
-  resize: vertical;
-}
-
-.workspace-shell .frontmatter-editor input {
-  min-height: 34px;
-  resize: none;
-}
-
-.workspace-shell .frontmatter-editor input:disabled {
-  color: #4c4c47;
-  background: #efede6;
-}
-
-.workspace-shell .frontmatter-property-editor > div .danger-button {
-  margin-right: auto;
-}
-
-.workspace-shell .frontmatter-editor small {
-  color: #73736d;
-  font-size: 11px;
-}
-
-.workspace-shell .frontmatter-editor > div {
-  display: flex;
-  justify-content: flex-end;
-  gap: 7px;
-}
-
-.workspace-shell .markdown-reading table,
 .workspace-shell .markdown-mixed table {
   width: 100%;
   margin: 1.1em 0;
@@ -5508,8 +5765,6 @@ button:disabled {
   font-size: 0.94em;
 }
 
-.workspace-shell .markdown-reading th,
-.workspace-shell .markdown-reading td,
 .workspace-shell .markdown-mixed th,
 .workspace-shell .markdown-mixed td {
   padding: 0.55em 0.7em;
@@ -5517,13 +5772,11 @@ button:disabled {
   text-align: left;
 }
 
-.workspace-shell .markdown-reading th,
 .workspace-shell .markdown-mixed th {
   background: #f0efe9;
   font-weight: 600;
 }
 
-.workspace-shell .markdown-reading input[type='checkbox'],
 .workspace-shell .markdown-mixed input[type='checkbox'] {
   margin: 0 0.45em 0 0;
   accent-color: #5d7664;
@@ -5911,6 +6164,18 @@ button:disabled {
   border-bottom-color: #312d36;
 }
 
+[data-theme='dark'] .workspace-shell .editor-disclosure-button {
+  border-color: #3a3640;
+  background: #1e1b21;
+  color: #c9c6c0;
+}
+
+[data-theme='dark'] .workspace-shell .editor-disclosure-button:hover:not(:disabled) {
+  border-color: #4a4552;
+  background: #26232a;
+  color: #f0eee7;
+}
+
 /* Editor (CodeMirror) e leitura sobre o canvas escuro. */
 [data-theme='dark'] .workspace-shell .codemirror-markdown-editor .cm-editor {
   color: #e2e0da !important;
@@ -5929,51 +6194,9 @@ button:disabled {
   outline-color: #3d5549 !important;
 }
 
-[data-theme='dark'] .markdown-reading {
-  color: #d6d4cd;
-}
-
-[data-theme='dark'] .markdown-reading h1,
-[data-theme='dark'] .markdown-reading h2,
-[data-theme='dark'] .markdown-reading h3,
-[data-theme='dark'] .markdown-reading h4,
-[data-theme='dark'] .markdown-reading h5,
-[data-theme='dark'] .markdown-reading h6 {
-  color: #f0eee7;
-}
-
-[data-theme='dark'] .markdown-reading a {
-  color: #8fc4b0;
-}
-
-[data-theme='dark'] .markdown-reading code {
-  background: rgba(232, 230, 221, 0.1);
-  color: #e8e6dd;
-}
-
-[data-theme='dark'] .markdown-reading pre,
-[data-theme='dark'] .markdown-mixed pre {
+[data-theme='dark'] .workspace-shell .markdown-mixed pre {
   background: rgba(232, 230, 221, 0.06);
   color: #d6d4cd;
-}
-
-[data-theme='dark'] .markdown-reading blockquote {
-  border-color: #3d5549;
-  color: #b9b6ae;
-}
-
-[data-theme='dark'] .markdown-reading table {
-  border-color: #3a3640;
-}
-
-[data-theme='dark'] .markdown-reading th,
-[data-theme='dark'] .markdown-reading td {
-  border-color: #312d36;
-}
-
-[data-theme='dark'] .markdown-reading img {
-  border-color: #3a3640;
-  background: #1e1b21;
 }
 
 /* Paginas de conteudo (Configuracoes, Tags, Bases, grafo) sobre o canvas escuro. */
@@ -6111,4 +6334,93 @@ button:disabled {
   border-color: #3a3640;
   background: #1e1b21;
   color: #c9c6c0;
+}
+
+/* Painel integrado de propriedades no tema escuro (sem borda/fundo proprio). */
+[data-theme='dark'] .workspace-shell .frontmatter-panel {
+  color: #d6d4cd;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-add {
+  color: #a8a59d;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-add:hover {
+  background: transparent;
+  color: #f0eee7;
+}
+
+/* O conteudo dos popovers e portalado FORA do .workspace-shell, entao os
+   seletores do tema escuro partem de .ui-popover-content (mesmo escopo do
+   tema claro acima). */
+[data-theme='dark'] .ui-popover-content.frontmatter-property-popover .frontmatter-property-item {
+  color: #d6d4cd;
+}
+
+[data-theme='dark'] .ui-popover-content.frontmatter-property-popover .frontmatter-property-item:hover {
+  background: #26232a;
+}
+
+[data-theme='dark'] .ui-popover-content.frontmatter-tag-popover input {
+  border-color: #3a3640;
+  background: #16141a;
+  color: #d6d4cd;
+}
+
+[data-theme='dark'] .ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list button {
+  color: #d6d4cd;
+}
+
+[data-theme='dark'] .ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list button:hover {
+  background: #26232a;
+}
+
+[data-theme='dark'] .ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-hint {
+  color: #a8a59d;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-empty {
+  color: #6f6a76;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-row-icon {
+  color: #9cc2a8;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-key,
+[data-theme='dark'] .workspace-shell .frontmatter-panel-value {
+  border-color: #3a3640;
+  background: #16141a;
+  color: #d6d4cd;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-remove {
+  color: #e0a08d;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-remove:hover {
+  background: rgb(224 160 141 / 15%);
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel .field-error {
+  color: #e0a08d;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-section-title {
+  color: #a8a59d;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-backlink {
+  background: #26332c;
+  color: #9cc2a8;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-backlink:hover {
+  background: #2e3f36;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove:hover,
+[data-theme='dark'] .workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove:focus-visible {
+  background: rgb(236 235 229 / 14%);
+  color: #e0a08d;
 }

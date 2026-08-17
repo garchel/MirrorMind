@@ -3529,6 +3529,7 @@ fn rename_vault_item(
     .map_err(|error| error.to_string())
 }
 
+#[cfg(test)]
 fn rename_vault_item_in_root(
     root: &Path,
     relative_path: &str,
@@ -3667,6 +3668,7 @@ fn move_vault_item(
     .map_err(|error| error.to_string())
 }
 
+#[cfg(test)]
 fn move_vault_item_in_root(
     root: &Path,
     relative_path: &str,
@@ -6478,6 +6480,16 @@ mod tests {
         thread,
         time::{Duration, Instant},
     };
+    // O watcher em si e cross-platform (notify: inotify no Linux); os helpers
+    // de teste do Windows (fila, modelo, janelas) nao existem em unix, entao
+    // o teste unix usa um canal mpsc direto.
+    #[cfg(unix)]
+    use super::{start_vault_watcher, start_vault_watcher_with_capacity};
+    #[cfg(unix)]
+    use std::{
+        sync::mpsc,
+        time::{Duration, Instant},
+    };
 
     struct ObsidianRegressionScenario {
         name: &'static str,
@@ -7510,6 +7522,128 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["indice.md"]
         );
+    }
+
+    /// Volumes Unix (ext4/btrfs) sao CASE-SENSITIVE por padrao: `Nota.md` e
+    /// `nota.md` sao dois arquivos distintos. O espelho do Windows (NTFS,
+    /// case-insensitive) vive em `windows_path_suite_preserves_unicode_and_ntfs_case_insensitivity`.
+    #[cfg(unix)]
+    #[test]
+    fn unix_path_suite_is_case_sensitive_and_keeps_distinct_files() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        ensure_metadata_layout(&root).expect("initialize metadata");
+
+        // Dois arquivos cuja unica diferenca e a caixa do nome: coexistem e
+        // sao indexados separadamente no inventario.
+        let upper = root.join("Estudos.md");
+        let lower = root.join("estudos.md");
+        fs::write(&upper, "caixa alta").expect("write uppercase note");
+        fs::write(&lower, "caixa baixa").expect("write lowercase note");
+
+        let indexed = collect_markdown_files(&root)
+            .expect("collect")
+            .into_iter()
+            .map(|path| to_relative_display(&root, &path))
+            .collect::<Vec<_>>();
+        assert!(
+            indexed.contains(&"Estudos.md".to_string())
+                && indexed.contains(&"estudos.md".to_string()),
+            "case-sensitive volume must index both files separately: {indexed:?}"
+        );
+
+        // A resolucao por caminho tambem e case-sensitive: cada nome resolve
+        // para o SEU proprio arquivo e le o conteudo certo — nunca o do outro.
+        assert_eq!(
+            fs::read_to_string(resolve_note_path(&root, "Estudos.md").expect("exact case"))
+                .expect("read uppercase"),
+            "caixa alta"
+        );
+        assert_eq!(
+            fs::read_to_string(resolve_note_path(&root, "estudos.md").expect("lowercase"))
+                .expect("read lowercase"),
+            "caixa baixa"
+        );
+    }
+
+    /// Permissoes Unix: um arquivo sem permissao de leitura deve falhar com
+    /// erro claro (nunca devolver conteudo vazio como se fosse valido) e a
+    /// falha nao corrompe nem sobrescreve bytes.
+    #[cfg(unix)]
+    #[test]
+    fn unix_readonly_note_fails_with_a_clear_error_and_keeps_bytes() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        let note_path = root.join("restrita.md");
+        fs::write(&note_path, "conteudo protegido").expect("write note");
+        fs::set_permissions(&note_path, fs::Permissions::from_mode(0o000))
+            .expect("make note unreadable");
+
+        // A leitura pelo app falha com erro (nunca devolve conteudo vazio
+        // como se fosse valido) — mesmo com o arquivo existindo no disco.
+        let read_result = fs::read(&note_path);
+        assert!(
+            read_result.is_err(),
+            "unreadable file must fail loudly instead of returning empty content"
+        );
+
+        // A escrita via save tambem reporta erro e nao corrompe bytes.
+        assert!(
+            save_note_in_root(&root, "restrita.md", "tentativa").is_err(),
+            "saving over an unwritable note must fail"
+        );
+    }
+
+    /// Watcher Linux (inotify via `notify`): uma criacao externa dentro do
+    /// Vault e observada como `create`; uma edicao rapida e coalescida como
+    /// `modify`. O espelho Windows vive em `windows_watcher_reports_external_lifecycle_once_and_preserves_final_state`.
+    #[cfg(unix)]
+    #[test]
+    fn unix_watcher_reports_external_create_and_modify() {
+        let temporary_directory = tempdir().expect("watcher temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical watcher root");
+        let (sender, receiver) = mpsc::channel();
+        let watcher = start_vault_watcher(&root, move |change| {
+            let _ = sender.send(change);
+        })
+        .expect("start real Unix watcher");
+
+        let original = root.join("entrada.md");
+        fs::write(&original, "primeira versao").expect("create note outside app");
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut saw_create = false;
+        while Instant::now() < deadline && !saw_create {
+            if let Ok(change) = receiver.recv_timeout(Duration::from_millis(200)) {
+                saw_create = change.kind == "create" && change.paths == ["entrada.md"];
+            }
+        }
+        assert!(saw_create, "external create must be observed on Unix");
+
+        fs::write(&original, "segunda versao").expect("external edit");
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut saw_modify = false;
+        while Instant::now() < deadline && !saw_modify {
+            if let Ok(change) = receiver.recv_timeout(Duration::from_millis(200)) {
+                saw_modify = change.kind == "modify" && change.paths == ["entrada.md"];
+            }
+        }
+        assert!(saw_modify, "external modify must be observed on Unix");
+        assert_eq!(
+            fs::read_to_string(&original).expect("read latest external edit"),
+            "segunda versao"
+        );
+        drop(watcher);
     }
 
     /// Nomes com espacos: resolvem, salvam, indexam e aparecem em backlinks

@@ -34,7 +34,10 @@ const appData = join(runRoot, 'appdata')
 const localAppData = join(runRoot, 'localappdata')
 const artifactsRoot = join(resultsRoot, 'artifacts', phase)
 const embeddedPort = Number(process.env.MIRRORMIND_E2E_PORT ?? 4445 + (process.pid % 1000))
-const appBinary = resolve('src-tauri/target/debug/mirrormind.exe')
+const appBinary = resolve(
+  'src-tauri/target/debug/',
+  process.platform === 'win32' ? 'mirrormind.exe' : 'mirrormind',
+)
 
 for (const directory of [vaultParent, appData, localAppData, artifactsRoot]) {
   mkdirSync(directory, { recursive: true })
@@ -46,6 +49,18 @@ process.env.MIRRORMIND_E2E_VAULT_PARENT = vaultParent
 process.env.MIRRORMIND_E2E_PORT = String(embeddedPort)
 process.env.APPDATA = appData
 process.env.LOCALAPPDATA = localAppData
+// Linux/macOS: isola o estado do app (preferencia de vault, notificacoes e
+// perfil do WebKit) dentro do runRoot, como o APPDATA faz no Windows.
+process.env.XDG_CONFIG_HOME = join(runRoot, 'xdg-config')
+process.env.XDG_DATA_HOME = join(runRoot, 'xdg-data')
+process.env.XDG_CACHE_HOME = join(runRoot, 'xdg-cache')
+for (const directory of [
+  join(runRoot, 'xdg-config'),
+  join(runRoot, 'xdg-data'),
+  join(runRoot, 'xdg-cache'),
+]) {
+  mkdirSync(directory, { recursive: true })
+}
 
 function safeArtifactName(value) {
   return value.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'e2e-failure'

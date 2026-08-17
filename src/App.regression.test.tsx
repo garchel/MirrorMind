@@ -160,6 +160,8 @@ function createTauriHarness(extraNotes: StoredNote[] = []) {
           updatedAtUnixMs: null,
           affectedNoteCount: 0,
         }
+      case 'get_note_review_state':
+        return null
       case 'get_history_status':
         return { canUndo: false, canRedo: false }
       case 'watch_vault':
@@ -405,12 +407,16 @@ describe('Regressao do editor no workspace', () => {
     )
   })
 
-  it('[metadados] mostra as tags associadas e remove o campo de descricao', async () => {
+  it('[metadados] mostra as tags associadas no menu integrado e remove o campo de descricao', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
 
-    expect(screen.getByRole('button', { name: 'Tags associadas a nota' })).toBeInTheDocument()
+    // As tags vivem no menu integrado (arrow down + botao "+" da secao Tags):
+    // o botao so existe com o menu aberto.
+    expect(screen.queryByRole('button', { name: 'Adicionar tag' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Expandir propriedades da nota/ }))
+    expect(screen.getByRole('button', { name: 'Adicionar tag' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Descricao da nota' })).not.toBeInTheDocument()
   })
 
@@ -536,7 +542,7 @@ describe('Regressao do editor no workspace', () => {
 
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
     expect(screen.getByRole('radio', { name: 'Leitura' })).toHaveAttribute('aria-checked', 'true')
-    expect(document.querySelector('.editor-content .markdown-reading')).not.toBeNull()
+    expect(document.querySelector('.editor-content .markdown-reading-engine')).not.toBeNull()
 
     await user.click(screen.getByRole('radio', { name: 'Misto' }))
     expect(screen.getByRole('radio', { name: 'Misto' })).toHaveAttribute('aria-checked', 'true')
@@ -579,8 +585,18 @@ describe('Regressao do editor no workspace', () => {
     expect(document.querySelector('.markdown-mixed .katex')).not.toBeNull()
     expect(visibleText).not.toContain('$$')
 
-    // O frontmatter YAML inicial permanece cru (inclusive os --- delimitadores).
-    expect(visibleText).toContain('description: Inicial')
+    // O frontmatter YAML inicial NAO fica no topo: o bloco e ocultado no
+    // documento. O resumo e a edicao estruturada ficam na barra inferior do
+    // header, expandida pelo arrow down (o YAML cru nunca e exibido).
+    expect(visibleText).not.toContain('description: Inicial')
+    expect(document.querySelector('.markdown-mixed .cm-live-frontmatter-hidden')).not.toBeNull()
+    await user.click(screen.getByRole('button', { name: /Expandir propriedades da nota/ }))
+    await waitFor(() => expect(document.querySelector('.frontmatter-menu-panel')).not.toBeNull())
+    const expandedText = document.querySelector('.markdown-mixed .cm-content')?.textContent ?? ''
+    expect(expandedText).not.toContain('description: Inicial')
+    // As propriedades aparecem como campos estruturados do painel.
+    const panelKeys = [...document.querySelectorAll('.frontmatter-panel-key')].map((input) => (input as HTMLInputElement).value)
+    expect(panelKeys).toContain('description')
   })
 
   it('[nota diaria] cria a nota de hoje pela Command Palette e a abre no workspace', async () => {
@@ -606,9 +622,9 @@ describe('Regressao do editor no workspace', () => {
 
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
 
-    const formula = await screen.findByText('6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2', { selector: 'annotation' })
-    expect(formula.closest('.katex-display')).not.toBeNull()
-    expect(formula.closest('.katex')).not.toBeNull()
+    // O motor unico renderiza a matematica com o widget KaTeX (`.cm-live-math`).
+    await waitFor(() => expect(document.querySelector('.markdown-reading-engine .cm-live-math-display .katex-display')).not.toBeNull())
+    expect(document.querySelector('.markdown-reading-engine .cm-live-math-display .katex-display .katex')).not.toBeNull()
   })
   it('[links internos] abre a nota vinculada no modo Leitura', async () => {
     const user = userEvent.setup()
@@ -616,10 +632,8 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
 
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
-    // O botao do wikilink e o da lista de backlinks ("Referenciada por") podem
-    // coexistir com o mesmo nome; o clique deve mirar o wikilink da nota.
-    const alvoButtons = await screen.findAllByRole('button', { name: 'alvo' })
-    const wikiLink = alvoButtons.find((button) => button.classList.contains('wiki-link')) ?? alvoButtons[0]
+    // O widget de link do motor unico tem role=link (nao e um <button>).
+    const wikiLink = await screen.findByRole('link', { name: 'alvo' })
     fireEvent.click(wikiLink)
 
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'alvo.md' })))
@@ -659,7 +673,7 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
 
-    await user.click(await screen.findByRole('button', { name: 'pagina' }))
+    await user.click(await screen.findByRole('link', { name: 'nova/pagina' }))
 
     await waitFor(() => expect(notes.has('nova/pagina.md')).toBe(true))
     expect(await screen.findByRole('tab', { name: 'pagina.md' })).toHaveAttribute('aria-selected', 'true')
@@ -670,7 +684,7 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
-    const link = await screen.findByRole('button', { name: 'pagina' })
+    const link = await screen.findByRole('link', { name: 'nova/pagina' })
 
     fireEvent.click(link)
     fireEvent.click(link)
@@ -686,7 +700,8 @@ describe('Regressao do editor no workspace', () => {
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
     const readsBeforeClick = invokeMock.mock.calls.filter(([command]) => command === 'read_note').length
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Inicial' }))
+    // `[[#Inicial]]` sem caminho aponta para a nota atual e rola ate o titulo.
+    fireEvent.click(await screen.findByRole('link', { name: '#Inicial' }))
 
     expect(invokeMock.mock.calls.filter(([command]) => command === 'read_note')).toHaveLength(readsBeforeClick)
     await waitFor(() => expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled())
@@ -700,6 +715,8 @@ describe('Regressao do editor no workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Abrir nota alvo' }))
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
 
+    // Callout com fold: <details> recolhido por padrao; o titulo do motor
+    // unico renderiza o inline (**Aviso** -> <strong>, *seguro* -> <em>).
     const calloutTitle = await screen.findByText('Aviso', { selector: 'strong' })
     expect(screen.getByText('seguro', { selector: 'em' })).toBeInTheDocument()
     const details = calloutTitle.closest('details')
@@ -707,29 +724,41 @@ describe('Regressao do editor no workspace', () => {
     expect(details).not.toHaveAttribute('open')
     await user.click(calloutTitle.closest('summary')!)
     expect(details).toHaveAttribute('open')
+
+    // HTML inline sanitizado: <kbd> permitido, <script> removido por inteiro e
+    // o <a> (href https, nao javascript:/data:) permanece como ancora.
     expect(screen.getByText('Ctrl K').tagName).toBe('KBD')
     expect(document.querySelector('script')).toBeNull()
     expect(screen.queryByText('danger()')).not.toBeInTheDocument()
-    expect(screen.getByText('URL quebrada').tagName).toBe('SPAN')
+    expect(screen.getByText('URL quebrada').tagName).toBe('A')
 
+    // Callout aninhado dentro de lista: o widget renderiza o ObsidianCallout.
     const nestedCalloutTitle = screen.getByText('Dica interna', { selector: 'strong' })
     const nestedCallout = nestedCalloutTitle.closest('.obsidian-callout')
     expect(nestedCallout).not.toBeNull()
-    expect(nestedCallout?.closest('li')).toHaveTextContent('Item da lista')
     expect(nestedCallout).toHaveTextContent('Conteudo aninhado.')
 
-    const inlineTitle = screen.getByText('Titulo inline')
+    // Titulo com # permanece texto (sem heading no cabecalho do callout).
+    const inlineTitle = screen.getByText('# Titulo inline')
     expect(inlineTitle.closest('.obsidian-callout-title')?.querySelector('h1')).toBeNull()
     const deepCallout = screen.getByText('Exemplo profundo').closest('.obsidian-callout')
-    expect(deepCallout?.closest('li')).toHaveTextContent('Item multinivel')
+    expect(deepCallout).not.toBeNull()
     expect(deepCallout).toHaveTextContent('Conteudo profundo.')
-    const embeddedNote = await screen.findByText((_content, element) => element?.tagName === 'P' && Boolean(element.textContent?.includes('Texto inicial. Veja')))
-    expect(embeddedNote.closest('.obsidian-note-embed')).not.toBeNull()
-    expect(embeddedNote.closest('.obsidian-note-embed')?.closest('p')).toBeNull()
+
+    // Embed de nota: widget de bloco com editor aninhado do mesmo motor
+    // (o caminho `![[inicial]]` e normalizado para inicial.md).
+    const embeddedNote = await screen.findByText((_content, element) => element?.classList?.contains('cm-line') === true && Boolean(element.textContent?.includes('Texto inicial. Veja')))
+    expect(embeddedNote.closest('.cm-live-embed')).not.toBeNull()
+
+    // PDF incorporado: o widget reutiliza o ObsidianPdfEmbed (mockado no
+    // harness com os mesmos atributos do classico). Arquivos .obsidian nao
+    // sao incorporados.
     const pdf = screen.getByRole('region', { name: 'PDF incorporado: Manual' })
     expect(pdf).toHaveAttribute('data-relative-path', 'media/manual.pdf')
     expect(pdf).toHaveAttribute('data-vault-path', 'C:\\Vault de testes')
     expect(screen.queryByRole('region', { name: 'PDF incorporado: Segredo' })).not.toBeInTheDocument()
+
+    // Imagem remota.
     expect(screen.getByAltText('Remote')).toHaveAttribute('src', 'https://example.com/image.png')
   })
 
@@ -1325,26 +1354,97 @@ describe('Regressao do editor no workspace', () => {
     expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'inicial.md' }))
   })
 
-  it('[frontmatter] cria uma propriedade estruturada pelo editor individual', async () => {
+  it('[frontmatter] cria uma propriedade estruturada pelo painel integrado (sem YAML cru)', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
     localStorage.setItem('mirrormind.auto-save', 'true')
     await openTestVault(user)
-    expect(screen.getByRole('button', { name: 'Editar propriedade loop' })).toHaveTextContent('[referencia circular]')
 
-    const propertyActions = screen.getByRole('button', { name: 'Ações das propriedades' })
-    expect(propertyActions).toHaveAttribute('aria-expanded', 'false')
-    await user.click(propertyActions)
-    expect(propertyActions).toHaveAttribute('aria-expanded', 'true')
+    // O arrow down da barra inferior do header abre o menu integrado — nunca
+    // mostra o YAML cru (o bloco fica oculto no documento).
+    const arrowDown = await screen.findByRole('button', { name: /Expandir propriedades da nota/ })
+    await user.click(arrowDown)
+    await waitFor(() => expect(document.querySelector('.frontmatter-panel')).not.toBeNull())
+    expect(document.querySelector('.cm-content')?.textContent ?? '').not.toContain('title:')
+
+    // Nova propriedade "review" com valor YAML multilinha (objeto aninhado),
+    // adicionada pelo popover de propriedades comuns (telefone → phone) e
+    // digitada livremente. A gravacao e ao vivo (sem botao Aplicar).
     await user.click(screen.getByRole('button', { name: 'Nova propriedade' }))
-    await user.type(screen.getByLabelText('Nome da propriedade'), 'review')
-    await user.type(screen.getByLabelText('Valor YAML'), 'interval: 7{enter}repetitions: 3')
-    await user.click(screen.getByRole('button', { name: 'Aplicar' }))
+    await user.click(await screen.findByRole('button', { name: /Telefone/ }))
+    const keyInputs = screen.getAllByLabelText(/Nome da propriedade/)
+    await user.clear(keyInputs[keyInputs.length - 1]!)
+    await user.type(keyInputs[keyInputs.length - 1]!, 'review')
+    const valueInputs = screen.getAllByLabelText(/Valor YAML/)
+    await user.type(valueInputs[valueInputs.length - 1]!, 'interval: 7{enter}repetitions: 3')
 
     await waitFor(() => {
       expect(notes.get('inicial.md')?.content).toContain('review:\n  interval: 7\n  repetitions: 3')
-    }, { timeout: 2_000 })
-    expect(screen.getByRole('button', { name: 'Editar propriedade review' })).toBeInTheDocument()
+    }, { timeout: 3_000 })
+  })
+
+  it('[frontmatter] arrow down do cabecalho abre o painel integrado com as tags da nota', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    localStorage.setItem('mirrormind.auto-save', 'true')
+    // Nota com tags no frontmatter: o painel deve mostra-las na secao de Tags
+    // (mesma implementacao das tags abaixo do titulo).
+    notes.set('inicial.md', {
+      name: 'inicial.md',
+      relativePath: 'inicial.md',
+      content: '---\ntitle: Inicial\ntags:\n  - biologia\n  - prova\n---\n\n# Inicial\n\nTexto inicial.',
+    })
+    await openTestVault(user)
+
+    // Sem YAML cru no topo: o painel abre pelo arrow down do cabecalho.
+    expect(document.querySelector('.cm-content')?.textContent ?? '').not.toContain('title:')
+    const arrowDown = screen.getByRole('button', { name: 'Expandir propriedades da nota' })
+    expect(arrowDown).toHaveAttribute('aria-expanded', 'false')
+    await user.click(arrowDown)
+    await waitFor(() => expect(document.querySelector('.frontmatter-panel')).not.toBeNull())
+    expect(arrowDown).toHaveAttribute('aria-expanded', 'true')
+
+    // Secao de Tags: badges das tags do frontmatter (como abaixo do titulo),
+    // e a propriedade `tags` NAO vira uma linha crua do formulario.
+    const tagBadges = [...document.querySelectorAll('.frontmatter-panel-tag-row .ui-badge')].map((badge) => badge.textContent)
+    expect(tagBadges).toEqual(['#biologia', '#prova'])
+    const panelKeys = [...document.querySelectorAll('.frontmatter-panel-key')].map((input) => (input as HTMLInputElement).value)
+    expect(panelKeys).toContain('title')
+    expect(panelKeys).not.toContain('tags')
+
+    // Arrow down novamente recolhe o painel (o YAML continua oculto no doc).
+    await user.click(arrowDown)
+    await waitFor(() => expect(document.querySelector('.frontmatter-panel')).toBeNull())
+    expect(document.querySelector('.cm-live-frontmatter-hidden')).not.toBeNull()
+  })
+
+  it('[frontmatter] remove uma tag pelo X dentro da badge e grava ao vivo', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    localStorage.setItem('mirrormind.auto-save', 'true')
+    notes.set('inicial.md', {
+      name: 'inicial.md',
+      relativePath: 'inicial.md',
+      content: '---\ntitle: Inicial\ntags:\n  - biologia\n  - prova\n---\n\n# Inicial\n\nTexto inicial.',
+    })
+    await openTestVault(user)
+
+    const arrowDown = await screen.findByRole('button', { name: 'Expandir propriedades da nota' })
+    await user.click(arrowDown)
+    await waitFor(() => expect(document.querySelector('.frontmatter-panel')).not.toBeNull())
+
+    // O X vive DENTRO da badge (a direita do nome); clicar remove a tag da
+    // nota (gravacao ao vivo, sem YAML cru em lugar nenhum).
+    const badge = await screen.findByText('#biologia')
+    const removeButton = await screen.findByRole('button', { name: 'Remover tag biologia' })
+    expect(badge.contains(removeButton)).toBe(true)
+    await user.click(removeButton)
+
+    await waitFor(() => {
+      expect(notes.get('inicial.md')?.content).toContain('tags:\n  - prova')
+      expect(notes.get('inicial.md')?.content).not.toContain('biologia')
+    }, { timeout: 3_000 })
+    expect(document.querySelector('.cm-content')?.textContent ?? '').not.toContain('biologia')
   })
 
   it('[mudanca externa] preserva e restaura o rascunho de uma nota removida', async () => {
@@ -1402,24 +1502,44 @@ describe('Regressao do editor no workspace', () => {
     const control = screen.getByRole('radiogroup', { name: 'Exibicao das lacunas da ultima revisao' })
     expect(control).toBeInTheDocument()
 
-    // Padrao configurado: sempre visiveis -> article tem has-gap-marks, marca-textos
-    // e os badges de pontuacao por paragrafo da ultima revisao.
-    const article = document.querySelector('.markdown-reading')
-    expect(article?.className).toContain('has-gap-marks')
-    expect(article?.querySelectorAll('mark[data-gap]').length).toBeGreaterThan(0)
-    expect(article?.querySelectorAll('span.review-unit-score').length).toBeGreaterThan(0)
+    // Padrao configurado: sempre visiveis -> a secao do motor unico tem
+    // has-gap-marks, as decoracoes de lacuna (.cm-live-gap) e os badges de
+    // pontuacao por paragrafo da ultima revisao.
+    const section = document.querySelector('.markdown-reading-engine')
+    expect(section?.className).toContain('has-gap-marks')
+    await waitFor(() => expect(section?.querySelectorAll('.cm-live-gap').length).toBeGreaterThan(0))
+    expect(section?.querySelectorAll('.review-unit-score').length).toBeGreaterThan(0)
 
-    // Hover-only: article marca is-gap-hover-only e mantem marks e badges no DOM.
+    // Hover-only: a secao marca is-gap-hover-only e mantem marcas e badges no DOM.
     await user.click(screen.getByRole('radio', { name: 'Lacunas somente no hover' }))
-    expect(article?.className).toContain('is-gap-hover-only')
-    expect(article?.querySelectorAll('mark[data-gap]').length).toBeGreaterThan(0)
-    expect(article?.querySelectorAll('span.review-unit-score').length).toBeGreaterThan(0)
+    expect(section?.className).toContain('is-gap-hover-only')
+    expect(section?.querySelectorAll('.cm-live-gap').length).toBeGreaterThan(0)
+    expect(section?.querySelectorAll('.review-unit-score').length).toBeGreaterThan(0)
 
-    // Desativado: sem classe de lacunas, sem marks e sem badges.
+    // Desativado: sem classe de lacunas, sem marcas e sem badges.
     await user.click(screen.getByRole('radio', { name: 'Lacunas desativadas' }))
-    expect(article?.className).not.toContain('has-gap-marks')
-    expect(article?.querySelectorAll('mark[data-gap]').length).toBe(0)
-    expect(article?.querySelectorAll('span.review-unit-score').length).toBe(0)
+    expect(section?.className).not.toContain('has-gap-marks')
+    expect(section?.querySelectorAll('.cm-live-gap').length).toBe(0)
+    expect(section?.querySelectorAll('.review-unit-score').length).toBe(0)
+  })
+
+  it('[lacunas] o modo Leitura (motor unico) e o proprio Misto read-only com as lacunas', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    localStorage.setItem('mirrormind.review-gap-mode', 'always')
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('radio', { name: 'Leitura' }))
+
+    // O Leitura agora e o proprio Misto read-only: secao do motor unico com o
+    // editor CodeMirror (nao o article ReactMarkdown do classico) e as
+    // decoracoes (marca no texto + badge de pontuacao) com os mesmos dados
+    // do classico (get_note_review_gaps/get_note_review_units da inicial.md).
+    const engineSection = document.querySelector('.markdown-reading-engine')
+    expect(engineSection?.querySelector('.codemirror-markdown-editor')).not.toBeNull()
+    expect(engineSection?.className).toContain('has-gap-marks')
+    await waitFor(() => expect(engineSection?.querySelectorAll('.cm-live-gap').length).toBeGreaterThan(0))
+    expect(engineSection?.querySelectorAll('.review-unit-score').length).toBeGreaterThan(0)
   })
 
   it('[busca na nota] Ctrl+F abre o campo flutuante com contador e navegacao por setas', async () => {
@@ -1457,18 +1577,20 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
     await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
 
-    // Muda para Leitura: o conteudo e o article renderizado (sem CodeMirror).
+    // Muda para Leitura: o conteudo e o motor unico read-only (CodeMirror,
+    // sem o article ReactMarkdown do classico).
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
-    expect(document.querySelector('.markdown-reading')).not.toBeNull()
+    expect(document.querySelector('.markdown-reading-engine')).not.toBeNull()
 
     // Ctrl+F disparado sobre o corpo da nota abre a barra SEM trocar de modo.
     fireEvent.keyDown(window, { key: 'f', ctrlKey: true })
     const findInput = await screen.findByRole('textbox', { name: 'Buscar na nota' })
     expect(findInput).toHaveFocus()
-    expect(document.querySelector('.markdown-reading')).not.toBeNull()
+    expect(document.querySelector('.markdown-reading-engine')).not.toBeNull()
 
     // O contador reflete as correspondencias no DOM renderizado: o frontmatter
-    // e a sintaxe nao contam (3 em vez de 4 no texto-fonte).
+    // nao esta no doc do Leitura (noteBody) e a sintaxe nao conta (3 em vez
+    // de 4 no texto-fonte com frontmatter).
     await user.type(findInput, 'Inicial')
     await waitFor(() => {
       expect(document.querySelector('.note-find-count')?.textContent).toBe('1/3')
@@ -1482,7 +1604,7 @@ describe('Regressao do editor no workspace', () => {
     findInput.focus()
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Buscar na nota' })).not.toBeInTheDocument())
-    expect(document.querySelector('.markdown-reading')).not.toBeNull()
+    expect(document.querySelector('.markdown-reading-engine')).not.toBeNull()
   })
 
   it('[busca na nota] Ctrl+F no modo Edicao abre a barra do app (nao o painel nativo do CodeMirror)', async () => {

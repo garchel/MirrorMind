@@ -16,6 +16,7 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import { renderWikiLinksAsMarkdown } from '../../lib/markdown'
+import { remarkSetextDividerAsSeparator } from '../../lib/remarkSetextDivider'
 import type { DueReviewItem } from './reviewQueue'
 import { useReviewAiSettings } from './ReviewAiSettingsContext'
 import { annotateReviewMarkdown, type ReviewReportUnit } from './reportMarkdown'
@@ -132,7 +133,7 @@ function scoreBand(score: number): 'forgotten' | 'partial' | 'good' | 'complete'
 function ReviewRichMarkdown({ content, inline = false }: { content: string; inline?: boolean }) {
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkMath]}
+      remarkPlugins={[remarkGfm, remarkMath, remarkSetextDividerAsSeparator]}
       rehypePlugins={[rehypeRaw, [rehypeSanitize, REVIEW_REPORT_SANITIZE_SCHEMA], rehypeKatex]}
       components={{
         a: ({ href, children }) => (

@@ -442,7 +442,7 @@ pub async fn run_provider_comparability() -> Result<DivergenceReport, String> {
         let remote_name: &'static str;
         let remote: Box<dyn StructuredAiProvider>;
         match load_gemini_api_key(&store).map_err(|error| error.to_string())? {
-            Some(api_key) => {
+            Some(_) => {
                 remote_name = "gemini-3.5-flash";
                 remote = Box::new(GeminiProvider::from_store(&store).map_err(|error| error.to_string())?);
             }

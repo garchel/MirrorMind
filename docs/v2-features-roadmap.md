@@ -83,8 +83,8 @@ Objetivo: ampliar a garantia de qualidade para macOS e Ubuntu depois que contrat
 | Task | Estado | Criterio de conclusao |
 | --- | --- | --- |
 | CI Linux enxuta | Implementado | Ubuntu ja executa lint, typecheck, Vitest, build e testes Rust para feedback rapido. A task permanece registrada para preservar o historico do roadmap original. |
-| Filesystem Linux | Planejado | Cobre case sensitivity, permissoes Unix, symlinks e watchers. |
-| E2E Linux | Planejado | Smoke desktop roda com display virtual em agenda noturna e antes de releases multiplataforma. |
+| Filesystem Linux | Implementado | Cobre case sensitivity, permissoes Unix, symlinks e watchers. Novos testes `cfg(unix)` (rodam no CI ubuntu, no job `validate`): `unix_path_suite_is_case_sensitive_and_keeps_distinct_files` prova que `Nota.md` e `nota.md` coexistem e sao indexados/resolvidos separadamente (espelho do NTFS); `unix_readonly_note_fails_with_a_clear_error_and_keeps_bytes` prova que arquivo sem permissao de leitura falha com erro claro na leitura e na escrita, sem corromper bytes; `unix_watcher_reports_external_create_and_modify` observa criacao/edicao externa via inotify. Symlinks ja eram cobertos cross-platform (diretorio e arquivo, `O_NOFOLLOW` no final). |
+| E2E Linux | Implementado | Smoke desktop roda com display virtual no CI: o job `linux-e2e-smoke` (ubuntu-latest) instala as dependencias do WebKit + `xvfb`, builda o app E2E (`build:e2e:linux`) e roda a jornada `create-save-reopen` (fase `create-and-save`) com `xvfb-run` e o driver embarcado. O `wdio.conf.mjs` agora resolve o binario por plataforma (`.exe` no Windows; sem extensao no Linux) e isola o estado XDG dentro do runRoot. Runner dedicado `tests/e2e/run-linux-e2e.mjs`. Executa em toda PR; a agenda noturna e as releases multiplataforma continuam como consolidacao futura. |
 
 ### Gates multiplataforma futuros
 

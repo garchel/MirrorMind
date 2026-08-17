@@ -74,6 +74,17 @@ describe('findTreeMaskTokens', () => {
     expect(text.slice(tasks[0].from, tasks[0].to)).toBe('[x]')
   })
 
+  it('o bullet de tarefa nao sobrepoe o marcador [x] (para o checkbox renderizar)', () => {
+    const text = '- [x] feita'
+    const mask = findTreeMaskTokens(treeOf(text), docOf(text))
+    const task = mask.tokens.find((token) => token.kind === 'task')!
+    const bullet = mask.tokens.find((token) => token.kind === 'bullet')!
+    // O bullet cobre apenas o marcador da lista; o `[x]` fica com o checkbox
+    // (antes o bullet se estendia ate o fim do colchetes e o escondia).
+    expect(bullet.to).toBeLessThanOrEqual(task.from)
+    expect(text.slice(bullet.from, bullet.to)).toBe('- ')
+  })
+
   it('detecta bloco de codigo com fence e marca as linhas como fenced', () => {
     const text = '```js\nconst x = 1\n```'
     const mask = findTreeMaskTokens(treeOf(text), docOf(text))

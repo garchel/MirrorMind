@@ -462,7 +462,7 @@ function compareUnicodeCodePoints(left: string, right: string) {
   return leftPoints.length - rightPoints.length
 }
 
-type ObsidianEmbed = {
+export type ObsidianEmbed = {
   label: string
   fragment: string | null
   path: string
@@ -662,7 +662,7 @@ function transformMarkdownTextRegions(content: string, transform: (text: string)
   }).join('')
 }
 
-function parseObsidianEmbed(rawEmbed: string): ObsidianEmbed | null {
+export function parseObsidianEmbed(rawEmbed: string): ObsidianEmbed | null {
   const labelSeparator = rawEmbed.indexOf('|')
   const targetAndFragment = labelSeparator >= 0 ? rawEmbed.slice(0, labelSeparator) : rawEmbed
   const rawLabel = labelSeparator >= 0 ? rawEmbed.slice(labelSeparator + 1) : ''

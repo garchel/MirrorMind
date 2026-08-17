@@ -184,6 +184,67 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  linux-e2e-smoke:
+    name: Linux E2E smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies for Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libwebkit2gtk-4.1-dev \
+            xvfb
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.96.1
+          components: rustfmt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Linux E2E app
+        run: |
+          mkdir -p test-results
+          npm run build:e2e:linux 2>&1 | tee test-results/linux-e2e-build.log
+          test ${PIPESTATUS[0]} -eq 0
+
+      - name: Desktop E2E smoke (display virtual)
+        run: |
+          xvfb-run -a -s "-screen 0 1280x1024x24" \
+            npm run test:e2e:linux 2>&1 | tee test-results/linux-e2e.log
+          test ${PIPESTATUS[0]} -eq 0
+
+      - name: Upload test diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics-linux-e2e
+          path: test-results
+          if-no-files-found: warn
+          retention-days: 14
+
   coverage:
     name: Coverage diagnostics
     runs-on: ubuntu-latest
