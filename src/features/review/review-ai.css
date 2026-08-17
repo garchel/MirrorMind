@@ -117,6 +117,20 @@
   white-space: nowrap;
 }
 
+/* Aviso de alteracoes nao salvas junto do status: a avaliacao continua
+   valida para a versao salva, apenas o conteudo em disco ainda nao reflete
+   o rascunho. */
+.note-review-dirty-hint {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgb(130 97 38 / 12%);
+  color: #826126;
+  font: 600 10.5px/1.4 var(--sans);
+  white-space: nowrap;
+}
+
 .note-review-risk-badge {
   display: inline-block;
   width: max-content;
@@ -372,6 +386,388 @@
 
   .review-ai-dialog-backdrop {
     padding: 12px;
+  }
+}
+
+/* ---- Relatorio de prontidao: painel em secoes, nao dump de markdown. ---- */
+.review-readiness-report {
+  gap: 16px;
+}
+
+/* Resumo: status em destaque + explicacao da decisao. */
+.review-readiness-summary {
+  display: grid;
+  gap: 9px;
+  padding: 12px 13px;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface, #fffdf8) 96%, white);
+}
+
+.review-readiness-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: max-content;
+  padding: 4px 10px 4px 6px;
+  border-radius: 999px;
+  font: 600 12px var(--sans);
+}
+
+.review-readiness-status-icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 70%);
+}
+
+.review-readiness-summary.is-ready .review-readiness-status {
+  background: #a9bda5;
+  color: #2f4a35;
+}
+
+.review-readiness-summary.is-ambiguous .review-readiness-status {
+  background: #e6d8ad;
+  color: #6b5319;
+}
+
+.review-readiness-summary.is-insufficient .review-readiness-status {
+  background: #e6c4bb;
+  color: #7c3f36;
+}
+
+.review-readiness-explanation {
+  color: var(--text-h, #29271f);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+/* Secoes do relatorio. */
+.review-readiness-section {
+  display: grid;
+  gap: 8px;
+}
+
+.review-readiness-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted, #706d66);
+  font: 600 11px var(--sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.review-readiness-section h3 svg {
+  color: var(--muted, #706d66);
+}
+
+.review-readiness-count {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(112 109 102 / 12%);
+  color: var(--muted, #706d66);
+  font: 600 10px var(--sans);
+  letter-spacing: 0;
+  text-align: center;
+}
+
+/* Ideia central: citacao em destaque com acento. */
+.review-readiness-central-idea blockquote {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid rgb(115 137 121 / 26%);
+  border-left: 3px solid var(--accent, #738979);
+  border-radius: 8px;
+  background: rgb(115 137 121 / 7%);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.review-readiness-central-idea blockquote .review-ai-markdown > p {
+  margin: 0;
+}
+
+/* Pontos avaliáveis: lista numerada com indice em chip. */
+.review-readiness-point-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-readiness-point-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 11px;
+  border: 1px solid var(--border, #d8d4ca);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface, #fffdf8) 94%, white);
+}
+
+.review-readiness-point-index {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 6px;
+  background: rgb(115 137 121 / 14%);
+  color: #486a52;
+  font: 600 10.5px var(--sans);
+}
+
+.review-readiness-point-list .review-ai-markdown {
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.review-readiness-point-list .review-ai-markdown > p {
+  margin: 0;
+}
+
+/* Issues: cartoes com gravidade codificada por cor na borda esquerda. */
+.review-readiness-issue-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-readiness-issue {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #d8d4ca);
+  border-left: 3px solid var(--muted, #706d66);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface, #fffdf8) 95%, white);
+}
+
+.review-readiness-issue > strong {
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.review-readiness-issue blockquote {
+  margin: 0;
+  padding: 7px 10px;
+  border: 0;
+  border-left: 2px solid rgb(112 109 102 / 30%);
+  border-radius: 6px;
+  background: rgb(112 109 102 / 7%);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.review-readiness-issue blockquote .review-ai-markdown > p {
+  margin: 0;
+}
+
+.review-readiness-issue.is-ambiguous {
+  border-left-color: #c9a227;
+}
+
+.review-readiness-issue.is-contradictory {
+  border-left-color: #d97706;
+}
+
+.review-readiness-issue.is-insufficient {
+  border-left-color: #b3261e;
+}
+
+.review-readiness-issue.is-missingContext {
+  border-left-color: #3b4f7c;
+}
+
+.review-readiness-issue .review-ai-suggestion {
+  margin-top: 2px;
+}
+
+/* ---- Relatorio dentro do popover (substitui o menu, sem backdrop). ----
+   O popover EXPANDE horizontalmente para acomodar o relatorio: tabelas e
+   formulas cabem sem corte nem rolagem. A largura transiciona com suavidade
+   (`interpolate-size` permite animar de `auto` para o tamanho fixo no
+   WebView2/Chromium 129+); sem suporte, a troca de largura vira um salto
+   mascarado pela entrada do relatorio (fade + deslize). */
+.ui-popover-content.note-review-menu {
+  interpolate-size: allow-keywords;
+  transition:
+    width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    max-width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Relatorio aberto: coluna unica e largura que acomoda o conteudo. O base
+   `.ui-popover-content` (ui.css) limita `max-width: min(92vw, 440px)` — sem
+   sobrescrever o max-width, o menu nunca alarga alem de 440px. */
+.ui-popover-content.note-review-menu:has(.note-review-report-view) {
+  width: min(680px, calc(100vw - 32px));
+  max-width: min(680px, calc(100vw - 32px));
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* A visao do relatorio ocupa a grade inteira do menu (substitui o conteudo). */
+.ui-popover-content.note-review-menu > .note-review-report-view {
+  grid-column: 1 / -1;
+}
+
+.note-review-report-view {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(620px, calc(100vh - 120px));
+  overflow-y: auto;
+  padding: 2px 0 6px;
+  animation: note-review-report-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes note-review-report-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.note-review-report-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px 2px;
+}
+
+.note-review-report-topbar .card-kicker {
+  margin: 0;
+}
+
+.note-review-report-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 9px 0 5px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted, #706d66);
+  font: 600 12px var(--sans);
+}
+
+.note-review-report-back:not(:disabled):hover {
+  background: rgb(112 109 102 / 10%);
+  color: var(--text-h, #29271f);
+}
+
+.note-review-report-title {
+  margin: 0 0 4px;
+  padding: 0 2px;
+  font-size: 19px;
+}
+
+/* ---- Markdown do relatorio com aparência correta: negrito, italico,
+   listas, codigo, tabelas e formulas. Sem overflow-wrap agressivo no texto
+   (quebraria palavras no meio de um negrito); o popover expande para caber. */
+.note-review-report-view .review-ai-report-body {
+  padding: 0 2px 8px;
+}
+
+.note-review-report-view .review-ai-markdown {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.note-review-report-view .review-ai-markdown strong {
+  font-weight: 700;
+}
+
+.note-review-report-view .review-ai-markdown em {
+  font-style: italic;
+}
+
+.note-review-report-view .review-ai-markdown :is(ul, ol) {
+  padding-left: 20px;
+}
+
+.note-review-report-view .review-ai-markdown li {
+  margin: 2px 0;
+}
+
+/* Codigo: quebra para nunca gerar rolagem horizontal. */
+.note-review-report-view .review-ai-markdown pre {
+  max-width: 100%;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgb(112 109 102 / 9%);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.note-review-report-view .review-ai-markdown code {
+  background: rgb(112 109 102 / 11%);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-size: 0.92em;
+}
+
+.note-review-report-view .review-ai-markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Tabelas com layout real de colunas, bordas e cabecalho; a largura acompanha
+   o conteudo mas nunca estoura o popover (celulas quebram, sem rolagem). */
+.note-review-report-view .review-ai-markdown table {
+  display: table;
+  width: max-content;
+  max-width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.note-review-report-view .review-ai-markdown :is(th, td) {
+  border: 1px solid var(--border, #d8d4ca);
+  padding: 5px 9px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.note-review-report-view .review-ai-markdown th {
+  background: rgb(112 109 102 / 8%);
+  font-weight: 600;
+}
+
+/* Formula em destaque: contida; so um bloco excepcionalmente largo rola
+   dentro dele mesmo (mesmo comportamento do Obsidian). */
+.note-review-report-view .review-ai-markdown .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-popover-content.note-review-menu {
+    transition: none;
+  }
+
+  .note-review-report-view {
+    animation: none;
   }
 }
 

@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NoteReadinessControl } from './NoteReadinessControl'
+import { prepareReportMarkdown } from './readinessReportMarkdown'
 import type { NoteReviewState, ReadinessAttempt } from './ai'
 import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
 
@@ -73,7 +75,10 @@ const validAttempt: ReadinessAttempt = {
   },
 }
 
-function control(props?: Partial<React.ComponentProps<typeof NoteReadinessControl>>) {
+// Harness com o estado do relatorio controlado pelo pai (como o App faz): o
+// relatorio abre/fecha dentro do proprio popover quando o componente notifica.
+function Harness(props?: Partial<React.ComponentProps<typeof NoteReadinessControl>>) {
+  const [reportOpen, setReportOpen] = useState(false)
   return (
     <ReviewAiSettingsProvider>
       <NoteReadinessControl
@@ -81,10 +86,16 @@ function control(props?: Partial<React.ComponentProps<typeof NoteReadinessContro
         relativePath="biologia.md"
         sourceRevision="# Biologia"
         isDirty={false}
+        reportOpen={reportOpen}
+        onReportOpenChange={setReportOpen}
         {...props}
       />
     </ReviewAiSettingsProvider>
   )
+}
+
+function control(props?: Partial<React.ComponentProps<typeof NoteReadinessControl>>) {
+  return <Harness {...props} />
 }
 
 describe('NoteReadinessControl', () => {
@@ -201,7 +212,9 @@ describe('NoteReadinessControl', () => {
     expect(screen.queryByRole('button', { name: /Gerar novo/ })).not.toBeInTheDocument()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(trigger).toHaveFocus()
+    // O menu desmonta enquanto o relatorio substitui o popover: o foco volta
+    // para o trigger remontado, entao a consulta e refeita apos o fechamento.
+    await waitFor(() => expect(screen.getByRole('button', { name: /Avaliar/ })).toHaveFocus())
   })
 
   it('renders Markdown and KaTeX in evaluable points', async () => {
@@ -221,11 +234,153 @@ describe('NoteReadinessControl', () => {
     const source = await screen.findByText('6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2', { selector: 'annotation' })
     expect(source.closest('.katex')).not.toBeNull()
   })
+  describe('prepareReportMarkdown', () => {
+    it('envolve equacao LaTeX citada sem delimitadores em $$...$$', () => {
+      const equation = '6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2'
+      expect(prepareReportMarkdown(equation)).toBe(`$$${equation}$$`)
+    })
+    it('nao envolve conteudo que ja tem cifroes ou markdown estruturado', () => {
+      expect(prepareReportMarkdown('Glicose ($\\text{C}_6\\text{H}_{12}\\text{O}_6$).')).toBe('Glicose ($\\text{C}_6\\text{H}_{12}\\text{O}_6$).')
+      expect(prepareReportMarkdown('| Etapa | Local |\n| :--- | :--- |')).toBe('| Etapa | Local |\n| :--- | :--- |')
+    })
+    it('remove negrito desbalanceado mas preserva o balanceado', () => {
+      expect(prepareReportMarkdown('Local:** Tilacoides.')).toBe('Local: Tilacoides.')
+      expect(prepareReportMarkdown('Ocorre no **cloroplasto**.')).toBe('Ocorre no **cloroplasto**.')
+    })
+  })
+
+  it('renders KaTeX para equacao citada sem delimitadores no ponto avaliável', async () => {
+    const user = userEvent.setup()
+    const equation = '6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2'
+    assessNoteReadinessMock.mockResolvedValue({
+      ...validAttempt,
+      report: {
+        ...validAttempt.report,
+        evaluablePoints: [{ sourceQuote: equation, sourceStartUtf16: 0, sourceEndUtf16: equation.length }],
+      },
+    })
+    render(control())
+
+    await user.click(screen.getByRole('button', { name: /Avaliar/ }))
+
+    const source = await screen.findByText('6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2', { selector: 'annotation' })
+    expect(source.closest('.katex')).not.toBeNull()
+  })
+
+  it('nao exibe asteriscos literais de negrito cortado no ponto avaliável', async () => {
+    const user = userEvent.setup()
+    const quote = 'Local:** Tilacoides.\n* **Dependência:** Requer luz direta.'
+    assessNoteReadinessMock.mockResolvedValue({
+      ...validAttempt,
+      report: {
+        ...validAttempt.report,
+        evaluablePoints: [{ sourceQuote: quote, sourceStartUtf16: 0, sourceEndUtf16: quote.length }],
+      },
+    })
+    render(control())
+
+    await user.click(screen.getByRole('button', { name: /Avaliar/ }))
+
+    expect(await screen.findByText(/Local: Tilacoides/)).toBeInTheDocument()
+    expect(screen.queryByText(/Local:\*\*/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Dependência:/)).toBeInTheDocument()
+  })
+
   it('requires the saved Markdown to match the visible note', () => {
     render(control({ isDirty: true }))
     const button = screen.getByRole('button', { name: /Avaliar/ })
     expect(button).toBeDisabled()
     expect(button).toHaveAttribute('title', expect.stringContaining('Salve a nota'))
+  })
+
+  it('salva o rascunho antes de avaliar quando a nota esta suja e ha onSaveFirst', async () => {
+    const user = userEvent.setup()
+    const onSaveFirst = vi.fn().mockResolvedValue(true)
+    assessNoteReadinessMock.mockResolvedValue(validAttempt)
+    render(control({ isDirty: true, onSaveFirst }))
+
+    const button = screen.getByRole('button', { name: /Avaliar/ })
+    expect(button).toBeEnabled()
+    await user.click(button)
+
+    expect(onSaveFirst).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(assessNoteReadinessMock).toHaveBeenCalledTimes(1))
+  })
+
+  it('nao avalia quando o salvamento do rascunho falha', async () => {
+    const user = userEvent.setup()
+    const onSaveFirst = vi.fn().mockResolvedValue(false)
+    assessNoteReadinessMock.mockResolvedValue(validAttempt)
+    render(control({ isDirty: true, onSaveFirst }))
+
+    await user.click(screen.getByRole('button', { name: /Avaliar/ }))
+    expect(onSaveFirst).toHaveBeenCalledTimes(1)
+    expect(assessNoteReadinessMock).not.toHaveBeenCalled()
+    // O botao volta a ficar disponivel para nova tentativa.
+    expect(screen.getByRole('button', { name: /Avaliar/ })).toBeEnabled()
+  })
+
+  it('preserva o status de prontidão enquanto a nota tem alterações não salvas', async () => {
+    // Cenario do onboarding de perfil: nota pronta, usuario adota a tag no
+    // popover e o rascunho fica sujo (autosave desligado). A avaliacao nao
+    // pode sumir — o status verde e o aviso de alteracoes pendentes ficam
+    // visiveis, e o indicador externo continua informando `ready`.
+    const onStatusChange = vi.fn()
+    const readyState: NoteReviewState = {
+      noteId: 'note-ready',
+      relativePath: 'biologia.md',
+      contentHash: `sha256:${'b'.repeat(64)}`,
+      readiness: 'ready',
+      assessedAtUnixMs: 1_720_000_000_000,
+      report: null,
+      enrolled: true,
+      preferredMode: 'exam',
+      schedulingStatus: 'scheduled',
+      firstReviewAtUnixMs: 1_720_172_800_000,
+      nextReviewAtUnixMs: 1_720_172_800_000,
+      deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
+    }
+    getNoteReviewStateMock.mockResolvedValue(readyState)
+    const view = render(control({ onStatusChange }))
+
+    expect(await screen.findByText(/Status: Nota validada/)).toBeInTheDocument()
+    expect(onStatusChange).toHaveBeenLastCalledWith('ready')
+
+    view.rerender(control({ isDirty: true, onStatusChange }))
+
+    expect(screen.getByText('Alterações não salvas')).toBeInTheDocument()
+    expect(screen.getByText(/Status: Nota validada/)).toBeInTheDocument()
+    expect(onStatusChange).toHaveBeenLastCalledWith('ready')
+    // As acoes continuam exigindo o conteudo salvo.
+    expect(screen.getByRole('button', { name: /Avaliar/ })).toBeDisabled()
+  })
+
+  it('descarta o estado preservado quando a nota troca com rascunho sujo', async () => {
+    const readyState: NoteReviewState = {
+      noteId: 'note-1',
+      relativePath: 'biologia.md',
+      contentHash: `sha256:${'b'.repeat(64)}`,
+      readiness: 'ready',
+      assessedAtUnixMs: 1_720_000_000_000,
+      report: null,
+      enrolled: true,
+      preferredMode: 'exam',
+      schedulingStatus: 'scheduled',
+      firstReviewAtUnixMs: 1_720_172_800_000,
+      nextReviewAtUnixMs: 1_720_172_800_000,
+      deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
+    }
+    getNoteReviewStateMock.mockResolvedValue(readyState)
+    const view = render(control())
+    await screen.findByText(/Status: Nota validada/)
+
+    // Outra nota com rascunho sujo: o estado da nota anterior e descartado.
+    view.rerender(control({ relativePath: 'quimica.md', sourceRevision: '# Quimica', isDirty: true }))
+
+    expect(screen.queryByText(/Status: Nota validada/)).not.toBeInTheDocument()
+    expect(screen.getByText('Status: Alterações não salvas')).toBeInTheDocument()
   })
 
   it('requires explicit consent before Gemini can receive a note', () => {

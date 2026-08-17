@@ -7,10 +7,10 @@ import {
 } from './graphPhysicsWorkerCore'
 
 const settings = {
-  linkStiffness: 2.2,
+  linkStiffness: 4.0,
   linkRest: 10,
-  repulsionStrength: 1600,
-  velocityDecay: 1.0,
+  repulsionStrength: 2000,
+  velocityDecay: 0.4,
   centerStrength: 0.06,
 }
 
@@ -49,7 +49,7 @@ describe('stepAmbientWorker', () => {
     expect(b.x).toBeLessThan(before.b.x)
     expect(remaining).toBeGreaterThan(0)
     expect(a.x).toBeGreaterThanOrEqual(4)
-    expect(a.x).toBeLessThanOrEqual(96)
+    expect(a.x).toBeLessThanOrEqual(196)
   })
 
   it('resfria o alpha a cada passo', () => {
@@ -95,10 +95,10 @@ describe('stepAmbientWorker', () => {
     const ys = new Set([...state.positions.values()].map((position) => Math.round(position.y * 10) / 10))
     expect(xs.size).toBeGreaterThan(1)
     expect(ys.size).toBeGreaterThan(1)
-    // E respeitam os limites do viewBox.
+    // E respeitam os limites do mundo (0-200).
     for (const position of state.positions.values()) {
       expect(position.x).toBeGreaterThanOrEqual(4)
-      expect(position.x).toBeLessThanOrEqual(96)
+      expect(position.x).toBeLessThanOrEqual(196)
     }
   })
 })
@@ -118,7 +118,7 @@ describe('ambientWorkerSettled / snapshot', () => {
     state.alpha = 0.01
     expect(ambientWorkerSettled(state, 5, 100)).toBe(true)
     state.alpha = 0.5
-    expect(ambientWorkerSettled(state, 5, 5000)).toBe(true)
+    expect(ambientWorkerSettled(state, 5, 7000)).toBe(true)
   })
 
   it('serializa as posicoes em objeto plano', () => {

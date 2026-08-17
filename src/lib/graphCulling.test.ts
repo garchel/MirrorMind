@@ -10,9 +10,9 @@ const viewport = { scale: 1, x: 0, y: 0 }
 const surface = { width: 800, height: 600 }
 
 describe('graphPositionToScreen', () => {
-  it('projeta o % do viewBox para pixels aplicando scale e pan', () => {
-    expect(graphPositionToScreen({ x: 50, y: 50 }, viewport, surface)).toEqual({ x: 400, y: 300 })
-    expect(graphPositionToScreen({ x: 25, y: 0 }, { scale: 2, x: -100, y: 40 }, surface)).toEqual({ x: 300, y: 40 })
+  it('projeta as unidades do mundo 0-200 para pixels aplicando scale e pan', () => {
+    expect(graphPositionToScreen({ x: 100, y: 100 }, viewport, surface)).toEqual({ x: 400, y: 300 })
+    expect(graphPositionToScreen({ x: 50, y: 0 }, { scale: 2, x: -100, y: 40 }, surface)).toEqual({ x: 300, y: 40 })
   })
 })
 

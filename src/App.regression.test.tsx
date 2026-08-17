@@ -2,16 +2,31 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { invokeMock, listenMock, onDragDropEventMock, getCurrentWindowMock } = vi.hoisted(() => ({
-  invokeMock: vi.fn(),
-  listenMock: vi.fn(),
-  onDragDropEventMock: vi.fn(),
-  getCurrentWindowMock: vi.fn(() => ({ onDragDropEvent: onDragDropEventMock })),
-}))
+const { invokeMock, listenMock, onDragDropEventMock, getCurrentWindowMock } = vi.hoisted(() => {
+  // Janela mockada o suficiente para o App (drag-and-drop nativo) e a barra de
+  // titulo customizada (minimizar/maximizar/restaurar/fechar + estado max).
+  const windowMock = () => ({
+    onDragDropEvent: onDragDropEventMock,
+    isMaximized: vi.fn(async () => false),
+    onResized: vi.fn(async () => () => undefined),
+    minimize: vi.fn(async () => undefined),
+    toggleMaximize: vi.fn(async () => undefined),
+    close: vi.fn(async () => undefined),
+  })
+  return {
+    invokeMock: vi.fn(),
+    listenMock: vi.fn(),
+    onDragDropEventMock: vi.fn(),
+    getCurrentWindowMock: vi.fn(windowMock),
+  }
+})
 
 // Diagnosticos opcionais do inventario: quando definidos, o mock de
 // scan_vault_inventory os inclui no payload (banner de leitura parcial).
 let inventoryDiagnostics: unknown = undefined
+/** Regras de tag do vault para o onboarding de perfil de revisao (o default e
+ *  sem regras; testes do fluxo de adocao definem os tres perfis padrao). */
+let vaultReviewTagRules: Array<Record<string, unknown>> = []
 
 vi.mock('@tauri-apps/api/core', () => ({
   convertFileSrc: (path: string) => `asset://${path}`,
@@ -96,7 +111,10 @@ const vault = {
   metadata: { isInitialized: true, rootPath: 'C:\\Vault de testes\\.mirmind', missing: [] },
 }
 
-function createTauriHarness(extraNotes: StoredNote[] = []) {
+function createTauriHarness(
+  extraNotes: StoredNote[] = [],
+  reviewStates: Record<string, unknown> = {},
+) {
   const notes = new Map<string, StoredNote>([
     ['inicial.md', { name: 'inicial.md', relativePath: 'inicial.md', content: '---\ndescription: Inicial\nloop: &loop [*loop]\n---\n\n# Inicial\n\nTexto inicial. Veja [[alvo]], volte para [[#Inicial]] e crie [[nova/pagina]].\n\n**Equação Geral**\n\n$$\n6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2\n$$' }],
     ['alvo.md', { name: 'alvo.md', relativePath: 'alvo.md', content: '# Alvo\n\n> [!warning]- **Aviso** *seguro*\n> Conteudo do callout.\n\n> [!note] # Titulo inline\n> Sem heading no cabecalho.\n\n- Item da lista\n  > [!tip] **Dica interna**\n  > Conteudo aninhado.\n\n- Item multinivel\n  > Contexto comum\n  >\n  > > [!example] Exemplo profundo\n  > > Conteudo profundo.\n\n![[inicial]]\n\n![[media/manual.pdf|Manual]]\n\n![[.obsidian/plugins/segredo.pdf|Segredo]]\n\n![Remote](https://example.com/image.png)\n\n<kbd>Ctrl K</kbd><script>danger()</script><a href="https://mirrormind.local/note/%E0%A4%A">URL quebrada</a>' }],
@@ -156,12 +174,13 @@ function createTauriHarness(extraNotes: StoredNote[] = []) {
             minIntervalDays: 1,
             maxIntervalDays: 365,
           },
-          tagRules: [],
+          tagRules: vaultReviewTagRules,
+          segmentation: { maxWholeNoteWords: 800 },
           updatedAtUnixMs: null,
           affectedNoteCount: 0,
         }
       case 'get_note_review_state':
-        return null
+        return reviewStates[args?.relativePath ?? ''] ?? null
       case 'get_history_status':
         return { canUndo: false, canRedo: false }
       case 'watch_vault':
@@ -306,13 +325,21 @@ describe('Regressao do editor no workspace', () => {
   beforeEach(() => {
     localStorage.clear()
     inventoryDiagnostics = undefined
+    vaultReviewTagRules = []
     invokeMock.mockReset()
     listenMock.mockReset()
     listenMock.mockResolvedValue(() => undefined)
     onDragDropEventMock.mockReset()
     onDragDropEventMock.mockResolvedValue(() => undefined)
     getCurrentWindowMock.mockReset()
-    getCurrentWindowMock.mockImplementation(() => ({ onDragDropEvent: onDragDropEventMock }))
+    getCurrentWindowMock.mockImplementation(() => ({
+      onDragDropEvent: onDragDropEventMock,
+      isMaximized: vi.fn(async () => false),
+      onResized: vi.fn(async () => () => undefined),
+      minimize: vi.fn(async () => undefined),
+      toggleMaximize: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+    }))
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
       configurable: true,
       value: vi.fn(),
@@ -451,6 +478,71 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.getByText('Fonte: Termodinamica basica')).toBeInTheDocument()
     expect(screen.getByText('Divergente')).toBeInTheDocument()
     expect(screen.getByText('Incerto')).toBeInTheDocument()
+  })
+
+  it('[avaliacao] adotar um perfil no popover salva a tag na nota imediatamente', async () => {
+    const user = userEvent.setup()
+    vaultReviewTagRules = [
+      { tag: 'revisao/prova', autoEnroll: true, firstReviewIntervalDays: 1, targetRetention: 0.9, priorityWeight: 3, minIntervalDays: 1, maxIntervalDays: 90, deadlineAtUnixMs: null },
+      { tag: 'revisao/manter', autoEnroll: true, firstReviewIntervalDays: 2, targetRetention: 0.8, priorityWeight: 2, minIntervalDays: 1, maxIntervalDays: 365, deadlineAtUnixMs: null },
+      { tag: 'revisao/leve', autoEnroll: true, firstReviewIntervalDays: 7, targetRetention: 0.7, priorityWeight: 1, minIntervalDays: 3, maxIntervalDays: 730, deadlineAtUnixMs: null },
+    ]
+    const { notes } = createTauriHarness(
+      [{ name: 'perfil.md', relativePath: 'perfil.md', content: '# Perfil\n\nPonto um.\n\nPonto dois.\n\nPonto tres.' }],
+      {
+        'perfil.md': {
+          noteId: 'note-perfil',
+          relativePath: 'perfil.md',
+          contentHash: 'sha256:conteudo-avaliado',
+          readiness: 'ready',
+          assessedAtUnixMs: 1_720_000_000_000,
+          report: null,
+          enrolled: false,
+          preferredMode: 'exam',
+          schedulingStatus: 'notScheduled',
+          firstReviewAtUnixMs: null,
+          nextReviewAtUnixMs: null,
+          deadlineRetentionAtRisk: false,
+          recoveredFromBackup: false,
+        },
+      },
+    )
+    await openTestVault(user)
+
+    await user.click(await screen.findByRole('button', { name: 'Abrir nota perfil' }))
+    await user.click(screen.getByRole('button', { name: 'Avaliação e revisão da nota' }))
+    expect(await screen.findByText('Adotar perfil de revisão?')).toBeInTheDocument()
+
+    // Adotar o perfil salva a nota imediatamente (nao fica no rascunho): a
+    // tag vai para o arquivo e o backend ativa a politica/agendamento dela.
+    await user.click(screen.getByRole('button', { name: /Equilibrada/ }))
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('save_note', expect.objectContaining({
+        relativePath: 'perfil.md',
+        content: expect.stringContaining('revisao/manter'),
+      }))
+    })
+    expect(notes.get('perfil.md')?.content).toContain('revisao/manter')
+  })
+
+  it('[metadados] adicionar uma tag pelo painel de propriedades salva a nota na hora (nao suja o rascunho)', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: /Expandir propriedades da nota/ }))
+    await user.click(screen.getByRole('button', { name: 'Adicionar tag' }))
+    const input = await screen.findByLabelText('Nome da nova tag')
+    await user.type(input, 'quimica{Enter}')
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('save_note', expect.objectContaining({
+        relativePath: 'inicial.md',
+        content: expect.stringContaining('quimica'),
+      }))
+    })
+    expect(notes.get('inicial.md')?.content).toContain('quimica')
   })
 
   it('[nota nova] salva ao confirmar o titulo com Enter e abre a nota criada', async () => {
@@ -986,8 +1078,8 @@ describe('Regressao do editor no workspace', () => {
     ])
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Abrir bases de notas' }))
-    expect(await screen.findByRole('heading', { name: 'Tabela de notas por propriedade' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Abrir tabela de notas' }))
+    expect(await screen.findByRole('heading', { name: 'Tabela de notas' })).toBeInTheDocument()
 
     // Colunas dinamicas: nome + propriedades na ordem de primeira aparicao
     // (inicial.md vem antes e contribui description e loop).
@@ -1071,7 +1163,7 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     // Layout salvo anteriormente PARA ESTE Vault (posicoes customizadas).
     localStorage.setItem('mirrormind.graph.C:\\Vault de testes', JSON.stringify({
-      positions: { 'inicial.md': { x: 12, y: 34 }, 'alvo.md': { x: 66, y: 78 } },
+      positions: { 'inicial.md': { x: 24, y: 68 }, 'alvo.md': { x: 132, y: 156 } },
       viewport: { scale: 1, x: 0, y: 0 },
     }))
     // Outro Vault com o proprio layout: nao pode vazar para este.
@@ -1086,7 +1178,8 @@ describe('Regressao do editor no workspace', () => {
       await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
       expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
 
-      // Os nos renderizam exatamente nas posicoes salvas para este Vault.
+      // Os nos renderizam exatamente nas posicoes salvas para este Vault
+      // (posicoes em unidades do mundo 0-200, renderizadas em % da superficie).
       expect(screen.getByRole('button', { name: 'Abrir nota inicial no grafo' })).toHaveStyle({ left: '12%', top: '34%' })
       expect(screen.getByRole('button', { name: 'Abrir nota alvo no grafo' })).toHaveStyle({ left: '66%', top: '78%' })
 
@@ -1100,6 +1193,210 @@ describe('Regressao do editor no workspace', () => {
       expect(JSON.parse(localStorage.getItem('mirrormind.graph.C:\\Outro Vault') ?? '{}').positions).toEqual({ 'outra.md': { x: 99, y: 99 } })
     } finally {
       raf.mockRestore()
+    }
+  })
+
+  // O ambiente do grafo 2D roda num Web Worker; o jsdom nao tem Worker, entao
+  // instalamos um fake para exercitar o caminho do worker (onde acontecia o
+  // bug: ao assentar, o transform px residual somava ao left % que o React
+  // escreve a cada render e os nos se desprendiam das arestas, espalhados).
+  // Verifica que, apos o ambient-settled, os nos ficam SO em left/top %.
+  it('[grafo] apos a simulacao ambiente do worker assentar, os nos nao ficam com transform px residual', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+
+    type WorkerMessage = { type: string; requestId: number; positions?: Record<string, { x: number; y: number }> }
+    type FakeWorkerInstance = {
+      onmessage: ((event: MessageEvent<WorkerMessage>) => void) | null
+      postMessage: ReturnType<typeof vi.fn>
+    }
+    const workers: FakeWorkerInstance[] = []
+    class FakeWorker {
+      onmessage: FakeWorkerInstance['onmessage'] = null
+      onerror: (() => void) | null = null
+      postMessage = vi.fn()
+      terminate = vi.fn()
+      constructor() {
+        workers.push(this as unknown as FakeWorkerInstance)
+      }
+    }
+    vi.stubGlobal('Worker', FakeWorker)
+    // O worker posiciona por transform px somente com o tamanho da superficie
+    // conhecido; o jsdom devolve clientWidth/Height = 0, entao mockamos.
+    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')
+    const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 800 })
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 600 })
+    try {
+      await openTestVault(user)
+      await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
+      await screen.findByRole('heading', { name: 'Grafo das notas' })
+
+      // O worker recebe o ambient-start (big bang ao abrir o grafo).
+      await waitFor(() => expect(workers).toHaveLength(1))
+      const ambientStart = workers[0].postMessage.mock.calls
+        .map((call) => call[0] as WorkerMessage)
+        .find((message) => message.type === 'ambient-start')
+      expect(ambientStart).toBeDefined()
+      const { requestId } = ambientStart!
+
+      const inicialNode = screen.getByRole('button', { name: 'Abrir nota inicial no grafo' })
+      const alvoNode = screen.getByRole('button', { name: 'Abrir nota alvo no grafo' })
+
+      // Um passo do worker: posiciona por left 0 + transform px (caminho com
+      // tamanho de superficie conhecido). Posicoes em unidades do mundo 0-200:
+      // 20/200 da superficie 800px = 80px.
+      const stepPositions = { 'inicial.md': { x: 40, y: 60 }, 'alvo.md': { x: 140, y: 160 } }
+      workers[0].onmessage?.({ data: { type: 'ambient-step', requestId, positions: stepPositions } } as unknown as MessageEvent<WorkerMessage>)
+      expect(inicialNode.style.left).toBe('0px')
+      expect(inicialNode.style.transform).toContain('translate(160px, 180px)')
+
+      // Assentou: persiste o layout e zera o requestId — o React passa a
+      // posicionar por left/top % e o transform px residual precisa sumir
+      // (era ele que desprendia os nos das arestas).
+      workers[0].onmessage?.({ data: { type: 'ambient-settled', requestId, positions: stepPositions } } as unknown as MessageEvent<WorkerMessage>)
+      await waitFor(() => {
+        expect(inicialNode).toHaveStyle({ left: '20%', top: '30%' })
+      })
+      expect(inicialNode.style.transform).toBe('')
+      expect(alvoNode).toHaveStyle({ left: '70%', top: '80%' })
+      expect(alvoNode.style.transform).toBe('')
+    } finally {
+      vi.unstubAllGlobals()
+      if (originalClientWidth) {
+        Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth)
+      } else {
+        delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientWidth
+      }
+      if (originalClientHeight) {
+        Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight)
+      } else {
+        delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight
+      }
+    }
+  })
+
+  // Arrastar um no que NAO e o mais conectado nao pode teleportar o hub (no
+  // com mais conexoes) para o ponto da soltura: o no arrastado permanece onde
+  // foi solto e os vizinhos assentam ao redor dele.
+  it('[grafo] arrastar um no nao-hub nao teleporta o hub para o ponto da soltura', async () => {
+    const user = userEvent.setup()
+    createTauriHarness([
+      { name: 'hub.md', relativePath: 'hub.md', content: '# Hub\n\nVeja [[inicial]] e [[leaf]].' },
+      { name: 'leaf.md', relativePath: 'leaf.md', content: '# Leaf\n\nVeja [[hub]].' },
+    ])
+    // Layout inicial deterministico: hub com mais conexoes (liga inicial e
+    // leaf), leaf liga apenas ao hub. O viewport salvo (escala 1, sem pan)
+    // evita o auto-fit ao abrir, mantendo a conversao cursor->mundo exata.
+    localStorage.setItem('mirrormind.graph.C:\\Vault de testes', JSON.stringify({
+      positions: { 'hub.md': { x: 100, y: 100 }, 'leaf.md': { x: 150, y: 100 } },
+      viewport: { scale: 1, x: 0, y: 0 },
+    }))
+    // Controle dos frames da fisica: o rAF nao roda sozinho (o jsdom nao
+    // avanca frames); o teste bombeia frames manualmente e controla o relogio
+    // (performance.now) para a simulacao ambiente e o assentamento assentarem.
+    const rafCallbacks: FrameRequestCallback[] = []
+    let nowMs = 0
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      rafCallbacks.push(callback)
+      return rafCallbacks.length
+    })
+    const cancelRaf = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined)
+    const performanceNow = vi.spyOn(performance, 'now').mockImplementation(() => nowMs)
+    // Captura o timeout de 120ms que iniciaria a simulacao ambiente (big bang)
+    // ao abrir o grafo e o cancela antes do arrasto: o teste controla a
+    // fisica apenas pelo rAF bombeado manualmente, entao o ambiente nao
+    // interfere nas posicoes do hub.
+    const originalSetTimeout = window.setTimeout.bind(window)
+    const pendingTimeouts: number[] = []
+    const setTimeoutSpy = vi.spyOn(window, 'setTimeout').mockImplementation(((handler: TimerHandler, timeout?: number) => {
+      // Mantem o comportamento normal (waitFor/userEvent dependem de
+      // setTimeout), mas expoe o id para o teste cancelar o timeout do
+      // ambiente (big bang) antes do arrasto.
+      const id = originalSetTimeout(handler, timeout)
+      pendingTimeouts.push(id as unknown as number)
+      return id as unknown as number
+    }) as unknown as typeof window.setTimeout)
+    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')
+    const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 800 })
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 600 })
+    const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect
+    Element.prototype.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON: () => ({}) } as DOMRect)
+    const pumpFrames = (count: number) => {
+      for (let frame = 0; frame < count; frame += 1) {
+        const callback = rafCallbacks.shift()
+        if (!callback) break
+        nowMs += 16
+        callback(nowMs)
+      }
+    }
+    // Durante a simulacao ativa (coast), as posicoes sao escritas no DOM por
+    // transform translate(px); ao assentar, o React re-renderiza com
+    // left/top %. Le a posicao atual de um no em ambos os formatos.
+    const nodeWorldPx = (element: HTMLElement) => {
+      const transform = element.style.transform
+      if (transform && transform !== 'none') {
+        const match = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(transform)
+        if (match) return { x: Number(match[1]), y: Number(match[2]) }
+      }
+      return { x: (parseFloat(element.style.left) / 100) * 800, y: (parseFloat(element.style.top) / 100) * 600 }
+    }
+    try {
+      await openTestVault(user)
+      await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
+      expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
+
+      // A simulacao ambiente (big bang) fica CONGELADA (setTimeout cancelado
+      // e nenhum frame bombeado antes do arrasto): os nos permanecem nas
+      // posicoes salvas acima, tornando o baseline deterministico.
+      const hubNode = await screen.findByRole('button', { name: 'Abrir nota hub no grafo' })
+      const leafNode = screen.getByRole('button', { name: 'Abrir nota leaf no grafo' })
+      const hubBaseline = nodeWorldPx(hubNode)
+      const leafBaseline = nodeWorldPx(leafNode)
+      for (const id of pendingTimeouts) window.clearTimeout(id)
+      pendingTimeouts.length = 0
+      rafCallbacks.length = 0
+
+      // Arrasta o no leaf (nao-hub) para outro ponto da superficie e solta.
+      fireEvent.pointerDown(leafNode, { pointerId: 1, clientX: 150, clientY: 100 })
+      fireEvent.pointerMove(leafNode, { pointerId: 1, clientX: 150, clientY: 200 })
+      pumpFrames(5)
+      fireEvent.pointerUp(leafNode, { pointerId: 1, clientX: 150, clientY: 200 })
+      // Assentamento pos-soltura: bombeia frames ate o loop parar (o layout
+      // final e persistido em graphNodeOverrides e o React re-renderiza).
+      pumpFrames(1000)
+
+      await waitFor(() => {
+        const hubAfter = nodeWorldPx(hubNode)
+        const leafAfter = nodeWorldPx(leafNode)
+        // O arrasto efetivamente moveu o no leaf para outro ponto.
+        expect(Math.hypot(leafAfter.x - leafBaseline.x, leafAfter.y - leafBaseline.y)).toBeGreaterThan(50)
+        // O hub NAO e reposicionado para o ponto da soltura: fica longe do no
+        // arrastado (era o teleporte do bug, que os sobrepunha exatamente).
+        expect(Math.hypot(hubAfter.x - leafAfter.x, hubAfter.y - leafAfter.y)).toBeGreaterThan(30)
+        // E o hub nao abandonou a regiao onde estava: mudanca bem menor que o
+        // movimento do no arrastado (sem teleporte para o drop).
+        expect(Math.hypot(hubAfter.x - hubBaseline.x, hubAfter.y - hubBaseline.y)).toBeLessThan(
+          Math.hypot(leafAfter.x - leafBaseline.x, leafAfter.y - leafBaseline.y),
+        )
+      })
+    } finally {
+      raf.mockRestore()
+      cancelRaf.mockRestore()
+      performanceNow.mockRestore()
+      setTimeoutSpy.mockRestore()
+      if (originalClientWidth) {
+        Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth)
+      } else {
+        delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientWidth
+      }
+      if (originalClientHeight) {
+        Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight)
+      } else {
+        delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight
+      }
+      Element.prototype.getBoundingClientRect = originalGetBoundingClientRect
     }
   })
 
@@ -1666,6 +1963,12 @@ describe('Regressao do editor no workspace', () => {
 
     await user.click(screen.getByRole('button', { name: 'Configuracoes' }))
     expect(await screen.findByRole('heading', { name: 'Configuracoes do vault' })).toBeInTheDocument()
+
+    // Menu lateral navega entre as sessoes (destaque acompanha o clique).
+    const nav = screen.getByRole('navigation', { name: 'Seções das configurações' })
+    expect(within(nav).getByRole('button', { name: 'Revisão' })).toBeInTheDocument()
+    await user.click(within(nav).getByRole('button', { name: 'Revisão' }))
+    expect(within(nav).getByRole('button', { name: 'Revisão' })).toHaveAttribute('aria-current', 'true')
 
     // Padrao claro; muda para Escuro e o atributo do documento acompanha.
     expect(document.documentElement.dataset.theme).toBe('light')

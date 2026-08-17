@@ -143,7 +143,9 @@ button:hover:not(:disabled) {
 
 button:disabled {
   opacity: 0.6;
-  cursor: wait;
+  /* Um botao desabilitado nao e "carregando": mostra que a acao esta
+     indisponivel, em vez de uma ampulheta eterna sobre controles inertes. */
+  cursor: not-allowed;
 }
 
 .secondary-button {
@@ -564,7 +566,9 @@ button:disabled {
   grid-template-columns: 40px 248px minmax(0, 1fr);
   gap: 0;
   width: 100%;
-  min-height: 100svh;
+  /* A barra de titulo customizada ocupa a linha do topo (padding de #root):
+   * o shell desconta a altura dela para caber sem rolagem. */
+  min-height: calc(100svh - var(--titlebar-h, 40px));
   padding: 0;
   color: var(--workspace-text);
   background: var(--workspace-bg);
@@ -591,8 +595,8 @@ button:disabled {
   grid-column: 1;
   grid-row: 1;
   width: 40px;
-  min-height: 100svh;
-  padding-bottom: calc(100svh - 52px);
+  min-height: calc(100svh - var(--titlebar-h, 40px));
+  padding-bottom: calc(100svh - var(--titlebar-h, 40px) - 52px);
   border-right: 1px solid var(--workspace-line);
   color: var(--workspace-muted);
   font: 600 10px/1 var(--mono);
@@ -604,7 +608,7 @@ button:disabled {
   grid-row: 1;
   grid-template-columns: 248px minmax(0, 1fr);
   gap: 0;
-  min-height: 100svh;
+  min-height: calc(100svh - var(--titlebar-h, 40px));
 }
 
 .workspace-shell .notes-sidebar {
@@ -686,7 +690,7 @@ button:disabled {
 }
 
 .workspace-shell .workspace-tree {
-  max-height: calc(100svh - 242px);
+  max-height: calc(100svh - var(--titlebar-h, 40px) - 242px);
   padding: 0 5px;
 }
 
@@ -742,9 +746,14 @@ button:disabled {
 
 .workspace-shell .editor-surface {
   display: grid;
-  grid-template-rows: 38px auto 0 minmax(0, 1fr);
+  /* A barra de abas saiu da superficie: ela mora na barra de titulo. A
+   * superficie comeca abaixo da linha do titulo (row 2). */
+  grid-column: 2;
+  grid-row: 2 / -1;
+  grid-template-rows: auto 0 minmax(0, 1fr);
   gap: 0;
   padding: 0;
+  min-height: 0;
   background: var(--workspace-bg);
 }
 
@@ -800,7 +809,7 @@ button:disabled {
 }
 
 .workspace-shell .editor-header {
-  grid-row: 2;
+  grid-row: 1;
   grid-template-columns: minmax(0, 1fr) auto;
   padding: 22px max(40px, 7vw) 12px;
   border-bottom: 1px solid rgba(41, 39, 53, 0.55);
@@ -820,7 +829,7 @@ button:disabled {
 }
 
 .workspace-shell .editor-grid {
-  grid-row: 3;
+  grid-row: 2;
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
   min-height: 0;
@@ -1024,6 +1033,65 @@ button:disabled {
   color: #8a5a2a;
   font-size: 11px;
   line-height: 1.5;
+}
+
+/* Layout da pagina de Configuracoes: menu lateral (sticky) + conteudo. */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+  width: 100%;
+  max-width: 960px;
+}
+
+.settings-nav {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.settings-nav button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #4f4f49;
+  font: 500 12.5px var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-nav button:hover {
+  background: #f2efe7;
+}
+
+.settings-nav button.is-active {
+  background: #e7e3d8;
+  color: #1c2427;
+  font-weight: 600;
+}
+
+.settings-nav button svg {
+  flex: none;
+  opacity: 0.85;
+}
+
+.settings-nav button.is-active svg {
+  opacity: 1;
+}
+
+.settings-content {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  min-width: 0;
 }
 
 .settings-section {
@@ -1340,7 +1408,8 @@ button:disabled {
   grid-template-columns: 156px minmax(0, 1fr);
   align-content: start;
   gap: 0;
-  min-height: 100dvh;
+  /* Desconta a barra de titulo customizada (padding de #root). */
+  min-height: calc(100dvh - var(--titlebar-h, 40px));
   padding: 0;
   background: var(--selection-paper);
   color: var(--selection-ink);
@@ -1352,7 +1421,7 @@ button:disabled {
   grid-row: 1 / -1;
   flex-direction: column;
   gap: 12px;
-  min-height: 100dvh;
+  min-height: calc(100dvh - var(--titlebar-h, 40px));
   padding: 18px 16px;
   border-right: 1px solid var(--selection-line);
   background: var(--selection-rail);
@@ -1578,8 +1647,12 @@ button:disabled {
   --rail-width: 156px;
   --explorer-width: 272px;
   grid-template-columns: var(--rail-width) minmax(0, 1fr);
-  height: 100dvh;
+  /* A barra de titulo customizada e a linha do topo: o workspace ocupa a
+   * janela INTEIRA (o margin negativo cancela o padding-top de #root). */
+  grid-template-rows: var(--titlebar-h, 40px) minmax(0, 1fr);
+  height: 100svh;
   min-height: 0;
+  margin-top: calc(-1 * var(--titlebar-h, 40px));
   overflow: hidden;
   color: var(--workspace-text);
   background: var(--workspace-bg);
@@ -1615,7 +1688,7 @@ button:disabled {
 }
 
 .workspace-shell.is-explorer-collapsed {
-  --explorer-width: 52px;
+  --explorer-width: 0px;
 }
 
 .workspace-shell::before {
@@ -1627,10 +1700,11 @@ button:disabled {
   position: relative;
   z-index: 1;
   grid-column: 1;
-  grid-row: 1;
+  /* Altura total (usa o espaco da barra de titulo). */
+  grid-row: 1 / -1;
   flex-direction: column;
   gap: 4px;
-  height: 100dvh;
+  height: 100%;
   padding: 12px 8px;
   border-right: 1px solid var(--workspace-line);
   background: #e5e4de;
@@ -1706,10 +1780,13 @@ button:disabled {
 
 .workspace-grid {
   grid-column: 2;
-  grid-row: 1;
+  grid-row: 1 / -1;
   grid-template-columns: var(--explorer-width) minmax(0, 1fr);
+  /* Mesma linha do topo do shell: o explorador (col 1) vai ate o topo e a
+   * barra de titulo customizada (col 2) ocupa a linha do titulo. */
+  grid-template-rows: var(--titlebar-h, 40px) minmax(0, 1fr);
   width: 100%;
-  height: 100dvh;
+  height: 100%;
   min-height: 0;
   transition: grid-template-columns 180ms ease;
 }
@@ -1719,7 +1796,9 @@ button:disabled {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr);
   min-width: 0;
-  height: 100dvh;
+  /* Altura total: o explorador de arquivos usa o espaco da barra de titulo. */
+  grid-row: 1 / -1;
+  height: 100%;
   padding: 10px 0 0;
   border-right: 1px solid var(--workspace-line);
   background: var(--workspace-sidebar);
@@ -1782,7 +1861,6 @@ button:disabled {
   margin: 0;
 }
 
-.workspace-shell .explorer-collapse-button,
 .workspace-shell .explorer-actions {
   justify-self: end;
   flex-shrink: 0;
@@ -1819,6 +1897,11 @@ button:disabled {
 
 .workspace-shell.is-explorer-collapsed .notes-sidebar {
   grid-template-rows: minmax(0, 1fr) auto;
+  /* Reduz por completo ao sair da pagina de notas: some (opacidade) enquanto
+   * a coluna encolhe ate 0, sem sobrar borda nem area clicavel. */
+  opacity: 0;
+  border-right-color: transparent;
+  pointer-events: none;
 }
 
 .workspace-shell.is-explorer-collapsed .sidebar-block--stretch {
@@ -3494,16 +3577,26 @@ button:disabled {
 
 /* Nos do grafo 2D: sempre uma bolinha circular centrada no ponto do no. O
  * button e apenas a ancora de posicionamento (caixa 0x0); a bolinha visivel
- * cresce com o numero de conexoes (--graph-scale) e o nome fica abaixo. */
+ * cresce com o numero de conexoes (--graph-scale) e o nome fica abaixo.
+ * min-height/min-width: 0 anulam o `button { min-height: 46px }` global — sem
+ * isso a caixa fica 0x46px e o loop da fisica, que posiciona por transform
+ * translate(px, px) SEM o translate(-50%, -50%) do CSS, deixa a bolinha 23px
+ * abaixo da ponta da aresta (arestas "no topo" do no durante o movimento). */
 .workspace-shell .note-graph-node {
   position: absolute;
   z-index: 1;
   width: 0;
   height: 0;
+  min-width: 0;
+  min-height: 0;
   padding: 0;
   border: none;
   background: none;
   transform: translate(-50%, -50%);
+  /* Promove cada no a camada propria de composicao: durante o arrasto o loop
+     da fisica reescreve o transform a 60fps e o Chromium so compoem por GPU,
+     sem re-rasterizar na thread principal (drop de FPS ao mover os nos). */
+  will-change: transform;
   transition: opacity 150ms ease;
 }
 
@@ -3673,8 +3766,8 @@ button:disabled {
 }
 
 .workspace-shell .editor-surface {
-  grid-template-rows: 38px auto 0 minmax(0, 1fr);
-  height: 100dvh;
+  grid-template-rows: auto 0 minmax(0, 1fr);
+  height: 100%;
   background: var(--workspace-bg);
   position: relative;
   transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -3756,7 +3849,7 @@ button:disabled {
 }
 
 .workspace-shell.is-markdown-tools-open .editor-surface {
-  grid-template-rows: 38px auto 68px minmax(0, 1fr);
+  grid-template-rows: auto 68px minmax(0, 1fr);
 }
 
 .workspace-shell .tab-strip {
@@ -4026,9 +4119,11 @@ button:disabled {
 
 /* Menu (Popover do shadcn) que agrupa as acoes de avaliacao/revisao da nota.
    Layout do mockup: cabecalho -> faixa de status (badge unificado + proxima
-   revisao) -> divisor -> grid 2x2 de acoes (Ver relatorio | Fazer revisao
-   agora / Reavaliar nota | Politica de revisao). Células em alturas
-   uniformes. ATENCAO: o conteudo do Popover e renderizado num PORTAL do
+   revisao) -> divisor -> grade de acoes com "Fazer revisao agora" e, logo
+   abaixo dele, "Politica de revisao" (Ver relatorio | Fazer revisao agora /
+   Reavaliar nota | Politica de revisao), depois o reset em largura toda.
+   Células em alturas uniformes. ATENCAO: o conteudo do Popover e renderizado
+   num PORTAL do
    Radix em document.body — fora do .workspace-shell — entao o escopo usa o
    seletor do proprio conteudo (.ui-popover-content). */
 .ui-popover-content.note-review-menu {
@@ -4129,9 +4224,11 @@ button:disabled {
   white-space: nowrap;
 }
 
-/* CTA primaria (Fazer revisao agora): fundo escuro, coluna direita. */
+/* CTA primaria (Fazer revisao agora): fundo escuro, coluna direita, com a
+   politica de revisao na celula logo abaixo (mesma coluna, linha 4). */
 .ui-popover-content.note-review-menu .note-review-start-trigger {
   grid-column: 2;
+  grid-row: 3;
   border: 0;
   background: var(--button-bg, #1c2427);
   color: var(--button-text, #f7f2e7);
@@ -4155,23 +4252,26 @@ button:disabled {
   background: #f5f2ea;
 }
 
-.ui-popover-content.note-review-menu .note-readiness-report-trigger { grid-column: 1; }
-.ui-popover-content.note-review-menu .note-readiness-trigger { grid-column: 1; }
-.ui-popover-content.note-review-menu .note-review-policy-trigger { grid-column: 2; }
+.ui-popover-content.note-review-menu .note-readiness-report-trigger { grid-column: 1; grid-row: 3; }
+.ui-popover-content.note-review-menu .note-readiness-trigger { grid-column: 1; grid-row: 4; }
+.ui-popover-content.note-review-menu .note-review-policy-trigger { grid-column: 2; grid-row: 4; }
 
 /* Robustez com celulas condicionais (:has e suportado no WebView2/Chromium):
-   sem "Ver relatorio", o CTA vira a celula da esquerda, "Reavaliar" passa
-   para a direita e a politica ocupa a largura toda — nunca sobra buraco. */
+   sem "Ver relatorio", o CTA vira a celula da esquerda com a politica logo
+   abaixo dela (mesma coluna); "Reavaliar" ocupa a celula da direita. */
 .ui-popover-content.note-review-menu:not(:has(.note-readiness-report-trigger)) .note-review-start-trigger {
   grid-column: 1;
+  grid-row: 3;
 }
 
 .ui-popover-content.note-review-menu:not(:has(.note-readiness-report-trigger)) .note-readiness-trigger {
   grid-column: 2;
+  grid-row: 3;
 }
 
 .ui-popover-content.note-review-menu:not(:has(.note-readiness-report-trigger)) .note-review-policy-trigger {
-  grid-column: 1 / -1;
+  grid-column: 1;
+  grid-row: 4;
 }
 
 .ui-popover-content.note-review-menu .note-readiness-report-trigger:not(:disabled):hover,
@@ -4277,7 +4377,7 @@ button:disabled {
 }
 
 .workspace-shell .markdown-tools-disclosure {
-  grid-row: 3;
+  grid-row: 2;
   position: relative;
   z-index: 3;
   height: 100%;
@@ -4392,13 +4492,13 @@ button:disabled {
 
 /* The floating Markdown tools remain bounded by the note content, never the header controls. */
 .workspace-shell .editor-surface {
-  grid-template-rows: 38px auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   transition: none;
 }
 
 .workspace-shell .editor-content {
   position: relative;
-  grid-row: 3;
+  grid-row: 2;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -4719,6 +4819,16 @@ button:disabled {
 
 .markdown-mixed .cm-editor.cm-focused {
   outline: none;
+}
+
+/* Cursor de texto explicito na area editavel do Misto: o CodeMirror expoe o
+   I-beam nativo por ser contenteditable, mas o WebView2/Chromium as vezes
+   perde o rastreio do cursor apos mudancas de composicao (painel de
+   frontmatter) e renderiza o I-beam branco/invisivel. Declarar o cursor
+   explicitamente mantem o estado do cursor deterministico na zona logo
+   abaixo do header, onde o arrow down fica. */
+.markdown-mixed .cm-content {
+  cursor: text;
 }
 
 .markdown-mixed .cm-live-strong {
@@ -5404,7 +5514,13 @@ button:disabled {
 /* O painel abre com animacao de slide down: a altura da linha cresce de 0
    ate o conteudo, fazendo a borda inferior do header (e o arrow sobre ela)
    descer junto. Easing suave (cubic-bezier com saida lenta) para a barra
-   descer de forma natural. */
+   descer de forma natural.
+   IMPORTANTE (bug do cursor): a animacao anima APENAS `max-height` (propriedade
+   de layout puro). Nada de `transform`/`opacity` aqui: essas propriedades
+   promovem o painel a uma camada de composicao propria, e criar/remover essa
+   camada a cada expandir/recolher dispara o bug conhecido do WebView2/Chromium
+   em que o cursor do sistema (I-beam) sobre a area de texto do editor logo
+   abaixo fica branco/invisivel (bug de composicao MPO do Windows). */
 .workspace-shell .frontmatter-menu-collapse {
   overflow: hidden;
   animation: frontmatter-menu-slide-down 300ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -5413,13 +5529,9 @@ button:disabled {
 @keyframes frontmatter-menu-slide-down {
   from {
     max-height: 0;
-    opacity: 0;
-    transform: translateY(-10px);
   }
   to {
     max-height: 1600px;
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -5806,9 +5918,11 @@ button:disabled {
   }
 }
 
-/* Reiniciar aprendizado: acao discreta de risco, largura toda no menu. */
+/* Reiniciar aprendizado: acao discreta de risco, largura toda no menu, na
+   linha abaixo da grade de acoes. */
 .ui-popover-content.note-review-menu .note-review-reset-trigger {
   grid-column: 1 / -1;
+  grid-row: 5;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5825,6 +5939,13 @@ button:disabled {
 .ui-popover-content.note-review-menu .note-review-reset-trigger:not(:disabled):hover {
   background: color-mix(in srgb, #b3261e 8%, transparent);
   color: var(--danger, #b3261e);
+}
+
+/* Adocao de perfil (nota pronta sem tag de revisao): bloco em largura toda,
+   abaixo do reset, sem colidir com a grade de acoes. */
+.ui-popover-content.note-review-menu .note-profile-onboarding {
+  grid-column: 1 / -1;
+  grid-row: 6;
 }
 
 .ui-popover-content.note-review-menu .note-review-reset-trigger:disabled {
@@ -6005,8 +6126,36 @@ button:disabled {
 
 .ui-popover-content.structural-audit-panel .structural-audit-footer {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
   padding-top: 2px;
+}
+
+/* "Re-executar auditoria" com o mesmo visual dos botoes do menu de
+   Avaliacao & revisao: celula clara (borda e fundo identicos), icone + texto
+   alinhados a esquerda, altura uniforme e largura total do painel. */
+.ui-popover-content.structural-audit-panel .structural-audit-rerun {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #e0ddd4;
+  border-radius: 8px;
+  background: #f5f2ea;
+  color: var(--text-h, #1c2427);
+  font: 500 12px var(--sans);
+  white-space: nowrap;
+}
+
+.ui-popover-content.structural-audit-panel .structural-audit-rerun:not(:disabled):hover {
+  background: #ece8dd;
+}
+
+.ui-popover-content.structural-audit-panel .structural-audit-rerun:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* ------------------------------------------------------------------ */
@@ -6223,6 +6372,19 @@ button:disabled {
 
 [data-theme='dark'] .settings-toggle small {
   color: #a8a59d;
+}
+
+[data-theme='dark'] .settings-nav button {
+  color: #c9c6c0;
+}
+
+[data-theme='dark'] .settings-nav button:hover {
+  background: rgba(232, 230, 221, 0.07);
+}
+
+[data-theme='dark'] .settings-nav button.is-active {
+  background: #2a2730;
+  color: #f0eee7;
 }
 
 [data-theme='dark'] .settings-segmented button {

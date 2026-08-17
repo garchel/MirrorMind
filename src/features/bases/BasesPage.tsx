@@ -6,13 +6,18 @@ import { parseNoteDocumentList } from '../../lib/vault'
 import { getMarkdownFrontmatterProperties } from '../../lib/markdown'
 import {
   collectColumns,
+  columnPickerStorageKey,
   filterRows,
   frontmatterValueToText,
   NAME_COLUMN_KEY,
+  orderedPropertyKeys,
+  readSavedColumnKeys,
   sortRows,
   type BaseColumn,
   type BaseRow,
 } from './bases'
+import { COMMON_PROPERTY_KEYS } from '../../lib/commonProperties'
+import { ColumnPicker } from './ColumnPicker'
 import './bases.css'
 
 type Props = {
@@ -25,9 +30,13 @@ type Props = {
 /** Coluna padrao (nome) quando ainda nao ha linhas/colunas carregadas. */
 const NAME_COLUMN_FALLBACK: BaseColumn = { key: NAME_COLUMN_KEY, label: 'Nota', kind: 'name' }
 
-/** Pagina Bases: tabela de notas com as propriedades do frontmatter como
- * colunas (estilo Obsidian Bases). Le o conteudo das notas em lotes com
- * progresso, ordena por coluna, filtra por busca e abre a nota na linha. */
+/**
+ * Pagina Tabela: todas as notas do vault em uma tabela, com as propriedades
+ * do frontmatter como colunas (estilo Obsidian Bases). O usuario escolhe
+ * quais propriedades aparecem como colunas (ColumnPicker) e a escolha fica
+ * salva por vault no localStorage. Le o conteudo das notas em lotes com
+ * progresso, ordena por coluna, filtra por busca e abre a nota na linha.
+ */
 export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
   const [rows, setRows] = useState<BaseRow[] | null>(null)
   const [loadProgress, setLoadProgress] = useState(0)
@@ -36,6 +45,17 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
   const [sortKey, setSortKey] = useState<string>(NAME_COLUMN_KEY)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const loadRequestRef = useRef(0)
+
+  // Colunas escolhidas pelo usuario (chaves de propriedade). `null` = nunca
+  // personalizou: mostra todas. Salvo por vault no localStorage.
+  const [customVisibleKeys, setCustomVisibleKeys] = useState<string[] | null>(
+    () => readSavedColumnKeys(localStorage.getItem(columnPickerStorageKey(vaultPath))),
+  )
+
+  // Ao trocar de vault sem desmontar a pagina, recarrega a escolha salva.
+  useEffect(() => {
+    setCustomVisibleKeys(readSavedColumnKeys(localStorage.getItem(columnPickerStorageKey(vaultPath))))
+  }, [vaultPath])
 
   useEffect(() => {
     const requestId = loadRequestRef.current + 1
@@ -80,9 +100,45 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
     return () => { cancelled = true }
   }, [vaultPath, notePreviews])
 
-  const columns = useMemo(() => collectColumns(rows ?? []), [rows])
+  // Propriedades encontradas nas notas, na ordem de primeira aparicao.
+  const notePropertyKeys = useMemo(
+    () => collectColumns(rows ?? []).filter((column) => column.kind === 'property').map((column) => column.key),
+    [rows],
+  )
+
+  // Universo de colunas: nome + propriedades das notas + propriedades COMUNS
+  // do menu do header (as mesmas do arrow down) — o seletor pode mostrar
+  // colunas que ainda nao existem em nenhuma nota (ex.: phone), com celulas
+  // vazias ate que alguma nota ganhe o valor.
+  const propertyColumns = useMemo(
+    () => orderedPropertyKeys(notePropertyKeys, COMMON_PROPERTY_KEYS).map((key) => ({ key, label: key, kind: 'property' as const })),
+    [notePropertyKeys],
+  )
+
+  const columns = useMemo(
+    () => [{ key: NAME_COLUMN_KEY, label: 'Nota', kind: 'name' as const }, ...propertyColumns],
+    [propertyColumns],
+  )
+
   const columnByKey = useMemo(() => new Map(columns.map((column) => [column.key, column])), [columns])
   const sortColumn = columnByKey.get(sortKey) ?? columns[0] ?? NAME_COLUMN_FALLBACK
+
+  // Visiveis por padrao: apenas as propriedades presentes nas notas (as
+  // comuns vazias so aparecem quando o usuario as escolhe no seletor).
+  const defaultVisibleKeys = useMemo(() => new Set(notePropertyKeys), [notePropertyKeys])
+
+  // Chaves efetivamente visiveis: a escolha salva filtrada pelas colunas que
+  // ainda existem (propriedades removidas das notas somem da tabela).
+  const visibleKeys = useMemo(() => {
+    if (customVisibleKeys === null) return defaultVisibleKeys
+    const valid = new Set(propertyColumns.map((column) => column.key))
+    return new Set(customVisibleKeys.filter((key) => valid.has(key)))
+  }, [customVisibleKeys, defaultVisibleKeys, propertyColumns])
+
+  const visibleColumns = useMemo(
+    () => columns.filter((column) => column.kind === 'name' || visibleKeys.has(column.key)),
+    [columns, visibleKeys],
+  )
 
   const visibleRows = useMemo(() => {
     if (!rows) return []
@@ -99,14 +155,31 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
     }
   }
 
+  function toggleColumn(key: string, visible: boolean) {
+    setCustomVisibleKeys((current) => {
+      const base = current !== null ? new Set(current) : new Set(defaultVisibleKeys)
+      if (visible) base.add(key)
+      else base.delete(key)
+      const next = [...base]
+      localStorage.setItem(columnPickerStorageKey(vaultPath), JSON.stringify(next))
+      return next
+    })
+  }
+
+  function resetColumns() {
+    localStorage.removeItem(columnPickerStorageKey(vaultPath))
+    setCustomVisibleKeys(null)
+  }
+
   return (
-    <section className="workspace-page bases-page" data-builder-name="bases-page" aria-label="Bases de notas">
+    <section className="workspace-page bases-page" data-builder-name="bases-page">
       <header className="bases-header">
         <div>
-          <p className="card-kicker">Bases</p>
-          <h2>Tabela de notas por propriedade</h2>
+          <p className="card-kicker">Tabela</p>
+          <h2>Tabela de notas</h2>
           <p className="bases-header-description">
-            Todas as notas do vault com as propriedades do frontmatter como colunas — como as Bases do Obsidian.
+            Todas as notas do vault em uma tabela, com as propriedades do frontmatter como colunas
+            (como as Bases do Obsidian). Use o botão Colunas para escolher quais propriedades exibir.
             {rows !== null ? ` ${rows.length} ${rows.length === 1 ? 'nota' : 'notas'}.` : ''}
           </p>
         </div>
@@ -126,6 +199,12 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
         {rows !== null && visibleRows.length !== rows.length ? (
           <span className="bases-count" role="status">{visibleRows.length} de {rows.length} linhas</span>
         ) : null}
+        <ColumnPicker
+          columns={columns}
+          visibleKeys={visibleKeys}
+          onToggle={toggleColumn}
+          onReset={resetColumns}
+        />
       </div>
 
       {error ? <p className="bases-error" role="alert">{error}</p> : null}
@@ -146,7 +225,7 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
           <table className="bases-table">
             <thead>
               <tr>
-                {columns.map((column) => (
+                {visibleColumns.map((column) => (
                   <th key={column.key} scope="col" aria-sort={
                     column.key === sortKey ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined
                   }>
@@ -180,7 +259,7 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
                   tabIndex={0}
                   aria-label={`Abrir ${row.name}`}
                 >
-                  {columns.map((column) => (
+                  {visibleColumns.map((column) => (
                     <td key={column.key}>
                       {column.kind === 'name' ? (
                         <span className="bases-note-name">{row.name.replace(/\.md$/i, '')}</span>

@@ -16,6 +16,10 @@
   --danger: #9a3b23;
   --panel-shadow: 0 18px 50px rgba(56, 44, 18, 0.1);
 
+  /* Altura da barra de titulo customizada (janela sem decoracoes nativas): os
+   * shells descontam este valor dos 100svh para o conteudo caber sem rolagem. */
+  --titlebar-h: 40px;
+
   --sans: 'Segoe UI', 'Inter', sans-serif;
   --heading: Georgia, 'Times New Roman', serif;
   --mono: 'Cascadia Code', Consolas, monospace;
@@ -56,6 +60,7 @@
   width: 100%;
   margin: 0 auto;
   min-height: 100svh;
+  padding-top: var(--titlebar-h);
   box-sizing: border-box;
 }
 

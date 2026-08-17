@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { save } from '@tauri-apps/plugin-dialog'
-import { AlertTriangle, CalendarCheck2, ChartColumnBig, Check, Download, NotebookPen, RotateCcw, Search, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarCheck2, ChartColumnBig, Check, CheckCircle2, Download, Lightbulb, ListChecks, NotebookPen, RotateCcw, Search, ShieldAlert, X } from 'lucide-react'
 import 'katex/dist/katex.min.css'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
@@ -21,6 +21,7 @@ import {
 import type { NoteReviewState, ReadinessAttempt, ReviewAiProvider, UnrecoverableLearningDocument } from './ai'
 import { getVaultReviewPolicyConfig } from './vaultReviewPolicy'
 import { useReviewAiSettings } from './ReviewAiSettingsContext'
+import { prepareReportMarkdown } from './readinessReportMarkdown'
 import './review-ai.css'
 
 type NoteReadinessControlProps = {
@@ -37,6 +38,16 @@ type NoteReadinessControlProps = {
   onStatusChange?: (readiness: NoteReviewState['readiness'] | null) => void
   /** Informacoes necessarias para abrir uma sessao de revisao da nota. */
   onStartReview?: (info: ReviewStartInfo | null) => void
+  /** Quando true, o relatorio e renderizado no lugar do menu do popover. */
+  reportOpen?: boolean
+  /** Notifica o pai quando o relatorio abre/fecha (para o pai ocultar o
+   *  cabecalho e a politica enquanto o relatorio substitui o menu). */
+  onReportOpenChange?: (open: boolean) => void
+  /** Salva o rascunho ativo e devolve `true` quando gravou. Sem isso, notas
+   *  com alteracoes nao salvas ficam com os botoes bloqueados; com o handler,
+   *  avaliar/revisar salva primeiro e prossegue (notas novas nao precisam de
+   *  Ctrl+S manual antes de avaliar). */
+  onSaveFirst?: () => Promise<boolean>
 }
 
 /** Dados minimos para construir um item de revisao imediata ("Fazer revisao agora"). */
@@ -61,7 +72,7 @@ function ReviewReportMarkdown({ content }: { content: string }) {
         remarkPlugins={[remarkGfm, remarkMath, remarkSetextDividerAsSeparator]}
         rehypePlugins={[rehypeKatex]}
       >
-        {content}
+        {prepareReportMarkdown(content)}
       </ReactMarkdown>
     </div>
   )
@@ -91,6 +102,9 @@ export function NoteReadinessControl({
   onApplyTag,
   onStatusChange,
   onStartReview,
+  reportOpen = false,
+  onReportOpenChange,
+  onSaveFirst,
 }: NoteReadinessControlProps) {
   const { provider, geminiConsent } = useReviewAiSettings()
   const [attempt, setAttempt] = useState<ReadinessAttempt | null>(null)
@@ -109,9 +123,12 @@ export function NoteReadinessControl({
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false)
   const requestGenerationRef = useRef(0)
   const stateGenerationRef = useRef(0)
+  /** Nota a que pertence o `reviewState` carregado (para preservar o status
+   *  durante alteracoes nao salvas sem vazar estado de outra nota). */
+  const loadedPathRef = useRef<string | null>(null)
   const triggerButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
-  const dialogRef = useRef<HTMLElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
   const resetDialogRef = useRef<HTMLElement>(null)
   const discardDialogRef = useRef<HTMLElement>(null)
 
@@ -121,17 +138,29 @@ export function NoteReadinessControl({
     stateGenerationRef.current = generation
     setAttempt(null)
     setAssessmentIdentity(null)
-    setReviewState(null)
     setBusy(false)
     setEnrollmentBusy(false)
     setError('')
     setResetConfirmOpen(false)
     setResetBusy(false)
     setResetError('')
+    onReportOpenChange?.(false)
     if (isDirty) {
+      // Rascunho com alteracoes nao salvas: a avaliacao carregada continua
+      // valida para a versao salva da nota — preserva o estado (o indicador
+      // externo nao fica cinza) e apenas avisa que ha alteracoes pendentes.
+      // A prontidao e revalidada ao salvar (o conteudo em disco muda).
+      if (loadedPathRef.current !== relativePath) {
+        setReviewState(null)
+        setUnrecoverableDoc(null)
+      }
       setStateLoading(false)
       return
     }
+    loadedPathRef.current = relativePath
+    setReviewState(null)
+    setUnrecoverableDoc(null)
+    setRecoveryError('')
     setStateLoading(true)
     void getNoteReviewState({ vaultPath, relativePath })
       .then((state) => {
@@ -168,7 +197,7 @@ export function NoteReadinessControl({
       .finally(() => {
         if (stateGenerationRef.current === generation) setStateLoading(false)
       })
-  }, [isDirty, relativePath, sourceRevision, vaultPath])
+  }, [isDirty, onReportOpenChange, relativePath, sourceRevision, vaultPath])
 
   useEffect(() => () => {
     requestGenerationRef.current += 1
@@ -307,10 +336,13 @@ export function NoteReadinessControl({
   }, [onStatusChange, reviewState])
 
   const consentMissing = provider === 'gemini' && !geminiConsent
-  const unavailableReason = isDirty
-    ? 'Salve a nota antes de solicitar a avaliação.'
-    : consentMissing
-      ? 'Autorize o envio ao Gemini nas configurações de revisão.'
+  // Com `onSaveFirst`, avaliar/revisar salva o rascunho antes de prosseguir,
+  // entao rascunho sujo nao bloqueia. Sem o handler (isolado/testes), mantem
+  // o pedido de salvar primeiro.
+  const unavailableReason = consentMissing
+    ? 'Autorize o envio ao Gemini nas configurações de revisão.'
+    : isDirty && !onSaveFirst
+      ? 'Salve a nota antes de solicitar a avaliação.'
       : undefined
 
   async function runAssessment(retry = false) {
@@ -320,6 +352,16 @@ export function NoteReadinessControl({
     requestGenerationRef.current = generation
     setBusy(true)
     setError('')
+    // Rascunho sujo: a avaliacao le o arquivo no disco — salva antes (a nota
+    // nova com conteudo colado nao precisa de Ctrl+S manual).
+    if (isDirty && onSaveFirst) {
+      const saved = await onSaveFirst()
+      if (requestGenerationRef.current !== generation) return
+      if (!saved) {
+        setBusy(false)
+        return
+      }
+    }
     try {
       const nextAttempt = await assessNoteReadiness({
         vaultPath,
@@ -330,6 +372,7 @@ export function NoteReadinessControl({
       if (requestGenerationRef.current !== generation) return
       setAttempt(nextAttempt)
       setAssessmentIdentity({ provider: selectedProvider, sourceHash: nextAttempt.sourceHash })
+      onReportOpenChange?.(true)
       if (nextAttempt.outcome === 'valid') {
         const persistedState = await getNoteReviewState({ vaultPath, relativePath })
         if (requestGenerationRef.current !== generation) return
@@ -346,6 +389,11 @@ export function NoteReadinessControl({
    *  ativa a inscricao automaticamente antes de iniciar a sessao. */
   async function startReviewNow() {
     if (!reviewState || reviewState.readiness !== 'ready') return
+    // A sessao le o arquivo salvo: rascunho sujo precisa salvar antes.
+    if (isDirty && onSaveFirst) {
+      const saved = await onSaveFirst()
+      if (!saved) return
+    }
     const generation = stateGenerationRef.current
     let startInfo: ReviewStartInfo = {
       noteId: reviewState.noteId,
@@ -435,6 +483,7 @@ export function NoteReadinessControl({
     })
     setAssessmentIdentity(null)
     setError('')
+    onReportOpenChange?.(true)
   }
   function closeReport() {
     requestGenerationRef.current += 1
@@ -442,7 +491,10 @@ export function NoteReadinessControl({
     setAssessmentIdentity(null)
     setBusy(false)
     setError('')
-    triggerButtonRef.current?.focus()
+    onReportOpenChange?.(false)
+    // O menu sai do DOM enquanto o relatorio esta aberto; o trigger so
+    // remonta apos o commit do React. Devolve o foco no proximo frame.
+    window.setTimeout(() => triggerButtonRef.current?.focus(), 0)
   }
 
   function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
@@ -467,15 +519,132 @@ export function NoteReadinessControl({
     }
   }
 
-  return (
+  // Relatorio aberto: substitui TODO o conteudo do popover (inclusive o
+  // cabecalho do menu, que o pai oculta via `reportOpen`) e oferece a seta de
+  // voltar para retornar ao menu. Nenhum backdrop escurecido: o relatorio e
+  // uma visao dentro do proprio popover.
+  return reportOpen && attempt ? (
+    <div
+      ref={dialogRef}
+      className="note-review-report-view"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="readiness-report-title"
+      onKeyDown={handleDialogKeyDown}
+    >
+      <div className="note-review-report-topbar">
+        <button
+          ref={closeButtonRef}
+          type="button"
+          className="note-review-report-back"
+          onClick={closeReport}
+          aria-label="Voltar ao menu de avaliação e revisão"
+        >
+          <ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" />
+          <span>Voltar</span>
+        </button>
+        <p className="card-kicker">Avaliação da nota</p>
+      </div>
+      <h2 id="readiness-report-title" className="note-review-report-title">
+        {attempt.outcome === 'valid'
+          ? STATUS_LABELS[attempt.report.status]
+          : 'A IA devolveu um relatório inválido'}
+      </h2>
+      {attempt.outcome === 'valid' ? (
+        <div className="review-ai-report-body review-readiness-report">
+          {reviewState?.readiness === 'modified' ? (
+            <p className="review-ai-stale-report" role="note">
+              Este relatorio pertence a versao anterior da nota.
+            </p>
+          ) : null}
+          <div className={`review-readiness-summary is-${attempt.report.status}`}>
+            <span className="review-readiness-status" role="status">
+              <span className="review-readiness-status-icon" aria-hidden="true">
+                {attempt.report.status === 'ready' ? (
+                  <CheckCircle2 size={15} strokeWidth={1.8} />
+                ) : attempt.report.status === 'ambiguous' ? (
+                  <AlertTriangle size={15} strokeWidth={1.8} />
+                ) : (
+                  <ShieldAlert size={15} strokeWidth={1.8} />
+                )}
+              </span>
+              <span>{STATUS_LABELS[attempt.report.status]}</span>
+            </span>
+            <div className="review-readiness-explanation">
+              <ReviewReportMarkdown content={attempt.report.explanation} />
+            </div>
+          </div>
+          {attempt.report.centralIdea ? (
+            <section className="review-readiness-section review-readiness-central-idea" aria-label="Ideia central">
+              <h3><Lightbulb size={13} strokeWidth={1.8} aria-hidden="true" /> Ideia central</h3>
+              <blockquote><ReviewReportMarkdown content={attempt.report.centralIdea.sourceQuote} /></blockquote>
+            </section>
+          ) : null}
+          {attempt.report.evaluablePoints.length ? (
+            <section className="review-readiness-section review-readiness-points" aria-label="Pontos avaliáveis">
+              <h3><ListChecks size={13} strokeWidth={1.8} aria-hidden="true" /> Pontos avaliáveis <span className="review-readiness-count">{attempt.report.evaluablePoints.length}</span></h3>
+              <ol className="review-readiness-point-list">
+                {attempt.report.evaluablePoints.map((point, index) => (
+                  <li key={`${point.sourceStartUtf16}-${index}`}>
+                    <span className="review-readiness-point-index" aria-hidden="true">{index + 1}</span>
+                    <ReviewReportMarkdown content={point.sourceQuote} />
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
+          {attempt.report.issues.length ? (
+            <section className="review-readiness-section review-readiness-issues" aria-label="O que impede a revisão">
+              <h3><AlertTriangle size={13} strokeWidth={1.8} aria-hidden="true" /> O que impede a revisão segura</h3>
+              <ul className="review-readiness-issue-list">
+                {attempt.report.issues.map((issue, index) => (
+                  <li key={`${issue.code}-${index}`} className={`review-readiness-issue is-${issue.code}`}>
+                    <strong>{issue.message}</strong>
+                    {issue.sourceQuote ? <blockquote><ReviewReportMarkdown content={issue.sourceQuote} /></blockquote> : null}
+                    <span className="review-ai-suggestion">Sugestão: {issue.suggestion}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
+      ) : (
+        <div className="review-ai-report-body">
+          <p>{attempt.message}</p>
+          <section className="review-ai-diagnostic" aria-label="Diagnostico da resposta da IA">
+            <p className="review-ai-diagnostic-summary">A IA respondeu, mas o formato nao pode ser usado com seguranca para avaliar esta nota.</p>
+            {attempt.validationErrors.length ? (
+              <div>
+                <strong>O que precisa ser corrigido</strong>
+                <ul className="review-ai-validation-list">
+                  {attempt.validationErrors.map((validationError, index) => (
+                    <li key={`${validationError}-${index}`}>{validationError}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <details className="review-ai-raw-response">
+              <summary>Ver resposta tecnica da IA</summary>
+              <pre data-testid="review-ai-raw-response">{attempt.rawResponse ?? 'Nenhuma resposta textual foi recebida.'}</pre>
+            </details>
+            <small>Este diagnostico nao e salvo no Vault e e descartado ao fechar.</small>
+          </section>
+          {error ? <p className="field-error" role="alert">{error}</p> : null}
+          <div className="review-ai-dialog-actions">
+            <button type="button" onClick={() => void runAssessment(true)} disabled={busy}>
+              {busy ? 'Gerando…' : 'Gerar novo relatório da IA'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  ) : (
     <>
       {/* Cartao de status (sempre presente no menu): estado da nota + proxima
           revisao, agrupados para o layout em bento do popover. */}
       <div className="note-readiness-status-card">
         {!stateLoading ? (
-          isDirty ? (
-            <span className="note-readiness-state is-unassessed" role="status">Status: Alterações não salvas</span>
-          ) : reviewState ? (
+          reviewState ? (
             <span className={`note-readiness-state is-${reviewState.readiness}`} role="status">
               {reviewState.readiness === 'ready' ? (
                 <span className="note-readiness-state-check" aria-hidden="true"><Check size={11} strokeWidth={3} /></span>
@@ -483,8 +652,19 @@ export function NoteReadinessControl({
               Status: {STATUS_BADGE_LABELS[reviewState.readiness]}
             </span>
           ) : (
-            <span className="note-readiness-state is-unassessed" role="status">Status: {STATUS_BADGE_LABELS.unassessed}</span>
+            <span className="note-readiness-state is-unassessed" role="status">
+              Status: {isDirty ? 'Alterações não salvas' : STATUS_BADGE_LABELS.unassessed}
+            </span>
           )
+        ) : null}
+        {isDirty && reviewState ? (
+          <span
+            className="note-review-dirty-hint"
+            role="status"
+            title="A avaliação se refere à versão salva da nota; salve para revalidar as alterações."
+          >
+            Alterações não salvas
+          </span>
         ) : null}
         {reviewState?.nextReviewAtUnixMs ? (
           <span className="note-review-next-date">
@@ -521,8 +701,8 @@ export function NoteReadinessControl({
         type="button"
         className="note-review-start-trigger"
         onClick={() => void startReviewNow()}
-        disabled={disabled || busy || enrollmentBusy || isDirty || !reviewState || reviewState.readiness !== 'ready'}
-        title={isDirty
+        disabled={disabled || busy || enrollmentBusy || (isDirty && !onSaveFirst) || !reviewState || reviewState.readiness !== 'ready'}
+        title={isDirty && !onSaveFirst
           ? 'Salve a nota antes de iniciar a revisão.'
           : !reviewState || reviewState.readiness !== 'ready'
             ? 'Avalie a nota para liberar a revisão.'
@@ -744,104 +924,6 @@ export function NoteReadinessControl({
         </div>
       ) : null}
 
-      {attempt ? (
-        <div className="review-ai-dialog-backdrop" role="presentation">
-          <section
-            ref={dialogRef}
-            className="review-ai-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="readiness-report-title"
-            onKeyDown={handleDialogKeyDown}
-          >
-            <header>
-              <div>
-                <p className="card-kicker">Avaliacao da nota</p>
-                <h2 id="readiness-report-title">
-                  {attempt.outcome === 'valid'
-                    ? STATUS_LABELS[attempt.report.status]
-                    : 'A IA devolveu um relatorio invalido'}
-                </h2>
-              </div>
-              <button
-                ref={closeButtonRef}
-                type="button"
-                className="secondary-button"
-                onClick={closeReport}
-                aria-label="Fechar relatorio"
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
-            </header>
-
-            {attempt.outcome === 'valid' ? (
-              <div className="review-ai-report-body">
-                {reviewState?.readiness === 'modified' ? (
-                  <p className="review-ai-stale-report" role="note">
-                    Este relatorio pertence a versao anterior da nota.
-                  </p>
-                ) : null}
-                <ReviewReportMarkdown content={attempt.report.explanation} />
-                {attempt.report.centralIdea ? (
-                  <div>
-                    <strong>Ideia identificada</strong>
-                    <blockquote><ReviewReportMarkdown content={attempt.report.centralIdea.sourceQuote} /></blockquote>
-                  </div>
-                ) : null}
-                {attempt.report.evaluablePoints.length ? (
-                  <div>
-                    <strong>Pontos avaliáveis</strong>
-                    <ul className="review-ai-issue-list">
-                      {attempt.report.evaluablePoints.map((point, index) => (
-                        <li key={`${point.sourceStartUtf16}-${index}`}><ReviewReportMarkdown content={point.sourceQuote} /></li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                {attempt.report.issues.length ? (
-                  <ul className="review-ai-issue-list">
-                    {attempt.report.issues.map((issue, index) => (
-                      <li key={`${issue.code}-${index}`}>
-                        <strong>{issue.message}</strong>
-                        {issue.sourceQuote ? <blockquote><ReviewReportMarkdown content={issue.sourceQuote} /></blockquote> : null}
-                        <span className="review-ai-suggestion">Sugestão: {issue.suggestion}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ) : (
-              <div className="review-ai-report-body">
-                <p>{attempt.message}</p>
-                <section className="review-ai-diagnostic" aria-label="Diagnostico da resposta da IA">
-                  <p className="review-ai-diagnostic-summary">A IA respondeu, mas o formato nao pode ser usado com seguranca para avaliar esta nota.</p>
-                  {attempt.validationErrors.length ? (
-                    <div>
-                      <strong>O que precisa ser corrigido</strong>
-                      <ul className="review-ai-validation-list">
-                        {attempt.validationErrors.map((validationError, index) => (
-                          <li key={`${validationError}-${index}`}>{validationError}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  <details className="review-ai-raw-response">
-                    <summary>Ver resposta tecnica da IA</summary>
-                    <pre data-testid="review-ai-raw-response">{attempt.rawResponse ?? 'Nenhuma resposta textual foi recebida.'}</pre>
-                  </details>
-                  <small>Este diagnostico nao e salvo no Vault e e descartado ao fechar.</small>
-                </section>
-                {error ? <p className="field-error" role="alert">{error}</p> : null}
-                <div className="review-ai-dialog-actions">
-                  <button type="button" onClick={() => void runAssessment(true)} disabled={busy}>
-                    {busy ? 'Gerando…' : 'Gerar novo relatório da IA'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-        </div>
-      ) : null}
     </>
   )
 }

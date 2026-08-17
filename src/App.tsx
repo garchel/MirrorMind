@@ -13,6 +13,7 @@ import { CiStickyNote } from 'react-icons/ci'
 import 'katex/dist/katex.min.css'
 import { BuilderModeControl } from './components/BuilderModeControl'
 import { MarkdownCodeEditor } from './components/MarkdownCodeEditor'
+import { TitleBar, TitleBarBrand } from './components/TitleBar'
 import type { FrontmatterPanelData, FrontmatterRow, LinkTarget } from './components/markdownLivePreview'
 import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from './components/ui/drawer'
@@ -83,7 +84,10 @@ import { FrontmatterPanelForm } from './components/FrontmatterPanelForm'
 import { nextPopoverShiftX } from './lib/selectionPopover'
 import {
   accumulateObsidianForces2D,
+  graph2dLineTransform,
   GRAPH_2D_BOUNDS,
+  GRAPH_2D_WORLD_CENTER,
+  GRAPH_2D_WORLD_SIZE,
   OBSIDIAN_PHYSICS_2D,
   type NoteGraphLayoutLink,
 } from './lib/noteGraphLayout'
@@ -217,8 +221,8 @@ type Graph2DPhysics = {
      * getBoundingClientRect a cada pointermove, que forca layout sincrono). */
     bounds: { left: number; top: number; width: number; height: number } | null
   } | null
-  /** Assentamento pos-arrasto: o hub (no com mais conexoes) fica FIXO no
-   * ponto da soltura e o restante do grafo visivel assenta com alpha decaindo. */
+  /** Assentamento pos-arrasto: o no que foi arrastado fica FIXO no ponto da
+   * soltura e o restante do grafo visivel assenta com alpha decaindo. */
   coast: {
     hub: string
     paths: string[]
@@ -276,6 +280,16 @@ function updateNumberSetting(raw: string, current: number, min: number, max: num
 }
 
 const AUTO_SAVE_DELAY_MS = 650
+
+/** Sessoes da pagina de Configuracoes, na ordem do menu lateral. */
+const SETTINGS_SECTIONS = [
+  { id: 'aparencia', label: 'Aparência', icon: Palette },
+  { id: 'workspace', label: 'Workspace', icon: SlidersHorizontal },
+  { id: 'leitura', label: 'Leitura', icon: BookOpenCheck },
+  { id: 'grafo3d', label: 'Grafo 3D', icon: Orbit },
+  { id: 'grafo2d', label: 'Grafo 2D', icon: Network },
+  { id: 'revisao', label: 'Revisão', icon: ClipboardList },
+] as const
 // three.js e pesado (~600 KB): carregado sob demanda, apenas quando o usuario
 // abre o modo 3D do grafo pela primeira vez.
 const NoteGraph3D = lazy(() => import('./components/NoteGraph3D').then((module) => ({ default: module.NoteGraph3D })))
@@ -299,6 +313,20 @@ const LIMITED_MARKDOWN_FEATURE_LABELS: Record<string, string> = {
 
 function formatTrashDate(day: number) {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(day * 86_400_000))
+}
+
+/** Recuperacao do cursor do WebView2/Windows: apos mudancas de composicao
+ * (trocar de pagina, entrar no editor — o I-beam, montar o canvas WebGL do
+ * grafo), o Chromium as vezes deixa o cursor do SO preso renderizado branco
+ * (perde a parte preta e fica invisivel no tema claro). Forcar uma mudanca
+ * de cursor por um instante faz o compositor redesenhar o cursor nativo — o
+ * mesmo mecanismo do workaround classico de "minimizar/restaurar" a janela.
+ * `durationMs` curto (30-40ms) para nao piscar o cursor. */
+function nudgeCursor(durationMs = 40) {
+  const style = document.createElement('style')
+  style.textContent = '* { cursor: auto !important; }'
+  document.head.appendChild(style)
+  window.setTimeout(() => style.remove(), durationMs)
 }
 
 function App() {
@@ -387,21 +415,60 @@ function App() {
   const [showRecentVaultModal, setShowRecentVaultModal] = useState(false)
   const [skipRecentVaultPrompt, setSkipRecentVaultPrompt] = useState(false)
   const [isSidebarExpanded, setSidebarExpanded] = useState(true)
-  const [isExplorerExpanded, setExplorerExpanded] = useState(true)
   const [isBuilderModeEnabled, setBuilderModeEnabled] = useState(false)
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set())
   const [draggedNotePath, setDraggedNotePath] = useState<string | null>(null)
   const [dropFolderPath, setDropFolderPath] = useState<string | null>(null)
   const [justReleasedDrag, setJustReleasedDrag] = useState(false)
   const [workspacePage, setWorkspacePage] = useState<'notes' | 'review' | 'dashboard' | 'reports' | 'tags' | 'bases' | 'graph' | 'shortcuts' | 'settings' | 'trash'>('notes')
+  // O explorador de arquivos colapsa fora da pagina de notas para dar espaco
+  // ao conteudo da pagina; ao voltar para notas, expande de volta. Sem botao
+  // manual — o estado e derivado da pagina atual.
+  const isExplorerExpanded = workspacePage === 'notes'
 
-  // Fora da pagina de notas, o explorador de arquivos colapsa para dar espaco
-  // ao conteudo da pagina; ao voltar para notas, expande de volta.
+  // Recuperacao do cursor na troca de pagina: a Tabela tem colunas
+  // fixas/sticky e o grafo monta um canvas WebGL — mudancas de composicao
+  // que disparam o cursor branco/invisivel do WebView2/Windows.
   useEffect(() => {
-    setExplorerExpanded(workspacePage === 'notes')
+    nudgeCursor()
   }, [workspacePage])
+
+  // Entrar na superficie do editor (explorador -> editor) troca o cursor para
+  // o I-beam — outro gatilho conhecido do cursor branco. Reemite o cursor ao
+  // entrar, via delegacao (a superficie e recriada quando um vault abre).
+  useEffect(() => {
+    let insideSurface = false
+    const onMouseOver = (event: globalThis.MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('.workspace-shell .editor-surface') && !insideSurface) {
+        insideSurface = true
+        nudgeCursor(30)
+      }
+    }
+    const onMouseOut = (event: globalThis.MouseEvent) => {
+      const target = event.target
+      const related = event.relatedTarget
+      if (!(target instanceof Element)) return
+      if (
+        target.closest('.workspace-shell .editor-surface') &&
+        !(related instanceof Element && related.closest('.workspace-shell .editor-surface'))
+      ) {
+        insideSurface = false
+      }
+    }
+    document.addEventListener('mouseover', onMouseOver, { passive: true })
+    document.addEventListener('mouseout', onMouseOut, { passive: true })
+    return () => {
+      document.removeEventListener('mouseover', onMouseOver)
+      document.removeEventListener('mouseout', onMouseOut)
+    }
+  }, [])
   const [activeReviewItem, setActiveReviewItem] = useState<DueReviewItem | null>(null)
   const [reviewMenuOpen, setReviewMenuOpen] = useState(false)
+  // Quando o relatorio de prontidao esta aberto, ele substitui TODO o conteudo
+  // do popover (cabecalho e politica inclusos); o botao de voltar o fecha.
+  const [reviewReportOpen, setReviewReportOpen] = useState(false)
   // Auditoria estrutural deterministica (sem IA): achados + sugestoes aplicaveis
   // uma a uma no rascunho do editor.
   const [structuralAuditOpen, setStructuralAuditOpen] = useState(false)
@@ -526,19 +593,19 @@ function App() {
   // header do grafo (e na pagina de Configuracoes).
   const [graph2dRepulsionStrength, setGraph2dRepulsionStrength] = useState(() => {
     const value = Number(localStorage.getItem('mirrormind.graph2d.repulsion-strength'))
-    return Number.isFinite(value) && value >= 0 ? value : 1600
+    return Number.isFinite(value) && value >= 0 ? value : 2000
   })
   const [graph2dLinkStiffness, setGraph2dLinkStiffness] = useState(() => {
     const value = Number(localStorage.getItem('mirrormind.graph2d.link-stiffness'))
-    return Number.isFinite(value) && value > 0 ? value : 2.2
+    return Number.isFinite(value) && value > 0 ? value : 4.0
   })
   const [graph2dVelocityDecay, setGraph2dVelocityDecay] = useState(() => {
     const value = Number(localStorage.getItem('mirrormind.graph2d.velocity-decay'))
-    return Number.isFinite(value) && value >= 0 ? value : 1.0
+    return Number.isFinite(value) && value >= 0 ? value : 0.4
   })
   const [graph2dLinkDistance, setGraph2dLinkDistance] = useState(() => {
     const value = Number(localStorage.getItem('mirrormind.graph2d.link-distance'))
-    return Number.isFinite(value) && value > 0 ? value : 10
+    return Number.isFinite(value) && value > 0 ? value : 30
   })
   const [graph2dCenterForce, setGraph2dCenterForce] = useState(() => {
     const value = Number(localStorage.getItem('mirrormind.graph2d.center-force'))
@@ -637,9 +704,41 @@ function App() {
       return DEFAULT_WORKSPACE_SHORTCUTS
     }
   })
+  // Autosave LIGADO por padrao: ausente no localStorage -> habilitado.
+  // Quem desligou explicitamente ("false") continua respeitado.
   const [isAutoSaveEnabled, setAutoSaveEnabled] = useState(
-    () => localStorage.getItem('mirrormind.auto-save') === 'true',
+    () => localStorage.getItem('mirrormind.auto-save') !== 'false',
   )
+  // Sessao ativa do menu lateral da pagina de Configuracoes (destacada na
+  // navegacao e usada para rolar ate a secao ao clicar).
+  const [activeSettingsSection, setActiveSettingsSection] = useState<(typeof SETTINGS_SECTIONS)[number]['id']>('aparencia')
+  const settingsScrollRef = useRef<HTMLElement>(null)
+
+  /** Destaque no menu lateral conforme a secao visivel no painel rolavel. */
+  useEffect(() => {
+    const panel = settingsScrollRef.current
+    if (!panel) return
+    const updateActiveSection = () => {
+      const panelTop = panel.getBoundingClientRect().top
+      let current: (typeof SETTINGS_SECTIONS)[number]['id'] = SETTINGS_SECTIONS[0].id
+      for (const section of SETTINGS_SECTIONS) {
+        const element = document.getElementById(`settings-${section.id}`)
+        if (element && element.getBoundingClientRect().top - panelTop <= 140) {
+          current = section.id
+        }
+      }
+      setActiveSettingsSection(current)
+    }
+    updateActiveSection()
+    panel.addEventListener('scroll', updateActiveSection, { passive: true })
+    return () => panel.removeEventListener('scroll', updateActiveSection)
+  }, [])
+
+  /** Rola o painel de Configuracoes ate a secao escolhida no menu lateral. */
+  function scrollToSettingsSection(sectionId: (typeof SETTINGS_SECTIONS)[number]['id']) {
+    setActiveSettingsSection(sectionId)
+    document.getElementById(`settings-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   const [noteHoverColor, setNoteHoverColor] = useState(
     () => localStorage.getItem('mirrormind.note-hover-color') ?? '#171716',
   )
@@ -1190,12 +1289,12 @@ function App() {
     const height = surface.clientHeight
     if (width <= 0 || height <= 0) return
     // Mesma formula de graphNodePositions (override do usuario ou circulo).
-    const circleRadius = graphDocuments.length < 3 ? 28 : 34
+    const circleRadius = graphDocuments.length < 3 ? 56 : 68
     const positions = graphDocuments.map((document, index) => {
       const override = graphNodeOverrides[document.relativePath]
       if (override) return override
       const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
-      return { x: 50 + Math.cos(angle) * circleRadius, y: 50 + Math.sin(angle) * circleRadius }
+      return { x: GRAPH_2D_WORLD_CENTER + Math.cos(angle) * circleRadius, y: GRAPH_2D_WORLD_CENTER + Math.sin(angle) * circleRadius }
     })
     if (positions.length === 0) return
     let minX = Infinity
@@ -1212,14 +1311,14 @@ function App() {
     const spanY = Math.max(maxY - minY, 10)
     const scale = Math.max(
       0.35,
-      Math.min(1.15, Math.min((width - 170) / ((spanX / 100) * width), (height - 130) / ((spanY / 100) * height))),
+      Math.min(1.15, Math.min((width - 170) / ((spanX / GRAPH_2D_WORLD_SIZE) * width), (height - 130) / ((spanY / GRAPH_2D_WORLD_SIZE) * height))),
     )
     const centerX = (minX + maxX) / 2
     const centerY = (minY + maxY) / 2
     setGraphViewport({
       scale,
-      x: width / 2 - (centerX / 100) * width * scale,
-      y: height / 2 - (centerY / 100) * height * scale,
+      x: width / 2 - (centerX / GRAPH_2D_WORLD_SIZE) * width * scale,
+      y: height / 2 - (centerY / GRAPH_2D_WORLD_SIZE) * height * scale,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspacePage, isGraphLoading])
@@ -1235,13 +1334,13 @@ function App() {
     // componente 3D ja localizam a nota; o pan/zoom do viewport e do 2D.
     if (!graphSurfaceRef.current) return
     const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
-    const position = graphNodeOverrides[document.relativePath] ?? { x: 50 + Math.cos(angle) * (graphDocuments.length < 3 ? 28 : 34), y: 50 + Math.sin(angle) * (graphDocuments.length < 3 ? 28 : 34) }
+    const position = graphNodeOverrides[document.relativePath] ?? { x: GRAPH_2D_WORLD_CENTER + Math.cos(angle) * (graphDocuments.length < 3 ? 56 : 68), y: GRAPH_2D_WORLD_CENTER + Math.sin(angle) * (graphDocuments.length < 3 ? 56 : 68) }
     const bounds = graphSurfaceRef.current.getBoundingClientRect()
     const scale = 1.2
     setGraphViewport({
       scale,
-      x: (bounds.width / 2) - ((position.x / 100) * bounds.width * scale),
-      y: (bounds.height / 2) - ((position.y / 100) * bounds.height * scale),
+      x: (bounds.width / 2) - ((position.x / GRAPH_2D_WORLD_SIZE) * bounds.width * scale),
+      y: (bounds.height / 2) - ((position.y / GRAPH_2D_WORLD_SIZE) * bounds.height * scale),
     })
   }, [graphDocuments, graphNodeOverrides, graphQuery])
 
@@ -2115,10 +2214,10 @@ function App() {
     setGraph3dMinEdgeLength(2.5)
     setGraph3dDegreeGrowth(0.13)
     // Tambem restaura as forcas do grafo 2D (mesmo popover/header).
-    setGraph2dRepulsionStrength(1600)
-    setGraph2dLinkStiffness(2.2)
-    setGraph2dVelocityDecay(1.0)
-    setGraph2dLinkDistance(10)
+    setGraph2dRepulsionStrength(2000)
+    setGraph2dLinkStiffness(4.0)
+    setGraph2dVelocityDecay(0.4)
+    setGraph2dLinkDistance(30)
     setGraph2dCenterForce(100)
   }
 
@@ -2156,6 +2255,20 @@ function App() {
     edges: NoteGraphLayoutLink[]
     alpha: number
     delta: number
+    /** Molas cheias nos dois extremos (sem ponderar pelo grau) — usado no
+     * ARRASTO/ASSENTAMENTO para o cluster seguir o no arrastado com a
+     * fluidez do Obsidian (a ponderacao por grau deixa o hub com 1/grau da
+     * forca e os conectados quase nao se movem). Padrao: ponderado (ambiente). */
+    springBiasByDegree?: boolean
+    /** Centralizacao de hubs desligada no ARRASTO/ASSENTAMENTO — ela puxa o
+     * hub de volta ao centro contra o controle do usuario. Padrao: ligada (ambiente). */
+    hubCentering?: boolean
+    /** No segurado pelo cursor: as arestas incidentes a ele ficam mais
+     * rigidas (dragSpringBoost) para o cluster CONECTADO acompanhar o
+     * arrasto — sem isso as molas internas equilibram a puxada e os
+     * vizinhos quase nao se movem. */
+    dragAnchor?: string
+    dragSpringBoost?: number
   }) {
     const settings = graphPhysicsSettingsRef.current
     accumulateObsidianForces2D({
@@ -2170,6 +2283,10 @@ function App() {
       groupCenters: graphGroupCentersRef.current ?? undefined,
       alpha: params.alpha,
       delta: params.delta,
+      springBiasByDegree: params.springBiasByDegree,
+      hubCentering: params.hubCentering,
+      dragAnchor: params.dragAnchor,
+      dragSpringBoost: params.dragSpringBoost,
     })
   }
 
@@ -2189,6 +2306,10 @@ function App() {
     const last = graphPhysicsLastTimeRef.current ?? now
     const delta = Math.min(0.05, Math.max(0.001, (now - last) / 1000))
     graphPhysicsLastTimeRef.current = now
+    // O ARRASTO usa o decay do usuario (baixo = fluido); o ASSENTAMENTO
+    // (pos-arrasto e ambiente) usa um piso mais alto para a oscilacao
+    // amortecer e o layout convergir no circulo ao redor do hub.
+    const settleDecay = Math.max(graphPhysicsSettingsRef.current.velocityDecay, OBSIDIAN_PHYSICS_2D.settleVelocityDecayMin)
     const { positions, edges, drag, coast } = physics
     let sleepDrag = false
     if (drag) {
@@ -2208,6 +2329,14 @@ function App() {
         edges,
         alpha: 1,
         delta,
+        // O cluster segue o no arrastado com molas CHEIAS, sem o hub ser
+        // puxado de volta ao centro, e com as arestas do no segurado mais
+        // rigidas (boost) — as molas internas do cluster nao equilibram a
+        // puxada e os conectados acompanham o arrasto (fluidez do Obsidian).
+        springBiasByDegree: false,
+        hubCentering: false,
+        dragAnchor: drag.anchor,
+        dragSpringBoost: OBSIDIAN_PHYSICS_2D.dragSpringBoost,
       })
       const dragRemaining = integrateGraph2dStep(drag.paths, positions, drag.velocities, delta, graphPhysicsSettingsRef.current.velocityDecay)
       // Se o cursor parou e o cluster ja assentou, "dorme" o loop ate o
@@ -2217,9 +2346,9 @@ function App() {
       drag.lastTarget.y = drag.draggedTarget.y
       if (!targetMoved && dragRemaining < 0.05) sleepDrag = true
     } else if (coast) {
-      // Assentamento pos-arrasto: o hub (no com mais conexoes) fica FIXO no
-      // ponto da soltura e o restante do grafo visivel assenta com as mesmas
-      // forcas, com o alpha decaindo ate parar (como o Obsidian apos soltar).
+      // Assentamento pos-arrasto: o no arrastado fica FIXO no ponto da
+      // soltura e o restante do grafo visivel assenta com as mesmas forcas,
+      // com o alpha decaindo ate parar (como o Obsidian apos soltar).
       const hub = positions.get(coast.hub)
       if (hub) {
         applyGraph2dForces({
@@ -2230,13 +2359,17 @@ function App() {
           edges,
           alpha: coast.alpha,
           delta,
+          // Mesmo contrato do arrasto: molas cheias, sem centralizacao de
+          // hubs puxando o cluster de volta ao centro contra a soltura.
+          springBiasByDegree: false,
+          hubCentering: false,
         })
-        const coastRemaining = integrateGraph2dStep(coast.paths, positions, coast.velocities, delta, graphPhysicsSettingsRef.current.velocityDecay)
+        const coastRemaining = integrateGraph2dStep(coast.paths, positions, coast.velocities, delta, settleDecay)
         coast.alpha *= OBSIDIAN_PHYSICS_2D.alphaDecay
-        if (coastRemaining < 0.05 || coast.alpha < OBSIDIAN_PHYSICS_2D.alphaMin || now - coast.startedAt > 3000) {
-          // Assentou: congela o layout reorganizado como a nova base persistida.
-          physics.coast = null
-          setGraphNodeOverrides((previous) => ({ ...previous, ...Object.fromEntries(positions) }))
+        if (coastRemaining < 0.05 || coast.alpha < OBSIDIAN_PHYSICS_2D.alphaMin || now - coast.startedAt > 4000) {
+      // Assentou: congela o layout reorganizado como a nova base persistida.
+      physics.coast = null
+      setGraphNodeOverrides((previous) => ({ ...previous, ...Object.fromEntries(positions) }))
         }
       }
     } else if (physics.ambient) {
@@ -2252,9 +2385,9 @@ function App() {
         alpha: ambient.alpha,
         delta,
       })
-      const ambientRemaining = integrateGraph2dStep(ambient.paths, positions, ambient.velocities, delta, graphPhysicsSettingsRef.current.velocityDecay)
+      const ambientRemaining = integrateGraph2dStep(ambient.paths, positions, ambient.velocities, delta, settleDecay)
       ambient.alpha *= OBSIDIAN_PHYSICS_2D.alphaDecay
-      if (ambientRemaining < 0.05 || ambient.alpha < OBSIDIAN_PHYSICS_2D.alphaMin || now - ambient.startedAt > 4000) {
+      if (ambientRemaining < 0.05 || ambient.alpha < OBSIDIAN_PHYSICS_2D.alphaMin || now - ambient.startedAt > 4500) {
         // Assentou: vira a nova base persistida (layout espalhado).
         physics.ambient = null
         setGraphNodeOverrides((previous) => ({ ...previous, ...Object.fromEntries(positions) }))
@@ -2290,12 +2423,12 @@ function App() {
         // escritas de transform so mudam quando a posicao muda.
         if (element.style.left !== '0px') element.style.left = '0px'
         if (element.style.top !== '0px') element.style.top = '0px'
-        const transform = `translate(${(position.x / 100) * resolvedSurfaceSize.width}px, ${(position.y / 100) * resolvedSurfaceSize.height}px)`
+        const transform = `translate(${(position.x / GRAPH_2D_WORLD_SIZE) * resolvedSurfaceSize.width}px, ${(position.y / GRAPH_2D_WORLD_SIZE) * resolvedSurfaceSize.height}px)`
         if (element.style.transform !== transform) element.style.transform = transform
       } else {
         // Sem tamanho capturado (fallback): posiciona por left/top %.
-        const left = `${position.x}%`
-        const top = `${position.y}%`
+        const left = `${(position.x / GRAPH_2D_WORLD_SIZE) * 100}%`
+        const top = `${(position.y / GRAPH_2D_WORLD_SIZE) * 100}%`
         if (element.style.left !== left) element.style.left = left
         if (element.style.top !== top) element.style.top = top
       }
@@ -2307,13 +2440,14 @@ function App() {
       const sourcePosition = positions.get(source)
       const targetPosition = positions.get(target)
       if (element && sourcePosition && targetPosition) {
-        const value = `${sourcePosition.x},${sourcePosition.y},${targetPosition.x},${targetPosition.y}`
+        // UM atributo transform por frame (rotacao + escala da linha base),
+        // em vez de 4 atributos de geometria x1/y1/x2/y2 — transform e
+        // composto por GPU e nao invalida o layout do SVG a cada frame
+        // (causa do drop de FPS ao arrastar com muitas arestas).
+        const value = graph2dLineTransform(sourcePosition, targetPosition)
         if (graph2dLinkLastValuesRef.current.get(element) !== value) {
           graph2dLinkLastValuesRef.current.set(element, value)
-          element.setAttribute('x1', String(sourcePosition.x))
-          element.setAttribute('y1', String(sourcePosition.y))
-          element.setAttribute('x2', String(targetPosition.x))
-          element.setAttribute('y2', String(targetPosition.y))
+          element.setAttribute('transform', value)
         }
       }
     }
@@ -2321,9 +2455,30 @@ function App() {
 
   // Durante uma simulacao ativa, qualquer render do React (hover, drawer,
   // fim da simulacao...) re-sincroniza o DOM com as posicoes reais da fisica.
+  // O caso do ambiente no worker tambem e coberto aqui: o JSX escreve
+  // left/top % a cada render, mas o worker posiciona por left 0 + transform
+  // px — sem re-sincronizar apos o render, os nos ficam duplamente
+  // posicionados (% somado ao px) e, ao assentar, o transform px residual
+  // ficaria somado ao left % para SEMPRE, desprendendo os nos das arestas
+  // (bug classico do grafo 2D: nos espalhados apos a simulacao ambiente).
   useLayoutEffect(() => {
     const physics = graphPhysicsRef.current
-    if (physics) writeGraph2dPositionsToDom(physics.positions)
+    if (physics) {
+      writeGraph2dPositionsToDom(physics.positions)
+      return
+    }
+    if (graphWorkerAmbientIdRef.current !== 0 && graphWorkerPositionsRef.current) {
+      writeGraph2dPositionsToDom(graphWorkerPositionsRef.current, graphSurfaceSizeRef.current)
+      return
+    }
+    // Sem simulacao ativa, o React e a fonte das posicoes (left/top %): limpa
+    // o transform px que o worker deixou no DOM para os nos nao ficarem
+    // deslocados das arestas (arestas sao desenhadas em coordenadas %).
+    for (const element of graph2dNodeElementsRef.current.values()) {
+      if (element && element.style.transform && element.style.transform !== 'none') {
+        element.style.transform = ''
+      }
+    }
   })
 
   /** Inicia (ou reinicia) o loop da fisica 2D na proxima moldura. */
@@ -2336,8 +2491,13 @@ function App() {
 
   /** Nos visiveis da superficie 2D (mesmo filtro do render: query/pasta/tag/
    * modo/orfaos) + arestas entre eles. Usado por ambient e arrasto para
-   * simular apenas o que esta na tela. */
-  function getGraph2dSimulationState() {
+   * simular apenas o que esta na tela. Devolve tambem o conjunto SIMULADO:
+   * limitado aos nos efetivamente RENDERIZADOS (culling) quando o grafo
+   * excede o limite — a fisica O(n²) so move o que esta na tela (+ o no
+   * prioritario e seus vizinhos como contexto), entao o arrasto nao derruba
+   * o FPS em vaults grandes (o numero de nos DESENHADOS e pequeno, mas a
+   * simulacao antiga movia TODOS os visiveis). */
+  function getGraph2dSimulationState(extraPriorityPath?: string | null) {
     const links = graphWikilinkIndex
       ? buildNoteGraphLinksFromIndex(graphWikilinkIndex, graphDocuments)
       : buildNoteGraphLinks(graphDocuments, notes.map((note) => note.relativePath))
@@ -2363,7 +2523,38 @@ function App() {
     for (const link of links) {
       if (visiblePaths.has(link.source) && visiblePaths.has(link.target)) edges.push(link)
     }
-    return { visibleGraphDocuments, visiblePaths, edges, degreeByPath }
+    // Prioridade do culling da SIMULACAO: o no prioritario (o arrastado, no
+    // arrasto) e seus vizinhos diretos sempre participam, como no render.
+    const priorityPath = extraPriorityPath ?? focusedGraphPath
+    const simulationPriority = priorityPath
+      ? new Set([
+          priorityPath,
+          ...links.filter((link) => link.source === priorityPath).map((link) => link.target),
+          ...links.filter((link) => link.target === priorityPath).map((link) => link.source),
+        ])
+      : undefined
+    const positionsForCulling = graphDocuments.reduce<Record<string, GraphPosition>>((acc, document, index) => {
+      const live = graphPhysicsRef.current?.positions.get(document.relativePath)
+        ?? graphWorkerPositionsRef.current?.get(document.relativePath)
+      if (live) {
+        acc[document.relativePath] = live
+      } else {
+        acc[document.relativePath] = graphNodeOverrides[document.relativePath]
+          ?? { x: GRAPH_2D_WORLD_CENTER + Math.cos((Math.PI * 2 * index) / Math.max(graphDocuments.length, 1)) * 68, y: GRAPH_2D_WORLD_CENTER + Math.sin((Math.PI * 2 * index) / Math.max(graphDocuments.length, 1)) * 68 }
+      }
+      return acc
+    }, {})
+    const simulatedDocuments = selectRenderedGraphDocuments({
+      documents: visibleGraphDocuments,
+      positions: positionsForCulling,
+      viewport: graphViewport,
+      surfaceSize: graphSurfaceSize,
+      limit: graphRenderLimit,
+      priorityPaths: simulationPriority,
+    })
+    const simulatedPaths = new Set(simulatedDocuments.map((document) => document.relativePath))
+    const simulatedEdges = edges.filter((link) => simulatedPaths.has(link.source) && simulatedPaths.has(link.target))
+    return { visibleGraphDocuments, visiblePaths, edges, degreeByPath, simulatedPaths, simulatedEdges }
   }
 
   /** Monta o mapa de posicoes e velocidades da simulacao a partir do estado
@@ -2390,13 +2581,18 @@ function App() {
           positions.set(document.relativePath, override)
         } else {
           const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
-          const radius = jitter ? 1 + Math.random() * 2 : graphDocuments.length < 3 ? 28 : 34
-          positions.set(document.relativePath, { x: 50 + Math.cos(angle) * radius, y: 50 + Math.sin(angle) * radius })
+          // Big bang "suave": os nos partem de um ANEL frouxo ao redor do
+          // centro (16-26) em vez de todos colocalizados no centro — sem a
+          // explosao violenta (repulsao 1/d² a d~0) que lancava os nos longe
+          // demais para oscilar sem assentar. O anel inicial ja esta perto do
+          // descanso das molas (30), entao o layout relaxa no circulo.
+          const radius = jitter ? 16 + Math.random() * 10 : graphDocuments.length < 3 ? 56 : 68
+          positions.set(document.relativePath, { x: GRAPH_2D_WORLD_CENTER + Math.cos(angle) * radius, y: GRAPH_2D_WORLD_CENTER + Math.sin(angle) * radius })
         }
       } else {
         const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
-        const radius = jitter ? 1 + Math.random() * 2 : graphDocuments.length < 3 ? 28 : 34
-        positions.set(document.relativePath, { x: 50 + Math.cos(angle) * radius, y: 50 + Math.sin(angle) * radius })
+        const radius = jitter ? 16 + Math.random() * 10 : graphDocuments.length < 3 ? 56 : 68
+        positions.set(document.relativePath, { x: GRAPH_2D_WORLD_CENTER + Math.cos(angle) * radius, y: GRAPH_2D_WORLD_CENTER + Math.sin(angle) * radius })
       }
       velocities.set(document.relativePath, { x: 0, y: 0 })
     })
@@ -2484,19 +2680,21 @@ function App() {
    * Worker, a simulacao roda FORA da thread de interface (layout em worker);
    * senao, cai no loop local em rAF. */
   function startGraph2dAmbientSimulation(forceBigBang = false) {
-    const { visibleGraphDocuments, visiblePaths, edges } = getGraph2dSimulationState()
+    const { visibleGraphDocuments, visiblePaths, edges, simulatedPaths, simulatedEdges } = getGraph2dSimulationState()
     if (graphSurfaceRef.current === null || visibleGraphDocuments.length === 0) return
+    // O worker roda FORA da thread: simula o conjunto completo. O fallback da
+    // thread principal usa o conjunto SIMULADO (culling) para nao travar.
     if (startGraph2dWorkerAmbient(visiblePaths, edges, forceBigBang)) return
-    const { positions, velocities } = buildGraph2dPositions(visiblePaths, true, forceBigBang)
+    const { positions, velocities } = buildGraph2dPositions(simulatedPaths, true, forceBigBang)
     const surfaceElement = graphSurfaceRef.current
     graphPhysicsRef.current = {
       positions,
-      edges,
+      edges: simulatedEdges,
       surfaceSize: surfaceElement && surfaceElement.clientWidth > 0 ? { width: surfaceElement.clientWidth, height: surfaceElement.clientHeight } : null,
       drag: null,
       coast: null,
       ambient: {
-        paths: [...visiblePaths],
+        paths: [...simulatedPaths],
         velocities,
         startedAt: performance.now(),
         alpha: 1,
@@ -2571,10 +2769,13 @@ function App() {
     // O arrasto assume o controle: cancela a simulacao ambiente do worker (as
     // posicoes dele viram a fonte viva abaixo, sem "pulos" para o layout antigo).
     stopGraph2dWorkerAmbient()
-    const { visiblePaths, edges } = getGraph2dSimulationState()
-    const { positions, velocities } = buildGraph2dPositions(visiblePaths, false)
+    // Simula apenas o conjunto RENDERIZADO (culling) mais o no arrastado e
+    // seus vizinhos (prioridade): em vaults grandes, a fisica O(n²) nao move
+    // os milhares de nos fora da tela — o arrasto nao derruba o FPS.
+    const { simulatedPaths, simulatedEdges } = getGraph2dSimulationState(relativePath)
+    const { positions, velocities } = buildGraph2dPositions(simulatedPaths, false)
     const startPosition = positions.get(relativePath) ?? { x: 50, y: 50 }
-    const paths = [...visiblePaths].filter((path) => path !== relativePath)
+    const paths = [...simulatedPaths].filter((path) => path !== relativePath)
     // O ancora e FIXO: sem entrada em velocities (contrato de movimento da
     // funcao de forcas), apenas com a posicao atualizada pelo cursor.
     velocities.delete(relativePath)
@@ -2585,7 +2786,7 @@ function App() {
     const surfaceElement = graphSurfaceRef.current
     graphPhysicsRef.current = {
       positions,
-      edges,
+      edges: simulatedEdges,
       surfaceSize: surfaceElement && surfaceElement.clientWidth > 0 ? { width: surfaceElement.clientWidth, height: surfaceElement.clientHeight } : null,
       drag: {
         anchor: relativePath,
@@ -2604,11 +2805,11 @@ function App() {
     kickGraph2dPhysics()
   }
 
-  /** Fim do arrasto 2D (modelo Obsidian): com movimento real, o hub (no com
-   * mais conexoes) e fixado no ponto da soltura e o restante do grafo visivel
-   * assenta com as mesmas forcas (alpha decaindo) ate parar — o layout final e
-   * persistido. Sem movimento (clique), apenas para a simulacao e deixa o
-   * onClick abrir a nota. */
+  /** Fim do arrasto 2D (modelo Obsidian): com movimento real, o no arrastado
+   * e fixado no ponto da soltura e o restante do grafo visivel assenta com as
+   * mesmas forcas (alpha decaindo) ate parar — o layout final e persistido.
+   * Sem movimento (clique), apenas para a simulacao e deixa o onClick abrir a
+   * nota. */
   function finishGraph2dNodeDrag(event: React.PointerEvent<HTMLButtonElement>) {
     graphNodeDragRef.current = null
     event.currentTarget.releasePointerCapture?.(event.pointerId)
@@ -2617,27 +2818,18 @@ function App() {
     const drag = physics.drag
     physics.drag = null
     if (drag.moved) {
-      // O hub (no com mais conexoes) e reposicionado para o ponto da soltura;
-      // os demais nos visiveis fluem ao redor dele ate assentarem.
-      const degreeByPath = physics.edges.reduce<Record<string, number>>((degrees, link) => {
-        degrees[link.source] = (degrees[link.source] ?? 0) + 1
-        degrees[link.target] = (degrees[link.target] ?? 0) + 1
-        return degrees
-      }, {})
-      const cluster = [drag.anchor, ...drag.paths]
-      const hub = cluster.reduce((best, path) => {
-        const degree = degreeByPath[path] ?? 0
-        return degree > (degreeByPath[best] ?? 0) ? path : best
-      }, cluster[0])
+      // O no ARRASTADO fica FIXO no ponto da soltura (onde o usuario o soltou);
+      // os demais nos visiveis fluem ao redor dele ate assentarem. O hub (no
+      // com mais conexoes) nao e reposicionado: cada no permanece onde estava.
       const dropPosition = drag.draggedTarget
-      physics.positions.set(hub, dropPosition)
+      physics.positions.set(drag.anchor, dropPosition)
       const velocities = new Map<string, GraphPosition>()
       for (const path of drag.paths) velocities.set(path, drag.velocities.get(path) ?? { x: 0, y: 0 })
-      // O hub e FIXO no ponto da soltura: sem entrada em velocities.
-      velocities.delete(hub)
+      // O no arrastado e FIXO no ponto da soltura: sem entrada em velocities.
+      velocities.delete(drag.anchor)
       physics.coast = {
-        hub,
-        paths: drag.paths.filter((path) => path !== hub),
+        hub: drag.anchor,
+        paths: drag.paths.filter((path) => path !== drag.anchor),
         velocities,
         startedAt: performance.now(),
         alpha: 0.8,
@@ -3210,27 +3402,54 @@ function App() {
     lastEditorPathRef.current = activePath
   }, [editorMode, activeNote?.relativePath])
 
+  /** Aplica `tag` ao frontmatter de `content` (lista YAML de tags), preservando
+   *  o resto do rascunho. Retorna o conteudo original quando o frontmatter
+   *  nao pode ser editado com seguranca. */
+  function withReviewTag(content: string, tag: string): string {
+    const nextTags = [...new Set([...extractMarkdownTags(content), tag])]
+    const result = setMarkdownFrontmatterPropertySource(content, 'tags', nextTags.map((item) => `- ${item}`).join('\n'))
+    return result.error ? content : result.content
+  }
+
+  /** Aplica uma tag (painel de propriedades) e SALVA a nota imediatamente:
+   *  adicionar uma tag nao pode deixar a nota suja — mudanca so de tag no
+   *  frontmatter nao invalida a avaliacao, e o rascunho pendente faria o
+   *  status de Avaliacao & revisao perder o verde ate um salvar manual. */
   function applyExistingTag(tag: string) {
-    setDraftContent((currentContent) => {
-      const nextTags = [...new Set([...extractMarkdownTags(currentContent), tag])]
-      const result = setMarkdownFrontmatterPropertySource(currentContent, 'tags', nextTags.map((item) => `- ${item}`).join('\n'))
-      return result.error ? currentContent : result.content
-    })
+    const contentToSave = withReviewTag(draftContent, tag)
+    setDraftContent(() => contentToSave)
     setStatus(`Tag aplicada: #${tag}`)
+    void saveActiveNote(true, contentToSave)
+  }
+
+  /** Adocao de perfil de revisao no popover de Avaliacao & revisao: aplica a
+   *  tag ao rascunho E salva a nota imediatamente. Adotar um perfil precisa
+   *  ativar a politica e o agendamento na hora — nao pode ficar dependendo do
+   *  autosave (desligado por padrao) nem de salvar manualmente. */
+  function applyReviewProfileTag(tag: string) {
+    const contentToSave = withReviewTag(draftContent, tag)
+    setDraftContent(() => contentToSave)
+    setStatus(`Tag aplicada: #${tag}`)
+    void saveActiveNote(true, contentToSave)
   }
 
   function removeTag(tag: string) {
-    setDraftContent((currentContent) => {
-      const nextTags = extractMarkdownTags(currentContent).filter((item) => item !== tag)
-      const result = setMarkdownFrontmatterPropertySource(currentContent, 'tags', nextTags.map((item) => `- ${item}`).join('\n'))
-      return result.error ? currentContent : result.content
-    })
+    const currentContent = draftContent
+    const nextTags = extractMarkdownTags(currentContent).filter((item) => item !== tag)
+    const result = setMarkdownFrontmatterPropertySource(currentContent, 'tags', nextTags.map((item) => `- ${item}`).join('\n'))
+    const contentToSave = result.error ? currentContent : result.content
+    setDraftContent(() => contentToSave)
     setStatus(`Tag removida: #${tag}`)
+    void saveActiveNote(true, contentToSave)
   }
 
-  async function saveActiveNote(isAutomatic = false, contentOverride?: string) {
+  /** Salva a nota ativa. Devolve `true` quando o conteudo foi gravado no
+   *  disco (incluindo nota nova); `false` quando nada foi salvo (rascunho em
+   *  voo, conflito externo ou falha) — usado por acoes que precisam do
+   *  arquivo salvo antes de prosseguir (avaliacao e revisao). */
+  async function saveActiveNote(isAutomatic = false, contentOverride?: string): Promise<boolean> {
     if (!vault || !activeNote || saveInFlightRef.current) {
-      return
+      return false
     }
     saveInFlightRef.current = true
     const notePath = activeNote.relativePath
@@ -3241,7 +3460,7 @@ function App() {
       if (!relativePath) {
         setError('Defina um titulo valido antes de salvar a nova nota.')
         saveInFlightRef.current = false
-        return
+        return false
       }
 
       setSaving(true)
@@ -3259,12 +3478,12 @@ function App() {
         setIsNewNoteDraft(false)
         setCreateNoteForm({ title: '' })
         await refreshNotes(vault.path)
+        return true
       } finally {
         saveInFlightRef.current = false
         setSaving(false)
         if (isAutomatic) setAutoSaveState('saved')
       }
-      return
     }
 
     setSaving(true)
@@ -3281,7 +3500,7 @@ function App() {
       if (latestNote.content !== activeNote.content) {
         setExternalNoteConflict({ externalNote: latestNote, localContent: contentToSave })
         setStatus('Alteracao externa detectada antes de salvar. Escolha qual versao manter.')
-        return
+        return false
       }
 
       const notePayload = await invoke<unknown>('save_note', {
@@ -3330,11 +3549,13 @@ function App() {
       void invoke<TagSummary[]>('get_tag_index', { path: vault.path })
         .then(setTagIndex)
         .catch(() => undefined)
+      return true
     } catch (caughtError) {
       const message =
         caughtError instanceof Error ? caughtError.message : 'Nao foi possivel salvar a nota.'
       setError(message)
       setStatus('Falha ao salvar a nota atual.')
+      return false
     } finally {
       saveInFlightRef.current = false
       setSaving(false)
@@ -4459,8 +4680,8 @@ function App() {
         return positions
       }
       const angle = (Math.PI * 2 * index) / Math.max(graphDocuments.length, 1) - Math.PI / 2
-      const radius = graphDocuments.length < 3 ? 28 : 34
-      positions[document.relativePath] = graphNodeOverrides[document.relativePath] ?? { x: 50 + Math.cos(angle) * radius, y: 50 + Math.sin(angle) * radius }
+      const radius = graphDocuments.length < 3 ? 56 : 68
+      positions[document.relativePath] = graphNodeOverrides[document.relativePath] ?? { x: GRAPH_2D_WORLD_CENTER + Math.cos(angle) * radius, y: GRAPH_2D_WORLD_CENTER + Math.sin(angle) * radius }
       return positions
     }, {})
     // Renderizacao seletiva: acima do limite configuravel, desenha apenas os
@@ -4514,8 +4735,8 @@ function App() {
     function buildGraph2dSvg(): string | null {
       const width = 1200
       const height = 800
-      const scaleX = (width - 40) / 100
-      const scaleY = (height - 40) / 100
+      const scaleX = (width - 40) / GRAPH_2D_WORLD_SIZE
+      const scaleY = (height - 40) / GRAPH_2D_WORLD_SIZE
       const toPixels = (position: GraphPosition) => ({ x: 20 + position.x * scaleX, y: 20 + position.y * scaleY })
       const nodes = visibleGraphDocuments.flatMap((document) => {
         const position = graphNodePositions[document.relativePath]
@@ -4631,8 +4852,53 @@ function App() {
         } as CSSProperties}
         data-builder-name="workspace-shell"
       >
+        <TitleBar>
+          {workspacePage === 'notes' ? (
+            <div className="tab-strip" role="tablist" aria-label="Notas abertas" data-builder-name="tab-strip">
+              {openTabs.length > 0 ? (
+                openTabs.map((tabPath) => {
+                  const tabName = tabPath === '__new_note__' ? 'Nova nota' : notes.find((note) => note.relativePath === tabPath)?.name ?? tabPath
+                  return (
+                    <div
+                      key={tabPath}
+                      className={`tab-chip${tabPath === activeNote?.relativePath ? ' is-active' : ''}`}
+                    >
+                      <button
+                        type="button"
+                        className="tab-select"
+                        onClick={() => void openNote(tabPath)}
+                        disabled={loading || saving}
+                        role="tab"
+                        aria-selected={tabPath === activeNote?.relativePath}
+                        aria-controls="note-editor"
+                      >
+                        {tabName}
+                      </button>
+                      <button
+                        type="button"
+                        className="tab-close"
+                        onClick={() => closeTab(tabPath)}
+                        disabled={loading || saving}
+                        aria-label={`Fechar ${tabName}`}
+                      >
+                        <X size={14} strokeWidth={1.7} aria-hidden="true" />
+                        ×
+                      </button>
+                    </div>
+                  )
+                })
+              ) : (
+                <p className="empty-tabs">As notas abertas aparecerao aqui em abas.</p>
+              )}
+              <button type="button" className="new-tab-button" onClick={startNewNote} disabled={loading || saving} title="Nova nota na raiz do vault" aria-label="Nova nota na raiz do vault">
+                <Plus size={16} strokeWidth={1.7} aria-hidden="true" />
+              </button>
+            </div>
+          ) : null}
+        </TitleBar>
         <a className="skip-link" href="#workspace-content">Pular para o conteudo da nota</a>
         <aside className="workspace-rail" aria-label="Ferramentas do workspace" data-builder-name="workspace-rail">
+          <TitleBarBrand />
           <button
             type="button"
             className="rail-button"
@@ -4698,11 +4964,11 @@ function App() {
             type="button"
             className={`rail-button${workspacePage === 'bases' ? ' is-active' : ''}`}
             onClick={() => setWorkspacePage('bases')}
-            aria-label="Abrir bases de notas"
-            title="Bases"
+            aria-label="Abrir tabela de notas"
+            title="Tabela"
           >
             <Table2 size={17} strokeWidth={1.5} aria-hidden="true" />
-            <span className="rail-label">Bases</span>
+            <span className="rail-label">Tabela</span>
           </button>
           <button
             type="button"
@@ -4809,9 +5075,6 @@ function App() {
               <div className="sidebar-section-header" data-builder-name="vault-explorer-header">
                 <div className="explorer-title-row">
                   <p className="card-kicker">Notas do vault</p>
-                  <button type="button" className="secondary-button explorer-collapse-button" onClick={() => setExplorerExpanded((isExpanded) => !isExpanded)} title={isExplorerExpanded ? 'Recolher explorador' : 'Expandir explorador'} aria-label={isExplorerExpanded ? 'Recolher explorador' : 'Expandir explorador'} aria-expanded={isExplorerExpanded}>
-                    {isExplorerExpanded ? <BsLayoutSidebarInsetReverse size={15} aria-hidden="true" /> : <BsLayoutSidebarInset size={15} aria-hidden="true" />}
-                  </button>
                 </div>
                 <div className="explorer-navigation-row">
                   <h2>Navegacao</h2>
@@ -4899,47 +5162,6 @@ function App() {
           <section id="workspace-content" className="editor-surface" role="region" aria-label="Conteudo do workspace" tabIndex={-1} data-builder-name="workspace-content-panel">
             {workspacePage === 'notes' ? (
               <>
-            <div className="tab-strip" role="tablist" aria-label="Notas abertas" data-builder-name="tab-strip">
-              {openTabs.length > 0 ? (
-                openTabs.map((tabPath) => {
-                  const tabName = tabPath === '__new_note__' ? 'Nova nota' : notes.find((note) => note.relativePath === tabPath)?.name ?? tabPath
-                  return (
-                    <div
-                      key={tabPath}
-                      className={`tab-chip${tabPath === activeNote?.relativePath ? ' is-active' : ''}`}
-                    >
-                      <button
-                        type="button"
-                        className="tab-select"
-                        onClick={() => void openNote(tabPath)}
-                        disabled={loading || saving}
-                        role="tab"
-                        aria-selected={tabPath === activeNote?.relativePath}
-                        aria-controls="note-editor"
-                      >
-                        {tabName}
-                      </button>
-                      <button
-                        type="button"
-                        className="tab-close"
-                        onClick={() => closeTab(tabPath)}
-                        disabled={loading || saving}
-                        aria-label={`Fechar ${tabName}`}
-                      >
-                        <X size={14} strokeWidth={1.7} aria-hidden="true" />
-                        ×
-                      </button>
-                    </div>
-                  )
-                })
-              ) : (
-                <p className="empty-tabs">As notas abertas aparecerao aqui em abas.</p>
-              )}
-              <button type="button" className="new-tab-button" onClick={startNewNote} disabled={loading || saving} title="Nova nota na raiz do vault" aria-label="Nova nota na raiz do vault">
-                <Plus size={16} strokeWidth={1.7} aria-hidden="true" />
-              </button>
-            </div>
-
             {activeNote ? (
               <>
                 <div className="editor-header" data-builder-name="editor-header">
@@ -5030,8 +5252,10 @@ function App() {
                         <span>Indexadora</span>
                       </button>
                     ) : null}
-                    {!isNewNoteDraft ? (
-                      <Popover open={reviewMenuOpen} onOpenChange={setReviewMenuOpen}>
+                    {!isNewNoteDraft ? (                        <Popover open={reviewMenuOpen} onOpenChange={(open) => {
+                          setReviewMenuOpen(open)
+                          if (!open) setReviewReportOpen(false)
+                        }}>
                         <PopoverTrigger asChild>
                           <button
                             type="button"
@@ -5045,10 +5269,12 @@ function App() {
                           </button>
                         </PopoverTrigger>
                         <PopoverContent align="end" sideOffset={6} className="note-review-menu">
-                          <header className="note-review-menu-header">
-                            <strong>Avaliação &amp; revisão</strong>
-                            <small>Prontidão, agenda e política desta nota</small>
-                          </header>
+                          {reviewReportOpen ? null : (
+                            <header className="note-review-menu-header">
+                              <strong>Avaliação &amp; revisão</strong>
+                              <small>Prontidão, agenda e política desta nota</small>
+                            </header>
+                          )}
                           <NoteReadinessControl
                             vaultPath={vault.path}
                             relativePath={activeNote.relativePath}
@@ -5056,16 +5282,28 @@ function App() {
                             isDirty={isDirty}
                             disabled={loading || saving}
                             noteTags={activeTags}
-                            onApplyTag={applyExistingTag}
+                            onApplyTag={applyReviewProfileTag}
                             onStatusChange={setNoteReadiness}
                             onStartReview={(info) => void handleStartReviewNow(info)}
-                          />                            <NoteReviewPolicyControl
+                            reportOpen={reviewReportOpen}
+                            onReportOpenChange={setReviewReportOpen}
+                            onSaveFirst={async () => {
+                              try {
+                                return await saveActiveNote(false)
+                              } catch {
+                                return false
+                              }
+                            }}
+                          />
+                          {reviewReportOpen ? null : (
+                            <NoteReviewPolicyControl
                               vaultPath={vault.path}
                               relativePath={activeNote.relativePath}
                               sourceRevision={activeNote.content}
                               isDirty={isDirty}
                               disabled={loading || saving}
                             />
+                          )}
                           </PopoverContent>
                         </Popover>
                       ) : null}
@@ -5206,7 +5444,14 @@ function App() {
                             )}
                             {structuralAudit !== null && !structuralAuditLoading ? (
                               <footer className="structural-audit-footer">
-                                <button type="button" className="secondary-button" onClick={() => void runStructuralAudit()}>Re-executar auditoria</button>
+                                <button
+                                  type="button"
+                                  className="structural-audit-rerun"
+                                  onClick={() => void runStructuralAudit()}
+                                >
+                                  <RotateCcw size={14} strokeWidth={1.75} aria-hidden="true" />
+                                  <span>Re-executar auditoria</span>
+                                </button>
                               </footer>
                             ) : null}
                           </PopoverContent>
@@ -5734,23 +5979,23 @@ function App() {
                             <p className="graph-settings-group-title"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Forcas (2D)</p>
                             <label className="graph-settings-row">
                               <span>Repulsao<small>Forca entre os nos (1/distancia²)</small></span>
-                              <input type="number" min={100} max={6000} step={50} value={graph2dRepulsionStrength} onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, 100, 6000))} aria-label="Forca de repulsao dos nos no grafo 2D" />
+                              <input type="number" step={50} value={graph2dRepulsionStrength} onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, -Infinity, Infinity))} aria-label="Forca de repulsao dos nos no grafo 2D" />
                             </label>
                             <label className="graph-settings-row">
                               <span>Rigidez da mola<small>Forca das arestas por unidade de distancia</small></span>
-                              <input type="number" min={0.2} max={6} step={0.1} value={graph2dLinkStiffness} onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, 0.2, 6))} aria-label="Rigidez da mola das arestas no grafo 2D" />
+                              <input type="number" step={0.1} value={graph2dLinkStiffness} onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, -Infinity, Infinity))} aria-label="Rigidez da mola das arestas no grafo 2D" />
                             </label>
                             <label className="graph-settings-row">
                               <span>Amortecimento<small>Decaimento de velocidade por segundo</small></span>
-                              <input type="number" min={0} max={4} step={0.05} value={graph2dVelocityDecay} onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, 0, 4))} aria-label="Amortecimento da velocidade no grafo 2D" />
+                              <input type="number" step={0.05} value={graph2dVelocityDecay} onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, -Infinity, Infinity))} aria-label="Amortecimento da velocidade no grafo 2D" />
                             </label>
                             <label className="graph-settings-row">
                               <span>Distancia do link<small>Descanso das molas entre conectados</small></span>
-                              <input type="number" min={2} max={30} step={0.5} value={graph2dLinkDistance} onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, 2, 30))} aria-label="Distancia do link no grafo 2D" />
+                              <input type="number" step={0.5} value={graph2dLinkDistance} onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, -Infinity, Infinity))} aria-label="Distancia do link no grafo 2D" />
                             </label>
                             <label className="graph-settings-row">
                               <span>Forca central<small>Atracao ao anel no meio do grafo</small></span>
-                              <input type="number" min={0} max={300} step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, 0, 300))} aria-label="Forca central do grafo 2D" />
+                              <input type="number" step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))} aria-label="Forca central do grafo 2D" />
                             </label>
                           </section>
                           <section className="graph-settings-group" aria-label="Exibicao do grafo">
@@ -5835,7 +6080,7 @@ function App() {
                             ) : null}
                             <label className="graph-settings-row">
                               <span>Limite de nos renderizados<small>Acima dele, so o viewport e o contexto aparecem</small></span>
-                              <input type="number" min={50} max={5000} step={50} value={graphRenderLimit} onChange={(event) => setGraphRenderLimit(updateNumberSetting(event.target.value, graphRenderLimit, 50, 5000))} aria-label="Limite de nos renderizados no grafo 2D" />
+                              <input type="number" min={50} max={10000} step={50} value={graphRenderLimit} onChange={(event) => setGraphRenderLimit(updateNumberSetting(event.target.value, graphRenderLimit, 50, 10000))} aria-label="Limite de nos renderizados no grafo 2D" />
                             </label>
                           </section>
                           <p className="graph-settings-note"><Info size={12} strokeWidth={1.75} aria-hidden="true" /> Sincronizado com a pagina de Configuracoes.</p>
@@ -5890,7 +6135,7 @@ function App() {
                       onPointerLeave={() => setGraphHoverPath(null)}
                     >
                       <div className="note-graph-world" style={{ transform: `translate(${graphViewport.x}px, ${graphViewport.y}px) scale(${graphViewport.scale})` }}>
-                        <svg className="note-graph-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                        <svg className="note-graph-links" viewBox={`0 0 ${GRAPH_2D_WORLD_SIZE} ${GRAPH_2D_WORLD_SIZE}`} preserveAspectRatio="none" aria-hidden="true">
                           {graphLinks.map((link) => {
                             if (!graphRenderedPaths.has(link.source) || !graphRenderedPaths.has(link.target)) return null
                             const source = graphNodePositions[link.source]
@@ -5898,7 +6143,11 @@ function App() {
                             const isFocused = focusedGraphPath === link.source || focusedGraphPath === link.target
                             const isHovered = graphHoverPath !== null && (link.source === graphHoverPath || link.target === graphHoverPath)
                             const linkClassName = `${isFocused ? 'is-focused' : ''}${isHovered ? ' is-hovered' : ''}`.trim() || undefined
-                            return <line className={linkClassName} key={`${link.source}-${link.target}`} x1={source.x} y1={source.y} x2={target.x} y2={target.y} ref={(element) => {
+                            // A linha usa geometria base fixa [0,0]-[100,0] e o
+                            // transform (rotacao + escala) liga os nos; o loop
+                            // da fisica so reescreve o transform a cada frame
+                            // (composicao por GPU, sem invalidar layout SVG).
+                            return <line className={linkClassName} key={`${link.source}-${link.target}`} x1="0" y1="0" x2="100" y2="0" transform={graph2dLineTransform(source, target)} ref={(element) => {
                               const linkKey = `${link.source}\u0000${link.target}`
                               if (element) graph2dLinkElementsRef.current.set(linkKey, element)
                               else graph2dLinkElementsRef.current.delete(linkKey)
@@ -5924,7 +6173,7 @@ function App() {
                             key={document.relativePath}
                             type="button"
                             className={`note-graph-node${isCurrent ? ' is-current' : ''}${focusedGraphPath === document.relativePath ? ' is-focused' : ''}${isHovered ? ' is-hovered' : ''}${isDimmed ? ' is-dimmed' : ''}`}
-                            style={{ left: `${position.x}%`, top: `${position.y}%` } as CSSProperties}
+                            style={{ left: `${(position.x / GRAPH_2D_WORLD_SIZE) * 100}%`, top: `${(position.y / GRAPH_2D_WORLD_SIZE) * 100}%` } as CSSProperties}
                             ref={(element) => {
                               if (element) graph2dNodeElementsRef.current.set(document.relativePath, element)
                               else graph2dNodeElementsRef.current.delete(document.relativePath)
@@ -5943,8 +6192,8 @@ function App() {
                               // getBoundingClientRect no caminho quente.
                               if (bounds && bounds.width > 0 && bounds.height > 0) {
                                 physics.drag.draggedTarget = {
-                                  x: Math.max(GRAPH_2D_BOUNDS.minX, Math.min(GRAPH_2D_BOUNDS.maxX, ((event.clientX - bounds.left - graphViewport.x) / (bounds.width * graphViewport.scale)) * 100)),
-                                  y: Math.max(GRAPH_2D_BOUNDS.minY, Math.min(GRAPH_2D_BOUNDS.maxY, ((event.clientY - bounds.top - graphViewport.y) / (bounds.height * graphViewport.scale)) * 100)),
+                                  x: Math.max(GRAPH_2D_BOUNDS.minX, Math.min(GRAPH_2D_BOUNDS.maxX, ((event.clientX - bounds.left - graphViewport.x) / (bounds.width * graphViewport.scale)) * GRAPH_2D_WORLD_SIZE)),
+                                  y: Math.max(GRAPH_2D_BOUNDS.minY, Math.min(GRAPH_2D_BOUNDS.maxY, ((event.clientY - bounds.top - graphViewport.y) / (bounds.height * graphViewport.scale)) * GRAPH_2D_WORLD_SIZE)),
                                 }
                               }
                               // Acorda o loop se estava dormindo (cursor parado).
@@ -6208,12 +6457,28 @@ function App() {
                 </div>
               </section>
             ) : (
-              <section className="workspace-page" data-builder-name="settings-page">
-                <p className="card-kicker">Configuracoes</p>
-                <h2>Configuracoes do vault</h2>
-                <p>Personalize a escrita, a leitura e o comportamento do workspace.</p>
-                <div className="settings-section" aria-labelledby="appearance-preferences-title">
-                  <p className="card-kicker" id="appearance-preferences-title">Aparencia</p>
+              <section ref={settingsScrollRef} className="workspace-page" data-builder-name="settings-page">
+                <div className="settings-layout">
+                  <nav className="settings-nav" aria-label="Seções das configurações">
+                    {SETTINGS_SECTIONS.map((section) => (
+                      <button
+                        key={section.id}
+                        type="button"
+                        className={activeSettingsSection === section.id ? 'is-active' : ''}
+                        aria-current={activeSettingsSection === section.id ? 'true' : undefined}
+                        onClick={() => scrollToSettingsSection(section.id)}
+                      >
+                        <section.icon size={15} strokeWidth={1.5} aria-hidden="true" />
+                        <span>{section.label}</span>
+                      </button>
+                    ))}
+                  </nav>
+                  <div className="settings-content">
+                    <p className="card-kicker">Configuracoes</p>
+                    <h2>Configuracoes do vault</h2>
+                    <p>Personalize a escrita, a leitura e o comportamento do workspace.</p>
+                    <div className="settings-section" id="settings-aparencia" aria-labelledby="appearance-preferences-title">
+                      <p className="card-kicker" id="appearance-preferences-title">Aparencia</p>
                   <div className="settings-toggle">
                     <span>
                       <strong>Tema</strong>
@@ -6292,9 +6557,11 @@ function App() {
                     </p>
                   ) : null}
                 </div>
-                <label className="settings-toggle">
-                  <span>
-                    <strong>Auto Save</strong>
+                <div className="settings-section" id="settings-workspace" aria-labelledby="workspace-preferences-title">
+                  <p className="card-kicker" id="workspace-preferences-title">Workspace</p>
+                  <label className="settings-toggle">
+                    <span>
+                      <strong>Auto Save</strong>
                     <small>Salva apos uma breve pausa na digitacao, sem interromper a edicao.</small>
                   </span>
                   <input
@@ -6339,7 +6606,8 @@ function App() {
                     aria-label="Cor do texto no hover das abas"
                   />
                 </label>
-                <div className="settings-section" aria-labelledby="reading-preferences-title">
+                </div>
+                <div className="settings-section" id="settings-leitura" aria-labelledby="reading-preferences-title">
                   <p className="card-kicker" id="reading-preferences-title">Leitura</p>
                   <label className="settings-toggle">
                     <span>
@@ -6378,7 +6646,7 @@ function App() {
                     <input type="checkbox" checked={isSpellCheckEnabled} onChange={(event) => setSpellCheckEnabled(event.target.checked)} />
                   </label>
                 </div>
-                <div className="settings-section" aria-labelledby="graph3d-preferences-title">
+                <div className="settings-section" id="settings-grafo3d" aria-labelledby="graph3d-preferences-title">
                   <p className="card-kicker" id="graph3d-preferences-title">Grafo 3D</p>
                   <label className="settings-toggle">
                     <span>
@@ -6477,7 +6745,7 @@ function App() {
                     />
                   </label>
                 </div>
-                <div className="settings-section" aria-labelledby="graph2d-preferences-title">
+                <div className="settings-section" id="settings-grafo2d" aria-labelledby="graph2d-preferences-title">
                   <p className="card-kicker" id="graph2d-preferences-title">Grafo 2D</p>
                   <p className="settings-section-description">Forcas da simulacao do grafo 2D, no modelo do Obsidian: repulsao 1/distancia² entre nos, molas das arestas (rigidez e descanso), amortecimento da velocidade e atracao ao anel central.</p>
                   <label className="settings-toggle">
@@ -6488,11 +6756,9 @@ function App() {
                     <input
                       className="settings-number"
                       type="number"
-                      min={100}
-                      max={6000}
                       step={50}
                       value={graph2dRepulsionStrength}
-                      onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, 100, 6000))}
+                      onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, -Infinity, Infinity))}
                       aria-label="Forca de repulsao dos nos no grafo 2D"
                     />
                   </label>
@@ -6504,11 +6770,9 @@ function App() {
                     <input
                       className="settings-number"
                       type="number"
-                      min={0.2}
-                      max={6}
                       step={0.1}
                       value={graph2dLinkStiffness}
-                      onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, 0.2, 6))}
+                      onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, -Infinity, Infinity))}
                       aria-label="Rigidez da mola das arestas no grafo 2D"
                     />
                   </label>
@@ -6520,11 +6784,9 @@ function App() {
                     <input
                       className="settings-number"
                       type="number"
-                      min={0}
-                      max={4}
                       step={0.05}
                       value={graph2dVelocityDecay}
-                      onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, 0, 4))}
+                      onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, -Infinity, Infinity))}
                       aria-label="Amortecimento da velocidade no grafo 2D"
                     />
                   </label>
@@ -6536,11 +6798,9 @@ function App() {
                     <input
                       className="settings-number"
                       type="number"
-                      min={2}
-                      max={30}
                       step={0.5}
                       value={graph2dLinkDistance}
-                      onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, 2, 30))}
+                      onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, -Infinity, Infinity))}
                       aria-label="Distancia do link no grafo 2D"
                     />
                   </label>
@@ -6552,16 +6812,14 @@ function App() {
                     <input
                       className="settings-number"
                       type="number"
-                      min={0}
-                      max={300}
                       step={5}
                       value={graph2dCenterForce}
-                      onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, 0, 300))}
+                      onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))}
                       aria-label="Forca central do grafo 2D"
                     />
                   </label>
                 </div>
-                <div className="settings-section" aria-labelledby="review-gap-preferences-title">
+                <div className="settings-section" id="settings-revisao" aria-labelledby="review-gap-preferences-title">
                   <p className="card-kicker" id="review-gap-preferences-title">Revisao</p>
                   <label className="settings-toggle">
                     <span>
@@ -6579,8 +6837,7 @@ function App() {
                       <option value="off">Desativadas</option>
                     </select>
                   </label>
-                </div>
-                <VaultReviewPolicySettings vaultPath={vault.path} />
+                  <VaultReviewPolicySettings vaultPath={vault.path} />
                 <SegmentationSettings vaultPath={vault.path} />
                 <ReviewNotificationSettings
                   lastCheck={notificationLastCheck}
@@ -6593,6 +6850,9 @@ function App() {
                   }}
                 />
                 <ReviewAiSettings vaultPath={vault.path} />
+                </div>
+                </div>
+                </div>
               </section>
             )}
           </section>
@@ -6948,6 +7208,7 @@ function App() {
 
   return (
     <main className="app-shell vault-selection-shell" data-builder-name="vault-selection-shell">
+      <TitleBar />
       <aside className="vault-selection-rail" aria-label="MirrorMind" data-builder-name="vault-selection-rail">
         <span className="vault-selection-mark">MM</span>
         <span className="vault-selection-rail-label">Vaults</span>

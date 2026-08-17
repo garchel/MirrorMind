@@ -66,6 +66,9 @@ jobs:
           npm run test:ci:rust 2>&1 | Tee-Object -FilePath test-results/rust.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+
       - name: Build Windows E2E app
         shell: powershell
         run: |
@@ -174,6 +177,9 @@ jobs:
           mkdir -p test-results
           set -o pipefail
           npm run test:ci:rust 2>&1 | tee test-results/rust.log
+
+      - name: Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
 
       - name: Upload test diagnostics
         if: ${{ always() }}

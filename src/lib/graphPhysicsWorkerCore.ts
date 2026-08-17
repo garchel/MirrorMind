@@ -80,11 +80,15 @@ export function stepAmbientWorker(state: AmbientWorkerState, delta: number): { r
     delta,
   })
   let remaining = 0
+  // O ambiente usa o decay de ASSENTAMENTO (piso + configuracao): mais alto
+  // que o decay do arrasto para a oscilacao amortecer e o layout convergir
+  // no circulo ao redor do hub (mesma formula da thread principal).
+  const settleDecay = Math.max(settings.velocityDecay, OBSIDIAN_PHYSICS_2D.settleVelocityDecayMin)
   for (const path of state.paths) {
     const current = positions.get(path)
     const velocity = velocities.get(path)
     if (!current || !velocity) continue
-    const damping = Math.max(0, 1 - settings.velocityDecay * delta)
+    const damping = Math.max(0, 1 - settleDecay * delta)
     velocity.x *= damping
     velocity.y *= damping
     current.x = Math.max(GRAPH_2D_BOUNDS.minX, Math.min(GRAPH_2D_BOUNDS.maxX, current.x + velocity.x * delta))
@@ -100,7 +104,7 @@ export function stepAmbientWorker(state: AmbientWorkerState, delta: number): { r
 export function ambientWorkerSettled(state: AmbientWorkerState, remaining: number, now: number): boolean {
   return remaining < 0.05
     || state.alpha < OBSIDIAN_PHYSICS_2D.alphaMin
-    || now - state.startedAt > 4000
+    || now - state.startedAt > 4500
 }
 
 /** Serializa as posicoes do estado para o postMessage (estrutura clone). */

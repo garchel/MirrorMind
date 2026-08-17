@@ -22,6 +22,51 @@ export type BaseColumn = {
 
 export const NAME_COLUMN_KEY = '__name__'
 
+/** Ordena as chaves de propriedade para as colunas da Tabela: primeiro as
+ * encontradas nas notas (ordem de primeira aparicao), depois as propriedades
+ * comuns (menu do header) que ainda nao existem em nenhuma nota — assim a
+ * tabela so mostra colunas comuns vazias quando o usuario as escolher no
+ * seletor de colunas. */
+export function orderedPropertyKeys(
+  fromNotes: readonly string[],
+  commonKeys: readonly string[],
+): string[] {
+  const result: string[] = []
+  const seen = new Set<string>()
+  for (const key of fromNotes) {
+    if (!seen.has(key)) {
+      seen.add(key)
+      result.push(key)
+    }
+  }
+  for (const key of commonKeys) {
+    if (!seen.has(key)) {
+      seen.add(key)
+      result.push(key)
+    }
+  }
+  return result
+}
+
+/** Chave do localStorage onde a personalizacao de colunas e salva (por vault). */
+export function columnPickerStorageKey(vaultPath: string): string {
+  return `mirrormind.bases.columns.${vaultPath}`
+}
+
+/** Le as chaves de colunas salvas no localStorage. Devolve `null` quando o
+ * usuario nunca personalizou (mostrar todas) ou o valor salvo e invalido. */
+export function readSavedColumnKeys(raw: string | null): string[] | null {
+  if (!raw) return null
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return null
+    const keys = parsed.filter((key): key is string => typeof key === 'string' && key.length > 0)
+    return keys
+  } catch {
+    return null
+  }
+}
+
 /** Converte um valor de propriedade para texto exibivel na celula. Listas
  * viram itens separados por virgula; objetos viram pares chave: valor. */
 export function frontmatterValueToText(value: FrontmatterValue | undefined, depth = 0): string {

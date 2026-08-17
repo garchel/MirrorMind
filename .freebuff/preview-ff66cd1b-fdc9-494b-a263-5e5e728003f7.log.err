@@ -1,0 +1,58 @@
+[2m18:42:14[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 2 errors:
+
+[31m[PARSE_ERROR] [0mExpected corresponding JSX closing tag for 'div'.
+      [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/App.tsx:6845:17 [38;5;246m][0m
+      [38;5;246m│[0m
+ [38;5;246m6470 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m<[0mdiv[38;5;249m [0m[38;5;249mc[0m[38;5;249ml[0m[38;5;249ma[0m[38;5;249ms[0m[38;5;249ms[0m[38;5;249mN[0m[38;5;249ma[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249m=[0m[38;5;249m"[0m[38;5;249ms[0m[38;5;249me[0m[38;5;249mt[0m[38;5;249mt[0m[38;5;249mi[0m[38;5;249mn[0m[38;5;249mg[0m[38;5;249ms[0m[38;5;249m-[0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m"[0m[38;5;249m>[0m
+ [38;5;240m     │[0m                    ─┬─  
+ [38;5;240m     │[0m                     ╰─── Opened here
+ [38;5;240m     │[0m 
+ [38;5;246m6845 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m<[0m[38;5;249m/[0msection[38;5;249m>[0m
+ [38;5;240m     │[0m                 ───┬───  
+ [38;5;240m     │[0m                    ╰───── Expected `</div>`
+[38;5;246m──────╯[0m
+
+[31m[PARSE_ERROR] [0mUnexpected token. Did you mean `{'}'}` or `&rbrace;`?
+      [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/App.tsx:6846:14 [38;5;246m][0m
+      [38;5;246m│[0m
+ [38;5;246m6846 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m)[0m[38;5;249m}[0m
+ [38;5;240m     │[0m              │ 
+ [38;5;240m     │[0m              ╰─ 
+[38;5;246m──────╯[0m
+[39m
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/Users/paulo/OneDrive/Documentos/MirrorMind/src/App.tsx[39m
+      at transformWithOxc (file:///C:/Users/paulo/OneDrive/Documentos/MirrorMind/node_modules/vite/dist/node/chunks/node.js:4017:19)
+      at TransformPluginContext.transform (file:///C:/Users/paulo/OneDrive/Documentos/MirrorMind/node_modules/vite/dist/node/chunks/node.js:4088:26)
+      at EnvironmentPluginContainer.transform (file:///C:/Users/paulo/OneDrive/Documentos/MirrorMind/node_modules/vite/dist/node/chunks/node.js:30151:51)
+      at async loadAndTransform (file:///C:/Users/paulo/OneDrive/Documentos/MirrorMind/node_modules/vite/dist/node/chunks/node.js:20098:26)
+      at async viteTransformMiddleware (file:///C:/Users/paulo/OneDrive/Documentos/MirrorMind/node_modules/vite/dist/node/chunks/node.js:24559:20)
+[2m18:42:38[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 2 errors:
+
+[31m[PARSE_ERROR] [0mExpected corresponding JSX closing tag for 'div'.
+      [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/App.tsx:6848:17 [38;5;246m][0m
+      [38;5;246m│[0m
+ [38;5;246m6470 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m<[0mdiv[38;5;249m [0m[38;5;249mc[0m[38;5;249ml[0m[38;5;249ma[0m[38;5;249ms[0m[38;5;249ms[0m[38;5;249mN[0m[38;5;249ma[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249m=[0m[38;5;249m"[0m[38;5;249ms[0m[38;5;249me[0m[38;5;249mt[0m[38;5;249mt[0m[38;5;249mi[0m[38;5;249mn[0m[38;5;249mg[0m[38;5;249ms[0m[38;5;249m-[0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m"[0m[38;5;249m>[0m
+ [38;5;240m     │[0m                    ─┬─  
+ [38;5;240m     │[0m                     ╰─── Opened here
+ [38;5;240m     │[0m 
+ [38;5;246m6848 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m<[0m[38;5;249m/[0msection[38;5;249m>[0m
+ [38;5;240m     │[0m                 ───┬───  
+ [38;5;240m     │[0m                    ╰───── Expected `</div>`
+[38;5;246m──────╯[0m
+
+[31m[PARSE_ERROR] [0mUnexpected token. Did you mean `{'}'}` or `&rbrace;`?
+      [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/App.tsx:6849:14 [38;5;246m][0m
+      [38;5;246m│[0m
+ [38;5;246m6849 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m)[0m[38;5;249m}[0m
+ [38;5;240m     │[0m              │ 
+ [38;5;240m     │[0m              ╰─ 
+[38;5;246m──────╯[0m
+[39m
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/Users/paulo/OneDrive/Documentos/MirrorMind/src/App.tsx[39m
+      at transformWithOxc (file:///C:/Users/paulo/OneDrive/Documentos/MirrorMind/node_modules/vite/dist/node/chunks/node.js:4017:19)
+      at TransformPluginContext.transform (file:///C:/Users/paulo/OneDrive/Documentos/MirrorMind/node_modules/vite/dist/node/chunks/node.js:4088:26)
+      at EnvironmentPluginContainer.transform (file:///C:/Users/paulo/OneDrive/Documentos/MirrorMind/node_modules/vite/dist/node/chunks/node.js:30151:51)
+      at async loadAndTransform (file:///C:/Users/paulo/OneDrive/Documentos/MirrorMind/node_modules/vite/dist/node/chunks/node.js:20098:26)
+      at async viteTransformMiddleware (file:///C:/Users/paulo/OneDrive/Documentos/MirrorMind/node_modules/vite/dist/node/chunks/node.js:24559:20)

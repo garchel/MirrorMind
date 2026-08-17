@@ -1647,6 +1647,49 @@ mod tests {
     }
 
     #[test]
+    fn adding_a_review_tag_keeps_readiness_and_scheduling() {
+        // Cenario do onboarding de perfil: a nota esta pronta e o app sugere
+        // adotar `#revisao/prova`. Aplicar a tag so muda o frontmatter — o
+        // corpo avaliado permanece identico, entao a prontidao e o
+        // agendamento sao preservados (nao viram "Alterada").
+        let vault = tempdir().expect("vault");
+        let path = "Biologia/Fotossintese.md";
+        let body =
+            "# Fotossintese\n\nA planta absorve luz.\n\nA clorofila captura energia.\n\nO processo produz glicose.";
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+        };
+        let ready_at = 1_720_000_000_000;
+        persist_readiness_assessment(vault.path(), path, body, &report, ready_at)
+            .expect("persist ready note");
+        set_manual_enrollment(vault.path(), path, body, true, ready_at + 1_000)
+            .expect("enable review");
+
+        // Adocao do perfil: a tag entra no frontmatter YAML, o corpo nao muda.
+        let tagged = format!("---\ntags:\n  - revisao/prova\n---\n{body}");
+        let after = load_note_review_state(vault.path(), path, &tagged, ready_at + 60_000)
+            .expect("sync tag adoption")
+            .expect("state");
+        assert_eq!(after.readiness, NoteReadinessStatus::Ready);
+        assert_eq!(after.scheduling_status, NoteSchedulingStatus::Scheduled);
+        // A politica da tag de perfil (intensiva: primeiro intervalo de 1 dia)
+        // passa a valer e reagenda a partir da data em que a nota ficou pronta.
+        assert_eq!(after.next_review_at_unix_ms, Some(ready_at + 86_400_000));
+        assert_eq!(after.content_hash, source_hash(&tagged));
+        let document = load_learning_document(vault.path(), &after.note_id)
+            .expect("load document")
+            .expect("document");
+        assert!(matches!(
+            document.document.note.readiness,
+            ReadinessAssessment::Ready { .. }
+        ));
+    }
+
+    #[test]
     fn a_semantic_change_marks_the_note_modified_and_pauses() {
         let vault = tempdir().expect("vault");
         let path = "Fotossintese.md";

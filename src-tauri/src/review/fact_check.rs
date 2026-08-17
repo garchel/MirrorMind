@@ -21,11 +21,11 @@ Identifique as afirmacoes factuais (datas, numeros, definicoes, nomes proprios, 
 - uncertain: nao ha consenso amplo, a afirmacao e especulativa, depende de contexto ou voce nao consegue verificar com seguranca.
 
 Para cada afirmacao, forneca:
-- claim: a afirmacao literal extraida da nota (citacao exata).
+- claim: a afirmacao extraida da nota (pode ser uma parafrase fiel do trecho citado, sem inventar informacao que nao esteja na nota).
 - status: confirmed, divergent ou uncertain.
 - reason: explicacao objetiva da classificacao.
 - source: a fonte/exemplo amplamente estabelecido que sustenta a decisao (ex.: nome de uma obra, padrao, evento, formula) ou null quando nao ha.
-- quote: a citacao literal exata do trecho da nota em que a afirmacao aparece (pode ser igual a claim).
+- quote: a citacao literal exata do trecho da nota em que a afirmacao aparece (pode ser igual a claim; e a quote que ancora o achado no Markdown).
 
 overallSummary: resumo curto do resultado (ex.: quantas afirmacoes confirmadas, divergentes e incertas).
 
@@ -121,29 +121,100 @@ fn fact_check_response_schema() -> serde_json::Value {
     })
 }
 
-fn validate_quotes_are_literal(markdown: &str, raw: &RawFactCheckReport, errors: &mut Vec<String>) {
+fn validate_findings_grounding(markdown: &str, raw: &RawFactCheckReport, errors: &mut Vec<String>) {
+    // A nota com LaTeX e marcacao e comparada em forma normalizada: o modelo
+    // cita formulas renderizadas (O2/CO2/H2O), setas (→ em vez de
+    // `\xrightarrow{...}`) e texto sem negrito/marcacao, entao a ancoragem usa
+    // normalize_quote_for_grounding nos dois lados. A QUOTE e a citacao
+    // literal que ancora o achado no Markdown (exigida); o CLAIM e a
+    // afirmacao semantica extraida da nota — pode ser uma parafrase fiel, e
+    // exigir substring literal de um resumo do modelo rejeita relatorios
+    // validos sem proteger nada (o grounding real vem da quote).
+    let markdown_normalized = crate::review::session::normalize_quote_for_grounding(markdown);
     for (index, finding) in raw.findings.iter().enumerate() {
-        let mut check = |pointer: &str, quote: &str| {
-            if quote.trim().is_empty() || quote.trim() != quote {
-                errors.push(format!(
-                    "{pointer}: a citacao deve ser texto exato nao vazio."
-                ));
-                return;
-            }
-            if !markdown.contains(quote) {
-                errors.push(format!(
-                    "{pointer}: a citacao deve ser literal exata do Markdown da nota."
-                ));
-            }
-        };
-        check(&format!("/findings/{index}/claim"), &finding.claim);
-        check(&format!("/findings/{index}/quote"), &finding.quote);
+        if finding.claim.trim().is_empty() || finding.claim.trim() != finding.claim {
+            errors.push(format!(
+                "/findings/{index}/claim: forneca uma afirmacao objetiva sem espacos externos."
+            ));
+        }
+        let pointer = format!("/findings/{index}/quote");
+        if finding.quote.trim().is_empty() || finding.quote.trim() != finding.quote {
+            errors.push(format!(
+                "{pointer}: a citacao deve ser texto exato nao vazio."
+            ));
+            continue;
+        }
+        let quote_normalized = super::session::normalize_quote_for_grounding(&finding.quote);
+        let grounded = !quote_normalized.is_empty()
+            && (markdown_normalized.contains(&quote_normalized)
+                || grounded_in_order(&markdown_normalized, &quote_normalized));
+        if !grounded {
+            errors.push(format!(
+                "{pointer}: a citacao deve ser literal exata do Markdown da nota."
+            ));
+        }
         if finding.reason.trim().is_empty() || finding.reason.trim() != finding.reason {
             errors.push(format!(
                 "/findings/{index}/reason: forneca uma razao objetiva sem espacos externos."
             ));
         }
     }
+}
+
+/// Palavras de funcao que o modelo costuma inserir ao citar celulas de
+/// tabela ou trechos da nota ("e", "com", "para", artigos...). Sao ignoradas
+/// na ancoragem tolerante para nao reprovar uma citacao real por causa de um
+/// conectivo que o modelo acrescentou ao renderizar a celula.
+const GROUNDING_FUNCTION_WORDS: &[&str] = &[
+    "a", "ao", "aos", "as", "com", "da", "das", "de", "do", "dos", "e", "em", "na", "nas", "no",
+    "nos", "o", "os", "ou", "para", "por", "que", "se", "um", "uma",
+];
+
+/// Fallback da ancoragem quando a citacao normalizada nao e um substring
+/// contiguo do Markdown: todas as palavras significativas da citacao aparecem
+/// na nota normalizada na MESMA ORDEM, com espacamento limitado entre palavras
+/// consecutivas. Tolera o modelo juntando/suprimindo separadores de celula,
+/// rotulos de formulas e conectivos — sem aceitar citacoes inventadas (as
+/// palavras precisam existir na nota, na ordem).
+fn grounded_in_order(markdown_normalized: &str, quote_normalized: &str) -> bool {
+    let haystack: Vec<&str> = markdown_normalized
+        .split_whitespace()
+        .filter(|word| !GROUNDING_FUNCTION_WORDS.contains(word))
+        .collect();
+    let needle: Vec<&str> = quote_normalized
+        .split_whitespace()
+        .filter(|word| !GROUNDING_FUNCTION_WORDS.contains(word))
+        .collect();
+    if needle.is_empty() {
+        return false;
+    }
+    // Janela maxima entre palavras consecutivas da citacao no Markdown (em
+    // tokens significativos): tolera celulas puladas/agrupadas, nao frases
+    // montadas com palavras espalhadas pela nota.
+    const MAX_GAP: usize = 10;
+    let mut cursor = 0usize;
+    let mut last: Option<usize> = None;
+    for word in &needle {
+        let end = match last {
+            Some(previous) => (previous + MAX_GAP + 1).min(haystack.len()),
+            None => haystack.len(),
+        };
+        let mut found = None;
+        for (index, candidate) in haystack.iter().enumerate().take(end).skip(cursor) {
+            if candidate == word {
+                found = Some(index);
+                break;
+            }
+        }
+        match found {
+            Some(index) => {
+                last = Some(index);
+                cursor = index + 1;
+            }
+            None => return false,
+        }
+    }
+    true
 }
 
 /// Verifica os fatos de uma nota. `markdown` e a fonte de verdade (nunca
@@ -196,7 +267,7 @@ pub fn verify_note_facts(
     if raw_report.findings.is_empty() {
         errors.push("/findings: a verificacao precisa de pelo menos um achado.".to_string());
     }
-    validate_quotes_are_literal(markdown, &raw_report, &mut errors);
+    validate_findings_grounding(markdown, &raw_report, &mut errors);
 
     if errors.is_empty() {
         Ok(FactCheckAttempt::Valid {
@@ -303,6 +374,190 @@ mod tests {
         assert!(matches!(report.findings[1].status, FactStatus::Divergent));
         assert!(matches!(report.findings[2].status, FactStatus::Uncertain));
         assert_eq!(report.findings[1].source.as_deref(), Some("Astronomia"));
+    }
+
+    /// Reproduz o caso real da nota de fotossintese: Markdown com LaTeX
+    /// (fórmulas), negrito e listas. O modelo cita as formulas renderizadas
+    /// (O2/CO2/H2O em vez de `$\text{O}_2$`) e o texto sem negrito — o que a
+    /// validacao exata rejeitava. A ancoragem normalizada aceita.
+    #[test]
+    fn accepts_quotes_that_render_latex_naturally() {
+        let markdown = r#"# Fotossíntese
+
+Processo autotrófico realizado por plantas, algas e cianobactérias para converter energia luminosa em energia química (glicose). Ocorre no **cloroplasto**.
+
+### 1. Fase Clara (Fotométrica)
+* **Fotólise da água:** A quebra da molécula de água liberando oxigênio ($\text{O}_2$), prótons e elétrons.
+
+### 2. Fase Escura (Ciclo de Calvin)
+* **Processo principal:** Fixação do carbono ($\text{CO}_2$) utilizando $\text{ATP}$ e $\text{NADPH}$ para sintetizar a glicose ($\text{C}_6\text{H}_{12}\text{O}_6$).
+"#;
+        let value = json!({
+            "overallSummary": "4 confirmadas.",
+            "findings": [
+                {
+                    "claim": "Processo autotrófico realizado por plantas, algas e cianobactérias para converter energia luminosa em energia química (glicose).",
+                    "status": "confirmed",
+                    "reason": "Definição clássica de fotossíntese.",
+                    "source": "Biologia básica",
+                    "quote": "Processo autotrófico realizado por plantas, algas e cianobactérias para converter energia luminosa em energia química (glicose)."
+                },
+                {
+                    "claim": "Fotólise da água: A quebra da molécula de água liberando oxigênio (O₂), prótons e elétrons.",
+                    "status": "confirmed",
+                    "reason": "A fotólise da água no tilacoide libera oxigênio.",
+                    "source": "Fase clara",
+                    "quote": "A quebra da molécula de água liberando oxigênio (O₂), prótons e elétrons."
+                },
+                {
+                    "claim": "Fixação do carbono (CO₂) utilizando ATP e NADPH para sintetizar a glicose",
+                    "status": "confirmed",
+                    "reason": "O ciclo de Calvin consome ATP e NADPH.",
+                    "source": "Fase escura",
+                    "quote": "Fixação do carbono (CO₂) utilizando ATP e NADPH para sintetizar a glicose"
+                },
+                {
+                    "claim": "Ocorre no cloroplasto.",
+                    "status": "confirmed",
+                    "reason": "Local onde a fotossíntese ocorre.",
+                    "source": "Biologia básica",
+                    "quote": "Ocorre no cloroplasto."
+                }
+            ]
+        });
+        let provider = FakeFactCheckProvider(value);
+
+        let attempt = verify_note_facts(&provider, markdown).expect("verify");
+        match attempt {
+            FactCheckAttempt::Valid { report, .. } => assert_eq!(report.findings.len(), 4),
+            FactCheckAttempt::Invalid {
+                validation_errors, ..
+            } => panic!("esperado valido, erros: {validation_errors:?}"),
+        }
+    }
+
+    /// Reproduz o caso real: a nota guarda a equacao com `\xrightarrow{...}`
+    /// (rotulo "Luz, Clorofila") e o modelo cita a formula RENDERIZADA com a
+    /// seta unicode — sem o mapeamento de setas a ancoragem rejeita o achado.
+    #[test]
+    fn accepts_equations_quoted_with_a_rendered_arrow() {
+        let markdown = r#"# Fotossíntese
+
+## Equação Geral
+$$6\text{CO}_2 + 6\text{H}_2\text{O} \xrightarrow{\text{Luz, Clorofila}} \text{C}_6\text{H}_{12}\text{O}_6 + 6\text{O}_2$$
+"#;
+        let value = json!({
+            "overallSummary": "1 confirmada.",
+            "findings": [
+                {
+                    "claim": "A fotossíntese converte CO₂ e H₂O em glicose e O₂ na presença de luz.",
+                    "status": "confirmed",
+                    "reason": "Equação geral da fotossíntese.",
+                    "source": "Química da fotossíntese",
+                    "quote": "6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂"
+                }
+            ]
+        });
+        let provider = FakeFactCheckProvider(value);
+
+        let attempt = verify_note_facts(&provider, markdown).expect("verify");
+        match attempt {
+            FactCheckAttempt::Valid { report, .. } => assert_eq!(report.findings.len(), 1),
+            FactCheckAttempt::Invalid {
+                validation_errors, ..
+            } => panic!("esperado valido, erros: {validation_errors:?}"),
+        }
+    }
+
+    /// O claim e a afirmacao semantica (pode parafrasear com fidelidade); a
+    /// quote e a citacao literal que ancora o achado. Um claim resumido nao
+    /// rejeita o relatorio enquanto a quote casar com o Markdown.
+    #[test]
+    fn accepts_a_faithful_paraphrase_as_claim_with_a_literal_quote() {
+        let markdown = "# Ciencia\n\nA agua ferve a 100 graus ao nivel do mar.\n";
+        let value = json!({
+            "overallSummary": "1 confirmada.",
+            "findings": [
+                {
+                    "claim": "A agua entra em ebulicao aos 100 graus.",
+                    "status": "confirmed",
+                    "reason": "Ponto de ebulicao da agua ao nivel do mar.",
+                    "source": "Termodinamica basica",
+                    "quote": "A agua ferve a 100 graus ao nivel do mar."
+                }
+            ]
+        });
+        let provider = FakeFactCheckProvider(value);
+
+        let attempt = verify_note_facts(&provider, markdown).expect("verify");
+        match attempt {
+            FactCheckAttempt::Valid { report, .. } => assert_eq!(report.findings.len(), 1),
+            FactCheckAttempt::Invalid {
+                validation_errors, ..
+            } => panic!("esperado valido, erros: {validation_errors:?}"),
+        }
+    }
+
+    /// Citação de uma LINHA DE TABELA onde o modelo suprimiu uma célula e
+    /// inseriu um conectivo ("e") ao renderizar: nao e substring contíguo
+    /// (o CO₂ ficou de fora), mas todas as palavras significativas estão na
+    /// nota na mesma ordem — a ancoragem tolerante aceita.
+    #[test]
+    fn accepts_a_table_row_quote_with_a_dropped_cell_and_connective() {
+        let markdown = "# Resumo\r\n\r\n| Etapa | Local | Entra | Sai |\r\n| :--- | :--- | :--- | :--- |\r\n| **Fase Escura** | Estroma | $\\text{CO}_2$, $\\text{ATP}$, $\\text{NADPH}$ | Glicose |\r\n";
+        let value = json!({
+            "overallSummary": "1 confirmada.",
+            "findings": [
+                {
+                    "claim": "A fase escura usa ATP e NADPH e produz glicose.",
+                    "status": "confirmed",
+                    "reason": "Ciclo de Calvin.",
+                    "source": "Biologia",
+                    "quote": "Fase Escura | Estroma | ATP e NADPH | Glicose"
+                }
+            ]
+        });
+        let provider = FakeFactCheckProvider(value);
+
+        let attempt = verify_note_facts(&provider, markdown).expect("verify");
+        match attempt {
+            FactCheckAttempt::Valid { report, .. } => assert_eq!(report.findings.len(), 1),
+            FactCheckAttempt::Invalid {
+                validation_errors, ..
+            } => panic!("esperado valido, erros: {validation_errors:?}"),
+        }
+    }
+
+    /// A ancoragem tolerante nao aceita citacao com palavras que nao existem
+    /// na nota (mesmo na ordem): grounding continua exigindo que a citacao
+    /// venha do Markdown.
+    #[test]
+    fn rejects_a_quote_with_words_absent_from_the_note() {
+        let markdown = "# Ciencia\r\n\r\nA agua ferve a 100 graus ao nivel do mar.\r\n";
+        let value = json!({
+            "overallSummary": "1 confirmada.",
+            "findings": [
+                {
+                    "claim": "A agua ferve.",
+                    "status": "confirmed",
+                    "reason": "Ponto de ebulicao.",
+                    "source": "Termodinamica",
+                    "quote": "A agua ferve e gatos voam"
+                }
+            ]
+        });
+        let provider = FakeFactCheckProvider(value);
+
+        let attempt = verify_note_facts(&provider, markdown).expect("verify");
+        let FactCheckAttempt::Invalid {
+            validation_errors, ..
+        } = attempt
+        else {
+            panic!("expected invalid attempt");
+        };
+        assert!(validation_errors
+            .iter()
+            .any(|error| error.contains("/findings/0/quote")));
     }
 
     #[test]

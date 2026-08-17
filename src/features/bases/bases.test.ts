@@ -3,6 +3,8 @@ import {
   collectColumns,
   filterRows,
   frontmatterValueToText,
+  orderedPropertyKeys,
+  readSavedColumnKeys,
   sortRows,
   type BaseRow,
 } from './bases'
@@ -24,6 +26,41 @@ const rows: BaseRow[] = [
     properties: { area: 'Pessoal' },
   },
 ]
+
+describe('orderedPropertyKeys', () => {
+  it('mantem a ordem das notas e acrescenta as comuns que faltam no fim', () => {
+    expect(orderedPropertyKeys(['area', 'tags', 'ano'], ['phone', 'email', 'tags', 'status'])).toEqual([
+      'area', 'tags', 'ano', 'phone', 'email', 'status',
+    ])
+  })
+
+  it('nao duplica chaves e preserva a ordem canonica das comuns', () => {
+    expect(orderedPropertyKeys(['tags', 'area'], ['area', 'tags', 'date', 'number'])).toEqual([
+      'tags', 'area', 'date', 'number',
+    ])
+  })
+
+  it('com apenas notas, nao acrescenta nada; com apenas comuns, usa a ordem canonica', () => {
+    expect(orderedPropertyKeys(['a', 'b'], [])).toEqual(['a', 'b'])
+    expect(orderedPropertyKeys([], ['phone', 'email'])).toEqual(['phone', 'email'])
+  })
+})
+
+describe('readSavedColumnKeys', () => {
+  it('le um JSON valido de chaves, ignorando nao-strings e vazias', () => {
+    expect(readSavedColumnKeys('["area", "tags", ""]')).toEqual(['area', 'tags'])
+    expect(readSavedColumnKeys('["area", 7, null]')).toEqual(['area'])
+    expect(readSavedColumnKeys('[]')).toEqual([])
+  })
+
+  it('devolve null para ausencia, JSON invalido ou nao-array', () => {
+    expect(readSavedColumnKeys(null)).toBeNull()
+    expect(readSavedColumnKeys('')).toBeNull()
+    expect(readSavedColumnKeys('nao-json')).toBeNull()
+    expect(readSavedColumnKeys('"area"')).toBeNull()
+    expect(readSavedColumnKeys('{"area": true}')).toBeNull()
+  })
+})
 
 describe('frontmatterValueToText', () => {
   it('formata valores primitivos, listas e objetos', () => {

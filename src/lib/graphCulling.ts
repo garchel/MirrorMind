@@ -14,15 +14,15 @@ export const GRAPH_CULLING_MARGIN_PX = 160
 /** Limite padrao de nos renderizados por cena (configuravel). */
 export const GRAPH_RENDER_LIMIT_DEFAULT = 400
 
-/** Projeta a posicao em % do viewBox 0-100 para o espaco de tela. */
+/** Projeta a posicao (unidades do mundo 0-GRAPH_2D_WORLD_SIZE) para pixels. */
 export function graphPositionToScreen(
   position: CullingPosition,
   viewport: CullingViewport,
   surfaceSize: CullingSurfaceSize,
 ): { x: number; y: number } {
   return {
-    x: (position.x / 100) * surfaceSize.width * viewport.scale + viewport.x,
-    y: (position.y / 100) * surfaceSize.height * viewport.scale + viewport.y,
+    x: (position.x / 200) * surfaceSize.width * viewport.scale + viewport.x,
+    y: (position.y / 200) * surfaceSize.height * viewport.scale + viewport.y,
   }
 }
 

@@ -1,0 +1,160 @@
+name: Release
+
+# Publica uma candidata a release quando uma tag `v*` e criada (ex.: v0.1.0).
+# Roda o mesmo gate automatico do CI (lint, typecheck, testes, E2E desktop),
+# gera o distributivel Windows (NSIS + MSI), assina quando os secrets de
+# assinatura estao configurados e cria o GitHub Release com os artefatos.
+# O instalador assinado precisa ainda do gate manual (docs/release-checklist.md)
+# antes de virar a release oficial.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    name: Release Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.96.1
+          components: rustfmt
+
+      - name: Sync version from tag
+        shell: powershell
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,2)+String.fromCharCode(10))" $version
+          Write-Host "Versao sincronizada no tauri.conf.json: $version"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Frontend tests
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force test-results | Out-Null
+          npm run test:ci:frontend 2>&1 | Tee-Object -FilePath test-results/frontend.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Rust tests
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force test-results | Out-Null
+          npm run test:ci:rust 2>&1 | Tee-Object -FilePath test-results/rust.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build Windows E2E app
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force test-results | Out-Null
+          npm run build:e2e:windows 2>&1 | Tee-Object -FilePath test-results/windows-e2e-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Desktop E2E
+        shell: powershell
+        run: |
+          npm run test:e2e:windows 2>&1 | Tee-Object -FilePath test-results/windows-e2e.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build Windows distributable (NSIS + MSI)
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force test-results | Out-Null
+          npx tauri build --bundles "nsis,msi" 2>&1 | Tee-Object -FilePath test-results/windows-bundle-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Smoke test Windows distributable
+        shell: powershell
+        run: |
+          ./scripts/verify-windows-bundle.ps1 `
+            -TargetDirectory src-tauri/target/release `
+            -ManifestPath test-results/windows-bundle-manifest.json `
+            2>&1 | Tee-Object -FilePath test-results/windows-bundle-smoke.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Sign installer (com secrets de assinatura)
+        if: ${{ secrets.WINDOWS_CERT_BASE64 != '' && secrets.WINDOWS_CERT_PASSWORD != '' }}
+        shell: powershell
+        env:
+          WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          # signtool vem no Windows SDK; localiza a versao mais recente.
+          $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { Write-Error 'signtool.exe nao encontrado (Windows SDK)'; exit 1 }
+          $cert = [System.IO.Path]::Combine($env:RUNNER_TEMP, 'codesign.pfx')
+          [System.IO.File]::WriteAllBytes($cert, [System.Convert]::FromBase64String($env:WINDOWS_CERT_BASE64))
+          $files = Get-ChildItem -Path src-tauri/target/release/bundle -Recurse -Include '*.exe', '*.msi'
+          foreach ($file in $files) {
+            & $signtool.FullName sign /f $cert /p $env:WINDOWS_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "$($file.FullName)"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          Write-Host "Instaladores assinados: $($files.Count)"
+
+      - name: Verify signature (com secrets de assinatura)
+        if: ${{ secrets.WINDOWS_CERT_BASE64 != '' && secrets.WINDOWS_CERT_PASSWORD != '' }}
+        shell: powershell
+        env:
+          WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+        run: |
+          $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { Write-Error 'signtool.exe nao encontrado (Windows SDK)'; exit 1 }
+          $installer = Get-ChildItem -Path src-tauri/target/release/bundle/nsis -Filter '*-setup.exe' | Select-Object -First 1
+          if (-not $installer) { Write-Error "Instalador NSIS nao encontrado"; exit 1 }
+          & $signtool.FullName verify /pa /v $installer.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Create GitHub Release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $assets = @()
+          $nsis = Get-ChildItem -Path src-tauri/target/release/bundle/nsis -Filter '*-setup.exe' | Select-Object -First 1
+          if ($nsis) { $assets += $nsis.FullName }
+          $msi = Get-ChildItem -Path src-tauri/target/release/bundle/msi -Filter '*.msi' | Select-Object -First 1
+          if ($msi) { $assets += $msi.FullName }
+          $manifest = Resolve-Path test-results/windows-bundle-manifest.json
+          $assets += $manifest.Path
+          Write-Host "Criando release $tag com $($assets.Count) artefato(s)"
+          gh release create $tag $assets --title $tag --generate-notes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload test diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics-release-windows
+          path: test-results
+          if-no-files-found: warn
+          retention-days: 30

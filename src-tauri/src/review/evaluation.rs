@@ -109,13 +109,19 @@ pub fn source_hash(markdown: &str) -> String {
 }
 
 /// Fingerprint semantico do conteudo da nota: descarta espacos, pontuacao e
-/// acentos (preserva caixa). Duas notas com o mesmo fingerprint diferem apenas
-/// por ajustes cosmeticos — espacamento, pontuacao ou adicao/remocao de
-/// acentos — e nao exigem nova avaliacao. A decomposicao NFD separa a letra
-/// base da marca de acento, e a marca (nao alfanumerica) e descartada.
+/// acentos (preserva caixa) e ignora o frontmatter YAML de tags/aliases. Duas
+/// notas com o mesmo fingerprint diferem apenas por ajustes cosmeticos —
+/// espacamento, pontuacao, acentos ou somente metadados no frontmatter — e nao
+/// exigem nova avaliacao. A avaliacao julga o corpo da nota, nao as tags: adotar
+/// um perfil de revisao (`#revisao/...`) nao deve invalidar a prontidao. A
+/// decomposicao NFD separa a letra base da marca de acento, e a marca (nao
+/// alfanumerica) e descartada.
 pub fn semantic_fingerprint(markdown: &str) -> String {
-    let mut folded = String::with_capacity(markdown.len());
-    for character in markdown.nfd() {
+    let body = crate::split_frontmatter_for_tags(markdown)
+        .map(|(_, body)| body)
+        .unwrap_or(markdown);
+    let mut folded = String::with_capacity(body.len());
+    for character in body.nfd() {
         // Marcas de composicao (U+0300..U+036F e vizinhancas) sao descartadas
         // apos a decomposicao: a letra base ja registrou o caractere.
         if matches!(
@@ -502,6 +508,25 @@ mod tests {
         assert_ne!(
             semantic_fingerprint("A planta absorve luz."),
             semantic_fingerprint("A planta absorve agua.")
+        );
+    }
+
+    #[test]
+    fn semantic_fingerprint_ignores_frontmatter_tags() {
+        // A avaliacao julga o corpo da nota, nao os metadados: adotar um perfil
+        // de revisao (tag no frontmatter) nao muda o fingerprint, entao nao
+        // invalida a prontidao. Mudanca real no corpo continua diferente.
+        let body = "# Fotossintese\n\nA planta absorve luz.\n\nA clorofila captura energia.\n\nO processo produz glicose.";
+        let with_tag = format!("---\ntags:\n  - revisao/prova\n---\n{body}");
+        let with_another_tag = format!("---\ntags:\n  - revisao/leve\n  - biologia\n---\n{body}");
+        assert_eq!(semantic_fingerprint(body), semantic_fingerprint(&with_tag));
+        assert_eq!(
+            semantic_fingerprint(&with_tag),
+            semantic_fingerprint(&with_another_tag)
+        );
+        assert_ne!(
+            semantic_fingerprint(&with_tag),
+            semantic_fingerprint(&with_tag.replace("luz", "agua"))
         );
     }
     use crate::review::provider::{

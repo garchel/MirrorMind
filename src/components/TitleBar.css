@@ -1,0 +1,182 @@
+/* Barra de titulo customizada (janela sem decoracoes nativas). Fixa no topo
+ * da janela, acima de todos os overlays, com a altura --titlebar-h que o
+ * restante do app desconta dos 100svh. A barra e renderizada DENTRO de cada
+ * shell (vault-selection e workspace), entao herda as variaveis locais do
+ * shell: papel claro na selecao de vault e superfice escura no workspace. */
+.app-titlebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9990;
+  height: var(--titlebar-h, 40px);
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--selection-line, #d9d7d0);
+  background: var(--selection-paper, #fbfaf6);
+  color: var(--selection-muted, #73736d);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Workspace: a barra vira a linha do topo do grid do shell (coluna do
+ * editor, apos o explorador de arquivos) e acompanha o fundo do workspace.
+ * O explorador e a rail ficam em altura total — o espaco da barra de titulo
+ * e compartilhado com abas + controles de janela. */
+.workspace-shell .app-titlebar {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  grid-column: 2;
+  grid-row: 1;
+  z-index: 10;
+  margin-left: var(--explorer-width, 272px);
+  border-bottom-color: var(--workspace-line, #292735);
+  background: var(--workspace-bg, #0f0e14);
+  color: var(--workspace-muted, #898695);
+  transition: margin-left 180ms ease;
+}
+
+/* Workspace: a marca (logo + nome) fica no topo da RAIL, acima da barra de
+ * ferramentas. Dentro da barra de abas ela e oculta — so sobram abas e
+ * controles de janela. */
+.workspace-shell .app-titlebar .app-titlebar-brand {
+  display: none;
+}
+
+/* Marca no topo da rail: mesma altura da linha do titulo, cancela o padding
+ * da rail e fecha com a borda inferior do workspace. O fundo fica
+ * transparente para integrar com a superficie da rail (como o seletor de
+ * vault do Obsidian) e o padding esquerdo alinha a logo com os icones da
+ * barra de ferramentas (padding da rail 8px + padding interno do botao 9px). */
+.workspace-rail .app-titlebar-brand {
+  flex: none;
+  align-items: center;
+  height: var(--titlebar-h, 40px);
+  margin: -12px -8px 0;
+  padding: 0 17px;
+  border-bottom: 1px solid var(--workspace-line, #d9d7d0);
+  background: transparent;
+}
+
+.workspace-shell.is-sidebar-collapsed .app-titlebar-name {
+  display: none;
+}
+
+
+/* Abas (e o que mais o App colocar no meio da barra) preenchem o espaco
+ * entre a marca e os controles de janela. */
+.app-titlebar-tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+/* A barra de abas dentro da barra de titulo: preenche a altura, sem fundo
+ * proprio (o fundo e o da barra) e sem borda inferior (a barra ja tem). */
+.workspace-shell .app-titlebar .tab-strip {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
+  gap: 0;
+}
+
+.workspace-shell .app-titlebar .tab-chip {
+  height: 100%;
+}
+
+.app-titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+}
+
+.app-titlebar-logo {
+  height: 19px;
+  width: auto;
+  flex: none;
+  pointer-events: none;
+}
+
+[data-theme='dark'] .workspace-shell .app-titlebar-logo {
+  /* A logo e escura (#4a4636): clareia para ficar visivel na barra escura. */
+  filter: invert(0.82);
+}
+
+.app-titlebar-name {
+  font: 600 12px/1 var(--sans);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.app-titlebar-controls {
+  display: flex;
+  align-items: stretch;
+  /* Fixa os controles no canto DIREITO da barra mesmo quando o conteudo do
+   * meio (abas) nao existe — paginas fora do editor: sem a marca (oculta no
+   * workspace) e sem abas, o `justify-content: space-between` sozinho os
+   * empurraria para o canto esquerdo. */
+  margin-left: auto;
+}
+
+/* Controles de janela: quadrados, planos e minimais. A especificidade alta
+ * (.app-titlebar .app-titlebar-control) sobrepoe o `button` global do app
+ * (border-radius 999px, min-height 46px, hover com lift) e o `.workspace-shell
+ * button` (chip escuro arredondado) — sem cantos arredondados e sem fundo ate
+ * o hover, que e um bloco reto com um tint sutil. */
+.app-titlebar .app-titlebar-control {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.app-titlebar .app-titlebar-control:hover:not(:disabled) {
+  transform: none;
+  background: rgba(28, 36, 39, 0.08);
+  color: var(--text-h, #1c2427);
+}
+
+.workspace-shell .app-titlebar .app-titlebar-control:hover:not(:disabled) {
+  /* Tint neutro que acompanha o tema do workspace (--workspace-line). */
+  background: color-mix(in srgb, var(--workspace-line, #d9d7d0) 45%, transparent);
+  color: var(--workspace-text, #d9d7e2);
+}
+
+.app-titlebar .app-titlebar-control--close:hover:not(:disabled),
+.workspace-shell .app-titlebar .app-titlebar-control--close:hover:not(:disabled) {
+  background: #b3261e;
+  color: #fff;
+}
+
+/* Nenhum SVG da barra pode ser o alvo do pointer: se fosse, o mousedown nele
+ * (elemento nao interativo) iniciaria o arrasto da janela em vez do clique
+ * nos botoes de janela e nas abas. */
+.app-titlebar svg {
+  pointer-events: none;
+}
+
+.app-titlebar .app-titlebar-control:focus-visible {
+  outline: 2px solid var(--accent, #c46a2b);
+  outline-offset: -2px;
+}

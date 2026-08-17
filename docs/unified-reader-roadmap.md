@@ -184,7 +184,25 @@
   Recolher/Cancelar/Aplicar**, parecendo parte dele. O painel abre com
   **animação slide-down** (`frontmatter-menu-slide-down`): a linha cresce e a
   **borda inferior do header desce junto com o arrow** (respeita
-  `prefers-reduced-motion`). O painel usa um **grid de 2 colunas**
+  `prefers-reduced-motion`). A animação anima **apenas `max-height`** (layout
+  puro) — sem `transform`/`opacity`, que promovem o painel a uma camada de
+  composição própria e, ao criar/remover essa camada a cada expandir/recolher,
+  disparam o bug do WebView2/Chromium do **cursor I-beam branco/invisível**
+  sobre a área de texto do editor logo abaixo (bug de composição MPO do
+  Windows). O cursor da área editável também é declarado explicitamente
+  (`cursor: text` no `.cm-content` do Misto). Além da prevenção (animação sem
+  camada), o App ganhou uma **recuperação do cursor na troca de página**
+  (efeito em `workspacePage`): um instante de `cursor: auto !important` em
+  tudo força o compositor do WebView2 a redesenhar o cursor nativo depois de
+  mudanças de composição (a Tabela tem colunas fixas/sticky e o grafo monta
+  um canvas WebGL — mesmos gatilhos do bug "cursor branco/invisível" do
+  Windows, cujo workaround clássico é minimizar/restaurar a janela). A
+  recuperação foi generalizada para **qualquer entrada na superfície do
+  editor** (explorador → editor): uma delegação de `mouseover`/`mouseout`
+  reemite o cursor ao cruzar para dentro do `.editor-surface` (onde o cursor
+  muda para o I-beam — outro gatilho conhecido). A função `nudgeCursor` é
+  compartilhada pelos dois casos (30-40ms de `cursor: auto !important`).
+  O painel usa um **grid de 2 colunas**
   (**Tags** à esquerda | **Propriedades** à direita) para ocupar melhor a
   largura do header, com **Referenciada por** (backlinks clicáveis) embaixo,
   na largura toda. O campo de **valor tem a mesma altura do campo de nome**

@@ -5,6 +5,19 @@
   },
   "app": {
     "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "MirrorMind",
+        "width": 1420,
+        "height": 940,
+        "minWidth": 1120,
+        "minHeight": 760,
+        "resizable": true,
+        "fullscreen": false,
+        "maximized": false,
+        "decorations": false
+      }
+    ],
     "security": {
       "capabilities": [
         "default",

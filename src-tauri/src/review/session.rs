@@ -352,6 +352,134 @@ pub(crate) fn normalize_for_grounding(text: &str) -> String {
     normalized.trim().to_string()
 }
 
+/// Normaliza um texto para a VALIDACAO de citacoes longas do modelo (fact
+/// check e demais relatorios fundamentados no Markdown). Alem de caixa,
+/// acentos e espacos (como `normalize_for_grounding`), trata LaTeX de forma
+/// que a citacao de uma formula RENDERIZADA pelo modelo (O2, CO2, H2O) ancora
+/// no Markdown cru com o markup (`$\text{O}_2$`): consome o nome dos comandos
+/// ("text" nao vira palavra), remove os delimitadores `$`/`{}` e os
+/// sub/sobrescritos `_`/`^` (juntando: `\text{H}_2\text{O}` vira "h2o") e
+/// mapeia subscritos/sobrescritos unicode (O₂, C₆H₁₂O₆) para digitos comuns.
+pub(crate) fn normalize_quote_for_grounding(text: &str) -> String {
+    let folded = text.to_lowercase().nfd().collect::<String>();
+    let mut normalized = String::with_capacity(folded.len());
+    let mut last_space = true;
+    let mut chars = folded.chars().peekable();
+    while let Some(character) = chars.next() {
+        if matches!(character, '\u{0300}'..='\u{036F}' | '\u{1AB0}'..='\u{1AFF}' | '\u{1DC0}'..='\u{1DFF}' | '\u{FE20}'..='\u{FE2F}')
+        {
+            continue;
+        }
+        match character {
+            '\\' => {
+                // Comando LaTeX: consome o nome (text, xrightarrow, frac, ...)
+                // sem deixar a palavra do comando no texto normalizado.
+                let mut name = String::new();
+                while let Some(&next) = chars.peek() {
+                    if next.is_ascii_alphabetic() {
+                        name.push(next);
+                        chars.next();
+                    } else {
+                        break;
+                    }
+                }
+                // Setas LaTeX viram um marcador comum ("->"/"<-"/"<->"): o
+                // modelo cita a equacao RENDERIZADA (com seta unicode) enquanto
+                // a nota guarda `\xrightarrow{...}` — sem o mapeamento a
+                // ancoragem nunca casa. O ARGUMENTO da seta (`{Luz, Clorofila}`
+                // e o opcional `[...]`) NAO e pulado: sao palavras reais da
+                // nota e uma citacao fiel pode inclui-las (a citacao
+                // renderizada sem o rotulo ancora via grounded_in_order).
+                match name.as_str() {
+                    "xrightarrow" | "rightarrow" | "longrightarrow" | "to" | "Rightarrow"
+                    | "Longrightarrow" | "implies" => {
+                        normalized.push_str("->");
+                        // Espaco INCONDICIONAL apos o marcador: o `last_space`
+                        // pode ja estar true (espaco no input antes do comando)
+                        // e o caminho `{`->`\\text`->`{` nao empurra espaco —
+                        // sem ele, "->" cola no token seguinte ("->luz").
+                        normalized.push(' ');
+                        last_space = true;
+                    }
+                    "xleftarrow" | "leftarrow" | "longleftarrow" | "gets" | "Leftarrow"
+                    | "Longleftarrow" => {
+                        normalized.push_str("<-");
+                        normalized.push(' ');
+                        last_space = true;
+                    }
+                    "leftrightarrow" | "Leftrightarrow" | "leftrightarrows" => {
+                        normalized.push_str("<->");
+                        normalized.push(' ');
+                        last_space = true;
+                    }
+                    _ => {
+                        // Comando com argumento `{...}`: o conteudo das chaves
+                        // junta ao token anterior sem espaco, como na
+                        // renderizacao (`6\\text{CO}_2` vira "6co2", nao
+                        // "6 co2"). Comandos sem chaves seguem com espaco.
+                        if chars.peek() != Some(&'{') {
+                            push_normalized_space(&mut normalized, &mut last_space);
+                        }
+                    }
+                }
+            }
+            // Delimitadores de matematica e chaves: somem sem criar espaco.
+            '{' | '}' | '$' => {}
+            // Sub/sobrescrito em LaTeX: junta ao token (`\text{H}_2` -> "h2").
+            '_' | '^' => {}
+            // Subscritos unicode (U+2080-2089) e sobrescritos comuns
+            // (U+2070/2074-2079, U+00B9/B2/B3): viram digitos normais.
+            '\u{2080}'..='\u{2089}'
+            | '\u{2070}'
+            | '\u{00B9}'
+            | '\u{00B2}'
+            | '\u{00B3}'
+            | '\u{2074}'..='\u{2079}' => {
+                let digit = match character {
+                    '\u{2080}' | '\u{2070}' => 0,
+                    '\u{2081}' | '\u{00B9}' => 1,
+                    '\u{2082}' | '\u{00B2}' => 2,
+                    '\u{2083}' | '\u{00B3}' => 3,
+                    _ => (character as u32 % 0x10) as u8,
+                };
+                normalized.push(char::from(b'0' + digit));
+                last_space = false;
+            }
+            // Setas unicode (renderizacao natural das equacoes): mesmo marcador
+            // usado para os comandos LaTeX, para a ancoragem casar nos dois
+            // lados.
+            '→' | '⇒' | '⟶' | '⟹' => {
+                normalized.push_str("->");
+                normalized.push(' ');
+                last_space = true;
+            }
+            '←' | '⇐' | '⟵' | '⟸' => {
+                normalized.push_str("<-");
+                normalized.push(' ');
+                last_space = true;
+            }
+            '↔' | '⇔' | '⟷' => {
+                normalized.push_str("<->");
+                normalized.push(' ');
+                last_space = true;
+            }
+            _ if character.is_alphanumeric() => {
+                normalized.push(character);
+                last_space = false;
+            }
+            _ => push_normalized_space(&mut normalized, &mut last_space),
+        }
+    }
+    normalized.trim().to_string()
+}
+
+fn push_normalized_space(out: &mut String, last_space: &mut bool) {
+    if !*last_space {
+        out.push(' ');
+        *last_space = true;
+    }
+}
+
 /// Devolve os limites em bytes, no Markdown original, da primeira ocorrencia
 /// de um termo normalizado, tolerando caixa e marcacao inline (negrito,
 /// LaTeX) que a normalizacao remove entre as palavras. Os limites caem sempre
@@ -7689,5 +7817,32 @@ mod tests {
             }
             _ => panic!("expected an evaluated stored result"),
         }
+    }
+
+    /// Setas LaTeX e unicode normalizam para o mesmo marcador: o Markdown da
+    /// nota guarda `\xrightarrow{\text{Luz, Clorofila}}` (com rotulo) e o
+    /// modelo cita a equacao renderizada com "→" — os dois lados precisam
+    /// casar na ancoragem do fact check.
+    #[test]
+    fn normalize_quote_for_grounding_maps_arrows() {
+        let markdown = "$$6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2$$";
+        let quoted_rendered = "6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂";
+        let quoted_latex = "6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2";
+        let markdown_normalized = super::normalize_quote_for_grounding(markdown);
+        let rendered_normalized = super::normalize_quote_for_grounding(quoted_rendered);
+        let latex_normalized = super::normalize_quote_for_grounding(quoted_latex);
+        // A citacao literal (com o rotulo "Luz, Clorofila") normaliza igual ao
+        // Markdown e ancora contigua; a renderizada (sem o rotulo) mantem as
+        // mesmas palavras significativas em ordem (ancora via grounded_in_order).
+        assert_eq!(latex_normalized, markdown_normalized);
+        // A citacao renderizada nao traz o rotulo — difere da literal, mas as
+        // palavras significativas dela aparecem em ordem no Markdown (a
+        // ancoragem tolerante em fact_check aceita).
+        assert_ne!(rendered_normalized, latex_normalized);
+        assert!(!rendered_normalized.contains("luz"));
+        assert_eq!(
+            super::normalize_quote_for_grounding("a → b ← c ↔ d"),
+            super::normalize_quote_for_grounding("a \\to b \\gets c \\leftrightarrow d")
+        );
     }
 }

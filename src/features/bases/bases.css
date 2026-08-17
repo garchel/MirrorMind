@@ -1,11 +1,36 @@
-/* Pagina Bases: tabela de notas com propriedades do frontmatter como colunas. */
+/* Pagina Tabela: todas as notas em uma tabela com as propriedades do
+   frontmatter como colunas. As cores sao variaveis PROPIAS da pagina
+   (--bases-*), definidas por tema no proprio `.bases-page` — o padrao das
+   demais paginas (ex.: Tags). Assim os cabecalhos/superficies nunca herdam a
+   cor do tema errado, independente do contexto onde a pagina renderiza. */
 .bases-page {
+  --bases-surface: #f2f1ec;
+  --bases-surface-raised: #fffef9;
+  --bases-header-bg: #f7f5ee;
+  --bases-line: #e2e0d8;
+  --bases-line-soft: rgb(28 36 39 / 6%);
+  --bases-text: #3d3d38;
+  --bases-muted: #73736d;
+  --bases-accent: #2e6b4f;
+  --bases-accent-soft: rgb(46 107 79 / 7%);
   display: flex;
   flex-direction: column;
   gap: 14px;
   min-height: 0;
   padding: 18px 20px;
   overflow: hidden;
+}
+
+[data-theme='dark'] .bases-page {
+  --bases-surface: #1e1b21;
+  --bases-surface-raised: #201d24;
+  --bases-header-bg: #232027;
+  --bases-line: #3a3640;
+  --bases-line-soft: rgb(232 230 221 / 8%);
+  --bases-text: #e2e0da;
+  --bases-muted: #a8a59d;
+  --bases-accent: #8fc4b0;
+  --bases-accent-soft: rgb(143 196 176 / 10%);
 }
 
 .bases-header .card-kicker {
@@ -15,37 +40,42 @@
 .bases-header h2 {
   margin: 0;
   font-size: 18px;
-  color: #3d3d38;
+  color: var(--bases-text);
 }
 
 .bases-header-description {
   margin: 4px 0 0;
-  color: #8a8a82;
+  color: var(--bases-muted);
   font-size: 12px;
 }
 
 .bases-toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
+/* Busca e botao Colunas com EXATAMENTE a mesma altura (30px). */
 .bases-search {
   display: flex;
   align-items: center;
   gap: 7px;
   flex: 1;
+  min-width: 200px;
   max-width: 380px;
-  padding: 7px 10px;
-  border: 1px solid #d8d6cf;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--bases-line);
   border-radius: 7px;
-  background: #fffef9;
-  color: #a3a39b;
+  background: var(--bases-surface);
+  color: var(--bases-muted);
 }
 
 .bases-search:focus-within {
-  border-color: #2e6b4f;
-  box-shadow: 0 0 0 2px rgb(46 107 79 / 16%);
+  border-color: var(--bases-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bases-accent) 16%, transparent);
 }
 
 .bases-search input {
@@ -54,32 +84,95 @@
   border: none;
   outline: none;
   background: transparent;
-  color: #3d3d38;
-  font: 12px var(--font);
+  color: var(--bases-text);
+  font: 12px/1 var(--font);
 }
 
 .bases-search input::placeholder {
-  color: #b3b1a8;
+  color: color-mix(in srgb, var(--bases-muted) 75%, transparent);
 }
 
 .bases-count {
-  color: #8a8a82;
+  color: var(--bases-muted);
   font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Botao "Colunas": abre o popover que escolhe quais propriedades aparecem.
+   IMPORTANTE (bug do cabecalho escuro): o App tem regras globais
+   `.workspace-shell button { background: #292926; color: #fbfaf6 }` com
+   especificidade (0,2,1) — maior que a de um simples `.bases-columns-button`
+   (0,1,0). Sem o escopo `.workspace-shell`, esses botoes (e os de ordenacao
+   do cabecalho) ficavam ESCUROS com texto claro, mesmo com o restante da
+   pagina claro. Tudo aqui e escopado com `.workspace-shell` para vencer a
+   regra global; o tema escuro reescopa com `[data-theme='dark']`. */
+.workspace-shell .bases-columns-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  min-height: 0; /* vence o min-height do `.workspace-shell button` */
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid #d8d6cf;
+  border-radius: 7px;
+  background: #f2f1ec;
+  color: #3d3d38;
+  font: 600 12px var(--font);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.workspace-shell .bases-columns-button:hover:not(:disabled) {
+  border-color: #2e6b4f;
+  color: #2e6b4f;
+  background: rgb(46 107 79 / 7%);
+}
+
+.bases-columns-badge {
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #2e6b4f;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+[data-theme='dark'] .workspace-shell .bases-columns-button {
+  border-color: #3a3640;
+  background: #1e1b21;
+  color: #e2e0da;
+}
+
+[data-theme='dark'] .workspace-shell .bases-columns-button:hover:not(:disabled) {
+  border-color: #8fc4b0;
+  color: #8fc4b0;
+  background: rgb(143 196 176 / 10%);
+}
+
+[data-theme='dark'] .bases-columns-badge {
+  background: #8fc4b0;
+  color: #17151a;
 }
 
 .bases-error {
   margin: 0;
   padding: 8px 10px;
   border-radius: 6px;
-  background: rgb(190 76 58 / 9%);
-  border: 1px solid rgb(190 76 58 / 28%);
+  background: color-mix(in srgb, #be4c3a 9%, transparent);
+  border: 1px solid color-mix(in srgb, #be4c3a 28%, transparent);
   color: #8a3b2c;
   font-size: 12px;
 }
 
 .bases-loading {
   margin: 0;
-  color: #8a8a82;
+  color: var(--bases-muted);
   font-size: 12px;
 }
 
@@ -90,36 +183,40 @@
   justify-content: center;
   gap: 8px;
   padding: 36px 16px;
-  color: #a3a39b;
+  color: var(--bases-muted);
   font-size: 12px;
   text-align: center;
 }
 
 .bases-empty svg {
-  color: #c2c0b6;
+  color: color-mix(in srgb, var(--bases-muted) 70%, transparent);
 }
 
 .bases-table-wrap {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  border: 1px solid #e2e0d8;
+  border: 1px solid var(--bases-line);
   border-radius: 8px;
-  background: #fffef9;
+  background: var(--bases-surface);
   outline: none;
 }
 
 .bases-table-wrap:focus-visible {
-  border-color: #2e6b4f;
-  box-shadow: 0 0 0 2px rgb(46 107 79 / 16%);
+  border-color: var(--bases-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bases-accent) 16%, transparent);
 }
 
 .bases-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 12px;
 }
 
+/* Cabecalhos das colunas: CORES EXPLICITAS por tema (hex direto, sem
+   variavel) — garantem a superficie clara em tema claro mesmo com cache
+   parcial/variaveis ausentes; o tema escuro redefine explicitamente. */
 .bases-table thead th {
   position: sticky;
   top: 0;
@@ -132,7 +229,10 @@
   white-space: nowrap;
 }
 
-.bases-th-button {
+/* Botoes de ordenacao do cabecalho: escopados com `.workspace-shell` pelo
+   mesmo motivo do botao Colunas (a regra global `.workspace-shell button`
+   (0,2,1) os deixaria escuros com texto claro). */
+.workspace-shell .bases-th-button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -146,18 +246,34 @@
   cursor: pointer;
 }
 
-.bases-th-button:hover {
+.workspace-shell .bases-th-button:hover:not(:disabled) {
+  background: transparent;
   color: #2e6b4f;
 }
 
-.bases-th-button svg {
+.workspace-shell .bases-th-button svg {
   color: #2e6b4f;
+}
+
+[data-theme='dark'] .bases-table thead th {
+  border-bottom-color: #3a3640;
+  background: #232027;
+  color: #c9c6c0;
+}
+
+[data-theme='dark'] .workspace-shell .bases-th-button:hover:not(:disabled) {
+  background: transparent;
+  color: #8fc4b0;
+}
+
+[data-theme='dark'] .workspace-shell .bases-th-button svg {
+  color: #8fc4b0;
 }
 
 .bases-table tbody td {
   padding: 7px 10px;
-  border-bottom: 1px solid rgb(28 36 39 / 5%);
-  color: #4f4f49;
+  border-bottom: 1px solid var(--bases-line-soft);
+  color: var(--bases-text);
   vertical-align: top;
   max-width: 260px;
   overflow: hidden;
@@ -170,75 +286,235 @@
 }
 
 .bases-row:hover td {
-  background: rgb(46 107 79 / 5%);
+  background: var(--bases-accent-soft);
 }
 
 .bases-row:focus-visible {
-  outline: 2px solid rgb(46 107 79 / 45%);
+  outline: 2px solid color-mix(in srgb, var(--bases-accent) 45%, transparent);
   outline-offset: -2px;
 }
 
 .bases-note-name {
+  display: block;
   font-weight: 600;
-  color: #2e6b4f;
+  color: var(--bases-accent);
 }
 
 .bases-cell-value {
-  color: #5f5f57;
+  color: var(--bases-text);
 }
 
-/* Tema escuro: a pagina Bases fica sobre o canvas escuro do workspace. */
-[data-theme='dark'] .bases-header h2 {
-  color: #f0eee7;
+/* Primeira coluna (nome da nota) fixa ao rolar horizontalmente: o nome
+   permanece visivel enquanto o usuario percorre as colunas de propriedade. */
+.bases-table th:first-child,
+.bases-table td:first-child {
+  position: sticky;
+  left: 0;
 }
 
-[data-theme='dark'] .bases-header-description,
-[data-theme='dark'] .bases-count,
-[data-theme='dark'] .bases-loading {
+.bases-table thead th:first-child {
+  z-index: 2;
+}
+
+.bases-table tbody td:first-child {
+  background: var(--bases-surface-raised);
+  box-shadow: 3px 0 4px -3px rgb(28 36 39 / 14%);
+}
+
+.bases-row:hover td:first-child {
+  background: color-mix(in srgb, var(--bases-accent) 7%, var(--bases-surface-raised));
+}
+
+/* ------------------------------------------------------------------ */
+/* Popover "Colunas" (portalado fora do .bases-page): cores e tema escuro
+   sao explicitos neste escopo, sem as variaveis da pagina. */
+.ui-popover-content.bases-column-picker {
+  width: min(300px, 92vw);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #e2e0d8;
+  border-radius: 10px;
+  background: #fffef9;
+  color: #3d3d38;
+  box-shadow: 0 10px 30px rgb(28 36 39 / 14%);
+}
+
+.bases-column-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #ece9e1;
+  color: #6a6a62;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bases-column-picker-count {
+  color: #a3a39b;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.bases-column-picker-list {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.bases-column-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #3d3d38;
+  font: 500 13px var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+
+.bases-column-row:hover:not(:disabled) {
+  background: rgb(46 107 79 / 7%);
+}
+
+.bases-column-row.is-locked {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.bases-column-check {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid #c2c0b6;
+  border-radius: 4px;
+  background: #fffef9;
+  color: transparent;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.bases-column-row.is-checked .bases-column-check {
+  border-color: #2e6b4f;
+  background: #2e6b4f;
+  color: #fff;
+}
+
+.bases-column-row-icon {
+  flex: none;
+  color: #8a8a82;
+}
+
+.bases-column-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bases-column-key {
+  margin-left: auto;
+  flex: none;
+  color: #a3a39b;
+  font-size: 11px;
+}
+
+.bases-column-lock {
+  margin-left: auto;
+  flex: none;
+  color: #a3a39b;
+}
+
+.bases-column-picker-foot {
+  padding: 8px;
+  border-top: 1px solid #ece9e1;
+}
+
+.bases-columns-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #8a8a82;
+  font: 500 12px var(--font);
+  cursor: pointer;
+}
+
+.bases-columns-reset:hover:not(:disabled) {
+  background: rgb(46 107 79 / 7%);
+  color: #2e6b4f;
+}
+
+/* Tema escuro do popover (portalado: o escopo parte do proprio conteudo). */
+[data-theme='dark'] .ui-popover-content.bases-column-picker {
+  border-color: #3a3640;
+  background: #1e1b21;
+  color: #e2e0da;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 45%);
+}
+
+[data-theme='dark'] .bases-column-picker-head {
+  border-bottom-color: #312d36;
   color: #a8a59d;
 }
 
-[data-theme='dark'] .bases-search,
-[data-theme='dark'] .bases-table-wrap {
-  border-color: #3a3640;
-  background: #1e1b21;
+[data-theme='dark'] .bases-column-picker-count {
+  color: #8f8c86;
 }
 
-[data-theme='dark'] .bases-search input {
+[data-theme='dark'] .bases-column-row {
   color: #e2e0da;
 }
 
-[data-theme='dark'] .bases-search input::placeholder {
-  color: #8a8781;
+[data-theme='dark'] .bases-column-row:hover:not(:disabled) {
+  background: rgb(143 196 176 / 9%);
 }
 
-[data-theme='dark'] .bases-table thead th {
-  border-bottom-color: #3a3640;
-  background: #232027;
-  color: #c9c6c0;
+[data-theme='dark'] .bases-column-check {
+  border-color: #4a4552;
+  background: #26232a;
 }
 
-[data-theme='dark'] .bases-th-button:hover {
-  color: #8fc4b0;
+[data-theme='dark'] .bases-column-row.is-checked .bases-column-check {
+  border-color: #8fc4b0;
+  background: #8fc4b0;
+  color: #17151a;
 }
 
-[data-theme='dark'] .bases-table tbody td {
-  border-bottom-color: rgb(232 230 221 / 7%);
-  color: #d6d4cd;
+[data-theme='dark'] .bases-column-row-icon {
+  color: #a8a59d;
 }
 
-[data-theme='dark'] .bases-row:hover td {
-  background: rgb(143 196 176 / 8%);
-}
-
-[data-theme='dark'] .bases-note-name {
-  color: #8fc4b0;
-}
-
-[data-theme='dark'] .bases-cell-value {
-  color: #c9c6c0;
-}
-
-[data-theme='dark'] .bases-empty {
+[data-theme='dark'] .bases-column-key {
   color: #8f8c86;
+}
+
+[data-theme='dark'] .bases-column-lock {
+  color: #8f8c86;
+}
+
+[data-theme='dark'] .bases-column-picker-foot {
+  border-top-color: #312d36;
+}
+
+[data-theme='dark'] .bases-columns-reset {
+  color: #a8a59d;
+}
+
+[data-theme='dark'] .bases-columns-reset:hover:not(:disabled) {
+  background: rgb(143 196 176 / 9%);
+  color: #8fc4b0;
 }

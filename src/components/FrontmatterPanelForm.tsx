@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Building2, Cake, Calendar, CheckSquare, CircleDot, Flag, Globe, Hash, Link, Mail, MapPin, Phone, Plus, Tag, Type, User, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
+import { COMMON_PROPERTIES, propertyIcon } from '../lib/commonProperties'
 import type { FrontmatterBacklink, FrontmatterRow } from './markdownLivePreview'
 
 type FrontmatterPanelFormProps = {
@@ -25,35 +26,8 @@ type FrontmatterPanelFormProps = {
   onOpenBacklink: (relativePath: string) => void
 }
 
-type CommonProperty = { key: string; label: string; icon: typeof Phone }
-
-/** Propriedades comuns oferecidas no popover de "+" (so icones): ex., o icone
- * de telefone adiciona a propriedade `phone`. */
-const COMMON_PROPERTIES: CommonProperty[] = [
-  { key: 'phone', label: 'Telefone', icon: Phone },
-  { key: 'email', label: 'E-mail', icon: Mail },
-  { key: 'url', label: 'URL', icon: Link },
-  { key: 'website', label: 'Site', icon: Globe },
-  { key: 'date', label: 'Data', icon: Calendar },
-  { key: 'author', label: 'Autor', icon: User },
-  { key: 'location', label: 'Local', icon: MapPin },
-  { key: 'company', label: 'Empresa', icon: Building2 },
-  { key: 'birthday', label: 'Aniversário', icon: Cake },
-  { key: 'tags', label: 'Tags', icon: Tag },
-  { key: 'priority', label: 'Prioridade', icon: Flag },
-  { key: 'status', label: 'Status', icon: CircleDot },
-  { key: 'number', label: 'Número', icon: Hash },
-  { key: 'text', label: 'Texto', icon: Type },
-  { key: 'checkbox', label: 'Checkbox', icon: CheckSquare },
-]
-
-const PROPERTY_ICON_BY_KEY: Record<string, typeof Phone> = Object.fromEntries(
-  COMMON_PROPERTIES.map((property) => [property.key, property.icon]),
-)
-
-function propertyIcon(key: string): typeof Phone {
-  return PROPERTY_ICON_BY_KEY[key.trim().toLowerCase()] ?? Hash
-}
+/* Propriedades comuns (chave, rotulo, icone) vivem em lib/commonProperties.ts
+   — a MESMA lista usada pelo seletor de colunas da pagina Tabela. */
 
 /** Painel integrado do frontmatter (modo Misto): secao de Tags (badges + "+"
  * com campo de digitação e sugestões) e de Propriedades (chave + valor, com
