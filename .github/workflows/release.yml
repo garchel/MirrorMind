@@ -23,21 +23,25 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .node-version
           cache: npm
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        # Lê versão/componentes do rust-toolchain.toml (fonte única de verdade).
+        uses: actions-rust-lang/setup-rust-toolchain@1fbea72663f6d4c03efaab13560c8a24cfd2a7cc # v1.9.0
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          toolchain: 1.96.1
-          components: rustfmt
+          workspaces: src-tauri
+          cache-all-crates: "true"
 
       - name: Sync version from tag
         shell: powershell
@@ -87,9 +91,21 @@ jobs:
 
       - name: Build Windows distributable (NSIS + MSI)
         shell: powershell
+        env:
+          # Assinatura do AUTO-UPDATER (minisign, independente do Authenticode):
+          # presente, o build gera os artefatos .sig do atualizador.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           New-Item -ItemType Directory -Force test-results | Out-Null
-          npx tauri build --bundles "nsis,msi" 2>&1 | Tee-Object -FilePath test-results/windows-bundle-build.log
+          $tauriArgs = @('build', '--bundles', 'nsis,msi')
+          if ($env:TAURI_SIGNING_PRIVATE_KEY) {
+            Write-Host 'Secret do updater presente: gerando artefatos de atualizacao assinados'
+            $tauriArgs += @('--config', '{"bundle":{"createUpdaterArtifacts":true}}')
+          } else {
+            Write-Host 'Secret TAURI_SIGNING_PRIVATE_KEY ausente: build SEM artefatos de atualizacao'
+          }
+          npx tauri @tauriArgs 2>&1 | Tee-Object -FilePath test-results/windows-bundle-build.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Smoke test Windows distributable
@@ -133,6 +149,30 @@ jobs:
           & $signtool.FullName verify /pa /v $installer.FullName
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Generate updater manifest (latest.json)
+        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        shell: powershell
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $version = $tag -replace '^v', ''
+          $installer = Get-ChildItem -Path src-tauri/target/release/bundle/nsis -Filter '*-setup.exe' | Select-Object -First 1
+          if (-not $installer) { Write-Error 'Instalador NSIS nao encontrado'; exit 1 }
+          $sigPath = "$($installer.FullName).sig"
+          if (-not (Test-Path $sigPath)) { Write-Error "Assinatura do updater nao encontrada: $sigPath"; exit 1 }
+          $signature = (Get-Content $sigPath -Raw).Trim()
+          $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/releases/download/$tag/$($installer.Name)"
+          $manifest = @{
+            version = $version
+            notes = "MirrorMind $version"
+            pub_date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+            platforms = @{
+              'windows-x86_64' = @{ signature = $signature; url = $url }
+            }
+          }
+          $json = ConvertTo-Json -InputObject $manifest -Depth 5
+          [System.IO.File]::WriteAllText((Join-Path (Get-Location) 'test-results/latest.json'), $json, (New-Object System.Text.UTF8Encoding($false)))
+          Write-Host "latest.json gerado para $url"
+
       - name: Create GitHub Release
         shell: powershell
         env:
@@ -146,6 +186,7 @@ jobs:
           if ($msi) { $assets += $msi.FullName }
           $manifest = Resolve-Path test-results/windows-bundle-manifest.json
           $assets += $manifest.Path
+          if (Test-Path test-results/latest.json) { $assets += (Resolve-Path test-results/latest.json).Path }
           Write-Host "Criando release $tag com $($assets.Count) artefato(s)"
           gh release create $tag $assets --title $tag --generate-notes
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

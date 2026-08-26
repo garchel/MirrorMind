@@ -1,0 +1,67 @@
+name: Report de bug
+description: Registre um comportamento incorreto, erro ou perda inesperada de dados.
+title: "[Bug] "
+labels: ["bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar. Quanto mais contexto, mais rapido o diagnostico.
+        **Nunca anexe conteudo privado do seu vault** — troque nomes e textos por exemplos genericos.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Plataforma
+      options:
+        - Windows 11
+        - Windows 10
+        - Outra (descreva abaixo)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versao do MirrorMind
+      description: Visivel em Configuracoes / sobre a janela; ex. 0.1.0-beta.1.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para reproduzir
+      description: Liste os passos na ordem em que executou, com o minimo necessario para o erro acontecer.
+      placeholder: |
+        1. Abrir vault X
+        2. Criar nota
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento esperado
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportamento observado
+      description: Inclua mensagens de erro exibidas pelo app, se houver.
+    validations:
+      required: true
+  - type: checkboxes
+    id: vault-context
+    attributes:
+      label: Contexto do vault
+      options:
+        - label: O vault foi criado pelo MirrorMind.
+        - label: O vault veio do Obsidian (contem `.obsidian/`).
+        - label: O vault esta numa pasta sincronizada (OneDrive, Dropbox, Git etc.).
+        - label: Nao sei / nao se aplica.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Evidencias adicionais
+      description: Screenshots (sem dados privados), logs, passos que ja tentou. Remova caminhos pessoais se preferir.

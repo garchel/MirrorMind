@@ -1,0 +1,42 @@
+name: Sugestao de melhoria
+description: Sugira uma funcionalidade, melhoria de uso ou compartilhe feedback do produto.
+title: "[Sugestao] "
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideias sao bem-vindas — especialmente as que descrevem um problema real
+        do seu fluxo de trabalho, e nao so a solucao desejada.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema ou necessidade
+      description: O que voce estava tentando fazer? O que travou, atrasou ou confundiu?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Sugestao
+      description: Como voce imagina a solucao? Alternativas que considerou tambem ajudam.
+    validations:
+      required: true
+  - type: checkboxes
+    id: area
+    attributes:
+      label: Area relacionada
+      options:
+        - label: Editor / escrita
+        - label: Organizacao (pastas, tags, links, grafo)
+        - label: Revisao / aprendizado
+        - label: Compatibilidade com Obsidian
+        - label: Desempenho
+        - label: Interface / usabilidade geral
+        - label: Outra
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto adicional
+      description: Como outros apps resolvem isso, prints, exemplos. Sem dados privados.
