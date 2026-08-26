@@ -19,14 +19,18 @@ Ele complementa os documentos existentes:
 | Área | Estado | Observação |
 | --- | --- | --- |
 | Build desktop | ✅ Pronto | Tauri 2, NSIS + MSI, ícones, CSP, janela sem decoração com controles customizados |
-| CI | ✅ Pronto | Lint, typecheck, 738 testes frontend, 482 testes Rust, build, E2E desktop Windows (9 jornadas), bundle + smoke, cobertura |
+| CI | ✅ Pronto | Lint, typecheck, 749 testes frontend, 489 testes Rust, build, E2E desktop Windows (9 jornadas), bundle + smoke, cobertura |
 | E2E Linux smoke | ✅ Pronto | Job dedicado no CI (`linux-e2e-smoke`) |
 | Gate de release (checklist) | ❌ Nunca executado | `docs/releases/` não existe; nenhuma candidata validada em máquina real |
 | Assinatura de código | ❌ Ausente | Instalador gerado sem Authenticode; SmartScreen bloqueia instalação limpa |
-| Automação de release | ❌ Ausente | CI só publica artefato com retenção de 14 dias; não há workflow por tag |
-| Licença / identidade legal | ❌ Ausente | `Cargo.toml` com `license = ""`; sem `LICENSE`; sem changelog |
-| Distribuição | ❌ Ausente | Sem página de download; sem GitHub Release |
+| Automação de release | 🟡 Parcial | `release.yml` por tag criado (assinatura condicional aos secrets); aguarda primeira execução/validação com tag real |
+| Licença / identidade legal | ❌ Ausente | `Cargo.toml` com `license = ""`; sem `LICENSE` (`CHANGELOG.md` já existe) |
+| Distribuição | 🟡 Parcial | Página de download documentada (`docs/download.md`); nenhum GitHub Release publicado |
 | Multiplataforma | 🟡 Parcial | Windows x64 validado; Linux só smoke; macOS sem build nem notarização |
+| Auto-updater (atualizações automáticas) | 🟡 Infra pronta | Plugin updater registrado, pubkey gerada e endpoint apontando para GitHub Releases (`latest.json`); `release.yml` já gera artefatos de atualização assinados (`createUpdaterArtifacts` + manifesto) quando o secret está presente. Faltam: cadastrar `TAURI_SIGNING_PRIVATE_KEY*` nos secrets do CI, executar/validar o workflow com tag real e o fluxo de verificação de atualização na UI |
+| Documentação de usuário | 🟡 Parcial | `docs/user-guide.md` + `docs/obsidian-migration-guide.md` criados e linkados da página de download; falta revisão de conteúdo por quem conhece o produto ponta a ponta |
+| Suporte / comunidade | 🟡 Parcial | Templates de issue (*Report de bug* / *Sugestão*) criados; falta habilitar GitHub Discussions (configuração do repositório) |
+| Telemetria de falhas (crash reporting) | ❌ Sem decisão | Filosofia local-first sugere "não ter", mas a decisão não está registrada nem justificada |
 
 ## Princípios
 
@@ -110,9 +114,13 @@ instalador assinado e notas, sem intervenção manual.
 | Política de privacidade e termos de uso (descreve o que o app grava: só `.mirmind/` dentro do vault + `recent-vault.json`) | S | ✅ rascunho `docs/privacy-policy.md` (revisar antes de publicar) |
 | Página de download (GitHub Releases) com instruções de instalação e requisitos mínimos | S | ✅ `docs/download.md` |
 | Identidade visual mínima no instalador (ícone do app já gerado; conferir NSIS) | S | ✅ ícones gerados da logo; NSIS usa o bundle padrão |
+| Onboarding de primeiro uso: tela de boas-vindas + escolha/criação de Vault guiada | M | 🟡 a tela existe (hero + abrir/criar + modal de vault recente) e recebeu copy de produto (textos de dev removidos); validar jornada completa no gate M1 |
+| Guia do usuário mínimo: primeiros passos + guia de migração do Obsidian (público, fora de `docs/` interno) | M | ✅ `docs/user-guide.md` + `docs/obsidian-migration-guide.md`, linkados de `download.md` |
+| Canal de suporte/comunidade mínimo: GitHub Discussions habilitado + templates de issue (bug/feedback) | S | 🟡 `.github/ISSUE_TEMPLATE/bug_report.yml` + `feature_feedback.yml` criados; habilitar Discussions é configuração do repositório |
 
 **Critério de saída**: download público leva a um instalador assinado com
-termos/privacidade acessíveis e instalação sem fricção.
+termos/privacidade acessíveis e instalação sem fricção, e um usuário novo
+consegue dar os primeiros passos sem apoio externo (onboarding + guia).
 
 ### M5 — Pós-lançamento (consolidação, NÃO bloqueia o beta)
 
@@ -121,6 +129,10 @@ ordem de valor.
 
 | Task | Esforço | Prioridade |
 | --- | --- | --- |
+| **Auto-updater**: plugin updater do Tauri + feed de versões assinado + política de notificação de atualização | M | **alta** — 🟡 INFRA PRONTA (2026-08): `tauri-plugin-updater` registrado em `lib.rs`, capability `updater:default`, pubkey em `tauri.conf.json` com endpoint GitHub Releases; keypair gerado em `src-tauri/updater-keys/` (**chave privada gitignored — guardar em cofre/secret antes de qualquer release**); `release.yml` já condiciona `createUpdaterArtifacts` + geração do `latest.json` à presença do secret. Restam: cadastrar o secret `TAURI_SIGNING_PRIVATE_KEY*` no CI, primeira execução/validação com tag real e verificação de atualização na UI |
+| Registrar DECISÃO sobre telemetria de falhas (crash reporting): manter zero-telemetria local-first e documentar em `privacy-policy.md`, ou adotar relatório opt-in de crashes | S | **alta** — hoje um crash do app é invisível para o time; a decisão (mesmo sendo "não ter") precisa estar escrita |
+| Auditoria de segurança externa do código Rust/TypeScript (foco: IPC, confinamento de vault, TOCTOU, egresso de IA) | L | média |
+| Modelo geral de monetização/licenciamento do produto (hoje só o plano pago da IA tem escopo) | S (decisão) + M (implementação) | média |
 | Linux: distributivos (AppImage/deb/rpm) no CI + validação real | M | média |
 | macOS: build + assinatura/notarização | M | média |
 | Compatibilidade de anexos: realocação/antecipação `./pasta`, matriz maior de vaults (v2-features, item `Parcial`) | M | baixa |
@@ -149,6 +161,10 @@ M0 (base verde)
 3. **Nome/versão**: manter `MirrorMind 0.1.0-beta` ou ajustar.
 4. **Certificado de assinatura**: provedor e custo aceito (M2).
 5. **Onde distribuir**: GitHub Releases, site próprio ou ambos (M4).
+6. **Crash reporting**: manter zero-telemetria (documentar a escolha) ou
+   adotar relatório opt-in de falhas (M5).
+7. **Monetização geral**: modelo/licença comercial do produto além do plano
+   pago da IA (M5).
 
 ## Registro de mudanças
 
@@ -157,3 +173,16 @@ M0 (base verde)
 - **2026-08 (implementação)**: M0 `fmt` no CI; M3 `release.yml` + `CHANGELOG`;
   M4 rascunho de privacidade e página de download. Restam as decisões (M0
   versão; M2 certificado; M4 licença) e o gate manual (M1).
+- **2026-08 (implementação das lacunas autônomas)**: guias de usuário criados
+  (`user-guide.md`, `obsidian-migration-guide.md`) e linkados da página de
+  download; templates de issue bug/sugestão adicionados; copy da tela de
+  boas-vindas reescrita em linguagem de produto; infraestrutura do auto-updater
+  instalada (plugin, capability, pubkey/endpoint, keypair local gitignored).
+- **2026-08 (lacunas de produto)**: auditoria cruzada dos backlogs identificou
+  itens fora de qualquer roadmap e foram registrados aqui. Snapshot corrigido
+  (changelog existia; release.yml/download já criados). M4 ganhou onboarding,
+  guia do usuário/migração Obsidian e canal de suporte. M5 ganhou auto-updater
+  (prioridade alta), decisão formal de crash reporting, auditoria de segurança
+  externa e modelo geral de monetização. Regressão visual e criptografia
+  opcional de vault registradas em `v2-features-roadmap.md` (Bloco V2.2);
+  riscos correspondentes anotados em `testing-roadmap.md`.

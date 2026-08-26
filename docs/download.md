@@ -35,3 +35,10 @@ O MirrorMind é distribuído pelos **GitHub Releases** do projeto
 - **Versões pré-release**: releases marcadas como *pré-release* são candidatas
   de teste; preferência pela última release estável.
 - Matriz de suporte completa: `docs/windows-support-matrix.md`.
+
+## Suporte e documentação
+
+- **Primeiros passos**: [Guia do usuário](user-guide.md).
+- **Vindo do Obsidian?**: [Guia de migração](obsidian-migration-guide.md).
+- **Bugs**: abra uma issue com o template *Report de bug*.
+- **Sugestões**: template *Sugestão de melhoria* (ou GitHub Discussions).

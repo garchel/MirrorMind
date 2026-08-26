@@ -8,9 +8,15 @@
 > o **Leitura passa a ser o próprio Misto em modo read-only** (sem edição, sem
 > caret, sem revelação de Markdown).
 
-## Estado atual (levantado em agosto/2026)
+## Estado atual (atualizado em agosto/2026)
 
-### O que o Misto já renderiza (mantém)
+**Todos os 10 marcos deste roteiro estão implementados** — incluindo o Marco 10:
+o renderer clássico (ReactMarkdown) foi aposentado e o modo Leitura é hoje o
+próprio Misto em read-only, com um único motor de renderização. A seção abaixo
+foi o levantamento original de agosto/2026, mantido como registro histórico do
+ponto de partida; os detalhes de cada entrega estão nos marcos numerados.
+
+### Levantamento original — o que o Misto já renderizava (mantido)
 - Formatação inline: negrito, itálico, riscado, código.
 - Títulos ATX (`#`–`######`) e setext `===` (H1; `---` vira divisor).
 - Citações `>` (barra lateral) — **manter o formato atual** (decisão do usuário).
@@ -21,7 +27,7 @@
 - Divisor `---` (linha gráfica).
 - Wikilinks `[[...]]` e links `[texto](url)` como **texto estilizado (não clicáveis)** — muda neste roteiro.
 
-### O que falta ao Misto (vem do Leitura) — marcos abaixo
+### Levantamento original — o que faltava ao Misto (vem do Leitura) — tudo entregue nos marcos abaixo
 1. **Links clicáveis** (navegam quando o cursor não está perto).
 2. **Imagens** `![](...)` (hoje aparecem cruas).
 3. **Embeds de nota** `![[...]]` e **PDFs** (hoje viram link estilizado).
