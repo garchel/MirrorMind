@@ -7214,11 +7214,11 @@ function App() {
         <span className="vault-selection-rail-label">Vaults</span>
       </aside>
       <section className="hero-panel">
-        <p className="eyebrow">MirrorMind desktop alpha</p>
+        <p className="eyebrow">Bem-vindo ao MirrorMind</p>
         <h1>Vault local, notas em Markdown e base pronta para revisar conhecimento.</h1>
         <p className="hero-copy">
-          Esta V1 abre um vault real do computador, entende arquivos Markdown de um vault do
-          Obsidian e separa os metadados internos do app em <code>.mirmind/</code>.
+          Suas notas são arquivos Markdown numa pasta do seu computador — nada é enviado para
+          servidores. Abra um vault existente (inclusive do Obsidian) ou crie um novo.
         </p>
         <div className="status-strip" role="status">
           <span className={`status-dot${loading ? ' is-busy' : ''}`}></span>
@@ -7229,12 +7229,12 @@ function App() {
       <section className="vault-grid" data-builder-name="vault-selection-actions">
         <article className="action-card">
           <div className="card-header">
-            <span className="card-kicker">Modo 01</span>
+            <span className="card-kicker">Vault existente</span>
             <h2>Abrir vault existente</h2>
           </div>
           <p>
-            Selecione uma pasta ja existente no computador. O app vai reconhecer notas
-            <code>.md</code> e detectar se o vault ja veio do Obsidian.
+            Selecione uma pasta já existente no computador. O app vai reconhecer notas
+            <code>.md</code> e detectar se o vault já veio do Obsidian.
           </p>
           <button type="button" onClick={chooseExistingVault} disabled={loading}>
             Escolher pasta
@@ -7243,10 +7243,10 @@ function App() {
 
         <article className="action-card action-card--accent">
           <div className="card-header">
-            <span className="card-kicker">Modo 02</span>
+            <span className="card-kicker">Novo vault</span>
             <h2>Criar novo vault</h2>
           </div>
-          <p>Crie um vault novo do zero com a pasta de metadados do MirrorMind pronta.</p>
+          <p>Crie um vault novo do zero com a estrutura interna do app pronta para uso.</p>
           <label className="field">
             <span>Nome do vault</span>
             <input
@@ -7279,20 +7279,6 @@ function App() {
       </section>
 
       {error ? <p className="error-banner">{error}</p> : null}
-
-      <section className="vault-panel">
-        <div className="panel-header">
-          <div>
-            <p className="card-kicker">Objetivo da V1</p>
-            <h2>Abrir o vault e cair direto no editor.</h2>
-          </div>
-        </div>
-
-        <p className="empty-state">
-          Depois de selecionar uma pasta ou criar um novo vault, o app agora entra na interface de
-          notas e salva diretamente em arquivos <code>.md</code>.
-        </p>
-      </section>
 
       {showRecentVaultModal && recentVaultPreference?.lastVaultPath ? (
         <div className="recent-vault-backdrop" role="presentation">
