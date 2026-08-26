@@ -27,6 +27,14 @@
       "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/garchel/MirrorMind/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE3MzhCMzFFRTNEQjlBNTYKUldSV210dmpIck00RjQ2VGhyRWxmNkNiN28zZ2ZxSkFRM25VenRjRXh5RzVJKzdqTUVURjdzRkkK"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

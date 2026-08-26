@@ -17,6 +17,9 @@ test-results
 # Segredos locais (chave da API do Gemini para os testes de integracao reais)
 .env
 
+# Chave PRIVADA de assinatura de atualizacoes (o .pub correspondente fica versionado)
+src-tauri/updater-keys/*.key
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
