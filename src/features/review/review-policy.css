@@ -24,7 +24,7 @@
   overflow: auto;
   border: 1px solid var(--border, #d8d4ca);
   border-radius: 8px;
-  background: var(--surface, #fffdf8);
+  background: var(--surface);
   color: var(--text, #24231f);
   box-shadow: 0 24px 70px rgb(20 20 18 / 0.24);
 }
@@ -78,7 +78,7 @@
   border: 1px solid var(--border, #d8d4ca);
   border-radius: 7px;
   padding: 12px 14px;
-  background: color-mix(in srgb, var(--surface, #fffdf8) 92%, var(--workspace, #eeece6));
+  background: color-mix(in srgb, var(--surface) 92%, var(--workspace, #eeece6));
 }
 
 .review-policy-origins h3 {
@@ -148,7 +148,7 @@
   min-width: 0;
   border: 1px solid var(--border, #d8d4ca);
   border-radius: 7px;
-  background: color-mix(in srgb, var(--surface, #fffdf8) 88%, var(--workspace, #eeece6));
+  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, #eeece6));
   color: inherit;
 }
 
@@ -165,15 +165,15 @@
   margin: 0;
   padding: 9px 11px;
   border-radius: 9px;
-  background: color-mix(in srgb, var(--accent, #5b6f52) 10%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--muted, #6b6a63);
   font-size: 12px;
   line-height: 1.45;
 }
 
 .review-policy-modes label:has(input:checked) {
-  border-color: var(--accent, #6b695f);
-  background: color-mix(in srgb, var(--surface, #fffdf8) 78%, var(--accent, #6b695f));
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--surface) 78%, var(--accent));
 }
 
 .review-policy-presets span,
@@ -231,7 +231,7 @@
   border: 1px solid var(--border, #d8d4ca);
   border-radius: 6px;
   padding: 6px 8px;
-  background: var(--surface, #fffdf8);
+  background: var(--surface);
   color: var(--text, #24231f);
   font: inherit;
 }

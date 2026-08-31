@@ -55,7 +55,7 @@
   border: 1px solid var(--border, #d8d4ca);
   border-radius: 6px;
   padding: 6px 8px;
-  background: var(--surface, #fffdf8);
+  background: var(--surface);
   color: var(--text, #24231f);
   font: inherit;
   font-variant-numeric: tabular-nums;
@@ -85,7 +85,7 @@
   border-left-width: 3px;
   border-radius: 10px;
   padding: 12px 14px;
-  background: var(--surface, #fffdf8);
+  background: var(--surface);
   box-shadow: 0 10px 30px rgb(36 35 31 / 16%);
   animation: segmentation-toast-in 180ms ease-out;
 }
@@ -102,7 +102,7 @@
 }
 
 .segmentation-toast.is-progress {
-  border-left-color: var(--accent, #738979);
+  border-left-color: var(--accent);
 }
 
 .segmentation-toast.is-success {
@@ -138,7 +138,7 @@
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--accent, #738979);
+  background: var(--accent);
   transition: width 180ms ease-out;
 }
 

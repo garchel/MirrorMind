@@ -8,7 +8,7 @@
   padding: 14px;
   border: 1px solid var(--border, #d8d4ca);
   border-radius: 7px;
-  background: color-mix(in srgb, var(--surface, #f8f6f0) 86%, white);
+  background: color-mix(in srgb, var(--surface) 86%, white);
 }
 
 .review-ai-provider-panel p,
@@ -53,7 +53,7 @@
   box-sizing: border-box;
   border: 1px solid var(--border, #d8d4ca);
   border-radius: 6px;
-  background: var(--surface, #fffdf8);
+  background: var(--surface);
   color: inherit;
   font: inherit;
 }
@@ -157,7 +157,7 @@
   padding: 10px 12px;
   border: 1px dashed color-mix(in srgb, var(--border, #d8d4ca) 85%, currentColor);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--surface, #fdfcf8) 92%, transparent);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
 }
 
 .note-profile-onboarding-heading {
@@ -207,7 +207,7 @@
   padding: 12px;
   border: 1px solid #e3c96f;
   border-radius: 12px;
-  background: color-mix(in srgb, #f7e9bd 55%, var(--surface, #fdfcf8));
+  background: color-mix(in srgb, #f7e9bd 55%, var(--surface));
 }
 
 .note-recovery-banner-icon {
@@ -284,7 +284,7 @@
   overflow: auto;
   border: 1px solid var(--border, #d8d4ca);
   border-radius: 8px;
-  background: var(--surface, #fffdf8);
+  background: var(--surface);
   box-shadow: 0 18px 54px rgb(23 22 20 / 22%);
 }
 
@@ -332,7 +332,7 @@
 .review-ai-issue-list blockquote {
   margin: 7px 0 0;
   padding: 8px 10px;
-  border-left: 3px solid var(--accent, #738979);
+  border-left: 3px solid var(--accent);
   background: rgb(115 137 121 / 9%);
 }
 
@@ -401,7 +401,7 @@
   padding: 12px 13px;
   border: 1px solid var(--border, #d8d4ca);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--surface, #fffdf8) 96%, white);
+  background: color-mix(in srgb, var(--surface) 96%, white);
 }
 
 .review-readiness-status {
@@ -481,7 +481,7 @@
   margin: 0;
   padding: 11px 13px;
   border: 1px solid rgb(115 137 121 / 26%);
-  border-left: 3px solid var(--accent, #738979);
+  border-left: 3px solid var(--accent);
   border-radius: 8px;
   background: rgb(115 137 121 / 7%);
   font-size: 12.5px;
@@ -508,7 +508,7 @@
   padding: 8px 11px;
   border: 1px solid var(--border, #d8d4ca);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface, #fffdf8) 94%, white);
+  background: color-mix(in srgb, var(--surface) 94%, white);
 }
 
 .review-readiness-point-index {
@@ -550,7 +550,7 @@
   border: 1px solid var(--border, #d8d4ca);
   border-left: 3px solid var(--muted, #706d66);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface, #fffdf8) 95%, white);
+  background: color-mix(in srgb, var(--surface) 95%, white);
 }
 
 .review-readiness-issue > strong {

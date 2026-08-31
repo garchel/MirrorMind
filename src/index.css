@@ -9,6 +9,8 @@
   --border-strong: rgba(28, 36, 39, 0.22);
   --code-bg: rgba(39, 47, 51, 0.08);
   --accent: #c46a2b;
+  --accent-strong: #a3541d;
+  --surface: #f8f6f0;
   --button-bg: #1c2427;
   --button-secondary: #efe5d2;
   --button-text: #f7f2e7;
@@ -47,6 +49,8 @@
   --border-strong: rgba(232, 230, 221, 0.24);
   --code-bg: rgba(232, 230, 221, 0.08);
   --accent: #d98a4a;
+  --accent-strong: #e8a06b;
+  --surface: #2a261f;
   --button-bg: #e8e6dd;
   --button-secondary: #35312a;
   --button-text: #23201b;
