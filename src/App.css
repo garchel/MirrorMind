@@ -6586,3 +6586,18 @@ button:disabled {
   background: rgb(236 235 229 / 14%);
   color: #e0a08d;
 }
+
+/* Movimento reduzido (global): usuarios com vestibular/sensibilidade a
+ * animacao recebem transicoes instantaneas e spinners estaticos. As regras
+ * especificas acima continuam validas; esta cobre o resto do app de uma vez
+ * (banners, toasts de status, drawers, spinners de progresso). */
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell *,
+  .app-shell *,
+  .vault-selection-shell * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

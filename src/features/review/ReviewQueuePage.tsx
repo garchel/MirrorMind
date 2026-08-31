@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, Minus, Plus, RefreshCw } from 'lucide-react'
+import { BookOpen, Minus, Plus } from 'lucide-react'
+import { ErrorState, LoadingState } from '../../components/ErrorState'
+import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { setNoteReviewPriority } from './reviewPolicy'
 import { getDueReviewQueue, type DueReviewItem } from './reviewQueue'
 import { formatOverdueDate } from './reviewQueueDate'
@@ -57,32 +59,19 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview }: Review
 
   return (
     <section className="workspace-page review-queue-page" aria-labelledby="review-queue-title">
-      <header className="review-queue-header">
-        <div>
-          <p className="review-queue-kicker">Aprendizado</p>
-          <h2 id="review-queue-title">Revisar agora</h2>
-          <p>Notas vencidas, ordenadas por prioridade e pelo maior atraso.</p>
-        </div>
-        <button
-          type="button"
-          className="secondary-button review-queue-refresh"
-          onClick={() => setReloadRequest((request) => request + 1)}
-          disabled={loading}
-        >
-          <RefreshCw size={15} aria-hidden="true" />
-          Atualizar
-        </button>
-      </header>
+      <PageHeader
+        kicker="Aprendizado"
+        title="Revisar agora"
+        titleId="review-queue-title"
+        description="Notas vencidas, ordenadas por prioridade e pelo maior atraso."
+      >
+        <PageRefreshButton onRefresh={() => setReloadRequest((request) => request + 1)} disabled={loading} />
+      </PageHeader>
 
       {loading ? (
-        <div className="review-queue-status" role="status">Carregando revisões vencidas...</div>
+        <LoadingState message="Carregando revisões vencidas..." />
       ) : error ? (
-        <div className="review-queue-status is-error" role="alert">
-          <p>{error}</p>
-          <button type="button" className="secondary-button" onClick={() => setReloadRequest((request) => request + 1)}>
-            Tentar novamente
-          </button>
-        </div>
+        <ErrorState message={error} onRetry={() => setReloadRequest((request) => request + 1)} />
       ) : items.length === 0 ? (
         <div className="review-queue-status is-empty">
           <BookOpen size={22} strokeWidth={1.4} aria-hidden="true" />
@@ -111,7 +100,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview }: Review
                       disabled={priorityBusy !== null || item.priorityWeight <= 0.1}
                       aria-label={`Diminuir prioridade de ${item.title}`}
                     >
-                      <Minus size={11} strokeWidth={2} aria-hidden="true" />
+                      <Minus size={13} strokeWidth={2} aria-hidden="true" />
                     </button>
                     <span>Prioridade {item.priorityWeight}</span>
                     <button
@@ -121,7 +110,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview }: Review
                       disabled={priorityBusy !== null || item.priorityWeight >= 100}
                       aria-label={`Aumentar prioridade de ${item.title}`}
                     >
-                      <Plus size={11} strokeWidth={2} aria-hidden="true" />
+                      <Plus size={13} strokeWidth={2} aria-hidden="true" />
                     </button>
                   </span>
                   {item.deadlineAtUnixMs !== null ? (

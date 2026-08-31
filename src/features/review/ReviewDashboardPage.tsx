@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, RefreshCw, Target, TimerReset, TrendingUp, X } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, Target, TimerReset, TrendingUp, X } from 'lucide-react'
+import { ErrorState, LoadingState } from '../../components/ErrorState'
+import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { applyDeadlineChange, getVaultReviewPolicyConfig, previewDeadlineChange } from './vaultReviewPolicy'
 import { setNoteReviewPriority } from './reviewPolicy'
 import { forecastDayLabel, getVaultReviewDashboard, type CalibrationNoteItem, type DailyLoadItem, type ExpiredDeadlineItem, type ReadinessAttentionItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
@@ -358,32 +360,19 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
 
   return (
     <section className="workspace-page review-dashboard-page w-full" aria-labelledby="review-dashboard-title">
-      <header className="review-dashboard-header">
-        <div>
-          <p className="card-kicker">Aprendizado</p>
-          <h2 id="review-dashboard-title">Painel do vault</h2>
-          <p>Visão geral da retenção de memória, prazos e carga de revisão.</p>
-        </div>
-        <button
-          type="button"
-          className="secondary-button review-dashboard-refresh"
-          onClick={() => setReloadRequest((request) => request + 1)}
-          disabled={loading}
-        >
-          <RefreshCw size={15} aria-hidden="true" />
-          Atualizar
-        </button>
-      </header>
+      <PageHeader
+        kicker="Aprendizado"
+        title="Painel do vault"
+        titleId="review-dashboard-title"
+        description="Visão geral da retenção de memória, prazos e carga de revisão."
+      >
+        <PageRefreshButton onRefresh={() => setReloadRequest((request) => request + 1)} disabled={loading} />
+      </PageHeader>
 
       {loading ? (
-        <div className="review-dashboard-status" role="status">Calculando métricas do vault...</div>
+        <LoadingState message="Calculando métricas do vault..." />
       ) : error ? (
-        <div className="review-dashboard-status is-error" role="alert">
-          <p>{error}</p>
-          <button type="button" className="secondary-button" onClick={() => setReloadRequest((request) => request + 1)}>
-            Tentar novamente
-          </button>
-        </div>
+        <ErrorState message={error} onRetry={() => setReloadRequest((request) => request + 1)} />
       ) : dashboard ? (
         <>
           <div className="review-dashboard-grid">
@@ -473,7 +462,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
                           disabled={priorityBusy !== null || item.priorityWeight <= 0.1}
                           aria-label={`Diminuir prioridade de ${item.title}`}
                         >
-                          <Minus size={11} strokeWidth={2} aria-hidden="true" />
+                          <Minus size={13} strokeWidth={2} aria-hidden="true" />
                         </button>
                         <span>Prioridade {item.priorityWeight}</span>
                         <button
@@ -483,7 +472,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
                           disabled={priorityBusy !== null || item.priorityWeight >= 100}
                           aria-label={`Aumentar prioridade de ${item.title}`}
                         >
-                          <Plus size={11} strokeWidth={2} aria-hidden="true" />
+                          <Plus size={13} strokeWidth={2} aria-hidden="true" />
                         </button>
                       </span>
                       {item.retentionAtRisk ? (
