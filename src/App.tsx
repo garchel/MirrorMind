@@ -3,11 +3,12 @@ import { createPortal } from 'react-dom'
 import type { CSSProperties, DragEvent, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import type { EditorState } from '@codemirror/state'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { invoke } from './lib/tauri'
+import { getVersion } from '@tauri-apps/api/app'
+import { invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Download, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Download, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, MonitorSmartphone, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { CiStickyNote } from 'react-icons/ci'
 import 'katex/dist/katex.min.css'
@@ -32,6 +33,8 @@ import { checkReviewNotifications, type ReviewNotificationCheck } from './featur
 import { localDayStartUnixMs } from './features/review/reviewDashboard'
 import { SegmentationSettings } from './features/review/SegmentationSettings'
 import { VaultReviewPolicySettings } from './features/review/VaultReviewPolicySettings'
+import { useAppUpdater } from './lib/useAppUpdater'
+import { UpdateBanner } from './components/UpdateBanner'
 
 import { canApplyInventoryIncrementally, createVaultScanCoordinator, diffVaultNotePaths, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
 import { findTextMatches } from './lib/findMatches'
@@ -289,6 +292,7 @@ const SETTINGS_SECTIONS = [
   { id: 'grafo3d', label: 'Grafo 3D', icon: Orbit },
   { id: 'grafo2d', label: 'Grafo 2D', icon: Network },
   { id: 'revisao', label: 'Revisão', icon: ClipboardList },
+  { id: 'aplicativo', label: 'Aplicativo', icon: MonitorSmartphone },
 ] as const
 // three.js e pesado (~600 KB): carregado sob demanda, apenas quando o usuario
 // abre o modo 3D do grafo pela primeira vez.
@@ -887,6 +891,19 @@ function App() {
   const [createNoteForm, setCreateNoteForm] = useState<CreateNoteForm>({
     title: '',
   })
+
+  // Verificacao de atualizacoes do app: no mount consulta o endpoint do
+  // updater (latest.json no GitHub Releases); a versao disponivel vira banner
+  // no canto inferior direito. A verificacao manual fica nas Configuracoes >
+  // Aplicativo. Fora do runtime Tauri (Vite no navegador) o hook fica 'idle'.
+  const appUpdater = useAppUpdater()
+  const [appVersion, setAppVersion] = useState<string | null>(null)
+  useEffect(() => {
+    if (!isTauriRuntime()) return
+    void getVersion()
+      .then((version) => setAppVersion(version))
+      .catch(() => setAppVersion(null))
+  }, [])
 
   const isDirty = activeNote !== null && draftContent !== activeNote.content
   // Lacunas da ultima revisao para o motor unico (modo Leitura = Misto
@@ -6851,6 +6868,34 @@ function App() {
                 />
                 <ReviewAiSettings vaultPath={vault.path} />
                 </div>
+                <div className="settings-section" id="settings-aplicativo" aria-labelledby="app-preferences-title">
+                  <p className="card-kicker" id="app-preferences-title">Aplicativo</p>
+                  <div className="settings-toggle">
+                    <span>
+                      <strong>Versão do MirrorMind</strong>
+                      <small>{appVersion ? `Você está na versão ${appVersion}.` : 'Versão disponível no app desktop.'}</small>
+                    </span>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => void appUpdater.checkNow()}
+                      disabled={appUpdater.status.kind === 'checking' || appUpdater.status.kind === 'downloading'}
+                    >
+                      {appUpdater.status.kind === 'checking' ? 'Verificando…' : 'Verificar atualizações'}
+                    </button>
+                  </div>
+                  {appUpdater.status.kind === 'upToDate' ? (
+                    <p className="settings-note" role="status">MirrorMind está atualizado.</p>
+                  ) : null}
+                  {appUpdater.status.kind === 'available' ? (
+                    <p className="settings-note" role="status">
+                      Nova versão disponível: {appUpdater.status.update.version}. Use o aviso no canto da janela para baixar e instalar.
+                    </p>
+                  ) : null}
+                  {appUpdater.status.kind === 'failed' ? (
+                    <p className="settings-note" role="status">{appUpdater.status.message}</p>
+                  ) : null}
+                </div>
                 </div>
                 </div>
               </section>
@@ -7202,6 +7247,15 @@ function App() {
           </div>
         ) : null}
         <BuilderModeControl enabled={isBuilderModeEnabled} onEnabledChange={setBuilderModeEnabled} />
+        <UpdateBanner
+          updater={appUpdater}
+          onBeforeInstall={async () => {
+            // O install do updater encerra o app (NSIS/MSI relança ao concluir):
+            // garante que o rascunho ativo esteja salvo em disco antes.
+            if (!isDirty) return
+            await saveActiveNote(false)
+          }}
+        />
       </main>
     )
   }
@@ -7209,6 +7263,7 @@ function App() {
   return (
     <main className="app-shell vault-selection-shell" data-builder-name="vault-selection-shell">
       <TitleBar />
+      <UpdateBanner updater={appUpdater} />
       <aside className="vault-selection-rail" aria-label="MirrorMind" data-builder-name="vault-selection-rail">
         <span className="vault-selection-mark">MM</span>
         <span className="vault-selection-rail-label">Vaults</span>

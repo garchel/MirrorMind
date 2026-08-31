@@ -1,0 +1,126 @@
+/* Banner de atualizacao disponivel do app. Fixo no canto inferior direito,
+ * acima do error-banner (z-index 100) e abaixo da titlebar (9990). Segue as
+ * variaveis de tema do shell ativo (workspace escuro ou selecao de vault
+ * clara) com fallbacks proprios. */
+.update-banner {
+  position: fixed;
+  right: 18px;
+  bottom: 64px;
+  z-index: 120;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 360px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(94, 128, 255, 0.35);
+  background: var(--selection-paper, #fbfaf6);
+  box-shadow: 0 12px 32px rgba(15, 14, 20, 0.24);
+  color: var(--selection-ink, #232027);
+}
+
+.workspace-shell .update-banner {
+  background: var(--workspace-raised, #171520);
+  border-color: rgba(94, 128, 255, 0.45);
+  color: var(--workspace-text, #e6e4ee);
+}
+
+.update-banner-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: rgba(94, 128, 255, 0.16);
+  color: var(--accent, #5e80ff);
+}
+
+.update-banner-icon .is-spinning {
+  animation: update-banner-spin 1.1s linear infinite;
+}
+
+@keyframes update-banner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.update-banner-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.update-banner-body strong {
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+
+.update-banner-current {
+  font-weight: 400;
+  opacity: 0.72;
+}
+
+.update-banner-body small {
+  font-size: 12px;
+  line-height: 1.45;
+  opacity: 0.78;
+}
+
+.update-banner-install {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-self: start;
+  margin-top: 4px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--accent, #5e80ff);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 160ms ease;
+}
+
+.update-banner-install:hover {
+  filter: brightness(1.08);
+}
+
+.update-banner-progress {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(94, 128, 255, 0.2);
+  overflow: hidden;
+}
+
+.update-banner-progress > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--accent, #5e80ff);
+  transition: width 220ms ease;
+}
+
+.update-banner-close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  margin: -2px -4px 0 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.update-banner-close:hover {
+  opacity: 1;
+  background: rgba(125, 125, 125, 0.14);
+}

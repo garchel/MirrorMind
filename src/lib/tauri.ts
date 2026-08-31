@@ -1,5 +1,11 @@
 import { invoke as tauriInvoke } from '@tauri-apps/api/core'
 
+/** Detecta o runtime Tauri (app desktop). No navegador com Vite o IPC nao
+ * existe: recursos desktop (updater, versao do app) devem ficar inertes. */
+export function isTauriRuntime(): boolean {
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+}
+
 /**
  * Normaliza a rejeicao do IPC do Tauri para um `Error` com mensagem legivel.
  *
