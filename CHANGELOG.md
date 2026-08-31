@@ -8,6 +8,35 @@ release pública ainda não foi feita; os marcos abaixo estão em
 
 ## [Não publicado]
 
+### Auditoria UI/UX (skill ui-ux-pro-max): paleta, a11y e copy
+
+**Adicionado**
+- Escape fecha o dialog do topo em toda a aplicação: pilha global topmost
+  (`src/lib/escapeStack.ts`) — 14 modais registrados; popover sobre modal
+  fecha só o popover, segundo Escape fecha o modal (padrão desktop). 4 testes
+  novos.
+- Componentes compartilhados `PageHeader`/`PageRefreshButton` e
+  `ErrorState`/`LoadingState` (substituem 3 headers e 6 blocos de erro
+  duplicados nas páginas de revisão).
+- Seção "Aplicativo" nas Configurações com verificação manual de atualizações
+  (changelog da entrada anterior).
+
+**Corrigido**
+- Tokens `--accent-strong` e `--surface` definidos nos dois temas — eram
+  usados sem definição e as páginas Painel/Relatórios herdavam fallback verde
+  da paleta antiga; 20+ fallbacks desatualizados removidos dos CSS de review.
+- Acentuação pt-BR consistente em ~150 strings visíveis (App, componentes,
+  features, mensagem de notificação no Rust), incluindo avisos de segurança
+  do `dataviewjs` e o diálogo de arquivos especiais.
+- `prefers-reduced-motion` global (animações e transições de todos os shells
+  respeitam a preferência; antes só 3 blocos pontuais).
+- Ícones dos steppers de prioridade: 11px → 13px.
+
+**Segurança (correções da normalização automatizada)**
+- Restaurados identificadores que o script de acentuação corrompeu: tag
+  `textarea` na lista de tags perigosas da sanitização, void element `area`,
+  tipo `BirthState` e selector do focus-trap — auditados um a um no diff.
+
 ### Auto-updater na UI, decisão de crash reporting e Discussions
 
 **Adicionado**
