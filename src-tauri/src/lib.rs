@@ -23,6 +23,7 @@ use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
 pub mod review;
 mod tag_management;
+mod vault_metadata;
 
 const METADATA_DIR: &str = ".mirmind";
 const CONFIG_FILE: &str = "config.json";
@@ -69,44 +70,15 @@ const MAX_TAGS_PER_NOTE: usize = 256;
 static NEXT_VAULT_WATCHER_ID: AtomicU64 = AtomicU64::new(1);
 static NEXT_LINK_TRANSACTION_ID: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Clone, Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum HistoryCommand {
-    CreateNote {
-        relative_path: String,
-        content: String,
-    },
-    SaveNote {
-        relative_path: String,
-        before_content: String,
-        after_content: String,
-    },
-}
-
-#[derive(Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct HistoryState {
-    undo: Vec<HistoryCommand>,
-    redo: Vec<HistoryCommand>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct HistoryStatus {
-    can_undo: bool,
-    can_redo: bool,
-}
-
-#[derive(Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct TrashEntry {
-    id: String,
-    original_relative_path: String,
-    trashed_name: String,
-    item_type: String,
-    #[serde(default = "today_day")]
-    deleted_at_day: u64,
-}
+// HistoryCommand/HistoryState/HistoryStatus e TrashEntry vivem em
+// vault_metadata.rs (extraidos sem mudanca de comportamento).
+#[allow(unused_imports)]
+use vault_metadata::{
+    apply_history_command, delete_vault_item_in_root, history_status, list_trash_in_root,
+    permanently_delete_trash_item_in_root, read_history, read_trash_entries, record_history,
+    restore_trash_item_in_root, write_history, write_trash_entries, HistoryCommand, HistoryStatus,
+    TrashEntry,
+};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -832,13 +804,7 @@ fn read_templates(root: &Path) -> Result<Vec<NoteTemplate>> {
     .unwrap_or_default())
 }
 
-fn today_day() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-        / 86_400
-}
+// today_day vive em vault_metadata.rs (extraido sem mudanca de comportamento).
 
 #[tauri::command]
 fn search_notes(
@@ -3856,122 +3822,8 @@ fn permanently_delete_trash_item(
     permanently_delete_trash_item_in_root(&root, &id).map_err(|error| error.to_string())
 }
 
-fn delete_vault_item_in_root(root: &Path, relative_path: &str, item_type: &str) -> Result<()> {
-    let is_note = match item_type {
-        "note" => true,
-        "folder" => false,
-        _ => bail!("Tipo de item invalido."),
-    };
-    let source = if is_note {
-        resolve_note_path(root, relative_path)
-    } else {
-        resolve_folder_path(root, relative_path)
-    }?;
-    if !source.exists() {
-        bail!("O item que voce deseja excluir nao existe mais.");
-    }
-
-    let id = SystemTime::now()
-        .duration_since(UNIX_EPOCH)?
-        .as_millis()
-        .to_string();
-    let source_name = source
-        .file_name()
-        .ok_or_else(|| anyhow::anyhow!("O item nao possui um nome valido."))?
-        .to_string_lossy();
-    let trashed_name = format!("{id}-{source_name}");
-    let trash_root = trash_root(root);
-    fs::create_dir_all(&trash_root)?;
-    let trash_path = trash_root.join(&trashed_name);
-    fs::rename(&source, &trash_path).with_context(|| {
-        format!(
-            "Nao foi possivel mover '{}' para a lixeira.",
-            source.display()
-        )
-    })?;
-
-    let entry = TrashEntry {
-        id,
-        original_relative_path: relative_path.to_string(),
-        trashed_name,
-        item_type: item_type.to_string(),
-        deleted_at_day: today_day(),
-    };
-    let mut entries = read_trash_entries(root)?;
-    entries.push(entry);
-    if let Err(error) = write_trash_entries(root, &entries) {
-        let _ = fs::rename(&trash_path, &source);
-        return Err(error);
-    }
-    Ok(())
-}
-
-fn restore_trash_item_in_root(root: &Path, id: &str) -> Result<()> {
-    let mut entries = read_trash_entries(root)?;
-    let index = entries
-        .iter()
-        .position(|entry| entry.id == id)
-        .ok_or_else(|| anyhow::anyhow!("Item nao encontrado na lixeira."))?;
-    let entry = entries[index].clone();
-    let source = trash_item_path(root, &entry.trashed_name)?;
-    if !source.exists() {
-        bail!("O arquivo da lixeira nao existe mais.");
-    }
-    let destination = match entry.item_type.as_str() {
-        "note" => resolve_note_path(root, &entry.original_relative_path)?,
-        "folder" => resolve_folder_path(root, &entry.original_relative_path)?,
-        _ => bail!("Tipo de item invalido na lixeira."),
-    };
-    if destination.exists() {
-        bail!(
-            "Ja existe um item no local original. Renomeie ou mova esse item antes de restaurar."
-        );
-    }
-    if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::rename(&source, &destination).with_context(|| {
-        format!(
-            "Nao foi possivel restaurar '{}'.",
-            entry.original_relative_path
-        )
-    })?;
-    entries.remove(index);
-    if let Err(error) = write_trash_entries(root, &entries) {
-        let _ = fs::rename(&destination, &source);
-        return Err(error);
-    }
-    Ok(())
-}
-
-fn permanently_delete_trash_item_in_root(root: &Path, id: &str) -> Result<()> {
-    let mut entries = read_trash_entries(root)?;
-    let index = entries
-        .iter()
-        .position(|entry| entry.id == id)
-        .ok_or_else(|| anyhow::anyhow!("Item nao encontrado na lixeira."))?;
-    let entry = entries[index].clone();
-    let source = trash_item_path(root, &entry.trashed_name)?;
-
-    if source.is_dir() {
-        fs::remove_dir_all(&source).with_context(|| {
-            format!(
-                "Nao foi possivel excluir '{}' permanentemente.",
-                entry.original_relative_path
-            )
-        })?;
-    } else if source.exists() {
-        fs::remove_file(&source).with_context(|| {
-            format!(
-                "Nao foi possivel excluir '{}' permanentemente.",
-                entry.original_relative_path
-            )
-        })?;
-    }
-
-    entries.remove(index);
-    write_trash_entries(root, &entries)
-}
+// delete_vault_item_in_root, restore_trash_item_in_root e
+// permanently_delete_trash_item_in_root vivem em vault_metadata.rs.
 
 #[tauri::command]
 fn import_attachment(
@@ -5206,141 +5058,7 @@ fn display_note_title(path: &Path) -> String {
         .replace('-', " ")
 }
 
-fn history_path(root: &Path) -> PathBuf {
-    root.join(METADATA_DIR).join(HISTORY_FILE)
-}
-
-fn trash_root(root: &Path) -> PathBuf {
-    root.join(METADATA_DIR).join(TRASH_DIR)
-}
-
-fn trash_manifest_path(root: &Path) -> PathBuf {
-    root.join(METADATA_DIR).join(TRASH_FILE)
-}
-
-fn read_trash_entries(root: &Path) -> Result<Vec<TrashEntry>> {
-    let path = trash_manifest_path(root);
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-    Ok(serde_json::from_str::<Vec<TrashEntry>>(&fs::read_to_string(path)?).unwrap_or_default())
-}
-
-fn list_trash_in_root(root: &Path) -> Result<Vec<TrashEntry>> {
-    prune_expired_trash_items_in_root(root)
-}
-
-fn prune_expired_trash_items_in_root(root: &Path) -> Result<Vec<TrashEntry>> {
-    let entries = read_trash_entries(root)?;
-    let entry_count = entries.len();
-    let today = today_day();
-    let mut retained = Vec::with_capacity(entries.len());
-
-    for entry in entries {
-        if today.saturating_sub(entry.deleted_at_day) >= TRASH_RETENTION_DAYS {
-            let path = trash_item_path(root, &entry.trashed_name)?;
-            if path.is_dir() {
-                fs::remove_dir_all(&path).with_context(|| {
-                    format!(
-                        "Nao foi possivel limpar '{}' da lixeira.",
-                        entry.original_relative_path
-                    )
-                })?;
-            } else if path.exists() {
-                fs::remove_file(&path).with_context(|| {
-                    format!(
-                        "Nao foi possivel limpar '{}' da lixeira.",
-                        entry.original_relative_path
-                    )
-                })?;
-            }
-        } else {
-            retained.push(entry);
-        }
-    }
-
-    if retained.len() != entry_count {
-        write_trash_entries(root, &retained)?;
-    }
-
-    Ok(retained)
-}
-
-fn write_trash_entries(root: &Path, entries: &[TrashEntry]) -> Result<()> {
-    fs::create_dir_all(root.join(METADATA_DIR))?;
-    fs::write(trash_manifest_path(root), serde_json::to_string(entries)?)?;
-    Ok(())
-}
-
-fn trash_item_path(root: &Path, trashed_name: &str) -> Result<PathBuf> {
-    let candidate = Path::new(trashed_name);
-    if candidate.components().count() != 1 || candidate.file_name().is_none() {
-        bail!("Item invalido na lixeira.");
-    }
-    Ok(trash_root(root).join(candidate))
-}
-
-fn read_history(root: &Path) -> Result<HistoryState> {
-    let path = history_path(root);
-    if !path.exists() {
-        return Ok(HistoryState::default());
-    }
-    Ok(serde_json::from_str::<HistoryState>(&fs::read_to_string(path)?).unwrap_or_default())
-}
-
-fn write_history(root: &Path, history: &HistoryState) -> Result<()> {
-    fs::create_dir_all(root.join(METADATA_DIR))?;
-    fs::write(history_path(root), serde_json::to_string(history)?)?;
-    Ok(())
-}
-
-fn record_history(root: &Path, command: HistoryCommand) -> Result<()> {
-    let mut history = read_history(root)?;
-    history.undo.push(command);
-    history.redo.clear();
-    if history.undo.len() > HISTORY_LIMIT {
-        history.undo.remove(0);
-    }
-    write_history(root, &history)
-}
-
-fn apply_history_command(root: &Path, command: &HistoryCommand, undo: bool) -> Result<()> {
-    match command {
-        HistoryCommand::CreateNote {
-            relative_path,
-            content,
-        } => {
-            let path = resolve_note_path(root, relative_path)?;
-            if undo {
-                if path.exists() {
-                    fs::remove_file(path)?;
-                }
-            } else {
-                if let Some(parent) = path.parent() {
-                    fs::create_dir_all(parent)?;
-                }
-                fs::write(path, content)?;
-            }
-        }
-        HistoryCommand::SaveNote {
-            relative_path,
-            before_content,
-            after_content,
-        } => {
-            let path = resolve_note_path(root, relative_path)?;
-            fs::write(path, if undo { before_content } else { after_content })?;
-        }
-    }
-    Ok(())
-}
-
-fn history_status(history: &HistoryState) -> HistoryStatus {
-    HistoryStatus {
-        can_undo: !history.undo.is_empty(),
-        can_redo: !history.redo.is_empty(),
-    }
-}
-
+// history_path/trash/history funcs vivem em vault_metadata.rs.
 fn ensure_metadata_layout(root: &Path) -> Result<()> {
     let metadata_root = root.join(METADATA_DIR);
     fs::create_dir_all(metadata_root.join(ASSESSMENTS_DIR))?;
