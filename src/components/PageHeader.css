@@ -1,0 +1,55 @@
+/* Cabecalho de pagina e estados padrao compartilhados (Queue/Dashboard/Reports
+ * e futuras paginas). Extrai o padrao que existia triplicado nos CSS de
+ * review-*: header em linha com kicker+titulo+descricao e acao a direita,
+ * status de carregamento e bloco de erro com tentar novamente. */
+
+.workspace-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.workspace-page-header h2 {
+  margin: 0;
+}
+
+.workspace-page-header p {
+  margin: 0;
+}
+
+.workspace-page-header .card-kicker {
+  margin-bottom: 4px;
+}
+
+.workspace-error-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--muted);
+}
+
+.workspace-error-state {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.workspace-error-state p {
+  margin: 0;
+  color: var(--danger);
+}
+
+[data-theme='dark'] .workspace-error-status {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}

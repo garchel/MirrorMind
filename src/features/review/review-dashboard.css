@@ -6,20 +6,15 @@
   padding: 22px 26px;
 }
 
-.review-dashboard-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.review-dashboard-header h2 {
+/* Header migrou para PageHeader (components/PageHeader.css); mantem o ritmo
+ * tipografico anterior (titulo 22px, descricao 13.5px ate 54ch). */
+.review-dashboard-page .workspace-page-header h2 {
   margin: 2px 0 4px;
   font-size: 22px;
   letter-spacing: -0.01em;
 }
 
-.review-dashboard-header p {
+.review-dashboard-page .workspace-page-header p {
   margin: 0;
   color: var(--muted, #6b6a63);
   font-size: 13.5px;
@@ -54,7 +49,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 16px 16px 14px;
-  background: var(--surface, #fdfcf8);
+  background: var(--surface);
   border: 1px solid var(--border, #e6e3d8);
   border-radius: 14px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
@@ -72,8 +67,8 @@
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  color: var(--accent, #5b6f52);
-  background: color-mix(in srgb, var(--accent, #5b6f52) 12%, transparent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .review-dashboard-card > div {
@@ -100,7 +95,7 @@
 
 .review-dashboard-readiness {
   padding: 16px 18px 18px;
-  background: var(--surface, #fdfcf8);
+  background: var(--surface);
   border: 1px solid var(--border, #e6e3d8);
   border-radius: 14px;
 }
@@ -245,7 +240,7 @@
 
 .review-dashboard-calibration {
   padding: 16px 18px 18px;
-  background: var(--surface, #fdfcf8);
+  background: var(--surface);
   border: 1px solid var(--border, #e6e3d8);
   border-radius: 14px;
 }
@@ -313,7 +308,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--accent, #5b6f52);
+  background: var(--accent);
   transition: width 220ms ease;
 }
 
@@ -329,7 +324,7 @@
 
 .review-dashboard-deadlines {
   padding: 16px 18px 18px;
-  background: var(--surface, #fdfcf8);
+  background: var(--surface);
   border: 1px solid var(--border, #e6e3d8);
   border-radius: 14px;
 }
@@ -390,8 +385,8 @@
   font-size: 12.5px;
   font-weight: 600;
   border-radius: 9px;
-  background: color-mix(in srgb, var(--accent, #5b6f52) 10%, transparent);
-  color: var(--accent-strong, #3f5239);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent-strong);
 }
 
 .review-dashboard-deadline-date.is-urgent {
@@ -473,9 +468,9 @@
 }
 
 .review-dashboard-deadline-priority-step:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent, #5b6f52) 14%, #f6f4ee);
-  border-color: color-mix(in srgb, var(--accent, #5b6f52) 45%, #cfccc2);
-  color: var(--accent-strong, #3f5239);
+  background: color-mix(in srgb, var(--accent) 14%, #f6f4ee);
+  border-color: color-mix(in srgb, var(--accent) 45%, #cfccc2);
+  color: var(--accent-strong);
 }
 
 .review-dashboard-deadline-priority-step:disabled {
@@ -512,7 +507,7 @@
 .review-dashboard-dialog {
   width: min(430px, 100%);
   padding: 20px;
-  background: var(--surface, #fdfcf8);
+  background: var(--surface);
   border: 1px solid var(--border, #e6e3d8);
   border-radius: 14px;
   box-shadow: 0 18px 48px rgba(30, 30, 24, 0.22);
@@ -596,17 +591,17 @@
   margin-top: 14px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--accent, #5b6f52) 10%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .review-dashboard-dialog-preview strong {
   font-size: 16px;
-  color: var(--accent-strong, #3f5239);
+  color: var(--accent-strong);
 }
 
 .review-dashboard-dialog-preview span {
   font-size: 12px;
-  color: var(--accent-strong, #3f5239);
+  color: var(--accent-strong);
 }
 
 .review-dashboard-dialog-hint {
@@ -649,7 +644,7 @@
 
 .review-dashboard-forecast {
   padding: 16px 18px 18px;
-  background: var(--surface, #fdfcf8);
+  background: var(--surface);
   border: 1px solid var(--border, #e6e3d8);
   border-radius: 14px;
 }
@@ -676,14 +671,14 @@
 }
 
 .review-dashboard-forecast-list li.is-today .review-dashboard-forecast-day {
-  color: var(--accent-strong, #3f5239);
+  color: var(--accent-strong);
 }
 
 .review-dashboard-forecast-track {
   display: block;
   height: 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent, #5b6f52) 9%, #efede4);
+  background: color-mix(in srgb, var(--accent) 9%, #efede4);
   overflow: hidden;
 }
 
@@ -692,12 +687,12 @@
   height: 100%;
   min-width: 2px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent, #5b6f52) 55%, #e3e1d8);
+  background: color-mix(in srgb, var(--accent) 55%, #e3e1d8);
   transition: width 300ms ease;
 }
 
 .review-dashboard-forecast-list li.is-today .review-dashboard-forecast-bar {
-  background: var(--accent, #5b6f52);
+  background: var(--accent);
 }
 
 .review-dashboard-forecast-count {
@@ -711,7 +706,7 @@
    ativo em risco. */
 .review-dashboard-expired {
   padding: 16px 18px 18px;
-  background: color-mix(in srgb, #b98a2f 5%, var(--surface, #fdfcf8));
+  background: color-mix(in srgb, #b98a2f 5%, var(--surface));
   border: 1px solid color-mix(in srgb, #b98a2f 28%, var(--border, #e6e3d8));
   border-radius: 14px;
 }
@@ -773,7 +768,7 @@
    E apenas orientacao — nunca esconde revisoes da fila. */
 .review-dashboard-goal {
   padding: 16px 18px 18px;
-  background: var(--surface, #fdfcf8);
+  background: var(--surface);
   border: 1px solid var(--border, #e6e3d8);
   border-radius: 14px;
 }
@@ -783,22 +778,22 @@
   align-items: center;
   padding: 3px 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent, #5b6f52) 10%, transparent);
-  color: var(--accent-strong, #3f5239);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent-strong);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .review-dashboard-goal-status.is-reached {
-  background: color-mix(in srgb, var(--accent, #5b6f52) 20%, transparent);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .review-dashboard-goal-progress {
   height: 10px;
   margin-bottom: 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent, #5b6f52) 9%, #efede4);
+  background: color-mix(in srgb, var(--accent) 9%, #efede4);
   overflow: hidden;
 }
 
@@ -807,7 +802,7 @@
   height: 100%;
   min-width: 2px;
   border-radius: 999px;
-  background: var(--accent, #5b6f52);
+  background: var(--accent);
   transition: width 300ms ease;
 }
 

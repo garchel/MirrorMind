@@ -2,34 +2,19 @@
   gap: 24px;
 }
 
-.review-queue-header {
-  display: flex;
-  gap: 24px;
-  align-items: start;
-  justify-content: space-between;
+/* Header/kicker/botao de atualizacao migram para PageHeader/PageRefreshButton
+ * (components/PageHeader.css); o cabecalho destas paginas apenas alinha o
+ * espaçamento do header compartilhado ao ritmo antigo. */
+.review-queue-page .workspace-page-header {
   border-bottom: 1px solid #d9d7d0;
   padding-bottom: 20px;
 }
 
-.review-queue-header > div {
-  display: grid;
-  gap: 7px;
-}
-
-.review-queue-header > div > p:last-child,
 .review-queue-status p {
   color: #73736d;
   font-size: 13px;
 }
 
-.review-queue-kicker {
-  color: var(--accent);
-  font: 700 10px/1 var(--sans);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.review-queue-refresh,
 .review-queue-open {
   display: inline-flex;
   gap: 7px;
@@ -133,7 +118,7 @@
 }
 
 @media (max-width: 720px) {
-  .review-queue-header {
+  .review-queue-page .workspace-page-header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -174,9 +159,9 @@
 }
 
 .review-queue-priority-step:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent, #5b6f52) 14%, #f6f4ee);
-  border-color: color-mix(in srgb, var(--accent, #5b6f52) 45%, #cfccc2);
-  color: var(--accent-strong, #3f5239);
+  background: color-mix(in srgb, var(--accent) 14%, #f6f4ee);
+  border-color: color-mix(in srgb, var(--accent) 45%, #cfccc2);
+  color: var(--accent-strong);
 }
 
 .review-queue-priority-step:disabled {

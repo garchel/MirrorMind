@@ -1,16 +1,10 @@
 .review-reports-page { width: 100%; }
 
-.review-reports-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
+/* Header migrou para PageHeader (components/PageHeader.css). */
+.review-reports-page .workspace-page-header {
   flex-wrap: wrap;
   width: 100%;
 }
-.review-reports-header > div { display: grid; gap: 7px; }
-.review-reports-header p { margin: 0; }
-.review-reports-header .secondary-button { display: inline-flex; align-items: center; gap: 7px; }
 
 /* ---------- Retencao estimada ---------- */
 
@@ -205,6 +199,6 @@
 .review-reports-actions-label { display: inline-block; width: 1px; height: 1px; overflow: hidden; }
 
 @media (max-width: 720px) {
-  .review-reports-header { flex-direction: column; }
+  .review-reports-page .workspace-page-header { flex-direction: column; }
   .retention-cards { grid-template-columns: 1fr 1fr; }
 }
