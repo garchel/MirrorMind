@@ -19,7 +19,7 @@ Ele complementa os documentos existentes:
 | Área | Estado | Observação |
 | --- | --- | --- |
 | Build desktop | ✅ Pronto | Tauri 2, NSIS + MSI, ícones, CSP, janela sem decoração com controles customizados |
-| CI | ✅ Pronto | Lint, typecheck, 749 testes frontend, 489 testes Rust, build, E2E desktop Windows (9 jornadas), bundle + smoke, cobertura |
+| CI | ✅ Pronto | Lint, typecheck, 762 testes frontend, 496 test fns Rust, build, E2E desktop Windows (9 jornadas), bundle + smoke, cobertura |
 | E2E Linux smoke | ✅ Pronto | Job dedicado no CI (`linux-e2e-smoke`) |
 | Gate de release (checklist) | ❌ Nunca executado | `docs/releases/` não existe; nenhuma candidata validada em máquina real |
 | Assinatura de código | ❌ Ausente | Instalador gerado sem Authenticode; SmartScreen bloqueia instalação limpa |
@@ -27,9 +27,9 @@ Ele complementa os documentos existentes:
 | Licença / identidade legal | ❌ Ausente | `Cargo.toml` com `license = ""`; sem `LICENSE` (`CHANGELOG.md` já existe) |
 | Distribuição | 🟡 Parcial | Página de download documentada (`docs/download.md`); nenhum GitHub Release publicado |
 | Multiplataforma | 🟡 Parcial | Windows x64 validado; Linux só smoke; macOS sem build nem notarização |
-| Auto-updater (atualizações automáticas) | 🟡 Infra pronta | Plugin updater registrado, pubkey gerada e endpoint apontando para GitHub Releases (`latest.json`); `release.yml` já gera artefatos de atualização assinados (`createUpdaterArtifacts` + manifesto) quando o secret está presente. Faltam: cadastrar `TAURI_SIGNING_PRIVATE_KEY*` nos secrets do CI, executar/validar o workflow com tag real e o fluxo de verificação de atualização na UI |
+| Auto-updater (atualizações automáticas) | ✅ Pronto (2026-08-31) | Plugin registrado + **UI completa**: verificação automática no início (silenciosa; versão nova vira banner no canto inferior direito dos dois shells), botão "Verificar atualizações" e exibição da versão em Configurações > Aplicativo, download com progresso, salvamento do rascunho ativo antes de instalar (`onBeforeInstall`) e erros amigáveis de rede. Secrets `TAURI_SIGNING_PRIVATE_KEY*` cadastrados no CI (2026-08-31). Restam: primeira tag real + validar o fluxo end-to-end em máquina real (M1) |
 | Documentação de usuário | 🟡 Parcial | `docs/user-guide.md` + `docs/obsidian-migration-guide.md` criados e linkados da página de download; falta revisão de conteúdo por quem conhece o produto ponta a ponta |
-| Suporte / comunidade | 🟡 Parcial | Templates de issue (*Report de bug* / *Sugestão*) criados; falta habilitar GitHub Discussions (configuração do repositório) |
+| Suporte / comunidade | ✅ Pronto (2026-08-31) | Templates de issue (*Report de bug* / *Sugestão*) + **GitHub Discussions habilitado** no repositório |
 | Telemetria de falhas (crash reporting) | ❌ Sem decisão | Filosofia local-first sugere "não ter", mas a decisão não está registrada nem justificada |
 
 ## Princípios
@@ -116,7 +116,7 @@ instalador assinado e notas, sem intervenção manual.
 | Identidade visual mínima no instalador (ícone do app já gerado; conferir NSIS) | S | ✅ ícones gerados da logo; NSIS usa o bundle padrão |
 | Onboarding de primeiro uso: tela de boas-vindas + escolha/criação de Vault guiada | M | 🟡 a tela existe (hero + abrir/criar + modal de vault recente) e recebeu copy de produto (textos de dev removidos); validar jornada completa no gate M1 |
 | Guia do usuário mínimo: primeiros passos + guia de migração do Obsidian (público, fora de `docs/` interno) | M | ✅ `docs/user-guide.md` + `docs/obsidian-migration-guide.md`, linkados de `download.md` |
-| Canal de suporte/comunidade mínimo: GitHub Discussions habilitado + templates de issue (bug/feedback) | S | 🟡 `.github/ISSUE_TEMPLATE/bug_report.yml` + `feature_feedback.yml` criados; habilitar Discussions é configuração do repositório |
+| Canal de suporte/comunidade mínimo: GitHub Discussions habilitado + templates de issue (bug/feedback) | S | ✅ Discussions habilitado no repositório (2026-08-31) + `.github/ISSUE_TEMPLATE/bug_report.yml` + `feature_feedback.yml` + `flaky-test.yml` |
 
 **Critério de saída**: download público leva a um instalador assinado com
 termos/privacidade acessíveis e instalação sem fricção, e um usuário novo
@@ -129,8 +129,8 @@ ordem de valor.
 
 | Task | Esforço | Prioridade |
 | --- | --- | --- |
-| **Auto-updater**: plugin updater do Tauri + feed de versões assinado + política de notificação de atualização | M | **alta** — 🟡 INFRA PRONTA (2026-08): `tauri-plugin-updater` registrado em `lib.rs`, capability `updater:default`, pubkey em `tauri.conf.json` com endpoint GitHub Releases; keypair gerado em `src-tauri/updater-keys/` (**chave privada gitignored — guardar em cofre/secret antes de qualquer release**); `release.yml` já condiciona `createUpdaterArtifacts` + geração do `latest.json` à presença do secret. Restam: cadastrar o secret `TAURI_SIGNING_PRIVATE_KEY*` no CI, primeira execução/validação com tag real e verificação de atualização na UI |
-| Registrar DECISÃO sobre telemetria de falhas (crash reporting): manter zero-telemetria local-first e documentar em `privacy-policy.md`, ou adotar relatório opt-in de crashes | S | **alta** — hoje um crash do app é invisível para o time; a decisão (mesmo sendo "não ter") precisa estar escrita |
+| **Auto-updater**: plugin updater do Tauri + feed de versões assinado + política de notificação de atualização | M | **alta** — ✅ CONCLUÍDO (2026-08-31): UI completa no frontend (`src/lib/updater.ts`, `src/lib/useAppUpdater.ts`, `src/components/UpdateBanner.tsx`) com verificação automática silenciosa no mount, banner nos dois shells, verificação manual + versão em Configurações > Aplicativo, progresso de download, `onBeforeInstall` salvando o rascunho ativo antes do install (o NSIS/MSI encerra o app), guard para navegador (Vite) e mensagens de erro amigáveis; 13 testes novos. Secrets `TAURI_SIGNING_PRIVATE_KEY*` cadastrados no CI. Restam apenas os itens HITL: primeira tag real (M3) e validação end-to-end em máquina real (M1) |
+| Registrar DECISÃO sobre telemetria de falhas (crash reporting): manter zero-telemetria local-first e documentar em `privacy-policy.md`, ou adotar relatório opt-in de crashes | S | **alta** — ✅ CONCLUÍDO (2026-08-31): decisão registrada — **zero telemetria**, incluindo crash reporting; documentada em `docs/privacy-policy.md` (seção "Crash reporting") com justificativa da filosofia local-first e alternativa recomendada (usuário reporta manualmente via GitHub Issues com logs locais) |
 | Auditoria de segurança externa do código Rust/TypeScript (foco: IPC, confinamento de vault, TOCTOU, egresso de IA) | L | média |
 | Modelo geral de monetização/licenciamento do produto (hoje só o plano pago da IA tem escopo) | S (decisão) + M (implementação) | média |
 | Linux: distributivos (AppImage/deb/rpm) no CI + validação real | M | média |
@@ -186,3 +186,15 @@ M0 (base verde)
   externa e modelo geral de monetização. Regressão visual e criptografia
   opcional de vault registradas em `v2-features-roadmap.md` (Bloco V2.2);
   riscos correspondentes anotados em `testing-roadmap.md`.
+- **2026-08-31 (implementação autônoma)**: UI do auto-updater implementada no
+  frontend (verificação automática silenciosa + banner nos dois shells +
+  Configurações → Aplicativo com verificação manual e versão instalada +
+  progresso de download + salvamento do rascunho antes de instalar);
+  `TAURI_SIGNING_PRIVATE_KEY*` cadastrados nos secrets do CI; GitHub
+  Discussions habilitado (M4 — suporte/comunidade); decisão de crash
+  reporting registrada (zero telemetria) com seções novas na política de
+  privacidade (updater + crash reporting); guia do usuário e página de
+  download documentam as atualizações automáticas; extração de
+  `vault_metadata.rs` (lixeira + histórico) de `lib.rs` concluída. 13 testes
+  frontend novos (762 no total). Próximos passos são todos HITL: primeira tag
+  real (M3), gate manual M1 e certificado Authenticode (M2).

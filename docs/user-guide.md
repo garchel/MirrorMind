@@ -101,8 +101,20 @@ Os recursos de avaliação usam IA **só quando você aciona**:
 
 Desinstalar o app **nunca apaga** seus vaults ou notas.
 
+## Manter o app atualizado
+
+O MirrorMind verifica automaticamente se há uma versão nova ao ser aberto —
+se houver, aparece um aviso discreto no canto inferior direito com o botão
+**Baixar e instalar**. A atualização é assinada e instalada sobre a versão
+anterior; o rascunho em edição é salvo automaticamente antes de o app
+reiniciar.
+
+Para verificar manualmente, abra **Configurações → Aplicativo → Verificar
+atualizações**.
+
 ## Problemas e sugestões
 
 - Bugs: abra uma issue usando o template **Report de bug** no GitHub.
-- Ideias e feedback: template **Sugestão de melhoria**.
+- Ideias e feedback: template **Sugestão de melhoria** ou uma conversa nas
+  [Discussions](https://github.com/garchel/MirrorMind/discussions).
 - Detalhes de instalação: [página de download](download.md).

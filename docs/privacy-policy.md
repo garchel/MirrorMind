@@ -37,7 +37,32 @@ escolhido por você:
 - O app registra um custo estimado das chamadas e respeita um orçamento mensal
   configurável, com parada antes do envio quando o teto seria estourado.
 
-## 3. O que o app NÃO faz
+## 3. Atualizações do app (updater)
+
+Ao abrir, o app verifica se há uma versão nova consultando o manifesto de
+atualizações (`latest.json`) hospedado no GitHub Releases
+(`github.com/garchel/MirrorMind`). Essa verificação:
+
+- é a **única** conexão de rede feita automaticamente pelo app;
+- envia apenas a requisição HTTP padrão (sem identificadores, sem dados de
+  uso, sem conteúdo de notas);
+- é assinada criptograficamente: o app só instala pacotes cuja assinatura
+  minisign corresponde à chave pública embarcada no binário;
+- pode ser disparada manualmente em **Configurações > Aplicativo >
+  Verificar atualizações**. A instalação pede confirmação — nada é instalado
+  sem o seu clique em "Baixar e instalar".
+
+## 4. Crash reporting
+
+O MirrorMind **não possui relatório automático de falhas** (crash reporting).
+Esta é uma decisão de projeto coerente com o princípio local-first: nenhum
+diagnóstico é coletado ou transmitido sem consentimento explícito. Se o app
+fechar inesperadamente, nada é enviado. Para reportar um problema, use os
+[templates de issue](https://github.com/garchel/MirrorMind/issues) ou as
+[Discussions](https://github.com/garchel/MirrorMind/discussions) do
+repositório.
+
+## 5. O que o app NÃO faz
 
 - Não cria conta nem exige cadastro.
 - Não envia telemetria, métricas de uso nem diagnósticos para servidores do
@@ -46,13 +71,13 @@ escolhido por você:
 - Não armazena conteúdo de notas fora do seu computador.
 - Não rastreia sua atividade fora do app.
 
-## 4. Exclusão de dados
+## 6. Exclusão de dados
 
 - Para apagar os dados do app, remova a pasta `.mirmind/` do Vault e, se
   desejar, a pasta de configuração do app.
 - Desinstalar o aplicativo não remove seus Vaults nem suas notas.
 
-## 5. Contato e atualizações
+## 7. Contato e atualizações
 
 Esta política pode ser atualizada conforme o app evolui. A versão vigente
 acompanha o release em `docs/privacy-policy.md`.

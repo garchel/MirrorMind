@@ -7,6 +7,9 @@ O MirrorMind é distribuído pelos **GitHub Releases** do projeto
 - `MirrorMind-<versao>-x64-setup.exe` — instalador **NSIS** (recomendado).
 - `MirrorMind-<versao>-x64.msi` — pacote MSI (deploy gerenciado).
 - `windows-bundle-manifest.json` — manifesto de validação do artefato.
+- `latest.json` — manifesto de atualização assinado consumido pelo
+  auto-updater do app (o aviso de nova versão aparece dentro do próprio app;
+  não é necessário baixar nada manualmente para atualizar).
 
 ## Requisitos mínimos
 
@@ -34,6 +37,9 @@ O MirrorMind é distribuído pelos **GitHub Releases** do projeto
   app. Desinstalar não apaga Vaults nem notas.
 - **Versões pré-release**: releases marcadas como *pré-release* são candidatas
   de teste; preferência pela última release estável.
+- **Atualizações**: o app verifica sozinho se há versão nova ao abrir e
+  oferece o download assinado dentro da própria interface (Configurações →
+  Aplicativo → Verificar atualizações).
 - Matriz de suporte completa: `docs/windows-support-matrix.md`.
 
 ## Suporte e documentação

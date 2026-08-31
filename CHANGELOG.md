@@ -8,6 +8,36 @@ release pública ainda não foi feita; os marcos abaixo estão em
 
 ## [Não publicado]
 
+### Auto-updater na UI, decisão de crash reporting e Discussions
+
+**Adicionado**
+- UI completa do auto-updater (`src/lib/updater.ts`,
+  `src/lib/useAppUpdater.ts`, `src/components/UpdateBanner.tsx`):
+  verificação automática silenciosa ao abrir o app (a versão disponível vira
+  um banner no canto inferior direito; falhas de rede não incomodam), botão
+  "Verificar atualizações" e exibição da versão instalada em
+  **Configurações → Aplicativo**, download com progresso percentual e
+  salvamento do rascunho em edição antes de instalar (no Windows o instalador
+  encerra o app automaticamente). 13 testes novos (unit + componente).
+- Guard de runtime: fora do app desktop (navegador com Vite) o updater fica
+  inerte (`isTauriRuntime`).
+- Seção "Manter o app atualizado" no guia do usuário; seções "Atualizações do
+  app (updater)" e "Crash reporting" na política de privacidade.
+
+**Alterado**
+- Mensagens de erro de rede do updater traduzidas para orientação amigável
+  ("sem conexão ou endpoint indisponível") em vez de jargão bruto.
+
+**Infra/Docs**
+- Secrets `TAURI_SIGNING_PRIVATE_KEY*` cadastrados no CI — `release.yml` agora
+  gera artefatos de atualização assinados + `latest.json` em toda tag.
+- GitHub Discussions habilitado no repositório (canal de suporte/comunidade
+  do M4).
+- Decisão registrada: **zero telemetria** (sem crash reporting), formalizada
+  na política de privacidade.
+- Extração do módulo `vault_metadata.rs` (lixeira + histórico) de `lib.rs`
+  (−296 linhas) sem mudança de comportamento.
+
 ### Marco 8 — Frontmatter no header, motor único de leitura e E2E Linux
 
 **Adicionado**
