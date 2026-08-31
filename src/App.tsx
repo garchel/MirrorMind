@@ -34,6 +34,7 @@ import { localDayStartUnixMs } from './features/review/reviewDashboard'
 import { SegmentationSettings } from './features/review/SegmentationSettings'
 import { VaultReviewPolicySettings } from './features/review/VaultReviewPolicySettings'
 import { useAppUpdater } from './lib/useAppUpdater'
+import { useEscapeToClose } from './lib/escapeStack'
 import { UpdateBanner } from './components/UpdateBanner'
 
 import { canApplyInventoryIncrementally, createVaultScanCoordinator, diffVaultNotePaths, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
@@ -142,9 +143,9 @@ const SPECIAL_FILE_LABELS: Record<SpecialVaultFile['kind'], string> = {
 }
 
 const SPECIAL_FILE_LIMITATIONS: Record<SpecialVaultFile['kind'], string> = {
-  canvas: 'O Canvas ainda nao possui visualizador no MirrorMind.',
-  excalidraw: 'O desenho Excalidraw ainda nao possui editor no MirrorMind.',
-  unknown: 'Este formato nao possui visualizacao ou edicao no MirrorMind.',
+  canvas: 'O Canvas ainda não possui visualizador no MirrorMind.',
+  excalidraw: 'O desenho Excalidraw ainda não possui editor no MirrorMind.',
+  unknown: 'Este formato não possui visualização ou edição no MirrorMind.',
 }
 
 type Backlink = {
@@ -394,7 +395,7 @@ function App() {
   const graphPhysicsLastTimeRef = useRef<number | null>(null)
   // Worker de layout: simula o ambiente 2D fora da thread de interface. O
   // requestId distingue simulacoes; as posicoes recebidas alimentam o DOM e
-  // sao a fonte "viva" para um arrasto comecar de onde os nos estao.
+  // sao a fonte "viva" para um arrasto comecar de onde os nos estão.
   const graphPhysicsWorkerRef = useRef<Worker | null>(null)
   const graphWorkerAmbientIdRef = useRef(0)
   const graphWorkerPositionsRef = useRef<Map<string, GraphPosition> | null>(null)
@@ -713,7 +714,7 @@ function App() {
   const [isAutoSaveEnabled, setAutoSaveEnabled] = useState(
     () => localStorage.getItem('mirrormind.auto-save') !== 'false',
   )
-  // Sessao ativa do menu lateral da pagina de Configuracoes (destacada na
+  // Sessão ativa do menu lateral da pagina de Configurações (destacada na
   // navegacao e usada para rolar ate a secao ao clicar).
   const [activeSettingsSection, setActiveSettingsSection] = useState<(typeof SETTINGS_SECTIONS)[number]['id']>('aparencia')
   const settingsScrollRef = useRef<HTMLElement>(null)
@@ -755,7 +756,7 @@ function App() {
   const [readingFont, setReadingFont] = useState<ReadingFont>(
     () => (localStorage.getItem('mirrormind.reading-font') as ReadingFont | null) ?? 'sans',
   )
-  // Aparencia: tema (claro/escuro/seguir Obsidian), fonte do editor/leitura
+  // Aparência: tema (claro/escuro/seguir Obsidian), fonte do editor/leitura
   // (familia + tamanho) e limite do historico de desfazer/refazer, persistidos.
   const [themeMode, setThemeMode] = useState<ThemeMode>(
     () => normalizeThemeMode(localStorage.getItem('mirrormind.appearance.theme')),
@@ -904,6 +905,24 @@ function App() {
       .then((version) => setAppVersion(version))
       .catch(() => setAppVersion(null))
   }, [])
+
+  // Escape fecha o dialog do topo (um por vez): cada modal se registra na
+  // pilha global enquanto aberto. A command palette e o popover do editor
+  // tratam Escape manualmente e nao se registram.
+  useEscapeToClose(Boolean(externalNoteConflict), () => setExternalNoteConflict(null))
+  useEscapeToClose(Boolean(externalRemovedNote), () => setExternalRemovedNote(null))
+  useEscapeToClose(showSpecialFilesDialog, () => setShowSpecialFilesDialog(false))
+  useEscapeToClose(Boolean(specialFileViewer), () => setSpecialFileViewer(null))
+  useEscapeToClose(showNoteSearch, () => setShowNoteSearch(false))
+  useEscapeToClose(showNoteLinkDialog, () => setShowNoteLinkDialog(false))
+  useEscapeToClose(showTagFilterDialog, () => setShowTagFilterDialog(false))
+  useEscapeToClose(showTagDialog, () => setShowTagDialog(false))
+  useEscapeToClose(showFolderDialog, () => setShowFolderDialog(false))
+  useEscapeToClose(Boolean(renameTarget), () => setRenameTarget(null))
+  useEscapeToClose(Boolean(moveTarget), () => setMoveTarget(null))
+  useEscapeToClose(Boolean(deleteTarget), () => setDeleteTarget(null))
+  useEscapeToClose(Boolean(permanentDeleteTarget), () => setPermanentDeleteTarget(null))
+  useEscapeToClose(Boolean(graphConnectSource), () => setGraphConnectSource(null))
 
   const isDirty = activeNote !== null && draftContent !== activeNote.content
   // Lacunas da ultima revisao para o motor unico (modo Leitura = Misto
@@ -1056,7 +1075,7 @@ function App() {
         })
         void loadBacklinks(externalNote.relativePath, vault.path)
         void loadBrokenLinks(externalNote.relativePath, vault.path)
-        setStatus(`Nota atualizada a partir de uma alteracao externa: ${externalNote.relativePath}`)
+        setStatus(`Nota atualizada a partir de uma alteração externa: ${externalNote.relativePath}`)
         return
       }
 
@@ -1203,7 +1222,7 @@ function App() {
         ? 'A nota aberta foi removida ou movida fora do MirrorMind. O rascunho local foi preservado.'
         : reconciledLearningNoteCount > 0
           ? `Aprendizado preservado em ${reconciledLearningNoteCount} ${reconciledLearningNoteCount === 1 ? 'nota movida' : 'notas movidas'} externamente.`
-          : 'Explorador atualizado a partir de uma alteracao externa.')
+          : 'Explorador atualizado a partir de uma alteração externa.')
     } catch {
       // Another application may be writing the vault while it is scanned.
     }
@@ -1581,7 +1600,7 @@ function App() {
         watcherId = id
       } catch {
         if (!disposed && activeVaultWatcherRequestRef.current === requestId) {
-          setStatus('Eventos nativos indisponiveis; a sincronizacao externa usara verificacao periodica.')
+          setStatus('Eventos nativos indisponiveis; a sincronização externa usara verificação periodica.')
         }
       }
     })()
@@ -1696,7 +1715,7 @@ function App() {
       setStatus(`Vault carregado: ${parsedVault.name}`)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Nao foi possivel abrir o vault.'
+        caughtError instanceof Error ? caughtError.message : 'Não foi possível abrir o vault.'
       setVault(null)
       setError(message)
       setStatus('Falha ao abrir o vault.')
@@ -1708,12 +1727,12 @@ function App() {
   async function reopenRecentVault() {
     setError(null)
     setLoading(true)
-    setStatus('Reabrindo o ultimo vault usado...')
+    setStatus('Reabrindo o último vault usado...')
 
     try {
       const vaultPayload = await invoke<unknown>('reopen_recent_vault')
       if (!vaultPayload) {
-        setStatus('O ultimo vault nao esta mais disponivel. Escolha outra pasta.')
+        setStatus('O último vault nao esta mais disponivel. Escolha outra pasta.')
         return
       }
 
@@ -1722,7 +1741,7 @@ function App() {
       setStatus(`Vault reaberto: ${parsedVault.name}`)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Nao foi possivel reabrir o ultimo vault.'
+        caughtError instanceof Error ? caughtError.message : 'Não foi possível reabrir o último vault.'
       setError(message)
       setStatus('Escolha um vault existente ou crie um do zero.')
     } finally {
@@ -1745,7 +1764,7 @@ function App() {
       setShowRecentVaultModal(false)
       await reopenRecentVault()
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel salvar a preferencia.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível salvar a preferencia.')
     }
   }
 
@@ -1756,7 +1775,7 @@ function App() {
       }
       setShowRecentVaultModal(false)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel salvar a preferencia.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível salvar a preferencia.')
     }
   }
 
@@ -1778,7 +1797,7 @@ function App() {
     const nameError = formatVaultNameError(createForm.name)
 
     if (!createForm.parentPath) {
-      setError('Escolha a pasta onde o novo vault sera criado.')
+      setError('Escolha a pasta onde o novo vault será criado.')
       return
     }
 
@@ -1802,7 +1821,7 @@ function App() {
       setStatus(`Vault criado em ${parsedVault.path}`)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Nao foi possivel criar o vault.'
+        caughtError instanceof Error ? caughtError.message : 'Não foi possível criar o vault.'
       setVault(null)
       setError(message)
       setStatus('Falha ao criar o vault.')
@@ -1826,14 +1845,14 @@ function App() {
       })
 
       setVault(parseVaultSummary(initializedVault))
-      setStatus('Metadados inicializados. Este vault ja pode receber revisoes.')
+      setStatus('Metadados inicializados. Este vault ja pode receber revisões.')
     } catch (caughtError) {
       const message =
         caughtError instanceof Error
           ? caughtError.message
-          : 'Nao foi possivel inicializar os metadados.'
+          : 'Não foi possível inicializar os metadados.'
       setError(message)
-      setStatus('Falha ao preparar o vault para revisoes.')
+      setStatus('Falha ao preparar o vault para revisões.')
     } finally {
       setLoading(false)
     }
@@ -1880,7 +1899,7 @@ function App() {
       setStatus('Varredura refeita.')
     } catch {
       setVaultDiagnostics(null)
-      setStatus('Nao foi possivel refazer a varredura do vault.')
+      setStatus('Não foi possível refazer a varredura do vault.')
     }
   }
 
@@ -1929,7 +1948,7 @@ function App() {
       void refreshHistoryStatus(vaultPath)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Nao foi possivel carregar as notas.'
+        caughtError instanceof Error ? caughtError.message : 'Não foi possível carregar as notas.'
       setError(message)
       setStatus('Falha ao carregar a lista de notas do vault.')
     } finally {
@@ -1950,7 +1969,7 @@ function App() {
       const bytes = payload instanceof Array ? payload : Array.from(payload as ArrayLike<number>)
       setSpecialFileViewerContent(new TextDecoder().decode(Uint8Array.from(bytes)))
     } catch (cause) {
-      setSpecialFileViewerError(cause instanceof Error ? cause.message : 'Nao foi possivel ler o arquivo especial.')
+      setSpecialFileViewerError(cause instanceof Error ? cause.message : 'Não foi possível ler o arquivo especial.')
     }
   }
 
@@ -2101,7 +2120,7 @@ function App() {
     if (!edit) return
     const nextContent = applyStructuralAuditEdit(draftContent, edit)
     if (nextContent === null) {
-      setStructuralAuditError('Nao foi possivel aplicar a sugestao (offsets desatualizados). Re-execute a auditoria.')
+      setStructuralAuditError('Não foi possível aplicar a sugestão (offsets desatualizados). Re-execute a auditoria.')
       return
     }
     setDraftContent(nextContent)
@@ -2191,7 +2210,7 @@ function App() {
     } catch {
       if (requestId !== graphLoadRequestRef.current) return
       setGraphDocuments([])
-      setError('Nao foi possivel carregar as conexoes entre as notas.')
+      setError('Não foi possível carregar as conexoes entre as notas.')
     } finally {
       if (requestId === graphLoadRequestRef.current) {
         setGraphLoading(false)
@@ -2872,7 +2891,7 @@ function App() {
       await navigator.clipboard.writeText(wikiLink)
       setStatus(`Link ${wikiLink} copiado.`)
     } catch {
-      setStatus(`Nao foi possivel copiar ${wikiLink}.`)
+      setStatus(`Não foi possível copiar ${wikiLink}.`)
     }
   }
 
@@ -2933,7 +2952,7 @@ function App() {
       setStatus('Pasta criada.')
       await refreshNotes(vault.path)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel criar a pasta.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível criar a pasta.')
     } finally {
       setLoading(false)
     }
@@ -3024,7 +3043,7 @@ function App() {
         void loadBrokenLinks(destinationPath, vault.path)
       }
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel renomear o item.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível renomear o item.')
     } finally {
       setLoading(false)
       setWikilinkIndexProgress(null)
@@ -3084,7 +3103,7 @@ function App() {
           void loadBrokenLinks(destinationPath, vaultPath)
           void refreshHistoryStatus(vaultPath)
         } catch (caughtError) {
-          setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel renomear a nota.')
+          setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível renomear a nota.')
         }
       })
   }
@@ -3131,7 +3150,7 @@ function App() {
         void loadBrokenLinks(destinationPath, vault.path)
       }
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel mover o item.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível mover o item.')
     } finally {
       setLoading(false)
       setWikilinkIndexProgress(null)
@@ -3159,7 +3178,7 @@ function App() {
         void loadBrokenLinks(destinationPath, vault.path)
       }
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel mover a nota.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível mover a nota.')
     } finally {
       setLoading(false)
       setDraggedNotePath(null)
@@ -3221,7 +3240,7 @@ function App() {
       setTrashItems(items)
       setWorkspacePage('trash')
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel abrir a lixeira.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível abrir a lixeira.')
     } finally {
       setLoading(false)
     }
@@ -3261,7 +3280,7 @@ function App() {
       vaultNoteContentsRef.current = null
       await refreshNotes(vault.path, '')
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel excluir o item.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível excluir o item.')
     } finally {
       setLoading(false)
     }
@@ -3277,7 +3296,7 @@ function App() {
       setStatus('Item restaurado no local original.')
       await refreshNotes(vault.path)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel restaurar o item.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível restaurar o item.')
     } finally {
       setLoading(false)
     }
@@ -3292,9 +3311,9 @@ function App() {
       await invoke('permanently_delete_trash_item', { path: vault.path, id: target.id })
       setTrashItems((items) => items.filter((item) => item.id !== target.id))
       setPermanentDeleteTarget(null)
-      setStatus('Item excluido permanentemente da lixeira.')
+      setStatus('Item excluído permanentemente da lixeira.')
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel excluir o item permanentemente.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível excluir o item permanentemente.')
     } finally {
       setLoading(false)
     }
@@ -3350,7 +3369,7 @@ function App() {
       setStatus(`Editando ${parsedNote.relativePath}`)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Nao foi possivel abrir a nota.'
+        caughtError instanceof Error ? caughtError.message : 'Não foi possível abrir a nota.'
       setError(message)
       setStatus('Falha ao abrir a nota selecionada.')
     } finally {
@@ -3516,7 +3535,7 @@ function App() {
       const latestNote = parseNoteDocument(latestPayload)
       if (latestNote.content !== activeNote.content) {
         setExternalNoteConflict({ externalNote: latestNote, localContent: contentToSave })
-        setStatus('Alteracao externa detectada antes de salvar. Escolha qual versao manter.')
+        setStatus('Alteração externa detectada antes de salvar. Escolha qual versão manter.')
         return false
       }
 
@@ -3569,7 +3588,7 @@ function App() {
       return true
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Nao foi possivel salvar a nota.'
+        caughtError instanceof Error ? caughtError.message : 'Não foi possível salvar a nota.'
       setError(message)
       setStatus('Falha ao salvar a nota atual.')
       return false
@@ -3671,7 +3690,7 @@ function App() {
       return remainingDrafts
     })
     setExternalNoteConflict(null)
-    setStatus(`Alteracao externa carregada: ${externalNote.relativePath}`)
+    setStatus(`Alteração externa carregada: ${externalNote.relativePath}`)
   }
 
   function keepLocalNoteVersion() {
@@ -3681,7 +3700,7 @@ function App() {
     setDraftContent(localContent)
     setDraftsByPath((drafts) => ({ ...drafts, [externalNote.relativePath]: localContent }))
     setExternalNoteConflict(null)
-    setStatus('Rascunho local mantido. Salve a nota para aplicar sua versao.')
+    setStatus('Rascunho local mantido. Salve a nota para aplicar sua versão.')
   }
 
   async function writeRecoveredExternalNote(relativePath: string, content: string) {
@@ -3737,7 +3756,7 @@ function App() {
       applyRecoveredExternalNote(recoveredNote)
       setStatus(`Nota restaurada: ${recoveredNote.relativePath}`)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel restaurar a nota.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível restaurar a nota.')
     } finally {
       setLoading(false)
     }
@@ -3761,7 +3780,7 @@ function App() {
       applyRecoveredExternalNote(recoveredNote)
       setStatus(`Rascunho recuperado como ${recoveredNote.relativePath}.`)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel recuperar a nota.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível recuperar a nota.')
     } finally {
       setLoading(false)
     }
@@ -3845,7 +3864,7 @@ function App() {
     } catch (caughtError) {
       const message = caughtError instanceof Error
         ? caughtError.message
-        : 'Nao foi possivel abrir a nota diaria.'
+        : 'Não foi possível abrir a nota diaria.'
       setError(message)
       setStatus('Falha ao abrir a nota diaria.')
     } finally {
@@ -4251,7 +4270,7 @@ function App() {
         : [...currentAttachments, attachment.relativePath].sort())
       setStatus(`Anexo inserido: ${attachment.name}`)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel anexar o arquivo.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível anexar o arquivo.')
     } finally {
       setLoading(false)
     }
@@ -4305,7 +4324,7 @@ function App() {
     // Resolve o wikilink contra o inventario de notas (mesma logica do
     // renderer classico): `[[#fragmento]]` sem caminho vira a nota atual,
     // `[[alvo]]` sem extensao experimenta o sufixo `.md` (o inventario so
-    // lista notas .md) e caminhos inexistentes (ex.: `[[nova/pagina]]`)
+    // lista notas .md) e caminhos inexistentes (ex.: `[[nova/página]]`)
     // permanecem como estao, para criacao.
     const available = notes.map((note) => note.relativePath)
     const sourcePath = activeNote?.relativePath ?? ''
@@ -4332,7 +4351,7 @@ function App() {
         await invoke('create_note', { path: vault.path, relativePath: targetPath })
         await refreshNotes(vault.path)
       } catch (caughtError) {
-        setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel criar a nota vinculada.')
+        setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível criar a nota vinculada.')
         return
       } finally {
         openingWikiLinkPathsRef.current.delete(pendingPath)
@@ -4399,7 +4418,7 @@ function App() {
       setStatus(`Conexao criada: ${sourceLabel} -> ${targetPath}`)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Nao foi possivel criar a conexao.'
+        caughtError instanceof Error ? caughtError.message : 'Não foi possível criar a conexao.'
       setError(message)
       setStatus('Falha ao criar a conexao.')
     }
@@ -4801,7 +4820,7 @@ function App() {
         downloadSvg(svg, filename)
       } else {
         const rasterized = await downloadPng(svg, filename, graphExportScale)
-        if (!rasterized) setStatus('Exportacao PNG indisponivel neste dispositivo.')
+        if (!rasterized) setStatus('Exportação PNG indisponivel neste dispositivo.')
       }
     }
 
@@ -4848,9 +4867,9 @@ function App() {
       { id: 'filter-tags', label: 'Filtrar por tags', description: 'Abre o filtro completo de tags.' },
       { id: 'manage-tags', label: 'Gerenciar tags', description: 'Abre a página de tags e políticas de revisão.' },
       { id: 'favorite', label: favorites.includes(activeNote?.relativePath ?? '') ? 'Remover dos favoritos' : 'Adicionar aos favoritos', description: 'Fixa ou remove a nota atual.', disabled: !activeNote || isNewNoteDraft },
-      { id: 'undo', label: 'Desfazer', description: 'Reverte a ultima alteracao da nota ou do vault.', disabled: !canUndoActiveEditor },
-      { id: 'redo', label: 'Refazer', description: 'Refaz a ultima alteracao da nota ou do vault.', disabled: !canRedoActiveEditor },
-      { id: 'settings', label: 'Abrir configuracoes', description: 'Vai para as configuracoes do workspace.' },
+      { id: 'undo', label: 'Desfazer', description: 'Reverte a última alteração da nota ou do vault.', disabled: !canUndoActiveEditor },
+      { id: 'redo', label: 'Refazer', description: 'Refaz a última alteração da nota ou do vault.', disabled: !canRedoActiveEditor },
+      { id: 'settings', label: 'Abrir configurações', description: 'Vai para as configurações do workspace.' },
       { id: 'shortcuts', label: 'Abrir atalhos', description: 'Configura atalhos do workspace.' },
     ]
     const matchingCommands = paletteCommands.filter((command) => `${command.label} ${command.description}`.toLowerCase().includes(commandQuery.trim().toLowerCase()))
@@ -5021,11 +5040,11 @@ function App() {
             type="button"
             className="rail-button rail-button--bottom"
             onClick={() => setWorkspacePage('settings')}
-            aria-label="Configuracoes"
-            title="Configuracoes"
+            aria-label="Configurações"
+            title="Configurações"
           >
             <span className="rail-icon" aria-hidden="true">&#9881;</span>
-            <span className="rail-label">Configuracoes</span>
+            <span className="rail-label">Configurações</span>
           </button>
         </aside>
         <header className="workspace-topbar">
@@ -5102,7 +5121,7 @@ function App() {
                   <button type="button" className="secondary-button" onClick={() => setShowFolderDialog(true)} title="Nova pasta" aria-label="Nova pasta">
                     <FolderPlus size={15} strokeWidth={1.5} aria-hidden="true" />
                   </button>
-                  <button type="button" className="secondary-button" onClick={() => setStatus('As notas estao ordenadas por nome.')} title="Ordenacao" aria-label="Ordenacao">
+                  <button type="button" className="secondary-button" onClick={() => setStatus('As notas estão ordenadas por nome.')} title="Ordenação" aria-label="Ordenação">
                     <span aria-hidden="true">&#8645;</span>
                   </button>
                   <div className="explorer-filter-control" ref={tagFilterDropdownRef}>
@@ -5197,7 +5216,7 @@ function App() {
                           }
                         }}
                         placeholder="Titulo da nota"
-                        aria-label="Titulo da nova nota"
+                        aria-label="Título da nova nota"
                         autoComplete="off"
                         spellCheck={false}
                       />
@@ -5245,13 +5264,13 @@ function App() {
                     ) : null}
                   </div>
                   <div className="editor-actions">
-                    <div className="history-actions" aria-label="Historico de edicao">
+                    <div className="history-actions" aria-label="Histórico de edicao">
                       <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void undoLastCommand()} disabled={!canUndoActiveEditor || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
                       <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void redoLastCommand()} disabled={!canRedoActiveEditor || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
                     </div>
                     {isAutoSaveEnabled && !isNewNoteDraft ? (
                       <span className={`autosave-indicator is-${autoSaveState}`} aria-live="polite">
-                        {autoSaveState === 'pending' ? 'Alteracoes pendentes' : autoSaveState === 'saving' ? 'Salvando...' : autoSaveState === 'saved' ? 'Salvo' : 'Auto Save'}
+                        {autoSaveState === 'pending' ? 'Alterações pendentes' : autoSaveState === 'saving' ? 'Salvando...' : autoSaveState === 'saved' ? 'Salvo' : 'Auto Save'}
                       </span>
                     ) : null}
                     {!isNewNoteDraft ? <button type="button" className={`secondary-button favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></button> : null}
@@ -5334,7 +5353,7 @@ function App() {
                               type="button"
                               className="secondary-button structural-audit-trigger"
                               aria-label="Verificar fatos da nota"
-                              title="Verificacao factual opcional — compara as afirmacoes com conhecimento externo, sem alterar a nota nem as pontuacoes"
+                              title="Verificação factual opcional — compara as afirmações com conhecimento externo, sem alterar a nota nem as pontuações"
                             >
                               <CheckCircle2 size={15} strokeWidth={1.5} aria-hidden="true" />
                               <span>Verificar fatos</span>
@@ -5393,7 +5412,7 @@ function App() {
                               type="button"
                               className="secondary-button structural-audit-trigger"
                               aria-label="Auditoria estrutural da nota"
-                              title="Auditoria estrutural — sugere melhorias na organizacao da nota para a revisao"
+                              title="Auditoria estrutural — sugere melhorias na organização da nota para a revisão"
                             >
                               <Sparkles size={15} strokeWidth={1.5} aria-hidden="true" />
                               <span>Propor melhorias</span>
@@ -5404,8 +5423,8 @@ function App() {
                               <strong>Auditoria estrutural</strong>
                               <small>
                                 {structuralAudit
-                                  ? `${structuralAudit.noteWords.toLocaleString('pt-BR')} palavras · ${structuralAudit.unitCount} ${structuralAudit.unitCount === 1 ? 'unidade' : 'unidades'} de revisao`
-                                  : 'Analisa a organizacao da nota com a regra de segmentacao por secoes.'}
+                                  ? `${structuralAudit.noteWords.toLocaleString('pt-BR')} palavras · ${structuralAudit.unitCount} ${structuralAudit.unitCount === 1 ? 'unidade' : 'unidades'} de revisão`
+                                  : 'Analisa a organização da nota com a regra de segmentação por seções.'}
                               </small>
                             </header>
                             {structuralAuditLoading ? (
@@ -5477,8 +5496,8 @@ function App() {
                       <div
                         className="editor-mode-control"
                       role="radiogroup"
-                      aria-label="Modo de visualizacao da nota"
-                      title="Como o Markdown sera exibido: Edicao mostra o codigo, Misto edita o bloco ativo e Leitura mostra a nota formatada."
+                      aria-label="Modo de visualização da nota"
+                      title="Como o Markdown será exibido: Edicao mostra o codigo, Misto edita o bloco ativo e Leitura mostra a nota formatada."
                       onKeyDown={(event) => {
                         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
                         event.preventDefault()
@@ -5518,7 +5537,7 @@ function App() {
                       <div
                         className="review-gap-mode-control"
                         role="radiogroup"
-                        aria-label="Exibicao das lacunas da ultima revisao"
+                        aria-label="Exibição das lacunas da última revisão"
                         onKeyDown={(event) => {
                           if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
                           event.preventDefault()
@@ -5773,7 +5792,7 @@ function App() {
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('bold')} title="Negrito (Ctrl+B)"><Bold size={16} /></button>
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('italic')} title="Italico (Ctrl+I)"><Italic size={16} /></button>
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('link')} title="Link"><Link size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('quote')} title="Citacao"><TextQuote size={16} /></button>
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('quote')} title="Citação"><TextQuote size={16} /></button>
                     </div>
                     <div className="markdown-toolbar-group" aria-label="Listas">
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('list')} title="Lista"><List size={16} /></button>
@@ -5930,7 +5949,7 @@ function App() {
                           <p className="graph-settings-header-title"><Download size={14} strokeWidth={1.75} aria-hidden="true" /><strong>Exportar grafo</strong></p>
                           <label className="graph-settings-row">
                             <span>Resolucao PNG<small>Multiplicador de pixels</small></span>
-                            <select value={graphExportScale} onChange={(event) => setGraphExportScale(Number(event.target.value))} aria-label="Resolucao do PNG exportado">
+                            <select value={graphExportScale} onChange={(event) => setGraphExportScale(Number(event.target.value))} aria-label="Resolução do PNG exportado">
                               <option value={1}>1x</option>
                               <option value={2}>2x</option>
                               <option value={3}>3x</option>
@@ -5944,7 +5963,7 @@ function App() {
                       </Popover>
                       <Popover open={graphSettingsOpen} onOpenChange={setGraphSettingsOpenSynced}>
                         <PopoverTrigger asChild>
-                          <button type="button" className="secondary-button graph-settings-button" aria-label="Configuracoes do grafo" title="Configuracoes do grafo">
+                          <button type="button" className="secondary-button graph-settings-button" aria-label="Configurações do grafo" title="Configurações do grafo">
                             <Settings size={15} strokeWidth={1.5} aria-hidden="true" />
                           </button>
                         </PopoverTrigger>
@@ -5952,7 +5971,7 @@ function App() {
                           <header className="graph-settings-header">
                             <span className="graph-settings-header-title">
                               <SlidersHorizontal size={14} strokeWidth={1.75} aria-hidden="true" />
-                              <strong>Configuracoes do grafo</strong>
+                              <strong>Configurações do grafo</strong>
                             </span>
                             <button type="button" className="graph-settings-reset" onClick={resetGraph3dSettings} title="Restaurar os valores padrao" aria-label="Restaurar os valores padrao">
                               <RotateCcw size={12} strokeWidth={1.75} aria-hidden="true" />
@@ -5978,7 +5997,7 @@ function App() {
                             </label>
                             <label className="graph-settings-row">
                               <span>Velocidade de orbitacao<small>Multiplicador do giro orbital</small></span>
-                              <input type="number" min={0.1} max={5} step={0.1} value={graph3dOrbitSpeed} onChange={(event) => setGraph3dOrbitSpeed(updateNumberSetting(event.target.value, graph3dOrbitSpeed, 0.1, 5))} aria-label="Velocidade de orbitacao no grafo 3D" />
+                              <input type="number" min={0.1} max={5} step={0.1} value={graph3dOrbitSpeed} onChange={(event) => setGraph3dOrbitSpeed(updateNumberSetting(event.target.value, graph3dOrbitSpeed, 0.1, 5))} aria-label="Velocidade de orbitação no grafo 3D" />
                             </label>
                           </section>
                           <section className="graph-settings-group" aria-label="Arestas do grafo">
@@ -6015,7 +6034,7 @@ function App() {
                               <input type="number" step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))} aria-label="Forca central do grafo 2D" />
                             </label>
                           </section>
-                          <section className="graph-settings-group" aria-label="Exibicao do grafo">
+                          <section className="graph-settings-group" aria-label="Exibição do grafo">
                             <p className="graph-settings-group-title"><Eye size={12} strokeWidth={1.75} aria-hidden="true" /> Exibicao</p>
                             <label className="graph-settings-toggle">
                               <span>Mostrar notas sem conexao<small>Inclui notas isoladas no grafo</small></span>
@@ -6023,7 +6042,7 @@ function App() {
                               <span className="graph-settings-toggle-track" aria-hidden="true" />
                             </label>
                             <label className="graph-settings-toggle">
-                              <span>Somente notas nao conectadas<small>Esconde as conectadas</small></span>
+                              <span>Somente notas não conectadas<small>Esconde as conectadas</small></span>
                               <input type="checkbox" checked={showOnlyGraphOrphans} onChange={(event) => setShowOnlyGraphOrphans(event.target.checked)} />
                               <span className="graph-settings-toggle-track" aria-hidden="true" />
                             </label>
@@ -6100,7 +6119,7 @@ function App() {
                               <input type="number" min={50} max={10000} step={50} value={graphRenderLimit} onChange={(event) => setGraphRenderLimit(updateNumberSetting(event.target.value, graphRenderLimit, 50, 10000))} aria-label="Limite de nos renderizados no grafo 2D" />
                             </label>
                           </section>
-                          <p className="graph-settings-note"><Info size={12} strokeWidth={1.75} aria-hidden="true" /> Sincronizado com a pagina de Configuracoes.</p>
+                          <p className="graph-settings-note"><Info size={12} strokeWidth={1.75} aria-hidden="true" /> Sincronizado com a pagina de Configurações.</p>
                         </PopoverContent>
                       </Popover>
                     </div>
@@ -6268,7 +6287,7 @@ function App() {
                       <p className="graph-culling-note" role="status">Grafo resumido: exibindo {renderedGraphDocuments.length} de {visibleGraphDocuments.length} nos no viewport (limite de {graphRenderLimit}). Aproxime ou reduza o limite nas configuracoes para ver os demais.</p>
                     ) : null}
                     {graphMode === 'local' && localGraphBeyond.size > 0 ? (
-                      <p className="graph-local-limit-note">Grafo local limitado: {localGraphBeyond.size} {localGraphBeyond.size === 1 ? 'nota esta' : 'notas estao'} alem de {graphLocalDepth} {graphLocalDepth === 1 ? 'salto' : 'saltos'} de {localGraphCenterPath?.split('/').at(-1)?.replace(/\.md$/i, '') ?? 'a nota central'}.</p>
+                      <p className="graph-local-limit-note">Grafo local limitado: {localGraphBeyond.size} {localGraphBeyond.size === 1 ? 'nota esta' : 'notas estão'} alem de {graphLocalDepth} {graphLocalDepth === 1 ? 'salto' : 'saltos'} de {localGraphCenterPath?.split('/').at(-1)?.replace(/\.md$/i, '') ?? 'a nota central'}.</p>
                     ) : null}
                     <Drawer direction="right" open={graphDetailOpen && Boolean(focusedGraphDocument)} onOpenChange={(open) => { if (!open) { setGraphDetailOpen(false); setFocusedGraphPath(null) } }}>
                       <DrawerContent className="graph-note-drawer">
@@ -6335,8 +6354,8 @@ function App() {
                       </DrawerContent>
                     </Drawer>
                     {showOnlyGraphOrphans ? (
-                      <section className="graph-orphan-panel" aria-label="Notas nao conectadas">
-                        <div><p className="card-kicker">Limpeza do vault</p><h3>{orphanGraphDocuments.length} notas nao conectadas</h3></div>
+                      <section className="graph-orphan-panel" aria-label="Notas não conectadas">
+                        <div><p className="card-kicker">Limpeza do vault</p><h3>{orphanGraphDocuments.length} notas não conectadas</h3></div>
                         {orphanGraphDocuments.length > 0 ? <div className="graph-orphan-list">{orphanGraphDocuments.map((document) => <div key={document.relativePath}><span>{document.name.replace(/\.md$/i, '')}</span><div className="graph-orphan-actions"><button type="button" className="secondary-button" onClick={() => void revealNoteInExplorer(document.relativePath)} title="Revelar no explorador de notas">Revelar</button><button type="button" className="secondary-button" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(document) }} title={`Criar uma conexao de ${document.name.replace(/\.md$/i, '')} para outra nota`}>Conectar</button><button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(document.relativePath) }}>Abrir</button></div></div>)}</div> : <p>Nenhuma nota isolada com os filtros atuais.</p>}
                       </section>
                     ) : null}
@@ -6391,7 +6410,7 @@ function App() {
                         event.preventDefault()
                         setShortcuts((current) => ({ ...current, cycleNoteViewMode: formatShortcut(event.nativeEvent) }))
                       }}
-                      aria-label="Atalho para alternar modo de visualizacao"
+                      aria-label="Atalho para alternar modo de visualização"
                       readOnly
                     />
                   </label>
@@ -6453,7 +6472,7 @@ function App() {
                 <div className="trash-table-wrap" data-builder-name="trash-files">
                   <table>
                     <thead>
-                      <tr><th>Arquivo</th><th>Tipo</th><th>Excluido em</th><th>Acoes</th></tr>
+                      <tr><th>Arquivo</th><th>Tipo</th><th>Excluído em</th><th>Ações</th></tr>
                     </thead>
                     <tbody>
                       {trashItems.length === 0 ? <tr><td colSpan={4}>A lixeira esta vazia.</td></tr> : trashItems.map((item) => (
@@ -6491,11 +6510,11 @@ function App() {
                     ))}
                   </nav>
                   <div className="settings-content">
-                    <p className="card-kicker">Configuracoes</p>
-                    <h2>Configuracoes do vault</h2>
+                    <p className="card-kicker">Configurações</p>
+                    <h2>Configurações do vault</h2>
                     <p>Personalize a escrita, a leitura e o comportamento do workspace.</p>
                     <div className="settings-section" id="settings-aparencia" aria-labelledby="appearance-preferences-title">
-                      <p className="card-kicker" id="appearance-preferences-title">Aparencia</p>
+                      <p className="card-kicker" id="appearance-preferences-title">Aparência</p>
                   <div className="settings-toggle">
                     <span>
                       <strong>Tema</strong>
@@ -6565,7 +6584,7 @@ function App() {
                       step={5}
                       value={historyLimit}
                       onChange={(event) => setHistoryLimit(clampHistoryLimit(Number(event.target.value)))}
-                      aria-label="Limite do historico de desfazer e refazer"
+                      aria-label="Limite do histórico de desfazer e refazer"
                     />
                   </label>
                   {vault?.obsidianAppearance?.ignoredAppearanceFields.length ? (
@@ -6614,7 +6633,7 @@ function App() {
                 <label className="settings-toggle">
                   <span>
                     <strong>Cor do texto no hover das abas</strong>
-                    <small>Define a cor do titulo e do icone de fechar enquanto uma aba esta em hover.</small>
+                    <small>Define a cor do título e do icone de fechar enquanto uma aba esta em hover.</small>
                   </span>
                   <input
                     type="color"
@@ -6710,7 +6729,7 @@ function App() {
                       step={0.1}
                       value={graph3dOrbitSpeed}
                       onChange={(event) => setGraph3dOrbitSpeed(updateNumberSetting(event.target.value, graph3dOrbitSpeed, 0.1, 5))}
-                      aria-label="Velocidade de orbitacao no grafo 3D"
+                      aria-label="Velocidade de orbitação no grafo 3D"
                     />
                   </label>
                   <label className="settings-toggle">
@@ -6837,7 +6856,7 @@ function App() {
                   </label>
                 </div>
                 <div className="settings-section" id="settings-revisao" aria-labelledby="review-gap-preferences-title">
-                  <p className="card-kicker" id="review-gap-preferences-title">Revisao</p>
+                  <p className="card-kicker" id="review-gap-preferences-title">Revisão</p>
                   <label className="settings-toggle">
                     <span>
                       <strong>Lacunas da ultima revisao no editor</strong>
@@ -6847,7 +6866,7 @@ function App() {
                       className="settings-select"
                       value={reviewGapMode}
                       onChange={(event) => setReviewGapMode(event.target.value as ReviewGapMode)}
-                      aria-label="Exibicao das lacunas da ultima revisao"
+                      aria-label="Exibição das lacunas da última revisão"
                     >
                       <option value="always">Sempre visiveis</option>
                       <option value="hover">Somente no hover</option>
@@ -6904,7 +6923,7 @@ function App() {
           </section>
         {explorerContextMenu ? (
             <div className="explorer-context-menu-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setExplorerContextMenu(null) }} onContextMenu={(event) => event.preventDefault()}>
-              <div className="explorer-context-menu" role="menu" aria-label={`Acoes para ${explorerContextMenu.target.name}`} style={{ left: explorerContextMenu.x, top: explorerContextMenu.y }}>
+              <div className="explorer-context-menu" role="menu" aria-label={`Ações para ${explorerContextMenu.target.name}`} style={{ left: explorerContextMenu.x, top: explorerContextMenu.y }}>
                 {explorerContextMenu.target.type === 'note' ? (
                   <button type="button" role="menuitem" onClick={() => { void toggleNoteFavorite(explorerContextMenu.target.path); setExplorerContextMenu(null) }}>
                     <Star size={14} strokeWidth={1.5} fill={favorites.includes(explorerContextMenu.target.path) ? 'currentColor' : 'none'} aria-hidden="true" />
@@ -6929,12 +6948,12 @@ function App() {
           ) : null}
         {externalNoteConflict ? (
           <div className="note-search-backdrop external-change-backdrop" role="presentation">
-            <section className="note-search-modal external-change-modal" role="dialog" aria-modal="true" aria-label="Alteracao externa detectada">
+            <section className="note-search-modal external-change-modal" role="dialog" aria-modal="true" aria-label="Alteração externa detectada">
               <div className="move-item-heading">
                 <strong>Alteracao externa detectada</strong>
                 <span>A nota <b>{externalNoteConflict.externalNote.name.replace(/\.md$/i, '')}</b> foi modificada fora do MirrorMind enquanto voce tinha um rascunho local.</span>
               </div>
-              <p>Escolha qual versao deve permanecer no editor. Nenhuma versao sera sobrescrita automaticamente.</p>
+              <p>Escolha qual versao deve permanecer no editor. Nenhuma versao será sobrescrita automaticamente.</p>
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={loadExternalNoteVersion}>Carregar arquivo externo</button>
                 <button type="button" onClick={keepLocalNoteVersion}>Manter meu rascunho</button>
@@ -6984,7 +7003,7 @@ function App() {
             <section className="note-search-modal special-files-modal" role="dialog" aria-modal="true" aria-label="Arquivos com compatibilidade limitada" onKeyDown={(event) => { if (event.key === 'Escape') setShowSpecialFilesDialog(false) }}>
               <div className="move-item-heading">
                 <strong>Arquivos preservados</strong>
-                <span>Estes arquivos permanecem no Vault, mas ainda nao podem ser visualizados ou editados aqui.</span>
+                <span>Estes arquivos permanecem no Vault, mas ainda não podem ser visualizados ou editados aqui.</span>
                 <button autoFocus type="button" className="modal-close-button" onClick={() => setShowSpecialFilesDialog(false)} aria-label="Fechar arquivos especiais"><X size={15} aria-hidden="true" /></button>
               </div>
               {specialFilesTruncated ? <p className="special-files-limit-notice" role="status">Mostrando os primeiros 500 arquivos. A coleta foi interrompida para manter o workspace responsivo.</p> : null}
@@ -7008,7 +7027,7 @@ function App() {
                       <code>{file.relativePath}</code>
                     </div>
                     <span className={`special-file-kind is-${file.kind}`}>{SPECIAL_FILE_LABELS[file.kind]}</span>
-                    <p>{SPECIAL_FILE_LIMITATIONS[file.kind]} O arquivo sera preservado sem alteracoes.</p>
+                    <p>{SPECIAL_FILE_LIMITATIONS[file.kind]} O arquivo será preservado sem alterações.</p>
                   </article>
                 ))}
               </div>
@@ -7027,8 +7046,8 @@ function App() {
               <section className="note-search-modal" role="dialog" aria-modal="true" aria-label={`Erro ao visualizar ${specialFileViewer.name}`}>
                 <div className="move-item-heading">
                   <strong>{specialFileViewer.name}</strong>
-                  <span>Nao foi possivel ler o arquivo para visualizacao.</span>
-                  <button autoFocus type="button" className="modal-close-button" onClick={() => setSpecialFileViewer(null)} aria-label="Fechar erro de visualizacao"><X size={15} aria-hidden="true" /></button>
+                  <span>Não foi possível ler o arquivo para visualizacao.</span>
+                  <button autoFocus type="button" className="modal-close-button" onClick={() => setSpecialFileViewer(null)} aria-label="Fechar erro de visualização"><X size={15} aria-hidden="true" /></button>
                 </div>
                 <p className="field-error" role="alert">{specialFileViewerError}</p>
               </section>
@@ -7219,11 +7238,11 @@ function App() {
             <section className="note-search-modal delete-item-modal" role="dialog" aria-modal="true" aria-label={`Excluir ${deleteTarget.type === 'note' ? 'nota' : 'pasta'}`}>
               <div className="move-item-heading">
                 <strong>Enviar para a lixeira?</strong>
-                <span>{deleteTarget.type === 'folder' ? `A pasta "${deleteTarget.name}" e todo o seu conteudo serao movidos para a lixeira.` : `A nota "${deleteTarget.name.replace(/\.md$/i, '')}" sera movida para a lixeira.`}</span>
+                <span>{deleteTarget.type === 'folder' ? `A pasta "${deleteTarget.name}" e todo o seu conteudo serao movidos para a lixeira.` : `A nota "${deleteTarget.name.replace(/\.md$/i, '')}" será movida para a lixeira.`}</span>
               </div>
               <label className="delete-confirmation-preference">
                 <input type="checkbox" checked={skipSoftDeleteConfirmation} onChange={(event) => setSkipSoftDeleteConfirmation(event.target.checked)} />
-                Nao mostrar esta confirmacao novamente
+                Não mostrar esta confirmacao novamente
               </label>
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={() => setDeleteTarget(null)}>Cancelar</button>
@@ -7237,7 +7256,7 @@ function App() {
             <section className="note-search-modal delete-item-modal" role="dialog" aria-modal="true" aria-label="Excluir permanentemente da lixeira">
               <div className="move-item-heading">
                 <strong>Excluir permanentemente?</strong>
-                <span>{permanentDeleteTarget.itemType === 'folder' ? `A pasta "${permanentDeleteTarget.originalRelativePath}" e todo o seu conteudo serao removidos definitivamente.` : `A nota "${permanentDeleteTarget.originalRelativePath.replace(/\.md$/i, '')}" sera removida definitivamente e nao podera ser restaurada.`}</span>
+                <span>{permanentDeleteTarget.itemType === 'folder' ? `A pasta "${permanentDeleteTarget.originalRelativePath}" e todo o seu conteudo serao removidos definitivamente.` : `A nota "${permanentDeleteTarget.originalRelativePath.replace(/\.md$/i, '')}" será removida definitivamente e nao podera ser restaurada.`}</span>
               </div>
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={() => setPermanentDeleteTarget(null)}>Cancelar</button>
@@ -7356,7 +7375,7 @@ function App() {
                 checked={skipRecentVaultPrompt}
                 onChange={(event) => setSkipRecentVaultPrompt(event.target.checked)}
               />
-              <span>Nao perguntar novamente e abrir este vault automaticamente.</span>
+              <span>Não perguntar novamente e abrir este vault automaticamente.</span>
             </label>
             <div className="recent-vault-actions">
               <button type="button" className="secondary-button" onClick={() => void dismissRecentVault()}>

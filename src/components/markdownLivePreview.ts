@@ -268,7 +268,7 @@ export function findTreeMaskTokens(tree: Tree, doc: { toString: () => string; li
   const codeRanges: Array<{ from: number; to: number }> = []
 
   // HTML inline: tags abertas pendentes (para casar com a tag de fechamento e
-  // cobrir o elemento inteiro `<tag>...</tag>` com um unico token).
+  // cobrir o elemento inteiro `<tag>...</tag>` com um único token).
   const htmlTagStack: Array<{ name: string; from: number }> = []
 
   tree.iterate({
@@ -413,7 +413,7 @@ export function findTreeMaskTokens(tree: Tree, doc: { toString: () => string; li
       if (type === 'HTMLTag') {
         // HTML inline: `<tag>...</tag>` vira um token cobrindo o elemento
         // inteiro (da abertura ao fechamento), renderizado sanitizado. Tags
-        // vazias (br, hr, img...) nao tem fechamento e ficam cruas.
+        // vazias (br, hr, img...) não tem fechamento e ficam cruas.
         const tagSource = text.slice(from, to)
         const closeMatch = tagSource.match(/^<\/([a-zA-Z][a-zA-Z0-9-]*)\s*>$/)
         if (closeMatch) {
@@ -749,7 +749,7 @@ class ImageWidget extends WidgetType {
 // (rehype-sanitize defaultSchema + mark): tags fora da allowlist sao
 // desembrulhadas, tags perigosas (script/style/iframe) removidas por inteiro,
 // atributos filtrados (sem `on*`, sem `javascript:`/`data:`). Blocos HTML
-// multilinha (HTMLBlock) permanecem crus (view plugins nao cruzam linhas).
+// multilinha (HTMLBlock) permanecem crus (view plugins não cruzam linhas).
 
 const HTML_ALLOWED_TAGS = new Set([
   'a', 'abbr', 'b', 'bdi', 'bdo', 'blockquote', 'br', 'caption', 'code', 'data', 'del', 'details', 'dfn', 'div',
@@ -1101,7 +1101,7 @@ function tokenDecorations(token: MaskToken, doc: Text, options: LivePreviewOptio
 // A tabela e o UNICO elemento do modo Misto que nunca revela o Markdown cru
 // quando o usuario interage com ela: um StateField substitui o range inteiro
 // da tabela por um widget de BLOCO que renderiza um <table> real (mesmo CSS
-// do modo Leitura), com cabecalho <th>, corpo <tbody>, alinhamento por coluna
+// do modo Leitura), com cabeçalho <th>, corpo <tbody>, alinhamento por coluna
 // e KaTeX nas celulas. A deteccao e textual (mesmas regras do parser GFM),
 // pois StateFields nao tem acesso a view para garantir a arvore sintatica.
 //
@@ -2178,7 +2178,7 @@ function createEmbedField(options: LivePreviewOptions) {
 // --- Callouts: `> [!tipo]` como bloco real, igual ao Leitura -----------------
 //
 // Um bloco de citacao cuja primeira linha e `> [!tipo]` (com fold `+`/`-` e
-// titulo opcional) vira um widget de BLOCO (StateField, como tabela e embed)
+// título opcional) vira um widget de BLOCO (StateField, como tabela e embed)
 // com o MESMO visual do Leitura: o `ObsidianCallout` (reaproveitado via React,
 // com <details>/<summary> nativo para o fold) e o conteudo renderizado por um
 // editor aninhado somente leitura com o mesmo motor (profundidade + 1).
@@ -2505,11 +2505,11 @@ function createPluginBlockField() {
 // --- Lacunas da revisao (gap marks): marcas e badges sobre o texto -----------
 //
 // O Leitura classico sobrepoe as lacunas da ultima revisao como HTML
-// (`<mark data-gap>` + badges de pontuacao por unidade) antes do
-// ReactMarkdown. No motor unico isso vira um campo de DECORACOES: marcas
+// (`<mark data-gap>` + badges de pontuação por unidade) antes do
+// ReactMarkdown. No motor único isso vira um campo de DECORACOES: marcas
 // `cm-live-gap` nos offsets exatos das lacunas (com classe forgotten/confused)
 // e widgets de badge no fim das unidades. Mesmas guardas do classico
-// (multilinha, fences de codigo, matematica display) + os blocos substituidos
+// (multilinha, fences de código, matemática display) + os blocos substituidos
 // do Misto (tabela, embeds, callouts, blocos de plugin, frontmatter) para
 // nunca criar decoração sobreposta a um widget.
 
@@ -2518,14 +2518,14 @@ function createPluginBlockField() {
 export const reviewGapDataEffect = StateEffect.define<ReviewGapData | null>()
 
 /** Ranges de texto protegidos: blocos substituidos por widgets + fences de
- * codigo + matematica display + frontmatter. Uma lacuna nunca pode cruzar
+ * código + matemática display + frontmatter. Uma lacuna nunca pode cruzar
  * esses ranges (criaria decoração sobreposta ao widget de bloco). */
 function protectedGapRanges(doc: Text): Array<[number, number]> {
   const ranges: Array<[number, number]> = []
   const frontmatterEnd = frontmatterEndOffset(doc)
   if (frontmatterEnd > 0) ranges.push([0, frontmatterEnd])
 
-  // Fences de codigo e blocos de matematica display ($$...$$), por linha.
+  // Fences de código e blocos de matemática display ($$...$$), por linha.
   const content = doc.toString()
   let inFence = false
   let inMath = false
@@ -2819,7 +2819,7 @@ function buildDecorations(view: EditorView, focused: boolean, options: LivePrevi
   }
 
   // Linhas cobertas pelos widgets de tabela (StateField): a tabela inteira e
-  // substituida por um <table> real, entao o plugin nao as decora. O mesmo
+  // substituida por um <table> real, entao o plugin não as decora. O mesmo
   // vale para os embeds (widgets de bloco assincronos).
   const tableLines = view.state.field(livePreviewTableField, false)?.tableLines ?? new Set<number>()
   const embedLines = embedField
@@ -2849,7 +2849,7 @@ function buildDecorations(view: EditorView, focused: boolean, options: LivePrevi
     if (token.to < viewport.from || token.from > viewport.to) continue
     if (isTokenRevealed(token, carets, doc)) continue
     // Matematica dentro de tabelas/embeds/callouts/blocos de plugin e
-    // renderizada pelo proprio widget (nada de replaces sobrepostos ao widget
+    // renderizada pelo próprio widget (nada de replaces sobrepostos ao widget
     // de bloco).
     const startLine = lineNumberAt(doc, token.from)
     const endLine = lineNumberAt(doc, Math.max(token.from, token.to - 1))

@@ -213,7 +213,7 @@ type Engine = {
   lastLod: number
   /** Ultimo no em hover (para atualizar o rotulo unico no modo ocultar nomes). */
   lastHoverPath: string | null
-  /** Ultimo estado da opcao "ocultar nomes" (atualiza os rotulos ao alternar). */
+  /** Ultimo estado da opcao "ocultar nomês" (atualiza os rotulos ao alternar). */
   lastHideAll: boolean
   labels: Map<string, CSS2DObject>
   /** Halos aditivos dos orbes (aura de luz de cada no). */
@@ -373,7 +373,7 @@ export function NoteGraph3D({
     const outgoingByPath = new Map<string, string[]>()
     const glows = new Map<string, number>()
     const clock = new THREE.Clock()
-    // Animacao de entrada "Big Bang" (variavel de closure: o engine ainda nao
+    // Animação de entrada "Big Bang" (variavel de closure: o engine ainda não
     // existe na primeira chamada de updateGraph, que roda antes de engineRef).
     let birth: BirthState | null = null
 
@@ -555,7 +555,7 @@ export function NoteGraph3D({
       const lod = labelLodDegree(controls.getDistance())
       const wanted = new Set<string>()
       for (const node of data.nodes) {
-        // "Ocultar nomes" ativo: apenas o no em hover mostra o nome. Usa
+        // "Ocultar nomês" ativo: apenas o no em hover mostra o nome. Usa
         // acesso opcional: updateLabels roda tambem no setup, quando o engine
         // ainda nao foi atribuido (hoverPath ainda nao existe).
         if (data.hideAllLabels) {
@@ -1281,7 +1281,7 @@ export function NoteGraph3D({
       if (stars) stars.rotation.y += delta * 0.004
 
       // Nivel de detalhe dos rotulos: ao dar zoom out, nomes de nos com poucas
-      // conexoes somem (e reaparecem ao aproximar). No modo "ocultar nomes",
+      // conexoes somem (e reaparecem ao aproximar). No modo "ocultar nomês",
       // o rotulo do no em hover precisa acompanhar o movimento do mouse.
       const engineNow = engineRef.current!
       const lod = labelLodDegree(controls.getDistance())
@@ -1527,7 +1527,7 @@ export function NoteGraph3D({
   if (!webglAvailable) {
     return (
       <div className="note-graph-3d note-graph-3d-fallback" role="status">
-        Modo 3D indisponivel: o WebGL nao esta habilitado neste dispositivo.
+        Modo 3D indisponivel: o WebGL não está habilitado neste dispositivo.
       </div>
     )
   }

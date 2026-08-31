@@ -87,7 +87,7 @@ const dashboard = {
     title: 'Esboco',
     status: 'insufficient',
     assessedAtUnixMs: 1_730_000_000_000,
-    explanation: 'Apenas titulo e esboco.',
+    explanation: 'Apenas título e esboco.',
     issueCount: 1,
   }, {
     noteId: 'note-4',
@@ -152,7 +152,7 @@ describe('ReviewDashboardPage', () => {
     expect(screen.getByText('Não avaliadas')).toBeInTheDocument()
     expect(screen.getByText('Esboco')).toBeInTheDocument()
     expect(screen.getByText('Editada')).toBeInTheDocument()
-    expect(screen.getByText('Apenas titulo e esboco.')).toBeInTheDocument()
+    expect(screen.getByText('Apenas título e esboco.')).toBeInTheDocument()
     expect(screen.getByText(/1 problema apontado/)).toBeInTheDocument()
     expect(screen.getByText(/2 notas precisam de atenção/)).toBeInTheDocument()
 
@@ -411,10 +411,10 @@ describe('ReviewDashboardPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    previewDeadlineMock.mockRejectedValueOnce(new Error('A tag de prazo nao esta configurada.'))
+    previewDeadlineMock.mockRejectedValueOnce(new Error('A tag de prazo não está configurada.'))
     await user.click(await screen.findByRole('button', { name: 'Alterar prazo de Calculo' }))
     fireEvent.change(screen.getByLabelText('Nova data da prova'), { target: { value: '2030-05-05' } })
     await user.click(screen.getByRole('button', { name: 'Ver impacto' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/A tag de prazo nao esta configurada/)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/A tag de prazo não está configurada/)
   })
 })

@@ -23,19 +23,19 @@ export const UI_STRUCTURE = {
 } as const
 
 export const BUILDER_FRIENDLY_NAMES: Record<string, string> = {
-  'vault-selection-shell': 'Tela de selecao de vault',
-  'vault-selection-rail': 'Barra lateral da selecao',
-  'vault-selection-actions': 'Acoes de vault',
-  'recent-vault-modal': 'Confirmacao do ultimo vault',
+  'vault-selection-shell': 'Tela de seleção de vault',
+  'vault-selection-rail': 'Barra lateral da seleção',
+  'vault-selection-actions': 'Ações de vault',
+  'recent-vault-modal': 'Confirmação do último vault',
   'workspace-shell': 'Workspace de notas',
   'workspace-rail': 'Barra de ferramentas',
   'notes-sidebar': 'Explorador de arquivos',
-  'vault-explorer-header': 'Cabecalho do explorador do vault',
-  'vault-file-tree': 'Arvore de arquivos do Vault',
+  'vault-explorer-header': 'Cabeçalho do explorador do vault',
+  'vault-file-tree': 'Árvore de arquivos do Vault',
   'trash-files': 'Arquivos da lixeira',
   'tab-strip': 'Barra de abas',
-  'workspace-content-panel': 'Painel de conteudo do workspace',
-  'editor-header': 'Cabecalho da nota',
+  'workspace-content-panel': 'Painel de conteúdo do workspace',
+  'editor-header': 'Cabeçalho da nota',
   'editor-content': 'Editor da nota',
-  'trash-page': 'Pagina da lixeira',
+  'trash-page': 'Página da lixeira',
 }

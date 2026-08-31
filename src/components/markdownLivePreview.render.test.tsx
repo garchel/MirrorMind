@@ -74,21 +74,21 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(container.querySelector('tbody td')?.textContent).toBe('1')
   })
 
-  it('renderiza negrito, italico, codigo e riscado nas celulas (como o modo Leitura)', async () => {
-    const value = 'Introducao\n\n| Texto | Valor |\n|---|---|\n| **negrito** | *italico* |\n| `codigo` | ~~riscado~~ |'
+  it('renderiza negrito, italico, código e riscado nas celulas (como o modo Leitura)', async () => {
+    const value = 'Introducao\n\n| Texto | Valor |\n|---|---|\n| **negrito** | *italico* |\n| `código` | ~~riscado~~ |'
     const container = await renderLive(value)
     await waitFor(() => expect(table(container)).not.toBeNull())
     // Os marcadores nao aparecem no texto visivel.
     const content = container.querySelector('.cm-content')
     expect(content?.textContent).not.toContain('**')
     expect(content?.textContent).not.toContain('*italico*')
-    expect(content?.textContent).not.toContain('`codigo`')
+    expect(content?.textContent).not.toContain('`código`')
     expect(content?.textContent).not.toContain('~~')
     // As tags de formatacao sao renderizadas dentro das celulas.
     const cells = container.querySelectorAll('.cm-live-table-wrap td')
     expect(cells[0]?.querySelector('strong')?.textContent).toBe('negrito')
     expect(cells[1]?.querySelector('em')?.textContent).toBe('italico')
-    expect(cells[2]?.querySelector('code')?.textContent).toBe('codigo')
+    expect(cells[2]?.querySelector('code')?.textContent).toBe('código')
     expect(cells[3]?.querySelector('del')?.textContent).toBe('riscado')
   })
 
@@ -104,7 +104,7 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(content?.textContent).not.toContain('**')
   })
 
-  it('nao cria italico espurio em textos com asteriscos/sublinhados soltos', async () => {
+  it('não cria italico espurio em textos com asteriscos/sublinhados soltos', async () => {
     const value = 'Introducao\n\n| Operacao | Nome |\n|---|---|\n| 2 * 3 | foo_bar_baz |'
     const container = await renderLive(value)
     await waitFor(() => expect(table(container)).not.toBeNull())
@@ -117,7 +117,7 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(cells[1]?.textContent).toBe('foo_bar_baz')
   })
 
-  it('nao revela o Markdown cru com o cursor dentro da tabela', async () => {
+  it('não revela o Markdown cru com o cursor dentro da tabela', async () => {
     // Cursor na posicao da celula "1" (dentro da tabela).
     const container = await renderLive('Introducao\n\n| A | B |\n|---|---|\n| 1 | 2 |', 33)
     await waitFor(() => expect(table(container)).not.toBeNull())
@@ -174,7 +174,7 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(onOpenLink).toHaveBeenCalledWith({ kind: 'note', path: 'pasta/nota', fragment: undefined })
   })
 
-  it('cursor perto do link revela o Markdown cru (sem widget clicavel)', async () => {
+  it('cursor perto do link revela o Markdown cru (sem widget clicável)', async () => {
     const onOpenLink = vi.fn()
     const container = await renderLive('Veja [[fotosintese]]', 7, undefined, onOpenLink)
     await waitFor(() => {
@@ -184,7 +184,7 @@ describe('markdownLivePreview render (jsdom)', () => {
   })
 
   it('modo leitura (readOnly): sem caret/editacao e sem revelar Markdown cru', async () => {
-    const container = await renderReadOnly('# Titulo\n\n**palavra** e [[fotosintese]]')
+    const container = await renderReadOnly('# Título\n\n**palavra** e [[fotosintese]]')
     await waitFor(() => expect(container.querySelector('.cm-live-link-widget')).not.toBeNull())
     const content = container.querySelector('.cm-content')
     // Nao editavel (contenteditable=false) e nada de Markdown cru visivel.
@@ -255,7 +255,7 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(cell.getAttribute('contenteditable')).not.toBe('true')
   })
 
-  it('ao abrir a nota (sem foco), a primeira linha nao fica em Markdown cru', async () => {
+  it('ao abrir a nota (sem foco), a primeira linha não fica em Markdown cru', async () => {
     // Regressao: o caret padrao (posicao 0) nao pode revelar a primeira linha
     // enquanto o usuario nao interage com o editor — nem negrito nem titulo.
     const { container } = render(
@@ -266,7 +266,7 @@ describe('markdownLivePreview render (jsdom)', () => {
         onHistoryChange={vi.fn()}
         onSessionChange={vi.fn()}
         session={{ selectionStart: 0, selectionEnd: 0, scrollTop: 0 }}
-        value={'# Titulo\n\n**palavra**\n---\n\ndepois'}
+        value={'# Título\n\n**palavra**\n---\n\ndepois'}
       />,
     )
     await waitFor(() => expect(container.querySelector('.cm-live-hr')).not.toBeNull())
@@ -281,7 +281,7 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(strong[0]?.textContent).toBe('palavra')
   })
 
-  it('o divisor --- abaixo de uma linha com negrito nao grifa a linha inteira (sem foco)', async () => {
+  it('o divisor --- abaixo de uma linha com negrito não grifa a linha inteira (sem foco)', async () => {
     // Bug relatado: com `---` abaixo de uma linha que termina em **palavra**,
     // a linha inteira ficava em Markdown cru (grifada) ao abrir. Com o caret
     // padrao e sem foco, so a palavra recebe o negrito e o --- vira divisor.
@@ -330,7 +330,7 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(content?.textContent).not.toContain('$$')
   })
 
-  it('renderiza heading setext === como titulo de nivel 1 com o marcador oculto', async () => {
+  it('renderiza heading setext === como título de nivel 1 com o marcador oculto', async () => {
     const container = await renderLive('Texto\n===')
     await waitFor(() => expect(container.querySelector('.cm-live-heading.cm-live-h1')).not.toBeNull())
     const content = container.querySelector('.cm-content')
@@ -338,7 +338,7 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(content?.textContent).toContain('Texto')
   })
 
-  it('nao revela elementos de linhas vizinhas quando o cursor esta em linha em branco', async () => {
+  it('não revela elementos de linhas vizinhas quando o cursor esta em linha em branco', async () => {
     // Cursor na linha em branco (posicao 12): nem o negrito acima nem o abaixo
     // podem ir para Markdown cru — so elementos na MESMA linha do cursor.
     const container = await renderLive('**negrito**\n\n**outro**', 12)
@@ -369,7 +369,7 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(container.querySelectorAll('thead th').length).toBe(4)
   })
 
-  it('mascara a tabela exata do relatorio (cabecalho com espacos e subescritos)', async () => {
+  it('mascara a tabela exata do relatorio (cabeçalho com espacos e subescritos)', async () => {
     const value = '**Resumo Comparativo**\n\n| Etapa | Local no Cloroplasto | Entra | Sai |\n| :--- | :--- | :--- | :--- |\n| Fase Clara | Tilacoides | H₂O, Luz | O₂, ATP, NADPH |\n| Fase Escura | Estroma | CO₂, ATP, NADPH | Glicose |'
     const container = await renderLive(value)
     await waitFor(() => expect(table(container)).not.toBeNull())
@@ -383,7 +383,7 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(content?.textContent).toContain('H₂O, Luz')
   })
 
-  it('nao renderiza a linha de delimitadores nem celulas fantasma', async () => {
+  it('não renderiza a linha de delimitadores nem celulas fantasma', async () => {
     const container = await renderLive('Introducao\n\n| A |\n|---|\n| 1 |')
     await waitFor(() => expect(table(container)).not.toBeNull())
     const content = container.querySelector('.cm-content')
@@ -408,7 +408,7 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(container.querySelector('.cm-content')?.textContent).not.toContain('|')
   })
 
-  it('preserva foco e conteudo da celula em edicao (updateDOM nao redesenha)', async () => {
+  it('preserva foco e conteúdo da celula em edicao (updateDOM não redesenha)', async () => {
     const onChange = vi.fn()
     const container = await renderLive('Introducao\n\n| A | B |\n|---|---|\n| 1 | 2 |', 1, onChange)
     await waitFor(() => expect(table(container)).not.toBeNull())
@@ -546,7 +546,7 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(container.querySelectorAll('tbody td').length).toBe(2)
   })
 
-  it('arrastar a borda direita nao reduz abaixo de 1 coluna', async () => {
+  it('arrastar a borda direita não reduz abaixo de 1 coluna', async () => {
     const onChange = vi.fn()
     const container = await renderLive('Introducao\n\n| A | B |\n|---|---|\n| 1 | 2 |', 1, onChange)
     await waitFor(() => expect(table(container)).not.toBeNull())
@@ -562,10 +562,10 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(value).toContain('| A |')
   })
 
-  it('mascara blocos de codigo com conteudo em varias linhas sem cruzar quebras de linha', async () => {
+  it('mascara blocos de código com conteúdo em varias linhas sem cruzar quebras de linha', async () => {
     // Regressao: os replaces `hidden` das cercas cruzavam a quebra de linha
     // quando o conteudo comecava na linha seguinte (RangeError do CodeMirror).
-    const container = await renderLive('# Titulo\n\n```js\nconst x = 1\nconst y = 2\n```\n\nFim')
+    const container = await renderLive('# Título\n\n```js\nconst x = 1\nconst y = 2\n```\n\nFim')
     await waitFor(() => expect(container.querySelector('.cm-editor')).not.toBeNull())
     const content = container.querySelector('.cm-content')
     // O editor continua vivo, com o conteudo preservado e sem a cercas visiveis
@@ -603,13 +603,13 @@ describe('markdownLivePreview embeds (jsdom)', () => {
   })
 
   it('nota incorporada ausente mostra a mensagem de erro', async () => {
-    const getEmbedContent = vi.fn(async () => { throw new Error('nao encontrada') })
-    const container = await renderLive('![[nao-existe]]', 0, undefined, undefined, undefined, getEmbedContent)
+    const getEmbedContent = vi.fn(async () => { throw new Error('não encontrada') })
+    const container = await renderLive('![[não-existe]]', 0, undefined, undefined, undefined, getEmbedContent)
     await waitFor(() => expect(container.querySelector('.cm-live-embed-status.is-missing')).not.toBeNull())
     expect(container.querySelector('.cm-live-embed-status.is-missing')?.textContent).toContain('não foi encontrada')
   })
 
-  it('embed de imagem ![[arquivo.png]] continua sendo imagem (nao embed de nota)', async () => {
+  it('embed de imagem ![[arquivo.png]] continua sendo imagem (não embed de nota)', async () => {
     const getEmbedContent = vi.fn()
     const container = await renderLive('Veja ![[figura.png]]', 0, undefined, undefined, undefined, getEmbedContent)
     await waitFor(() => expect(container.querySelector('.cm-live-image')).not.toBeNull())
@@ -617,7 +617,7 @@ describe('markdownLivePreview embeds (jsdom)', () => {
     expect(getEmbedContent).not.toHaveBeenCalled()
   })
 
-  it('profundidade no limite mostra a mensagem de limite sem buscar conteudo', async () => {
+  it('profundidade no limite mostra a mensagem de limite sem buscar conteúdo', async () => {
     const getEmbedContent = vi.fn(async () => 'Corpo')
     const host = document.createElement('div')
     document.body.appendChild(host)
@@ -641,7 +641,7 @@ describe('markdownLivePreview embeds (jsdom)', () => {
     expect(container.querySelector('.pdf-embed-mock')).not.toBeNull()
   })
 
-  it('embed renderiza tambem em modo read-only (spike do Leitura)', async () => {
+  it('embed renderiza também em modo read-only (spike do Leitura)', async () => {
     const getEmbedContent = vi.fn(async () => 'Corpo read-only **forte**.')
     const container = await renderReadOnly('![[fotosintese]]', undefined, undefined, getEmbedContent)
     await waitFor(() => expect(container.querySelector('.cm-live-embed-note .cm-editor')).not.toBeNull())
@@ -650,7 +650,7 @@ describe('markdownLivePreview embeds (jsdom)', () => {
 })
 
 describe('markdownLivePreview callouts (jsdom)', () => {
-  it('renderiza o callout > [!tipo] como bloco com conteudo formatado', async () => {
+  it('renderiza o callout > [!tipo] como bloco com conteúdo formatado', async () => {
     const container = await renderLive('> [!note]\n> Conteúdo da **nota** com *ênfase*.\n>\n> Mais uma linha.')
     await waitFor(() => expect(container.querySelector('.cm-live-callout .obsidian-callout')).not.toBeNull())
     const callout = container.querySelector('.cm-live-callout .obsidian-callout')
@@ -674,7 +674,7 @@ describe('markdownLivePreview callouts (jsdom)', () => {
     expect((callouts[1] as HTMLDetailsElement).open).toBe(true)
   })
 
-  it('titulo customizado aparece no cabecalho do callout', async () => {
+  it('título customizado aparece no cabeçalho do callout', async () => {
     const container = await renderLive('> [!warning] Cuidado ao abrir')
     await waitFor(() => expect(container.querySelector('.cm-live-callout .obsidian-callout[data-callout="warning"]')).not.toBeNull())
     expect(container.querySelector('.cm-live-callout .obsidian-callout-title')?.textContent).toContain('Cuidado ao abrir')
@@ -690,7 +690,7 @@ describe('markdownLivePreview callouts (jsdom)', () => {
     expect(container.querySelector('.cm-live-quote')).not.toBeNull()
   })
 
-  it('callout renderiza tambem em modo read-only (spike do Leitura)', async () => {
+  it('callout renderiza também em modo read-only (spike do Leitura)', async () => {
     const container = await renderReadOnly('> [!info]\n> Conteúdo read-only.')
     await waitFor(() => expect(container.querySelector('.cm-live-callout .obsidian-callout[data-callout="info"]')).not.toBeNull())
     expect(container.querySelector('.cm-live-callout .cm-content')?.textContent).toContain('Conteúdo read-only.')
@@ -733,7 +733,7 @@ describe('markdownLivePreview checkbox alternavel (jsdom)', () => {
     expect(value).toBe('- [ ] feita com **detalhe**')
   })
 
-  it('espaco no checkbox com foco tambem alterna (teclado)', async () => {
+  it('espaco no checkbox com foco também alterna (teclado)', async () => {
     const onChange = vi.fn()
     const source = '- [ ] via teclado'
     const container = await renderLive(source, source.length, onChange)
@@ -745,7 +745,7 @@ describe('markdownLivePreview checkbox alternavel (jsdom)', () => {
     expect(onChange.mock.calls.at(-1)?.[0] as string).toContain('- [x] via teclado')
   })
 
-  it('em modo read-only o clique tambem alterna (paridade com o Leitura)', async () => {
+  it('em modo read-only o clique também alterna (paridade com o Leitura)', async () => {
     const onChange = vi.fn()
     const container = await renderReadOnly('- [x] no leitura', undefined, undefined, undefined, undefined, onChange)
     await waitFor(() => expect(container.querySelector('.cm-live-checkbox.is-checked')).not.toBeNull())
@@ -767,15 +767,15 @@ describe('markdownLivePreview frontmatter oculto (jsdom)', () => {
     expect(content).toContain('Conteúdo')
   })
 
-  it('nota sem frontmatter nao oculta nada (conteudo intacto)', async () => {
-    const container = await renderLive('# Titulo\n\nConteudo', 0)
+  it('nota sem frontmatter não oculta nada (conteúdo intacto)', async () => {
+    const container = await renderLive('# Título\n\nConteúdo', 0)
     await waitFor(() => expect(container.querySelector('.cm-editor')).not.toBeNull())
     expect(container.querySelector('.cm-live-frontmatter-hidden')).toBeNull()
     const content = container.querySelector('.cm-content')?.textContent ?? ''
-    expect(content).toContain('# Titulo')
+    expect(content).toContain('# Título')
   })
 
-  it('em modo read-only o frontmatter tambem fica oculto', async () => {
+  it('em modo read-only o frontmatter também fica oculto', async () => {
     const container = await renderReadOnly(NOTE)
     await waitFor(() => expect(container.querySelector('.cm-live-frontmatter-hidden')).not.toBeNull())
     const content = container.querySelector('.cm-content')?.textContent ?? ''
@@ -785,7 +785,7 @@ describe('markdownLivePreview frontmatter oculto (jsdom)', () => {
 })
 
 describe('markdownLivePreview HTML sanitizado (jsdom)', () => {
-  it('renderiza HTML inline sanitizado (mark, kbd) sem o codigo cru', async () => {
+  it('renderiza HTML inline sanitizado (mark, kbd) sem o código cru', async () => {
     const container = await renderLive('Texto com <mark>destaque</mark> e <kbd>Ctrl+S</kbd>.', 5)
     await waitFor(() => expect(container.querySelector('.cm-live-html mark')).not.toBeNull())
     const content = container.querySelector('.cm-content')?.textContent ?? ''
@@ -825,7 +825,7 @@ describe('markdownLivePreview HTML sanitizado (jsdom)', () => {
     expect(content).toContain('linha2')
   })
 
-  it('cursor perto do HTML inline revela o codigo cru', async () => {
+  it('cursor perto do HTML inline revela o código cru', async () => {
     const container = await renderLive('Texto <mark>x</mark> fim', 9)
     await waitFor(() => expect(container.querySelector('.cm-editor')).not.toBeNull())
     expect(container.querySelector('.cm-live-html')).toBeNull()
@@ -833,7 +833,7 @@ describe('markdownLivePreview HTML sanitizado (jsdom)', () => {
     expect(content).toContain('<mark>x</mark>')
   })
 
-  it('renderiza sanitizado tambem em modo read-only (spike do Leitura)', async () => {
+  it('renderiza sanitizado também em modo read-only (spike do Leitura)', async () => {
     const container = await renderReadOnly('Texto <mark>destaque</mark>.')
     await waitFor(() => expect(container.querySelector('.cm-live-html mark')).not.toBeNull())
     expect(container.querySelector('.cm-content')?.textContent).not.toContain('<mark>')
@@ -842,12 +842,12 @@ describe('markdownLivePreview HTML sanitizado (jsdom)', () => {
 
 describe('markdownLivePreview blocos de plugin (jsdom)', () => {
   it('renderiza o bloco dataview como ObsidianPluginBlock com a fonte crua', async () => {
-    const container = await renderLive('Intro\n\n```dataview\nTABLE titulo FROM #estudo\n```\n\nFim')
+    const container = await renderLive('Intro\n\n```dataview\nTABLE título FROM #estudo\n```\n\nFim')
     await waitFor(() => expect(container.querySelector('.cm-live-plugin-block .obsidian-plugin-block')).not.toBeNull())
     // Cabecalho + linguagem + fonte crua preservada.
     expect(container.querySelector('.cm-live-plugin-block .obsidian-plugin-block-title')?.textContent).toBe('Bloco Dataview')
     expect(container.querySelector('.cm-live-plugin-block .obsidian-plugin-block-language')?.textContent).toBe('dataview')
-    expect(container.querySelector('.cm-live-plugin-block .obsidian-plugin-block-source')?.textContent).toContain('TABLE titulo FROM #estudo')
+    expect(container.querySelector('.cm-live-plugin-block .obsidian-plugin-block-source')?.textContent).toContain('TABLE título FROM #estudo')
     // As cercas nao aparecem no editor externo.
     const content = container.querySelector('.cm-content')?.textContent ?? ''
     expect(content).not.toContain('```dataview')
@@ -868,11 +868,11 @@ describe('markdownLivePreview blocos de plugin (jsdom)', () => {
     const container = await renderLive('Intro\n\n```dataviewjs\nconsole.log(1)\n```')
     await waitFor(() => expect(container.querySelector('.cm-live-plugin-block .obsidian-plugin-block.is-dataviewjs')).not.toBeNull())
     expect(container.querySelector('.cm-live-plugin-block .obsidian-plugin-block-title')?.textContent).toBe('Bloco Dataview JS')
-    expect(container.querySelector('.cm-live-plugin-block .obsidian-plugin-block-warning')?.textContent).toContain('nao e executado')
+    expect(container.querySelector('.cm-live-plugin-block .obsidian-plugin-block-warning')?.textContent).toContain('não é executado')
     expect(container.querySelector('.cm-live-plugin-block .obsidian-plugin-block-source')?.textContent).toContain('console.log(1)')
   })
 
-  it('fence de linguagem normal continua sendo bloco de codigo (nao vira plugin)', async () => {
+  it('fence de linguagem normal continua sendo bloco de código (não vira plugin)', async () => {
     const container = await renderLive('Intro\n\n```python\nprint("oi")\n```\n\nFim')
     await waitFor(() => expect(container.querySelector('.cm-editor')).not.toBeNull())
     expect(container.querySelector('.obsidian-plugin-block')).toBeNull()
@@ -895,14 +895,14 @@ describe('markdownLivePreview blocos de plugin (jsdom)', () => {
     expect(container.querySelector('.cm-live-callout .cm-live-plugin-block .obsidian-plugin-block-source')?.textContent).toContain('LIST FROM #estudo')
   })
 
-  it('renderiza tambem em modo read-only (spike do Leitura)', async () => {
-    const container = await renderReadOnly('Intro\n\n```dataview\nTABLE titulo\n```')
+  it('renderiza também em modo read-only (spike do Leitura)', async () => {
+    const container = await renderReadOnly('Intro\n\n```dataview\nTABLE título\n```')
     await waitFor(() => expect(container.querySelector('.cm-live-plugin-block .obsidian-plugin-block')).not.toBeNull())
     expect(container.querySelector('.cm-content')?.textContent).not.toContain('```dataview')
   })
 })
 
-describe('markdownLivePreview lacunas da revisao (jsdom)', () => {
+describe('markdownLivePreview lacunas da revisão (jsdom)', () => {
   // Nota completa (com frontmatter) e corpo (noteBody, como o spike usa).
   const frontmatter = '---\ntitle: X\n---\n'
   const body = '# Fotossíntese\n\nA clorofila absorve luz.\n\nOutro parágrafo.'
@@ -952,7 +952,7 @@ describe('markdownLivePreview lacunas da revisao (jsdom)', () => {
     expect(container.querySelector('.cm-live-gap.is-confused')?.textContent).toBe('clorofila')
   })
 
-  it('enabled=false nao aplica marcas nem badges', async () => {
+  it('enabled=false não aplica marcas nem badges', async () => {
     const container = await renderReadOnly(body, undefined, undefined, undefined, undefined, undefined, gapData({ enabled: false }))
     await waitFor(() => expect(container.querySelector('.cm-editor')).not.toBeNull())
     expect(container.querySelector('.cm-live-gap')).toBeNull()
@@ -965,7 +965,7 @@ describe('markdownLivePreview lacunas da revisao (jsdom)', () => {
     expect(container.querySelector('.cm-live-gap.is-forgotten')?.textContent).toBe('clorofila')
   })
 
-  it('badge nao avaliado e inconclusivo aparecem com os rotulos do classico', async () => {
+  it('badge não avaliado e inconclusivo aparecem com os rotulos do classico', async () => {
     const data = gapData({
       gaps: [],
       units: [
@@ -993,7 +993,7 @@ describe('markdownLivePreview lacunas da revisao (jsdom)', () => {
     expect(container.querySelector('.review-unit-score.is-inconclusive')?.textContent).toBe('inconclusivo')
   })
 
-  it('lacuna dentro de fence de codigo e pulada', async () => {
+  it('lacuna dentro de fence de código e pulada', async () => {
     const fenced = '# Título\n\n```\nclorofila\n```\n\nFim'
     const full = frontmatter + fenced
     const data = gapData({

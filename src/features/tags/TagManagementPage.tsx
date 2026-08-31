@@ -279,7 +279,7 @@ function useDialogFocus(
     if (!dialog) return
     previousFocusRef.current = document.activeElement as HTMLElement | null
     const focusable = dialog.querySelector<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textárea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     )
     ;(focusable ?? dialog).focus()
 
@@ -292,7 +292,7 @@ function useDialogFocus(
       if (event.key !== 'Tab') return
       const focusableElements = Array.from(
         dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textárea:not([disabled]), [tabindex]:not([tabindex="-1"])',
         ),
       )
       if (focusableElements.length === 0) {

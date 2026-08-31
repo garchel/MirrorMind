@@ -37,27 +37,27 @@ describe('ReviewNotificationSettings', () => {
 
   it('loads the current settings and shows the disabled state', async () => {
     renderSettings()
-    expect(await screen.findByLabelText('Resumo diario de revisoes vencidas')).not.toBeChecked()
-    expect(screen.queryByLabelText('Hora do resumo diario')).not.toBeInTheDocument()
+    expect(await screen.findByLabelText('Resumo diário de revisões vencidas')).not.toBeChecked()
+    expect(screen.queryByLabelText('Hora do resumo diário')).not.toBeInTheDocument()
   })
 
   it('reveals the time picker, mute toggle and test button once enabled', async () => {
     const user = userEvent.setup()
     renderSettings()
-    const toggle = await screen.findByLabelText('Resumo diario de revisoes vencidas')
+    const toggle = await screen.findByLabelText('Resumo diário de revisões vencidas')
     await user.click(toggle)
     expect(setSettingsMock).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }))
-    expect(await screen.findByLabelText('Hora do resumo diario')).toBeInTheDocument()
-    expect(screen.getByLabelText('Silenciar notificacoes de revisao')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Enviar notificacao de teste' })).toBeInTheDocument()
+    expect(await screen.findByLabelText('Hora do resumo diário')).toBeInTheDocument()
+    expect(screen.getByLabelText('Silenciar notificações de revisão')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enviar notificação de teste' })).toBeInTheDocument()
   })
 
   it('persists a new hour from the time input', async () => {
     const user = userEvent.setup()
     renderSettings()
-    const toggle = await screen.findByLabelText('Resumo diario de revisoes vencidas')
+    const toggle = await screen.findByLabelText('Resumo diário de revisões vencidas')
     await user.click(toggle)
-    const time = await screen.findByLabelText('Hora do resumo diario')
+    const time = await screen.findByLabelText('Hora do resumo diário')
     expect(time).toHaveValue('09:00')
     fireEvent.change(time, { target: { value: '18:45' } })
     expect(setSettingsMock).toHaveBeenLastCalledWith(expect.objectContaining({ hour: 18, minute: 45 }))
@@ -66,41 +66,41 @@ describe('ReviewNotificationSettings', () => {
   it('persists the mute state', async () => {
     const user = userEvent.setup()
     renderSettings()
-    const toggle = await screen.findByLabelText('Resumo diario de revisoes vencidas')
+    const toggle = await screen.findByLabelText('Resumo diário de revisões vencidas')
     await user.click(toggle)
-    await user.click(await screen.findByLabelText('Silenciar notificacoes de revisao'))
+    await user.click(await screen.findByLabelText('Silenciar notificações de revisão'))
     expect(setSettingsMock).toHaveBeenLastCalledWith(expect.objectContaining({ muted: true }))
   })
 
   it('disables the test button while muted and shows a success status after sending', async () => {
     const user = userEvent.setup()
     renderSettings()
-    const toggle = await screen.findByLabelText('Resumo diario de revisoes vencidas')
+    const toggle = await screen.findByLabelText('Resumo diário de revisões vencidas')
     await user.click(toggle)
-    await user.click(await screen.findByLabelText('Silenciar notificacoes de revisao'))
-    expect(screen.getByRole('button', { name: 'Enviar notificacao de teste' })).toBeDisabled()
-    await user.click(await screen.findByLabelText('Silenciar notificacoes de revisao'))
-    await user.click(screen.getByRole('button', { name: 'Enviar notificacao de teste' }))
+    await user.click(await screen.findByLabelText('Silenciar notificações de revisão'))
+    expect(screen.getByRole('button', { name: 'Enviar notificação de teste' })).toBeDisabled()
+    await user.click(await screen.findByLabelText('Silenciar notificações de revisão'))
+    await user.click(screen.getByRole('button', { name: 'Enviar notificação de teste' }))
     expect(sendTestMock).toHaveBeenCalledTimes(1)
-    expect(await screen.findByText('Notificacao de teste enviada.')).toBeInTheDocument()
+    expect(await screen.findByText('Notificação de teste enviada.')).toBeInTheDocument()
   })
 
   it('shows the last check status with the due count', async () => {
     renderSettings({
       sent: false,
       dueCount: 3,
-      skippedReason: 'Ainda nao e a hora configurada.',
+      skippedReason: 'Ainda não é a hora configurada.',
     } as ReviewNotificationCheck)
-    expect(await screen.findByLabelText('Resumo diario de revisoes vencidas')).toBeInTheDocument()
-    expect(screen.getByText(/Ultima checagem: 3 revisoes vencidas/)).toBeInTheDocument()
-    expect(screen.getByText(/Ainda nao e a hora configurada/)).toBeInTheDocument()
+    expect(await screen.findByLabelText('Resumo diário de revisões vencidas')).toBeInTheDocument()
+    expect(screen.getByText(/Última checagem: 3 revisões vencidas/)).toBeInTheDocument()
+    expect(screen.getByText(/Ainda não é a hora configurada/)).toBeInTheDocument()
   })
 
   it('requests an immediate check when the daily summary is toggled on', async () => {
     const user = userEvent.setup()
     const onRequestCheck = vi.fn()
     renderSettings(null, onRequestCheck)
-    await user.click(await screen.findByLabelText('Resumo diario de revisoes vencidas'))
+    await user.click(await screen.findByLabelText('Resumo diário de revisões vencidas'))
     expect(onRequestCheck).toHaveBeenCalledTimes(1)
   })
 

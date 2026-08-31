@@ -135,7 +135,7 @@ describe('BasesPage (Tabela)', () => {
     await screen.findByRole('table')
     const picker = await openPicker()
     fireEvent.click(within(picker).getByRole('button', { name: 'area' }))
-    await waitFor(() => expect(tableHeaders()).not.toContain('area'))
+    await waitFor(() => expect(tableHeaders()).not.toContain('área'))
 
     fireEvent.click(screen.getByRole('button', { name: /Restaurar padrão/ }))
     await waitFor(() => expect(localStorage.getItem(STORAGE_KEY)).toBeNull())
@@ -149,7 +149,7 @@ describe('BasesPage (Tabela)', () => {
     expect(tableHeaders()).toEqual(['Nota', 'ano'])
   })
 
-  it('ignora chaves salvas que nao existem mais (propriedade removida das notas)', async () => {
+  it('ignora chaves salvas que não existem mais (propriedade removida das notas)', async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(['ano', 'inexistente']))
     renderPage()
     await screen.findByRole('table')

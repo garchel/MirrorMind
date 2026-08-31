@@ -504,7 +504,7 @@ describe('NoteReadinessControl', () => {
     render(control())
 
     await user.click(await screen.findByRole('button', { name: /Abrir/ }))
-    expect(screen.getByText('Este relatorio pertence a versao anterior da nota.')).toBeInTheDocument()
+    expect(screen.getByText('Este relatório pertence à versão anterior da nota.')).toBeInTheDocument()
   })
   it('reinicia o aprendizado somente após confirmação', async () => {
     const user = userEvent.setup()

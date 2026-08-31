@@ -7,9 +7,9 @@ import {
   syncIndexadoraSection,
 } from './indexadora'
 
-const WITH_FLAG = '---\ntags:\n  - estudo\nindexadora: true\n---\n# Nota A\nConteudo.\n'
-const WITHOUT_FLAG = '---\ntags:\n  - estudo\nindexadora: false\n---\n# Nota A\nConteudo.\n'
-const NO_FRONTMATTER = '# Nota A\nConteudo.\n'
+const WITH_FLAG = '---\ntags:\n  - estudo\nindexadora: true\n---\n# Nota A\nConteúdo.\n'
+const WITHOUT_FLAG = '---\ntags:\n  - estudo\nindexadora: false\n---\n# Nota A\nConteúdo.\n'
+const NO_FRONTMATTER = '# Nota A\nConteúdo.\n'
 
 describe('isIndexadora', () => {
   it('reconhece a flag true no frontmatter', () => {
@@ -24,7 +24,7 @@ describe('isIndexadora', () => {
 })
 
 describe('setIndexadoraFlag', () => {
-  it('adiciona a propriedade quando nao existe frontmatter', () => {
+  it('adiciona a propriedade quando não existe frontmatter', () => {
     const result = setIndexadoraFlag(NO_FRONTMATTER, true)
     expect(isIndexadora(result)).toBe(true)
     expect(result).toContain('# Nota A')
@@ -44,7 +44,7 @@ describe('syncIndexadoraSection', () => {
     expect(result).toContain(INDEXADORA_MARKER)
     expect(result).toContain('[[a]]\n[[b]]\n[[z]]')
     // O conteudo original permanece no inicio.
-    expect(result.startsWith('# Nota A\nConteudo.\n')).toBe(true)
+    expect(result.startsWith('# Nota A\nConteúdo.\n')).toBe(true)
   })
 
   it('usa o caminho relativo sem extensao no link', () => {
@@ -52,7 +52,7 @@ describe('syncIndexadoraSection', () => {
     expect(result).toContain('[[subpasta/Nota B]]')
   })
 
-  it('e idempotente: aplicar duas vezes com os mesmos links nao duplica', () => {
+  it('e idempotente: aplicar duas vezes com os mesmos links não duplica', () => {
     const once = syncIndexadoraSection(NO_FRONTMATTER, ['a.md', 'b.md'])
     const twice = syncIndexadoraSection(once, ['a.md', 'b.md'])
     expect(twice).toBe(once)
@@ -67,22 +67,22 @@ describe('syncIndexadoraSection', () => {
     expect(updated.match(/## Índice/g)).toHaveLength(1)
   })
 
-  it('remove a secao quando nao ha mais backlinks', () => {
+  it('remove a secao quando não há mais backlinks', () => {
     const initial = syncIndexadoraSection(NO_FRONTMATTER, ['a.md'])
     const removed = syncIndexadoraSection(initial, [])
     expect(removed).not.toContain(INDEXADORA_MARKER)
     expect(removed).not.toContain('## Índice')
-    expect(removed).toContain('Conteudo.')
+    expect(removed).toContain('Conteúdo.')
   })
 
-  it('preserva conteudo do usuario escrito depois da secao', () => {
+  it('preserva conteúdo do usuario escrito depois da secao', () => {
     const withTail = `${syncIndexadoraSection(NO_FRONTMATTER, ['a.md'])}\nAnotacao final do usuario.\n`
     const result = removeIndexadoraSection(withTail)
     expect(result).not.toContain(INDEXADORA_MARKER)
     expect(result).toContain('Anotacao final do usuario.')
   })
 
-  it('nao toca em um cabecalho "## Índice" do usuario sem o marcador', () => {
+  it('não toca em um cabeçalho "## Índice" do usuario sem o marcador', () => {
     const userSection = '# Nota A\n\n## Índice\n- item manual\n'
     expect(removeIndexadoraSection(userSection)).toBe(userSection)
     expect(syncIndexadoraSection(userSection, ['a.md'])).toContain('- item manual')
@@ -90,7 +90,7 @@ describe('syncIndexadoraSection', () => {
 })
 
 describe('removeIndexadoraSection', () => {
-  it('nao altera conteudo sem marcador', () => {
+  it('não altera conteúdo sem marcador', () => {
     expect(removeIndexadoraSection(NO_FRONTMATTER)).toBe(NO_FRONTMATTER)
   })
 

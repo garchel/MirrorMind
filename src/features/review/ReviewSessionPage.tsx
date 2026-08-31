@@ -165,8 +165,8 @@ function nextReviewLabel(timestamp: number) {
 export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Props) {
   const { provider, geminiConsent } = useReviewAiSettings()
   const [mode, setMode] = useState<ReviewMode>(item.preferredMode)
-  // Sintese: avaliacao formativa do modelo mental integrado. Nao cria sessao,
-  // nao altera DSR/FSRS nem as proximas datas — e uma avaliacao pontual.
+  // Síntese: avaliação formativa do modelo mental integrado. Não cria sessão,
+  // não altera DSR/FSRS nem as proximas datas — e uma avaliação pontual.
   const [synthesisMode, setSynthesisMode] = useState(false)
   const [synthesis, setSynthesis] = useState('')
   const [synthesisAttempt, setSynthesisAttempt] = useState<SynthesisAttempt | null>(null)
@@ -177,7 +177,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   const [promptIndex, setPromptIndex] = useState(0)
   const [answer, setAnswer] = useState('')
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
-  // Opcao explicita `Nao sei` da prova objetiva: o usuario admite nao saber em
+  // Opção explicita `Não sei` da prova objetiva: o usuario admite não saber em
   // vez de chutar. Nunca acerta (erro claro de esquecimento) e o resumo a
   // diferencia de um chute errado.
   const [dontKnow, setDontKnow] = useState(false)
@@ -186,22 +186,22 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   const [busy, setBusy] = useState(false)
   const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null)
   const [report, setReport] = useState<ReviewCompletionReport | null>(null)
-  // Plano estimado da sessao exibido na preparacao (duracao, cobertura e
-  // sessoes para cobrir a nota). Derivado no backend sem IA — a mesma selecao
-  // de cobertura que a sessao real executara.
+  // Plano estimado da sessão exibido na preparação (duração, cobertura e
+  // sessões para cobrir a nota). Derivado no backend sem IA — a mesma seleção
+  // de cobertura que a sessão real executara.
   const [plan, setPlan] = useState<ReviewSessionPlan | null>(null)
   const [planError, setPlanError] = useState<string | null>(null)
-  // Dialogo proprio de abandono (em vez de window.confirm): alem de seguir o
+  // Dialogo próprio de abandono (em vez de window.confirm): alem de seguir o
   // padrao visual do app, ele e automatizavel nos testes E2E do desktop.
   const [abandonOpen, setAbandonOpen] = useState(false)
   // Conhecimento extra trazido pelo usuario na conversa e ausente na nota:
-  // sugestoes exibidas apos a sessao, com adicao apenas apos confirmacao
-  // explicita do usuario (dialogo proprio).
+  // sugestoes exibidas após a sessão, com adicao apenas após confirmação
+  // explicita do usuario (dialogo próprio).
   const [knowledgeSuggestion, setKnowledgeSuggestion] = useState<string | null>(null)
   const [knowledgeBusy, setKnowledgeBusy] = useState(false)
   const [knowledgeError, setKnowledgeError] = useState<string | null>(null)
   const [addedKnowledge, setAddedKnowledge] = useState<ReadonlySet<number>>(new Set())
-  // Correcoes manuais de classificacao de unidades aplicadas nesta sessao de
+  // Correcoes manuais de classificação de unidades aplicadas nesta sessão de
   // relatorio: sobrescrevem o snapshot exibido e foram persistidas no backend.
   const [unitOverrides, setUnitOverrides] = useState<Record<string, UnitClassification>>({})
   const [reclassifyMenu, setReclassifyMenu] = useState<{ unit: ReclassifyTarget; x: number; y: number } | null>(null)
@@ -248,7 +248,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
       .catch(() => {
         if (!cancelled) {
           setPlan(null)
-          setPlanError('Nao foi possivel estimar a sessao.')
+          setPlanError('Não foi possível estimar a sessão.')
         }
       })
     return () => {
@@ -422,7 +422,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   // Calibracao inicial de notas longas: apos concluir uma etapa com unidades
   // ainda nao observadas, o usuario pode continuar imediatamente (a proxima
   // etapa tambem voltaria no dia seguinte pela fila). Tambem e o handler do
-  // "Refazer revisao agora" de uma sessao inteira inconclusiva: nao confundir
+  // "Refazer revisão agora" de uma sessao inteira inconclusiva: nao confundir
   // com contestacao, e `begin(true)` (allowCalibrationContinuation) e seguro
   // tanto para uma nota vencida (que continua vencida apos a sessao
   // inconclusiva) quanto para uma nota em calibracao agendada.
@@ -870,7 +870,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             </section>
           ) : null}
           {!canUseProvider ? <p role="alert" className="review-consent-warning">Autorize o envio ao Gemini nas configurações antes de iniciar.</p> : null}
-          <button type="button" className="primary-button review-start" onClick={() => void begin()} disabled={busy || !canUseProvider}>{busy ? 'Preparando…' : 'Iniciar revisao'}</button>
+          <button type="button" className="primary-button review-start" onClick={() => void begin()} disabled={busy || !canUseProvider}>{busy ? 'Preparando…' : 'Iniciar revisão'}</button>
           {diagnostic ? <DiagnosticPanel diagnostic={diagnostic} retry={begin} retryLabel="Gerar novas perguntas" busy={busy} /> : null}
         </div>
       </section>
@@ -934,7 +934,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             <p>As respostas desta sessão serão descartadas e nenhuma pontuação será registrada.</p>
             <div className="review-abandon-actions">
               <button type="button" className="secondary-button" onClick={() => setAbandonOpen(false)} autoFocus>Cancelar</button>
-              <button type="button" className="review-abandon-confirm" aria-label="Confirmar abandono da sessao" onClick={confirmAbandon}>Abandonar</button>
+              <button type="button" className="review-abandon-confirm" aria-label="Confirmar abandono da sessão" onClick={confirmAbandon}>Abandonar</button>
             </div>
           </section>
         </div>

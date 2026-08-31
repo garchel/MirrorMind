@@ -33,16 +33,16 @@ export function SpecialFileViewer({ file, content, onClose }: Props) {
       >
         <div className="move-item-heading">
           <strong>{KIND_LABELS[file.kind]}: {file.name}</strong>
-          <span>Visualizacao somente leitura — o arquivo nao e alterado e o codigo de plugin nunca e executado.</span>
-          <button autoFocus type="button" className="modal-close-button" onClick={onClose} aria-label="Fechar visualizacao do arquivo especial"><span aria-hidden="true">×</span></button>
+          <span>Visualização somente leitura — o arquivo não é alterado e o código de plugin nunca é executado.</span>
+          <button autoFocus type="button" className="modal-close-button" onClick={onClose} aria-label="Fechar visualização do arquivo especial"><span aria-hidden="true">×</span></button>
         </div>
         {summary === null ? (
-          <p className="special-file-viewer-unknown" role="status">Nao ha visualizacao estruturada para este tipo de arquivo.</p>
+          <p className="special-file-viewer-unknown" role="status">Não ha visualização estruturada para este tipo de arquivo.</p>
         ) : summary.raw !== null ? (
           <>
             <p className="special-file-viewer-note" role="status">
               <AlertTriangle size={13} strokeWidth={1.75} aria-hidden="true" />
-              O JSON nao pode ser interpretado; exibindo o conteudo cru preservado.
+              O JSON não pode ser interpretado; exibindo o conteudo cru preservado.
             </p>
             <pre className="special-file-viewer-raw"><code>{summary.raw}</code></pre>
           </>
@@ -71,7 +71,7 @@ export function SpecialFileViewer({ file, content, onClose }: Props) {
             ) : null}
             <p className="special-file-viewer-files-note">
               <FileJson2 size={13} strokeWidth={1.75} aria-hidden="true" />
-              Para editar, abra o arquivo no Obsidian: o MirrorMind preserva o `.canvas`/`.excalidraw` sem alteracoes.
+              Para editar, abra o arquivo no Obsidian: o MirrorMind preserva o `.canvas`/`.excalidraw` sem alterações.
             </p>
           </>
         )}

@@ -204,7 +204,7 @@ fn should_notify(
     let configured = u32::from(settings.hour) * 60 + u32::from(settings.minute);
     if minutes_today < configured {
         return Ok(Some(
-            "Ainda nao e a hora configurada para o resumo.".to_string(),
+            "Ainda não é a hora configurada para o resumo.".to_string(),
         ));
     }
     if due_count == 0 {
@@ -400,7 +400,7 @@ mod tests {
         };
         assert_eq!(
             should_notify(&settings, now, late_day_start, 3).expect("decide"),
-            Some("Ainda nao e a hora configurada para o resumo.".to_string())
+            Some("Ainda não é a hora configurada para o resumo.".to_string())
         );
 
         // Sem vencidas: skip sem marcar o dia.

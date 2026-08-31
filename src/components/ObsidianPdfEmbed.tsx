@@ -122,7 +122,7 @@ export function ObsidianPdfEmbed({ relativePath, title, vaultPath }: ObsidianPdf
     return <section className="obsidian-pdf-embed is-loading" role="status">Carregando PDF...</section>
   }
   if (pdfState.kind === 'error') {
-    return <section className="obsidian-pdf-embed is-error" role="alert">Nao foi possivel exibir este PDF.</section>
+    return <section className="obsidian-pdf-embed is-error" role="alert">Não foi possível exibir este PDF.</section>
   }
 
   return (
@@ -132,11 +132,11 @@ export function ObsidianPdfEmbed({ relativePath, title, vaultPath }: ObsidianPdf
         <span aria-live="polite">Pagina {pageNumber} de {pdfState.document.numPages}</span>
       </header>
       <div className="obsidian-pdf-canvas-frame" ref={frameRef} aria-busy={rendering}>
-        <canvas ref={canvasRef} role="img" aria-label={`${title}, pagina ${pageNumber}`}>Pre-visualizacao da pagina {pageNumber} do PDF {title}.</canvas>
+        <canvas ref={canvasRef} role="img" aria-label={`${title}, página ${pageNumber}`}>Pré-visualização da página {pageNumber} do PDF {title}.</canvas>
       </div>
-      <nav aria-label="Navegacao do PDF">
+      <nav aria-label="Navegação do PDF">
         <button type="button" onClick={() => changePage(Math.max(1, pageNumber - 1))} disabled={rendering || pageNumber === 1}>Pagina anterior</button>
-        <button type="button" onClick={() => changePage(Math.min(pdfState.document.numPages, pageNumber + 1))} disabled={rendering || pageNumber === pdfState.document.numPages}>Proxima pagina</button>
+        <button type="button" onClick={() => changePage(Math.min(pdfState.document.numPages, pageNumber + 1))} disabled={rendering || pageNumber === pdfState.document.numPages}>Próxima página</button>
       </nav>
     </section>
   )

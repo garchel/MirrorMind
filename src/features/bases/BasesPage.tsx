@@ -90,7 +90,7 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
       } catch {
         if (!cancelled && requestId === loadRequestRef.current) {
           setRows((currentRows) => currentRows ?? [])
-          setError('Nao foi possivel ler todas as notas; a tabela pode estar incompleta.')
+          setError('Não foi possível ler todas as notas; a tabela pode estar incompleta.')
         }
       } finally {
         unlistenProgress?.()

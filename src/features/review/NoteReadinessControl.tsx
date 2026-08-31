@@ -50,7 +50,7 @@ type NoteReadinessControlProps = {
   onSaveFirst?: () => Promise<boolean>
 }
 
-/** Dados minimos para construir um item de revisao imediata ("Fazer revisao agora"). */
+/** Dados minimos para construir um item de revisao imediata ("Fazer revisão agora"). */
 export type ReviewStartInfo = {
   noteId: string
   preferredMode: 'exam' | 'conversation'
@@ -124,7 +124,7 @@ export function NoteReadinessControl({
   const requestGenerationRef = useRef(0)
   const stateGenerationRef = useRef(0)
   /** Nota a que pertence o `reviewState` carregado (para preservar o status
-   *  durante alteracoes nao salvas sem vazar estado de outra nota). */
+   *  durante alterações não salvas sem vazar estado de outra nota). */
   const loadedPathRef = useRef<string | null>(null)
   const triggerButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
@@ -554,7 +554,7 @@ export function NoteReadinessControl({
         <div className="review-ai-report-body review-readiness-report">
           {reviewState?.readiness === 'modified' ? (
             <p className="review-ai-stale-report" role="note">
-              Este relatorio pertence a versao anterior da nota.
+              Este relatório pertence à versão anterior da nota.
             </p>
           ) : null}
           <div className={`review-readiness-summary is-${attempt.report.status}`}>
@@ -612,7 +612,7 @@ export function NoteReadinessControl({
         <div className="review-ai-report-body">
           <p>{attempt.message}</p>
           <section className="review-ai-diagnostic" aria-label="Diagnostico da resposta da IA">
-            <p className="review-ai-diagnostic-summary">A IA respondeu, mas o formato nao pode ser usado com seguranca para avaliar esta nota.</p>
+            <p className="review-ai-diagnostic-summary">A IA respondeu, mas o formato não pode ser usado com segurança para avaliar esta nota.</p>
             {attempt.validationErrors.length ? (
               <div>
                 <strong>O que precisa ser corrigido</strong>
@@ -624,10 +624,10 @@ export function NoteReadinessControl({
               </div>
             ) : null}
             <details className="review-ai-raw-response">
-              <summary>Ver resposta tecnica da IA</summary>
+              <summary>Ver resposta técnica da IA</summary>
               <pre data-testid="review-ai-raw-response">{attempt.rawResponse ?? 'Nenhuma resposta textual foi recebida.'}</pre>
             </details>
-            <small>Este diagnostico nao e salvo no Vault e e descartado ao fechar.</small>
+            <small>Este diagnostico não e salvo no Vault e e descartado ao fechar.</small>
           </section>
           {error ? <p className="field-error" role="alert">{error}</p> : null}
           <div className="review-ai-dialog-actions">

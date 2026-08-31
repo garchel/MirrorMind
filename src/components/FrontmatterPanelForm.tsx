@@ -207,7 +207,7 @@ export function FrontmatterPanelForm({ availableTags, backlinks, onApply, onAppl
                   className="frontmatter-panel-value"
                   value={row.value}
                   onChange={(event) => updateRow(index, { value: event.target.value })}
-                  placeholder="texto, numero, [lista] ou chave: valor"
+                  placeholder="texto, número, [lista] ou chave: valor"
                   aria-label={`Valor YAML da propriedade ${index + 1}`}
                   spellCheck={false}
                   rows={Math.max(1, row.value.split(/\r?\n/).length)}

@@ -83,7 +83,7 @@ describe('ReviewAiSettings', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    const selector = screen.getByRole('combobox', { name: 'Provedor da revisao' })
+    const selector = screen.getByRole('combobox', { name: 'Provedor da revisão' })
     expect(screen.getAllByRole('option')).toHaveLength(4)
     expect(screen.getByText('http://127.0.0.1:11434/v1')).toBeInTheDocument()
     expect(screen.getByText('qwen2.5:7b')).toBeInTheDocument()
@@ -97,7 +97,7 @@ describe('ReviewAiSettings', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisao' }), 'gemini')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'gemini')
     await user.click(screen.getByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' }))
     expect(mocks.confirmGeminiConsent).toHaveBeenCalledTimes(1)
     expect(await screen.findByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' })).toBeChecked()
@@ -116,7 +116,7 @@ describe('ReviewAiSettings', () => {
     renderSettings()
     mocks.setGeminiConsent.mockClear()
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisao' }), 'gemini')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'gemini')
     await user.click(screen.getByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' }))
 
     expect(await screen.findByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' })).not.toBeChecked()
@@ -130,7 +130,7 @@ describe('ReviewAiSettings', () => {
     renderSettings()
     mocks.setGeminiConsent.mockClear()
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisao' }), 'gemini')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'gemini')
     await user.click(screen.getByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' }))
 
     expect(mocks.confirmGeminiConsent).not.toHaveBeenCalled()
@@ -153,7 +153,7 @@ describe('ReviewAiSettings', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisao' }), 'openAiCompatible')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'openAiCompatible')
     await user.type(screen.getByLabelText(/Endereco do servidor/), 'https://api.openai.com/v1')
     await user.type(screen.getByLabelText(/^Modelo$/), 'gpt-4o-mini')
     await user.type(screen.getByLabelText(/Chave da API/), 'sk-secret-key-123')
@@ -189,7 +189,7 @@ describe('ReviewAiSettings', () => {
     mocks.getConfiguration.mockReturnValue(new Promise((resolve) => { resolveInitial = resolve }))
     renderSettings()
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisao' }), 'gemini')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'gemini')
     await user.type(screen.getByLabelText(/Chave da API Gemini/), 'valid-gemini-key-123')
     await user.click(screen.getByRole('button', { name: 'Salvar chave' }))
     expect(await screen.findByRole('button', { name: 'Remover chave' })).toBeInTheDocument()
@@ -237,7 +237,7 @@ describe('ReviewAiSettings', () => {
     await user.click(screen.getByRole('button', { name: 'Comparar provedores' }))
 
     expect(mocks.runComparability).toHaveBeenCalledTimes(1)
-    expect(await screen.findByText('Diferenca da nota (gemini-3.5-flash - ollama-qwen2.5:7b)')).toBeInTheDocument()
+    expect(await screen.findByText('Diferença da nota (gemini-3.5-flash - ollama-qwen2.5:7b)')).toBeInTheDocument()
     expect(screen.getByText('5 palavras · 6 perguntas · respostas fixas')).toBeInTheDocument()
     expect(screen.getAllByText('a clorofila absorve luz').length).toBeGreaterThan(0)
     expect(screen.getAllByText('nas bandas verde').length).toBeGreaterThan(0)
@@ -282,6 +282,6 @@ describe('ReviewAiSettings', () => {
 
     await user.click(screen.getByRole('button', { name: 'Comparar provedores' }))
 
-    expect(await screen.findByText('indisponivel (algum lado sem nota valida)')).toBeInTheDocument()
-    expect(screen.getByText('Avaliacao invalida: Ollama indisponivel')).toBeInTheDocument()
+    expect(await screen.findByText('indisponível (algum lado sem nota válida)')).toBeInTheDocument()
+    expect(screen.getByText('Avaliação inválida: Ollama indisponivel')).toBeInTheDocument()
   })})

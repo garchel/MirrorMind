@@ -61,12 +61,12 @@ type MarkdownCodeEditorProps = {
   getEmbedContent?: (relativePath: string) => Promise<string>
   /** Caminho do vault, necessario para os embeds de PDF no modo Misto. */
   vaultPath?: string
-  /** Lacunas da ultima revisao (gap marks do modo Leitura) no motor unico.
-   * Muda assincronamente apos o fetch; o componente dispara
-   * `reviewGapDataEffect` para atualizar as decoracoes sem recriar o editor. */
+  /** Lacunas da última revisão (gap marks do modo Leitura) no motor único.
+   * Muda assincronamente após o fetch; o componente dispara
+   * `reviewGapDataEffect` para atualizar as decorações sem recriar o editor. */
   reviewGapData?: ReviewGapData | null
   /** Quebra de linha automatica (EditorView.lineWrapping). Padrao: true;
-   * o modo Leitura read-only respeita a preferencia `reading-line-wrap`. */
+   * o modo Leitura read-only respeita a preferência `reading-line-wrap`. */
   lineWrap?: boolean
   session?: MarkdownEditorSession
   spellCheck?: boolean

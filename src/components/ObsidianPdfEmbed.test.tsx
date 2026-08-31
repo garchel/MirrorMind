@@ -42,13 +42,13 @@ describe('ObsidianPdfEmbed', () => {
     expect(await screen.findByText('Pagina 1 de 2')).toBeInTheDocument()
     expect(pdfState.invoke).toHaveBeenCalledWith('read_pdf_attachment', { path: 'C:\\Vault', relativePath: 'material.pdf' })
     await waitFor(() => expect(pdfState.getPage).toHaveBeenCalledWith(1))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Proxima pagina' })).toBeEnabled())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Próxima página' })).toBeEnabled())
 
-    fireEvent.click(screen.getByRole('button', { name: 'Proxima pagina' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Próxima página' }))
 
     expect(await screen.findByText('Pagina 2 de 2')).toBeInTheDocument()
     await waitFor(() => expect(pdfState.getPage).toHaveBeenCalledWith(2))
-    expect(screen.getByRole('button', { name: 'Proxima pagina' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Próxima página' })).toBeDisabled()
   })
 
   it('shows an accessible error without exposing the source URL', async () => {
@@ -60,7 +60,7 @@ describe('ObsidianPdfEmbed', () => {
     render(<ObsidianPdfEmbed relativePath="segredo.pdf" title="Documento" vaultPath={'C:\\Vault'} />)
 
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Nao foi possivel exibir este PDF.')
+    expect(alert).toHaveTextContent('Não foi possível exibir este PDF.')
     expect(alert).not.toHaveTextContent('asset://')
   })
 
@@ -81,7 +81,7 @@ describe('ObsidianPdfEmbed', () => {
     render(<ObsidianPdfEmbed relativePath="poster.pdf" title="Poster" vaultPath={'C:\\Vault'} />)
 
     await screen.findByText('Pagina 1 de 2')
-    const canvas = screen.getByRole('img', { name: 'Poster, pagina 1' }) as HTMLCanvasElement
+    const canvas = screen.getByRole('img', { name: 'Poster, página 1' }) as HTMLCanvasElement
     await waitFor(() => expect(canvas.height).toBeGreaterThan(0))
     expect(canvas.height).toBeLessThanOrEqual(8_192)
     expect(canvas.width * canvas.height).toBeLessThanOrEqual(16_000_000)

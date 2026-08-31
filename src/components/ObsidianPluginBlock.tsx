@@ -14,7 +14,7 @@ const HEADERS: Record<PluginBlockLanguage, { title: string; description: string 
   },
   dataviewjs: {
     title: 'Bloco Dataview JS',
-    description: 'JavaScript de plugin nao e executado por seguranca. O codigo-fonte e exibido sem alteracoes.',
+    description: 'JavaScript de plugin não é executado por segurança. O código-fonte é exibido sem alterações.',
   },
   tasks: {
     title: 'Bloco Tasks',

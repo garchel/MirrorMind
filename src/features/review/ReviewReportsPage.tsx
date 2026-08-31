@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, ClipboardList, ExternalLink, RefreshCw } from 'lucide-react'
+import { BarChart3, ClipboardList, ExternalLink } from 'lucide-react'
+import { ErrorState, LoadingState } from '../../components/ErrorState'
+import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { getReviewReports, type ReviewReportItem } from './reviewReports'
 import { getRetentionReport, type RetentionReport } from './retentionReport'
 import './review-reports.css'
@@ -140,32 +142,19 @@ export function ReviewReportsPage({ vaultPath, onOpenNote }: Props) {
 
   return (
     <section className="workspace-page review-reports-page" aria-labelledby="review-reports-title">
-      <header className="review-reports-header">
-        <div>
-          <p className="review-queue-kicker">Aprendizado</p>
-          <h2 id="review-reports-title">Relatórios</h2>
-          <p>Retenção estimada, desempenho ao longo do tempo e todas as provas e conversas concluídas.</p>
-        </div>
-        <button
-          type="button"
-          className="secondary-button review-reports-refresh"
-          onClick={() => setReloadRequest((request) => request + 1)}
-          disabled={loading}
-        >
-          <RefreshCw size={15} aria-hidden="true" />
-          Atualizar
-        </button>
-      </header>
+      <PageHeader
+        kicker="Aprendizado"
+        title="Relatórios"
+        titleId="review-reports-title"
+        description="Retenção estimada, desempenho ao longo do tempo e todas as provas e conversas concluídas."
+      >
+        <PageRefreshButton onRefresh={() => setReloadRequest((request) => request + 1)} disabled={loading} />
+      </PageHeader>
 
       {loading ? (
-        <div className="review-reports-status" role="status">Carregando relatórios...</div>
+        <LoadingState message="Carregando relatórios..." />
       ) : error ? (
-        <div className="review-reports-status is-error" role="alert">
-          <p>{error}</p>
-          <button type="button" className="secondary-button" onClick={() => setReloadRequest((request) => request + 1)}>
-            Tentar novamente
-          </button>
-        </div>
+        <ErrorState message={error} onRetry={() => setReloadRequest((request) => request + 1)} />
       ) : (
         <>
           {overall !== null && (

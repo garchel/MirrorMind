@@ -154,7 +154,7 @@ export async function downloadPng(svg: string, filename: string, scale: number):
     const image = new Image()
     await new Promise<void>((resolve, reject) => {
       image.onload = () => resolve()
-      image.onerror = () => reject(new Error('Nao foi possivel rasterizar o grafo exportado.'))
+      image.onerror = () => reject(new Error('Não foi possível rasterizar o grafo exportado.'))
       image.src = url
     })
     context.fillStyle = '#0d1117'

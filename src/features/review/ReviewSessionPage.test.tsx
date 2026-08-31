@@ -53,9 +53,9 @@ const draft = {
   // deterministica compara os termos-chave da resposta esperada registrada no
   // backend, que nunca trafega para o cliente.
   prompts: [
-    { id: 'q1', text: 'Pergunta um?', assistance: 'Dica um.', kind: 'multipleChoice' as const, options: questionOptions('Opcao A') },
+    { id: 'q1', text: 'Pergunta um?', assistance: 'Dica um.', kind: 'multipleChoice' as const, options: questionOptions('Opção A') },
     { id: 'q2', text: 'Pergunta dois?', assistance: 'Dica dois.', kind: 'shortAnswer' as const, options: [] },
-    { id: 'q3', text: 'Pergunta tres?', assistance: 'Dica tres.', kind: 'multipleChoice' as const, options: questionOptions('Opcao C') },
+    { id: 'q3', text: 'Pergunta tres?', assistance: 'Dica tres.', kind: 'multipleChoice' as const, options: questionOptions('Opção C') },
   ], minimumAnswers: 3, maximumAnswers: 5,
 }
 
@@ -146,7 +146,7 @@ describe('ReviewSessionPage', () => {
     // A falha do preview nunca bloqueia o inicio da sessao.
     previewMock.mockRejectedValue(new Error('offline'))
     await user.click(screen.getByRole('radio', { name: /Modo prova/ }))
-    await screen.findByText(/Nao foi possivel estimar a sessao/)
+    await screen.findByText(/Não foi possível estimar a sessão/)
     expect(startMock).not.toHaveBeenCalled()
   })
 
@@ -203,10 +203,10 @@ describe('ReviewSessionPage', () => {
     })
     const { onCompleted } = renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    await answerExamQuestion(user, 'Opcao A beta')
-    await answerExamQuestion(user, 'Opcao B gama')
-    await answerExamQuestion(user, 'Opcao C alfa')
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    await answerExamQuestion(user, 'Opção A beta')
+    await answerExamQuestion(user, 'Opção B gama')
+    await answerExamQuestion(user, 'Opção C alfa')
 
     expect(await screen.findByText(/prova objetiva: a nota reflete o acerto/i)).toBeInTheDocument()
     expect(screen.getByText(/evidência mais fraca de recuperação espontânea/i)).toBeInTheDocument()
@@ -216,17 +216,17 @@ describe('ReviewSessionPage', () => {
   it('answers a short answer question with the typed text, without exposing the expected answer', async () => {
     const { onCompleted } = renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     // A primeira pergunta e de multipla escolha.
-    await answerExamQuestion(user, 'Opcao A beta')
+    await answerExamQuestion(user, 'Opção A beta')
     // A segunda pergunta e de resposta curta: o textarea aparece e o botao
-    // `Nao sei` continua disponivel.
+    // `Não sei` continua disponivel.
     expect(await screen.findByRole('heading', { name: 'Pergunta dois?' })).toBeInTheDocument()
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement
     await user.type(textarea, 'A energia luminosa alimenta as plantas')
     await user.click(screen.getByRole('button', { name: 'Salvar resposta' }))
     expect(await screen.findByRole('heading', { name: 'Pergunta tres?' })).toBeInTheDocument()
-    await answerExamQuestion(user, 'Opcao C alfa')
+    await answerExamQuestion(user, 'Opção C alfa')
 
     expect(onCompleted).toHaveBeenCalledOnce()
     const submitted = completeMock.mock.calls[0][0].exchanges as Array<{ promptId: string; answer: string }>
@@ -234,7 +234,7 @@ describe('ReviewSessionPage', () => {
     expect(submitted[1].answer).toBe('A energia luminosa alimenta as plantas')
   })
 
-  it('lets the user answer `Nao sei` without guessing, sending the explicit option', async () => {
+  it('lets the user answer `Não sei` without guessing, sending the explicit option', async () => {
     completeMock.mockResolvedValue({
       outcome: 'valid',
       report: {
@@ -252,10 +252,10 @@ describe('ReviewSessionPage', () => {
     })
     const { onCompleted } = renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    await answerExamQuestion(user, 'Opcao A beta')
-    await answerExamQuestion(user, 'Opcao B gama')
-    // A opcao explicita `Nao sei` aparece fora das alternativas (vale para a
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    await answerExamQuestion(user, 'Opção A beta')
+    await answerExamQuestion(user, 'Opção B gama')
+    // A opcao explicita `Não sei` aparece fora das alternativas (vale para a
     // multipla escolha e para a resposta curta) e envia a resposta exata,
     // sem chute e sem indice de alternativa.
     await user.click(screen.getByRole('button', { name: 'Não sei' }))
@@ -270,28 +270,28 @@ describe('ReviewSessionPage', () => {
   it('runs a multiple-choice exam without exposing the note or the correct answer', async () => {
     const { onCompleted } = renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     expect(await screen.findByRole('heading', { name: 'Pergunta um?' })).toBeInTheDocument()
     expect(screen.queryByText(/energia luminosa/i)).not.toBeInTheDocument()
 
-    await answerExamQuestion(user, 'Opcao A beta')
+    await answerExamQuestion(user, 'Opção A beta')
     expect(await screen.findByRole('heading', { name: 'Pergunta dois?' })).toBeInTheDocument()
-    await answerExamQuestion(user, 'Opcao B gama')
-    await answerExamQuestion(user, 'Opcao C alfa')
+    await answerExamQuestion(user, 'Opção B gama')
+    await answerExamQuestion(user, 'Opção C alfa')
 
     expect((await screen.findAllByText('72')).length).toBeGreaterThan(0)
     expect(screen.getAllByText('energia luminosa').length).toBeGreaterThan(0)
     expect(onCompleted).toHaveBeenCalledOnce()
     const submitted = completeMock.mock.calls[0][0].exchanges as Array<{ promptId: string; answer: string }>
     expect(submitted).toHaveLength(3)
-    expect(submitted[0].answer).toMatch(/^B\) Opcao A beta$/)
+    expect(submitted[0].answer).toMatch(/^B\) Opção A beta$/)
   })
 
   it('renders the evaluated note with the gap marked and the paragraph score badge', async () => {
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
       await answerExamQuestion(user, option)
     }
 
@@ -334,8 +334,8 @@ describe('ReviewSessionPage', () => {
     })
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
       await answerExamQuestion(user, option)
     }
 
@@ -376,8 +376,8 @@ describe('ReviewSessionPage', () => {
     })
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
       await answerExamQuestion(user, option)
     }
 
@@ -414,8 +414,8 @@ describe('ReviewSessionPage', () => {
     })
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
       await answerExamQuestion(user, option)
     }
     await waitFor(() => {
@@ -430,7 +430,7 @@ describe('ReviewSessionPage', () => {
   it('reveals optional help without changing the answer flow', async () => {
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     await user.click(await screen.findByRole('button', { name: 'Mostrar dica' }))
     expect(screen.getByText('Dica um.')).toBeInTheDocument()
   })
@@ -438,14 +438,14 @@ describe('ReviewSessionPage', () => {
   it('marks an answer given with the hint visible as assisted evidence', async () => {
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     await screen.findByRole('heading', { name: 'Pergunta um?' })
     // A dica fica visivel enquanto a resposta e enviada.
     await user.click(screen.getByRole('button', { name: 'Mostrar dica' }))
-    await answerExamQuestion(user, 'Opcao A beta')
+    await answerExamQuestion(user, 'Opção A beta')
     // As demais respostas nao usam a dica.
-    await answerExamQuestion(user, 'Opcao B gama')
-    await answerExamQuestion(user, 'Opcao C alfa')
+    await answerExamQuestion(user, 'Opção B gama')
+    await answerExamQuestion(user, 'Opção C alfa')
 
     await waitFor(() => expect(completeMock).toHaveBeenCalledTimes(1))
     const submitted = completeMock.mock.calls[0][0].exchanges as Array<{ promptId: string; assistanceUsed: boolean }>
@@ -473,10 +473,10 @@ describe('ReviewSessionPage', () => {
     })
     const { onCompleted } = renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    await answerExamQuestion(user, 'Opcao A beta')
-    await answerExamQuestion(user, 'Opcao B gama')
-    await answerExamQuestion(user, 'Opcao C alfa')
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    await answerExamQuestion(user, 'Opção A beta')
+    await answerExamQuestion(user, 'Opção B gama')
+    await answerExamQuestion(user, 'Opção C alfa')
 
     expect(await screen.findByText(/peso é ainda menor para os trechos assistidos/i)).toBeInTheDocument()
     expect(onCompleted).toHaveBeenCalledOnce()
@@ -500,7 +500,7 @@ describe('ReviewSessionPage', () => {
     })
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     await screen.findByRole('heading', { name: 'Qual e o principal produto da fase clara?' })
 
     expect(document.querySelectorAll('.review-option-text .katex').length).toBeGreaterThanOrEqual(4)
@@ -518,8 +518,8 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
     ]))
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
       await answerExamQuestion(user, option)
     }
     await screen.findByRole('heading', { name: 'Nota avaliada' })
@@ -534,8 +534,8 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
   it('lays the report out in two columns with the note and the summary side by side', async () => {
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
       await answerExamQuestion(user, option)
     }
     await screen.findByRole('heading', { name: 'Nota avaliada' })
@@ -554,8 +554,8 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
       .mockResolvedValueOnce(report(perfectMarkdown, 100))
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
       await answerExamQuestion(user, option)
     }
     expect(await screen.findByDisplayValue('{bad}')).toBeInTheDocument()
@@ -575,7 +575,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
 
     const { onCompleted } = renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     expect(await screen.findByRole('heading', { name: 'O que a mitose produz?' })).toBeInTheDocument()
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
 
@@ -611,7 +611,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
 
     const { onCompleted } = renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     await screen.findByRole('heading', { name: 'O que a mitose produz?' })
     for (let index = 1; index <= 6; index += 1) {
       await user.type(screen.getByLabelText('Sua resposta'), `Resposta ${index}.`)
@@ -633,8 +633,8 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
       outcome: 'valid',
       prompt: {
         id: 'turn-2',
-        text: 'Voce quis dizer que as duas celulas sao identicas?',
-        assistance: 'Nao ha resposta certa aqui.',
+        text: 'Você quis dizer que as duas celulas sao identicas?',
+        assistance: 'Não ha resposta certa aqui.',
         options: [],
         isClarification: true,
       },
@@ -644,12 +644,12 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
 
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     await user.type(screen.getByLabelText('Sua resposta'), 'Duas celulas.')
     await user.click(screen.getByRole('button', { name: 'Salvar resposta' }))
 
     expect(await screen.findByText('Esclarecimento')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Voce quis dizer que as duas celulas sao identicas?' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Você quis dizer que as duas celulas sao identicas?' })).toBeInTheDocument()
   })
 
   it('renders an entirely inconclusive session without a score and lets the user redo it', async () => {
@@ -659,7 +659,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
         sessionId: 'session-1',
         overallScore: null,
         outcome: null,
-        summary: 'Sessao inconclusiva: apenas 1 de 7 paragrafos-alvo tiveram evidencia valida (minimo de 50%).',
+        summary: 'Sessão inconclusiva: apenas 1 de 7 paragrafos-alvo tiveram evidencia valida (minimo de 50%).',
         markdown: reportMarkdown,
         units: [
           { id: 'unit-1', ordinal: 0, kind: 'paragraph' as const, sourceStartUtf16: 0, sourceEndUtf16: reportMarkdown.length, sectionPath: [], evaluated: false, inconclusive: true, score: 0, outcome: 'partial' },
@@ -673,8 +673,8 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
 
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
       await answerExamQuestion(user, option)
     }
 
@@ -696,7 +696,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
       </ReviewAiSettingsProvider>,
     )
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     await screen.findByRole('heading', { name: 'Pergunta um?' })
 
     // Cancelar mantem a sessao ativa e fechando o dialogo.
@@ -721,7 +721,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
       </ReviewAiSettingsProvider>,
     )
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     await screen.findByRole('heading', { name: 'Pergunta um?' })
 
     await user.click(screen.getByRole('button', { name: 'Meu Vault' }))
@@ -738,7 +738,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
   it('abandons via the header button only after the dialog confirms', async () => {
     const { onExit } = renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     await screen.findByRole('heading', { name: 'Pergunta um?' })
 
     await user.click(screen.getByRole('button', { name: 'Abandonar' }))
@@ -753,7 +753,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
   it('prevents the window from unloading during an active session', async () => {
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     await screen.findByRole('heading', { name: 'Pergunta um?' })
 
     const unload = new Event('beforeunload', { cancelable: true })
@@ -764,8 +764,8 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
   it('corrects the classification of a paragraph by clicking its score badge', async () => {
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
       await answerExamQuestion(user, option)
     }
     await screen.findByRole('heading', { name: 'Nota avaliada' })
@@ -797,8 +797,8 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
   it('closes the classification menu without changing anything when clicking outside', async () => {
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Iniciar revisao' }))
-    for (const option of ['Opcao A alfa', 'Opcao B alfa', 'Opcao C alfa']) {
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
       await answerExamQuestion(user, option)
     }
     await screen.findByRole('heading', { name: 'Nota avaliada' })
@@ -821,7 +821,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
           core: { score: 80, explanation: 'Captura a ideia central.', quote: 'A fotossintese converte luz em energia.', sourceQuote: null },
           connections: { score: 60, explanation: 'Conecta clorofila e luz.', quote: 'A clorofila absorve a luz.', sourceQuote: null },
           application: { score: 75, explanation: 'Aplica em exemplo proprio.', quote: 'Isso explica plantas de sombra.', sourceQuote: null },
-          gaps: { score: 50, explanation: 'Admite duvida sobre a fase escura.', quote: 'Nao lembro a fase escura.', sourceQuote: null },
+          gaps: { score: 50, explanation: 'Admite duvida sobre a fase escura.', quote: 'Não lembro a fase escura.', sourceQuote: null },
         },
         observations: [{ text: 'Conecte mais os conceitos.' }],
       },
@@ -830,14 +830,14 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
     const user = userEvent.setup()
 
     await user.click(screen.getByRole('radio', { name: /Revisão de síntese/ }))
-    await user.type(screen.getByLabelText('Sua síntese da nota'), 'A fotossintese converte luz em energia. A clorofila absorve a luz. Isso explica plantas de sombra. Nao lembro a fase escura.')
+    await user.type(screen.getByLabelText('Sua síntese da nota'), 'A fotossintese converte luz em energia. A clorofila absorve a luz. Isso explica plantas de sombra. Não lembro a fase escura.')
     await user.click(screen.getByRole('button', { name: 'Avaliar síntese' }))
 
     expect(await screen.findByText('Resultado da síntese')).toBeInTheDocument()
     expect(synthesisMock).toHaveBeenCalledWith({
       vaultPath: VAULT_PATH,
       relativePath: item.relativePath,
-      synthesis: 'A fotossintese converte luz em energia. A clorofila absorve a luz. Isso explica plantas de sombra. Nao lembro a fase escura.',
+      synthesis: 'A fotossintese converte luz em energia. A clorofila absorve a luz. Isso explica plantas de sombra. Não lembro a fase escura.',
       provider: 'ollama',
     })
     expect(screen.getByText('72')).toBeInTheDocument()
@@ -851,7 +851,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
 
   it('lists the attachment sources considered by the synthesis session', async () => {
     sourcesMock.mockResolvedValue([
-      { rawTarget: 'grafico.png', kind: 'image', relativePath: 'media/grafico.png', sizeBytes: 1024, reason: null },
+      { rawTarget: 'gráfico.png', kind: 'image', relativePath: 'media/gráfico.png', sizeBytes: 1024, reason: null },
       { rawTarget: 'manual.pdf', kind: 'document', relativePath: null, sizeBytes: null, reason: 'anexo não encontrado no inventário do Vault' },
       { rawTarget: 'fonte', kind: 'markdown', relativePath: 'fonte.md', sizeBytes: null, reason: null },
     ])
@@ -862,8 +862,8 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
 
     expect(await screen.findByRole('heading', { name: 'Fontes consideradas' })).toBeInTheDocument()
     expect(sourcesMock).toHaveBeenCalledWith({ vaultPath: VAULT_PATH, relativePath: item.relativePath })
-    expect(screen.getByText('grafico.png')).toBeInTheDocument()
-    expect(screen.getByText('media/grafico.png')).toBeInTheDocument()
+    expect(screen.getByText('gráfico.png')).toBeInTheDocument()
+    expect(screen.getByText('media/gráfico.png')).toBeInTheDocument()
     expect(screen.getByText('manual.pdf')).toBeInTheDocument()
     expect(screen.getByText('fonte.md')).toBeInTheDocument()
   })
@@ -872,7 +872,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
     synthesisMock.mockResolvedValue({
       outcome: 'invalid',
       sourceHash: 'sha256:content',
-      message: 'O relatorio de sintese nao esta fundamentado nos textos.',
+      message: 'O relatorio de sintese não está fundamentado nos textos.',
       rawResponse: null,
       validationErrors: ['A citacao deve ser literal exata.'],
     })
@@ -880,10 +880,10 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
     const user = userEvent.setup()
 
     await user.click(screen.getByRole('radio', { name: /Revisão de síntese/ }))
-    await user.type(screen.getByLabelText('Sua síntese da nota'), 'A fotossintese converte luz em energia. A clorofila absorve a luz. Isso explica plantas de sombra. Nao lembro a fase escura.')
+    await user.type(screen.getByLabelText('Sua síntese da nota'), 'A fotossintese converte luz em energia. A clorofila absorve a luz. Isso explica plantas de sombra. Não lembro a fase escura.')
     await user.click(screen.getByRole('button', { name: 'Avaliar síntese' }))
 
-    expect(await screen.findByText('O relatorio de sintese nao esta fundamentado nos textos.')).toBeInTheDocument()
+    expect(await screen.findByText('O relatorio de sintese não está fundamentado nos textos.')).toBeInTheDocument()
     expect(screen.getByText('A citacao deve ser literal exata.')).toBeInTheDocument()
   })
 })

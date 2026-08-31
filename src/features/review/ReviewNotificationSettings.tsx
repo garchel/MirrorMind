@@ -78,7 +78,7 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
     setTestStatus('')
     try {
       await sendReviewTestNotification()
-      setTestStatus('Notificacao de teste enviada.')
+      setTestStatus('Notificação de teste enviada.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -89,8 +89,8 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
   if (!settings) {
     return (
       <div className="settings-section review-notification-settings" aria-labelledby="review-notification-settings-title">
-        <p className="card-kicker" id="review-notification-settings-title">Notificacoes de revisao</p>
-        <p role="status">Carregando preferencias de notificacao...</p>
+        <p className="card-kicker" id="review-notification-settings-title">Notificações de revisão</p>
+        <p role="status">Carregando preferências de notificação...</p>
         {error ? <p className="field-error" role="alert">{error}</p> : null}
       </div>
     )
@@ -100,23 +100,23 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
     <div className="settings-section review-notification-settings" aria-labelledby="review-notification-settings-title">
       <div className="review-notification-heading">
         <div>
-          <p className="card-kicker" id="review-notification-settings-title">Notificacoes de revisao</p>
-          <small>Um unico resumo diario com o total de revisoes vencidas, em vez de uma notificacao por nota.</small>
+          <p className="card-kicker" id="review-notification-settings-title">Notificações de revisão</p>
+          <small>Um único resumo diário com o total de revisões vencidas, em vez de uma notificação por nota.</small>
         </div>
         <Bell size={16} strokeWidth={1.6} aria-hidden="true" />
       </div>
 
       <label className="settings-toggle">
         <span>
-          <strong>Resumo diario</strong>
-          <small>Notifica uma vez por dia, na hora escolhida, quando houver revisoes vencidas no vault aberto.</small>
+          <strong>Resumo diário</strong>
+          <small>Notifica uma vez por dia, na hora escolhida, quando houver revisões vencidas no vault aberto.</small>
         </span>
         <input
           type="checkbox"
           checked={settings.enabled}
           disabled={busy}
           onChange={(event) => void update({ enabled: event.target.checked })}
-          aria-label="Resumo diario de revisoes vencidas"
+          aria-label="Resumo diário de revisões vencidas"
         />
       </label>
 
@@ -136,13 +136,13 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
                 const parsed = fromTimeInput(event.target.value)
                 if (parsed) void update(parsed)
               }}
-              aria-label="Hora do resumo diario"
+              aria-label="Hora do resumo diário"
             />
           </label>
           <label className="settings-toggle">
             <span>
               <strong>Silenciar</strong>
-              <small>Mantem a configuracao, mas nao envia notificacoes ate reativar.</small>
+              <small>Mantém a configuração, mas não envia notificações até reativar.</small>
             </span>
             <span className="review-notification-mute-icon" aria-hidden="true">
               <BellOff size={15} strokeWidth={1.6} />
@@ -152,12 +152,12 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
               checked={settings.muted}
               disabled={busy}
               onChange={(event) => void update({ muted: event.target.checked })}
-              aria-label="Silenciar notificacoes de revisao"
+              aria-label="Silenciar notificações de revisão"
             />
           </label>
           <div className="review-ai-inline-actions">
             <button type="button" className="secondary-button" onClick={() => void sendTest()} disabled={busy || settings.muted}>
-              Enviar notificacao de teste
+              Enviar notificação de teste
             </button>
             {testStatus ? <span role="status">{testStatus}</span> : null}
           </div>
@@ -167,8 +167,8 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
       {lastCheck ? (
         <p className="review-notification-status" role="status">
           {lastCheck.sent
-            ? `Resumo enviado: ${lastCheck.dueCount} ${lastCheck.dueCount === 1 ? 'revisao vencida' : 'revisoes vencidas'}.`
-            : `Ultima checagem: ${lastCheck.dueCount} ${lastCheck.dueCount === 1 ? 'revisao vencida' : 'revisoes vencidas'}${lastCheck.skippedReason ? ` — ${lastCheck.skippedReason}` : ''}.`}
+            ? `Resumo enviado: ${lastCheck.dueCount} ${lastCheck.dueCount === 1 ? 'revisão vencida' : 'revisões vencidas'}.`
+            : `Última checagem: ${lastCheck.dueCount} ${lastCheck.dueCount === 1 ? 'revisão vencida' : 'revisões vencidas'}${lastCheck.skippedReason ? ` — ${lastCheck.skippedReason}` : ''}.`}
         </p>
       ) : null}
 

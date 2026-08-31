@@ -163,17 +163,17 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
 
   return (
     <div className="settings-section review-ai-settings" aria-labelledby="review-ai-settings-title">
-      <p className="card-kicker" id="review-ai-settings-title">Revisao com IA</p>
+      <p className="card-kicker" id="review-ai-settings-title">Revisão com IA</p>
       <label className="settings-toggle">
         <span>
-          <strong>Provedor da revisao</strong>
-          <small>A sessao usa somente o provedor escolhido. Nao existe troca automatica.</small>
+          <strong>Provedor da revisão</strong>
+          <small>A sessão usa somente o provedor escolhido. Não existe troca automática.</small>
         </span>
         <select
           className="settings-select"
           value={provider}
           onChange={(event) => setProvider(event.target.value as ReviewAiProvider)}
-          aria-label="Provedor da revisao"
+          aria-label="Provedor da revisão"
         >
           <option value="ollama">Ollama local</option>
           <option value="gemini">Gemini</option>
@@ -185,7 +185,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
       {provider === 'gemini' ? (
         <div className="review-ai-provider-panel">
           <p>
-            O Gemini recebe apenas o Markdown da nota selecionada e os dados necessarios da sessao atual.
+            O Gemini recebe apenas o Markdown da nota selecionada e os dados necessarios da sessão atual.
             O restante do Vault permanece local.
           </p>
           <label className="review-ai-consent">
@@ -204,7 +204,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
               autoComplete="off"
-              placeholder={configuration?.geminiConfigured ? 'Chave armazenada com seguranca' : 'Cole a chave da API'}
+              placeholder={configuration?.geminiConfigured ? 'Chave armazenada com segurança' : 'Cole a chave da API'}
             />
             <small>A chave fica no cofre nativo do sistema e nunca no Vault.</small>
           </label>
@@ -226,7 +226,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           {managedStatus.subscribed ? (
             <dl className="review-ai-usage">
               <div><dt>Plano</dt><dd>{managedStatus.plan}</dd></div>
-              <div><dt>Custo estimado no mes</dt><dd>US$ {managedStatus.usedCostUsdMonth.toFixed(2)} de US$ {managedStatus.includedCostUsdPerMonth.toFixed(2)}</dd></div>
+              <div><dt>Custo estimado no mês</dt><dd>US$ {managedStatus.usedCostUsdMonth.toFixed(2)} de US$ {managedStatus.includedCostUsdPerMonth.toFixed(2)}</dd></div>
               <div><dt>Chamada estimada</dt><dd>US$ {estimateManagedCallCostUsd(estimatedManagedInputChars()).toFixed(2)}</dd></div>
             </dl>
           ) : (
@@ -276,7 +276,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
               value={openAiApiKey}
               onChange={(event) => setOpenAiApiKey(event.target.value)}
               autoComplete="off"
-              placeholder={configuration?.openAiCompatibleConfigured ? 'Chave armazenada com seguranca' : 'Cole a chave da API'}
+              placeholder={configuration?.openAiCompatibleConfigured ? 'Chave armazenada com segurança' : 'Cole a chave da API'}
             />
           </label>
           <div className="review-ai-inline-actions">
@@ -334,9 +334,9 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
             <dl>
               <div><dt>Cenario</dt><dd>{comparison.noteWords} palavras · {comparison.questionCount} perguntas · respostas fixas</dd></div>
               {comparison.scoreDelta !== null ? (
-                <div><dt>Diferenca da nota ({comparison.providers[1]} - {comparison.providers[0]})</dt><dd>{comparison.scoreDelta}</dd></div>
+                <div><dt>Diferença da nota ({comparison.providers[1]} - {comparison.providers[0]})</dt><dd>{comparison.scoreDelta}</dd></div>
               ) : (
-                <div><dt>Diferenca da nota</dt><dd>indisponivel (algum lado sem nota valida)</dd></div>
+                <div><dt>Diferença da nota</dt><dd>indisponível (algum lado sem nota válida)</dd></div>
               )}
               <div><dt>Lacunas compartilhadas</dt><dd>{comparison.sharedGapQuotes.length}</dd></div>
               <div><dt>Só {comparison.providers[0]}</dt><dd>{comparison.ollamaOnlyGapQuotes.length}</dd></div>
@@ -346,7 +346,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
               <article key={outcome.provider} className="review-ai-comparison-provider">
                 <h4>{outcome.provider}</h4>
                 {outcome.failure ? (
-                  <p className="field-error">Avaliacao invalida: {outcome.failure}</p>
+                  <p className="field-error">Avaliação inválida: {outcome.failure}</p>
                 ) : (
                   <>
                     <dl>
@@ -372,7 +372,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           <div><dt>Nos ultimos 60s</dt><dd>{usage.callsInMinute} de {usage.maxCallsPerMinute}</dd></div>
           <div><dt>Custo estimado hoje</dt><dd>US$ {usage.estimatedCostUsd.toFixed(2)}</dd></div>
           <div><dt>Descricoes de imagem hoje</dt><dd>{usage.visionCalls} (visao — contadas no orcamento antes do envio)</dd></div>
-          <div><dt>Custo estimado no mes</dt><dd>US$ {usage.estimatedCostUsdMonth.toFixed(2)} de US$ {usage.maxCostPerMonthUsd.toFixed(2)}{usage.monthlyExceeded ? ' (orçamento mensal atingido)' : ''}</dd></div>
+          <div><dt>Custo estimado no mês</dt><dd>US$ {usage.estimatedCostUsdMonth.toFixed(2)} de US$ {usage.maxCostPerMonthUsd.toFixed(2)}{usage.monthlyExceeded ? ' (orçamento mensal atingido)' : ''}</dd></div>
           {usage.providerCalls.map((entry) => (
             <div key={entry.provider}><dt>Provedor {entry.provider}</dt><dd>{entry.calls}</dd></div>
           ))}

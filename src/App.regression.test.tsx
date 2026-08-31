@@ -116,8 +116,8 @@ function createTauriHarness(
   reviewStates: Record<string, unknown> = {},
 ) {
   const notes = new Map<string, StoredNote>([
-    ['inicial.md', { name: 'inicial.md', relativePath: 'inicial.md', content: '---\ndescription: Inicial\nloop: &loop [*loop]\n---\n\n# Inicial\n\nTexto inicial. Veja [[alvo]], volte para [[#Inicial]] e crie [[nova/pagina]].\n\n**Equação Geral**\n\n$$\n6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2\n$$' }],
-    ['alvo.md', { name: 'alvo.md', relativePath: 'alvo.md', content: '# Alvo\n\n> [!warning]- **Aviso** *seguro*\n> Conteudo do callout.\n\n> [!note] # Titulo inline\n> Sem heading no cabecalho.\n\n- Item da lista\n  > [!tip] **Dica interna**\n  > Conteudo aninhado.\n\n- Item multinivel\n  > Contexto comum\n  >\n  > > [!example] Exemplo profundo\n  > > Conteudo profundo.\n\n![[inicial]]\n\n![[media/manual.pdf|Manual]]\n\n![[.obsidian/plugins/segredo.pdf|Segredo]]\n\n![Remote](https://example.com/image.png)\n\n<kbd>Ctrl K</kbd><script>danger()</script><a href="https://mirrormind.local/note/%E0%A4%A">URL quebrada</a>' }],
+    ['inicial.md', { name: 'inicial.md', relativePath: 'inicial.md', content: '---\ndescription: Inicial\nloop: &loop [*loop]\n---\n\n# Inicial\n\nTexto inicial. Veja [[alvo]], volte para [[#Inicial]] e crie [[nova/página]].\n\n**Equação Geral**\n\n$$\n6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2\n$$' }],
+    ['alvo.md', { name: 'alvo.md', relativePath: 'alvo.md', content: '# Alvo\n\n> [!warning]- **Aviso** *seguro*\n> Conteúdo do callout.\n\n> [!note] # Título inline\n> Sem heading no cabeçalho.\n\n- Item da lista\n  > [!tip] **Dica interna**\n  > Conteúdo aninhado.\n\n- Item multinivel\n  > Contexto comum\n  >\n  > > [!example] Exemplo profundo\n  > > Conteúdo profundo.\n\n![[inicial]]\n\n![[media/manual.pdf|Manual]]\n\n![[.obsidian/plugins/segredo.pdf|Segredo]]\n\n![Remote](https://example.com/image.png)\n\n<kbd>Ctrl K</kbd><script>danger()</script><a href="https://mirrormind.local/note/%E0%A4%A">URL quebrada</a>' }],
     ...extraNotes.map((note) => [note.relativePath, note] as const),
   ])
 
@@ -249,8 +249,8 @@ function createTauriHarness(
               {
                 code: 'orphanPreamble',
                 severity: 'info',
-                message: 'Os paragrafos antes do primeiro titulo formam um preambulo sem rotulo de secao.',
-                suggestion: 'De um titulo ao preambulo (ex.: ## Introducao) para ele virar uma secao nomeada na revisao.',
+                message: 'Os paragrafos antes do primeiro título formam um preambulo sem rotulo de secao.',
+                suggestion: 'De um título ao preambulo (ex.: ## Introducao) para ele virar uma secao nomeada na revisão.',
                 sourceQuote: 'Texto inicial.',
                 sourceStartUtf16: 59,
                 sourceEndUtf16: 96,
@@ -392,7 +392,7 @@ describe('Regressao do editor no workspace', () => {
     cleanup()
   })
 
-  it('[tags] abre a pagina dedicada pela barra de ferramentas', async () => {
+  it('[tags] abre a página dedicada pela barra de ferramentas', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
@@ -424,7 +424,7 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.queryByText(/Leitura parcial do vault/)).not.toBeInTheDocument()
   })
 
-  it('[diagnostico] nao exibe aviso quando o inventario esta saudavel', async () => {
+  it('[diagnostico] não exibe aviso quando o inventario esta saudavel', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
@@ -447,14 +447,14 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.queryByRole('textbox', { name: 'Descricao da nota' })).not.toBeInTheDocument()
   })
 
-  it('[auditoria estrutural] abre o painel, lista achados e aplica a sugestao no rascunho', async () => {
+  it('[auditoria estrutural] abre o painel, lista achados e aplica a sugestão no rascunho', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
 
     await user.click(screen.getByRole('button', { name: 'Auditoria estrutural da nota' }))
 
-    expect(await screen.findByText('Os paragrafos antes do primeiro titulo formam um preambulo sem rotulo de secao.')).toBeInTheDocument()
+    expect(await screen.findByText('Os paragrafos antes do primeiro título formam um preambulo sem rotulo de secao.')).toBeInTheDocument()
     expect(invokeMock).toHaveBeenCalledWith('audit_note_structure', expect.objectContaining({ relativePath: 'inicial.md' }))
 
     await user.click(screen.getByRole('button', { name: 'Aplicar no rascunho' }))
@@ -464,7 +464,7 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })).toHaveTextContent('## Introducao')
   })
 
-  it('[verificacao factual] abre o painel, lista os achados e nao altera a nota', async () => {
+  it('[verificação factual] abre o painel, lista os achados e não altera a nota', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
@@ -480,7 +480,7 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.getByText('Incerto')).toBeInTheDocument()
   })
 
-  it('[avaliacao] adotar um perfil no popover salva a tag na nota imediatamente', async () => {
+  it('[avaliação] adotar um perfil no popover salva a tag na nota imediatamente', async () => {
     const user = userEvent.setup()
     vaultReviewTagRules = [
       { tag: 'revisao/prova', autoEnroll: true, firstReviewIntervalDays: 1, targetRetention: 0.9, priorityWeight: 3, minIntervalDays: 1, maxIntervalDays: 90, deadlineAtUnixMs: null },
@@ -493,7 +493,7 @@ describe('Regressao do editor no workspace', () => {
         'perfil.md': {
           noteId: 'note-perfil',
           relativePath: 'perfil.md',
-          contentHash: 'sha256:conteudo-avaliado',
+          contentHash: 'sha256:conteúdo-avaliado',
           readiness: 'ready',
           assessedAtUnixMs: 1_720_000_000_000,
           report: null,
@@ -526,7 +526,7 @@ describe('Regressao do editor no workspace', () => {
     expect(notes.get('perfil.md')?.content).toContain('revisao/manter')
   })
 
-  it('[metadados] adicionar uma tag pelo painel de propriedades salva a nota na hora (nao suja o rascunho)', async () => {
+  it('[metadados] adicionar uma tag pelo painel de propriedades salva a nota na hora (não suja o rascunho)', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
     await openTestVault(user)
@@ -545,13 +545,13 @@ describe('Regressao do editor no workspace', () => {
     expect(notes.get('inicial.md')?.content).toContain('quimica')
   })
 
-  it('[nota nova] salva ao confirmar o titulo com Enter e abre a nota criada', async () => {
+  it('[nota nova] salva ao confirmar o título com Enter e abre a nota criada', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
     await openTestVault(user)
 
     await user.click(screen.getByRole('button', { name: 'Nova nota' }))
-    const title = await screen.findByRole('textbox', { name: 'Titulo da nova nota' })
+    const title = await screen.findByRole('textbox', { name: 'Título da nova nota' })
     await user.type(title, 'Minha nota de regressao{Enter}')
 
     await waitFor(() => {
@@ -562,7 +562,7 @@ describe('Regressao do editor no workspace', () => {
     expect(invokeMock).toHaveBeenCalledWith('save_note', expect.objectContaining({ relativePath: 'minha-nota-de-regressao.md' }))
   })
 
-  it('[atalhos] exibe os atalhos para salvar a nota e alternar o modo de visualizacao', async () => {
+  it('[atalhos] exibe os atalhos para salvar a nota e alternar o modo de visualização', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
@@ -570,10 +570,10 @@ describe('Regressao do editor no workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Ver atalhos' }))
 
     expect(screen.getByRole('textbox', { name: 'Atalho para salvar nota' })).toHaveValue('Ctrl+S')
-    expect(screen.getByRole('textbox', { name: 'Atalho para alternar modo de visualizacao' })).toHaveValue('Ctrl+M')
+    expect(screen.getByRole('textbox', { name: 'Atalho para alternar modo de visualização' })).toHaveValue('Ctrl+M')
   })
 
-  it('[atalhos] salva a nota e alterna o modo de visualizacao pelos atalhos configurados', async () => {
+  it('[atalhos] salva a nota e alterna o modo de visualização pelos atalhos configurados', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
@@ -606,13 +606,13 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.getByRole('radio', { name: 'Edicao' })).toHaveAttribute('aria-checked', 'true')
   })
 
-  it('[atalhos] aplica o atalho personalizado configurado na pagina de atalhos', async () => {
+  it('[atalhos] aplica o atalho personalizado configurado na página de atalhos', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
 
     await user.click(screen.getByRole('button', { name: 'Ver atalhos' }))
-    const modeShortcutInput = screen.getByRole('textbox', { name: 'Atalho para alternar modo de visualizacao' })
+    const modeShortcutInput = screen.getByRole('textbox', { name: 'Atalho para alternar modo de visualização' })
     await user.click(modeShortcutInput)
     await user.keyboard('{Control>}{Alt>}v{/Alt}{/Control}')
     expect(modeShortcutInput).toHaveValue('Ctrl+Alt+V')
@@ -641,7 +641,7 @@ describe('Regressao do editor no workspace', () => {
     expect(document.querySelector('.editor-content .markdown-mixed')).not.toBeNull()
 
     // Navegacao por setas do radiogroup: direita vai para Leitura, esquerda volta para Misto.
-    const control = screen.getByRole('radiogroup', { name: 'Modo de visualizacao da nota' })
+    const control = screen.getByRole('radiogroup', { name: 'Modo de visualização da nota' })
     control.focus()
     await user.keyboard('{ArrowRight}')
     expect(screen.getByRole('radio', { name: 'Leitura' })).toHaveAttribute('aria-checked', 'true')
@@ -732,7 +732,7 @@ describe('Regressao do editor no workspace', () => {
     expect(await screen.findByRole('tab', { name: 'alvo.md' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('[contador] mostra o numero de palavras da nota no canto do editor', async () => {
+  it('[contador] mostra o número de palavras da nota no canto do editor', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
@@ -765,10 +765,10 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
 
-    await user.click(await screen.findByRole('link', { name: 'nova/pagina' }))
+    await user.click(await screen.findByRole('link', { name: 'nova/página' }))
 
-    await waitFor(() => expect(notes.has('nova/pagina.md')).toBe(true))
-    expect(await screen.findByRole('tab', { name: 'pagina.md' })).toHaveAttribute('aria-selected', 'true')
+    await waitFor(() => expect(notes.has('nova/página.md')).toBe(true))
+    expect(await screen.findByRole('tab', { name: 'página.md' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('[links internos] cria uma nota apenas uma vez em cliques concorrentes', async () => {
@@ -776,16 +776,16 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
-    const link = await screen.findByRole('link', { name: 'nova/pagina' })
+    const link = await screen.findByRole('link', { name: 'nova/página' })
 
     fireEvent.click(link)
     fireEvent.click(link)
 
-    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('create_note', expect.objectContaining({ relativePath: 'nova/pagina.md' })))
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('create_note', expect.objectContaining({ relativePath: 'nova/página.md' })))
     expect(invokeMock.mock.calls.filter(([command]) => command === 'create_note')).toHaveLength(1)
   })
 
-  it('[links internos] navega na nota atual sem recarregar o conteudo do disco', async () => {
+  it('[links internos] navega na nota atual sem recarregar o conteúdo do disco', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
@@ -828,14 +828,14 @@ describe('Regressao do editor no workspace', () => {
     const nestedCalloutTitle = screen.getByText('Dica interna', { selector: 'strong' })
     const nestedCallout = nestedCalloutTitle.closest('.obsidian-callout')
     expect(nestedCallout).not.toBeNull()
-    expect(nestedCallout).toHaveTextContent('Conteudo aninhado.')
+    expect(nestedCallout).toHaveTextContent('Conteúdo aninhado.')
 
     // Titulo com # permanece texto (sem heading no cabecalho do callout).
-    const inlineTitle = screen.getByText('# Titulo inline')
+    const inlineTitle = screen.getByText('# Título inline')
     expect(inlineTitle.closest('.obsidian-callout-title')?.querySelector('h1')).toBeNull()
     const deepCallout = screen.getByText('Exemplo profundo').closest('.obsidian-callout')
     expect(deepCallout).not.toBeNull()
-    expect(deepCallout).toHaveTextContent('Conteudo profundo.')
+    expect(deepCallout).toHaveTextContent('Conteúdo profundo.')
 
     // Embed de nota: widget de bloco com editor aninhado do mesmo motor
     // (o caminho `![[inicial]]` e normalizado para inicial.md).
@@ -865,7 +865,7 @@ describe('Regressao do editor no workspace', () => {
     expect(dialog).toHaveTextContent('Planejamento.canvas')
     expect(dialog).toHaveTextContent('desenhos/Quadro.excalidraw')
     expect(dialog).toHaveTextContent('dados.plugin-cache')
-    expect(dialog).toHaveTextContent('preservado sem alteracoes')
+    expect(dialog).toHaveTextContent('preservado sem alterações')
     expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Fechar arquivos especiais' })).toHaveFocus()
     await user.keyboard('{Escape}')
@@ -916,7 +916,7 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.queryByRole('dialog', { name: 'Criar conexao no grafo' })).not.toBeInTheDocument()
   })
 
-  it('[grafo] conectar a nota ativa preserva o rascunho nao salvo junto com o link', async () => {
+  it('[grafo] conectar a nota ativa preserva o rascunho não salvo junto com o link', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness([
       { name: 'terceira.md', relativePath: 'terceira.md', content: '# Terceira\n\nNota isolada.' },
@@ -950,7 +950,7 @@ describe('Regressao do editor no workspace', () => {
     })
   })
 
-  it('[grafo] filtra por busca e lista apenas notas nao conectadas', async () => {
+  it('[grafo] filtra por busca e lista apenas notas não conectadas', async () => {
     const user = userEvent.setup()
     createTauriHarness([
       { name: 'terceira.md', relativePath: 'terceira.md', content: '# Terceira\n\nNota isolada.' },
@@ -965,16 +965,16 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.queryByRole('button', { name: 'Abrir nota inicial no grafo' })).not.toBeInTheDocument()
 
     await user.clear(screen.getByRole('textbox', { name: 'Buscar nota no grafo' }))
-    await user.click(screen.getByRole('button', { name: 'Configuracoes do grafo' }))
-    await user.click(await screen.findByRole('checkbox', { name: /Somente notas nao conectadas/ }))
+    await user.click(screen.getByRole('button', { name: 'Configurações do grafo' }))
+    await user.click(await screen.findByRole('checkbox', { name: /Somente notas não conectadas/ }))
 
-    expect(screen.getByText('1 notas nao conectadas')).toBeInTheDocument()
-    const orphanPanel = screen.getByRole('region', { name: 'Notas nao conectadas' })
+    expect(screen.getByText('1 notas não conectadas')).toBeInTheDocument()
+    const orphanPanel = screen.getByRole('region', { name: 'Notas não conectadas' })
     expect(within(orphanPanel).getByRole('button', { name: 'Conectar' })).toBeInTheDocument()
     expect(within(orphanPanel).getByRole('button', { name: 'Revelar' })).toBeInTheDocument()
   })
 
-  it('[grafo] conecta uma nota isolada pela lista de nao conectadas', async () => {
+  it('[grafo] conecta uma nota isolada pela lista de não conectadas', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness([
       { name: 'terceira.md', relativePath: 'terceira.md', content: '# Terceira\n\nNota isolada.' },
@@ -983,16 +983,16 @@ describe('Regressao do editor no workspace', () => {
 
     await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
     expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Configuracoes do grafo' }))
-    await user.click(await screen.findByRole('checkbox', { name: /Somente notas nao conectadas/ }))
+    await user.click(screen.getByRole('button', { name: 'Configurações do grafo' }))
+    await user.click(await screen.findByRole('checkbox', { name: /Somente notas não conectadas/ }))
 
-    const orphanPanel = screen.getByRole('region', { name: 'Notas nao conectadas' })
+    const orphanPanel = screen.getByRole('region', { name: 'Notas não conectadas' })
     await user.click(within(orphanPanel).getByRole('button', { name: 'Conectar' }))
     const dialog = screen.getByRole('dialog', { name: 'Criar conexao no grafo' })
     await user.click(within(dialog).getByRole('button', { name: 'alvo' }))
 
     await waitFor(() => expect(notes.get('terceira.md')?.content).toContain('[[alvo]]'))
-    await waitFor(() => expect(screen.getByText('0 notas nao conectadas')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('0 notas não conectadas')).toBeInTheDocument())
   })
 
   it('[grafo] revela uma nota orfa no explorador expandindo as pastas ancestrais', async () => {
@@ -1004,10 +1004,10 @@ describe('Regressao do editor no workspace', () => {
 
     await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
     expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Configuracoes do grafo' }))
-    await user.click(await screen.findByRole('checkbox', { name: /Somente notas nao conectadas/ }))
+    await user.click(screen.getByRole('button', { name: 'Configurações do grafo' }))
+    await user.click(await screen.findByRole('checkbox', { name: /Somente notas não conectadas/ }))
 
-    const orphanPanel = screen.getByRole('region', { name: 'Notas nao conectadas' })
+    const orphanPanel = screen.getByRole('region', { name: 'Notas não conectadas' })
     await user.click(within(orphanPanel).getByRole('button', { name: 'Revelar' }))
 
     await waitFor(() => expect(screen.getByRole('tab', { name: 'anotada.md' })).toHaveAttribute('aria-selected', 'true'))
@@ -1037,7 +1037,7 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.queryByText(/Grafo local limitado/)).not.toBeInTheDocument()
   })
 
-  it('[grafo] agrupa por pasta com legenda de cores e persiste a preferencia', async () => {
+  it('[grafo] agrupa por pasta com legenda de cores e persiste a preferência', async () => {
     const user = userEvent.setup()
     createTauriHarness([
       { name: 'quimica.md', relativePath: 'Notas/quimica.md', content: '# Quimica\n\nMateria de ciencia.' },
@@ -1051,7 +1051,7 @@ describe('Regressao do editor no workspace', () => {
     // Sem agrupamento: nenhuma legenda.
     expect(screen.queryByLabelText('Legenda das pastas do grafo')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Configuracoes do grafo' }))
+    await user.click(screen.getByRole('button', { name: 'Configurações do grafo' }))
     const groupToggle = await screen.findByRole('checkbox', { name: 'Agrupar por pasta' })
     await user.click(groupToggle)
 
@@ -1072,9 +1072,9 @@ describe('Regressao do editor no workspace', () => {
   it('[bases] lista notas com as propriedades do frontmatter como colunas, ordena, filtra e abre a nota', async () => {
     const user = userEvent.setup()
     createTauriHarness([
-      { name: 'quimica.md', relativePath: 'Notas/quimica.md', content: '---\narea: Ciencia\nnivel: 2\ntags:\n  - estudo\n  - prova\n---\n\n# Quimica' },
-      { name: 'fisica.md', relativePath: 'Notas/fisica.md', content: '---\narea: Ciencia\nnivel: 1\n---\n\n# Fisica' },
-      { name: 'diario.md', relativePath: 'Diarios/diario.md', content: '---\narea: Pessoal\n---\n\n# Diario' },
+      { name: 'quimica.md', relativePath: 'Notas/quimica.md', content: '---\nárea: Ciencia\nnivel: 2\ntags:\n  - estudo\n  - prova\n---\n\n# Quimica' },
+      { name: 'fisica.md', relativePath: 'Notas/fisica.md', content: '---\nárea: Ciencia\nnivel: 1\n---\n\n# Fisica' },
+      { name: 'diario.md', relativePath: 'Diarios/diario.md', content: '---\nárea: Pessoal\n---\n\n# Diario' },
     ])
     await openTestVault(user)
 
@@ -1085,7 +1085,7 @@ describe('Regressao do editor no workspace', () => {
     // (inicial.md vem antes e contribui description e loop).
     const table = await screen.findByRole('region', { name: 'Tabela de notas' })
     const headers = within(table).getAllByRole('columnheader')
-    expect(headers.map((header) => header.textContent)).toEqual(['Nota', 'description', 'loop', 'area', 'nivel', 'tags'])
+    expect(headers.map((header) => header.textContent)).toEqual(['Nota', 'description', 'loop', 'área', 'nivel', 'tags'])
     expect(within(table).getByText('quimica')).toBeInTheDocument()
     // Duas notas de Ciencia (quimica e fisica) mais nenhuma outra.
     expect(within(table).getAllByText('Ciencia')).toHaveLength(2)
@@ -1121,7 +1121,7 @@ describe('Regressao do editor no workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
     expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Configuracoes do grafo' }))
+    await user.click(screen.getByRole('button', { name: 'Configurações do grafo' }))
     await user.click(await screen.findByRole('checkbox', { name: 'Agrupar por tag' }))
 
     // Legenda com a primeira tag de cada nota, em ordem alfabetica
@@ -1201,7 +1201,7 @@ describe('Regressao do editor no workspace', () => {
   // bug: ao assentar, o transform px residual somava ao left % que o React
   // escreve a cada render e os nos se desprendiam das arestas, espalhados).
   // Verifica que, apos o ambient-settled, os nos ficam SO em left/top %.
-  it('[grafo] apos a simulacao ambiente do worker assentar, os nos nao ficam com transform px residual', async () => {
+  it('[grafo] após a simulacao ambiente do worker assentar, os nos não ficam com transform px residual', async () => {
     const user = userEvent.setup()
     createTauriHarness()
 
@@ -1279,7 +1279,7 @@ describe('Regressao do editor no workspace', () => {
   // Arrastar um no que NAO e o mais conectado nao pode teleportar o hub (no
   // com mais conexoes) para o ponto da soltura: o no arrastado permanece onde
   // foi solto e os vizinhos assentam ao redor dele.
-  it('[grafo] arrastar um no nao-hub nao teleporta o hub para o ponto da soltura', async () => {
+  it('[grafo] arrastar um no não-hub não teleporta o hub para o ponto da soltura', async () => {
     const user = userEvent.setup()
     createTauriHarness([
       { name: 'hub.md', relativePath: 'hub.md', content: '# Hub\n\nVeja [[inicial]] e [[leaf]].' },
@@ -1404,7 +1404,7 @@ describe('Regressao do editor no workspace', () => {
     const user = userEvent.setup()
     const extraNotes = Array.from({ length: 60 }, (_, index) => {
       const name = `nota-${String(index).padStart(2, '0')}.md`
-      return { name, relativePath: `pastas/${name}`, content: `# Nota ${index}\n\nConteudo ${index}.\n\n[[inicial]]` }
+      return { name, relativePath: `pastas/${name}`, content: `# Nota ${index}\n\nConteúdo ${index}.\n\n[[inicial]]` }
     })
     createTauriHarness(extraNotes)
     await openTestVault(user)
@@ -1423,7 +1423,7 @@ describe('Regressao do editor no workspace', () => {
     const user = userEvent.setup()
     const extraNotes = Array.from({ length: 240 }, (_, index) => {
       const name = `nota-${String(index).padStart(3, '0')}.md`
-      return { name, relativePath: `pastas/${name}`, content: `# Nota ${index}\n\nConteudo ${index}.` }
+      return { name, relativePath: `pastas/${name}`, content: `# Nota ${index}\n\nConteúdo ${index}.` }
     })
     createTauriHarness(extraNotes)
     await openTestVault(user)
@@ -1455,7 +1455,7 @@ describe('Regressao do editor no workspace', () => {
     const user = userEvent.setup()
     const extraNotes = Array.from({ length: 60 }, (_, index) => {
       const name = `nota-${String(index).padStart(2, '0')}.md`
-      return { name, relativePath: `pastas/${name}`, content: `# Nota ${index}\n\nConteudo ${index}.` }
+      return { name, relativePath: `pastas/${name}`, content: `# Nota ${index}\n\nConteúdo ${index}.` }
     })
     createTauriHarness(extraNotes)
     // Limite valido (>= 50) abaixo do total de 62 nos: a renderizacao e cortada.
@@ -1491,7 +1491,7 @@ describe('Regressao do editor no workspace', () => {
     const user = userEvent.setup()
     const extraNotes = Array.from({ length: 60 }, (_, index) => {
       const name = `nota-${String(index).padStart(2, '0')}.md`
-      return { name, relativePath: `pastas/${name}`, content: `# Nota ${index}\n\nConteudo ${index}.` }
+      return { name, relativePath: `pastas/${name}`, content: `# Nota ${index}\n\nConteúdo ${index}.` }
     })
     createTauriHarness(extraNotes)
     localStorage.setItem('mirrormind.graph2d.render-limit', '500')
@@ -1509,7 +1509,7 @@ describe('Regressao do editor no workspace', () => {
     }
   })
 
-  it('[grafo] exporta o grafo 2D como SVG e como PNG com resolucao escolhida', async () => {
+  it('[grafo] exporta o grafo 2D como SVG e como PNG com resolução escolhida', async () => {
     const user = userEvent.setup()
     createTauriHarness([
       { name: 'quimica.md', relativePath: 'Notas/quimica.md', content: '# Quimica\n\nVeja [[alvo]].' },
@@ -1531,7 +1531,7 @@ describe('Regressao do editor no workspace', () => {
 
     // PNG com resolucao 2x: sem canvas no jsdom, cai no fallback sem download.
     await user.click(screen.getByRole('button', { name: 'Exportar grafo' }))
-    const scaleSelect = await screen.findByRole('combobox', { name: 'Resolucao do PNG exportado' })
+    const scaleSelect = await screen.findByRole('combobox', { name: 'Resolução do PNG exportado' })
     await user.selectOptions(scaleSelect, '2')
     await user.click(screen.getByRole('button', { name: 'Exportar grafo como PNG' }))
     await new Promise((resolve) => window.setTimeout(resolve, 50))
@@ -1589,7 +1589,7 @@ describe('Regressao do editor no workspace', () => {
     })
   })
 
-  it('[autosave] persiste alteracoes da nota apos a pausa de digitacao', async () => {
+  it('[autosave] persiste alterações da nota após a pausa de digitacao', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
     localStorage.setItem('mirrormind.auto-save', 'true')
@@ -1601,7 +1601,7 @@ describe('Regressao do editor no workspace', () => {
     await user.keyboard('{Control>}{End}{/Control}')
     await user.paste(' Resumo-atualizado')
 
-    expect(screen.getByText('Alteracoes pendentes')).toBeInTheDocument()
+    expect(screen.getByText('Alterações pendentes')).toBeInTheDocument()
 
     await waitFor(() => {
       expect(notes.get('inicial.md')?.content).toContain('Resumo-atualizado')
@@ -1680,7 +1680,7 @@ describe('Regressao do editor no workspace', () => {
     }, { timeout: 3_000 })
   })
 
-  it('[frontmatter] arrow down do cabecalho abre o painel integrado com as tags da nota', async () => {
+  it('[frontmatter] arrow down do cabeçalho abre o painel integrado com as tags da nota', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
     localStorage.setItem('mirrormind.auto-save', 'true')
@@ -1796,7 +1796,7 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
 
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
-    const control = screen.getByRole('radiogroup', { name: 'Exibicao das lacunas da ultima revisao' })
+    const control = screen.getByRole('radiogroup', { name: 'Exibição das lacunas da última revisão' })
     expect(control).toBeInTheDocument()
 
     // Padrao configurado: sempre visiveis -> a secao do motor unico tem
@@ -1839,7 +1839,7 @@ describe('Regressao do editor no workspace', () => {
     expect(engineSection?.querySelectorAll('.review-unit-score').length).toBeGreaterThan(0)
   })
 
-  it('[busca na nota] Ctrl+F abre o campo flutuante com contador e navegacao por setas', async () => {
+  it('[busca na nota] Ctrl+F abre o campo flutuante com contador e navegação por setas', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
@@ -1904,7 +1904,7 @@ describe('Regressao do editor no workspace', () => {
     expect(document.querySelector('.markdown-reading-engine')).not.toBeNull()
   })
 
-  it('[busca na nota] Ctrl+F no modo Edicao abre a barra do app (nao o painel nativo do CodeMirror)', async () => {
+  it('[busca na nota] Ctrl+F no modo Edicao abre a barra do app (não o painel nativo do CodeMirror)', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
@@ -1921,7 +1921,7 @@ describe('Regressao do editor no workspace', () => {
     expect(document.querySelector('.cm-search')).toBeNull()
   })
 
-  it('[popover de formatacao] aparece sobre a selecao, aplica negrito e fecha com Escape', async () => {
+  it('[popover de formatacao] aparece sobre a seleção, aplica negrito e fecha com Escape', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
@@ -1956,13 +1956,13 @@ describe('Regressao do editor no workspace', () => {
     await waitFor(() => expect(screen.queryByRole('toolbar', { name: 'Formatar seleção' })).not.toBeInTheDocument())
   })
 
-  it('[aparencia] alterna o tema escuro, aplica no documento e persiste a preferencia', async () => {
+  it('[aparência] alterna o tema escuro, aplica no documento e persiste a preferência', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Configuracoes' }))
-    expect(await screen.findByRole('heading', { name: 'Configuracoes do vault' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Configurações' }))
+    expect(await screen.findByRole('heading', { name: 'Configurações do vault' })).toBeInTheDocument()
 
     // Menu lateral navega entre as sessoes (destaque acompanha o clique).
     const nav = screen.getByRole('navigation', { name: 'Seções das configurações' })
@@ -1980,7 +1980,7 @@ describe('Regressao do editor no workspace', () => {
     // evitar a disputa entre o clamp por tecla e o valor digitado).
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Tamanho da fonte do editor e da leitura' }), { target: { value: '19' } })
     await waitFor(() => expect(localStorage.getItem('mirrormind.appearance.font-size')).toBe('19'))
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Limite do historico de desfazer e refazer' }), { target: { value: '250' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Limite do histórico de desfazer e refazer' }), { target: { value: '250' } })
     await waitFor(() => expect(localStorage.getItem('mirrormind.appearance.history-limit')).toBe('250'))
 
     // Volta para Claro e o atributo acompanha de novo.
@@ -1988,10 +1988,10 @@ describe('Regressao do editor no workspace', () => {
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe('light'))
   })
 
-  it('[aparencia] renderiza blocos Dataview e Tasks somente leitura no modo Leitura', async () => {
+  it('[aparência] renderiza blocos Dataview e Tasks somente leitura no modo Leitura', async () => {
     const user = userEvent.setup()
     createTauriHarness([
-      { name: 'blocos.md', relativePath: 'blocos.md', content: '# Blocos\n\n```dataview\nTABLE titulo FROM #estudo\n```\n\n```tasks\n- [ ] Tarefa pendente\n- [x] Tarefa feita\n```' },
+      { name: 'blocos.md', relativePath: 'blocos.md', content: '# Blocos\n\n```dataview\nTABLE título FROM #estudo\n```\n\n```tasks\n- [ ] Tarefa pendente\n- [x] Tarefa feita\n```' },
     ])
     await openTestVault(user)
 
@@ -2001,7 +2001,7 @@ describe('Regressao do editor no workspace', () => {
 
     // Dataview: card somente leitura com a consulta preservada.
     expect(await screen.findByRole('region', { name: 'Bloco Dataview' })).toBeInTheDocument()
-    expect(screen.getByText('TABLE titulo FROM #estudo')).toBeInTheDocument()
+    expect(screen.getByText('TABLE título FROM #estudo')).toBeInTheDocument()
 
     // Tasks: lista de tarefas com o estado dos checkboxes e texto.
     const tasksCard = screen.getByRole('region', { name: 'Bloco Tasks' })
@@ -2014,7 +2014,7 @@ describe('Regressao do editor no workspace', () => {
     expect(within(tasksCard).getByText(/- \[x\] Tarefa feita/)).toBeInTheDocument()
   })
 
-  it('[aparencia] visualiza Canvas pela lista de arquivos especiais sem editar', async () => {
+  it('[aparência] visualiza Canvas pela lista de arquivos especiais sem editar', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
@@ -2029,7 +2029,7 @@ describe('Regressao do editor no workspace', () => {
     // O dialogo de lista continua fechado por cima do visualizador.
     expect(within(viewer).getByText(/somente leitura/)).toBeInTheDocument()
 
-    await user.click(within(viewer).getByRole('button', { name: 'Fechar visualizacao do arquivo especial' }))
+    await user.click(within(viewer).getByRole('button', { name: 'Fechar visualização do arquivo especial' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Visualizar Planejamento.canvas' })).not.toBeInTheDocument())
   })
 })
