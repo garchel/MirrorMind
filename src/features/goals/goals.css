@@ -1,0 +1,525 @@
+.goals-page {
+  --goals-surface: #fbfaf6;
+  --goals-field: #fffefa;
+  --goals-ink: #20201e;
+  --goals-ink-soft: #353531;
+  --goals-text: #4f4f49;
+  --goals-faint: #62615b;
+  --goals-muted: #73736d;
+  --goals-line: #d9d7d0;
+  --goals-line-soft: #e3e1d9;
+  --goals-field-line: #c8c6be;
+  --goals-track: #e8e6de;
+  --goals-sunk: #f4f2ec;
+  --goals-done: #2f6b3a;
+  --goals-success: #2f6b3a;
+  --goals-on-accent: #fff;
+  gap: 24px;
+}
+
+/* Tema escuro (caderno noturno): reescopo dos tokens acima, mesmo padrão
+ * do `bases.css` (`--bases-*`). O layout claro permanece pixel-idêntico. */
+:root[data-theme='dark'] .goals-page {
+  --goals-surface: #2b2721;
+  --goals-field: #211d18;
+  --goals-ink: #e8e6dd;
+  --goals-ink-soft: #cfccc2;
+  --goals-text: #b8b8ae;
+  --goals-faint: #a09c90;
+  --goals-muted: #8f8f85;
+  --goals-line: rgb(232 230 221 / 16%);
+  --goals-line-soft: rgb(232 230 221 / 9%);
+  --goals-field-line: rgb(232 230 221 / 24%);
+  --goals-track: rgb(232 230 221 / 12%);
+  --goals-sunk: rgb(232 230 221 / 6%);
+  --goals-done: #5aa07f;
+  --goals-success: #7fb894;
+  --goals-on-accent: #23201b;
+}
+
+.goals-page .workspace-page-header {
+  border-bottom: 1px solid var(--goals-line);
+  padding-bottom: 20px;
+}
+
+/* Escudo de especificidade: neutraliza regras globais do App.css (`button`,
+ * `button:hover`, `.secondary-button`) dentro desta página, independente da
+ * ordem em que os CSS são carregados no bundle. */
+.goals-page button:hover:not(:disabled) {
+  transform: none;
+}
+
+.goals-page .goal-status-option {
+  font-weight: 400;
+}
+
+.goals-page .goal-status-option.is-active {
+  font-weight: 600;
+}
+
+.goals-page .goals-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Botão "Nova meta": cores explícitas nos tokens canônicos do app
+ * (nunca herda nem depende da ordem do CSS global). Claro: fundo
+ * #1c2427 + texto #f7f2e7. Escuro: fundo #e8e6dd + texto #23201b. */
+.goals-page .goals-new-button,
+.goals-page .goals-submit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.goals-page .goals-new-button:hover:not(:disabled),
+.goals-page .goals-submit-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.goals-page .goals-new-button:disabled,
+.goals-page .goals-submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.goals-page .goal-delete-confirm {
+  border: 1px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* Antidoto contra overflow: o texto do cabecalho do card precisa de
+ * `min-width: 0` para o flex encolher, e títulos longos quebram. */
+.goals-page .goal-card-header > div:first-child {
+  min-width: 0;
+}
+
+.goals-page .goal-card-header h3,
+.goals-page .goal-card-objective {
+  overflow-wrap: anywhere;
+}
+
+/* Modal "Nova meta": estende a base `.modal` com a identidade da página.
+ * Backdrop, animação de entrada e botão fechar vêm de `Modal.css`. */
+.goals-dialog {
+  background: var(--goals-surface);
+  color: var(--goals-ink-soft);
+}
+
+.goals-dialog-form {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.goals-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.goals-error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.goals-success {
+  margin: 0;
+  color: var(--goals-success);
+  font-size: 13px;
+}
+
+.goals-dialog-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--goals-ink-soft);
+}
+
+/* Seletor propositalmente mais específico que `.goals-dialog-form input`
+ * para o checkbox nunca herdar `width: 100%` (foi a causa do overflow). */
+.goals-dialog-form label.goals-dialog-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.goals-dialog-form label.goals-dialog-check input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  min-width: 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.goals-dialog-form input,
+.goals-dialog-form textarea {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--goals-field-line);
+  border-radius: 6px;
+  background: var(--goals-field);
+  color: var(--goals-ink);
+  font: 13px/1.5 var(--sans);
+}
+
+.goals-dialog-form textarea {
+  min-height: 88px;
+  resize: vertical;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.goals-dialog-form small {
+  color: var(--goals-muted);
+  font-size: 12px;
+}
+
+.goals-list {
+  display: grid;
+  gap: 16px;
+  max-width: 820px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.goal-card {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--goals-line);
+  border-radius: 10px;
+  background: var(--goals-surface);
+}
+
+.goal-card.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.goal-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.goal-card-header h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.goal-card-objective {
+  margin: 0;
+  color: var(--goals-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.goal-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--goals-muted);
+  font-size: 12px;
+}
+
+.goal-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.goal-steps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: goal-step;
+}
+
+.goal-steps li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid var(--goals-line-soft);
+  border-radius: 8px;
+  background: var(--goals-field);
+}
+
+.goal-step-order {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--goals-on-accent);
+  font: 700 12px/1 var(--mono);
+}
+
+.goal-step-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.goal-step-copy strong {
+  font-size: 13.5px;
+}
+
+/* Botoes da pagina de Metas seguem o padrao do workspace
+   (`.workspace-shell button`: cantos de 4px) — nada de pilula. O seletor
+   com `.goals-page` garante o padrao mesmo se a cascata mudar. */
+.goals-page button {
+  border-radius: 4px;
+}
+
+/* Título da nota proposta + botão "+" à direita: a lista é só
+ * representação organizada — nada é criado até o clique. */
+.goal-step-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.goal-step-title-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.goals-page .goal-step-add {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid var(--goals-line);
+  border-radius: 4px;
+  background: var(--goals-surface);
+  color: var(--goals-ink-soft);
+  cursor: pointer;
+}
+
+.goals-page .goal-step-add:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.goal-step-add:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.goal-step-add:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.goal-step-copy p {
+  margin: 0;
+  color: var(--goals-faint);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.goal-step-copy code {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.goal-step-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+/* Controle segmentado de status: rótulos sempre visíveis (nunca só cor),
+ * alvos de 32px+ e estado ativo anunciado via `aria-pressed`. */
+.goal-step-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--goals-line-soft);
+  border-radius: 8px;
+  background: var(--goals-sunk);
+}
+
+.goal-status-option {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--goals-faint);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.goal-status-option:hover:not(:disabled) {
+  border-color: var(--goals-line);
+  color: var(--goals-ink);
+}
+
+.goal-status-option.is-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--goals-on-accent);
+  font-weight: 600;
+}
+
+.goal-status-option:disabled:not(.is-active) {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.goal-steps li.is-done .goal-step-order {
+  background: var(--goals-done);
+}
+
+.goal-steps li.is-done .goal-step-copy strong {
+  color: var(--goals-text);
+}
+
+/* Resumo geral + barra de progresso do card: texto + barra (nunca só cor),
+ * com `role="progressbar"` no TSX para leitores de tela. */
+.goals-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  max-width: 820px;
+  margin: 0;
+  padding: 12px 20px;
+  border: 1px solid var(--goals-line);
+  border-radius: 8px;
+  background: var(--goals-surface);
+}
+
+.goals-summary > div {
+  display: grid;
+  gap: 2px;
+}
+
+.goals-summary dt {
+  color: var(--goals-muted);
+  font-size: 12px;
+}
+
+.goals-summary dd {
+  margin: 0;
+  color: var(--goals-ink);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.goal-progress-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.goal-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--goals-track);
+}
+
+.goal-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 200ms ease-out;
+}
+
+.goal-progress-text {
+  color: var(--goals-text);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.goal-delete-confirm {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Anel de foco visível em todos os controles da página. */
+.goals-page button:focus-visible,
+.goals-page input:focus-visible,
+.goals-page textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+  .goal-steps li {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .goal-step-status {
+    grid-column: 2;
+    justify-self: start;
+    flex-wrap: wrap;
+  }
+
+  .goal-progress-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goal-step-add,
+  .goal-status-option,
+  .goal-progress-fill {
+    transition: none;
+  }
+}
+
+.goals-status {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  min-height: 100px;
+  align-content: center;
+  border: 1px dashed var(--goals-field-line);
+  border-radius: 8px;
+  padding: 24px;
+  background: var(--goals-surface);
+  color: var(--goals-ink-soft);
+  font-size: 14px;
+}
+
+.goals-status.is-error {
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--goals-field-line));
+}

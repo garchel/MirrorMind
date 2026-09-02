@@ -9,6 +9,7 @@ import type {
   SegmentationRecalcProgress,
   VaultReviewPolicyConfig,
 } from './vaultReviewPolicy'
+import { SettingsSection } from '../../components/SettingsSection'
 import './segmentation-settings.css'
 
 type Props = {
@@ -145,14 +146,14 @@ export function SegmentationSettings({ vaultPath }: Props) {
   }
 
   return (
-    <div className="settings-section segmentation-settings" aria-labelledby="segmentation-settings-title">
-      <div className="segmentation-heading">
-        <div>
-          <p className="card-kicker" id="segmentation-settings-title">Segmentação de unidades</p>
-          <small>Controla a partir de quantas palavras uma nota deixa de ser tratada como uma unidade única e passa a ser dividida em seções (notas com títulos) ou parágrafos (notas sem títulos), com identidade determinística.</small>
-        </div>
-        {config ? <span>revisão {config.revision}</span> : null}
-      </div>
+    <SettingsSection
+      id="segmentation-settings-title"
+      kicker="Revisão"
+      title="Segmentação de unidades"
+      description="Controla a partir de quantas palavras uma nota deixa de ser tratada como uma unidade única e passa a ser dividida em seções (notas com títulos) ou parágrafos (notas sem títulos), com identidade determinística."
+      aside={config ? <span>revisão {config.revision}</span> : null}
+      className="segmentation-settings"
+    >
 
       {loading ? <p role="status">Carregando segmentação do Vault…</p> : null}
       {!loading && !config ? (
@@ -248,6 +249,6 @@ export function SegmentationSettings({ vaultPath }: Props) {
           ) : null}
         </div>
       ) : null}
-    </div>
+    </SettingsSection>
   )
 }

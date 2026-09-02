@@ -4,23 +4,7 @@
   gap: 14px;
 }
 
-.review-notification-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.review-notification-heading > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.review-notification-heading svg {
-  color: var(--workspace-muted, #8a8f98);
-  margin-top: 2px;
-}
+/* Cabeçalho unificado em `SettingsSection` (components/SettingsSection.css). */
 
 .review-notification-time {
   width: 130px;

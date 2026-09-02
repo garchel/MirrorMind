@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bell, BellOff } from 'lucide-react'
+import { SettingsSection } from '../../components/SettingsSection'
 import {
   getReviewNotificationSettings,
   sendReviewTestNotification,
@@ -88,23 +89,27 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
 
   if (!settings) {
     return (
-      <div className="settings-section review-notification-settings" aria-labelledby="review-notification-settings-title">
-        <p className="card-kicker" id="review-notification-settings-title">Notificações de revisão</p>
+      <SettingsSection
+        id="review-notification-settings-title"
+        kicker="Revisão"
+        title="Notificações de revisão"
+        className="review-notification-settings"
+      >
         <p role="status">Carregando preferências de notificação...</p>
         {error ? <p className="field-error" role="alert">{error}</p> : null}
-      </div>
+      </SettingsSection>
     )
   }
 
   return (
-    <div className="settings-section review-notification-settings" aria-labelledby="review-notification-settings-title">
-      <div className="review-notification-heading">
-        <div>
-          <p className="card-kicker" id="review-notification-settings-title">Notificações de revisão</p>
-          <small>Um único resumo diário com o total de revisões vencidas, em vez de uma notificação por nota.</small>
-        </div>
-        <Bell size={16} strokeWidth={1.6} aria-hidden="true" />
-      </div>
+    <SettingsSection
+      id="review-notification-settings-title"
+      kicker="Revisão"
+      title="Notificações de revisão"
+      description="Um único resumo diário com o total de revisões vencidas, em vez de uma notificação por nota."
+      aside={<Bell size={16} strokeWidth={1.6} aria-hidden="true" />}
+      className="review-notification-settings"
+    >
 
       <label className="settings-toggle">
         <span>
@@ -173,6 +178,6 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
       ) : null}
 
       {error ? <p className="field-error" role="alert">{error}</p> : null}
-    </div>
+    </SettingsSection>
   )
 }

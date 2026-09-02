@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   checkOllamaReviewStatus,
+  confirmOpenAiCompatibleDataConsent,
   configureGeminiApiKey,
   configureOpenAiCompatibleProvider,
   confirmGeminiDataConsent,
@@ -14,6 +15,7 @@ import {
 import type { DivergenceReport, OllamaStatus, ReviewAiConfiguration, ReviewAiProvider, UsageStatus } from './ai'
 import { estimateManagedCallCostUsd } from './managedProvider'
 import { useReviewAiSettings } from './ReviewAiSettingsContext'
+import { SettingsSection } from '../../components/SettingsSection'
 import './review-ai.css'
 
 /** Contagem de caracteres do prompt estimado para a chamada gerenciada. */
@@ -24,7 +26,7 @@ function estimatedManagedInputChars(): number {
 }
 
 export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
-  const { provider, setProvider, geminiConsent, setGeminiConsent, managedStatus, canUseManaged, managedUnavailableMessage } = useReviewAiSettings()
+  const { provider, setProvider, geminiConsent, setGeminiConsent, openAiConsent, setOpenAiConsent, managedStatus, canUseManaged, managedUnavailableMessage } = useReviewAiSettings()
   const [configuration, setConfiguration] = useState<ReviewAiConfiguration | null>(null)
   const [apiKey, setApiKey] = useState('')
   const [openAiBaseUrl, setOpenAiBaseUrl] = useState('')
@@ -102,6 +104,15 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
     if (confirmed) setGeminiConsent(true)
   }
 
+  async function toggleOpenAiConsent(checked: boolean) {
+    if (!checked) {
+      setOpenAiConsent(false)
+      return
+    }
+    const confirmed = await confirmOpenAiCompatibleDataConsent()
+    if (confirmed) setOpenAiConsent(true)
+  }
+
   async function saveOpenAiCompatible() {
     configurationGenerationRef.current += 1
     setBusy(true)
@@ -162,8 +173,12 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
   }
 
   return (
-    <div className="settings-section review-ai-settings" aria-labelledby="review-ai-settings-title">
-      <p className="card-kicker" id="review-ai-settings-title">Revisão com IA</p>
+    <SettingsSection
+      id="review-ai-settings-title"
+      kicker="Revisão"
+      title="Revisão com IA"
+      className="review-ai-settings"
+    >
       <label className="settings-toggle">
         <span>
           <strong>Provedor da revisão</strong>
@@ -242,6 +257,21 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
             Qualquer servidor com a API de chat completions OpenAI-compatible (OpenAI, OpenRouter,
             LM Studio, vLLM...). A chave fica no cofre nativo e nunca no Vault.
           </p>
+          <p className="field-hint" style={{ color: 'var(--text-muted, #6b6b6b)', marginTop: 6 }}>
+            <strong>LGPD Art.33 — Transferência internacional:</strong> o conteúdo da nota selecionada
+            e os dados da sessão sairão do seu computador para o endereço configurado acima e serão
+            tratados segundo a política do provedor. Use <code>https</code> para servidores remotos
+            (<code>http</code> só para <code>127.0.0.1/localhost</code>). Não envie notas com dados
+            sensíveis (Art.11) sem necessidade.
+          </p>
+          <label className="review-ai-consent">
+            <input
+              type="checkbox"
+              checked={openAiConsent}
+              onChange={(event) => void toggleOpenAiConsent(event.target.checked)}
+            />
+            <span>Autorizo o envio desses dados ao servidor OpenAI-compatible.</span>
+          </label>
           {configuration?.openAiCompatibleConfigured ? (
             <dl>
               <div><dt>Endereco</dt><dd>{configuration.openAiCompatibleBaseUrl}</dd></div>
@@ -379,6 +409,6 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
         </dl>
       ) : null}
       {error ? <p className="field-error" role="alert">{error}</p> : null}
-    </div>
+    </SettingsSection>
   )
 }

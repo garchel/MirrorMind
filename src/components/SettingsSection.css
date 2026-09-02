@@ -1,0 +1,46 @@
+/* Cabeçalho padrão das seções de configuração (SettingsSection):
+ * mesma estrutura dos antigos `review-notification-heading`,
+ * `segmentation-heading` e `vault-review-policy-heading`. */
+
+.settings-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-section-heading > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-section-heading p,
+.settings-section-heading h3,
+.settings-section-heading small {
+  margin: 0;
+}
+
+.settings-section-heading h3 {
+  color: var(--text-h);
+  font-size: 15px;
+}
+
+.settings-section-heading > div > small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-section-heading > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.settings-section-heading > span {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}

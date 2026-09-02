@@ -2,28 +2,10 @@
   gap: 14px;
 }
 
-.vault-review-policy-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
+/* Cabeçalho unificado em `SettingsSection` (components/SettingsSection.css). */
 
-.vault-review-policy-heading p,
-.vault-review-policy-heading small,
 .vault-review-policy-confirmation p {
   margin: 0;
-}
-
-.vault-review-policy-heading > div {
-  display: grid;
-  gap: 4px;
-}
-
-.vault-review-policy-heading > span {
-  color: var(--muted, #706d66);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
 }
 
 .vault-review-policy-presets {

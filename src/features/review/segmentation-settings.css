@@ -2,29 +2,11 @@
   gap: 14px;
 }
 
-.segmentation-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
+/* Cabeçalho unificado em `SettingsSection` (components/SettingsSection.css). */
 
-.segmentation-heading p,
-.segmentation-heading small,
 .segmentation-toast span,
 .segmentation-toast small {
   margin: 0;
-}
-
-.segmentation-heading > div {
-  display: grid;
-  gap: 4px;
-}
-
-.segmentation-heading > span {
-  color: var(--muted, #706d66);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
 }
 
 .segmentation-field {

@@ -11,6 +11,7 @@ import type {
   VaultReviewPolicyConfig,
 } from './vaultReviewPolicy'
 import { PolicyWorkloadEstimate } from './PolicyWorkloadEstimate'
+import { SettingsSection } from '../../components/SettingsSection'
 import './vault-review-policy.css'
 
 type Props = {
@@ -158,14 +159,14 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
   }
 
   return (
-    <div className="settings-section vault-review-policy-settings" aria-labelledby="vault-review-policy-title">
-      <div className="vault-review-policy-heading">
-        <div>
-          <p className="card-kicker" id="vault-review-policy-title">Padrão de revisão do Vault</p>
-          <small>Usado por notas sem uma sobrescrita própria ou regra de tag.</small>
-        </div>
-        {config ? <span>revisão {config.revision}</span> : null}
-      </div>
+    <SettingsSection
+      id="vault-review-policy-title"
+      kicker="Revisão"
+      title="Padrão de revisão do Vault"
+      description="Usado por notas sem uma sobrescrita própria ou regra de tag."
+      aside={config ? <span>revisão {config.revision}</span> : null}
+      className="vault-review-policy-settings"
+    >
 
       {loading ? <p role="status">Carregando política do Vault…</p> : null}
       {!loading && !form ? (
@@ -233,6 +234,6 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
 
       {error ? <p className="field-error" role="alert">{error}</p> : null}
       {success ? <p className="vault-review-policy-success" role="status">{success}</p> : null}
-    </div>
+    </SettingsSection>
   )
 }
