@@ -36,6 +36,45 @@
   --radius-xl: 16px;
   --radius-2xl: 24px;
 
+  /* Tokens da Revisão (features/review): hex claros originais de cada
+   * arquivo, unificados; o bloco escuro abaixo os reescopa. Substitui os
+   * blocos DARK AUTO gerados por script (scripts/gen-review-dark.py,
+   * aposentado agora). */
+  --review-surface: #fbfaf6;
+  --review-raised: #f2f1ec;
+  --review-sunk: #f6f4ee;
+  --review-header: #f7f5ee;
+  --review-field: #fffdf8;
+  --review-line: #d8d4ca;
+  --review-line-soft: #e6e3d8;
+  --review-line-strong: #cfccc2;
+  --review-ink: #2b2b26;
+  --review-ink-soft: #353531;
+  --review-text: #4f4f49;
+  --review-faint: #8a8a82;
+  --review-muted: #6b6a63;
+  --review-muted-2: #aaa79e;
+  --review-accent-soft: #8b4a20;
+  --review-warn: #7a5c10;
+  --review-warn-strong: #5d4b25;
+  --review-warn-bg: #ffe5a5;
+  --review-warn-bg-soft: #fdf3e3;
+  --review-ok: #4f7d48;
+  --review-ok-soft: #3f5239;
+  --review-ok-bg: #cfe3c4;
+  --review-ok-bg-strong: #8fc98a;
+  --review-ok-bg-soft: #e6f4ea;
+  --review-bad: #b3261e;
+  --review-bad-strong: #7c3f36;
+  --review-bad-bg: #ffc9c2;
+  --review-bad-bg-soft: #fdeceb;
+  --review-info: #1a5f8a;
+  --review-info-bg: #e8f1f8;
+  --review-alt: #5c5490;
+  --review-alt-bg: #e3e0f2;
+  --review-alt-bg-soft: #f4f2fb;
+  --review-alt-line: #b9b3dd;
+
   font: 18px/150% var(--sans);
   letter-spacing: 0.01em;
   color: var(--text);
@@ -67,6 +106,45 @@
   --success: #5aa07f;
   --danger: #c96a4e;
   --panel-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+
+  /* Tokens da Revisão no tema escuro: mesma paleta noturna dos blocos DARK
+   * AUTO anteriores (goals/tags/bases). Com a tokenização, este bloco é a
+   * ÚNICA fonte do dark de features/review — os arquivos de página só
+   * referenciam var(--review-*). */
+  --review-surface: #2b2721;
+  --review-raised: rgb(232 230 221 / 6%);
+  --review-sunk: rgb(232 230 221 / 6%);
+  --review-header: #232027;
+  --review-field: #211d18;
+  --review-line: rgb(232 230 221 / 16%);
+  --review-line-soft: rgb(232 230 221 / 9%);
+  --review-line-strong: rgb(232 230 221 / 24%);
+  --review-ink: #e8e6dd;
+  --review-ink-soft: #d6d4cd;
+  --review-text: #c9c7c0;
+  --review-faint: #a09c90;
+  --review-muted: #8f8f85;
+  --review-muted-2: #8f8f85;
+  --review-accent-soft: #e8a06b;
+  --review-warn: #d9b56a;
+  --review-warn-strong: #d9b56a;
+  --review-warn-bg: rgb(233 180 87 / 22%);
+  --review-warn-bg-soft: rgb(233 180 87 / 14%);
+  --review-ok: #5aa07f;
+  --review-ok-soft: #7fb894;
+  --review-ok-bg: rgb(90 160 127 / 24%);
+  --review-ok-bg-strong: rgb(90 160 127 / 32%);
+  --review-ok-bg-soft: rgb(90 160 127 / 16%);
+  --review-bad: #d98a6a;
+  --review-bad-strong: #c96a4e;
+  --review-bad-bg: rgb(217 106 78 / 22%);
+  --review-bad-bg-soft: rgb(217 106 78 / 14%);
+  --review-info: #79a8ff;
+  --review-info-bg: rgb(121 168 255 / 14%);
+  --review-alt: #b3abd9;
+  --review-alt-bg: rgb(180 170 230 / 18%);
+  --review-alt-bg-soft: rgb(180 170 230 / 12%);
+  --review-alt-line: rgb(180 170 230 / 30%);
   color-scheme: dark;
 }
 

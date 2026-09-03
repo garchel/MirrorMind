@@ -5,8 +5,8 @@
   margin: 10px 0 4px;
   padding: 10px 12px;
   border-radius: var(--radius-lg);
-  background: #f4f2ea;
-  border: 1px solid #e6e3d8;
+  background: var(--review-sunk);
+  border: 1px solid var(--review-line-soft);
 }
 
 .policy-workload-estimate-summary {
@@ -16,25 +16,25 @@
   gap: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #292926;
+  color: var(--review-ink);
 }
 
 .policy-workload-estimate-sep {
-  color: #9a968a;
+  color: var(--review-faint);
   font-weight: 400;
 }
 
 .policy-workload-estimate-note {
   font-size: 11.5px;
   line-height: 1.45;
-  color: #7a766b;
+  color: var(--review-muted);
 }
 
 .policy-workload-estimate-loading {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #7a766b;
+  color: var(--review-muted);
   font-weight: 500;
 }
 
@@ -48,16 +48,3 @@
   }
 }
 
-/* ==== DARK AUTO (review) — gerado por scripts/gen-review-dark.py; edite o gerador, não este bloco ==== */
-/* Tema escuro (caderno noturno): réplica das regras claras com a
- * paleta noturna do app (mesmo padrão de goals/tags/bases). */
-[data-theme='dark'] .policy-workload-estimate {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 10px 0 4px;
-  padding: 10px 12px;
-  border-radius: var(--radius-lg);
-  background: #f4f2ea;
-  border: 1px solid rgb(232 230 221 / 9%);}
-/* ==== /DARK AUTO ==== */
