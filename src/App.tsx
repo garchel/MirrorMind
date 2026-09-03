@@ -823,18 +823,10 @@ function App() {
   // Escape fecha o dialog do topo (um por vez): cada modal se registra na
   // pilha global enquanto aberto. A command palette e o popover do editor
   // tratam Escape manualmente e nao se registram.
-  useEscapeToClose(showSpecialFilesDialog, () => setShowSpecialFilesDialog(false))
+  // Escape dos modais migrados para `<Modal>` é registrado pelo próprio
+  // componente (pilha global); restam aqui só os casos fora dele: viewer
+  // (o estado de "Lendo..." é bloqueante) e palette (UX própria).
   useEscapeToClose(Boolean(specialFileViewer), () => setSpecialFileViewer(null))
-  useEscapeToClose(showNoteSearch, () => setShowNoteSearch(false))
-  useEscapeToClose(showNoteLinkDialog, () => setShowNoteLinkDialog(false))
-  useEscapeToClose(showTagFilterDialog, () => setShowTagFilterDialog(false))
-  useEscapeToClose(showTagDialog, () => setShowTagDialog(false))
-  useEscapeToClose(showFolderDialog, () => setShowFolderDialog(false))
-  useEscapeToClose(Boolean(renameTarget), () => setRenameTarget(null))
-  useEscapeToClose(Boolean(moveTarget), () => setMoveTarget(null))
-  useEscapeToClose(Boolean(deleteTarget), () => setDeleteTarget(null))
-  useEscapeToClose(Boolean(permanentDeleteTarget), () => setPermanentDeleteTarget(null))
-  useEscapeToClose(Boolean(graphConnectSource), () => setGraphConnectSource(null))
 
   const isDirty = activeNote !== null && draftContent !== activeNote.content
   // Lacunas da ultima revisao para o motor unico (modo Leitura = Misto
@@ -6930,8 +6922,12 @@ function App() {
           </div>
         ) : null}
         {showSpecialFilesDialog ? (
-          <div className="note-search-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowSpecialFilesDialog(false) }}>
-            <section className="note-search-modal special-files-modal" role="dialog" aria-modal="true" aria-label="Arquivos com compatibilidade limitada" onKeyDown={(event) => { if (event.key === 'Escape') setShowSpecialFilesDialog(false) }}>
+          <Modal
+            open
+            onClose={() => setShowSpecialFilesDialog(false)}
+            label="Arquivos com compatibilidade limitada"
+            className="note-search-modal special-files-modal"
+          >
               <div className="move-item-heading">
                 <strong>Arquivos preservados</strong>
                 <span>Estes arquivos permanecem no Vault, mas ainda não podem ser visualizados ou editados aqui.</span>
@@ -6962,8 +6958,7 @@ function App() {
                   </article>
                 ))}
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         {specialFileViewer ? (
           specialFileViewerContent !== null ? (
@@ -6973,27 +6968,38 @@ function App() {
               onClose={() => setSpecialFileViewer(null)}
             />
           ) : specialFileViewerError !== null ? (
-            <div className="note-search-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSpecialFileViewer(null) }}>
-              <section className="note-search-modal" role="dialog" aria-modal="true" aria-label={`Erro ao visualizar ${specialFileViewer.name}`}>
+            <Modal
+              open
+              onClose={() => setSpecialFileViewer(null)}
+              label={`Erro ao visualizar ${specialFileViewer.name}`}
+              className="note-search-modal"
+            >
                 <div className="move-item-heading">
                   <strong>{specialFileViewer.name}</strong>
                   <span>Não foi possível ler o arquivo para visualizacao.</span>
                   <button autoFocus type="button" className="modal-close-button" onClick={() => setSpecialFileViewer(null)} aria-label="Fechar erro de visualização"><X size={15} aria-hidden="true" /></button>
                 </div>
                 <p className="field-error" role="alert">{specialFileViewerError}</p>
-              </section>
-            </div>
+            </Modal>
           ) : (
-            <div className="note-search-backdrop" role="presentation">
-              <section className="note-search-modal" role="dialog" aria-modal="true" aria-label={`Lendo ${specialFileViewer.name}`}>
-                <p className="special-files-limit-notice" role="status">Lendo o arquivo para visualizacao...</p>
-              </section>
-            </div>
+            <Modal
+              open
+              onClose={() => setSpecialFileViewer(null)}
+              label={`Lendo ${specialFileViewer.name}`}
+              className="note-search-modal"
+              dismissable={false}
+            >
+              <p className="special-files-limit-notice" role="status">Lendo o arquivo para visualizacao...</p>
+            </Modal>
           )
         ) : null}
         {showNoteSearch ? (
-          <div className="note-search-backdrop" role="presentation">
-            <section className="note-search-modal" role="dialog" aria-modal="true" aria-label="Abrir nota existente">
+          <Modal
+            open
+            onClose={() => setShowNoteSearch(false)}
+            label="Abrir nota existente"
+            className="note-search-modal"
+          >
               <input
                 autoFocus
                 value={noteSearchQuery}
@@ -7019,12 +7025,15 @@ function App() {
                 ))}
                 {noteSearchQuery.trim() && noteSearchResults.length === 0 ? <p>Nenhuma nota encontrada.</p> : null}
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         {showTagFilterDialog ? (
-          <div className="note-search-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowTagFilterDialog(false) }}>
-            <section className="note-search-modal tag-filter-modal" role="dialog" aria-modal="true" aria-label="Filtrar notas por tags">
+          <Modal
+            open
+            onClose={() => setShowTagFilterDialog(false)}
+            label="Filtrar notas por tags"
+            className="note-search-modal tag-filter-modal"
+          >
               <div className="move-item-heading">
                 <strong>Filtrar por tags</strong>
                 <span>As notas precisam conter todas as tags selecionadas.</span>
@@ -7052,12 +7061,15 @@ function App() {
                 <button type="button" className="secondary-button" onClick={() => { setSelectedTags([]); setTagFilterQuery('') }}>Limpar</button>
                 <button type="button" onClick={() => setShowTagFilterDialog(false)}>Aplicar filtro</button>
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         {showNoteLinkDialog ? (
-          <div className="note-search-backdrop" role="presentation">
-            <section className="note-search-modal" role="dialog" aria-modal="true" aria-label="Inserir link para nota">
+          <Modal
+            open
+            onClose={() => setShowNoteLinkDialog(false)}
+            label="Inserir link para nota"
+            className="note-search-modal"
+          >
               <input autoFocus value={noteLinkQuery} onChange={(event) => setNoteLinkQuery(event.target.value)} placeholder="Buscar nota para vincular" aria-label="Buscar nota" />
               <div className="note-search-results">
                 {linkableNotes.map((note) => (
@@ -7068,12 +7080,16 @@ function App() {
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={() => setShowNoteLinkDialog(false)}>Cancelar</button>
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         {graphConnectSource ? createPortal(
-          <div className="note-search-backdrop" role="presentation" style={{ pointerEvents: 'auto' }}>
-            <section className="note-search-modal" role="dialog" aria-modal="true" aria-label="Criar conexao no grafo">
+          <div style={{ pointerEvents: 'auto' }}>
+          <Modal
+            open
+            onClose={() => setGraphConnectSource(null)}
+            label="Criar conexao no grafo"
+            className="note-search-modal"
+          >
               <input autoFocus value={graphConnectQuery} onChange={(event) => setGraphConnectQuery(event.target.value)} placeholder="Buscar nota para conectar" aria-label="Buscar nota para conectar" />
               <div className="note-search-results">
                 {graphConnectNotes.map((note) => (
@@ -7084,35 +7100,45 @@ function App() {
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={() => setGraphConnectSource(null)}>Cancelar</button>
               </div>
-            </section>
+          </Modal>
           </div>,
           document.body,
         ) : null}
         {showTagDialog ? (
-          <div className="note-search-backdrop" role="presentation">
-            <section className="note-search-modal" role="dialog" aria-modal="true" aria-label="Inserir tag">
+          <Modal
+            open
+            onClose={() => setShowTagDialog(false)}
+            label="Inserir tag"
+            className="note-search-modal"
+          >
               <input autoFocus value={tagName} onChange={(event) => setTagName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') insertTag() }} placeholder="Nome da tag" aria-label="Nome da tag" />
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={() => setShowTagDialog(false)}>Cancelar</button>
                 <button type="button" onClick={insertTag} disabled={!tagName.trim()}>Inserir tag</button>
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         {showFolderDialog ? (
-          <div className="note-search-backdrop" role="presentation">
-            <section className="note-search-modal" role="dialog" aria-modal="true" aria-label="Criar pasta">
+          <Modal
+            open
+            onClose={() => setShowFolderDialog(false)}
+            label="Criar pasta"
+            className="note-search-modal"
+          >
               <input autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void createFolder() }} placeholder="Nome ou caminho da pasta" aria-label="Nome da pasta" />
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={() => setShowFolderDialog(false)}>Cancelar</button>
                 <button type="button" onClick={() => void createFolder()} disabled={!folderName.trim() || loading}>Criar pasta</button>
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         {renameTarget ? (
-          <div className="note-search-backdrop" role="presentation">
-            <section className="note-search-modal" role="dialog" aria-modal="true" aria-label={`Renomear ${renameTarget.type === 'note' ? 'nota' : 'pasta'}`}>
+          <Modal
+            open
+            onClose={() => setRenameTarget(null)}
+            label={`Renomear ${renameTarget.type === 'note' ? 'nota' : 'pasta'}`}
+            className="note-search-modal"
+          >
               <input autoFocus value={renameName} onChange={(event) => setRenameName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void renameVaultItem() }} placeholder="Novo nome" aria-label="Novo nome" />
               {wikilinkIndexProgress ? (
                 <p className="wikilink-index-progress" role="status">
@@ -7128,12 +7154,15 @@ function App() {
                 <button type="button" className="secondary-button" onClick={() => setRenameTarget(null)}>Cancelar</button>
                 <button type="button" onClick={() => void renameVaultItem()} disabled={!renameName.trim() || loading}>Renomear</button>
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         {moveTarget ? (
-          <div className="note-search-backdrop" role="presentation">
-            <section className="note-search-modal move-item-modal" role="dialog" aria-modal="true" aria-label={`Mover ${moveTarget.type === 'note' ? 'nota' : 'pasta'}`}>
+          <Modal
+            open
+            onClose={() => setMoveTarget(null)}
+            label={`Mover ${moveTarget.type === 'note' ? 'nota' : 'pasta'}`}
+            className="note-search-modal move-item-modal"
+          >
               <div className="move-item-heading">
                 <strong>Mover {moveTarget.type === 'note' ? 'nota' : 'pasta'}: {moveTarget.name.replace(/\.md$/i, '')}</strong>
                 <span>Escolha a pasta de destino.</span>
@@ -7161,12 +7190,15 @@ function App() {
                 <button type="button" className="secondary-button" onClick={() => setMoveTarget(null)}>Cancelar</button>
                 <button type="button" onClick={() => void moveVaultItem()} disabled={loading}>Mover</button>
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         {deleteTarget ? (
-          <div className="note-search-backdrop" role="presentation">
-            <section className="note-search-modal delete-item-modal" role="dialog" aria-modal="true" aria-label={`Excluir ${deleteTarget.type === 'note' ? 'nota' : 'pasta'}`}>
+          <Modal
+            open
+            onClose={() => setDeleteTarget(null)}
+            label={`Excluir ${deleteTarget.type === 'note' ? 'nota' : 'pasta'}`}
+            className="note-search-modal delete-item-modal"
+          >
               <div className="move-item-heading">
                 <strong>Enviar para a lixeira?</strong>
                 <span>{deleteTarget.type === 'folder' ? `A pasta "${deleteTarget.name}" e todo o seu conteudo serao movidos para a lixeira.` : `A nota "${deleteTarget.name.replace(/\.md$/i, '')}" será movida para a lixeira.`}</span>
@@ -7179,12 +7211,15 @@ function App() {
                 <button type="button" className="secondary-button" onClick={() => setDeleteTarget(null)}>Cancelar</button>
                 <button type="button" className="danger-button" onClick={() => void deleteVaultItem()} disabled={loading}>Mover para lixeira</button>
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         {permanentDeleteTarget ? (
-          <div className="note-search-backdrop" role="presentation">
-            <section className="note-search-modal delete-item-modal" role="dialog" aria-modal="true" aria-label="Excluir permanentemente da lixeira">
+          <Modal
+            open
+            onClose={() => setPermanentDeleteTarget(null)}
+            label="Excluir permanentemente da lixeira"
+            className="note-search-modal delete-item-modal"
+          >
               <div className="move-item-heading">
                 <strong>Excluir permanentemente?</strong>
                 <span>{permanentDeleteTarget.itemType === 'folder' ? `A pasta "${permanentDeleteTarget.originalRelativePath}" e todo o seu conteudo serao removidos definitivamente.` : `A nota "${permanentDeleteTarget.originalRelativePath.replace(/\.md$/i, '')}" será removida definitivamente e nao podera ser restaurada.`}</span>
@@ -7193,8 +7228,7 @@ function App() {
                 <button type="button" className="secondary-button" onClick={() => setPermanentDeleteTarget(null)}>Cancelar</button>
                 <button type="button" className="danger-button" onClick={() => void permanentlyDeleteTrashItem()} disabled={loading}>Excluir permanentemente</button>
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         <BuilderModeControl enabled={isBuilderModeEnabled} onEnabledChange={setBuilderModeEnabled} />
         <UpdateBanner
@@ -7286,14 +7320,14 @@ function App() {
       {error ? <p className="error-banner">{error}</p> : null}
 
       {showRecentVaultModal && recentVaultPreference?.lastVaultPath ? (
-        <div className="recent-vault-backdrop" role="presentation">
-          <section
-            className="recent-vault-modal"
-            data-builder-name="recent-vault-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="recent-vault-title"
-          >
+        <Modal
+          open
+          onClose={() => void dismissRecentVault()}
+          labelledBy="recent-vault-title"
+          className="recent-vault-modal"
+          builderName="recent-vault-modal"
+          dismissable={false}
+        >
             <p className="card-kicker">Continuar de onde parou</p>
             <h2 id="recent-vault-title">Usar o ultimo vault?</h2>
             <p>
@@ -7316,8 +7350,7 @@ function App() {
                 Usar este vault
               </button>
             </div>
-          </section>
-        </div>
+        </Modal>
       ) : null}
       <BuilderModeControl enabled={isBuilderModeEnabled} onEnabledChange={setBuilderModeEnabled} />
     </main>

@@ -8,6 +8,30 @@ release pública ainda não foi feita; os marcos abaixo estão em
 
 ## [Não publicado]
 
+### Extração do App.tsx: todos os modais no `<Modal>` compartilhado
+
+**Adicionado**
+- Prop `builderName` no `<Modal>` (repassa `data-builder-name`; modo
+  construtor identifica o modal sob o mouse).
+- Ponte CSS `.modal.recent-vault-modal::backdrop` (véu + blur idênticos);
+  regra `.recent-vault-backdrop` órfã removida.
+
+**Alterado**
+- 14 modais do `App.tsx` no `<Modal>` (nomes acessíveis intactos):
+  arquivos especiais, viewer (erro + leitura), busca, filtro de tags,
+  link, conexão do grafo, tag, pasta, renomear, mover, excluir,
+  exclusão permanente e vault recente; 11 registros `useEscapeToClose`
+  duplicados removidos; ganho: contenção de Tab em todos.
+- Palette e dropdown de filtro rápido ficam (UX própria, sem backdrop
+  modal); `SpecialFileViewer` interno inalterado.
+
+**Corrigido**
+- Conexão do grafo mantém `createPortal` + `pointerEvents: auto`: o
+  drawer vaul esconde a subárvore `#root` (`aria-hidden`) e zera
+  `pointer-events` do body — sem o portal o modal some da acessibilidade
+  (2 regressões provaram, dump do DOM confirmou); lição registrada aqui
+  para futuras migrações sobre o drawer.
+
 ### Extração do App.tsx: aparência, leitura, editor e atalhos
 
 **Adicionado**

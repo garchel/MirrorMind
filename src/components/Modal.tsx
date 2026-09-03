@@ -22,6 +22,7 @@ export function Modal({
   className,
   children,
   dismissable = true,
+  builderName,
 }: {
   open: boolean
   onClose: () => void
@@ -32,6 +33,9 @@ export function Modal({
   /** `false` = modal bloqueante: Escape e clique no backdrop não dispensam
    * (só o `onClose` explícito da UI interna). Padrão `true`. */
   dismissable?: boolean
+  /** Repassado como `data-builder-name` ao `<dialog>` (modo construtor
+   * identifica o componente sob o mouse por esse atributo). */
+  builderName?: string
 }) {
   const dialogRef = useRef<HTMLDialogElement | null>(null)
 
@@ -92,6 +96,7 @@ export function Modal({
     <dialog
       ref={dialogRef}
       className={['modal', className].filter(Boolean).join(' ')}
+      data-builder-name={builderName}
       aria-labelledby={labelledBy}
       aria-label={labelledBy ? undefined : label}
       onClose={onClose}
