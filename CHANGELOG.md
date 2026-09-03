@@ -8,6 +8,28 @@ release pública ainda não foi feita; os marcos abaixo estão em
 
 ## [Não publicado]
 
+### Extração do App.tsx: aparência, leitura, editor e atalhos
+
+**Adicionado**
+- Hook `lib/useAppearanceSettings`: 14 prefs (atalhos, autosave, cores de
+  hover, fonte/largura de leitura, tema, fonte do editor, tamanho, limite
+  de histórico, quebra de linha, spell-check, confirmação de lixeira) com
+  as mesmas chaves e semântica — inclui a migração `Ctrl+Shift+M`→`Ctrl+M`
+  e o padrão "ausente = ligado" do autosave; 5 testes.
+- Ponte `patchShortcuts`/`resetShortcuts` (o `usePref` só aceita valor
+  direto; os 6 campos de captura usavam forma funcional).
+
+**Alterado**
+- 14 estados + 14 efeitos de persistência saem do `App.tsx`; `localStorage`
+  restante no App: só viewport do grafo (corretamente vault-scoped),
+  `clear()` da zona de perigo e 2 comentários.
+- Tipos `ReadingFont`/`ReadingWidth` moram no hook (só o App usava);
+  imports órfãos removidos (`normalize*`, `DEFAULT_WORKSPACE_SHORTCUTS`).
+
+**Corrigido**
+- Nada comportamental: regressão 63/63 sem toque (inclui os testes que
+  afirmam `'dark'`/`'19'`/`'250'` nas chaves legadas).
+
 ### Extração do App.tsx: grafo, prefs e modais de mudança externa
 
 **Adicionado**

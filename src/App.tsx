@@ -38,6 +38,7 @@ import { useEscapeToClose } from './lib/escapeStack'
 import { UpdateBanner } from './components/UpdateBanner'
 import { Modal } from './components/Modal'
 import { useGraphSettings } from './lib/useGraphSettings'
+import { useAppearanceSettings, type ReadingFont, type ReadingWidth } from './lib/useAppearanceSettings'
 import { usePref } from './lib/prefs'
 
 import { canApplyInventoryIncrementally, createVaultScanCoordinator, diffVaultNotePaths, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
@@ -47,10 +48,8 @@ import { applyWikilinkEdit, buildWikilinkIndex, getWikilinkBacklinks, getWikilin
 import { isIndexadora, removeIndexadoraSection, setIndexadoraFlag, syncIndexadoraSection } from './lib/indexadora'
 import type { MarkdownCodeEditorHandle, MarkdownEditorHistoryStatus, MarkdownEditorSession } from './components/MarkdownCodeEditor'
 import {
-  DEFAULT_WORKSPACE_SHORTCUTS,
   formatShortcut,
   matchesShortcut,
-  type WorkspaceShortcuts,
 } from './lib/keyboard-shortcuts'
 import type {
   CreateNoteForm,
@@ -107,8 +106,6 @@ import {
   clampHistoryLimit,
   effectiveThemeMode,
   fontFamilyCss,
-  normalizeFontFamily,
-  normalizeThemeMode,
   FONT_FAMILIES,
   MAX_FONT_SIZE,
   MAX_HISTORY_LIMIT,
@@ -118,7 +115,6 @@ import {
   DEFAULT_FONT_SIZE,
   DEFAULT_HISTORY_LIMIT,
   type EditorFontFamily,
-  type ThemeMode,
 } from './lib/appearance'
 import { useSettingsNav, type SettingsSectionId } from './features/settings/useSettingsNav'
 import { buildGraphSvg, downloadPng, downloadSvg, graphNodeExportColor } from './lib/graphExport'
@@ -174,8 +170,6 @@ type ExternalRemovedNote = {
   wasActive: boolean
 }
 
-type ReadingFont = 'sans' | 'serif' | 'mono'
-type ReadingWidth = 'compact' | 'comfortable' | 'wide'
 type ReviewGapMode = 'always' | 'hover' | 'off'
 
 type TagSummary = {
@@ -676,22 +670,40 @@ function App() {
   const [graphDetailOpen, setGraphDetailOpen] = useState(false)
   const [graphMode, setGraphMode] = useState<GraphMode>('global')
   const [graphLocalDepth, setGraphLocalDepth] = useState(1)
-  const [shortcuts, setShortcuts] = useState<WorkspaceShortcuts>(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('mirrormind.shortcuts') ?? '{}') as Partial<WorkspaceShortcuts>
-      // Migracao: o antigo padrao de tres teclas (Ctrl+Shift+M) passa a ser
-      // Ctrl+M; valores iguais ao padrao antigo sao tratados como nao definidos.
-      if (stored.cycleNoteViewMode === 'Ctrl+Shift+M') delete stored.cycleNoteViewMode
-      return { ...DEFAULT_WORKSPACE_SHORTCUTS, ...stored }
-    } catch {
-      return DEFAULT_WORKSPACE_SHORTCUTS
-    }
-  })
-  // Autosave LIGADO por padrao: ausente no localStorage -> habilitado.
-  // Quem desligou explicitamente ("false") continua respeitado.
-  const [isAutoSaveEnabled, setAutoSaveEnabled] = useState(
-    () => localStorage.getItem('mirrormind.auto-save') !== 'false',
-  )
+  // Aparência, leitura, editor e atalhos extraídos para
+  // lib/useAppearanceSettings — mesmas chaves, mesmos padrões, gravação
+  // automática no setter, sem efeitos manuais de localStorage.
+  const {
+    shortcuts,
+    patchShortcuts,
+    resetShortcuts,
+    isAutoSaveEnabled,
+    setAutoSaveEnabled,
+    noteHoverColor,
+    setNoteHoverColor,
+    tabHoverColor,
+    setTabHoverColor,
+    tabHoverTextColor,
+    setTabHoverTextColor,
+    readingFont,
+    setReadingFont,
+    themeMode,
+    setThemeMode,
+    editorFontFamily,
+    setEditorFontFamily,
+    editorFontSize,
+    setEditorFontSize,
+    historyLimit,
+    setHistoryLimit,
+    readingWidth,
+    setReadingWidth,
+    isReadingLineWrapEnabled,
+    setReadingLineWrapEnabled,
+    isSpellCheckEnabled,
+    setSpellCheckEnabled,
+    skipSoftDeleteConfirmation,
+    setSkipSoftDeleteConfirmation,
+  } = useAppearanceSettings()
   // Navegação das Configurações (seções/grupos/menu) extraída para
   // features/settings/useSettingsNav — mesmo comportamento do App original.
   const {
@@ -708,44 +720,6 @@ function App() {
     requestSettingsSection(sectionId)
     setWorkspacePage('settings')
   }
-  const [noteHoverColor, setNoteHoverColor] = useState(
-    () => localStorage.getItem('mirrormind.note-hover-color') ?? '#171716',
-  )
-  const [tabHoverColor, setTabHoverColor] = useState(
-    () => localStorage.getItem('mirrormind.tab-hover-color') ?? '#171716',
-  )
-  const [tabHoverTextColor, setTabHoverTextColor] = useState(
-    () => localStorage.getItem('mirrormind.tab-hover-text-color') ?? '#fbfaf6',
-  )
-  const [readingFont, setReadingFont] = useState<ReadingFont>(
-    () => (localStorage.getItem('mirrormind.reading-font') as ReadingFont | null) ?? 'sans',
-  )
-  // Aparência: tema (claro/escuro/seguir Obsidian), fonte do editor/leitura
-  // (familia + tamanho) e limite do historico de desfazer/refazer, persistidos.
-  const [themeMode, setThemeMode] = useState<ThemeMode>(
-    () => normalizeThemeMode(localStorage.getItem('mirrormind.appearance.theme')),
-  )
-  const [editorFontFamily, setEditorFontFamily] = useState<EditorFontFamily>(
-    () => normalizeFontFamily(localStorage.getItem('mirrormind.appearance.font-family')),
-  )
-  const [editorFontSize, setEditorFontSize] = useState<number>(
-    () => {
-      const stored = localStorage.getItem('mirrormind.appearance.font-size')
-      return stored === null ? DEFAULT_FONT_SIZE : clampFontSize(Number(stored))
-    },
-  )
-  const [historyLimit, setHistoryLimit] = useState<number>(
-    () => {
-      const stored = localStorage.getItem('mirrormind.appearance.history-limit')
-      return stored === null ? DEFAULT_HISTORY_LIMIT : clampHistoryLimit(Number(stored))
-    },
-  )
-  const [readingWidth, setReadingWidth] = useState<ReadingWidth>(
-    () => (localStorage.getItem('mirrormind.reading-width') as ReadingWidth | null) ?? 'comfortable',
-  )
-  const [isReadingLineWrapEnabled, setReadingLineWrapEnabled] = useState(
-    () => localStorage.getItem('mirrormind.reading-line-wrap') !== 'false',
-  )
   // Resumo diario de revisoes vencidas: verifica a cada 5 minutos enquanto ha
   // um vault aberto. O backend garante no maximo uma notificacao por dia local.
   useEffect(() => {
@@ -772,12 +746,6 @@ function App() {
     }
   }, [vault])
   const [noteReadiness, setNoteReadiness] = useState<string | null>(null)
-  const [isSpellCheckEnabled, setSpellCheckEnabled] = useState(
-    () => localStorage.getItem('mirrormind.spell-check') !== 'false',
-  )
-  const [skipSoftDeleteConfirmation, setSkipSoftDeleteConfirmation] = useState(
-    () => localStorage.getItem('mirrormind.skip-soft-delete-confirmation') === 'true',
-  )
   const [showNoteSearch, setShowNoteSearch] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [commandQuery, setCommandQuery] = useState('')
@@ -1356,52 +1324,9 @@ function App() {
     void handleRecentVaultStartup()
   }, [])
 
-  useEffect(() => {
-    localStorage.setItem('mirrormind.shortcuts', JSON.stringify(shortcuts))
-  }, [shortcuts])
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.auto-save', String(isAutoSaveEnabled))
-  }, [isAutoSaveEnabled])
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.note-hover-color', noteHoverColor)
-  }, [noteHoverColor])
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.tab-hover-color', tabHoverColor)
-  }, [tabHoverColor])
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.tab-hover-text-color', tabHoverTextColor)
-  }, [tabHoverTextColor])
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.reading-font', readingFont)
-  }, [readingFont])
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.reading-width', readingWidth)
-  }, [readingWidth])
-
-  // Aparencia: persiste tema, fonte e historico e aplica o tema no documento
-  // (atributo `data-theme` lido pelo CSS) e as variaveis de fonte/leitura.
-  useEffect(() => {
-    localStorage.setItem('mirrormind.appearance.theme', themeMode)
-  }, [themeMode])
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.appearance.font-family', editorFontFamily)
-  }, [editorFontFamily])
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.appearance.font-size', String(editorFontSize))
-  }, [editorFontSize])
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.appearance.history-limit', String(historyLimit))
-  }, [historyLimit])
-
+  // Aparencia: aplica o tema no documento (atributo `data-theme` lido pelo
+  // CSS) e as variaveis de fonte/leitura. A persistência vive no hook
+  // lib/useAppearanceSettings (gravação automática no setter).
   const effectiveTheme = effectiveThemeMode(themeMode, vault?.obsidianAppearance ?? null)
   useEffect(() => {
     document.documentElement.dataset.theme = effectiveTheme
@@ -1413,18 +1338,6 @@ function App() {
     '--editor-font-family': fontFamilyCss(editorFontFamily),
     '--editor-font-size': `${editorFontSize}px`,
   } as CSSProperties
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.reading-line-wrap', String(isReadingLineWrapEnabled))
-  }, [isReadingLineWrapEnabled])
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.spell-check', String(isSpellCheckEnabled))
-  }, [isSpellCheckEnabled])
-
-  useEffect(() => {
-    localStorage.setItem('mirrormind.skip-soft-delete-confirmation', String(skipSoftDeleteConfirmation))
-  }, [skipSoftDeleteConfirmation])
 
   useEffect(() => {
     if (activeNote) {
@@ -6564,7 +6477,7 @@ function App() {
                         value={shortcuts.createNote}
                         onKeyDown={(event) => {
                           event.preventDefault()
-                          setShortcuts((current) => ({ ...current, createNote: formatShortcut(event.nativeEvent) }))
+                          patchShortcuts({ createNote: formatShortcut(event.nativeEvent) })
                         }}
                         aria-label="Atalho para criar nova nota"
                         readOnly
@@ -6579,7 +6492,7 @@ function App() {
                         value={shortcuts.saveNote}
                         onKeyDown={(event) => {
                           event.preventDefault()
-                          setShortcuts((current) => ({ ...current, saveNote: formatShortcut(event.nativeEvent) }))
+                          patchShortcuts({ saveNote: formatShortcut(event.nativeEvent) })
                         }}
                         aria-label="Atalho para salvar nota"
                         readOnly
@@ -6594,7 +6507,7 @@ function App() {
                         value={shortcuts.cycleNoteViewMode}
                         onKeyDown={(event) => {
                           event.preventDefault()
-                          setShortcuts((current) => ({ ...current, cycleNoteViewMode: formatShortcut(event.nativeEvent) }))
+                          patchShortcuts({ cycleNoteViewMode: formatShortcut(event.nativeEvent) })
                         }}
                         aria-label="Atalho para alternar modo de visualização"
                         readOnly
@@ -6609,7 +6522,7 @@ function App() {
                         value={shortcuts.openNote}
                         onKeyDown={(event) => {
                           event.preventDefault()
-                          setShortcuts((current) => ({ ...current, openNote: formatShortcut(event.nativeEvent) }))
+                          patchShortcuts({ openNote: formatShortcut(event.nativeEvent) })
                         }}
                         aria-label="Atalho para abrir nota existente"
                         readOnly
@@ -6624,7 +6537,7 @@ function App() {
                         value={shortcuts.openTagFilter}
                         onKeyDown={(event) => {
                           event.preventDefault()
-                          setShortcuts((current) => ({ ...current, openTagFilter: formatShortcut(event.nativeEvent) }))
+                          patchShortcuts({ openTagFilter: formatShortcut(event.nativeEvent) })
                         }}
                         aria-label="Atalho para abrir filtro de tags"
                         readOnly
@@ -6639,7 +6552,7 @@ function App() {
                         value={shortcuts.openCommandPalette}
                         onKeyDown={(event) => {
                           event.preventDefault()
-                          setShortcuts((current) => ({ ...current, openCommandPalette: formatShortcut(event.nativeEvent) }))
+                          patchShortcuts({ openCommandPalette: formatShortcut(event.nativeEvent) })
                         }}
                         aria-label="Atalho para abrir Command Palette"
                         readOnly
@@ -6647,7 +6560,7 @@ function App() {
                     </label>
                   </div>
                   <div>
-                    <button type="button" className="secondary-button" onClick={() => setShortcuts(DEFAULT_WORKSPACE_SHORTCUTS)}>
+                    <button type="button" className="secondary-button" onClick={resetShortcuts}>
                       Restaurar padroes
                     </button>
                   </div>
