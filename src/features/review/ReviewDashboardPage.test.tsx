@@ -131,7 +131,7 @@ describe('ReviewDashboardPage', () => {
     expect(screen.getByText('12')).toBeInTheDocument()
     expect(screen.getAllByText('3').length).toBeGreaterThan(0)
     expect(screen.getByText(/72%/)).toBeInTheDocument()
-    expect(screen.getByText(/2 unidades frágeis/)).toBeInTheDocument()
+    expect(screen.getByText(/2 frágeis/)).toBeInTheDocument()
   })
 
   it('shows the awaiting-first-review card', async () => {
