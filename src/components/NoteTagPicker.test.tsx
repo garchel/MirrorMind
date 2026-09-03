@@ -68,7 +68,7 @@ describe('NoteTagPicker', () => {
     await user.click(screen.getByRole('button', { name: 'Tags associadas a nota' }))
     await user.click(await screen.findByRole('menuitem', { name: '#estudo' }))
 
-    expect(await screen.findByRole('dialog', { name: 'Aplicar #estudo' })).toHaveTextContent('Fa?a a avalia??o da nota antes de aplicar esta tag')
+    expect(await screen.findByRole('dialog', { name: 'Aplicar #estudo' })).toHaveTextContent('Faça a avaliação da nota antes de aplicar esta tag')
     await user.click(screen.getByRole('button', { name: 'Aplicar tag' }))
 
     expect(onApply).toHaveBeenCalledWith('estudo')

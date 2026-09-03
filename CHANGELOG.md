@@ -8,6 +8,37 @@ release pública ainda não foi feita; os marcos abaixo estão em
 
 ## [Não publicado]
 
+### Página de Metas, dark da Revisão e consolidação UI
+
+**Adicionado**
+- Página de Metas de aprendizado: metas com plano em passos, resumo geral com
+  barra de progresso, notas propostas por passo, status segmentado
+  (Planejado/Estudando/Concluído), exclusão em 2 cliques e modal de criação
+  com IA opcional (fallback local determinístico sem provedor). Backend em
+  `src-tauri/src/goals.rs` (persistência atômica em `.mirmind/goals/`).
+- Metas na Command Palette (`Abrir metas`) e jornada E2E
+  `goals-create-complete` (criar → concluir passo → persistência após
+  reinício; fase de criação também no smoke Linux).
+- Camada de preferências (`src/lib/prefs.ts`): leitura/escrita reativa com
+  escopo por vault e parse seguro que nunca quebra; `useAppUpdater` migrado.
+- Hook `useSettingsNav`: seções/grupos e scroll-spy das Configurações
+  extraídos do `App.tsx` (−80 linhas).
+- 33 tokens `--review-*`: tema escuro da Revisão com fonte única no
+  `index.css` (gerador `gen-review-dark.py` aposentado e removido).
+
+**Alterado**
+- 5 diálogos migrados para o `<Modal>` compartilhado (política de revisão,
+  prazo do dashboard, impacto de tag, descarte e reset de prontidão); ~90
+  linhas de focus-trap/Escape manual removidas.
+- Textos explicativos enxugados (~40% em 19 telas; LGPD, empty-states e
+  tooltips FSRS preservados).
+
+**Corrigido**
+- Contraste WCAG AA em 6 superfícies (pastilhas da Revisão, avisos de tag,
+  score inconclusivo) com tema claro pixel-idêntico.
+- Acentuação pt-BR no seletor de tags de nota (mojibake `?` visível ao
+  usuário).
+
 ### Auditoria UI/UX (skill ui-ux-pro-max): paleta, a11y e copy
 
 **Adicionado**

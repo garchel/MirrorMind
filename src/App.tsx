@@ -2908,6 +2908,7 @@ function App() {
     if (command.id === 'filter-tags') setShowTagFilterDialog(true)
     if (command.id === 'manage-tags') void openTagManagementPage()
     if (command.id === 'settings') setWorkspacePage('settings')
+    if (command.id === 'goals') setWorkspacePage('goals')
     if (command.id === 'shortcuts') openSettingsSection('atalhos')
     if (command.id === 'favorite') void toggleActiveFavorite()
     if (command.id === 'undo') void undoLastCommand()
@@ -4846,11 +4847,13 @@ function App() {
       { id: 'open-note', label: 'Abrir nota', description: 'Pesquisa notas por nome, conteudo ou tags.' },
       { id: 'filter-tags', label: 'Filtrar por tags', description: 'Abre o filtro completo de tags.' },
       { id: 'manage-tags', label: 'Gerenciar tags', description: 'Abre a página de tags e políticas de revisão.' },
+      { id: 'goals', label: 'Abrir metas', description: 'Vai para a página de Metas de aprendizado.' },
       { id: 'favorite', label: favorites.includes(activeNote?.relativePath ?? '') ? 'Remover dos favoritos' : 'Adicionar aos favoritos', description: 'Fixa ou remove a nota atual.', disabled: !activeNote || isNewNoteDraft },
       { id: 'undo', label: 'Desfazer', description: 'Reverte a última alteração da nota ou do vault.', disabled: !canUndoActiveEditor },
       { id: 'redo', label: 'Refazer', description: 'Refaz a última alteração da nota ou do vault.', disabled: !canRedoActiveEditor },
       { id: 'settings', label: 'Abrir configurações', description: 'Vai para as configurações do workspace.' },
       { id: 'shortcuts', label: 'Configurar atalhos', description: 'Abre Configurações na seção Atalhos.' },
+      { id: 'goals', label: 'Ir para metas', description: 'Abre a página de metas de aprendizado.' },
     ]
     const matchingCommands = paletteCommands.filter((command) => `${command.label} ${command.description}`.toLowerCase().includes(commandQuery.trim().toLowerCase()))
     const moveDestinationOptions = ['', ...folders].filter((folder) =>

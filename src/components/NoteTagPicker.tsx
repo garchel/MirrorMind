@@ -106,9 +106,9 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
 
       {isOpen ? (
         <div className="note-tag-picker-menu" role="menu" aria-label="Tags existentes">
-          {isLoading ? <p>Carregando tags?</p> : null}
-          {error ? <p role="alert">N?o foi poss?vel carregar os detalhes de revis?o.</p> : null}
-          {!isLoading && selectableTags.length === 0 ? <p>Nenhuma tag dispon?vel para aplicar.</p> : null}
+          {isLoading ? <p>Carregando tags…</p> : null}
+          {error ? <p role="alert">Não foi possível carregar os detalhes de revisão.</p> : null}
+          {!isLoading && selectableTags.length === 0 ? <p>Nenhuma tag disponível para aplicar.</p> : null}
           {!isLoading && !error ? selectableTags.map((tag) => (
             <button key={tag} type="button" role="menuitem" onClick={() => { setPendingTag(tag); setOpen(false) }}>
               #{tag}
@@ -129,17 +129,17 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
               <div><p className="card-kicker">Impacto da tag</p><h3 id="note-tag-impact-title">Aplicar #{pendingTag}</h3></div>
               <button type="button" className="secondary-button" onClick={closeImpact} aria-label="Fechar impacto"><X size={16} /></button>
             </div>
-            <p>Esta nota passar? a usar a tag <strong>#{pendingTag}</strong>.</p>
+            <p>Esta nota passará a usar a tag <strong>#{pendingTag}</strong>.</p>
             <dl className="note-tag-impact-summary">
               <div><dt>Tags atuais</dt><dd>{tags.length}</dd></div>
-              <div><dt>Ap?s aplicar</dt><dd>{tags.length + 1}</dd></div>
+              <div><dt>Após aplicar</dt><dd>{tags.length + 1}</dd></div>
             </dl>
             {pendingRule?.autoEnroll ? (
               <div className="note-tag-review-warning" role="alert">
                 <AlertTriangle size={16} aria-hidden="true" />
                 <div>
-                  <strong>Revis?o autom?tica ativa</strong>
-                  <p>{shouldAssessFirst ? 'Fa?a a avalia??o da nota antes de aplicar esta tag para confirmar que ela est? pronta para revis?o.' : 'A nota est? pronta para revis?o e poder? ser inclu?da automaticamente na fila.'}</p>
+                  <strong>Revisão automática ativa</strong>
+                  <p>{shouldAssessFirst ? 'Faça a avaliação da nota antes de aplicar esta tag para confirmar que ela está pronta para revisão.' : 'A nota está pronta para revisão e poderá ser incluída automaticamente na fila.'}</p>
                 </div>
               </div>
             ) : null}

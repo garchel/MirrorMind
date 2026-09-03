@@ -42,6 +42,10 @@ const smokeJourneys = [
     spec: 'tests/e2e/create-save-reopen.e2e.mjs',
     phases: ['create-and-save'],
   },
+  {
+    spec: 'tests/e2e/goals-create-complete.e2e.mjs',
+    phases: ['goals-create'],
+  },
 ]
 
 const PHASE_GAP_MS = 3_000

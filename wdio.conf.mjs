@@ -24,7 +24,7 @@ const ownedRun = process.env.MIRRORMIND_E2E_RUN_ROOT
   : createOwnedRunRoot(resultsRoot)
 const { runRoot, ownerToken } = ownedRun
 const phase = process.env.MIRRORMIND_E2E_PHASE ?? 'single'
-if (!['create-and-save', 'reopen', 'rename-and-move', 'verify-rename-and-move', 'trash-and-restore', 'verify-trash-restore', 'external-change-conflict', 'verify-external-change', 'automatic-detect', 'session-abandon', 'open-obsidian-vault', 'verify-open-obsidian-vault', 'safe-failure', 'verify-safe-failure', 'attachment-complete', 'verify-attachment', 'configure-settings', 'verify-settings-reopen', 'verify-settings-autoload', 'single'].includes(phase)) throw new Error(`Unexpected E2E phase: ${phase}`)
+if (!['create-and-save', 'reopen', 'rename-and-move', 'verify-rename-and-move', 'trash-and-restore', 'verify-trash-restore', 'external-change-conflict', 'verify-external-change', 'automatic-detect', 'session-abandon', 'open-obsidian-vault', 'verify-open-obsidian-vault', 'safe-failure', 'verify-safe-failure', 'attachment-complete', 'verify-attachment', 'configure-settings', 'verify-settings-reopen', 'verify-settings-autoload', 'goals-create', 'verify-goals', 'single'].includes(phase)) throw new Error(`Unexpected E2E phase: ${phase}`)
 
 // Builds E2E usam o provedor deterministico (sem rede) quando presente:
 // a jornada de abandono depende de iniciar uma sessao real no app compilado.

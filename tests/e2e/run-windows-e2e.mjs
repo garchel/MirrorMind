@@ -80,6 +80,10 @@ const journeys = [
     spec: 'tests/e2e/settings-persistence.e2e.mjs',
     phases: ['configure-settings', 'verify-settings-reopen', 'verify-settings-autoload'],
   },
+  {
+    spec: 'tests/e2e/goals-create-complete.e2e.mjs',
+    phases: ['goals-create', 'verify-goals'],
+  },
 ]
 
 // WebView2 demora a liberar o compositor apos o fechamento do app; a pausa

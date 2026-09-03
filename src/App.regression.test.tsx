@@ -709,6 +709,18 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.getByRole('tab', { name: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}.md` })).toBeInTheDocument()
   })
 
+  it('[metas] abre a pagina de Metas pela Command Palette', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    await user.keyboard('{Control>}k{/Control}')
+    await user.type(await screen.findByRole('textbox', { name: 'Buscar comando' }), 'metas')
+    await user.keyboard('{Enter}')
+
+    await waitFor(() => expect(document.querySelector('.goals-page')).not.toBeNull())
+  })
+
   it('[Markdown] renderiza formulas matematicas em bloco', async () => {
     const user = userEvent.setup()
     createTauriHarness()
