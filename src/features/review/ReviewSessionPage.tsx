@@ -22,17 +22,9 @@ import { useReviewAiSettings } from './ReviewAiSettingsContext'
 import { annotateReviewMarkdown, type ReviewReportUnit } from './reportMarkdown'
 import { dominantUnitKind, unitNoun, unitPluralNoun } from './unitLabels'
 import {
-  completeReviewSession,
-  continueReviewConversation,
-  previewReviewSessionPlan,
-  startReviewSession,
-  type ReviewCompletionReport,
-  type ReviewExchange,
   type ReviewMode,
-  type ReviewPrompt,
-  type ReviewSessionDraft,
-  type ReviewSessionPlan,
 } from './reviewSession'
+import { useReviewSessionRunner } from './useReviewSessionRunner'
 import './review-session.css'
 
 const REVIEW_REPORT_SANITIZE_SCHEMA = {
@@ -171,26 +163,13 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   const [synthesis, setSynthesis] = useState('')
   const [synthesisAttempt, setSynthesisAttempt] = useState<SynthesisAttempt | null>(null)
   const [sessionSources, setSessionSources] = useState<SessionSource[] | null>(null)
-  const [draft, setDraft] = useState<ReviewSessionDraft | null>(null)
-  const [sessionProvider, setSessionProvider] = useState(provider)
-  const [prompt, setPrompt] = useState<ReviewPrompt | null>(null)
-  const [promptIndex, setPromptIndex] = useState(0)
   const [answer, setAnswer] = useState('')
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
   // Opção explicita `Não sei` da prova objetiva: o usuario admite não saber em
   // vez de chutar. Nunca acerta (erro claro de esquecimento) e o resumo a
   // diferencia de um chute errado.
   const [dontKnow, setDontKnow] = useState(false)
-  const [exchanges, setExchanges] = useState<ReviewExchange[]>([])
   const [assistanceVisible, setAssistanceVisible] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null)
-  const [report, setReport] = useState<ReviewCompletionReport | null>(null)
-  // Plano estimado da sessão exibido na preparação (duração, cobertura e
-  // sessões para cobrir a nota). Derivado no backend sem IA — a mesma seleção
-  // de cobertura que a sessão real executara.
-  const [plan, setPlan] = useState<ReviewSessionPlan | null>(null)
-  const [planError, setPlanError] = useState<string | null>(null)
   // Dialogo próprio de abandono (em vez de window.confirm): alem de seguir o
   // padrao visual do app, ele e automatizavel nos testes E2E do desktop.
   const [abandonOpen, setAbandonOpen] = useState(false)
@@ -210,6 +189,26 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   const reclassifyRef = useRef<HTMLDivElement | null>(null)
 
   const canUseProvider = provider !== 'gemini' || geminiConsent
+  // Ciclo de vida da sessao (plano -> prompts -> trocas -> relatorio) com dono
+  // proprio; aqui ficam so entrada/render (resposta, sintese, modais, menus).
+  const {
+    draft,
+    prompt,
+    promptIndex,
+    exchanges,
+    busy,
+    setBusy,
+    diagnostic,
+    report,
+    updateReport,
+    plan,
+    planError,
+    begin,
+    answerCurrent,
+    finish,
+    requestConversationTurn,
+    continueCalibration: restartSession,
+  } = useReviewSessionRunner({ vaultPath, relativePath: item.relativePath, mode, provider, canUseProvider, onCompleted })
 
   // Fecha o seletor ao clicar fora dele ou apertar Escape.
   useEffect(() => {
@@ -234,27 +233,6 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
     setSelectedOption(null)
     setDontKnow(false)
   }, [prompt?.id])
-
-  // Carrega o plano estimado da sessao na preparacao e recalcula quando o modo
-  // muda. Falha silenciosa: a sessao continua iniciando normalmente.
-  useEffect(() => {
-    if (draft) return
-    let cancelled = false
-    setPlanError(null)
-    previewReviewSessionPlan({ vaultPath, relativePath: item.relativePath, mode })
-      .then((nextPlan) => {
-        if (!cancelled) setPlan(nextPlan)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPlan(null)
-          setPlanError('Não foi possível estimar a sessão.')
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [vaultPath, item.relativePath, mode, draft])
 
   useEffect(() => {
     if (!draft) return
@@ -290,74 +268,6 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
     }
   }, [busy, draft, onExit, report])
 
-  async function begin(allowCalibrationContinuation = false) {
-    if (!canUseProvider) return
-    setBusy(true)
-    setDiagnostic(null)
-    try {
-      const attempt = await startReviewSession({
-        vaultPath,
-        relativePath: item.relativePath,
-        provider,
-        mode,
-        allowCalibrationContinuation,
-      })
-      if (attempt.outcome === 'invalid') {
-        setDiagnostic(attempt)
-        return
-      }
-      setSessionProvider(provider)
-      setDraft(attempt.draft)
-      setPrompt(attempt.draft.prompts[0])
-    } catch {
-      setDiagnostic({ message: 'Não foi possível iniciar a revisão.', rawResponse: null, validationErrors: [] })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function finish(nextExchanges: ReviewExchange[]) {
-    if (!draft) return
-    setBusy(true)
-    setDiagnostic(null)
-    try {
-      const attempt = await completeReviewSession({ vaultPath, draft, provider: sessionProvider, exchanges: nextExchanges })
-      if (attempt.outcome === 'invalid') {
-        setDiagnostic(attempt)
-        return
-      }
-      // Uma sessao inteira inconclusiva tambem encerra: nada foi persistido, a
-      // nota permanece vencida e o relatorio oferece refazer (nao e contestacao).
-      setReport(attempt.report)
-      onCompleted()
-    } catch {
-      setDiagnostic({ message: 'Não foi possível gerar o relatório final.', rawResponse: null, validationErrors: [] })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function requestConversationTurn(nextExchanges: ReviewExchange[]) {
-    if (!draft) return
-    setBusy(true)
-    setDiagnostic(null)
-    try {
-      const attempt = await continueReviewConversation({ vaultPath, draft, provider: sessionProvider, exchanges: nextExchanges })
-      if (attempt.outcome === 'invalid') {
-        setDiagnostic(attempt)
-      } else if (attempt.shouldFinish) {
-        if (nextExchanges.length >= draft.minimumAnswers) await finish(nextExchanges)
-        else setDiagnostic({ message: 'A conversa terminou antes do mínimo de respostas.', rawResponse: null, validationErrors: [] })
-      } else {
-        setPrompt(attempt.prompt)
-        setPromptIndex(nextExchanges.length)
-      }
-    } catch {
-      setDiagnostic({ message: 'Não foi possível continuar a conversa.', rawResponse: null, validationErrors: [] })
-    } finally {
-      setBusy(false)
-    }
-  }
   async function submitAnswer() {
     if (!draft || !prompt) return
     // A prova mista tem dois tipos de pergunta: multipla escolha (envia a
@@ -376,33 +286,14 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
     // A dica/contexto estava visível no momento da resposta: a recuperação foi
     // assistida e o agendamento usa evidência mais fraca para esta pergunta.
     const assistanceUsed = assistanceVisible
-    // O flag de esclarecimento acompanha a resposta: o backend valida contra o
-    // prompt emitido e limita a no maximo dois esclarecimentos por conversa.
-    const nextExchanges = [...exchanges, { promptId: prompt.id, prompt: prompt.text, answer: answerText, assistanceUsed, isClarification: prompt.isClarification }]
-    setExchanges(nextExchanges)
+    // Mesma ordem de antes: a troca entra e os campos limpam na hora; o avanço
+    // (proximo prompt, turno ou relatorio) resolve em seguida.
+    const task = answerCurrent(answerText, assistanceUsed)
     setAnswer('')
     setSelectedOption(null)
     setDontKnow(false)
     setAssistanceVisible(false)
-
-    if (draft.mode === 'exam') {
-      const nextIndex = promptIndex + 1
-      if (nextIndex >= draft.prompts.length) await finish(nextExchanges)
-      else {
-        setPromptIndex(nextIndex)
-        setPrompt(draft.prompts[nextIndex])
-      }
-      return
-    }
-
-    if (nextExchanges.length >= draft.maximumAnswers) {
-      await finish(nextExchanges)
-      return
-    }
-
-
-    await requestConversationTurn(nextExchanges)
-
+    await task
   }
 
   function requestAbandon() {
@@ -428,16 +319,11 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   // inconclusiva) quanto para uma nota em calibracao agendada.
   async function continueCalibration() {
     if (busy) return
-    setReport(null)
-    setDraft(null)
-    setPrompt(null)
-    setPromptIndex(0)
-    setExchanges([])
+    // Cada lado zera o que e seu: entradas aqui, ciclo no runner.
     setAnswer('')
     setSelectedOption(null)
     setAssistanceVisible(false)
-    setDiagnostic(null)
-    await begin(true)
+    await restartSession()
   }
 
   // Unidades com a classificacao corrigida pelo usuario (persistida no
@@ -488,7 +374,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
       setUnitOverrides((previous) => ({ ...previous, [unit.id]: { score: band.max, outcome: band.outcome } }))
       // A correcao reagendou a nota no backend; o relatorio passa a exibir a
       // nova data em vez da do snapshot original.
-      setReport((previous) => previous ? { ...previous, nextReviewAtUnixMs: state.nextReviewAtUnixMs } : previous)
+      updateReport((previous) => previous ? { ...previous, nextReviewAtUnixMs: state.nextReviewAtUnixMs } : previous)
       setReclassifyMenu(null)
     } catch {
       setReclassifyError('Não foi possível corrigir a classificação. Tente novamente.')
