@@ -21,6 +21,9 @@
 
 .workspace-page-header .card-kicker {
   margin-bottom: 4px;
+  /* Tamanho herdado do Painel (era override local): kicker das paginas
+   * maior que o de dialogs/marcadores, igual em todas as paginas. */
+  font-size: 13.5px;
 }
 
 .workspace-error-status {
