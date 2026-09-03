@@ -633,12 +633,13 @@
 }
 
 /* Prazos encerrados: a data-limite da tag ja passou, mas a nota continua em
-   aprendizado. Wash do --accent (linguagem do app) para chamar atencao sem
-   urgir como um prazo ativo em risco. */
+   aprendizado. Mesmo fundo das demais secoes; o sinal de atencao fica na
+   borda esquerda e nos chips internos, sem manchar o card inteiro. */
 .review-dashboard-expired {
   padding: 16px 18px 18px;
-  background: color-mix(in srgb, var(--accent, #c46a2b) 5%, var(--review-surface));
-  border: 1px solid color-mix(in srgb, var(--accent, #c46a2b) 28%, var(--border, var(--review-line-soft)));
+  background: var(--review-surface);
+  border: 1px solid var(--review-line-soft);
+  border-left: 3px solid color-mix(in srgb, var(--accent, #c46a2b) 45%, var(--review-line-strong));
   border-radius: var(--radius-xl);
 }
 
