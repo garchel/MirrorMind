@@ -23,7 +23,6 @@
   --titlebar-h: 40px;
 
   --sans: 'Segoe UI', 'Inter', sans-serif;
-  --heading: Georgia, 'Times New Roman', serif;
   --mono: 'Cascadia Code', Consolas, monospace;
 
   /* Escala de raios: 6 valores cobrem os ~15 raios avulsos do app
@@ -202,7 +201,7 @@ a {
 h1,
 h2,
 h3 {
-  font-family: var(--heading);
+  font-family: var(--sans);
   font-weight: 600;
   color: var(--text-h);
 }

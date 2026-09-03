@@ -8,10 +8,10 @@
 }
 
 /* Header migrou para PageHeader (components/PageHeader.css); mantem o ritmo
- * tipografico anterior (titulo 22px, descricao 13.5px ate 54ch). */
+ * tipografico anterior (descricao 13.5px ate 54ch; titulo herda os 28px
+ * padrao de `.workspace-page h2`). */
 .review-dashboard-page .workspace-page-header h2 {
   margin: 2px 0 4px;
-  font-size: 22px;
   letter-spacing: -0.01em;
 }
 
@@ -79,6 +79,7 @@
 }
 
 .review-dashboard-card strong {
+  font-family: var(--mono);
   font-size: 26px;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -119,6 +120,7 @@
 }
 
 .review-dashboard-readiness-total strong {
+  font-family: var(--mono);
   font-size: 18px;
   line-height: 1;
 }
