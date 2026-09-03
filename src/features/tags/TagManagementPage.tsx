@@ -530,15 +530,6 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
           {atRuleLimit ? (
             <p className="tag-limit-note" role="status">Limite de 100 regras atingido — edite ou exclua uma antes de criar outra.</p>
           ) : null}
-          <button
-            type="button"
-            onClick={() => startCreate()}
-            disabled={busy || loading || atRuleLimit}
-            title={atRuleLimit ? 'Limite de 100 regras de tag atingido' : undefined}
-          >
-            <Plus size={16} aria-hidden="true" />
-            Criar tag
-          </button>
         </div>
       </PageHeader>
 
@@ -557,6 +548,16 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
             <span>{entries.length} tag{entries.length === 1 ? '' : 's'}</span>
             <span>{entries.filter((entry) => entry.rule?.autoEnroll).length} ativam revisão</span>
           </div>
+          <button
+            type="button"
+            className="tag-tree-create"
+            onClick={() => startCreate()}
+            disabled={busy || loading || atRuleLimit}
+            title={atRuleLimit ? 'Limite de 100 regras de tag atingido' : undefined}
+          >
+            <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
+            Criar tag
+          </button>
           {loading ? <p className="tag-page-state" role="status">Carregando tags…</p> : null}
           {!loading && filteredTree.length === 0 ? (
             <div className="tag-empty-state">

@@ -158,6 +158,34 @@
   font-size: 11px;
 }
 
+/* Botao Criar tag no topo da arvore: onde a tag nova vai aparecer. Estilo
+ * "linha tracejada" — mesmo peso visual das linhas da arvore, sem virar
+ * pílula escura (o escudo generico de button nao pega: excluido abaixo). */
+.tag-management-page.tag-management-page button.tag-tree-create {
+  min-height: 32px;
+  margin: 2px 0 6px;
+  border: 1px dashed var(--tag-line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--tag-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tag-management-page.tag-management-page button.tag-tree-create:hover:not(:disabled) {
+  border-color: var(--tag-accent);
+  color: var(--tag-accent);
+  background: color-mix(in srgb, var(--tag-accent) 6%, transparent);
+}
+
+.tag-management-page.tag-management-page button.tag-tree-create:disabled {
+  opacity: 0.55;
+}
+
 .tag-tree-scroll {
   min-height: 0;
   max-height: min(640px, calc(100svh - 300px));
@@ -858,8 +886,12 @@
  * `button` global (0,0,1) definem pílula escura; reafirma o padrão claro
  * com especificidade maior (classe duplicada) sem afetar as outras
  * páginas. O `:not(.modal-close)` preserva o botão fechar do modal
- * compartilhado (transparente com borda, `components/Modal.css`). */
-.tag-management-page.tag-management-page button:not(.modal-close) {
+ * compartilhado (transparente com borda, `components/Modal.css`); o
+ * `:not(.tag-tree-row)` preserva as linhas da árvore, que têm escudo
+ * próprio (0,3,0) — sem isso, esta regra (0,3,1) pinta o fundo delas de
+ * escuro até no tema claro. O `.tag-tree-create` (botão Criar tag da
+ * árvore) também tem estilo próprio. */
+.tag-management-page.tag-management-page button:not(.modal-close):not(.tag-tree-row):not(.tag-tree-create) {
   min-height: 34px;
   border-radius: var(--radius-md);
   background: #292926;
@@ -868,7 +900,7 @@
   font-weight: 600;
 }
 
-.tag-management-page.tag-management-page button:hover:not(:disabled) {
+.tag-management-page.tag-management-page button:hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create) {
   transform: none;
   background: #11110f;
 }
