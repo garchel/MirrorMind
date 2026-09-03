@@ -198,7 +198,7 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
   return (
     <section className="workspace-page goals-page" aria-labelledby="goals-title">
       <PageHeader
-        kicker="Aprendizado"
+        kicker="Acompanhamento"
         title="Metas"
         titleId="goals-title"
         description="Defina o que quer aprender ou cole um texto — o app monta o card da meta com as notas em ordem lógica de estudo."

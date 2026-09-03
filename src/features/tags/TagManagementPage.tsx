@@ -521,7 +521,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   return (
     <section className="workspace-page tag-management-page" aria-labelledby="tag-management-title">
       <PageHeader
-        kicker="Organização e aprendizado"
+        kicker="Organização"
         title="Tags do vault"
         titleId="tag-management-title"
         description="Gerencie a classificação das notas e a política de revisão que cada tag transmite."

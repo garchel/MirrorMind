@@ -143,7 +143,7 @@ export function ReviewReportsPage({ vaultPath, onOpenNote }: Props) {
   return (
     <section className="workspace-page review-reports-page" aria-labelledby="review-reports-title">
       <PageHeader
-        kicker="Aprendizado"
+        kicker="Revisão"
         title="Relatórios"
         titleId="review-reports-title"
         description="Retenção estimada, desempenho ao longo do tempo e todas as provas e conversas concluídas."

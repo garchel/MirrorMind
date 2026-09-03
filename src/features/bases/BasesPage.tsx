@@ -175,7 +175,7 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
   return (
     <section className="workspace-page bases-page" data-builder-name="bases-page">
       <PageHeader
-        kicker="Tabela"
+        kicker="Organização"
         title="Tabela de notas"
         description={(
           <>

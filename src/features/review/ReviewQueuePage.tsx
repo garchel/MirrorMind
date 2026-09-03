@@ -60,7 +60,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview }: Review
   return (
     <section className="workspace-page review-queue-page" aria-labelledby="review-queue-title">
       <PageHeader
-        kicker="Aprendizado"
+        kicker="Revisão"
         title="Revisar agora"
         titleId="review-queue-title"
         description="Notas vencidas, ordenadas por prioridade e pelo maior atraso."

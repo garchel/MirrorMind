@@ -271,7 +271,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
   return (
     <section className="workspace-page review-dashboard-page" aria-labelledby="review-dashboard-title">
       <PageHeader
-        kicker="Aprendizado"
+        kicker="Revisão"
         title="Painel de aprendizado"
         titleId="review-dashboard-title"
         description="Visão geral da retenção de memória, prazos e carga de revisão."
