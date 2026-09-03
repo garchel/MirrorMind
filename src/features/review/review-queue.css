@@ -29,7 +29,7 @@
   min-height: 126px;
   align-content: center;
   border: 1px dashed #c8c6be;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 24px;
   background: #fbfaf6;
   color: #353531;
@@ -61,7 +61,7 @@
 
 .review-queue-order {
   align-self: stretch;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--accent);
   opacity: 0.76;
 }
@@ -151,7 +151,7 @@
   height: 17px;
   padding: 0;
   border: 1px solid #cfccc2;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #f6f4ee;
   color: #4f4f49;
   cursor: pointer;

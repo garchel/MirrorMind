@@ -21,6 +21,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
+pub(crate) mod goals;
 pub mod review;
 mod tag_management;
 mod vault_metadata;
@@ -4418,6 +4419,24 @@ fn persist_recent_vault(app: &AppHandle, root: &Path) -> Result<()> {
     write_recent_vault_preference(app, &preference)
 }
 
+#[tauri::command]
+fn clear_local_app_data(app: AppHandle) -> Result<(), String> {
+    // LGPD Art.18 VI — elimina recent-vault.json e chaves do cofre local.
+    // O localStorage (WebView2) é limpo no frontend; aqui limpamos o que é
+    // nativo (arquivo de preferência + segredos do OS keyring).
+    let path = recent_vault_preference_path(&app).map_err(|e| e.to_string())?;
+    if path.exists() {
+        fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    // Remove chaves do cofre (ignora NoEntry — já limpo é sucesso).
+    let store = review::credentials::NativeCredentialStore::new();
+    let _ = review::credentials::delete_gemini_api_key(&store);
+    let _ = review::credentials::delete_openai_compatible_provider(&store);
+    let _ = review::credentials::set_gemini_consent(&store, false);
+    let _ = review::credentials::set_openai_compatible_consent(&store, false);
+    Ok(())
+}
+
 fn inspect_vault_path(root: &Path) -> Result<VaultSummary> {
     let canonical_root = canonicalize_directory(root)?;
     let note_paths = collect_markdown_files(&canonical_root)?;
@@ -4469,7 +4488,7 @@ fn validate_existing_directory(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn canonicalize_directory(path: &Path) -> Result<PathBuf> {
+pub(crate) fn canonicalize_directory(path: &Path) -> Result<PathBuf> {
     validate_existing_directory(path)?;
     path.canonicalize()
         .with_context(|| format!("Nao foi possivel resolver '{}'.", path.display()))
@@ -4925,7 +4944,7 @@ fn inspect_metadata(root: &Path) -> VaultMetadata {
     }
 }
 
-fn resolve_note_path(root: &Path, relative_path: &str) -> Result<PathBuf> {
+pub(crate) fn resolve_note_path(root: &Path, relative_path: &str) -> Result<PathBuf> {
     let trimmed = relative_path.trim();
     if trimmed.is_empty() {
         bail!("Escolha uma nota valida.");
@@ -5119,7 +5138,7 @@ pub(crate) fn to_relative_display(root: &Path, path: &Path) -> String {
 }
 
 #[derive(Default)]
-struct AuthorizedPaths {
+pub(crate) struct AuthorizedPaths {
     vault_roots: Mutex<HashSet<PathBuf>>,
     parent_directories: Mutex<HashSet<PathBuf>>,
 }
@@ -5995,7 +6014,7 @@ impl AuthorizedPaths {
         Ok(())
     }
 
-    fn ensure_authorized_vault_root(&self, path: &Path) -> Result<()> {
+    pub(crate) fn ensure_authorized_vault_root(&self, path: &Path) -> Result<()> {
         let roots = self
             .vault_roots
             .lock()
@@ -6042,6 +6061,7 @@ pub fn run() {
             get_recent_vault_preference,
             reopen_recent_vault,
             set_recent_vault_prompt_preference,
+            clear_local_app_data,
             select_vault_parent,
             initialize_vault_metadata,
             create_vault,
@@ -6089,6 +6109,8 @@ pub fn run() {
             review::ipc::remove_gemini_api_key,
             review::ipc::configure_openai_compatible_provider,
             review::ipc::remove_openai_compatible_provider,
+            review::ipc::set_openai_compatible_data_consent,
+            review::ipc::confirm_openai_compatible_data_consent,
             review::ipc::check_ollama_review_status,
             review::ipc::run_provider_comparability,
             review::ipc::assess_note_readiness,
@@ -6131,7 +6153,12 @@ pub fn run() {
             review::ipc::continue_note_review_conversation,
             review::ipc::complete_note_review_session,
             review::ipc::review_usage_status,
-            review::ipc::seed_e2e_review_state
+            review::ipc::seed_e2e_review_state,
+            goals::list_goals_command,
+            goals::create_goal_command,
+            goals::get_goal_command,
+            goals::delete_goal_command,
+            goals::update_goal_step_command
         ])
         .setup(|_app| {
             #[cfg(all(debug_assertions, not(feature = "e2e")))]

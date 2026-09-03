@@ -8,6 +8,7 @@ const GEMINI_CONSENT_ACCOUNT: &str = "gemini-content-consent-v1";
 const OPENAI_COMPATIBLE_BASE_URL_ACCOUNT: &str = "openai-compatible-base-url";
 const OPENAI_COMPATIBLE_MODEL_ACCOUNT: &str = "openai-compatible-model";
 const OPENAI_COMPATIBLE_API_KEY_ACCOUNT: &str = "openai-compatible-api-key";
+const OPENAI_CONSENT_ACCOUNT: &str = "openai-compatible-consent-v1";
 const CONSENT_MARKER: &str = "accepted";
 const MIN_CREDENTIAL_LENGTH: usize = 16;
 const MAX_CREDENTIAL_LENGTH: usize = 4_096;
@@ -127,6 +128,28 @@ pub fn has_gemini_consent(store: &dyn CredentialStore) -> Result<bool> {
         .map_err(|_| anyhow!("Nao foi possivel ler o consentimento do Gemini com seguranca."))?;
     Ok(marker.as_deref() == Some(CONSENT_MARKER))
 }
+
+pub fn set_openai_compatible_consent(store: &dyn CredentialStore, consent: bool) -> Result<()> {
+    if consent {
+        store
+            .set_secret(OPENAI_CONSENT_ACCOUNT, CONSENT_MARKER)
+            .map_err(|_| {
+                anyhow!("Nao foi possivel salvar o consentimento do servidor com seguranca.")
+            })
+    } else {
+        store.delete_secret(OPENAI_CONSENT_ACCOUNT).map_err(|_| {
+            anyhow!("Nao foi possivel remover o consentimento do servidor com seguranca.")
+        })
+    }
+}
+
+pub fn has_openai_compatible_consent(store: &dyn CredentialStore) -> Result<bool> {
+    let marker = store
+        .get_secret(OPENAI_CONSENT_ACCOUNT)
+        .map_err(|_| anyhow!("Nao foi possivel ler o consentimento do servidor com seguranca."))?;
+    Ok(marker.as_deref() == Some(CONSENT_MARKER))
+}
+
 pub fn delete_gemini_api_key(store: &dyn CredentialStore) -> Result<()> {
     store
         .delete_secret(GEMINI_ACCOUNT)
@@ -139,7 +162,34 @@ pub(crate) fn validate_openai_compatible_base_url(base_url: &str) -> Result<&str
         bail!("O endereco do servidor OpenAI-compatible e invalido.");
     }
     if let Some((scheme, rest)) = base_url.split_once("://") {
-        if !matches!(scheme, "http" | "https") || rest.is_empty() {
+        if rest.is_empty() {
+            bail!("O endereco do servidor precisa usar http ou https.");
+        }
+        // LGPD Art.46 — so permite http para localhost (desenvolvimento local
+        // com Ollama/LM Studio). Qualquer host remoto exige TLS.
+        let is_localhost = rest
+            .split('/')
+            .next()
+            .unwrap_or("")
+            .split(':')
+            .next()
+            .unwrap_or("")
+            .eq_ignore_ascii_case("127.0.0.1")
+            || rest
+                .split('/')
+                .next()
+                .unwrap_or("")
+                .split(':')
+                .next()
+                .unwrap_or("")
+                .eq_ignore_ascii_case("localhost");
+        if scheme == "https" {
+            // ok
+        } else if scheme == "http" && is_localhost {
+            // ok — desenvolvimento local
+        } else if scheme == "http" {
+            bail!("Use https para servidores remotos. http e permitido apenas para 127.0.0.1/localhost.");
+        } else {
             bail!("O endereco do servidor precisa usar http ou https.");
         }
     } else {

@@ -24,6 +24,16 @@ export type AppUpdaterController = {
  * verificacao manual, que reporta todos os estados. A referencia nativa do
  * plugin (`Update`) fica num ref — nunca no estado React — e so o payload de
  * exibicao entra em `status`. */
+const AUTO_UPDATE_KEY = 'mirrormind.auto-update'
+
+export function isAutoUpdateEnabled(): boolean {
+  return localStorage.getItem(AUTO_UPDATE_KEY) !== 'false'
+}
+
+export function setAutoUpdateEnabled(enabled: boolean): void {
+  localStorage.setItem(AUTO_UPDATE_KEY, String(enabled))
+}
+
 export function useAppUpdater(): AppUpdaterController {
   const [status, setStatus] = useState<UpdateCheckStatus>(UPDATE_IDLE)
   const updateRef = useRef<Update | null>(null)
@@ -57,6 +67,7 @@ export function useAppUpdater(): AppUpdaterController {
   }, [])
 
   useEffect(() => {
+    if (!isAutoUpdateEnabled()) return
     let cancelled = false
     void (async () => {
       const { status: next, update } = await checkForAppUpdate()

@@ -132,6 +132,14 @@ export async function setGeminiDataConsent(consent: boolean): Promise<void> {
 export async function confirmGeminiDataConsent(): Promise<boolean> {
   return await invoke<boolean>('confirm_gemini_data_consent')
 }
+
+export async function setOpenAiCompatibleDataConsent(consent: boolean): Promise<void> {
+  await invoke('set_openai_compatible_data_consent', { consent })
+}
+
+export async function confirmOpenAiCompatibleDataConsent(): Promise<boolean> {
+  return await invoke<boolean>('confirm_openai_compatible_data_consent')
+}
 export async function removeGeminiApiKey(): Promise<ReviewAiConfiguration> {
   return aiConfigurationSchema.parse(await invoke('remove_gemini_api_key'))
 }

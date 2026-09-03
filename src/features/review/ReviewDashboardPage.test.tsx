@@ -220,19 +220,6 @@ describe('ReviewDashboardPage', () => {
     expect(screen.getByText(/lista está limitada aos primeiros itens/)).toBeInTheDocument()
   })
 
-  it('renders the seven-day load forecast with today and tomorrow labels', async () => {
-    renderPage()
-    const list = await screen.findByRole('list', { name: 'Revisões previstas por dia' })
-    expect(list).toBeInTheDocument()
-    expect(screen.getByText('Carga prevista')).toBeInTheDocument()
-    expect(screen.getByText('Hoje')).toBeInTheDocument()
-    expect(screen.getByText('Amanha')).toBeInTheDocument()
-    // Total exibido no cabecalho da secao.
-    expect(screen.getByText(/6 revisões nos próximos 7 dias/)).toBeInTheDocument()
-    const bars = list.querySelectorAll('.review-dashboard-forecast-bar')
-    expect(bars).toHaveLength(7)
-  })
-
   it('opens the note from an upcoming deadline', async () => {
     const { onOpenNote } = renderPage()
     await userEvent.click(await screen.findByRole('button', { name: 'Abrir nota Calculo' }))
@@ -310,50 +297,6 @@ describe('ReviewDashboardPage', () => {
 
     await screen.findByText('Próximos prazos')
     expect(screen.queryByRole('button', { name: 'Revisar Calculo' })).not.toBeInTheDocument()
-  })
-
-  it('renders the daily goal with progress against the completed-today count', async () => {
-    window.localStorage.setItem('mirrormind.review-daily-goal', '10')
-    renderPage()
-
-    expect(await screen.findByText('Meta diária')).toBeInTheDocument()
-    expect(screen.getByText('4 de 10 hoje')).toBeInTheDocument()
-    const progress = screen.getByRole('progressbar', { name: /meta diária/i })
-    expect(progress).toHaveAttribute('aria-valuenow', '4')
-    expect(progress).toHaveAttribute('aria-valuemax', '10')
-    expect(progress.firstElementChild).toHaveStyle({ width: '40%' })
-  })
-
-  it('celebrates when the completed count reaches the daily goal', async () => {
-    window.localStorage.setItem('mirrormind.review-daily-goal', '3')
-    renderPage()
-
-    expect(await screen.findByText('Meta atingida')).toBeInTheDocument()
-    expect(screen.getByText(/fila segue exibindo todas as revisões/i)).toBeInTheDocument()
-  })
-
-  it('suggests a goal from the forecast and persists the chosen value', async () => {
-    const user = userEvent.setup()
-    renderPage()
-
-    expect(await screen.findByText('Sem meta definida')).toBeInTheDocument()
-    // Forecast: 3 + 1 + 2 = 6 revisoes em 7 dias -> media 0.86 -> sugestao 1.
-    await user.click(screen.getByRole('button', { name: /Sugerir: 1 revisão\/dia/ }))
-
-    expect(window.localStorage.getItem('mirrormind.review-daily-goal')).toBe('1')
-    expect(screen.getByText('Meta atingida')).toBeInTheDocument()
-  })
-
-  it('adjusts the goal with the stepper and persists it locally', async () => {
-    const user = userEvent.setup()
-    renderPage()
-
-    await user.click(await screen.findByRole('button', { name: 'Aumentar meta diária' }))
-    await user.click(screen.getByRole('button', { name: 'Aumentar meta diária' }))
-
-    expect(window.localStorage.getItem('mirrormind.review-daily-goal')).toBe('2')
-    expect(screen.getByText('Meta atingida')).toBeInTheDocument()
-    expect(screen.getByRole('progressbar', { name: /meta diária/i })).toHaveAttribute('aria-valuemax', '2')
   })
 
   it('shows the error state with retry when the backend fails', async () => {

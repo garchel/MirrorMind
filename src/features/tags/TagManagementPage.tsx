@@ -15,6 +15,8 @@ import {
   type TagSummary,
 } from './tagManagement'
 import { PolicyWorkloadEstimate } from '../review/PolicyWorkloadEstimate'
+import { Modal, ModalHeader } from '../../components/Modal'
+import { PageHeader } from '../../components/PageHeader'
 import './tag-management.css'
 
 type Props = {
@@ -262,62 +264,6 @@ function TagTreeBranch({ nodes, selected, expanded, querying, onSelect }: TagTre
   )
 }
 
-/** Foco inicial, contenção de Tab/Shift+Tab, fechamento com Escape (quando
- *  a operação não estiver ocupada) e restauração do foco ao fechar, para os
- *  diálogos modais de impacto desta página. */
-function useDialogFocus(
-  open: boolean,
-  dialogRef: { current: HTMLElement | null },
-  onClose: () => void,
-) {
-  const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
-  const previousFocusRef = useRef<HTMLElement | null>(null)
-  useEffect(() => {
-    if (!open) return
-    const dialog = dialogRef.current
-    if (!dialog) return
-    previousFocusRef.current = document.activeElement as HTMLElement | null
-    const focusable = dialog.querySelector<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textárea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    )
-    ;(focusable ?? dialog).focus()
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        onCloseRef.current()
-        return
-      }
-      if (event.key !== 'Tab') return
-      const focusableElements = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textárea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      )
-      if (focusableElements.length === 0) {
-        event.preventDefault()
-        return
-      }
-      const first = focusableElements[0]
-      const last = focusableElements[focusableElements.length - 1]
-      const active = document.activeElement as HTMLElement | null
-      if (event.shiftKey && (active === first || !dialog.contains(active))) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && (active === last || !dialog.contains(active))) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      previousFocusRef.current?.focus?.()
-    }
-  }, [open, dialogRef])
-}
-
 export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   const [config, setConfig] = useState<VaultReviewPolicyConfig | null>(null)
   const [tagIndex, setTagIndex] = useState<TagSummary[]>([])
@@ -338,14 +284,6 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   useEffect(() => {
     selectedTagRef.current = selectedTag
   }, [selectedTag])
-  const impactDialogRef = useRef<HTMLElement | null>(null)
-  const deleteDialogRef = useRef<HTMLElement | null>(null)
-  useDialogFocus(Boolean(pending), impactDialogRef, () => {
-    if (!busy) setPending(null)
-  })
-  useDialogFocus(Boolean(pendingDelete), deleteDialogRef, () => {
-    if (!busy) setPendingDelete(null)
-  })
 
   useEffect(() => {
     const generation = generationRef.current + 1
@@ -582,12 +520,12 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
 
   return (
     <section className="workspace-page tag-management-page" aria-labelledby="tag-management-title">
-      <header className="tag-management-header">
-        <div>
-          <p className="card-kicker">Organização e aprendizado</p>
-          <h2 id="tag-management-title">Tags do vault</h2>
-          <p>Gerencie a classificação das notas e a política de revisão que cada tag transmite.</p>
-        </div>
+      <PageHeader
+        kicker="Organização e aprendizado"
+        title="Tags do vault"
+        titleId="tag-management-title"
+        description="Gerencie a classificação das notas e a política de revisão que cada tag transmite."
+      >
         <div className="tag-header-actions">
           {atRuleLimit ? (
             <p className="tag-limit-note" role="status">Limite de 100 regras de tag atingido — edite ou exclua uma regra existente antes de criar outra.</p>
@@ -602,7 +540,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
             Criar tag
           </button>
         </div>
-      </header>
+      </PageHeader>
 
       <div className="tag-management-layout">
         <aside className="tag-tree-pane" aria-label="Tags existentes">
@@ -844,13 +782,25 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
         </main>
       </div>
 
-      {pending ? (
-        <div className="tag-impact-backdrop" role="presentation">
-          <section ref={impactDialogRef} className="tag-impact-modal" role="dialog" aria-modal="true" aria-labelledby="tag-impact-title">
-            <div className="tag-impact-heading">
-              <div><p className="card-kicker">Confirme o impacto</p><h3 id="tag-impact-title">{pending.title}</h3></div>
-              <button type="button" className="secondary-button tag-icon-button" onClick={() => setPending(null)} disabled={busy} aria-label="Fechar confirmação"><X size={16} /></button>
-            </div>
+      <Modal
+        open={pending !== null}
+        onClose={() => {
+          if (!busy) setPending(null)
+        }}
+        labelledBy="tag-impact-title"
+        className="tag-impact-modal"
+      >
+        {pending ? (
+          <>
+            <ModalHeader
+              title={pending.title}
+              titleId="tag-impact-title"
+              closeLabel="Fechar confirmação"
+              kicker="Confirme o impacto"
+              onClose={() => {
+                if (!busy) setPending(null)
+              }}
+            />
             <p>{pending.description}</p>
             <div className="tag-impact-count">
               <strong>{pending.preview.affectedNotePaths.length}</strong>
@@ -867,17 +817,29 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 {busy ? 'Aplicando…' : 'Confirmar alteração'}
               </button>
             </div>
-          </section>
-        </div>
-      ) : null}
+          </>
+        ) : null}
+      </Modal>
 
-      {pendingDelete ? (
-        <div className="tag-impact-backdrop" role="presentation">
-          <section ref={deleteDialogRef} className="tag-impact-modal tag-delete-modal" role="dialog" aria-modal="true" aria-labelledby="tag-delete-title">
-            <div className="tag-impact-heading">
-              <div><p className="card-kicker">Excluir tag</p><h3 id="tag-delete-title">{pendingDelete.title}</h3></div>
-              <button type="button" className="secondary-button tag-icon-button" onClick={() => setPendingDelete(null)} disabled={busy} aria-label="Fechar confirmação"><X size={16} /></button>
-            </div>
+      <Modal
+        open={pendingDelete !== null}
+        onClose={() => {
+          if (!busy) setPendingDelete(null)
+        }}
+        labelledBy="tag-delete-title"
+        className="tag-impact-modal tag-delete-modal"
+      >
+        {pendingDelete ? (
+          <>
+            <ModalHeader
+              title={pendingDelete.title}
+              titleId="tag-delete-title"
+              closeLabel="Fechar confirmação"
+              kicker="Excluir tag"
+              onClose={() => {
+                if (!busy) setPendingDelete(null)
+              }}
+            />
             <p>{pendingDelete.description}</p>
 
             {pendingDeleteNotes > 0 || pendingDeleteNested > 0 ? (
@@ -929,9 +891,9 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 {busy ? 'Aplicando…' : 'Excluir tag'}
               </button>
             </div>
-          </section>
-        </div>
-      ) : null}
+          </>
+        ) : null}
+      </Modal>
     </section>
   )
 }

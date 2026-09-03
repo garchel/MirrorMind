@@ -6,8 +6,9 @@ use super::contract::{ReviewMode, UnitEvaluation};
 use super::coverage::{select_session_units, SessionPlan};
 use super::credentials::{
     credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
-    has_gemini_consent, load_gemini_api_key, load_openai_compatible_provider, save_gemini_api_key,
-    save_openai_compatible_provider, set_gemini_consent, NativeCredentialStore,
+    has_gemini_consent, has_openai_compatible_consent, load_gemini_api_key,
+    load_openai_compatible_provider, save_gemini_api_key, save_openai_compatible_provider,
+    set_gemini_consent, set_openai_compatible_consent, NativeCredentialStore,
 };
 use super::dashboard::{build_vault_review_dashboard, VaultReviewDashboard};
 use super::evaluation::{
@@ -219,7 +220,7 @@ pub enum AiProviderSelection {
 /// estimando o custo pelo tamanho do prompt em caracteres (para o teto mensal
 /// e a medicao exibida). O provedor E2E deterministico (sem rede e sem custo)
 /// fica fora do orcamento.
-fn reserve_ai_call(
+pub(crate) fn reserve_ai_call(
     vault_root: &Path,
     provider: &dyn StructuredAiProvider,
     input_chars: usize,
@@ -232,7 +233,7 @@ fn reserve_ai_call(
         .map_err(|error| error.to_string())
 }
 
-fn provider_for_selection(
+pub(crate) fn provider_for_selection(
     selection: AiProviderSelection,
 ) -> Result<Box<dyn StructuredAiProvider>, String> {
     // Builds E2E: provedor deterministico sem rede, ativado por ambiente.
@@ -258,6 +259,12 @@ fn provider_for_selection(
         )),
         AiProviderSelection::OpenAiCompatible => {
             let store = NativeCredentialStore::new();
+            if !has_openai_compatible_consent(&store).map_err(|error| error.to_string())? {
+                return Err(
+                    "Autorize o envio do conteudo ao servidor OpenAI-compatible antes de usar este provedor."
+                        .to_string(),
+                );
+            }
             let configuration =
                 load_openai_compatible_provider(&store).map_err(|error| error.to_string())?;
             let configuration = configuration.ok_or_else(|| {
@@ -399,6 +406,38 @@ pub fn confirm_gemini_data_consent(app: tauri::AppHandle) -> Result<bool, String
         .blocking_show();
     if confirmed {
         set_gemini_consent(&NativeCredentialStore::new(), true)
+            .map_err(|error| error.to_string())?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+pub fn set_openai_compatible_data_consent(consent: bool) -> Result<(), String> {
+    if consent {
+        return Ok(());
+    }
+    set_openai_compatible_consent(&NativeCredentialStore::new(), false)
+        .map_err(|error| error.to_string())
+}
+
+/// Concede o consentimento de envio ao servidor OpenAI-compatible SOMENTE
+/// pelo dialogo nativo do SO (fora do renderer), espelhando o fluxo do Gemini.
+#[tauri::command]
+pub fn confirm_openai_compatible_data_consent(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+    let confirmed = app
+        .dialog()
+        .message("O MirrorMind enviara apenas o Markdown da nota selecionada e os dados da sessao atual ao servidor OpenAI-compatible configurado. O endereco, o modelo e a politica do provedor determinam onde os dados serao tratados (possivel transferencia internacional). Nada sera enviado sem esta autorizacao, e voce pode revoga-la a qualquer momento nas configuracoes.")
+        .title("Autorizar envio ao servidor OpenAI-compatible")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Autorizar".to_string(),
+            "Cancelar".to_string(),
+        ))
+        .blocking_show();
+    if confirmed {
+        set_openai_compatible_consent(&NativeCredentialStore::new(), true)
             .map_err(|error| error.to_string())?;
         Ok(true)
     } else {

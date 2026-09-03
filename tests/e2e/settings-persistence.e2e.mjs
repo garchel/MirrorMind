@@ -70,8 +70,8 @@ async function assertConfiguredSettings() {
   const autoSaveToggle = await $('.settings-toggle*=Auto Save').$('input[type="checkbox"]')
   await expect(autoSaveToggle).toBeSelected()
 
-  // O atalho personalizado permanece configurado.
-  await $('[aria-label="Ver atalhos"]').click()
+  // O atalho personalizado permanece configurado (Configurações > Atalhos).
+  await $('nav.settings-nav').$('.//button[normalize-space()="Atalhos"]').click()
   const shortcutInput = await $('[aria-label="Atalho para criar nova nota"]')
   await expect(shortcutInput).toHaveValue(SHORTCUT)
   await $('[aria-label="Voltar para notas"]').click()
@@ -99,8 +99,8 @@ if (phase === 'configure-settings') describe('Configurar preferencias', () => {
     }
     await expect(autoSaveToggle).toBeSelected()
 
-    // Atalho personalizado: foca o campo e pressiona a nova combinacao.
-    await $('[aria-label="Ver atalhos"]').click()
+    // Atalho personalizado (Configurações > Atalhos): foca o campo e pressiona a nova combinacao.
+    await $('nav.settings-nav').$('.//button[normalize-space()="Atalhos"]').click()
     const shortcutInput = await $('[aria-label="Atalho para criar nova nota"]')
     await shortcutInput.click()
     await browser.keys(['Control', 'Shift', 'N'])

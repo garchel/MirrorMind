@@ -17,6 +17,8 @@
   position: relative;
   overflow: hidden;
   padding: 36px;
+  /* Raios literais de propósito: o anel interno (22px) acompanha o painel
+   * (28px) descontado o `inset` — fora da escala `--radius-*`. */
   border-radius: 28px;
   background:
     radial-gradient(circle at top right, rgba(255, 184, 107, 0.18), transparent 28%),
@@ -80,7 +82,7 @@
 .action-card,
 .vault-panel,
 .sub-panel {
-  border-radius: 24px;
+  border-radius: var(--radius-2xl);
 }
 
 .action-card {
@@ -109,7 +111,7 @@
   border: 1px solid var(--border-strong);
   background: rgba(255, 255, 255, 0.75);
   color: var(--text-h);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   min-height: 48px;
   padding: 0 14px;
   font: inherit;
@@ -156,7 +158,7 @@ button:disabled {
 .error-banner {
   margin: 0;
   padding: 14px 16px;
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   border: 1px solid rgba(154, 59, 35, 0.26);
   background: rgba(154, 59, 35, 0.12);
   color: var(--danger);
@@ -244,7 +246,7 @@ button:disabled {
   border: 1px solid var(--border);
   background: var(--panel);
   box-shadow: var(--panel-shadow);
-  border-radius: 24px;
+  border-radius: var(--radius-2xl);
 }
 
 .workspace-topbar {
@@ -285,7 +287,7 @@ button:disabled {
   display: grid;
   gap: 14px;
   padding: 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   background: rgba(255, 255, 255, 0.58);
 }
 
@@ -375,7 +377,7 @@ button:disabled {
   width: 100%;
   min-height: 38px;
   padding: 0 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   text-align: left;
   background: rgba(239, 229, 210, 0.68);
   color: var(--text-h);
@@ -416,7 +418,7 @@ button:disabled {
   gap: 4px;
   flex: 0 0 auto;
   border: 1px solid rgba(28, 36, 39, 0.08);
-  border-radius: 14px;
+  border-radius: var(--radius-xl);
   background: rgba(239, 229, 210, 0.65);
 }
 
@@ -473,7 +475,7 @@ button:disabled {
   gap: 10px;
   min-height: 0;
   padding: 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   background: rgba(255, 255, 255, 0.62);
 }
 
@@ -483,7 +485,7 @@ button:disabled {
   min-height: 58svh;
   margin: 0;
   border: 1px solid rgba(28, 36, 39, 0.1);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: rgba(255, 255, 255, 0.78);
   color: var(--text-h);
   font: 15px/1.6 var(--mono);
@@ -661,7 +663,7 @@ button:disabled {
 .workspace-shell .field input {
   min-height: 34px;
   border: 1px solid var(--workspace-line);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #22212c;
   color: var(--workspace-text);
   padding: 0 9px;
@@ -670,7 +672,7 @@ button:disabled {
 
 .workspace-shell button {
   min-height: 30px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #25232f;
   color: var(--workspace-text);
   font-size: 12px;
@@ -728,7 +730,7 @@ button:disabled {
 .workspace-shell .tree-note {
   min-height: 28px;
   padding: 0 9px 0 20px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: #bbb8c5;
   font-size: 12px;
@@ -878,7 +880,7 @@ button:disabled {
   right: 18px;
   bottom: 18px;
   z-index: 2;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #3c2025;
   color: #ffc4c7;
 }
@@ -917,7 +919,7 @@ button:disabled {
   min-height: 36px;
   padding: 0 11px;
   border: 1px solid #aa514b;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: #f9e9e7;
   box-shadow: 0 8px 24px rgba(32, 32, 30, 0.16);
   color: #8d3029;
@@ -955,7 +957,7 @@ button:disabled {
   max-width: min(260px, calc(100vw - 28px));
   padding: 6px 8px;
   border: 1px solid #77766f;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #292926;
   color: #fbfaf6;
   font: 12px/1.25 var(--mono);
@@ -967,11 +969,25 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  width: min(560px, 100%);
-  padding: 16px;
+  width: min(720px, 100%);
+  padding: 16px 18px;
   border: 1px solid #d9d7d0;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: #fbfaf6;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.settings-toggle:hover {
+  border-color: #c8c6be;
+}
+
+.settings-toggle:focus-within {
+  border-color: #738979;
+  box-shadow: 0 0 0 1px #738979;
+}
+
+label.settings-toggle {
+  cursor: pointer;
 }
 
 .settings-toggle span {
@@ -995,19 +1011,20 @@ button:disabled {
   display: inline-flex;
   flex-shrink: 0;
   border: 1px solid #d9d7d0;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: #fffef9;
   overflow: hidden;
 }
 
 .settings-segmented button {
-  padding: 6px 12px;
+  padding: 8px 14px;
   border: none;
   border-right: 1px solid #d9d7d0;
   background: transparent;
   color: #62615b;
-  font: 12px var(--sans);
+  font: 12.5px var(--sans);
   cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
 }
 
 .settings-segmented button:last-child {
@@ -1026,30 +1043,51 @@ button:disabled {
 
 .settings-note {
   margin: 0;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border: 1px solid rgb(196 106 43 / 25%);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgb(196 106 43 / 8%);
   color: #8a5a2a;
-  font-size: 11px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 /* Layout da pagina de Configuracoes: menu lateral (sticky) + conteudo. */
 .settings-layout {
   display: grid;
-  grid-template-columns: 196px minmax(0, 1fr);
-  gap: 32px;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 40px;
   align-items: start;
   width: 100%;
-  max-width: 960px;
+  max-width: 1120px;
 }
 
 .settings-nav {
   position: sticky;
   top: 0;
   display: grid;
+  gap: 16px;
+  align-content: start;
+  /* Menu com rolagem propria em janelas baixas: nunca empurra o conteudo. */
+  max-height: calc(100dvh - var(--titlebar-h, 40px) - 112px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 4px;
+}
+
+.settings-nav-group {
+  display: grid;
   gap: 3px;
+  align-content: start;
+}
+
+.settings-nav-group-label {
+  margin: 0;
+  padding: 0 11px 3px;
+  color: #a3a097;
+  font: 600 10px/1.4 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .settings-nav button {
@@ -1057,15 +1095,16 @@ button:disabled {
   align-items: center;
   gap: 9px;
   width: 100%;
-  min-height: 34px;
+  min-height: 36px;
   padding: 0 11px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: #4f4f49;
-  font: 500 12.5px var(--sans);
+  font: 500 13px var(--sans);
   text-align: left;
   cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
 }
 
 .settings-nav button:hover {
@@ -1074,6 +1113,7 @@ button:disabled {
 
 .settings-nav button.is-active {
   background: #e7e3d8;
+  box-shadow: inset 3px 0 0 #2e6b4f;
   color: #1c2427;
   font-weight: 600;
 }
@@ -1089,16 +1129,17 @@ button:disabled {
 
 .settings-content {
   display: grid;
-  gap: 18px;
+  gap: 24px;
   align-content: start;
   min-width: 0;
 }
 
 .settings-section {
   display: grid;
-  gap: 12px;
-  width: min(560px, 100%);
+  gap: 16px;
+  width: min(720px, 100%);
   margin-top: 12px;
+  scroll-margin-top: 8px;
 }
 
 .settings-section-description {
@@ -1113,27 +1154,40 @@ button:disabled {
 }
 
 .settings-select {
-  min-width: 124px;
-  min-height: 32px;
-  padding: 0 27px 0 9px;
+  min-width: 140px;
+  min-height: 36px;
+  padding: 0 30px 0 12px;
   border: 1px solid #d9d7d0;
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: #fffef9;
   color: #3d3d38;
-  font: 12px var(--sans);
+  font: 12.5px var(--sans);
+  cursor: pointer;
+}
+
+.settings-select:focus-visible {
+  outline: 2px solid #738979;
+  outline-offset: 1px;
+  border-color: #738979;
 }
 
 /* Input numerico das configuracoes (ex.: Grafo 3D) — sobrescreve a largura
  * compacta que o .settings-toggle input aplica aos checkboxes. */
 .settings-toggle input.settings-number {
-  width: 88px;
-  height: 30px;
-  padding: 0 8px;
+  width: 96px;
+  height: 34px;
+  padding: 0 10px;
   border: 1px solid #d9d7d0;
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: #fffef9;
   color: #3d3d38;
-  font: 12px var(--mono);
+  font: 12.5px var(--mono);
+}
+
+.settings-toggle input.settings-number:focus-visible,
+.settings-toggle input[type='checkbox']:focus-visible {
+  outline: 2px solid #738979;
+  outline-offset: 2px;
 }
 
 .workspace-page {
@@ -1164,10 +1218,10 @@ button:disabled {
 .shortcut-settings {
   display: grid;
   gap: 1px;
-  max-width: 560px;
+  max-width: 720px;
   overflow: hidden;
   border: 1px solid #d9d7d0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: #d9d7d0;
 }
 
@@ -1180,13 +1234,19 @@ button:disabled {
 
 .shortcut-settings label {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px;
+  grid-template-columns: minmax(0, 1fr) 160px;
   gap: 16px;
   align-items: center;
-  padding: 14px;
+  padding: 14px 16px;
   background: #fbfaf6;
   color: #353531;
   font-size: 14px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.shortcut-settings label:hover {
+  background: #f6f5f0;
 }
 
 .shortcut-settings label > span {
@@ -1205,13 +1265,21 @@ button:disabled {
 
 .shortcut-settings input {
   width: 100%;
-  min-height: 36px;
+  min-height: 38px;
   border: 1px solid #c8c6be;
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: #f2f1ec;
   color: #20201e;
   font: 13px/1 var(--mono);
   text-align: center;
+  cursor: pointer;
+}
+
+.shortcut-settings input:focus {
+  outline: 2px solid #738979;
+  outline-offset: 0;
+  border-color: #738979;
+  background: #fffef9;
 }
 
 .note-search-backdrop {
@@ -1232,7 +1300,7 @@ button:disabled {
   width: min(520px, calc(100vw - 32px));
   overflow: hidden;
   border: 1px solid #c8c6be;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: #fbfaf6;
   box-shadow: 0 18px 50px rgba(32, 32, 30, 0.18);
 }
@@ -1396,7 +1464,11 @@ button:disabled {
   color: #346538;
 }
 
-/* Vault selection shares the notebook workspace language. */
+/* Vault selection shares the notebook workspace language. A titlebar segue
+ * fixa no topo (position:fixed do `.app-titlebar`, fora do fluxo) e este shell
+ * ocupa exatamente a viewport restante sendo ELE o scroller: a trilha da
+ * barra de rolagem nasce abaixo dos botoes de janela e nunca passa por cima
+ * ou por fora deles. O body nunca rola, entao nao ha scrollbar da viewport. */
 .vault-selection-shell {
   --selection-paper: #fbfaf6;
   --selection-raised: #f2f1ec;
@@ -1408,8 +1480,11 @@ button:disabled {
   grid-template-columns: 156px minmax(0, 1fr);
   align-content: start;
   gap: 0;
-  /* Desconta a barra de titulo customizada (padding de #root). */
-  min-height: calc(100dvh - var(--titlebar-h, 40px));
+  height: calc(100dvh - var(--titlebar-h, 40px));
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   padding: 0;
   background: var(--selection-paper);
   color: var(--selection-ink);
@@ -1426,6 +1501,9 @@ button:disabled {
   border-right: 1px solid var(--selection-line);
   background: var(--selection-rail);
   color: #3d3d38;
+  position: sticky;
+  top: 0;
+  align-self: start;
 }
 
 .vault-selection-mark {
@@ -1443,6 +1521,7 @@ button:disabled {
 .vault-selection-shell > .error-banner,
 .vault-selection-shell > .vault-panel {
   grid-column: 2;
+  grid-row: auto;
   width: min(980px, calc(100% - 48px));
   margin-right: auto;
   margin-left: auto;
@@ -1502,7 +1581,7 @@ button:disabled {
   gap: 0;
   margin-top: 28px;
   border: 1px solid var(--selection-line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -1524,13 +1603,13 @@ button:disabled {
 
 .vault-selection-shell .field input {
   border-color: var(--selection-line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #fffefa;
   color: var(--selection-ink);
 }
 
 .vault-selection-shell button {
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #292926;
   color: #fbfaf6;
 }
@@ -1565,7 +1644,7 @@ button:disabled {
   width: min(460px, 100%);
   padding: 28px;
   border: 1px solid var(--selection-line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: #fbfaf6;
   box-shadow: 0 20px 60px rgba(32, 32, 30, 0.18);
   color: var(--selection-ink);
@@ -1665,7 +1744,7 @@ button:disabled {
   left: 10px;
   padding: 8px 12px;
   transform: translateY(-160%);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #252521;
   color: #fffef9;
   font: 12px var(--sans);
@@ -1720,7 +1799,7 @@ button:disabled {
   min-height: 36px;
   padding: 0 9px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #33332f;
   text-align: left;
@@ -1880,7 +1959,7 @@ button:disabled {
   gap: 5px;
   padding: 8px;
   border: 1px solid #d9d7d0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #fbfaf6;
   box-shadow: 0 10px 26px rgba(32, 32, 30, 0.14);
 }
@@ -1954,7 +2033,7 @@ button:disabled {
 
 .workspace-shell .field input {
   border-color: var(--workspace-line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #fbfaf6;
   color: var(--workspace-text);
 }
@@ -1997,7 +2076,7 @@ button:disabled {
   margin: 4px 7px 10px;
   padding: 10px 12px;
   border: 1px solid rgba(176, 122, 22, 0.45);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: rgba(255, 244, 214, 0.55);
   color: #6b4e10;
 }
@@ -2050,7 +2129,7 @@ button:disabled {
   height: 22px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -2075,7 +2154,7 @@ button:disabled {
   gap: 7px;
   padding: 0 8px;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: #4f4f49;
   font-size: 12px;
@@ -2138,7 +2217,7 @@ button:disabled {
   min-height: 30px;
   padding: 4px;
   border: 1px solid #d9d7d0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #fbfaf6;
 }
 
@@ -2160,7 +2239,7 @@ button:disabled {
   min-height: 20px;
   padding: 1px 6px;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: #ecebe5;
   color: #686861;
   font: 11px var(--sans);
@@ -2185,7 +2264,7 @@ button:disabled {
   min-height: 25px;
   padding: 0 6px;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: #5d5d57;
   font: 11px var(--sans);
@@ -2262,7 +2341,7 @@ button:disabled {
   padding: 0;
   place-items: center;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: #73736d;
 }
@@ -2315,7 +2394,7 @@ button:disabled {
   min-width: 188px;
   padding: 5px;
   border: 1px solid #d9d7d0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #fbfaf6;
   box-shadow: 0 10px 24px rgba(32, 32, 30, 0.14);
 }
@@ -2327,7 +2406,7 @@ button:disabled {
   min-height: 30px;
   padding: 0 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: #3c3c37;
   font-size: 12px;
@@ -2362,7 +2441,7 @@ button:disabled {
   padding: 0;
   place-items: center;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: #676760;
 }
@@ -2390,7 +2469,7 @@ button:disabled {
   gap: 8px;
   padding: 0 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: #4f4f49;
   font-size: 12px;
@@ -2575,7 +2654,7 @@ button:disabled {
   min-height: 32px;
   padding: 0 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -2678,7 +2757,7 @@ button:disabled {
   max-width: min(94%, 1080px);
   padding: 8px 10px;
   border: 1px solid rgb(28 36 39 / 14%);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: rgb(251 250 246 / 88%);
   box-shadow: 0 10px 30px rgb(44 54 45 / 18%);
   backdrop-filter: blur(10px);
@@ -2750,7 +2829,7 @@ button:disabled {
   overflow: auto;
   padding: 8px 10px;
   border: 1px solid rgb(28 36 39 / 14%);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: rgb(251 250 246 / 88%);
   box-shadow: 0 6px 18px rgb(44 54 45 / 14%);
   backdrop-filter: blur(10px);
@@ -2793,7 +2872,7 @@ button:disabled {
   min-height: 30px;
   padding: 0 8px;
   border: 1px solid #d8d6cf;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #fffef9;
   color: #3d3d38;
   font: 12px var(--sans);
@@ -2846,7 +2925,7 @@ button:disabled {
   gap: 5px;
   padding: 4px 8px;
   border: 1px solid rgb(28 36 39 / 14%);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #6b6b64;
   font: 11px var(--sans);
@@ -2914,7 +2993,7 @@ button:disabled {
   height: 26px;
   padding: 0 6px;
   border: 1px solid #d8d6cf;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #fffef9;
   color: #3d3d38;
   font: 12px var(--mono);
@@ -3008,7 +3087,7 @@ button:disabled {
   height: 26px;
   padding: 0 4px;
   border: 1px solid #d8d6cf;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #fffef9;
   color: #3d3d38;
   font: 12px var(--font);
@@ -3051,7 +3130,7 @@ button:disabled {
   height: 22px;
   padding: 1px;
   border: 1px solid #d8d6cf;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #fffef9;
   cursor: pointer;
 }
@@ -3068,7 +3147,7 @@ button:disabled {
   flex-shrink: 0;
   padding: 2px 6px;
   border: 1px solid #d8d6cf;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #fffef9;
   color: #6a6a62;
   font-size: 10px;
@@ -3084,7 +3163,7 @@ button:disabled {
   margin-top: 6px;
   padding: 3px 8px;
   border: 1px solid #d8d6cf;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: #6a6a62;
   font-size: 10px;
@@ -3146,7 +3225,7 @@ button:disabled {
   min-height: 28px;
   padding: 0 6px;
   border: 1px solid #d8d6cf;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #fffef9;
   color: #3d3d38;
   font: 12px var(--sans);
@@ -3207,7 +3286,7 @@ button:disabled {
   gap: 2px;
   padding: 10px 6px;
   border: 1px solid rgb(28 36 39 / 8%);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: #f4f6f2;
 }
 
@@ -3241,7 +3320,7 @@ button:disabled {
   margin: 0;
   padding: 10px 12px;
   border: 1px solid rgb(28 36 39 / 8%);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: #fffef9;
   color: #5a5a53;
   font-size: 12px;
@@ -3308,7 +3387,7 @@ button:disabled {
   min-height: 38px;
   padding: 0 14px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: #20201e;
   color: #fbfaf6;
   font: 600 13px/1 var(--sans);
@@ -3329,7 +3408,7 @@ button:disabled {
   height: 28px;
   padding: 0;
   border: 1px solid rgb(28 36 39 / 12%);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: #6b6b64;
   cursor: pointer;
@@ -3360,7 +3439,7 @@ button:disabled {
   min-height: 38px;
   padding: 0 14px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: #20201e;
   color: #fbfaf6;
   font: 600 13px/1 var(--sans);
@@ -3380,7 +3459,7 @@ button:disabled {
   gap: 1px;
   padding: 2px;
   border: 1px solid rgb(28 36 39 / 12%);
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: rgb(255 254 249 / 60%);
 }
 
@@ -3402,7 +3481,7 @@ button:disabled {
   z-index: 10;
   transform: translate(-50%, -50%);
   padding: 12px 16px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: rgb(251 250 246 / 90%);
   box-shadow: 0 8px 24px rgb(44 54 45 / 14%);
 }
@@ -3420,7 +3499,7 @@ button:disabled {
   overflow: auto;
   border: 1px solid #e0d8c9;
   border-left: 3px solid #a9844a;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: rgb(255 253 247 / 94%);
   box-shadow: 0 10px 28px rgb(44 54 45 / 16%);
 }
@@ -3441,7 +3520,7 @@ button:disabled {
   margin: 0;
   padding: 6px 10px;
   border: 1px solid rgb(169 132 74 / 45%);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: rgb(255 251 240 / 92%);
   box-shadow: 0 6px 18px rgb(44 54 45 / 12%);
   color: #7a5a22;
@@ -3457,7 +3536,7 @@ button:disabled {
   margin: 0;
   padding: 6px 10px;
   border: 1px solid rgb(112 137 170 / 45%);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: rgb(245 248 253 / 94%);
   box-shadow: 0 6px 18px rgb(44 54 45 / 12%);
   color: #40597c;
@@ -3485,14 +3564,14 @@ button:disabled {
   display: inline-flex;
   padding: 2px;
   border: 1px solid #d8d6cf;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: #efece4;
 }
 
 .workspace-shell .graph-dimension-toggle button {
   min-height: 28px;
   padding: 0 11px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #6b6a63;
   font-size: 12px;
@@ -3532,7 +3611,7 @@ button:disabled {
 /* Rotulos CSS2D sobre os nos do grafo 3D (o renderer centraliza com translate). */
 .graph3d-label {
   padding: 2px 7px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: rgb(10 13 18 / 68%);
   color: #c9d4e2;
   font: 500 11px/1.35 var(--sans);
@@ -3711,7 +3790,7 @@ button:disabled {
   width: min(100%, 920px);
   overflow-x: auto;
   border: 1px solid #e1dfd8;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: #fbfaf6;
 }
 
@@ -3784,7 +3863,7 @@ button:disabled {
   max-width: min(420px, calc(100% - 24px));
   padding: 4px 5px 4px 9px;
   border: 1px solid var(--workspace-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--workspace-raised);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
 }
@@ -3830,7 +3909,7 @@ button:disabled {
   min-height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--workspace-muted);
   cursor: pointer;
@@ -3915,7 +3994,7 @@ button:disabled {
   width: 18px;
   height: 18px;
   padding: 2px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   transition: flex-basis 180ms ease, width 180ms ease, height 180ms ease, padding 180ms ease, background-color 180ms ease;
 }
 
@@ -3928,7 +4007,7 @@ button:disabled {
   width: 26px;
   height: 26px;
   padding: 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #d3d2ca;
 }
 
@@ -3950,7 +4029,7 @@ button:disabled {
   position: absolute;
   width: 26px;
   height: 26px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 .workspace-shell .new-tab-button > svg {
@@ -4219,7 +4298,7 @@ button:disabled {
   gap: 7px;
   min-height: 34px;
   padding: 0 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -4329,7 +4408,7 @@ button:disabled {
 .workspace-shell .favorite-button.is-active { color: #9a7432; background: #f1e8cf; }
 .workspace-shell .favorite-notes { display: grid; gap: 2px; margin: 0 2px 8px; padding: 6px; border-bottom: 1px solid #e6e4de; }
 .workspace-shell .favorite-notes > span { color: #73736d; font-size: 10px; text-transform: uppercase; }
-.workspace-shell .favorite-notes button { display: flex; align-items: center; gap: 6px; min-height: 27px; border: 0; border-radius: 3px; background: transparent; color: #4f4f49; font-size: 12px; text-align: left; }
+.workspace-shell .favorite-notes button { display: flex; align-items: center; gap: 6px; min-height: 27px; border: 0; border-radius: var(--radius-xs); background: transparent; color: #4f4f49; font-size: 12px; text-align: left; }
 .workspace-shell .favorite-notes button:hover { background: #f1e8cf; }
 
 .workspace-shell .editor-mode-control {
@@ -4339,7 +4418,7 @@ button:disabled {
   gap: 6px;
   padding: 0 6px;
   border: 1px solid #d9d7d0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #fbfaf6;
   color: #55554f;
 }
@@ -4353,7 +4432,7 @@ button:disabled {
   min-height: 22px;
   padding: 0 10px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: #6b6a63;
   font: 600 11.5px var(--sans);
@@ -4445,7 +4524,7 @@ button:disabled {
   flex-wrap: wrap;
   justify-content: center;
   border: 1px solid #d9d7d0;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: #fbfaf6;
   box-shadow: none;
   opacity: 0;
@@ -4481,7 +4560,7 @@ button:disabled {
   padding: 0;
   place-items: center;
   border: 1px solid #d9d7d0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #fbfaf6;
   color: #353531;
 }
@@ -4563,7 +4642,7 @@ button:disabled {
   padding: 6px;
   overflow: auto;
   border: 1px solid #d9d7d0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #fbfaf6;
   box-shadow: 0 8px 18px rgba(45, 44, 39, 0.08);
 }
@@ -4608,7 +4687,7 @@ button:disabled {
   padding: 0;
   place-items: center;
   border: 1px solid #d9d7d0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #fbfaf6;
   color: #353531;
 }
@@ -4636,7 +4715,7 @@ button:disabled {
   max-width: calc(100% - 12px);
   padding: 4px;
   border: 1px solid #d9d7d0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: #fbfaf6;
   box-shadow: 0 8px 18px rgba(45, 44, 39, 0.18);
 }
@@ -4657,7 +4736,7 @@ button:disabled {
   padding: 0;
   place-items: center;
   border: 1px solid #d9d7d0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #fbfaf6;
   color: #353531;
 }
@@ -4716,7 +4795,7 @@ button:disabled {
    os estilos base globais de review-session.css. */
 .workspace-shell .markdown-mixed .cm-live-gap {
   padding: 1px 3px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
@@ -4764,7 +4843,7 @@ button:disabled {
   align-items: center;
   gap: 2px;
   padding: 3px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--ink-soft, #3f5239) 8%, transparent);
 }
 
@@ -4775,7 +4854,7 @@ button:disabled {
   width: 26px;
   height: 26px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink-soft, #4c5a46);
   cursor: pointer;
@@ -4845,7 +4924,7 @@ button:disabled {
 
 .markdown-mixed .cm-live-code {
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #efede6;
   color: #4a5560;
   font-family: var(--mono);
@@ -4922,7 +5001,7 @@ button:disabled {
   max-height: 580px;
   margin: 18px 0;
   border: 1px solid #d9d7d0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #fbfaf6;
   object-fit: contain;
 }
@@ -4940,7 +5019,7 @@ button:disabled {
   padding: 12px 14px;
   border: 1px solid #d9d6ce;
   border-left: 3px solid #8d9b88;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #faf9f3;
   color: #343532;
 }
@@ -5046,7 +5125,7 @@ button:disabled {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid #d8d6cf;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #fffefa;
   color: #343532;
   font: inherit;
@@ -5076,7 +5155,7 @@ button:disabled {
   min-height: auto;
   padding: 6px 9px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: #8a4b39;
   font: inherit;
@@ -5136,7 +5215,7 @@ button:disabled {
   padding: 0;
   place-items: center;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #343532;
   cursor: pointer;
@@ -5160,7 +5239,7 @@ button:disabled {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid #d8d6cf;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #fffefa;
   color: #343532;
   font: inherit;
@@ -5185,7 +5264,7 @@ button:disabled {
   min-width: 0;
   padding: 5px 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: #343532;
   font: inherit;
@@ -5312,7 +5391,7 @@ button:disabled {
   min-height: auto;
   padding: 2px 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: #e5eee5;
   color: #31533a;
   font: inherit;
@@ -5410,7 +5489,7 @@ button:disabled {
 
 .markdown-mixed .cm-live-fence-content {
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #efede6;
   color: #4a5560;
   font-family: var(--mono);
@@ -5423,7 +5502,7 @@ button:disabled {
   height: 13px;
   margin-right: 7px;
   border: 1.5px solid #5b6f52;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   vertical-align: -2px;
   background: #fff;
 }
@@ -5564,7 +5643,7 @@ button:disabled {
   padding: 12px 14px;
   border: 1px solid #d9d6ce;
   border-left: 3px solid #8d9b88;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #faf9f3;
 }
 
@@ -5589,7 +5668,7 @@ button:disabled {
   margin: 14px 0;
   padding: 12px;
   border: 1px solid #d9d6ce;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #f4f2eb;
   color: #343532;
 }
@@ -5649,7 +5728,7 @@ button:disabled {
   min-height: 32px;
   padding: 0 12px;
   border: 1px solid #cbc8bf;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #ebe9e1;
   color: #3e403b;
   font-size: 11px;
@@ -5682,7 +5761,7 @@ button:disabled {
   margin: 14px 0;
   border: 1px solid color-mix(in srgb, var(--callout-accent) 35%, #dedbd2);
   border-left: 4px solid var(--callout-accent);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--callout-surface);
   color: #2d3031;
   overflow: hidden;
@@ -5765,7 +5844,7 @@ button:disabled {
 
 .workspace-shell .broken-link-list code {
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: #f1ded8;
   color: #8a4b39;
   font: inherit;
@@ -5824,7 +5903,7 @@ button:disabled {
 .wikilink-index-cancelled { color: #8a6d3b; font-size: 11px; }
 
 .command-palette-results { display: grid; max-height: 360px; overflow: auto; padding: 6px; }
-.command-palette-results button { display: grid; gap: 3px; width: 100%; padding: 10px; border: 0; border-radius: 4px; background: transparent; color: #353531; text-align: left; }
+.command-palette-results button { display: grid; gap: 3px; width: 100%; padding: 10px; border: 0; border-radius: var(--radius-xs); background: transparent; color: #353531; text-align: left; }
 .command-palette-results button:hover:not(:disabled) { background: #e5eee5; }
 .command-palette-results button:disabled { opacity: .45; }
 .command-palette-results small, .command-palette-results p, .command-palette-hint { color: #73736d; font-size: 11px; }
@@ -5930,7 +6009,7 @@ button:disabled {
   min-height: 26px;
   padding: 0 10px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #9a5b52;
   font-size: 11.5px;
@@ -6000,7 +6079,7 @@ button:disabled {
   gap: 8px;
   min-height: 40px;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: #f6f3ec;
   color: var(--muted, #7e7466);
 }
@@ -6028,7 +6107,7 @@ button:disabled {
   gap: 6px;
   padding: 9px 10px;
   border: 1px solid #e8e5dd;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: #fbfaf6;
 }
 
@@ -6079,7 +6158,7 @@ button:disabled {
 .ui-popover-content.structural-audit-panel .structural-audit-quote {
   margin: 0;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #f2efe7;
   color: #57534e;
   font: 11px/1.5 var(--mono, monospace);
@@ -6104,7 +6183,7 @@ button:disabled {
   min-height: 26px;
   padding: 0 11px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: var(--text-h, #1c2427);
   color: #fbfaf6;
   font-size: 11.5px;
@@ -6142,7 +6221,7 @@ button:disabled {
   min-height: 34px;
   padding: 0 10px;
   border: 1px solid #e0ddd4;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: #f5f2ea;
   color: var(--text-h, #1c2427);
   font: 500 12px var(--sans);
@@ -6184,7 +6263,7 @@ button:disabled {
 .ui-popover-content.structural-audit-panel .fact-check-finding {
   border: 1px solid var(--border, #e2dccf);
   border-left-width: 3px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 8px 10px;
   background: var(--surface-raised, #fffdf8);
 }

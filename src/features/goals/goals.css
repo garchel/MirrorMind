@@ -175,7 +175,7 @@
   min-height: 38px;
   padding: 8px 10px;
   border: 1px solid var(--goals-field-line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--goals-field);
   color: var(--goals-ink);
   font: 13px/1.5 var(--sans);
@@ -207,7 +207,7 @@
   gap: 12px;
   padding: 20px;
   border: 1px solid var(--goals-line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--goals-surface);
 }
 
@@ -265,7 +265,7 @@
   align-items: start;
   padding: 12px;
   border: 1px solid var(--goals-line-soft);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--goals-field);
 }
 
@@ -294,7 +294,7 @@
    (`.workspace-shell button`: cantos de 4px) — nada de pilula. O seletor
    com `.goals-page` garante o padrao mesmo se a cascata mudar. */
 .goals-page button {
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 /* Título da nota proposta + botão "+" à direita: a lista é só
@@ -320,7 +320,7 @@
   min-height: 28px;
   padding: 0;
   border: 1px solid var(--goals-line);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--goals-surface);
   color: var(--goals-ink-soft);
   cursor: pointer;
@@ -367,7 +367,7 @@
   gap: 4px;
   padding: 3px;
   border: 1px solid var(--goals-line-soft);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--goals-sunk);
 }
 
@@ -375,7 +375,7 @@
   min-height: 32px;
   padding: 4px 10px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--goals-faint);
   font-size: 12px;
@@ -419,7 +419,7 @@
   margin: 0;
   padding: 12px 20px;
   border: 1px solid var(--goals-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--goals-surface);
 }
 
@@ -513,7 +513,7 @@
   min-height: 100px;
   align-content: center;
   border: 1px dashed var(--goals-field-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 24px;
   background: var(--goals-surface);
   color: var(--goals-ink-soft);

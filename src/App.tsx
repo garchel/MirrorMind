@@ -8,7 +8,7 @@ import { invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Download, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, MonitorSmartphone, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Cpu, Download, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, Keyboard, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, MonitorSmartphone, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { CiStickyNote } from 'react-icons/ci'
 import 'katex/dist/katex.min.css'
@@ -33,7 +33,7 @@ import { checkReviewNotifications, type ReviewNotificationCheck } from './featur
 import { localDayStartUnixMs } from './features/review/reviewDashboard'
 import { SegmentationSettings } from './features/review/SegmentationSettings'
 import { VaultReviewPolicySettings } from './features/review/VaultReviewPolicySettings'
-import { useAppUpdater } from './lib/useAppUpdater'
+import { isAutoUpdateEnabled, setAutoUpdateEnabled, useAppUpdater } from './lib/useAppUpdater'
 import { useEscapeToClose } from './lib/escapeStack'
 import { UpdateBanner } from './components/UpdateBanner'
 
@@ -290,10 +290,19 @@ const SETTINGS_SECTIONS = [
   { id: 'aparencia', label: 'Aparência', icon: Palette },
   { id: 'workspace', label: 'Workspace', icon: SlidersHorizontal },
   { id: 'leitura', label: 'Leitura', icon: BookOpenCheck },
+  { id: 'atalhos', label: 'Atalhos', icon: Keyboard },
   { id: 'grafo3d', label: 'Grafo 3D', icon: Orbit },
   { id: 'grafo2d', label: 'Grafo 2D', icon: Network },
   { id: 'revisao', label: 'Revisão', icon: ClipboardList },
   { id: 'aplicativo', label: 'Aplicativo', icon: MonitorSmartphone },
+  { id: 'provedor-ia', label: 'Provedor de IA', icon: Cpu },
+] as const
+
+/** Menu lateral das Configuracoes, agrupado por afinidade para leitura rapida. */
+const SETTINGS_GROUPS = [
+  { id: 'interface', label: 'Interface', sections: ['aparencia', 'workspace', 'leitura', 'atalhos'] },
+  { id: 'conhecimento', label: 'Conhecimento', sections: ['grafo3d', 'grafo2d', 'revisao'] },
+  { id: 'sistema', label: 'Sistema', sections: ['aplicativo', 'provedor-ia'] },
 ] as const
 // three.js e pesado (~600 KB): carregado sob demanda, apenas quando o usuario
 // abre o modo 3D do grafo pela primeira vez.
@@ -308,6 +317,7 @@ const ReviewReportsPage = lazy(() => import('./features/review/ReviewReportsPage
 const ReviewSessionPage = lazy(() => import('./features/review/ReviewSessionPage').then((module) => ({ default: module.ReviewSessionPage })))
 const TagManagementPage = lazy(() => import('./features/tags/TagManagementPage').then((module) => ({ default: module.TagManagementPage })))
 const BasesPage = lazy(() => import('./features/bases/BasesPage').then((module) => ({ default: module.BasesPage })))
+const GoalsPage = lazy(() => import('./features/goals/GoalsPage').then((module) => ({ default: module.GoalsPage })))
 
 const LIMITED_MARKDOWN_FEATURE_LABELS: Record<string, string> = {
   html: 'HTML sanitizado',
@@ -425,7 +435,7 @@ function App() {
   const [draggedNotePath, setDraggedNotePath] = useState<string | null>(null)
   const [dropFolderPath, setDropFolderPath] = useState<string | null>(null)
   const [justReleasedDrag, setJustReleasedDrag] = useState(false)
-  const [workspacePage, setWorkspacePage] = useState<'notes' | 'review' | 'dashboard' | 'reports' | 'tags' | 'bases' | 'graph' | 'shortcuts' | 'settings' | 'trash'>('notes')
+  const [workspacePage, setWorkspacePage] = useState<'notes' | 'review' | 'dashboard' | 'reports' | 'tags' | 'bases' | 'graph' | 'settings' | 'trash' | 'goals'>('notes')
   // O explorador de arquivos colapsa fora da pagina de notas para dar espaco
   // ao conteudo da pagina; ao voltar para notas, expande de volta. Sem botao
   // manual — o estado e derivado da pagina atual.
@@ -742,8 +752,32 @@ function App() {
   /** Rola o painel de Configuracoes ate a secao escolhida no menu lateral. */
   function scrollToSettingsSection(sectionId: (typeof SETTINGS_SECTIONS)[number]['id']) {
     setActiveSettingsSection(sectionId)
-    document.getElementById(`settings-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const element = document.getElementById(`settings-${sectionId}`)
+    if (element && typeof element.scrollIntoView === 'function') {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
   }
+
+  /** Abre as Configuracoes ja rolando ate a secao pedida (ex.: palette "atalhos"). */
+  const pendingSettingsSectionRef = useRef<(typeof SETTINGS_SECTIONS)[number]['id'] | null>(null)
+  function openSettingsSection(sectionId: (typeof SETTINGS_SECTIONS)[number]['id']) {
+    pendingSettingsSectionRef.current = sectionId
+    setWorkspacePage('settings')
+  }
+  useEffect(() => {
+    if (workspacePage !== 'settings') return
+    const pending = pendingSettingsSectionRef.current
+    if (!pending) return
+    pendingSettingsSectionRef.current = null
+    setActiveSettingsSection(pending)
+    const frame = window.requestAnimationFrame(() => {
+      const element = document.getElementById(`settings-${pending}`)
+      if (element && typeof element.scrollIntoView === 'function') {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [workspacePage])
   const [noteHoverColor, setNoteHoverColor] = useState(
     () => localStorage.getItem('mirrormind.note-hover-color') ?? '#171716',
   )
@@ -899,6 +933,7 @@ function App() {
   // Aplicativo. Fora do runtime Tauri (Vite no navegador) o hook fica 'idle'.
   const appUpdater = useAppUpdater()
   const [appVersion, setAppVersion] = useState<string | null>(null)
+  const [autoUpdateEnabled, setAutoUpdateEnabledState] = useState(() => isAutoUpdateEnabled())
   useEffect(() => {
     if (!isTauriRuntime()) return
     void getVersion()
@@ -2928,7 +2963,7 @@ function App() {
     if (command.id === 'filter-tags') setShowTagFilterDialog(true)
     if (command.id === 'manage-tags') void openTagManagementPage()
     if (command.id === 'settings') setWorkspacePage('settings')
-    if (command.id === 'shortcuts') setWorkspacePage('shortcuts')
+    if (command.id === 'shortcuts') openSettingsSection('atalhos')
     if (command.id === 'favorite') void toggleActiveFavorite()
     if (command.id === 'undo') void undoLastCommand()
     if (command.id === 'redo') void redoLastCommand()
@@ -4870,7 +4905,7 @@ function App() {
       { id: 'undo', label: 'Desfazer', description: 'Reverte a última alteração da nota ou do vault.', disabled: !canUndoActiveEditor },
       { id: 'redo', label: 'Refazer', description: 'Refaz a última alteração da nota ou do vault.', disabled: !canRedoActiveEditor },
       { id: 'settings', label: 'Abrir configurações', description: 'Vai para as configurações do workspace.' },
-      { id: 'shortcuts', label: 'Abrir atalhos', description: 'Configura atalhos do workspace.' },
+      { id: 'shortcuts', label: 'Configurar atalhos', description: 'Abre Configurações na seção Atalhos.' },
     ]
     const matchingCommands = paletteCommands.filter((command) => `${command.label} ${command.description}`.toLowerCase().includes(commandQuery.trim().toLowerCase()))
     const moveDestinationOptions = ['', ...folders].filter((folder) =>
@@ -4968,6 +5003,16 @@ function App() {
           </button>
           <button
             type="button"
+            className={`rail-button${workspacePage === 'goals' ? ' is-active' : ''}`}
+            onClick={() => setWorkspacePage('goals')}
+            aria-label="Abrir metas de aprendizado"
+            title="Metas"
+          >
+            <Target size={17} strokeWidth={1.5} aria-hidden="true" />
+            <span className="rail-label">Metas</span>
+          </button>
+          <button
+            type="button"
             className={`rail-button${workspacePage === 'dashboard' ? ' is-active' : ''}`}
             onClick={() => setWorkspacePage('dashboard')}
             aria-label="Abrir painel de aprendizado"
@@ -5015,16 +5060,6 @@ function App() {
           >
             <Network size={17} strokeWidth={1.5} aria-hidden="true" />
             <span className="rail-label">Grafo</span>
-          </button>
-          <button
-            type="button"
-            className="rail-button"
-            onClick={() => setWorkspacePage('shortcuts')}
-            aria-label="Ver atalhos"
-            title="Atalhos"
-          >
-            <span className="rail-icon" aria-hidden="true">&#9000;</span>
-            <span className="rail-label">Atalhos</span>
           </button>
           <button
             type="button"
@@ -5831,9 +5866,17 @@ function App() {
               </div>
             )}
               </>
-            ) : workspacePage === 'review' || workspacePage === 'dashboard' || workspacePage === 'reports' || workspacePage === 'tags' || workspacePage === 'bases' ? (
+            ) : workspacePage === 'review' || workspacePage === 'dashboard' || workspacePage === 'reports' || workspacePage === 'tags' || workspacePage === 'bases' || workspacePage === 'goals' ? (
               <Suspense fallback={<p className="workspace-page-loading">Carregando pagina...</p>}>
-                {workspacePage === 'review' ? (
+                {workspacePage === 'goals' ? (
+                  <GoalsPage
+                    vaultPath={vault.path}
+                    onOpenNote={(relativePath) => {
+                      setWorkspacePage('notes')
+                      void openNote(relativePath)
+                    }}
+                  />
+                ) : workspacePage === 'review' ? (
                   activeReviewItem ? (
                     <ReviewSessionPage
                       vaultPath={vault.path}
@@ -6363,107 +6406,6 @@ function App() {
                   </>
                 )}
               </section>
-            ) : workspacePage === 'shortcuts' ? (
-              <section className="workspace-page" data-builder-name="shortcuts-page">
-                <p className="card-kicker">Atalhos</p>
-                <h2>Comandos do workspace</h2>
-                <p>Selecione um campo e pressione a nova combinacao de teclas.</p>
-                <div className="shortcut-settings">
-                  <label>
-                    <span>
-                      <strong>Criar nova nota</strong>
-                      <small>Abre a captura de uma nova nota no explorador.</small>
-                    </span>
-                    <input
-                      value={shortcuts.createNote}
-                      onKeyDown={(event) => {
-                        event.preventDefault()
-                        setShortcuts((current) => ({ ...current, createNote: formatShortcut(event.nativeEvent) }))
-                      }}
-                      aria-label="Atalho para criar nova nota"
-                      readOnly
-                    />
-                  </label>
-                  <label>
-                    <span>
-                      <strong>Salvar nota</strong>
-                      <small>Salva as alteracoes da nota aberta.</small>
-                    </span>
-                    <input
-                      value={shortcuts.saveNote}
-                      onKeyDown={(event) => {
-                        event.preventDefault()
-                        setShortcuts((current) => ({ ...current, saveNote: formatShortcut(event.nativeEvent) }))
-                      }}
-                      aria-label="Atalho para salvar nota"
-                      readOnly
-                    />
-                  </label>
-                  <label>
-                    <span>
-                      <strong>Alternar modo de visualizacao</strong>
-                      <small>Alterna entre os modos Misto, Edicao e Leitura.</small>
-                    </span>
-                    <input
-                      value={shortcuts.cycleNoteViewMode}
-                      onKeyDown={(event) => {
-                        event.preventDefault()
-                        setShortcuts((current) => ({ ...current, cycleNoteViewMode: formatShortcut(event.nativeEvent) }))
-                      }}
-                      aria-label="Atalho para alternar modo de visualização"
-                      readOnly
-                    />
-                  </label>
-                  <label>
-                    <span>
-                      <strong>Abrir nota existente</strong>
-                      <small>Abre a busca rapida de notas do vault.</small>
-                    </span>
-                    <input
-                      value={shortcuts.openNote}
-                      onKeyDown={(event) => {
-                        event.preventDefault()
-                        setShortcuts((current) => ({ ...current, openNote: formatShortcut(event.nativeEvent) }))
-                      }}
-                      aria-label="Atalho para abrir nota existente"
-                      readOnly
-                    />
-                  </label>
-                  <label>
-                    <span>
-                      <strong>Abrir filtro de tags</strong>
-                      <small>Abre o filtro completo de tags do explorador.</small>
-                    </span>
-                    <input
-                      value={shortcuts.openTagFilter}
-                      onKeyDown={(event) => {
-                        event.preventDefault()
-                        setShortcuts((current) => ({ ...current, openTagFilter: formatShortcut(event.nativeEvent) }))
-                      }}
-                      aria-label="Atalho para abrir filtro de tags"
-                      readOnly
-                    />
-                  </label>
-                  <label>
-                    <span>
-                      <strong>Abrir Command Palette</strong>
-                      <small>Abre a busca de comandos do workspace.</small>
-                    </span>
-                    <input
-                      value={shortcuts.openCommandPalette}
-                      onKeyDown={(event) => {
-                        event.preventDefault()
-                        setShortcuts((current) => ({ ...current, openCommandPalette: formatShortcut(event.nativeEvent) }))
-                      }}
-                      aria-label="Atalho para abrir Command Palette"
-                      readOnly
-                    />
-                  </label>
-                </div>
-                <button type="button" className="secondary-button" onClick={() => setShortcuts(DEFAULT_WORKSPACE_SHORTCUTS)}>
-                  Restaurar padroes
-                </button>
-              </section>
             ) : workspacePage === 'trash' ? (
               <section className="workspace-page trash-page" data-builder-name="trash-page">
                 <p className="card-kicker">Lixeira</p>
@@ -6496,17 +6438,32 @@ function App() {
               <section ref={settingsScrollRef} className="workspace-page" data-builder-name="settings-page">
                 <div className="settings-layout">
                   <nav className="settings-nav" aria-label="Seções das configurações">
-                    {SETTINGS_SECTIONS.map((section) => (
-                      <button
-                        key={section.id}
-                        type="button"
-                        className={activeSettingsSection === section.id ? 'is-active' : ''}
-                        aria-current={activeSettingsSection === section.id ? 'true' : undefined}
-                        onClick={() => scrollToSettingsSection(section.id)}
-                      >
-                        <section.icon size={15} strokeWidth={1.5} aria-hidden="true" />
-                        <span>{section.label}</span>
-                      </button>
+                    {SETTINGS_GROUPS.map((group) => (
+                      <div key={group.id} className="settings-nav-group" role="group" aria-label={group.label}>
+                        <p className="settings-nav-group-label" aria-hidden="true">{group.label}</p>
+                        {SETTINGS_SECTIONS
+                          .filter((section) => (group.sections as readonly string[]).includes(section.id))
+                          .map((section) => (
+                            <button
+                              key={section.id}
+                              type="button"
+                              className={activeSettingsSection === section.id ? 'is-active' : ''}
+                              aria-current={activeSettingsSection === section.id ? 'true' : undefined}
+                              onClick={() => scrollToSettingsSection(section.id)}
+                              onKeyDown={(event) => {
+                                if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+                                event.preventDefault()
+                                const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.settings-nav button'))
+                                const index = buttons.indexOf(event.currentTarget)
+                                const neighbor = event.key === 'ArrowDown' ? buttons[index + 1] : buttons[index - 1]
+                                neighbor?.focus()
+                              }}
+                            >
+                              <section.icon size={15} strokeWidth={1.5} aria-hidden="true" />
+                              <span>{section.label}</span>
+                            </button>
+                          ))}
+                      </div>
                     ))}
                   </nav>
                   <div className="settings-content">
@@ -6681,6 +6638,107 @@ function App() {
                     </span>
                     <input type="checkbox" checked={isSpellCheckEnabled} onChange={(event) => setSpellCheckEnabled(event.target.checked)} />
                   </label>
+                </div>
+                <div className="settings-section" id="settings-atalhos" aria-labelledby="shortcuts-preferences-title">
+                  <p className="card-kicker" id="shortcuts-preferences-title">Atalhos</p>
+                  <p className="settings-section-description">Selecione um campo e pressione a nova combinacao de teclas.</p>
+                  <div className="shortcut-settings">
+                    <label>
+                      <span>
+                        <strong>Criar nova nota</strong>
+                        <small>Abre a captura de uma nova nota no explorador.</small>
+                      </span>
+                      <input
+                        value={shortcuts.createNote}
+                        onKeyDown={(event) => {
+                          event.preventDefault()
+                          setShortcuts((current) => ({ ...current, createNote: formatShortcut(event.nativeEvent) }))
+                        }}
+                        aria-label="Atalho para criar nova nota"
+                        readOnly
+                      />
+                    </label>
+                    <label>
+                      <span>
+                        <strong>Salvar nota</strong>
+                        <small>Salva as alteracoes da nota aberta.</small>
+                      </span>
+                      <input
+                        value={shortcuts.saveNote}
+                        onKeyDown={(event) => {
+                          event.preventDefault()
+                          setShortcuts((current) => ({ ...current, saveNote: formatShortcut(event.nativeEvent) }))
+                        }}
+                        aria-label="Atalho para salvar nota"
+                        readOnly
+                      />
+                    </label>
+                    <label>
+                      <span>
+                        <strong>Alternar modo de visualizacao</strong>
+                        <small>Alterna entre os modos Misto, Edicao e Leitura.</small>
+                      </span>
+                      <input
+                        value={shortcuts.cycleNoteViewMode}
+                        onKeyDown={(event) => {
+                          event.preventDefault()
+                          setShortcuts((current) => ({ ...current, cycleNoteViewMode: formatShortcut(event.nativeEvent) }))
+                        }}
+                        aria-label="Atalho para alternar modo de visualização"
+                        readOnly
+                      />
+                    </label>
+                    <label>
+                      <span>
+                        <strong>Abrir nota existente</strong>
+                        <small>Abre a busca rapida de notas do vault.</small>
+                      </span>
+                      <input
+                        value={shortcuts.openNote}
+                        onKeyDown={(event) => {
+                          event.preventDefault()
+                          setShortcuts((current) => ({ ...current, openNote: formatShortcut(event.nativeEvent) }))
+                        }}
+                        aria-label="Atalho para abrir nota existente"
+                        readOnly
+                      />
+                    </label>
+                    <label>
+                      <span>
+                        <strong>Abrir filtro de tags</strong>
+                        <small>Abre o filtro completo de tags do explorador.</small>
+                      </span>
+                      <input
+                        value={shortcuts.openTagFilter}
+                        onKeyDown={(event) => {
+                          event.preventDefault()
+                          setShortcuts((current) => ({ ...current, openTagFilter: formatShortcut(event.nativeEvent) }))
+                        }}
+                        aria-label="Atalho para abrir filtro de tags"
+                        readOnly
+                      />
+                    </label>
+                    <label>
+                      <span>
+                        <strong>Abrir Command Palette</strong>
+                        <small>Abre a busca de comandos do workspace.</small>
+                      </span>
+                      <input
+                        value={shortcuts.openCommandPalette}
+                        onKeyDown={(event) => {
+                          event.preventDefault()
+                          setShortcuts((current) => ({ ...current, openCommandPalette: formatShortcut(event.nativeEvent) }))
+                        }}
+                        aria-label="Atalho para abrir Command Palette"
+                        readOnly
+                      />
+                    </label>
+                  </div>
+                  <div>
+                    <button type="button" className="secondary-button" onClick={() => setShortcuts(DEFAULT_WORKSPACE_SHORTCUTS)}>
+                      Restaurar padroes
+                    </button>
+                  </div>
                 </div>
                 <div className="settings-section" id="settings-grafo3d" aria-labelledby="graph3d-preferences-title">
                   <p className="card-kicker" id="graph3d-preferences-title">Grafo 3D</p>
@@ -6885,7 +6943,6 @@ function App() {
                     }).then(setNotificationLastCheck).catch(() => undefined)
                   }}
                 />
-                <ReviewAiSettings vaultPath={vault.path} />
                 </div>
                 <div className="settings-section" id="settings-aplicativo" aria-labelledby="app-preferences-title">
                   <p className="card-kicker" id="app-preferences-title">Aplicativo</p>
@@ -6914,6 +6971,49 @@ function App() {
                   {appUpdater.status.kind === 'failed' ? (
                     <p className="settings-note" role="status">{appUpdater.status.message}</p>
                   ) : null}
+                  <label className="settings-toggle" style={{ marginTop: 12 }}>
+                    <span>
+                      <strong>Verificação automática de atualizações</strong>
+                      <small>Ao abrir, consulta o GitHub Releases (envia IP). Desative para não fazer nenhuma conexão automática (LGPD Art.9).</small>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={autoUpdateEnabled}
+                      onChange={(event) => {
+                        const enabled = event.target.checked
+                        setAutoUpdateEnabled(enabled)
+                        setAutoUpdateEnabledState(enabled)
+                      }}
+                      aria-label="Verificação automática de atualizações"
+                    />
+                  </label>
+                  <div className="settings-toggle" style={{ marginTop: 12 }}>
+                    <span>
+                      <strong>Privacidade — Apagar dados locais</strong>
+                      <small>Remove recent-vault.json, chaves do cofre (Gemini/OpenAI) e preferências locais (LGPD Art.18 VI). Vaults e notas NÃO são apagados.</small>
+                    </span>
+                    <button
+                      type="button"
+                      className="secondary-button danger-button"
+                      onClick={async () => {
+                        if (!confirm('Apagar dados locais do MirrorMind? Isso limpa recent-vault.json, chaves do cofre e localStorage (preferências). Vaults e notas serão preservados.')) return
+                        try {
+                          await invoke('clear_local_app_data')
+                          localStorage.clear()
+                          alert('Dados locais apagados. Reinicie o app.')
+                        } catch (e) {
+                          alert(e instanceof Error ? e.message : String(e))
+                        }
+                      }}
+                    >
+                      Apagar dados locais
+                    </button>
+                  </div>
+                </div>
+                <div className="settings-section" id="settings-provedor-ia" aria-labelledby="ai-provider-preferences-title">
+                  <p className="card-kicker" id="ai-provider-preferences-title">Provedor de IA</p>
+                  <p className="settings-section-description">Escolha onde a revisão com IA é processada e gerencie chaves e consentimentos. O Ollama local nunca envia conteúdo para fora do computador.</p>
+                  <ReviewAiSettings vaultPath={vault.path} />
                 </div>
                 </div>
                 </div>

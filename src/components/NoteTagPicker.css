@@ -57,7 +57,7 @@
   overflow: auto;
   padding: 5px;
   border: 1px solid rgba(28, 36, 39, 0.22);
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: var(--workspace-bg, #fbfaf6);
   box-shadow: 0 12px 26px rgb(52 51 46 / 0.14);
 }
@@ -66,7 +66,7 @@
 .note-tag-picker-menu button {
   border: 0;
   padding: 7px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--text-h, #1c2427);
   text-align: left;
@@ -102,7 +102,7 @@
   width: min(100%, 480px);
   padding: 18px;
   border: 1px solid #d8d6cf;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: #fbfaf6;
   color: #474740;
   box-shadow: 0 22px 64px rgb(27 27 24 / 0.22);
@@ -132,7 +132,7 @@
 .note-tag-impact-summary > div {
   padding: 9px;
   border: 1px solid #e1dfd7;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #f4f2ec;
 }
 
@@ -154,7 +154,7 @@
   margin: 16px 0;
   padding: 10px;
   border: 1px solid #dbc995;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #fff8e6;
   color: #66562d;
 }

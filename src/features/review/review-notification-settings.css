@@ -10,7 +10,7 @@
   width: 130px;
   padding: 6px 10px;
   border: 1px solid var(--workspace-border, rgba(127, 127, 127, 0.25));
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--workspace-surface, transparent);
   color: inherit;
   font: inherit;

@@ -4,6 +4,10 @@ import { useEscapeToClose } from '../lib/escapeStack'
 import { closeDialog, openDialog } from './dialog'
 import './Modal.css'
 
+/** Elementos que participam da contenção de Tab dentro do modal. */
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
 /** Modal compartilhado do app sobre `<dialog>` nativo.
  *
  * Padroniza backdrop (clique fora fecha), Escape (via pilha global
@@ -31,11 +35,52 @@ export function Modal({
   // suprimido para não furar popovers abertos por cima do modal.
   useEscapeToClose(open, onClose)
 
+  // Sistema de foco do modal (absorve o `useDialogFocus` que existia nas
+  // Tags): foco inicial no primeiro elemento focável, contenção de
+  // Tab/Shift+Tab e restauração do foco ao fechar. Funciona também no
+  // fallback sem `showModal` (jsdom), onde o navegador não faz nada disso.
+  const previousFocusRef = useRef<HTMLElement | null>(null)
   useEffect(() => {
     const dlg = dialogRef.current
     if (!dlg) return
-    if (open) openDialog(dlg)
-    else closeDialog(dlg)
+    if (!open) return
+    previousFocusRef.current = document.activeElement as HTMLElement | null
+    openDialog(dlg)
+    const first = dlg.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+    ;(first ?? dlg).focus()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return
+      const elements = Array.from(dlg.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+      if (elements.length === 0) {
+        event.preventDefault()
+        return
+      }
+      const firstEl = elements[0]
+      const lastEl = elements[elements.length - 1]
+      const active = document.activeElement as HTMLElement | null
+      if (event.shiftKey && (active === firstEl || !dlg.contains(active))) {
+        event.preventDefault()
+        lastEl.focus()
+      } else if (!event.shiftKey && (active === lastEl || !dlg.contains(active))) {
+        event.preventDefault()
+        firstEl.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
+
+  // Fechamento + restauração do foco (efeito separado para rodar também
+  // quando `open` volta a `false` e na desmontagem com o modal aberto).
+  useEffect(() => {
+    if (open) return
+    const dlg = dialogRef.current
+    if (dlg) closeDialog(dlg)
+    previousFocusRef.current?.focus?.()
+    previousFocusRef.current = null
   }, [open])
 
   return (
@@ -58,21 +103,26 @@ export function Modal({
   )
 }
 
-/** Cabeçalho padrão do modal: título + botão fechar circular. */
+/** Cabeçalho padrão do modal: kicker opcional + título + botão fechar. */
 export function ModalHeader({
   title,
   titleId,
   closeLabel,
   onClose,
+  kicker,
 }: {
   title: string
   titleId: string
   closeLabel: string
   onClose: () => void
+  kicker?: string
 }) {
   return (
     <div className="modal-header">
-      <h3 id={titleId}>{title}</h3>
+      <div>
+        {kicker ? <p className="card-kicker">{kicker}</p> : null}
+        <h3 id={titleId}>{title}</h3>
+      </div>
       <button type="button" className="modal-close" onClick={onClose} aria-label={closeLabel}>
         <X size={16} strokeWidth={2.2} aria-hidden="true" />
       </button>

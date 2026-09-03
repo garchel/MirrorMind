@@ -52,7 +52,7 @@
   max-width: min(92vw, 440px);
   padding: 10px;
   border: 1px solid rgba(28, 36, 39, 0.2);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: #fdfbf5;
   box-shadow: 0 12px 32px rgba(56, 44, 18, 0.18);
   outline: none;

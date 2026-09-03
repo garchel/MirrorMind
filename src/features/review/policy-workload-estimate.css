@@ -4,7 +4,7 @@
   gap: 6px;
   margin: 10px 0 4px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: #f4f2ea;
   border: 1px solid #e6e3d8;
 }

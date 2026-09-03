@@ -567,7 +567,8 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Ver atalhos' }))
+    await user.click(screen.getByRole('button', { name: 'Configurações' }))
+    await user.click(screen.getByRole('button', { name: 'Atalhos' }))
 
     expect(screen.getByRole('textbox', { name: 'Atalho para salvar nota' })).toHaveValue('Ctrl+S')
     expect(screen.getByRole('textbox', { name: 'Atalho para alternar modo de visualização' })).toHaveValue('Ctrl+M')
@@ -611,7 +612,8 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Ver atalhos' }))
+    await user.click(screen.getByRole('button', { name: 'Configurações' }))
+    await user.click(screen.getByRole('button', { name: 'Atalhos' }))
     const modeShortcutInput = screen.getByRole('textbox', { name: 'Atalho para alternar modo de visualização' })
     await user.click(modeShortcutInput)
     await user.keyboard('{Control>}{Alt>}v{/Alt}{/Control}')

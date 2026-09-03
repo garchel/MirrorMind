@@ -32,7 +32,7 @@
   gap: 3px;
   padding: 14px 16px;
   border: 1px solid #e3e1da;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: #fbfaf6;
   transition: border-color .15s ease, transform .15s ease;
 }
@@ -112,7 +112,7 @@
 .retention-evolution-chart {
   padding: 10px 12px 4px 6px;
   border: 1px solid #e3e1da;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: #fbfaf6;
 }
 .retention-evolution-chart svg { display: block; width: 100%; height: auto; }
@@ -126,7 +126,7 @@
   gap: 8px;
   padding: 18px 16px;
   border: 1px dashed #d9d7d0;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   color: #8a8a82;
   font: 400 12.5px/1.5 var(--sans);
 }
@@ -142,7 +142,7 @@
   width: 100%;
   padding: 42px 20px;
   border: 1px solid #e3e1da;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: #fbfaf6;
   color: #73736d;
   text-align: center;
@@ -156,7 +156,7 @@
   width: 100%;
   overflow-x: auto;
   border: 1px solid #e3e1da;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: #fbfaf6;
 }
 .review-reports-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }

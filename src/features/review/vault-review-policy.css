@@ -58,7 +58,7 @@
   min-height: 34px;
   box-sizing: border-box;
   border: 1px solid var(--border, #d8d4ca);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 6px 8px;
   background: var(--surface);
   color: var(--text, #24231f);
@@ -109,7 +109,7 @@
   min-width: 0;
   margin: 0;
   border: 1px solid var(--border, #d8d4ca);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 11px;
 }
 
@@ -132,7 +132,7 @@
   min-height: 34px;
   box-sizing: border-box;
   border: 1px solid var(--border, #d8d4ca);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 6px 8px;
   background: var(--surface);
   color: var(--text, #24231f);

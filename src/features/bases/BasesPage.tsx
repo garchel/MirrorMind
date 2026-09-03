@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Database, Search, Table2 } from 'lucide-react'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '../../lib/tauri'
 import { parseNoteDocumentList } from '../../lib/vault'
+import { PageHeader } from '../../components/PageHeader'
 import { getMarkdownFrontmatterProperties } from '../../lib/markdown'
 import {
   collectColumns,
@@ -173,17 +174,17 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
 
   return (
     <section className="workspace-page bases-page" data-builder-name="bases-page">
-      <header className="bases-header">
-        <div>
-          <p className="card-kicker">Tabela</p>
-          <h2>Tabela de notas</h2>
-          <p className="bases-header-description">
+      <PageHeader
+        kicker="Tabela"
+        title="Tabela de notas"
+        description={(
+          <>
             Todas as notas do vault em uma tabela, com as propriedades do frontmatter como colunas
             (como as Bases do Obsidian). Use o botão Colunas para escolher quais propriedades exibir.
             {rows !== null ? ` ${rows.length} ${rows.length === 1 ? 'nota' : 'notas'}.` : ''}
-          </p>
-        </div>
-      </header>
+          </>
+        )}
+      />
 
       <div className="bases-toolbar">
         <label className="bases-search">

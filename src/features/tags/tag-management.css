@@ -8,6 +8,15 @@
   --tag-accent: #5b6f52;
   --tag-accent-soft: #dce6dc;
   --tag-danger: #9b3c34;
+  /* Aviso (modal de exclusão): âmbar quente sobre creme. */
+  --tag-warn-bg: #fdf3e0;
+  --tag-warn-line: #ecd5a8;
+  --tag-warn-ink: #7a5c10;
+  --tag-warn-strong: #6b5214;
+  --tag-warn-soft: #8a6f26;
+  /* Botões secundários dentro desta página. */
+  --tag-btn-ink: #4d4d47;
+  --tag-btn-hover: #e2e1da;
 }
 
 /* Tema escuro: paleta noturna da pagina de tags. */
@@ -20,29 +29,27 @@
   --tag-accent: #8fc4b0;
   --tag-accent-soft: #2e3f36;
   --tag-danger: #d98a6a;
+  --tag-warn-bg: rgb(233 180 87 / 14%);
+  --tag-warn-line: rgb(233 180 87 / 34%);
+  --tag-warn-ink: #d9b56a;
+  --tag-warn-strong: #e8c77e;
+  --tag-warn-soft: #bfa463;
+  --tag-btn-ink: #b8b5ad;
+  --tag-btn-hover: rgb(232 230 221 / 10%);
 }
 
-.tag-management-header,
-.tag-detail-heading,
-.tag-impact-heading {
+.tag-detail-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
 }
 
-.tag-management-header {
-  align-items: center;
-}
-
-.tag-management-header h2,
-.tag-detail-heading h3,
-.tag-impact-heading h3 {
+.tag-detail-heading h3 {
   margin: 4px 0 6px;
   letter-spacing: -0.02em;
 }
 
-.tag-management-header p,
 .tag-detail-heading p {
   max-width: 640px;
   margin: 0;
@@ -101,7 +108,7 @@
   gap: 8px;
   padding: 0 11px;
   border: 1px solid var(--tag-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: #fbfaf6;
   color: #8a8a82;
 }
@@ -179,7 +186,7 @@
   min-height: 30px;
   padding: 0 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #3f3f3a;
   font-size: 13px;
@@ -285,7 +292,7 @@
 .tag-folder-children {
   background: var(--tag-surface);
   border: 1px solid var(--tag-border);
-  border-radius: 14px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 1px 2px rgb(0 0 0 / 3%);
 }
 
@@ -504,7 +511,7 @@
   gap: 8px;
   padding: 0 12px;
   border: 1px solid #cec6b8;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--tag-surface);
 }
 
@@ -534,7 +541,7 @@
   gap: 20px;
   padding: 14px 16px;
   border: 1px solid var(--tag-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--tag-surface);
 }
 
@@ -583,7 +590,7 @@
   gap: 9px;
   padding: 11px 12px;
   border: 1px solid #d3cbbd;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--tag-surface);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
@@ -644,7 +651,7 @@
   display: flex;
   align-items: center;
   border: 1px solid #d3cbbd;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--tag-surface);
   overflow: hidden;
 }
@@ -706,7 +713,7 @@
   min-height: 160px;
   padding: 20px;
   border: 1px dashed #dedbd1;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 .tag-page-state {
@@ -722,7 +729,7 @@
   gap: 10px;
   margin-top: 20px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   font-size: 13px;
 }
 
@@ -749,26 +756,17 @@
 /* ---------------------------------------------------------------------------
    Modal de impacto
 --------------------------------------------------------------------------- */
-.tag-impact-backdrop {
-  position: fixed;
-  z-index: 1000;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgb(31 28 24 / 48%);
-  backdrop-filter: blur(3px);
-}
+/* Backdrop do modal de impacto removido: os diálogos desta página usam o
+ * `<Modal>` compartilhado (`components/Modal.css`), cujo backdrop é o
+ * pseudo-elemento ::backdrop do `<dialog>` nativo. */
 
 .tag-impact-modal {
+  /* Estende `.modal` (compartilhado): borda, backdrop, raios e animação vêm
+   * da base; aqui só largura/altura/padding específicos desta página. */
   width: min(580px, 100%);
   max-height: min(760px, calc(100vh - 48px));
   overflow: auto;
   padding: 24px;
-  border: 1px solid #d7cfc1;
-  border-radius: 14px;
-  background: #fffdf8;
-  box-shadow: 0 28px 80px rgb(20 17 13 / 28%);
 }
 
 .tag-impact-modal > p {
@@ -789,10 +787,10 @@
   align-items: flex-start;
   gap: 10px;
   padding: 11px 13px;
-  border: 1px solid #ecd5a8;
-  border-radius: 10px;
-  background: #fdf3e0;
-  color: #7a5c10;
+  border: 1px solid var(--tag-warn-line);
+  border-radius: var(--radius-lg);
+  background: var(--tag-warn-bg);
+  color: var(--tag-warn-ink);
 }
 
 .tag-delete-warning > svg {
@@ -806,12 +804,12 @@
 }
 
 .tag-delete-warning strong {
-  color: #6b5214;
+  color: var(--tag-warn-strong);
   font-size: 12.5px;
 }
 
 .tag-delete-warning small {
-  color: #8a6f26;
+  color: var(--tag-warn-soft);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -833,7 +831,7 @@
   margin: 15px 0 22px;
   overflow: auto;
   border: 1px solid #e0d9ce;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: #f7f3ec;
 }
 
@@ -854,14 +852,14 @@
   color: var(--tag-muted);
 }
 
-/* ---------------------------------------------------------------------------
-   Botoes: o tema escuro do workspace (.workspace-shell button, emitido depois
-   no bundle) vence os empates de especificidade — reafirma o tema claro com
-   especificidade maior (classe duplicada), sem afetar as outras paginas.
---------------------------------------------------------------------------- */
-.tag-management-page.tag-management-page button {
+/* Botões da página: o workspace (`.workspace-shell button`, 0,1,1) e o
+ * `button` global (0,0,1) definem pílula escura; reafirma o padrão claro
+ * com especificidade maior (classe duplicada) sem afetar as outras
+ * páginas. O `:not(.modal-close)` preserva o botão fechar do modal
+ * compartilhado (transparente com borda, `components/Modal.css`). */
+.tag-management-page.tag-management-page button:not(.modal-close) {
   min-height: 34px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: #292926;
   color: #fbfaf6;
   font-size: 13px;
@@ -877,13 +875,13 @@
   min-height: 30px;
   padding: 0 12px;
   border: 1px solid var(--tag-line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
-  color: #4d4d47;
+  color: var(--tag-btn-ink);
 }
 
 .tag-management-page.tag-management-page .secondary-button:not(.danger-button):hover:not(:disabled) {
-  background: #e2e1da;
+  background: var(--tag-btn-hover);
 }
 
 .tag-management-page.tag-management-page .tag-icon-button {
@@ -909,7 +907,7 @@
   min-height: 30px;
   padding: 0 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #3f3f3a;
   font-size: 13px;

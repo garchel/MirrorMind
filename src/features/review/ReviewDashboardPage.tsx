@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, Target, TimerReset, TrendingUp, X } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, TimerReset, TrendingUp, X } from 'lucide-react'
 import { ErrorState, LoadingState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { applyDeadlineChange, getVaultReviewPolicyConfig, previewDeadlineChange } from './vaultReviewPolicy'
 import { setNoteReviewPriority } from './reviewPolicy'
-import { forecastDayLabel, getVaultReviewDashboard, type CalibrationNoteItem, type DailyLoadItem, type ExpiredDeadlineItem, type ReadinessAttentionItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
+import { getVaultReviewDashboard, type CalibrationNoteItem, type ExpiredDeadlineItem, type ReadinessAttentionItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
 import './review-dashboard.css'
 
 type Props = {
@@ -45,104 +45,6 @@ type DeadlineEditable = {
   sourceTag: string | null
   deadlineAtUnixMs: number
   title: string
-}
-
-const DAILY_GOAL_STORAGE_KEY = 'mirrormind.review-daily-goal'
-const MAX_DAILY_GOAL = 100
-
-function parseStoredDailyGoal() {
-  const raw = localStorage.getItem(DAILY_GOAL_STORAGE_KEY)
-  if (raw === null) return 0
-  const value = Number(raw)
-  return Number.isInteger(value) && value >= 1 && value <= MAX_DAILY_GOAL ? value : 0
-}
-
-/** Meta diaria opcional: orienta o ritmo do dia sem nunca limitar a fila. */
-function DailyGoalSection({ completedToday, forecast }: {
-  completedToday: number
-  forecast: DailyLoadItem[]
-}) {
-  const [goal, setGoal] = useState(parseStoredDailyGoal)
-  const totalForecast = forecast.reduce((sum, day) => sum + day.dueCount, 0)
-  const suggestion = Math.max(1, Math.round(totalForecast / Math.max(forecast.length, 1)))
-
-  useEffect(() => {
-    if (goal >= 1) {
-      localStorage.setItem(DAILY_GOAL_STORAGE_KEY, String(goal))
-    } else {
-      localStorage.removeItem(DAILY_GOAL_STORAGE_KEY)
-    }
-  }, [goal])
-
-  const goalReached = goal >= 1 && completedToday >= goal
-  const progress = goal >= 1 ? Math.min(100, Math.round((completedToday / goal) * 100)) : 0
-
-  return (
-    <section className="review-dashboard-goal" aria-labelledby="review-dashboard-goal-title">
-      <div className="review-dashboard-section-heading">
-        <h3 id="review-dashboard-goal-title">Meta diária</h3>
-        {goal >= 1 ? (
-          <span className={`review-dashboard-goal-status${goalReached ? ' is-reached' : ''}`} role="status">
-            {goalReached ? 'Meta atingida' : `${completedToday} de ${goal} hoje`}
-          </span>
-        ) : (
-          <span className="review-dashboard-goal-status">Sem meta definida</span>
-        )}
-      </div>
-
-      {goal >= 1 ? (
-        <div
-          className="review-dashboard-goal-progress"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={goal}
-          aria-valuenow={Math.min(completedToday, goal)}
-          aria-label="Progresso da meta diária de revisões"
-        >
-          <span style={{ width: `${progress}%` }} />
-        </div>
-      ) : null}
-
-      <p className="review-dashboard-goal-copy">
-        {goal >= 1
-          ? goalReached
-            ? 'Meta do dia atingida — continue no seu ritmo; a fila segue exibindo todas as revisões.'
-            : 'Orientação do dia, sem limitar a fila de revisões.'
-          : 'Defina quantas revisões pretende fazer hoje, como orientação (nunca um limite).'}
-      </p>
-
-      <div className="review-dashboard-goal-stepper" aria-label="Ajustar meta diária">
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={() => setGoal((current) => Math.max(0, current - 1))}
-          disabled={goal <= 0}
-          aria-label="Diminuir meta diária"
-        >
-          <Minus size={14} strokeWidth={1.6} aria-hidden="true" />
-        </button>
-        <strong>{goal >= 1 ? goal : '—'}</strong>
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={() => setGoal((current) => Math.min(MAX_DAILY_GOAL, current + 1))}
-          aria-label="Aumentar meta diária"
-        >
-          <Plus size={14} strokeWidth={1.6} aria-hidden="true" />
-        </button>
-        {goal < 1 ? (
-          <button
-            type="button"
-            className="secondary-button review-dashboard-goal-suggest"
-            onClick={() => setGoal(suggestion)}
-          >
-            <Target size={13} strokeWidth={1.6} aria-hidden="true" />
-            Sugerir: {suggestion} {suggestion === 1 ? 'revisão' : 'revisões'}/dia
-          </button>
-        ) : null}
-      </div>
-    </section>
-  )
 }
 
 function StatCard({ icon, label, value, hint }: {
@@ -430,10 +332,6 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
             attentionCount={dashboard.readinessAttentionNoteCount}
             onOpenNote={onOpenNote}
           />
-
-          <DailyGoalSection completedToday={dashboard.completedTodayCount} forecast={dashboard.loadForecast} />
-
-          <ForecastSection forecast={dashboard.loadForecast} />
 
           <CalibrationSection notes={dashboard.calibrationNotes} count={dashboard.calibrationNoteCount} onOpenNote={onOpenNote} />
 
@@ -791,33 +689,4 @@ function ExpiredDeadlinesSection({ items, count, onOpenNote, onEditDeadline, onS
   )
 }
 
-function ForecastSection({ forecast }: { forecast: DailyLoadItem[] }) {
-  const maxCount = Math.max(1, ...forecast.map((day) => day.dueCount))
-  const total = forecast.reduce((sum, day) => sum + day.dueCount, 0)
 
-  return (
-    <section className="review-dashboard-forecast" aria-labelledby="review-dashboard-forecast-title">
-      <div className="review-dashboard-section-heading">
-        <h3 id="review-dashboard-forecast-title">Carga prevista</h3>
-        <span>{`${total} ${total === 1 ? 'revisão' : 'revisões'} nos próximos 7 dias`}</span>
-      </div>
-      <ol className="review-dashboard-forecast-list" aria-label="Revisões previstas por dia">
-        {forecast.map((day) => {
-          const isToday = day.dayOffset === 0
-          return (
-            <li key={day.dayOffset} className={isToday ? 'is-today' : ''}>
-              <span className="review-dashboard-forecast-day">{forecastDayLabel(day.dayOffset)}</span>
-              <span className="review-dashboard-forecast-track" aria-hidden="true">
-                <span
-                  className="review-dashboard-forecast-bar"
-                  style={{ width: `${(day.dueCount / maxCount) * 100}%` }}
-                />
-              </span>
-              <strong className="review-dashboard-forecast-count">{day.dueCount}</strong>
-            </li>
-          )
-        })}
-      </ol>
-    </section>
-  )
-}

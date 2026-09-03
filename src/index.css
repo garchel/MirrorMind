@@ -26,6 +26,16 @@
   --heading: Georgia, 'Times New Roman', serif;
   --mono: 'Cascadia Code', Consolas, monospace;
 
+  /* Escala de raios: 6 valores cobrem os ~15 raios avulsos do app
+   * (normalização de no máx. 2px — 28px isolado vai para 2xl). Pílulas
+   * (999px) e círculos (50%) são formas, não escala: continuam literais. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+
   font: 18px/150% var(--sans);
   letter-spacing: 0.01em;
   color: var(--text);
@@ -147,7 +157,7 @@ code {
   font-size: 0.9em;
   padding: 0.12rem 0.4rem;
   background: var(--code-bg);
-  border-radius: 0.4rem;
+  border-radius: var(--radius-sm);
   color: var(--text-h);
 }
 
