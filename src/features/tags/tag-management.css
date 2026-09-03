@@ -928,6 +928,23 @@
   box-shadow: none;
 }
 
+/* Tema escuro: linhas da arvore em tom ELEVADO (o mesmo dos itens ativos
+   do menu de Configuracoes) — leem-se como chips discretos, nao como
+   blocos escuros; e o hover claro hardcoded acima viraria flash branco. */
+[data-theme='dark'] .tag-management-page.tag-management-page .tag-tree-row {
+  background: #2a2730;
+}
+
+[data-theme='dark'] .tag-management-page.tag-management-page .tag-tree-row:hover:not(:disabled) {
+  background: #34303b;
+  color: var(--tag-ink);
+}
+
+[data-theme='dark'] .tag-management-page.tag-management-page .tag-tree-row.is-selected {
+  background: var(--tag-accent-soft);
+  color: #eaf3ec;
+}
+
 @media (max-width: 980px) {
   .tag-management-layout {
     grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
