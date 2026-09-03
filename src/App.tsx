@@ -39,6 +39,8 @@ import { UpdateBanner } from './components/UpdateBanner'
 import { Modal } from './components/Modal'
 import { useGraphSettings } from './lib/useGraphSettings'
 import { useAppearanceSettings, type ReadingFont, type ReadingWidth } from './lib/useAppearanceSettings'
+import { useNoteSearch } from './lib/useNoteSearch'
+import { useTrashItems } from './lib/useTrashItems'
 import { usePref } from './lib/prefs'
 
 import { canApplyInventoryIncrementally, createVaultScanCoordinator, diffVaultNotePaths, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
@@ -120,14 +122,6 @@ import { useSettingsNav, type SettingsSectionId } from './features/settings/useS
 import { buildGraphSvg, downloadPng, downloadSvg, graphNodeExportColor } from './lib/graphExport'
 import type { Graph3DExportRequest, Graph3DExportScene } from './components/NoteGraph3D'
 
-type TrashItem = {
-  id: string
-  originalRelativePath: string
-  trashedName: string
-  itemType: 'note' | 'folder'
-  deletedAtDay: number
-}
-
 type Attachment = {
   name: string
   relativePath: string
@@ -176,7 +170,6 @@ type TagSummary = {
   tag: string
   notePaths: string[]
 }
-type NoteSearchResult = { name: string; relativePath: string; excerpt: string }
 type NoteTemplate = { id: string; name: string; content: string }
 type PaletteCommand = { id: string; label: string; description: string; disabled?: boolean }
 type ExplorerContextMenu = {
@@ -750,7 +743,9 @@ function App() {
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [commandQuery, setCommandQuery] = useState('')
   const [noteSearchQuery, setNoteSearchQuery] = useState('')
-  const [noteSearchResults, setNoteSearchResults] = useState<NoteSearchResult[]>([])
+  // Busca debounced do dialogo "Abrir nota" extraída para
+  // lib/useNoteSearch — mesmo debounce, mesmo comando, mesmas regras.
+  const noteSearchResults = useNoteSearch(vault?.path ?? null, noteSearchQuery, showNoteSearch)
   const [favorites, setFavorites] = useState<string[]>([])
   const [templates, setTemplates] = useState<NoteTemplate[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('blank')
@@ -761,8 +756,6 @@ function App() {
   const [moveTarget, setMoveTarget] = useState<{ path: string; name: string; type: 'note' | 'folder' } | null>(null)
   const [moveDestination, setMoveDestination] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<{ path: string; name: string; type: 'note' | 'folder' } | null>(null)
-  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<TrashItem | null>(null)
-  const [trashItems, setTrashItems] = useState<TrashItem[]>([])
   const [backlinks, setBacklinks] = useState<Backlink[]>([])
   const [brokenLinks, setBrokenLinks] = useState<BrokenLink[]>([])
   const [externalNoteConflict, setExternalNoteConflict] = useState<ExternalNoteConflict | null>(null)
@@ -798,6 +791,24 @@ function App() {
   const [autoSaveState, setAutoSaveState] = useState<'idle' | 'pending' | 'saving' | 'saved'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState('Escolha um vault existente ou crie um do zero.')
+  // Lixeira extraída para lib/useTrashItems — mesmos comandos e mensagens.
+  // `deleteTarget`/soft-delete ficam aqui: tocam abas, rascunhos, nota ativa
+  // e índice wikilink (núcleo do editor), sem ganho em extrair.
+  const {
+    trashItems,
+    permanentDeleteTarget,
+    setPermanentDeleteTarget,
+    openTrashPage,
+    restoreTrashItem,
+    permanentlyDeleteTrashItem,
+  } = useTrashItems({
+    vaultPath: vault?.path ?? null,
+    refreshNotes,
+    goToTrashPage: () => setWorkspacePage('trash'),
+    reportStatus: setStatus,
+    reportError: setError,
+    setBusy: setLoading,
+  })
   const [createForm, setCreateForm] = useState<CreateVaultForm>({
     parentPath: '',
     name: suggestVaultName(),
@@ -1298,19 +1309,6 @@ function App() {
     window.addEventListener('mousedown', closeDropdown)
     return () => window.removeEventListener('mousedown', closeDropdown)
   }, [showTagFilterDropdown])
-
-  useEffect(() => {
-    if (!showNoteSearch || !vault || !noteSearchQuery.trim()) {
-      setNoteSearchResults([])
-      return
-    }
-    const timeout = window.setTimeout(() => {
-      void invoke<NoteSearchResult[]>('search_notes', { path: vault.path, query: noteSearchQuery })
-        .then(setNoteSearchResults)
-        .catch(() => setNoteSearchResults([]))
-    }, 150)
-    return () => window.clearTimeout(timeout)
-  }, [noteSearchQuery, showNoteSearch, vault])
 
   useEffect(() => {
     void handleRecentVaultStartup()
@@ -3082,20 +3080,6 @@ function App() {
     if (source) void moveDraggedNote(source, folderPath)
   }
 
-  async function openTrashPage() {
-    if (!vault) return
-    setLoading(true)
-    try {
-      const items = await invoke<TrashItem[]>('list_trash', { path: vault.path })
-      setTrashItems(items)
-      setWorkspacePage('trash')
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível abrir a lixeira.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   async function deleteVaultItem(targetOverride?: { path: string; name: string; type: 'note' | 'folder' }) {
     if (!vault || (!deleteTarget && !targetOverride)) return
     const target = targetOverride ?? deleteTarget
@@ -3131,39 +3115,6 @@ function App() {
       await refreshNotes(vault.path, '')
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível excluir o item.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function restoreTrashItem(id: string) {
-    if (!vault) return
-    setError(null)
-    setLoading(true)
-    try {
-      await invoke('restore_trash_item', { path: vault.path, id })
-      setTrashItems((items) => items.filter((item) => item.id !== id))
-      setStatus('Item restaurado no local original.')
-      await refreshNotes(vault.path)
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível restaurar o item.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function permanentlyDeleteTrashItem() {
-    if (!vault || !permanentDeleteTarget) return
-    const target = permanentDeleteTarget
-    setError(null)
-    setLoading(true)
-    try {
-      await invoke('permanently_delete_trash_item', { path: vault.path, id: target.id })
-      setTrashItems((items) => items.filter((item) => item.id !== target.id))
-      setPermanentDeleteTarget(null)
-      setStatus('Item excluído permanentemente da lixeira.')
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível excluir o item permanentemente.')
     } finally {
       setLoading(false)
     }

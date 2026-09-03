@@ -8,6 +8,27 @@ release pública ainda não foi feita; os marcos abaixo estão em
 
 ## [Não publicado]
 
+### Extração do App.tsx: busca de notas e lixeira
+
+**Adicionado**
+- Hook `lib/useNoteSearch(vaultPath, query, enabled)`: busca debounced
+  (`search_notes`, 150ms) com as mesmas regras (desabilitado/sem
+  vault/vazia = `[]`; falha = `[]`); 3 testes.
+- Hook `lib/useTrashItems`: itens + alvo permanente + trio
+  (abrir/restaurar/excluir) com mesmos comandos, mensagens e ordem
+  (alvo limpo só no sucesso); 5 testes.
+
+**Alterado**
+- App consome os dois hooks sem mudar JSX nem chamadas (nomes
+  preservados); tipos `TrashItem`/`NoteSearchResult` moram nos hooks.
+- `deleteTarget`/soft-delete ficam no App de propósito: tocam abas,
+  rascunhos, nota ativa e índice wikilink (núcleo do editor) — extrair
+  seria indireção com 10 dependências injetadas, sem ganho.
+
+**Corrigido**
+- Nada comportamental: regressão 63/63 sem toque (inclui abrir
+  nota pela busca e fluxos da lixeira).
+
 ### Extração do App.tsx: todos os modais no `<Modal>` compartilhado
 
 **Adicionado**
