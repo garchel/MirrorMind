@@ -194,7 +194,7 @@
 .review-reports-score.is-partial { background: #ffe5a5; color: #7a5c10; }
 .review-reports-score.is-good { background: #cfe3c4; color: #3f5239; }
 .review-reports-score.is-complete { background: #8fc98a; color: #1d4d1d; }
-.review-reports-score.is-inconclusive { background: #ecebe5; color: #73736d; }
+.review-reports-score.is-inconclusive { background: #ecebe5; color: #5f5f59; }
 
 .review-reports-actions-label { display: inline-block; width: 1px; height: 1px; overflow: hidden; }
 
@@ -202,3 +202,129 @@
   .review-reports-page .workspace-page-header { flex-direction: column; }
   .retention-cards { grid-template-columns: 1fr 1fr; }
 }
+
+/* ==== DARK AUTO (review) — gerado por scripts/gen-review-dark.py; edite o gerador, não este bloco ==== */
+/* Tema escuro (caderno noturno): réplica das regras claras com a
+ * paleta noturna do app (mesmo padrão de goals/tags/bases). */
+[data-theme='dark'] .retention-section {
+  width: 100%;
+  margin: 22px 0 30px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid rgb(232 230 221 / 9%);}
+[data-theme='dark'] .retention-heading h3 { margin: 0; font: 700 17px/1.3 var(--sans); color: #e8e6dd;}
+[data-theme='dark'] .retention-heading p { margin: 0; font: 400 12.5px/1.5 var(--sans); color: #8f8f85;}
+[data-theme='dark'] .retention-section h4 { margin: 0 0 10px; font: 700 12px/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: #8f8f85;}
+[data-theme='dark'] .retention-card {
+  display: grid;
+  gap: 3px;
+  padding: 14px 16px;
+  border: 1px solid rgb(232 230 221 / 9%);
+  border-radius: var(--radius-lg);
+  background: #2b2721;
+  transition: border-color .15s ease, transform .15s ease;}
+[data-theme='dark'] .retention-card:hover { border-color: rgb(232 230 221 / 20%); transform: translateY(-1px);}
+[data-theme='dark'] .retention-card-label { font: 600 10.5px/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: #a09c90;}
+[data-theme='dark'] .retention-card-value { font: 800 26px/1.2 var(--mono); color: #e8e6dd;}
+[data-theme='dark'] .retention-card small { font: 400 11.5px/1.4 var(--sans); color: #a09c90;}
+[data-theme='dark'] .retention-tags-table thead th {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgb(232 230 221 / 16%);
+  color: #8f8f85;
+  font: 700 10px/1.2 var(--sans);
+  letter-spacing: .1em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;}
+[data-theme='dark'] .retention-tags-table tbody td {
+  padding: 10px;
+  border-bottom: 1px solid rgb(232 230 221 / 9%);
+  color: #b8b8ae;
+  vertical-align: middle;
+  white-space: nowrap;}
+[data-theme='dark'] .retention-tags-table tbody tr:hover { background: #211d18;}
+[data-theme='dark'] .retention-tag-name {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgb(232 230 221 / 6%);
+  color: #b8b8ae;
+  font: 600 11.5px/1.4 var(--mono);}
+[data-theme='dark'] .retention-tags-table td:first-child small { color: #a09c90; font-size: 11px;}
+[data-theme='dark'] .retention-bar-wrap {
+  display: inline-block;
+  width: 90px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgb(232 230 221 / 9%);
+  overflow: hidden;
+  vertical-align: middle;}
+[data-theme='dark'] .retention-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: rgb(90 160 127 / 32%);
+  transition: width .3s ease;}
+[data-theme='dark'] .retention-bar-value { margin-left: 8px; font: 600 11.5px/1.4 var(--mono); color: #b8b8ae;}
+[data-theme='dark'] .retention-evolution-note { margin: 0 0 10px; font: 400 11.5px/1.5 var(--sans); color: #a09c90;}
+[data-theme='dark'] .retention-evolution-chart {
+  padding: 10px 12px 4px 6px;
+  border: 1px solid rgb(232 230 221 / 9%);
+  border-radius: var(--radius-lg);
+  background: #2b2721;}
+[data-theme='dark'] .retention-evolution-gridline { stroke: rgb(232 230 221 / 9%); stroke-width: 1;}
+[data-theme='dark'] .retention-evolution-line { stroke: #5aa07f; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;}
+[data-theme='dark'] .retention-evolution-dot { fill: #5aa07f; stroke: #2b2721; stroke-width: 1.5;}
+[data-theme='dark'] .retention-evolution-axis { font: 600 9.5px/1.2 var(--mono); fill: #a09c90;}
+[data-theme='dark'] .retention-evolution-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 16px;
+  border: 1px dashed rgb(232 230 221 / 16%);
+  border-radius: var(--radius-lg);
+  color: #a09c90;
+  font: 400 12.5px/1.5 var(--sans);}
+[data-theme='dark'] .review-reports-status {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 42px 20px;
+  border: 1px solid rgb(232 230 221 / 9%);
+  border-radius: var(--radius-lg);
+  background: #2b2721;
+  color: #8f8f85;
+  text-align: center;
+  font: 400 13px/1.5 var(--sans);}
+[data-theme='dark'] .review-reports-status strong { color: #b8b8ae;}
+[data-theme='dark'] .review-reports-status.is-error { color: #d98a6a;}
+[data-theme='dark'] .review-reports-status.is-empty svg { color: #8f8f85;}
+[data-theme='dark'] .review-reports-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgb(232 230 221 / 9%);
+  border-radius: var(--radius-lg);
+  background: #2b2721;}
+[data-theme='dark'] .review-reports-table thead th {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgb(232 230 221 / 16%);
+  background: rgb(232 230 221 / 6%);
+  color: #8f8f85;
+  font: 700 10px/1.2 var(--sans);
+  letter-spacing: .1em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;}
+[data-theme='dark'] .review-reports-table tbody td {
+  padding: 13px 14px;
+  border-bottom: 1px solid rgb(232 230 221 / 9%);
+  color: #b8b8ae;
+  vertical-align: middle;
+  white-space: nowrap;}
+[data-theme='dark'] .review-reports-table tbody tr:hover { background: #211d18;}
+[data-theme='dark'] .review-reports-note small { color: #a09c90; font-size: 11px;}
+[data-theme='dark'] .review-reports-score.is-forgotten { background: rgb(217 106 78 / 22%); color: #d98a6a;}
+[data-theme='dark'] .review-reports-score.is-partial { background: rgb(233 180 87 / 22%); color: #d9b56a;}
+[data-theme='dark'] .review-reports-score.is-good { background: rgb(90 160 127 / 24%); color: #7fb894;}
+[data-theme='dark'] .review-reports-score.is-complete { background: rgb(90 160 127 / 32%); color: #7fb894;}
+[data-theme='dark'] .review-reports-score.is-inconclusive { background: rgb(232 230 221 / 9%); color: #a09c90;}
+/* ==== /DARK AUTO ==== */

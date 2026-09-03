@@ -166,3 +166,43 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ==== DARK AUTO (review) — gerado por scripts/gen-review-dark.py; edite o gerador, não este bloco ==== */
+/* Tema escuro (caderno noturno): réplica das regras claras com a
+ * paleta noturna do app (mesmo padrão de goals/tags/bases). */
+[data-theme='dark'] .vault-review-policy-advanced {
+  border-top: 1px solid var(--border, rgb(232 230 221 / 16%));
+  border-bottom: 1px solid var(--border, rgb(232 230 221 / 16%));
+  padding: 11px 0;}
+[data-theme='dark'] .vault-review-policy-advanced input {
+  min-height: 34px;
+  box-sizing: border-box;
+  border: 1px solid var(--border, rgb(232 230 221 / 16%));
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  background: var(--surface);
+  color: var(--text, #24231f);
+  font: inherit;}
+[data-theme='dark'] .vault-tag-policy-settings {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--border, rgb(232 230 221 / 16%));
+  padding-top: 14px;}
+[data-theme='dark'] .vault-tag-policy-rule {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--border, rgb(232 230 221 / 16%));
+  border-radius: var(--radius-md);
+  padding: 11px;}
+[data-theme='dark'] .vault-tag-policy-rule input:not([type='checkbox']) {
+  min-height: 34px;
+  box-sizing: border-box;
+  border: 1px solid var(--border, rgb(232 230 221 / 16%));
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  background: var(--surface);
+  color: var(--text, #24231f);
+  font: inherit;}
+/* ==== /DARK AUTO ==== */

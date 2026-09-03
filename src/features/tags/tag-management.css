@@ -5,8 +5,10 @@
   --tag-line: #d9d7d0;
   --tag-ink: #20201e;
   --tag-muted: #73736d;
-  --tag-accent: #5b6f52;
-  --tag-accent-soft: #dce6dc;
+  /* Verde da família do core (H≈152, mesmo matiz de --success e Bases);
+   * antes era oliva H≈101 — destoava das outras páginas. */
+  --tag-accent: #2e6b4f;
+  --tag-accent-soft: #cfe3c4;
   --tag-danger: #9b3c34;
   /* Aviso (modal de exclusão): âmbar quente sobre creme. */
   --tag-warn-bg: #fdf3e0;
@@ -110,7 +112,7 @@
   border: 1px solid var(--tag-line);
   border-radius: var(--radius-md);
   background: #fbfaf6;
-  color: #8a8a82;
+  color: #6b6a63;
 }
 
 /* Texto apenas para leitores de tela: sem isso, o rotulo "Buscar tags" fica

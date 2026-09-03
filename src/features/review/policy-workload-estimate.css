@@ -47,3 +47,17 @@
     transform: rotate(360deg);
   }
 }
+
+/* ==== DARK AUTO (review) — gerado por scripts/gen-review-dark.py; edite o gerador, não este bloco ==== */
+/* Tema escuro (caderno noturno): réplica das regras claras com a
+ * paleta noturna do app (mesmo padrão de goals/tags/bases). */
+[data-theme='dark'] .policy-workload-estimate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: #f4f2ea;
+  border: 1px solid rgb(232 230 221 / 9%);}
+/* ==== /DARK AUTO ==== */
