@@ -21,6 +21,7 @@ export function Modal({
   label,
   className,
   children,
+  dismissable = true,
 }: {
   open: boolean
   onClose: () => void
@@ -28,12 +29,16 @@ export function Modal({
   label?: string
   className?: string
   children: ReactNode
+  /** `false` = modal bloqueante: Escape e clique no backdrop não dispensam
+   * (só o `onClose` explícito da UI interna). Padrão `true`. */
+  dismissable?: boolean
 }) {
   const dialogRef = useRef<HTMLDialogElement | null>(null)
 
   // Escape passa pela pilha global (topmost primeiro); o `cancel` nativo é
   // suprimido para não furar popovers abertos por cima do modal.
-  useEscapeToClose(open, onClose)
+  // Bloqueante (`dismissable={false}`) ignora o Escape como o backdrop.
+  useEscapeToClose(open && dismissable, onClose)
 
   // Sistema de foco do modal (absorve o `useDialogFocus` que existia nas
   // Tags): foco inicial no primeiro elemento focável, contenção de
@@ -95,7 +100,8 @@ export function Modal({
         // Clique no backdrop do `<dialog>` nativo: o alvo é o próprio
         // elemento (o conteúdo é filho e não fecha). Mesmo padrão dos
         // demais backdrops do app (palette, arquivos especiais).
-        if (event.target === event.currentTarget) onClose()
+        // Bloqueante (`dismissable={false}`) ignora o clique como o Escape.
+        if (dismissable && event.target === event.currentTarget) onClose()
       }}
     >
       {children}

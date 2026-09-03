@@ -36,6 +36,9 @@ import { VaultReviewPolicySettings } from './features/review/VaultReviewPolicySe
 import { isAutoUpdateEnabled, setAutoUpdateEnabled, useAppUpdater } from './lib/useAppUpdater'
 import { useEscapeToClose } from './lib/escapeStack'
 import { UpdateBanner } from './components/UpdateBanner'
+import { Modal } from './components/Modal'
+import { useGraphSettings } from './lib/useGraphSettings'
+import { usePref } from './lib/prefs'
 
 import { canApplyInventoryIncrementally, createVaultScanCoordinator, diffVaultNotePaths, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
 import { findTextMatches } from './lib/findMatches'
@@ -96,7 +99,7 @@ import {
   type NoteGraphLayoutLink,
 } from './lib/noteGraphLayout'
 import { buildGraph2dGroupCentersForGroups, buildGraphGroups, buildGroupMaps } from './lib/graphGrouping'
-import { GRAPH_RENDER_LIMIT_DEFAULT, selectRenderedGraphDocuments } from './lib/graphCulling'
+import { selectRenderedGraphDocuments } from './lib/graphCulling'
 import { TagIndex } from './lib/tagIndex'
 import { SpecialFileViewer } from './components/SpecialFileViewer'
 import {
@@ -483,8 +486,14 @@ function App() {
   const [notificationLastCheck, setNotificationLastCheck] = useState<ReviewNotificationCheck | null>(null)
   const [reviewGaps, setReviewGaps] = useState<NoteReviewGap[]>([])
   const [reviewUnits, setReviewUnits] = useState<NoteReviewUnit[]>([])
-  const [reviewGapMode, setReviewGapMode] = useState<ReviewGapMode>(
-    () => (localStorage.getItem('mirrormind.review-gap-mode') as ReviewGapMode | null) ?? 'hover',
+  const [reviewGapMode, setReviewGapMode] = usePref<ReviewGapMode>(
+    'mirrormind.review-gap-mode',
+    'hover',
+    (raw) => {
+      if (raw === 'off' || raw === 'hover' || raw === 'always') return raw
+      throw new Error('valor inválido')
+    },
+    (value) => value,
   )
   const [graphDocuments, setGraphDocuments] = useState<GraphDocument[]>([])
   // Indice de tags em memoria: cada nota extrai suas tags uma vez por versao do
@@ -537,10 +546,35 @@ function App() {
   const [graphViewport, setGraphViewport] = useState<GraphViewport>({ scale: 1, x: 0, y: 0 })
   // Renderizacao seletiva: limite de nos desenhados por cena (acima dele, so
   // o viewport + contexto e renderizado) e tamanho da superficie medido.
-  const [graphRenderLimit, setGraphRenderLimit] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph2d.render-limit'))
-    return Number.isFinite(value) && value >= 50 ? Math.round(value) : GRAPH_RENDER_LIMIT_DEFAULT
-  })
+  // Configurações numéricas do grafo via hook extraído (lib/useGraphSettings):
+  // 12 prefs globais com as mesmas chaves e validações de antes; a gravação
+  // é automática no setter, sem efeitos manuais de localStorage.
+  const {
+    graphRenderLimit,
+    setGraphRenderLimit,
+    graph3dNodeSize,
+    setGraph3dNodeSize,
+    graph3dNodeSpacing,
+    setGraph3dNodeSpacing,
+    graph3dOrbitSpeed,
+    setGraph3dOrbitSpeed,
+    graph3dMaxEdgeLength,
+    setGraph3dMaxEdgeLength,
+    graph3dMinEdgeLength,
+    setGraph3dMinEdgeLength,
+    graph3dDegreeGrowth,
+    setGraph3dDegreeGrowth,
+    graph2dRepulsionStrength,
+    setGraph2dRepulsionStrength,
+    graph2dLinkStiffness,
+    setGraph2dLinkStiffness,
+    graph2dVelocityDecay,
+    setGraph2dVelocityDecay,
+    graph2dLinkDistance,
+    setGraph2dLinkDistance,
+    graph2dCenterForce,
+    setGraph2dCenterForce,
+  } = useGraphSettings()
   const [graphSurfaceSize, setGraphSurfaceSize] = useState<{ width: number; height: number } | null>(null)
   const [graphMode3d, setGraphMode3d] = useState(false)
   const [graph3dLayoutVersion, setGraph3dLayoutVersion] = useState(0)
@@ -560,55 +594,6 @@ function App() {
   const [graphExportScale, setGraphExportScale] = useState(2)
   const [graphExportRequest, setGraphExportRequest] = useState<Graph3DExportRequest | null>(null)
   const graphExportRequestIdRef = useRef(0)
-  // Configuracoes do grafo 3D (tamanho/orbita/arestas), persistidas por vault.
-  const [graph3dNodeSize, setGraph3dNodeSize] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph3d.node-size'))
-    return Number.isFinite(value) && value > 0 ? value : 0.55
-  })
-  const [graph3dNodeSpacing, setGraph3dNodeSpacing] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph3d.node-spacing'))
-    return Number.isFinite(value) && value > 0 ? value : 8
-  })
-  const [graph3dOrbitSpeed, setGraph3dOrbitSpeed] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph3d.orbit-speed'))
-    return Number.isFinite(value) && value > 0 ? value : 1
-  })
-  const [graph3dMaxEdgeLength, setGraph3dMaxEdgeLength] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph3d.max-edge-length'))
-    return Number.isFinite(value) && value > 0 ? value : 14
-  })
-  const [graph3dMinEdgeLength, setGraph3dMinEdgeLength] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph3d.min-edge-length'))
-    return Number.isFinite(value) && value >= 0 ? value : 2.5
-  })
-  const [graph3dDegreeGrowth, setGraph3dDegreeGrowth] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph3d.degree-growth'))
-    return Number.isFinite(value) && value >= 0 ? value : 0.13
-  })
-  // Configuracoes de FORCAS do grafo 2D (constantes do modelo Obsidian:
-  // repulsao 1/d², rigidez da mola, amortecimento, distancia do link e forca
-  // central), persistidas por vault e editaveis no popover de configuracoes do
-  // header do grafo (e na pagina de Configuracoes).
-  const [graph2dRepulsionStrength, setGraph2dRepulsionStrength] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph2d.repulsion-strength'))
-    return Number.isFinite(value) && value >= 0 ? value : 2000
-  })
-  const [graph2dLinkStiffness, setGraph2dLinkStiffness] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph2d.link-stiffness'))
-    return Number.isFinite(value) && value > 0 ? value : 4.0
-  })
-  const [graph2dVelocityDecay, setGraph2dVelocityDecay] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph2d.velocity-decay'))
-    return Number.isFinite(value) && value >= 0 ? value : 0.4
-  })
-  const [graph2dLinkDistance, setGraph2dLinkDistance] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph2d.link-distance'))
-    return Number.isFinite(value) && value > 0 ? value : 30
-  })
-  const [graph2dCenterForce, setGraph2dCenterForce] = useState(() => {
-    const value = Number(localStorage.getItem('mirrormind.graph2d.center-force'))
-    return Number.isFinite(value) && value >= 0 ? value : 100
-  })
   // Espelho das configuracoes do grafo 2D para o loop rAF da fisica (lido em
   // tempo real sem recriar o closure). Posicoes transitorias da simulacao:
   // arrasto/assentamento rodam sem persistir nada; apenas o layout final ao
@@ -761,25 +746,6 @@ function App() {
   const [isReadingLineWrapEnabled, setReadingLineWrapEnabled] = useState(
     () => localStorage.getItem('mirrormind.reading-line-wrap') !== 'false',
   )
-  useEffect(() => {
-    localStorage.setItem('mirrormind.review-gap-mode', reviewGapMode)
-  }, [reviewGapMode])
-  useEffect(() => {
-    localStorage.setItem('mirrormind.graph3d.node-size', String(graph3dNodeSize))
-    localStorage.setItem('mirrormind.graph3d.node-spacing', String(graph3dNodeSpacing))
-    localStorage.setItem('mirrormind.graph3d.orbit-speed', String(graph3dOrbitSpeed))
-    localStorage.setItem('mirrormind.graph3d.max-edge-length', String(graph3dMaxEdgeLength))
-    localStorage.setItem('mirrormind.graph3d.min-edge-length', String(graph3dMinEdgeLength))
-    localStorage.setItem('mirrormind.graph3d.degree-growth', String(graph3dDegreeGrowth))
-  }, [graph3dDegreeGrowth, graph3dMaxEdgeLength, graph3dMinEdgeLength, graph3dNodeSize, graph3dNodeSpacing, graph3dOrbitSpeed])
-  useEffect(() => {
-    localStorage.setItem('mirrormind.graph2d.repulsion-strength', String(graph2dRepulsionStrength))
-    localStorage.setItem('mirrormind.graph2d.link-stiffness', String(graph2dLinkStiffness))
-    localStorage.setItem('mirrormind.graph2d.velocity-decay', String(graph2dVelocityDecay))
-    localStorage.setItem('mirrormind.graph2d.link-distance', String(graph2dLinkDistance))
-    localStorage.setItem('mirrormind.graph2d.center-force', String(graph2dCenterForce))
-    localStorage.setItem('mirrormind.graph2d.render-limit', String(graphRenderLimit))
-  }, [graph2dCenterForce, graph2dLinkDistance, graph2dLinkStiffness, graph2dRepulsionStrength, graph2dVelocityDecay, graphRenderLimit])
   // Resumo diario de revisoes vencidas: verifica a cada 5 minutos enquanto ha
   // um vault aberto. O backend garante no maximo uma notificacao por dia local.
   useEffect(() => {
@@ -889,8 +855,6 @@ function App() {
   // Escape fecha o dialog do topo (um por vez): cada modal se registra na
   // pilha global enquanto aberto. A command palette e o popover do editor
   // tratam Escape manualmente e nao se registram.
-  useEscapeToClose(Boolean(externalNoteConflict), () => setExternalNoteConflict(null))
-  useEscapeToClose(Boolean(externalRemovedNote), () => setExternalRemovedNote(null))
   useEscapeToClose(showSpecialFilesDialog, () => setShowSpecialFilesDialog(false))
   useEscapeToClose(Boolean(specialFileViewer), () => setSpecialFileViewer(null))
   useEscapeToClose(showNoteSearch, () => setShowNoteSearch(false))
@@ -6995,9 +6959,13 @@ function App() {
             </div>
           ) : null}
         {externalNoteConflict ? (
-          <div className="note-search-backdrop external-change-backdrop" role="presentation">
-            <section className="note-search-modal external-change-modal" role="dialog" aria-modal="true" aria-label="Alteração externa detectada">
-              <div className="move-item-heading">
+          <Modal
+            open
+            onClose={() => setExternalNoteConflict(null)}
+            label="Alteração externa detectada"
+            className="note-search-modal external-change-modal"
+          >
+            <div className="move-item-heading">
                 <strong>Alteracao externa detectada</strong>
                 <span>A nota <b>{externalNoteConflict.externalNote.name.replace(/\.md$/i, '')}</b> foi modificada fora do MirrorMind enquanto voce tinha um rascunho local.</span>
               </div>
@@ -7006,13 +6974,16 @@ function App() {
                 <button type="button" className="secondary-button" onClick={loadExternalNoteVersion}>Carregar arquivo externo</button>
                 <button type="button" onClick={keepLocalNoteVersion}>Manter meu rascunho</button>
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         {externalRemovedNote ? (
-          <div className="note-search-backdrop external-change-backdrop" role="presentation">
-            <section className="note-search-modal external-change-modal" role="dialog" aria-modal="true" aria-label="Nota removida fora do MirrorMind">
-              <div className="move-item-heading">
+          <Modal
+            open
+            onClose={() => setExternalRemovedNote(null)}
+            label="Nota removida fora do MirrorMind"
+            className="note-search-modal external-change-modal"
+          >
+            <div className="move-item-heading">
                 <strong>Nota removida externamente</strong>
                 <span>A nota <b>{externalRemovedNote.relativePath.replace(/\.md$/i, '')}</b> foi removida ou movida por outro aplicativo. Seu rascunho continua preservado.</span>
               </div>
@@ -7031,8 +7002,7 @@ function App() {
                 <button type="button" className="secondary-button" onClick={() => void saveExternallyRemovedNoteAsNew()} disabled={loading || !recoveredNotePath.trim()}>Salvar como nova</button>
                 <button type="button" onClick={() => void restoreExternallyRemovedNote()} disabled={loading}>Restaurar arquivo</button>
               </div>
-            </section>
-          </div>
+          </Modal>
         ) : null}
         {showCommandPalette ? (
           <div className="note-search-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowCommandPalette(false) }}>

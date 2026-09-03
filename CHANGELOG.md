@@ -8,6 +8,28 @@ release pública ainda não foi feita; os marcos abaixo estão em
 
 ## [Não publicado]
 
+### Extração do App.tsx: grafo, prefs e modais de mudança externa
+
+**Adicionado**
+- Hook `lib/useGraphSettings`: 12 prefs numéricas do grafo 2D/3D com as
+  mesmas chaves e validações (inclui arredondamento do limite); 4 testes.
+- Prop `dismissable` no `<Modal>` (padrão preservado) + 3 testes.
+- Ponte CSS `.modal.note-search-modal` (largura, topo 72px, backdrops por
+  tema) para paridade pixel com o backdrop próprio removido.
+
+**Alterado**
+- 2 modais de mudança externa do `App.tsx` no `<Modal>` (nomes acessíveis
+  intactos: E2E e regressão passam sem toque); registros `useEscapeToClose`
+  duplicados removidos; ganho real: contenção de Tab.
+- `reviewGapMode` e as 12 configs do grafo na camada prefs (gravação
+  automática; −68 linhas no `App.tsx`, localStorage 59→34 ocorrências).
+
+**Corrigido**
+- Comentários "persistidas por vault" que nunca foram verdade (chaves do
+  grafo sempre foram globais; comportamento preservado como global).
+- `reviewGapMode` corrompido agora cai em `hover` em vez de vazar string
+  inválida para a UI.
+
 ### Página de Metas, dark da Revisão e consolidação UI
 
 **Adicionado**
