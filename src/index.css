@@ -50,7 +50,8 @@
   --review-ink: #2b2b26;
   --review-ink-soft: #353531;
   --review-text: #4f4f49;
-  --review-faint: #8a8a82;
+  /* Escurecido de #8a8a82 (3.22:1, abaixo do AA) para AA (>= 4.5). */
+  --review-faint: #716f67;
   --review-muted: #6b6a63;
   --review-muted-2: #aaa79e;
   --review-accent-soft: #8b4a20;

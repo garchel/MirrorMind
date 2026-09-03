@@ -155,7 +155,7 @@
   padding: 9px 11px;
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
-  color: var(--muted, var(--review-muted));
+  color: var(--review-muted);
   font-size: 12px;
   line-height: 1.45;
 }
