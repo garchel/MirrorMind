@@ -47,6 +47,7 @@ import { canApplyInventoryIncrementally, createVaultScanCoordinator, diffVaultNo
 import { findTextMatches } from './lib/findMatches'
 import { findReadMatches, type ReadFindMatch } from './lib/readFind'
 import { applyWikilinkEdit, buildWikilinkIndex, getWikilinkBacklinks, getWikilinkTargets, removeWikilinkEntry } from './lib/wikilinkIndex'
+import { createVaultIndex } from './lib/vaultIndex'
 import { isIndexadora, removeIndexadoraSection, setIndexadoraFlag, syncIndexadoraSection } from './lib/indexadora'
 import type { MarkdownCodeEditorHandle, MarkdownEditorHistoryStatus, MarkdownEditorSession } from './components/MarkdownCodeEditor'
 import {
@@ -504,6 +505,9 @@ function App() {
   // atualizado incrementalmente (save/rename/exclusao). Alimenta a aba de
   // backlinks e o ranqueamento do autocomplete sem depender do grafo aberto.
   const vaultWikilinkIndexRef = useRef<ReturnType<typeof buildWikilinkIndex> | null>(null)
+  // Dono unico dos caches derivados (fatia 2: escrita em paralelo as refs;
+  // a leitura migra na fatia 3). Mesmas entradas, mesma ordem, sem IPC.
+  const vaultIndexRef = useRef(createVaultIndex())
   const vaultWikilinkIndexLoadedPathRef = useRef<string | null>(null)
   const vaultWikilinkIndexRequestRef = useRef(0)
   // Cache dos CONTEUDOS de todas as notas do Vault, populado pela leitura
@@ -1517,6 +1521,7 @@ function App() {
   useEffect(() => {
     markdownEditorStateCacheRef.current.clear()
     vaultNoteContentsRef.current = null
+    vaultIndexRef.current.markDocumentsStale()
     setMarkdownHistoryStatus({ canUndo: false, canRedo: false })
   }, [vault?.path])
 
@@ -1720,6 +1725,7 @@ function App() {
       if (requestId !== vaultWikilinkIndexRequestRef.current || vaultWikilinkIndexLoadedPathRef.current !== vaultPath) return
       const contents = allNotes.map((note) => ({ relativePath: note.relativePath, content: note.content }))
       vaultWikilinkIndexRef.current = buildWikilinkIndex(contents)
+      vaultIndexRef.current.rebuild(vaultPath, contents)
       vaultNoteContentsRef.current = {
         vaultPath,
         documents: new Map(allNotes.map((note) => [note.relativePath, note])),
@@ -1732,6 +1738,7 @@ function App() {
       // Indexacao em segundo plano nunca derruba a interface; o get_backlinks
       // (varredura no disco) continua como fallback.
       vaultWikilinkIndexRef.current = null
+      vaultIndexRef.current.clear()
     }
   }
 
@@ -3098,17 +3105,16 @@ function App() {
       setStatus(`${target.type === 'note' ? 'Nota' : 'Pasta'} movida para a lixeira.`)
       // Remove do indice em memoria as notas atingidas (incremental) e
       // sincroniza notas indexadoras que apontavam para os itens excluidos.
+      // O module calcula as origens afetadas (mesma regra de antes); a ref
+      // antiga segue atualizada para os leitores ate a fatia 3.
       if (vaultWikilinkIndexRef.current) {
         const deletedPaths = [...vaultWikilinkIndexRef.current.entries.keys()].filter(isDeletedPath)
-        const indexadoraSources = new Set<string>()
-        for (const path of deletedPaths) {
-          for (const source of vaultWikilinkIndexRef.current.backlinks.get(path) ?? []) indexadoraSources.add(source)
-        }
         for (const path of deletedPaths) {
           vaultWikilinkIndexRef.current = removeWikilinkEntry(vaultWikilinkIndexRef.current, path)
         }
-        for (const sourcePath of indexadoraSources) void syncIndexadoraPath(sourcePath)
       }
+      const removal = vaultIndexRef.current.removePaths(isDeletedPath)
+      for (const sourcePath of removal.affectedSources) void syncIndexadoraPath(sourcePath)
       // Exclusao muda o conjunto de notas: o cache de conteudos do grafo
       // perde a validade e e reconstruido na proxima leitura unificada.
       vaultNoteContentsRef.current = null
