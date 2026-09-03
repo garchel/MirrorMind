@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CalendarDays, FileText, Minus, Pencil, Plus, X } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, TimerReset, TrendingUp, X } from 'lucide-react'
 import { ErrorState, LoadingState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { applyDeadlineChange, getVaultReviewPolicyConfig, previewDeadlineChange } from './vaultReviewPolicy'
@@ -49,15 +49,17 @@ type DeadlineEditable = {
 }
 
 /** StatCard no padrao dos cards de Relatorios (retention-card): label
- * uppercase em cima, valor mono embaixo, hint curto. Sem icone — nenhum
- * outro bloco de metricas do app usa. */
-function StatCard({ label, value, hint }: {
+ * uppercase em cima, valor mono embaixo, hint curto. O icone vem ao lado
+ * do valor na cor muted do texto — nunca o laranja de acao do app. */
+function StatCard({ icon, label, value, hint }: {
+  icon: React.ReactNode
   label: string
   value: string | number
   hint?: string
 }) {
   return (
     <div className="review-dashboard-card">
+      <span className="review-dashboard-card-icon" aria-hidden="true">{icon}</span>
       <strong>{value}</strong>
       <span>{label}</span>
       {hint ? <small>{hint}</small> : null}
@@ -286,33 +288,40 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
         <>
           <div className="review-dashboard-grid">
             <StatCard
+              icon={<CheckCircle2 size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Notas em aprendizado"
               value={dashboard.enrolledNoteCount}
             />
             <StatCard
+              icon={<Clock3 size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Vencidas agora"
               value={dashboard.dueNoteCount}
             />
             <StatCard
+              icon={<TimerReset size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Vencendo em 7 dias"
               value={dashboard.dueWithinWeekCount}
               hint="Inclui as já vencidas."
             />
             <StatCard
+              icon={<CalendarClock size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Prazos ativos"
               value={dashboard.activeDeadlineNoteCount}
             />
             <StatCard
+              icon={<Layers size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Unidades acompanhadas"
               value={dashboard.trackedUnitCount}
               hint="Fragmentos com estado de memória."
             />
             <StatCard
+              icon={<TrendingUp size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Retenção média"
               value={formatPercentage(dashboard.averageRetrievability)}
               hint={`Estabilidade ${formatStability(dashboard.averageStabilityDays)} · ${dashboard.fragileUnitCount} ${dashboard.fragileUnitCount === 1 ? 'frágil' : 'frágeis'}`}
             />
             <StatCard
+              icon={<ListTodo size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Aguardando 1ª revisão"
               value={dashboard.awaitingFirstReviewCount}
             />

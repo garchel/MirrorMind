@@ -46,8 +46,8 @@
 }
 
 /* StatCard no padrao dos cards de Relatorios (retention-card): label
- * uppercase em cima, valor mono embaixo, hint curto. Sem icone, sem
- * sombra — hover so acende a borda, como em Relatorios. */
+ * uppercase, valor mono, hint curto; sem sombra — hover so acende a
+ * borda. O icone acompanha o valor na cor muted. */
 .review-dashboard-card {
   display: grid;
   gap: 3px;
@@ -61,6 +61,18 @@
 .review-dashboard-card:hover {
   border-color: var(--review-line-strong);
   transform: translateY(-1px);
+}
+
+.review-dashboard-card-icon {
+  display: grid;
+  place-items: center;
+  justify-self: start;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 6px;
+  border-radius: var(--radius-md);
+  color: var(--review-muted);
+  background: color-mix(in srgb, var(--review-muted) 10%, transparent);
 }
 
 .review-dashboard-card strong {
@@ -86,8 +98,8 @@
 
 .review-dashboard-readiness {
   padding: 16px 18px 18px;
-  background: var(--surface);
-  border: 1px solid var(--border, var(--review-line-soft));
+  background: var(--review-surface);
+  border: 1px solid var(--review-line-soft);
   border-radius: var(--radius-xl);
 }
 
@@ -104,8 +116,8 @@
   gap: 8px;
   padding: 10px 12px;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border, var(--review-line-soft));
-  background: var(--background, var(--review-surface));
+  border: 1px solid var(--review-line-soft);
+  background: var(--review-sunk);
 }
 
 .review-dashboard-readiness-total strong {
@@ -232,8 +244,8 @@
 
 .review-dashboard-calibration {
   padding: 16px 18px 18px;
-  background: var(--surface);
-  border: 1px solid var(--border, var(--review-line-soft));
+  background: var(--review-surface);
+  border: 1px solid var(--review-line-soft);
   border-radius: var(--radius-xl);
 }
 
@@ -316,8 +328,8 @@
 
 .review-dashboard-deadlines {
   padding: 16px 18px 18px;
-  background: var(--surface);
-  border: 1px solid var(--border, var(--review-line-soft));
+  background: var(--review-surface);
+  border: 1px solid var(--review-line-soft);
   border-radius: var(--radius-xl);
 }
 
@@ -543,7 +555,7 @@
   padding: 8px 10px;
   border: 1px solid var(--border, var(--review-line-soft));
   border-radius: var(--radius-lg);
-  background: var(--canvas, #fffefb);
+  background: var(--review-field, #fffefb);
   color: var(--review-muted);
 }
 
@@ -625,7 +637,7 @@
    urgir como um prazo ativo em risco. */
 .review-dashboard-expired {
   padding: 16px 18px 18px;
-  background: color-mix(in srgb, var(--accent, #c46a2b) 5%, var(--surface));
+  background: color-mix(in srgb, var(--accent, #c46a2b) 5%, var(--review-surface));
   border: 1px solid color-mix(in srgb, var(--accent, #c46a2b) 28%, var(--border, var(--review-line-soft)));
   border-radius: var(--radius-xl);
 }
