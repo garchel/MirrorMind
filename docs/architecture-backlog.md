@@ -4,13 +4,13 @@ Pós candidatos 1, 2, 3 (vaultIndex), 4. `App.tsx` em 7.320 linhas; full 813/813
 
 ## Fila recomendada
 
-1. **Seam do índice do grafo** — `graphWikilinkIndexRef` (build próprio em
-   2045/2057) + `vaultNoteContentsRef` (9 refs) ainda separados do
-   `vaultIndex`. Continuação natural do candidato 3: unificar o pipeline de
-   documentos do grafo sob o mesmo dono. Impacto alto / esforço médio.
-2. **NoteReadinessControl (880 linhas)** — próximo módulo quente do review
-   (3 commits recentes) ainda monolítico: prontidão + relatório + popover.
-   Candidato a split painel/relatório. Impacto médio / esforço médio.
+1. ~~**Seam do índice do grafo**~~ ✅ feito (`c06c6a1`): `vaultNoteContentsRef`
+   removido, um só estoque de conteúdos no `vaultIndex`. Resta o índice
+   próprio do grafo (`graphWikilinkIndexRef`, visão com escopo legítimo —
+   construído ao abrir, patchado incremental) — só mexer se o pipeline do
+   grafo for trocado.
+2. ~~**NoteReadinessControl (880 linhas)**~~ ✅ feito: hook + relatório
+   extraídos, componente com 391 linhas de render.
 3. **Restos do App (abas, explorer)** — soft-delete, palette (~5) e parte do
    explorer ficam (retorno decrescente, ~10 dependências entrelaçadas).
    Só mexer se um bug apontar para lá. Impacto baixo / esforço alto.

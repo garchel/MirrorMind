@@ -22,6 +22,14 @@ release pública ainda não foi feita; os marcos abaixo estão em
 - `lib/markdown-autocomplete.resolveMarkdownAutocompleteData()`: derivação
   dos dados do autocomplete (alvos do rascunho + backlinks vault/grafo);
   3 testes dedicados.
+- `review/useNoteReadiness.ts` + `review/NoteReadinessReport.tsx`:
+  `NoteReadinessControl` (880 → 391 linhas) split em ciclo de vida
+  (carregar/avaliar/inscrever/resetar/recuperar/relatorio, 3 testes sem
+  montar o componente) + visão do relatório (focus-trap próprio).
+- `vaultIndex.setDocuments()`: guarda conteúdos sem tocar no snapshot;
+  `vaultNoteContentsRef` removido do App (duplicava o `documents` do
+  module) — grafo bebe do module via `getDocuments`/`setDocuments`
+  (nomes via `notes`, mesma fonte da checagem de frescor).
 
 **Alterado**
 - `ReviewAiSettings` + Context consomem o provider (9 call sites); 8
