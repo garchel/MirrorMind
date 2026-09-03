@@ -46,7 +46,7 @@ import { usePref } from './lib/prefs'
 import { canApplyInventoryIncrementally, createVaultScanCoordinator, diffVaultNotePaths, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
 import { findTextMatches } from './lib/findMatches'
 import { findReadMatches, type ReadFindMatch } from './lib/readFind'
-import { applyWikilinkEdit, buildWikilinkIndex, getWikilinkBacklinks, getWikilinkTargets, removeWikilinkEntry } from './lib/wikilinkIndex'
+import { applyWikilinkEdit, buildWikilinkIndex, getWikilinkBacklinks, getWikilinkTargets } from './lib/wikilinkIndex'
 import { createVaultIndex } from './lib/vaultIndex'
 import { isIndexadora, removeIndexadoraSection, setIndexadoraFlag, syncIndexadoraSection } from './lib/indexadora'
 import type { MarkdownCodeEditorHandle, MarkdownEditorHistoryStatus, MarkdownEditorSession } from './components/MarkdownCodeEditor'
@@ -501,12 +501,11 @@ function App() {
     index.sync(graphDocuments)
     return index
   }, [graphDocuments])
-  // Indice do Vault inteiro, construido em segundo plano ao abrir o Vault e
-  // atualizado incrementalmente (save/rename/exclusao). Alimenta a aba de
-  // backlinks e o ranqueamento do autocomplete sem depender do grafo aberto.
-  const vaultWikilinkIndexRef = useRef<ReturnType<typeof buildWikilinkIndex> | null>(null)
-  // Dono unico dos caches derivados (fatia 2: escrita em paralelo as refs;
-  // a leitura migra na fatia 3). Mesmas entradas, mesma ordem, sem IPC.
+  // Indice do Vault inteiro (lib/vaultIndex): construido em segundo plano ao
+  // abrir o Vault e atualizado incrementalmente (save/rename/exclusao).
+  // Alimenta a aba de backlinks e o ranqueamento do autocomplete sem
+  // depender do grafo aberto. O grafo mantem seu proprio indice + o cache
+  // de conteudos compartilhado (vaultNoteContentsRef) como seam separada.
   const vaultIndexRef = useRef(createVaultIndex())
   const vaultWikilinkIndexLoadedPathRef = useRef<string | null>(null)
   const vaultWikilinkIndexRequestRef = useRef(0)
@@ -1724,7 +1723,6 @@ function App() {
       )
       if (requestId !== vaultWikilinkIndexRequestRef.current || vaultWikilinkIndexLoadedPathRef.current !== vaultPath) return
       const contents = allNotes.map((note) => ({ relativePath: note.relativePath, content: note.content }))
-      vaultWikilinkIndexRef.current = buildWikilinkIndex(contents)
       vaultIndexRef.current.rebuild(vaultPath, contents)
       vaultNoteContentsRef.current = {
         vaultPath,
@@ -1732,12 +1730,12 @@ function App() {
       }
       // Atualiza os backlinks da nota ativa com o indice pronto.
       if (vault && activeNoteRef.current && activeNoteRef.current.relativePath !== '__new_note__') {
-        setBacklinks(resolveBacklinksFromIndex(vaultWikilinkIndexRef.current, activeNoteRef.current.relativePath))
+        const snapshot = vaultIndexRef.current.getSnapshot()
+        if (snapshot) setBacklinks(resolveBacklinksFromIndex(snapshot, activeNoteRef.current.relativePath))
       }
     } catch {
       // Indexacao em segundo plano nunca derruba a interface; o get_backlinks
       // (varredura no disco) continua como fallback.
-      vaultWikilinkIndexRef.current = null
       vaultIndexRef.current.clear()
     }
   }
@@ -2876,20 +2874,9 @@ function App() {
       setRenameTarget(null)
       setRenameName('')
       setStatus(`${target.type === 'note' ? 'Nota' : 'Pasta'} renomeada.`)
-      // Reindexa incrementalmente: remove o caminho antigo e registra o novo
-      // com o mesmo conteudo (somente notas renomeadas).
-      if (vaultWikilinkIndexRef.current) {
-        const affected = [...vaultWikilinkIndexRef.current.entries.keys()].filter((path) => remapPath(path) !== path)
-        let nextIndex = vaultWikilinkIndexRef.current
-        for (const path of affected) {
-          const entry = nextIndex.entries.get(path)
-          nextIndex = removeWikilinkEntry(nextIndex, path)
-          if (entry && remapPath(path) !== path) {
-            nextIndex = applyWikilinkEdit(nextIndex, remapPath(path), entry.version)
-          }
-        }
-        vaultWikilinkIndexRef.current = nextIndex
-      }
+      // Reindexa incrementalmente no module (remove o caminho antigo e
+      // registra o novo com o mesmo conteudo em notas renomeadas).
+      vaultIndexRef.current.remapPaths(remapPath)
       // Renomear/mover muda caminhos: o cache de conteudos do grafo perde a
       // validade e e reconstruido na proxima leitura unificada.
       vaultNoteContentsRef.current = null
@@ -3105,14 +3092,7 @@ function App() {
       setStatus(`${target.type === 'note' ? 'Nota' : 'Pasta'} movida para a lixeira.`)
       // Remove do indice em memoria as notas atingidas (incremental) e
       // sincroniza notas indexadoras que apontavam para os itens excluidos.
-      // O module calcula as origens afetadas (mesma regra de antes); a ref
-      // antiga segue atualizada para os leitores ate a fatia 3.
-      if (vaultWikilinkIndexRef.current) {
-        const deletedPaths = [...vaultWikilinkIndexRef.current.entries.keys()].filter(isDeletedPath)
-        for (const path of deletedPaths) {
-          vaultWikilinkIndexRef.current = removeWikilinkEntry(vaultWikilinkIndexRef.current, path)
-        }
-      }
+      // O module centraliza a ordem: mesmas entradas, mesmas origens.
       const removal = vaultIndexRef.current.removePaths(isDeletedPath)
       for (const sourcePath of removal.affectedSources) void syncIndexadoraPath(sourcePath)
       // Exclusao muda o conjunto de notas: o cache de conteudos do grafo
@@ -3187,7 +3167,7 @@ function App() {
   async function loadBacklinks(relativePath: string, vaultPath: string) {
     // Consulta o indice em memoria (construido em segundo plano ao abrir o
     // Vault); so varre o disco quando o indice ainda nao esta pronto.
-    const index = vaultWikilinkIndexRef.current
+    const index = vaultIndexRef.current.getSnapshot()
     if (index) {
       const namesByPath = new Map(notesRef.current.map((note) => [note.relativePath, note.name]))
       setBacklinks(resolveBacklinksFromIndex(index, relativePath, namesByPath))
@@ -3364,8 +3344,7 @@ function App() {
       // Atualiza o indice em memoria so da nota salva (incremental) e
       // sincroniza as notas indexadoras afetadas por esta edicao de links.
       const previousTargets = graphWikilinkIndexRef.current?.entries.get(notePath)?.targets
-        ?? vaultWikilinkIndexRef.current?.entries.get(notePath)?.targets
-        ?? []
+        ?? vaultIndexRef.current.entryTargets(notePath)
       if (graphWikilinkIndexRef.current) {
         graphWikilinkIndexRef.current = applyWikilinkEdit(
           graphWikilinkIndexRef.current,
@@ -3375,15 +3354,10 @@ function App() {
       }
       // Mantem o indice do Vault em dia para backlinks/autocomplete e para a
       // sincronizacao das notas indexadoras (o grafo pode nunca ter sido aberto).
-      if (vaultWikilinkIndexRef.current) {
-        vaultWikilinkIndexRef.current = applyWikilinkEdit(
-          vaultWikilinkIndexRef.current,
-          parsedNote.relativePath,
-          parsedNote.content,
-        )
-      }
+      vaultIndexRef.current.applyEdit(parsedNote.relativePath, parsedNote.content)
       // O cache de conteudos do grafo acompanha o salvamento.
       updateVaultNoteContents(parsedNote.relativePath, parsedNote.name, parsedNote.content)
+      vaultIndexRef.current.updateDocumentContent(parsedNote.relativePath, parsedNote.content)
       void syncIndexadorasAfterSave(parsedNote, previousTargets)
       if (isStillActive) setStatus(`Nota salva: ${parsedNote.relativePath}`)
       void loadBacklinks(parsedNote.relativePath, vault.path)
@@ -3411,7 +3385,7 @@ function App() {
    *  `skipIfDirtyOf` e o proprio caminho. Atualiza os indices em memoria. */
   async function syncIndexadoraPath(path: string, skipIfDirtyOf?: string): Promise<boolean> {
     if (!vault) return false
-    const index = graphWikilinkIndexRef.current ?? vaultWikilinkIndexRef.current
+    const index = graphWikilinkIndexRef.current ?? vaultIndexRef.current.getSnapshot()
     if (!index) return false
     try {
       const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath: path })
@@ -3426,10 +3400,9 @@ function App() {
       if (graphWikilinkIndexRef.current) {
         graphWikilinkIndexRef.current = applyWikilinkEdit(graphWikilinkIndexRef.current, path, synced)
       }
-      if (vaultWikilinkIndexRef.current) {
-        vaultWikilinkIndexRef.current = applyWikilinkEdit(vaultWikilinkIndexRef.current, path, synced)
-      }
+      vaultIndexRef.current.applyEdit(path, synced)
       updateVaultNoteContents(path, note.name, synced)
+      vaultIndexRef.current.updateDocumentContent(path, synced)
       return true
     } catch {
       // Falha ao gravar uma indexadora nunca derruba o salvamento original.
@@ -3447,7 +3420,7 @@ function App() {
     previousTargets: string[],
   ) {
     if (!vault) return
-    const index = graphWikilinkIndexRef.current ?? vaultWikilinkIndexRef.current
+    const index = graphWikilinkIndexRef.current ?? vaultIndexRef.current.getSnapshot()
     if (!index) return
     const savedPath = savedNote.relativePath
     const currentTargets = index.entries.get(savedPath)?.targets ?? []
@@ -3472,7 +3445,7 @@ function App() {
     if (!vault || !activeNote || isNewNoteDraft || saving || loading) return
     const enabled = !isIndexadora(activeNote.content)
     const flagContent = setIndexadoraFlag(activeNote.content, enabled)
-    const index = graphWikilinkIndexRef.current ?? vaultWikilinkIndexRef.current
+    const index = graphWikilinkIndexRef.current ?? vaultIndexRef.current.getSnapshot()
     const backlinks = index ? getWikilinkBacklinks(index, activeNote.relativePath) : []
     const finalContent = enabled
       ? syncIndexadoraSection(flagContent, backlinks)
@@ -4251,8 +4224,7 @@ function App() {
   async function saveGraphNoteInBackground(relativePath: string, content: string, clearPendingDraft: boolean) {
     if (!vault) return
     const previousTargets = graphWikilinkIndexRef.current?.entries.get(relativePath)?.targets
-      ?? vaultWikilinkIndexRef.current?.entries.get(relativePath)?.targets
-      ?? []
+      ?? vaultIndexRef.current.entryTargets(relativePath)
     const savedPayload = await invoke<unknown>('save_note', {
       path: vault.path,
       relativePath,
@@ -4273,14 +4245,9 @@ function App() {
         content,
       )
     }
-    if (vaultWikilinkIndexRef.current) {
-      vaultWikilinkIndexRef.current = applyWikilinkEdit(
-        vaultWikilinkIndexRef.current,
-        relativePath,
-        content,
-      )
-    }
+    vaultIndexRef.current.applyEdit(relativePath, content)
     updateVaultNoteContents(relativePath, savedNote.name, content)
+    vaultIndexRef.current.updateDocumentContent(relativePath, content)
     void syncIndexadorasAfterSave(savedNote, previousTargets)
     void refreshHistoryStatus(vault.path)
     void invoke<TagSummary[]>('get_tag_index', { path: vault.path })
@@ -4411,7 +4378,7 @@ function App() {
         const targetPath = resolveObsidianWikiLinkPath(link.path, activeNote.relativePath, activeNotePaths)
         if (targetPath !== activeNote.relativePath) activeConnectedPaths.add(targetPath)
       }
-      const vaultIndex = vaultWikilinkIndexRef.current
+      const vaultIndex = vaultIndexRef.current.getSnapshot()
       if (vaultIndex) {
         for (const source of vaultIndex.backlinks.get(activeNote.relativePath) ?? []) activeConnectedPaths.add(source)
       } else if (graphWikilinkIndex) {

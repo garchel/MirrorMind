@@ -118,6 +118,21 @@ export function createVaultIndex() {
     targets(relativePath: string): string[] {
       return snapshot ? getWikilinkTargets(snapshot, relativePath) : []
     },
+
+    /**
+     * Alvos brutos da entrada (SEM filtrar por existencia). O caminho de
+     * save usa essa visao para `previousTargets`/`currentTargets` — trocar
+     * por `targets()` mudaria a sincronizacao das indexadoras.
+     */
+    entryTargets(relativePath: string): string[] {
+      return snapshot?.entries.get(relativePath)?.targets ?? []
+    },
+
+    /** Acompanha um salvamento no cache de conteudos (par de `applyEdit`). */
+    updateDocumentContent(relativePath: string, content: string): void {
+      const existing = documents?.get(relativePath)
+      if (existing) documents?.set(relativePath, { ...existing, content })
+    },
   }
 }
 

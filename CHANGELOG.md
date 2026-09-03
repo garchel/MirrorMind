@@ -8,6 +8,32 @@ release pública ainda não foi feita; os marcos abaixo estão em
 
 ## [Não publicado]
 
+### Índice do vault com locality (lib/vaultIndex)
+
+**Adicionado**
+- Module `lib/vaultIndex.createVaultIndex()`: dono único do snapshot de
+  wikilinks + cache de conteúdos (rebuild/clear/removePaths/remapPaths/
+  applyEdit/entryTargets/updateDocumentContent/backlinks/targets). Puro,
+  sem IPC/React — o App informa *o que mudou*, o module garante *o que
+  invalida*; 7 testes mutação->query.
+- `entryTargets()` (visão sem filtro, a mesma de `entries.get().targets`)
+  preserva a sincronização das indexadoras no save; `targets()` filtrado
+  não serviria ali.
+
+**Alterado**
+- App migrou em 3 fatias: (1) module + testes, sem uso; (2) dual-write +
+  piloto `deleteVaultItem` (`affectedSources` com regra idêntica, loop
+  único de sync); (3) flip de todos os leitores (build/rename/delete/
+  save/background/indexadoras/toggle/autocomplete/backlinks) e remoção
+  de `vaultWikilinkIndexRef` (-11 sítios manuais, mesma ordem e mensagens).
+- `vaultNoteContentsRef` e o índice próprio do grafo ficam como seam
+  separada (troca futura do pipeline de dados do grafo).
+
+**Corrigido**
+- Nada comportamental: regressão 63/63 sem toque + 7 testes novos; risco
+  CRITICAL do `impact refreshNotes` (27 impactados) mitigado em fatias
+  commitáveis e verdes sozinhas (`90aff82`, `d3f1115`).
+
 ### Extração do App.tsx: busca de notas e lixeira
 
 **Adicionado**

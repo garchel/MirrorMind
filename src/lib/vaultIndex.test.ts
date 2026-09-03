@@ -59,6 +59,29 @@ describe('vaultIndex', () => {
     expect(index.backlinks('notas/a.md').sort()).toEqual(['notas/b.md', 'notas/c.md'])
   })
 
+  it('entryTargets expoe a visao sem filtro (save/indexadoras)', () => {
+    const index = createVaultIndex()
+    index.rebuild('/vault', DOCS)
+
+    // a.md mira [[b]] que existe: igual nas duas visoes.
+    expect(index.entryTargets('notas/a.md').sort()).toEqual(['notas/b.md', 'notas/c.md'])
+    index.removePaths((path) => path === 'notas/c.md')
+    // c.md saiu: targets() filtra, entryTargets() mantem (save precisa).
+    expect(index.targets('notas/a.md')).toEqual(['notas/b.md'])
+    expect(index.entryTargets('notas/a.md').sort()).toEqual(['notas/b.md', 'notas/c.md'])
+  })
+
+  it('updateDocumentContent acompanha save sem rebuild', () => {
+    const index = createVaultIndex()
+    index.rebuild('/vault', DOCS)
+
+    index.applyEdit('notas/b.md', 'Agora aponta para [[a]].')
+    index.updateDocumentContent('notas/b.md', 'Agora aponta para [[a]].')
+
+    expect(index.getDocuments()?.get('notas/b.md')?.content).toBe('Agora aponta para [[a]].')
+    expect(index.getDocuments()?.size).toBe(3)
+  })
+
   it('clear e estado inicial respondem vazio sem quebrar', () => {
     const index = createVaultIndex()
     expect(index.backlinks('x.md')).toEqual([])
