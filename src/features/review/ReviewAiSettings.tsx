@@ -1,17 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   checkOllamaReviewStatus,
-  confirmOpenAiCompatibleDataConsent,
-  configureGeminiApiKey,
-  configureOpenAiCompatibleProvider,
-  confirmGeminiDataConsent,
   getReviewAiConfiguration,
   getReviewUsageStatus,
-  removeGeminiApiKey,
-  removeOpenAiCompatibleProvider,
   reviewAiErrorMessage,
   runProviderComparability,
 } from './ai'
+import { reviewProvider } from './reviewProvider'
 import type { DivergenceReport, OllamaStatus, ReviewAiConfiguration, ReviewAiProvider, UsageStatus } from './ai'
 import { estimateManagedCallCostUsd } from './managedProvider'
 import { useReviewAiSettings } from './ReviewAiSettingsContext'
@@ -69,7 +64,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
     setBusy(true)
     setError('')
     try {
-      setConfiguration(await configureGeminiApiKey(apiKey))
+      setConfiguration(await reviewProvider.configure({ kind: 'gemini', apiKey }))
       setApiKey('')
     } catch (cause) {
       setError(reviewAiErrorMessage(cause))
@@ -83,7 +78,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
     setBusy(true)
     setError('')
     try {
-      setConfiguration(await removeGeminiApiKey())
+      setConfiguration(await reviewProvider.remove('gemini'))
       setApiKey('')
     } catch (cause) {
       setError(reviewAiErrorMessage(cause))
@@ -100,7 +95,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
     // O consentimento so e concedido pelo dialogo nativo do SO: o checkbox
     // apenas reflete a decisao confirmada fora do renderer. Cancelar mantem
     // o consentimento desmarcado e nada e persistido.
-    const confirmed = await confirmGeminiDataConsent()
+    const confirmed = await reviewProvider.confirmDataConsent('gemini')
     if (confirmed) setGeminiConsent(true)
   }
 
@@ -109,7 +104,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
       setOpenAiConsent(false)
       return
     }
-    const confirmed = await confirmOpenAiCompatibleDataConsent()
+    const confirmed = await reviewProvider.confirmDataConsent('openAiCompatible')
     if (confirmed) setOpenAiConsent(true)
   }
 
@@ -118,7 +113,8 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
     setBusy(true)
     setError('')
     try {
-      setConfiguration(await configureOpenAiCompatibleProvider({
+      setConfiguration(await reviewProvider.configure({
+        kind: 'openAiCompatible',
         baseUrl: openAiBaseUrl,
         model: openAiModel,
         apiKey: openAiApiKey,
@@ -138,7 +134,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
     setBusy(true)
     setError('')
     try {
-      setConfiguration(await removeOpenAiCompatibleProvider())
+      setConfiguration(await reviewProvider.remove('openAiCompatible'))
     } catch (cause) {
       setError(reviewAiErrorMessage(cause))
     } finally {

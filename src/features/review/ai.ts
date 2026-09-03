@@ -108,6 +108,11 @@ const usageStatusSchema = z.object({
 }).strict()
 
 export type ReviewAiConfiguration = z.infer<typeof aiConfigurationSchema>
+
+/** Valida um payload de configuracao vindo do backend (fronteira de confianca). */
+export function parseReviewAiConfiguration(payload: unknown): ReviewAiConfiguration {
+  return aiConfigurationSchema.parse(payload)
+}
 export type ReadinessAttempt = z.infer<typeof readinessAttemptSchema>
 export type NoteReviewState = z.infer<typeof noteReviewStateSchema>
 export type OllamaStatus = z.infer<typeof ollamaStatusSchema>
@@ -116,52 +121,6 @@ export type UnrecoverableLearningDocument = z.infer<typeof unrecoverableLearning
 
 export async function getReviewAiConfiguration(): Promise<ReviewAiConfiguration> {
   return aiConfigurationSchema.parse(await invoke('get_review_ai_configuration'))
-}
-
-export async function configureGeminiApiKey(apiKey: string): Promise<ReviewAiConfiguration> {
-  return aiConfigurationSchema.parse(await invoke('configure_gemini_api_key', { apiKey }))
-}
-
-export async function setGeminiDataConsent(consent: boolean): Promise<void> {
-  await invoke('set_gemini_data_consent', { consent })
-}
-
-/** Pede a confirmacao nativa do SO (fora do renderer) para autorizar o envio
- * ao Gemini. Retorna true somente quando o usuario confirma no dialogo do
- * sistema operacional — uma interface comprometida nao consegue falsifica-lo. */
-export async function confirmGeminiDataConsent(): Promise<boolean> {
-  return await invoke<boolean>('confirm_gemini_data_consent')
-}
-
-export async function setOpenAiCompatibleDataConsent(consent: boolean): Promise<void> {
-  await invoke('set_openai_compatible_data_consent', { consent })
-}
-
-export async function confirmOpenAiCompatibleDataConsent(): Promise<boolean> {
-  return await invoke<boolean>('confirm_openai_compatible_data_consent')
-}
-export async function removeGeminiApiKey(): Promise<ReviewAiConfiguration> {
-  return aiConfigurationSchema.parse(await invoke('remove_gemini_api_key'))
-}
-
-/** Configura o servidor OpenAI-compatible (endereco, modelo e chave). A chave
- * fica no cofre nativo do sistema e nunca no Vault. */
-export async function configureOpenAiCompatibleProvider(input: {
-  baseUrl: string
-  model: string
-  apiKey: string
-}): Promise<ReviewAiConfiguration> {
-  return aiConfigurationSchema.parse(
-    await invoke('configure_openai_compatible_provider', {
-      baseUrl: input.baseUrl,
-      model: input.model,
-      apiKey: input.apiKey,
-    }),
-  )
-}
-
-export async function removeOpenAiCompatibleProvider(): Promise<ReviewAiConfiguration> {
-  return aiConfigurationSchema.parse(await invoke('remove_openai_compatible_provider'))
 }
 
 export async function checkOllamaReviewStatus(): Promise<OllamaStatus> {

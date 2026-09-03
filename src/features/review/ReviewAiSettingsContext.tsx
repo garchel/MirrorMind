@@ -1,6 +1,6 @@
 // oxlint-disable react/only-export-components -- provider and its guarded hook form one public boundary.
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { setGeminiDataConsent, setOpenAiCompatibleDataConsent } from './ai'
+import { reviewProvider } from './reviewProvider'
 import { canUseManagedProvider, MANAGED_PROVIDER_UNAVAILABLE_MESSAGE, SCAFFOLD_MANAGED_STATUS, type ManagedProviderStatus } from './managedProvider'
 import type { ReactNode } from 'react'
 import type { ReviewAiProvider } from './ai'
@@ -44,14 +44,14 @@ export function ReviewAiSettingsProvider({ children }: { children: ReactNode }) 
   useEffect(() => {
     if (geminiConsent) window.localStorage.setItem(GEMINI_CONSENT_KEY, 'accepted')
     else window.localStorage.removeItem(GEMINI_CONSENT_KEY)
-    void setGeminiDataConsent(geminiConsent).catch(() => {
+    void reviewProvider.setDataConsent('gemini', geminiConsent).catch(() => {
       if (geminiConsent) setGeminiConsent(false)
     })
   }, [geminiConsent])
   useEffect(() => {
     if (openAiConsent) window.localStorage.setItem(OPENAI_CONSENT_KEY, 'accepted')
     else window.localStorage.removeItem(OPENAI_CONSENT_KEY)
-    void setOpenAiCompatibleDataConsent(openAiConsent).catch(() => {
+    void reviewProvider.setDataConsent('openAiCompatible', openAiConsent).catch(() => {
       if (openAiConsent) setOpenAiConsent(false)
     })
   }, [openAiConsent])

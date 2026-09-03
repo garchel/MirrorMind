@@ -6,15 +6,13 @@ import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
 
 const mocks = vi.hoisted(() => ({
   checkOllama: vi.fn(),
-  configureGemini: vi.fn(),
-  configureOpenAi: vi.fn(),
-  confirmGeminiConsent: vi.fn(),
   getConfiguration: vi.fn(),
   getUsage: vi.fn(),
-  removeGemini: vi.fn(),
-  removeOpenAi: vi.fn(),
   runComparability: vi.fn(),
-  setGeminiConsent: vi.fn(),
+  providerConfigure: vi.fn(),
+  providerConfirm: vi.fn(),
+  providerRemove: vi.fn(),
+  providerSetConsent: vi.fn(),
 }))
 
 vi.mock('./ai', async (importOriginal) => {
@@ -22,17 +20,20 @@ vi.mock('./ai', async (importOriginal) => {
   return {
     ...original,
     checkOllamaReviewStatus: mocks.checkOllama,
-    configureGeminiApiKey: mocks.configureGemini,
-    configureOpenAiCompatibleProvider: mocks.configureOpenAi,
-    confirmGeminiDataConsent: mocks.confirmGeminiConsent,
     getReviewAiConfiguration: mocks.getConfiguration,
     getReviewUsageStatus: mocks.getUsage,
-    removeGeminiApiKey: mocks.removeGemini,
-    removeOpenAiCompatibleProvider: mocks.removeOpenAi,
     runProviderComparability: mocks.runComparability,
-    setGeminiDataConsent: mocks.setGeminiConsent,
   }
 })
+
+vi.mock('./reviewProvider', () => ({
+  reviewProvider: {
+    configure: mocks.providerConfigure,
+    confirmDataConsent: mocks.providerConfirm,
+    remove: mocks.providerRemove,
+    setDataConsent: mocks.providerSetConsent,
+  },
+}))
 
 const configuration = {
   geminiConfigured: false,
@@ -57,10 +58,10 @@ describe('ReviewAiSettings', () => {
     window.localStorage.clear()
     Object.values(mocks).forEach((mock) => mock.mockReset())
     mocks.getConfiguration.mockResolvedValue(configuration)
-    mocks.configureGemini.mockResolvedValue({ ...configuration, geminiConfigured: true })
+    mocks.providerConfigure.mockResolvedValue({ ...configuration, geminiConfigured: true })
     mocks.checkOllama.mockResolvedValue({ reachable: true, modelInstalled: true })
-    mocks.confirmGeminiConsent.mockResolvedValue(true)
-    mocks.setGeminiConsent.mockResolvedValue(undefined)
+    mocks.providerConfirm.mockResolvedValue(true)
+    mocks.providerSetConsent.mockResolvedValue(undefined)
     mocks.getUsage.mockResolvedValue({
       day: 20_000,
       providerCalls: [{ provider: 'gemini', calls: 3 }],
@@ -99,42 +100,43 @@ describe('ReviewAiSettings', () => {
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'gemini')
     await user.click(screen.getByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' }))
-    expect(mocks.confirmGeminiConsent).toHaveBeenCalledTimes(1)
+    expect(mocks.providerConfirm).toHaveBeenCalledTimes(1)
+    expect(mocks.providerConfirm).toHaveBeenCalledWith('gemini')
     expect(await screen.findByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' })).toBeChecked()
     expect(window.localStorage.getItem('mirrormind.review.gemini-consent.v1')).toBe('accepted')
 
     await user.type(screen.getByLabelText(/Chave da API Gemini/), 'valid-gemini-key-123')
     await user.click(screen.getByRole('button', { name: 'Salvar chave' }))
 
-    expect(mocks.configureGemini).toHaveBeenCalledWith('valid-gemini-key-123')
+    expect(mocks.providerConfigure).toHaveBeenCalledWith({ kind: 'gemini', apiKey: 'valid-gemini-key-123' })
     expect(screen.getByLabelText(/Chave da API Gemini/)).toHaveValue('')
   })
 
   it('keeps consent unchecked when the native dialog is cancelled', async () => {
     const user = userEvent.setup()
-    mocks.confirmGeminiConsent.mockResolvedValue(false)
+    mocks.providerConfirm.mockResolvedValue(false)
     renderSettings()
-    mocks.setGeminiConsent.mockClear()
+    mocks.providerSetConsent.mockClear()
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'gemini')
     await user.click(screen.getByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' }))
 
     expect(await screen.findByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' })).not.toBeChecked()
     expect(window.localStorage.getItem('mirrormind.review.gemini-consent.v1')).toBeNull()
-    expect(mocks.setGeminiConsent).not.toHaveBeenCalled()
+    expect(mocks.providerSetConsent).not.toHaveBeenCalled()
   })
 
   it('revokes consent directly without a dialog when unchecked', async () => {
     const user = userEvent.setup()
     window.localStorage.setItem('mirrormind.review.gemini-consent.v1', 'accepted')
     renderSettings()
-    mocks.setGeminiConsent.mockClear()
+    mocks.providerSetConsent.mockClear()
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'gemini')
     await user.click(screen.getByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' }))
 
-    expect(mocks.confirmGeminiConsent).not.toHaveBeenCalled()
-    expect(mocks.setGeminiConsent).toHaveBeenCalledWith(false)
+    expect(mocks.providerConfirm).not.toHaveBeenCalled()
+    expect(mocks.providerSetConsent).toHaveBeenCalledWith('gemini', false)
     expect(await screen.findByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' })).not.toBeChecked()
     expect(window.localStorage.getItem('mirrormind.review.gemini-consent.v1')).toBeNull()
   })
@@ -159,7 +161,8 @@ describe('ReviewAiSettings', () => {
     await user.type(screen.getByLabelText(/Chave da API/), 'sk-secret-key-123')
     await user.click(screen.getByRole('button', { name: 'Salvar servidor' }))
 
-    expect(mocks.configureOpenAi).toHaveBeenCalledWith({
+    expect(mocks.providerConfigure).toHaveBeenCalledWith({
+      kind: 'openAiCompatible',
       baseUrl: 'https://api.openai.com/v1',
       model: 'gpt-4o-mini',
       apiKey: 'sk-secret-key-123',
