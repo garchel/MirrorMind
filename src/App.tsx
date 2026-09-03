@@ -684,6 +684,8 @@ function App() {
     setSpellCheckEnabled,
     skipSoftDeleteConfirmation,
     setSkipSoftDeleteConfirmation,
+    isPagesFullWidth,
+    setPagesFullWidth,
   } = useAppearanceSettings()
   // Navegação das Configurações (seções/grupos/menu) extraída para
   // features/settings/useSettingsNav — mesmo comportamento do App original.
@@ -4632,6 +4634,7 @@ function App() {
           ...editorFontStyle,
         } as CSSProperties}
         data-builder-name="workspace-shell"
+        data-pages-width={isPagesFullWidth ? 'full' : 'spaced'}
       >
         <TitleBar>
           {workspacePage === 'notes' ? (
@@ -6200,6 +6203,32 @@ function App() {
                           {option.label}
                         </button>
                       ))}
+                    </div>
+                  </div>
+                  <div className="settings-toggle">
+                    <span>
+                      <strong>Largura das páginas</strong>
+                      <small>Com espaçamento mantém o respiro padrão em todas as páginas. Largura total ocupa 100% do espaço disponível.</small>
+                    </span>
+                    <div className="settings-segmented" role="radiogroup" aria-label="Largura das páginas">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={!isPagesFullWidth}
+                        className={!isPagesFullWidth ? 'is-active' : ''}
+                        onClick={() => setPagesFullWidth(false)}
+                      >
+                        Com espaçamento
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={isPagesFullWidth}
+                        className={isPagesFullWidth ? 'is-active' : ''}
+                        onClick={() => setPagesFullWidth(true)}
+                      >
+                        Largura total
+                      </button>
                     </div>
                   </div>
                   <label className="settings-toggle">

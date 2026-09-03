@@ -2,8 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  width: 100%;
-  padding: 22px 26px;
+  /* Sem padding proprio: herda o respiro padrao de `.workspace-page`
+   * (App.css) como as demais paginas. A largura total virou opcao global
+   * em Configuracoes > Aparencia (`data-pages-width='full'`). */
 }
 
 /* Header migrou para PageHeader (components/PageHeader.css); mantem o ritmo

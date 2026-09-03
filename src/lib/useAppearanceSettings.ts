@@ -99,6 +99,9 @@ export function useAppearanceSettings() {
   const [skipSoftDeleteConfirmation, setSkipSoftDeleteConfirmation] = usePref(
     'mirrormind.skip-soft-delete-confirmation', false, parseDefaultFalse, serializeBoolean,
   )
+  const [isPagesFullWidth, setPagesFullWidth] = usePref(
+    'mirrormind.pages-full-width', false, parseDefaultFalse, serializeBoolean,
+  )
 
   /** O `usePref` só aceita valor direto; esta é a ponte para os 6 campos de
    * captura de atalho do App (antes `setShortcuts((atual) => ...)`). */
@@ -141,5 +144,7 @@ export function useAppearanceSettings() {
     setSpellCheckEnabled,
     skipSoftDeleteConfirmation,
     setSkipSoftDeleteConfirmation,
+    isPagesFullWidth,
+    setPagesFullWidth,
   }
 }

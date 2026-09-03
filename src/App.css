@@ -1215,6 +1215,13 @@ label.settings-toggle {
   font: 14px/1.4 var(--sans);
 }
 
+/* Largura total das paginas (Configuracoes > Aparencia): compacta o respiro
+ * de TODAS as paginas por igual via `data-pages-width` no workspace-shell.
+ * Especificidade (0,3,0) vence a base sem `!important`. */
+.workspace-shell[data-pages-width='full'] .workspace-page {
+  padding: 22px 26px;
+}
+
 .shortcut-settings {
   display: grid;
   gap: 1px;

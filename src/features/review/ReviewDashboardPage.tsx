@@ -261,7 +261,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
         if (requestId === requestIdRef.current) setDashboard(next)
       })
       .catch(() => {
-        if (requestId === requestIdRef.current) setError('Não foi possível carregar o painel do vault.')
+        if (requestId === requestIdRef.current) setError('Não foi possível carregar o painel de aprendizado.')
       })
       .finally(() => {
         if (requestId === requestIdRef.current) setLoading(false)
@@ -269,10 +269,10 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
   }, [reloadRequest, vaultPath])
 
   return (
-    <section className="workspace-page review-dashboard-page w-full" aria-labelledby="review-dashboard-title">
+    <section className="workspace-page review-dashboard-page" aria-labelledby="review-dashboard-title">
       <PageHeader
         kicker="Aprendizado"
-        title="Painel do vault"
+        title="Painel de aprendizado"
         titleId="review-dashboard-title"
         description="Visão geral da retenção de memória, prazos e carga de revisão."
       >

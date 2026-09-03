@@ -21,6 +21,7 @@ describe('useAppearanceSettings (extração do App)', () => {
     expect(result.current.isReadingLineWrapEnabled).toBe(true)
     expect(result.current.isSpellCheckEnabled).toBe(true)
     expect(result.current.skipSoftDeleteConfirmation).toBe(false)
+    expect(result.current.isPagesFullWidth).toBe(false)
     expect(result.current.noteHoverColor).toBe('#171716')
     expect(result.current.tabHoverTextColor).toBe('#fbfaf6')
     expect(result.current.shortcuts).toEqual(DEFAULT_WORKSPACE_SHORTCUTS)
@@ -55,8 +56,12 @@ describe('useAppearanceSettings (extração do App)', () => {
     act(() => {
       result.current.setEditorFontSize(19)
     })
+    act(() => {
+      result.current.setPagesFullWidth(true)
+    })
     expect(localStorage.getItem('mirrormind.appearance.theme')).toBe('dark')
     expect(localStorage.getItem('mirrormind.appearance.font-size')).toBe('19')
+    expect(localStorage.getItem('mirrormind.pages-full-width')).toBe('true')
     expect(result.current.themeMode).toBe('dark')
   })
 
