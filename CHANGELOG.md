@@ -8,6 +8,32 @@ release pública ainda não foi feita; os marcos abaixo estão em
 
 ## [Não publicado]
 
+### Arquitetura profunda 1, 2 e 4 (skill improve-codebase-architecture)
+
+**Adicionado**
+- `review/reviewProvider.ts`: seam única dos provedores configuráveis
+  (`gemini`/`openAiCompatible`) — `set/confirmDataConsent`, `configure`,
+  `remove` parametrizados por kind, comandos IPC byte-idênticos em tabelas,
+  transporte injetável (Tauri/in-memory); 4 testes sem mock de `invoke`.
+- `review/useReviewSessionRunner.ts`: dono do ciclo plano→prompts→trocas→
+  relatório (begin/answerCurrent/finish/turnos/calibration + plano estimado);
+  `setBusy`/`updateReport` expostos estreitamente aos satélites
+  (síntese/reclassify); 4 testes de ciclo sem montar a página.
+- `lib/markdown-autocomplete.resolveMarkdownAutocompleteData()`: derivação
+  dos dados do autocomplete (alvos do rascunho + backlinks vault/grafo);
+  3 testes dedicados.
+
+**Alterado**
+- `ReviewAiSettings` + Context consomem o provider (9 call sites); 8
+  funções granulares removidas de `ai.ts` (-46; contratos zod ficam — são a
+  fronteira de confiança, parte profunda).
+- `ReviewSessionPage` -100 linhas líquidas: ciclo no hook, página com
+  entrada/render; mesma ordem de montagem da troca e limpeza dos campos.
+- App delega o `markdownAutocompleteData` ao lib (bloco inline removido).
+- Candidato 2 reenquadrado na implementação: a página não espelhava estado
+  do backend (11 useStates são UI local legítima; zero `invoke` direto) —
+  o sem-dono real era a orquestração do ciclo de vida.
+
 ### Índice do vault com locality (lib/vaultIndex)
 
 **Adicionado**

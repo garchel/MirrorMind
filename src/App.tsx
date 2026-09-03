@@ -45,6 +45,7 @@ import { usePref } from './lib/prefs'
 
 import { canApplyInventoryIncrementally, createVaultScanCoordinator, diffVaultNotePaths, enqueueVaultFileSystemChange, isVaultWatcherEventForRequest, type ScopedVaultFileSystemChange } from './lib/vaultWatcher'
 import { findTextMatches } from './lib/findMatches'
+import { resolveMarkdownAutocompleteData } from './lib/markdown-autocomplete'
 import { findReadMatches, type ReadFindMatch } from './lib/readFind'
 import { applyWikilinkEdit, buildWikilinkIndex, getWikilinkBacklinks, getWikilinkTargets } from './lib/wikilinkIndex'
 import { createVaultIndex } from './lib/vaultIndex'
@@ -4370,27 +4371,18 @@ function App() {
     const activeTags = extractMarkdownTags(draftContent)
     const unsupportedMarkdownFeatures = detectUnsupportedMarkdownFeatures(draftContent)
     const activeNotePaths = notes.map((note) => note.relativePath)
-    // Notas conectadas a nota ativa (alvos do proprio rascunho + backlinks do
-    // indice em memoria, quando o grafo foi aberto) para ranquear o autocomplete.
-    const activeConnectedPaths = new Set<string>()
-    if (activeNote && !isNewNoteDraft) {
-      for (const link of extractObsidianWikiLinks(draftContent)) {
-        const targetPath = resolveObsidianWikiLinkPath(link.path, activeNote.relativePath, activeNotePaths)
-        if (targetPath !== activeNote.relativePath) activeConnectedPaths.add(targetPath)
-      }
-      const vaultIndex = vaultIndexRef.current.getSnapshot()
-      if (vaultIndex) {
-        for (const source of vaultIndex.backlinks.get(activeNote.relativePath) ?? []) activeConnectedPaths.add(source)
-      } else if (graphWikilinkIndex) {
-        for (const source of graphWikilinkIndex.backlinks.get(activeNote.relativePath) ?? []) activeConnectedPaths.add(source)
-      }
-    }
-    const markdownAutocompleteData = {
-      attachments,
+    // Notas conectadas para ranquear o autocomplete: derivacao pura no lib
+    // (alvos do rascunho + backlinks do indice, com fallback para o grafo).
+    const markdownAutocompleteData = resolveMarkdownAutocompleteData({
       notePaths: activeNotePaths,
+      activeNotePath: activeNote?.relativePath ?? null,
+      isNewNoteDraft,
+      draftContent,
+      attachments,
       tags: tagIndex.map((entry) => entry.tag),
-      connectedNotePaths: [...activeConnectedPaths],
-    }
+      vaultBacklinks: vaultIndexRef.current.getSnapshot()?.backlinks ?? null,
+      graphBacklinks: graphWikilinkIndex?.backlinks ?? null,
+    })
     const favoriteNotes = notes.filter((note) => favorites.includes(note.relativePath))
     const matchingTagSuggestions = tagIndex.filter((entry) =>
       !selectedTags.includes(entry.tag) && entry.tag.includes(tagFilterQuery.trim().replace(/^#/, '').toLowerCase()),

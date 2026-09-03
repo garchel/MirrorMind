@@ -1,4 +1,5 @@
 import type { Completion } from '@codemirror/autocomplete'
+import { extractObsidianWikiLinks, resolveObsidianWikiLinkPath } from './markdown'
 
 export type MarkdownAutocompleteData = {
   attachments: string[]
@@ -6,6 +7,39 @@ export type MarkdownAutocompleteData = {
   tags: string[]
   /** Caminhos de notas conectadas a nota atual (backlinks + alvos), para ranquear sugestoes. */
   connectedNotePaths?: string[]
+}
+
+/** Deriva os dados do autocomplete a partir do estado do vault. Antes inline
+ * no App: alvos do rascunho + backlinks do indice (vault, com fallback para
+ * o do grafo) viram `connectedNotePaths` para ranquear sugestoes. Puro e
+ * testavel sem montar nada — mesma regra, mesma ordem. */
+export function resolveMarkdownAutocompleteData(input: {
+  notePaths: string[]
+  activeNotePath: string | null
+  isNewNoteDraft: boolean
+  draftContent: string
+  attachments: string[]
+  tags: string[]
+  vaultBacklinks: Map<string, Set<string>> | null
+  graphBacklinks: Map<string, Set<string>> | null
+}): MarkdownAutocompleteData {
+  const connectedNotePaths = new Set<string>()
+  if (input.activeNotePath && !input.isNewNoteDraft) {
+    for (const link of extractObsidianWikiLinks(input.draftContent)) {
+      const targetPath = resolveObsidianWikiLinkPath(link.path, input.activeNotePath, input.notePaths)
+      if (targetPath !== input.activeNotePath) connectedNotePaths.add(targetPath)
+    }
+    const backlinks = input.vaultBacklinks ?? input.graphBacklinks
+    if (backlinks) {
+      for (const source of backlinks.get(input.activeNotePath) ?? []) connectedNotePaths.add(source)
+    }
+  }
+  return {
+    attachments: input.attachments,
+    notePaths: input.notePaths,
+    tags: input.tags,
+    connectedNotePaths: [...connectedNotePaths],
+  }
 }
 
 export function getMarkdownAutocompleteResult(document: string, position: number, data: MarkdownAutocompleteData) {
