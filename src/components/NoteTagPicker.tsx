@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, ChevronDown, X } from 'lucide-react'
 import { getNoteReviewState, reviewAiErrorMessage, type NoteReviewState } from '../features/review/ai'
 import { getVaultReviewPolicyConfig, type VaultReviewPolicyConfig } from '../features/review/vaultReviewPolicy'
+import { Modal } from './Modal'
 import './NoteTagPicker.css'
 
 type NoteTagPickerProps = {
@@ -117,8 +118,13 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
       ) : null}
 
       {pendingTag ? (
-        <div className="note-tag-impact-backdrop" role="presentation">
-          <section className="note-tag-impact-modal" role="dialog" aria-modal="true" aria-labelledby="note-tag-impact-title">
+        <Modal
+          open
+          onClose={closeImpact}
+          labelledBy="note-tag-impact-title"
+          className="note-tag-impact-modal"
+        >
+          <section>
             <div className="note-tag-impact-heading">
               <div><p className="card-kicker">Impacto da tag</p><h3 id="note-tag-impact-title">Aplicar #{pendingTag}</h3></div>
               <button type="button" className="secondary-button" onClick={closeImpact} aria-label="Fechar impacto"><X size={16} /></button>
@@ -142,7 +148,7 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
               <button type="button" onClick={confirmApply}>Aplicar tag</button>
             </div>
           </section>
-        </div>
+        </Modal>
       ) : null}
     </div>
   )

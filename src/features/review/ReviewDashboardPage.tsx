@@ -5,6 +5,7 @@ import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { applyDeadlineChange, getVaultReviewPolicyConfig, previewDeadlineChange } from './vaultReviewPolicy'
 import { setNoteReviewPriority } from './reviewPolicy'
 import { getVaultReviewDashboard, type CalibrationNoteItem, type ExpiredDeadlineItem, type ReadinessAttentionItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
+import { Modal } from '../../components/Modal'
 import './review-dashboard.css'
 
 type Props = {
@@ -145,8 +146,15 @@ function DeadlineChangeDialog({ vaultPath, item, onClose, onApplied }: {
   }
 
   return (
-    <div className="review-dashboard-dialog-backdrop" role="presentation">
-      <section className="review-dashboard-dialog" role="dialog" aria-modal="true" aria-labelledby="deadline-dialog-title">
+    <Modal
+      open
+      onClose={() => {
+        if (!applying) onClose()
+      }}
+      labelledBy="deadline-dialog-title"
+      className="review-dashboard-dialog"
+    >
+      <section>
         <div className="review-dashboard-dialog-heading">
           <div>
             <p className="card-kicker">Prazo de estudo</p>
@@ -213,7 +221,7 @@ function DeadlineChangeDialog({ vaultPath, item, onClose, onApplied }: {
           </button>
         </div>
       </section>
-    </div>
+    </Modal>
   )
 }
 

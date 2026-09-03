@@ -7,6 +7,7 @@ import {
 } from './reviewPolicy'
 import type { NoteReviewPolicy, NoteReviewPolicyInput } from './reviewPolicy'
 import { PolicyWorkloadEstimate } from './PolicyWorkloadEstimate'
+import { Modal } from '../../components/Modal'
 import './review-policy.css'
 
 type Props = {
@@ -176,20 +177,6 @@ export function NoteReviewPolicyControl({
       })
   }, [isDirty, relativePath, reloadToken, sourceRevision, vaultPath])
 
-  useEffect(() => {
-    if (!open) return
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !saving) {
-        setOpen(false)
-        if (policy) setForm(formFromPolicy(policy))
-        setError('')
-        setSaved(false)
-      }
-    }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [open, policy, saving])
-
   if (isDirty || (!loading && policy === null && !loadFailed)) return null
 
   if (loadFailed && policy === null) {
@@ -305,10 +292,15 @@ export function NoteReviewPolicyControl({
       </button>
 
       {open && policy && form ? (
-        <div className="review-policy-overlay" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) closeDialog()
-        }}>
-          <section className="review-policy-dialog" role="dialog" aria-modal="true" aria-labelledby="review-policy-title">
+        <Modal
+          open
+          onClose={() => {
+            if (!saving) closeDialog()
+          }}
+          labelledBy="review-policy-title"
+          className="review-policy-dialog"
+        >
+          <section>
             <header>
               <div>
                 <span>{sourceLabel(policy)}</span>
@@ -402,7 +394,7 @@ export function NoteReviewPolicyControl({
               <button type="button" className="primary-button" disabled={saving || !validation?.success} onClick={() => void save()}>{saving ? 'Salvando…' : 'Salvar política'}</button>
             </footer>
           </section>
-        </div>
+        </Modal>
       ) : null}
     </>
   )

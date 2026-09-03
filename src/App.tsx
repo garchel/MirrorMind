@@ -8,7 +8,7 @@ import { invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Cpu, Download, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, Keyboard, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, MonitorSmartphone, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Download, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { CiStickyNote } from 'react-icons/ci'
 import 'katex/dist/katex.min.css'
@@ -117,6 +117,7 @@ import {
   type EditorFontFamily,
   type ThemeMode,
 } from './lib/appearance'
+import { useSettingsNav, type SettingsSectionId } from './features/settings/useSettingsNav'
 import { buildGraphSvg, downloadPng, downloadSvg, graphNodeExportColor } from './lib/graphExport'
 import type { Graph3DExportRequest, Graph3DExportScene } from './components/NoteGraph3D'
 
@@ -286,24 +287,6 @@ function updateNumberSetting(raw: string, current: number, min: number, max: num
 const AUTO_SAVE_DELAY_MS = 650
 
 /** Sessoes da pagina de Configuracoes, na ordem do menu lateral. */
-const SETTINGS_SECTIONS = [
-  { id: 'aparencia', label: 'Aparência', icon: Palette },
-  { id: 'workspace', label: 'Workspace', icon: SlidersHorizontal },
-  { id: 'leitura', label: 'Leitura', icon: BookOpenCheck },
-  { id: 'atalhos', label: 'Atalhos', icon: Keyboard },
-  { id: 'grafo3d', label: 'Grafo 3D', icon: Orbit },
-  { id: 'grafo2d', label: 'Grafo 2D', icon: Network },
-  { id: 'revisao', label: 'Revisão', icon: ClipboardList },
-  { id: 'aplicativo', label: 'Aplicativo', icon: MonitorSmartphone },
-  { id: 'provedor-ia', label: 'Provedor de IA', icon: Cpu },
-] as const
-
-/** Menu lateral das Configuracoes, agrupado por afinidade para leitura rapida. */
-const SETTINGS_GROUPS = [
-  { id: 'interface', label: 'Interface', sections: ['aparencia', 'workspace', 'leitura', 'atalhos'] },
-  { id: 'conhecimento', label: 'Conhecimento', sections: ['grafo3d', 'grafo2d', 'revisao'] },
-  { id: 'sistema', label: 'Sistema', sections: ['aplicativo', 'provedor-ia'] },
-] as const
 // three.js e pesado (~600 KB): carregado sob demanda, apenas quando o usuario
 // abre o modo 3D do grafo pela primeira vez.
 const NoteGraph3D = lazy(() => import('./components/NoteGraph3D').then((module) => ({ default: module.NoteGraph3D })))
@@ -724,60 +707,22 @@ function App() {
   const [isAutoSaveEnabled, setAutoSaveEnabled] = useState(
     () => localStorage.getItem('mirrormind.auto-save') !== 'false',
   )
-  // Sessão ativa do menu lateral da pagina de Configurações (destacada na
-  // navegacao e usada para rolar ate a secao ao clicar).
-  const [activeSettingsSection, setActiveSettingsSection] = useState<(typeof SETTINGS_SECTIONS)[number]['id']>('aparencia')
-  const settingsScrollRef = useRef<HTMLElement>(null)
-
-  /** Destaque no menu lateral conforme a secao visivel no painel rolavel. */
-  useEffect(() => {
-    const panel = settingsScrollRef.current
-    if (!panel) return
-    const updateActiveSection = () => {
-      const panelTop = panel.getBoundingClientRect().top
-      let current: (typeof SETTINGS_SECTIONS)[number]['id'] = SETTINGS_SECTIONS[0].id
-      for (const section of SETTINGS_SECTIONS) {
-        const element = document.getElementById(`settings-${section.id}`)
-        if (element && element.getBoundingClientRect().top - panelTop <= 140) {
-          current = section.id
-        }
-      }
-      setActiveSettingsSection(current)
-    }
-    updateActiveSection()
-    panel.addEventListener('scroll', updateActiveSection, { passive: true })
-    return () => panel.removeEventListener('scroll', updateActiveSection)
-  }, [])
-
-  /** Rola o painel de Configuracoes ate a secao escolhida no menu lateral. */
-  function scrollToSettingsSection(sectionId: (typeof SETTINGS_SECTIONS)[number]['id']) {
-    setActiveSettingsSection(sectionId)
-    const element = document.getElementById(`settings-${sectionId}`)
-    if (element && typeof element.scrollIntoView === 'function') {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }
+  // Navegação das Configurações (seções/grupos/menu) extraída para
+  // features/settings/useSettingsNav — mesmo comportamento do App original.
+  const {
+    SETTINGS_SECTIONS,
+    SETTINGS_GROUPS,
+    activeSettingsSection,
+    settingsScrollRef,
+    scrollToSettingsSection,
+    requestSettingsSection,
+  } = useSettingsNav(workspacePage === 'settings')
 
   /** Abre as Configuracoes ja rolando ate a secao pedida (ex.: palette "atalhos"). */
-  const pendingSettingsSectionRef = useRef<(typeof SETTINGS_SECTIONS)[number]['id'] | null>(null)
-  function openSettingsSection(sectionId: (typeof SETTINGS_SECTIONS)[number]['id']) {
-    pendingSettingsSectionRef.current = sectionId
+  function openSettingsSection(sectionId: SettingsSectionId) {
+    requestSettingsSection(sectionId)
     setWorkspacePage('settings')
   }
-  useEffect(() => {
-    if (workspacePage !== 'settings') return
-    const pending = pendingSettingsSectionRef.current
-    if (!pending) return
-    pendingSettingsSectionRef.current = null
-    setActiveSettingsSection(pending)
-    const frame = window.requestAnimationFrame(() => {
-      const element = document.getElementById(`settings-${pending}`)
-      if (element && typeof element.scrollIntoView === 'function') {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [workspacePage])
   const [noteHoverColor, setNoteHoverColor] = useState(
     () => localStorage.getItem('mirrormind.note-hover-color') ?? '#171716',
   )

@@ -6,7 +6,7 @@
   display: grid;
   gap: 12px;
   padding: 14px;
-  border: 1px solid var(--border, #d8d4ca);
+  border: 1px solid var(--border, var(--review-line));
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface) 86%, white);
 }
@@ -51,7 +51,7 @@
 .review-ai-diagnostic textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--border, #d8d4ca);
+  border: 1px solid var(--border, var(--review-line));
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: inherit;
@@ -86,7 +86,7 @@
 
 .note-readiness-state {
   padding: 0 8px;
-  border: 1px solid color-mix(in srgb, var(--border, #d8d4ca) 72%, currentColor);
+  border: 1px solid color-mix(in srgb, var(--border, var(--review-line)) 72%, currentColor);
   border-radius: var(--radius-sm);
   color: var(--muted, #706d66);
   font-size: 12px;
@@ -95,18 +95,18 @@
 }
 
 .note-readiness-state.is-ready {
-  color: #486a52;
+  color: var(--review-ok);
   background: rgb(72 106 82 / 9%);
 }
 
 .note-readiness-state.is-ambiguous,
 .note-readiness-state.is-modified {
-  color: #826126;
+  color: var(--review-warn);
   background: rgb(130 97 38 / 9%);
 }
 
 .note-readiness-state.is-insufficient {
-  color: #8b4942;
+  color: var(--review-bad);
   background: rgb(139 73 66 / 9%);
 }
 
@@ -126,7 +126,7 @@
   padding: 2px 9px;
   border-radius: 999px;
   background: rgb(130 97 38 / 12%);
-  color: #826126;
+  color: var(--review-warn);
   font: 600 10.5px/1.4 var(--sans);
   white-space: nowrap;
 }
@@ -136,8 +136,8 @@
   width: max-content;
   padding: 2px 9px;
   border-radius: 999px;
-  background: #ffe5a5;
-  color: #7a5c10;
+  background: var(--review-warn-bg);
+  color: var(--review-warn);
   font: 600 10.5px/1.4 var(--sans);
 }
 
@@ -146,8 +146,8 @@
   width: max-content;
   padding: 2px 9px;
   border-radius: 999px;
-  background: #d8e0f2;
-  color: #3b4f7c;
+  background: var(--review-info-bg);
+  color: var(--review-info);
   font: 600 10.5px/1.4 var(--sans);
 }
 
@@ -155,7 +155,7 @@
   display: grid;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px dashed color-mix(in srgb, var(--border, #d8d4ca) 85%, currentColor);
+  border: 1px dashed color-mix(in srgb, var(--border, var(--review-line)) 85%, currentColor);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
 }
@@ -205,9 +205,9 @@
   align-items: flex-start;
   gap: 10px;
   padding: 12px;
-  border: 1px solid #e3c96f;
+  border: 1px solid var(--review-warn-bg);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, #f7e9bd 55%, var(--surface));
+  background: color-mix(in srgb, var(--review-warn-bg-soft) 55%, var(--surface));
 }
 
 .note-recovery-banner-icon {
@@ -217,7 +217,7 @@
   height: 26px;
   flex: none;
   border-radius: var(--radius-md);
-  color: #7a5c10;
+  color: var(--review-warn);
   background: #f3dfa4;
 }
 
@@ -264,28 +264,17 @@
 .review-ai-toolbar-error {
   max-width: 240px;
   margin: 0;
-  color: #9b3f38;
+  color: var(--review-bad);
   font-size: 12px;
 }
 
-.review-ai-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgb(32 30 27 / 48%);
-}
-
+/* Backdrop removido: os diálogos de reset/descarte usam o `<Modal>`
+ * compartilhado (components/Modal.css). */
 .review-ai-dialog {
+  /* Estende `.modal` — medidas específicas dos diálogos de recuperação. */
   width: min(680px, 100%);
   max-height: min(780px, calc(100vh - 48px));
   overflow: auto;
-  border: 1px solid var(--border, #d8d4ca);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  box-shadow: 0 18px 54px rgb(23 22 20 / 22%);
 }
 
 .review-ai-dialog > header {
@@ -296,7 +285,7 @@
   justify-content: space-between;
   gap: 20px;
   padding: 20px 22px 16px;
-  border-bottom: 1px solid var(--border, #d8d4ca);
+  border-bottom: 1px solid var(--border, var(--review-line));
   background: inherit;
 }
 
@@ -399,7 +388,7 @@
   display: grid;
   gap: 9px;
   padding: 12px 13px;
-  border: 1px solid var(--border, #d8d4ca);
+  border: 1px solid var(--border, var(--review-line));
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface) 96%, white);
 }
@@ -424,18 +413,18 @@
 }
 
 .review-readiness-summary.is-ready .review-readiness-status {
-  background: #a9bda5;
-  color: #2f4a35;
+  background: var(--review-ok-bg);
+  color: var(--review-ok-soft);
 }
 
 .review-readiness-summary.is-ambiguous .review-readiness-status {
-  background: #e6d8ad;
-  color: #6b5319;
+  background: var(--review-warn-bg);
+  color: var(--review-warn);
 }
 
 .review-readiness-summary.is-insufficient .review-readiness-status {
-  background: #e6c4bb;
-  color: #7c3f36;
+  background: var(--review-bad-bg);
+  color: var(--review-bad-strong);
 }
 
 .review-readiness-explanation {
@@ -506,7 +495,7 @@
   align-items: flex-start;
   gap: 9px;
   padding: 8px 11px;
-  border: 1px solid var(--border, #d8d4ca);
+  border: 1px solid var(--border, var(--review-line));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface) 94%, white);
 }
@@ -547,7 +536,7 @@
   display: grid;
   gap: 6px;
   padding: 10px 12px;
-  border: 1px solid var(--border, #d8d4ca);
+  border: 1px solid var(--border, var(--review-line));
   border-left: 3px solid var(--muted, #706d66);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface) 95%, white);
@@ -582,7 +571,7 @@
 }
 
 .review-readiness-issue.is-insufficient {
-  border-left-color: #b3261e;
+  border-left-color: var(--review-bad);
 }
 
 .review-readiness-issue.is-missingContext {
@@ -741,7 +730,7 @@
 }
 
 .note-review-report-view .review-ai-markdown :is(th, td) {
-  border: 1px solid var(--border, #d8d4ca);
+  border: 1px solid var(--border, var(--review-line));
   padding: 5px 9px;
   text-align: left;
   vertical-align: top;
@@ -783,7 +772,7 @@
 
 .review-reset-error {
   margin: 0;
-  color: var(--danger, #b3261e);
+  color: var(--danger, var(--review-bad));
   font-size: 12.5px;
 }
 
@@ -792,8 +781,8 @@
   padding: 0 16px;
   border: 1px solid rgb(179 38 30 / 32%);
   border-radius: var(--radius-md);
-  background: var(--danger, #b3261e);
-  color: #fffdf8;
+  background: var(--danger, var(--review-bad));
+  color: var(--review-field);
   font: 600 12.5px var(--sans);
   cursor: pointer;
 }
@@ -928,118 +917,3 @@
   list-style: disc;
 }
 
-/* ==== DARK AUTO (review) — gerado por scripts/gen-review-dark.py; edite o gerador, não este bloco ==== */
-/* Tema escuro (caderno noturno): réplica das regras claras com a
- * paleta noturna do app (mesmo padrão de goals/tags/bases). */
-[data-theme='dark'] .review-ai-provider-panel {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--border, rgb(232 230 221 / 16%));
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--surface) 86%, white);}
-[data-theme='dark'] .review-ai-key-field input, [data-theme='dark'] .review-ai-diagnostic textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--border, rgb(232 230 221 / 16%));
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: inherit;
-  font: inherit;}
-[data-theme='dark'] .note-readiness-state {
-  padding: 0 8px;
-  border: 1px solid color-mix(in srgb, var(--border, rgb(232 230 221 / 16%)) 72%, currentColor);
-  border-radius: var(--radius-sm);
-  color: var(--muted, #706d66);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;}
-[data-theme='dark'] .note-review-risk-badge {
-  display: inline-block;
-  width: max-content;
-  padding: 2px 9px;
-  border-radius: 999px;
-  background: rgb(233 180 87 / 22%);
-  color: #d9b56a;
-  font: 600 10.5px/1.4 var(--sans);}
-[data-theme='dark'] .note-profile-onboarding {
-  display: grid;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px dashed color-mix(in srgb, var(--border, rgb(232 230 221 / 16%)) 85%, currentColor);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--surface) 92%, transparent);}
-[data-theme='dark'] .note-recovery-banner-icon {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  flex: none;
-  border-radius: var(--radius-md);
-  color: #d9b56a;
-  background: #f3dfa4;}
-[data-theme='dark'] .review-ai-dialog {
-  width: min(680px, 100%);
-  max-height: min(780px, calc(100vh - 48px));
-  overflow: auto;
-  border: 1px solid var(--border, rgb(232 230 221 / 16%));
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  box-shadow: 0 18px 54px rgb(23 22 20 / 22%);}
-[data-theme='dark'] .review-ai-dialog > header {
-  position: sticky;
-  top: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 20px 22px 16px;
-  border-bottom: 1px solid var(--border, rgb(232 230 221 / 16%));
-  background: inherit;}
-[data-theme='dark'] .review-readiness-summary {
-  display: grid;
-  gap: 9px;
-  padding: 12px 13px;
-  border: 1px solid var(--border, rgb(232 230 221 / 16%));
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--surface) 96%, white);}
-[data-theme='dark'] .review-readiness-summary.is-insufficient .review-readiness-status {
-  background: #e6c4bb;
-  color: #c96a4e;}
-[data-theme='dark'] .review-readiness-point-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 8px 11px;
-  border: 1px solid var(--border, rgb(232 230 221 / 16%));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--surface) 94%, white);}
-[data-theme='dark'] .review-readiness-issue {
-  display: grid;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--border, rgb(232 230 221 / 16%));
-  border-left: 3px solid var(--muted, #706d66);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--surface) 95%, white);}
-[data-theme='dark'] .review-readiness-issue.is-insufficient {
-  border-left-color: #d98a6a;}
-[data-theme='dark'] .note-review-report-view .review-ai-markdown :is(th, [data-theme='dark'] td) {
-  border: 1px solid var(--border, rgb(232 230 221 / 16%));
-  padding: 5px 9px;
-  text-align: left;
-  vertical-align: top;}
-[data-theme='dark'] .review-reset-error {
-  margin: 0;
-  color: var(--danger, #d98a6a);
-  font-size: 12.5px;}
-[data-theme='dark'] .review-reset-confirm {
-  min-height: 34px;
-  padding: 0 16px;
-  border: 1px solid rgb(179 38 30 / 32%);
-  border-radius: var(--radius-md);
-  background: var(--danger, #d98a6a);
-  color: #211d18;
-  font: 600 12.5px var(--sans);
-  cursor: pointer;}
-/* ==== /DARK AUTO ==== */

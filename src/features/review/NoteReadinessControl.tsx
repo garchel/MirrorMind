@@ -22,6 +22,7 @@ import type { NoteReviewState, ReadinessAttempt, ReviewAiProvider, Unrecoverable
 import { getVaultReviewPolicyConfig } from './vaultReviewPolicy'
 import { useReviewAiSettings } from './ReviewAiSettingsContext'
 import { prepareReportMarkdown } from './readinessReportMarkdown'
+import { Modal } from '../../components/Modal'
 import './review-ai.css'
 
 type NoteReadinessControlProps = {
@@ -129,8 +130,6 @@ export function NoteReadinessControl({
   const triggerButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
-  const resetDialogRef = useRef<HTMLElement>(null)
-  const discardDialogRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     requestGenerationRef.current += 1
@@ -303,29 +302,7 @@ export function NoteReadinessControl({
     setRecoveryError('')
   }
 
-  function handleDiscardKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
-    if (event.key === 'Escape') {
-      if (!recoveryBusy) {
-        event.preventDefault()
-        closeDiscardConfirm()
-      }
-      return
-    }
-    if (event.key !== 'Tab') return
-    const focusable = discardDialogRef.current?.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), [tabindex]:not([tabindex="-1"])',
-    )
-    if (!focusable?.length) return
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
-  }
+  // Escape/foco/trap do descarte agora vêm do `<Modal>` compartilhado.
 
   useEffect(() => {
     if (attempt) closeButtonRef.current?.focus()
@@ -450,29 +427,7 @@ export function NoteReadinessControl({
     triggerButtonRef.current?.focus()
   }
 
-  function handleResetKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
-    if (event.key === 'Escape') {
-      if (!resetBusy) {
-        event.preventDefault()
-        closeResetConfirm()
-      }
-      return
-    }
-    if (event.key !== 'Tab') return
-    const focusable = resetDialogRef.current?.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), [tabindex]:not([tabindex="-1"])',
-    )
-    if (!focusable?.length) return
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
-  }
+  // Escape/foco/trap do reset agora vêm do `<Modal>` compartilhado.
 
   function openPersistedReport() {
     if (!reviewState?.report) return
@@ -811,16 +766,15 @@ export function NoteReadinessControl({
       ) : null}
 
       {discardConfirmOpen ? (
-        <div className="review-ai-dialog-backdrop" role="presentation">
-          <section
-            ref={discardDialogRef}
-            className="review-ai-dialog review-reset-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="review-discard-title"
-            aria-describedby="review-discard-description"
-            onKeyDown={handleDiscardKeyDown}
-          >
+        <Modal
+          open
+          onClose={() => {
+            if (!recoveryBusy) closeDiscardConfirm()
+          }}
+          labelledBy="review-discard-title"
+          className="review-ai-dialog review-reset-dialog"
+        >
+          <section aria-describedby="review-discard-description">
             <header>
               <div>
                 <p className="card-kicker">Recuperação de aprendizado</p>
@@ -861,20 +815,19 @@ export function NoteReadinessControl({
               </button>
             </div>
           </section>
-        </div>
+        </Modal>
       ) : null}
 
       {resetConfirmOpen ? (
-        <div className="review-ai-dialog-backdrop" role="presentation">
-          <section
-            ref={resetDialogRef}
-            className="review-ai-dialog review-reset-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="review-reset-title"
-            aria-describedby="review-reset-description"
-            onKeyDown={handleResetKeyDown}
-          >
+        <Modal
+          open
+          onClose={() => {
+            if (!resetBusy) closeResetConfirm()
+          }}
+          labelledBy="review-reset-title"
+          className="review-ai-dialog review-reset-dialog"
+        >
+          <section aria-describedby="review-reset-description">
             <header>
               <div>
                 <p className="card-kicker">Aprendizado da nota</p>
@@ -919,7 +872,7 @@ export function NoteReadinessControl({
               </button>
             </div>
           </section>
-        </div>
+        </Modal>
       ) : null}
 
     </>

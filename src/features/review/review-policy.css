@@ -8,25 +8,14 @@
   color: var(--danger, #a33b31);
 }
 
-.review-policy-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 140;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgb(20 20 18 / 0.42);
-}
-
+/* Overlay removido: o diálogo usa o `<Modal>` compartilhado
+ * (components/Modal.css) — backdrop nativo do `<dialog>`. */
 .review-policy-dialog {
+  /* Estende `.modal`: borda/backdrop/animação vêm da base; aqui só as
+   * medidas específicas da política de revisão. */
   width: min(620px, 100%);
   max-height: min(760px, calc(100dvh - 48px));
   overflow: auto;
-  border: 1px solid var(--border, #d8d4ca);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text, #24231f);
-  box-shadow: 0 24px 70px rgb(20 20 18 / 0.24);
 }
 
 .review-policy-dialog > header,
@@ -39,12 +28,12 @@
 }
 
 .review-policy-dialog > header {
-  border-bottom: 1px solid var(--border, #d8d4ca);
+  border-bottom: 1px solid var(--border, var(--review-line));
 }
 
 .review-policy-dialog > footer {
   justify-content: flex-end;
-  border-top: 1px solid var(--border, #d8d4ca);
+  border-top: 1px solid var(--border, var(--review-line));
 }
 
 .review-policy-dialog h2,
@@ -75,7 +64,7 @@
 }
 
 .review-policy-origins {
-  border: 1px solid var(--border, #d8d4ca);
+  border: 1px solid var(--border, var(--review-line));
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   background: color-mix(in srgb, var(--surface) 92%, var(--workspace, #eeece6));
@@ -101,7 +90,7 @@
   display: grid;
   gap: 1px;
   padding-bottom: 8px;
-  border-bottom: 1px dashed var(--border, #d8d4ca);
+  border-bottom: 1px dashed var(--border, var(--review-line));
 }
 
 .review-policy-origins dt {
@@ -146,7 +135,7 @@
 .review-policy-presets button,
 .review-policy-modes label {
   min-width: 0;
-  border: 1px solid var(--border, #d8d4ca);
+  border: 1px solid var(--border, var(--review-line));
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface) 88%, var(--workspace, #eeece6));
   color: inherit;
@@ -166,7 +155,7 @@
   padding: 9px 11px;
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
-  color: var(--muted, #6b6a63);
+  color: var(--muted, var(--review-muted));
   font-size: 12px;
   line-height: 1.45;
 }
@@ -201,8 +190,8 @@
 }
 
 .review-policy-advanced {
-  border-top: 1px solid var(--border, #d8d4ca);
-  border-bottom: 1px solid var(--border, #d8d4ca);
+  border-top: 1px solid var(--border, var(--review-line));
+  border-bottom: 1px solid var(--border, var(--review-line));
   padding: 12px 0;
 }
 
@@ -228,7 +217,7 @@
 .review-policy-advanced input {
   min-height: 34px;
   box-sizing: border-box;
-  border: 1px solid var(--border, #d8d4ca);
+  border: 1px solid var(--border, var(--review-line));
   border-radius: var(--radius-sm);
   padding: 6px 8px;
   background: var(--surface);
@@ -254,10 +243,6 @@
 }
 
 @media (max-width: 680px) {
-  .review-policy-overlay {
-    padding: 12px;
-  }
-
   .review-policy-presets,
   .review-policy-modes,
   .review-policy-advanced > div,
@@ -266,58 +251,3 @@
   }
 }
 
-/* ==== DARK AUTO (review) — gerado por scripts/gen-review-dark.py; edite o gerador, não este bloco ==== */
-/* Tema escuro (caderno noturno): réplica das regras claras com a
- * paleta noturna do app (mesmo padrão de goals/tags/bases). */
-[data-theme='dark'] .review-policy-dialog {
-  width: min(620px, 100%);
-  max-height: min(760px, calc(100dvh - 48px));
-  overflow: auto;
-  border: 1px solid var(--border, rgb(232 230 221 / 16%));
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text, #24231f);
-  box-shadow: 0 24px 70px rgb(20 20 18 / 0.24);}
-[data-theme='dark'] .review-policy-dialog > header {
-  border-bottom: 1px solid var(--border, rgb(232 230 221 / 16%));}
-[data-theme='dark'] .review-policy-dialog > footer {
-  justify-content: flex-end;
-  border-top: 1px solid var(--border, rgb(232 230 221 / 16%));}
-[data-theme='dark'] .review-policy-origins {
-  border: 1px solid var(--border, rgb(232 230 221 / 16%));
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
-  background: color-mix(in srgb, var(--surface) 92%, var(--workspace, #eeece6));}
-[data-theme='dark'] .review-policy-origins dl > div {
-  display: grid;
-  gap: 1px;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed var(--border, rgb(232 230 221 / 16%));}
-[data-theme='dark'] .review-policy-presets button, [data-theme='dark'] .review-policy-modes label {
-  min-width: 0;
-  border: 1px solid var(--border, rgb(232 230 221 / 16%));
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, #eeece6));
-  color: inherit;}
-[data-theme='dark'] .review-policy-presets button:hover, [data-theme='dark'] .review-policy-mode-inherited {
-  margin: 0;
-  padding: 9px 11px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  color: var(--muted, #a09c90);
-  font-size: 12px;
-  line-height: 1.45;}
-[data-theme='dark'] .review-policy-advanced {
-  border-top: 1px solid var(--border, rgb(232 230 221 / 16%));
-  border-bottom: 1px solid var(--border, rgb(232 230 221 / 16%));
-  padding: 12px 0;}
-[data-theme='dark'] .review-policy-advanced input {
-  min-height: 34px;
-  box-sizing: border-box;
-  border: 1px solid var(--border, rgb(232 230 221 / 16%));
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  background: var(--surface);
-  color: var(--text, #24231f);
-  font: inherit;}
-/* ==== /DARK AUTO ==== */

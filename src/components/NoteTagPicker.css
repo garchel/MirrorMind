@@ -88,24 +88,11 @@
   font: 12px/1.4 var(--sans);
 }
 
-.note-tag-impact-backdrop {
-  position: fixed;
-  z-index: 90;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgb(31 31 28 / 0.3);
-}
-
+/* Backdrop removido: usa o `<Modal>` compartilhado (components/Modal.css). */
 .note-tag-impact-modal {
+  /* Estende `.modal` — medidas específicas do impacto de tag. */
   width: min(100%, 480px);
   padding: 18px;
-  border: 1px solid #d8d6cf;
-  border-radius: var(--radius-lg);
-  background: #fbfaf6;
-  color: #474740;
-  box-shadow: 0 22px 64px rgb(27 27 24 / 0.22);
 }
 
 .note-tag-impact-heading,

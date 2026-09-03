@@ -17,6 +17,8 @@ export type AppUpdaterController = {
   dismiss: () => void
 }
 
+import { readPref, writePref, parseBoolean, serializeBoolean } from './prefs'
+
 /** Rastreia a disponibilidade de atualizacoes do app.
  *
  * No mount faz uma verificacao automatica silenciosa (so a versao disponivel
@@ -27,11 +29,13 @@ export type AppUpdaterController = {
 const AUTO_UPDATE_KEY = 'mirrormind.auto-update'
 
 export function isAutoUpdateEnabled(): boolean {
-  return localStorage.getItem(AUTO_UPDATE_KEY) !== 'false'
+  // 'undefined' (nunca configurado) e qualquer valor corrompido contam como
+  // habilitado — mesmo contrato da leitura anterior ao prefs.ts.
+  return readPref(AUTO_UPDATE_KEY, true, parseBoolean)
 }
 
 export function setAutoUpdateEnabled(enabled: boolean): void {
-  localStorage.setItem(AUTO_UPDATE_KEY, String(enabled))
+  writePref(AUTO_UPDATE_KEY, enabled, serializeBoolean)
 }
 
 export function useAppUpdater(): AppUpdaterController {

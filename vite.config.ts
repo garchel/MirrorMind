@@ -54,6 +54,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: './src/vitest.setup.ts',
+    // App.regression/ReviewSession renderizam o app inteiro; sob carga de
+    // paralelismo (CI ou suite cheia) ultrapassavam o default de 5s como
+    // flakiness, nao como regressao. 15s cobre o pior caso observado (~10s)
+    // sem permitir hang passar despercebido.
+    testTimeout: 15_000,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
