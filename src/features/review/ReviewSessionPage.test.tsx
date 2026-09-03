@@ -679,7 +679,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
     }
 
     expect(await screen.findByText('Sessão inconclusiva')).toBeInTheDocument()
-    expect(screen.getByText(/nenhuma avaliação foi persistida/i)).toBeInTheDocument()
+    expect(screen.getByText(/nada foi salvo/i)).toBeInTheDocument()
     expect(screen.queryByText('/100')).not.toBeInTheDocument()
     expect(screen.queryByText('Próxima revisão:')).not.toBeInTheDocument()
     startMock.mockClear()

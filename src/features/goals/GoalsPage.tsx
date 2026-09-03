@@ -240,7 +240,7 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
         <div className="goals-status">
           <BookOpen size={22} strokeWidth={1.4} aria-hidden="true" />
           <strong>Nenhuma meta ainda.</strong>
-          <p>Crie a primeira pelo botão “Nova meta” acima: o card aparece aqui com as notas propostas em ordem.</p>
+          <p>Crie a primeira pelo botão “Nova meta” — o card aparece aqui com as notas propostas.</p>
         </div>
       ) : (
         <ul className="goals-list" aria-label="Metas criadas">

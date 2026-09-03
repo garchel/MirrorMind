@@ -272,7 +272,7 @@ describe('TagManagementPage', () => {
 
     const createButton = await screen.findByRole('button', { name: 'Criar tag' })
     expect(createButton).toBeDisabled()
-    expect(screen.getByText(/Limite de 100 regras de tag/i)).toBeInTheDocument()
+    expect(screen.getByText(/Limite de 100 regras/i)).toBeInTheDocument()
 
     // Configurar cria uma regra nova para a tag existente e tambem fica bloqueado.
     await user.click(screen.getByRole('button', { name: /^#extras · 1 nota$/ }))

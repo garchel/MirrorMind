@@ -612,7 +612,7 @@ export function NoteReadinessControl({
         <div className="review-ai-report-body">
           <p>{attempt.message}</p>
           <section className="review-ai-diagnostic" aria-label="Diagnostico da resposta da IA">
-            <p className="review-ai-diagnostic-summary">A IA respondeu, mas o formato não pode ser usado com segurança para avaliar esta nota.</p>
+            <p className="review-ai-diagnostic-summary">A IA respondeu, mas o formato não é seguro para avaliar a nota.</p>
             {attempt.validationErrors.length ? (
               <div>
                 <strong>O que precisa ser corrigido</strong>
@@ -627,7 +627,7 @@ export function NoteReadinessControl({
               <summary>Ver resposta técnica da IA</summary>
               <pre data-testid="review-ai-raw-response">{attempt.rawResponse ?? 'Nenhuma resposta textual foi recebida.'}</pre>
             </details>
-            <small>Este diagnostico não e salvo no Vault e e descartado ao fechar.</small>
+            <small>Diagnóstico não salvo no Vault; descartado ao fechar.</small>
           </section>
           {error ? <p className="field-error" role="alert">{error}</p> : null}
           <div className="review-ai-dialog-actions">
@@ -677,7 +677,7 @@ export function NoteReadinessControl({
           </span>
         ) : null}
         {reviewState?.recoveredFromBackup ? (
-          <span className="note-recovery-badge" role="status" title="O arquivo principal de aprendizado estava corrompido ou ausente e foi restaurado de um backup (possivelmente de uma versão anterior).">
+          <span className="note-recovery-badge" role="status" title="Arquivo de aprendizado restaurado de um backup (possivelmente de versão anterior).">
             Aprendizado recuperado de backup
           </span>
         ) : null}
@@ -716,7 +716,7 @@ export function NoteReadinessControl({
         <div className="note-profile-onboarding" role="region" aria-label="Adotar perfil de revisão">
           <div className="note-profile-onboarding-heading">
             <strong>Adotar perfil de revisão?</strong>
-            <small>A nota está pronta, mas ainda não tem uma tag de revisão. Escolha um perfil para ativar o agendamento com uma política adequada.</small>
+            <small>Nota pronta sem tag de revisão. Escolha um perfil para ativar o agendamento.</small>
           </div>
           <div className="note-profile-onboarding-options">
             {suggestedProfiles.map((tag) => {
@@ -838,13 +838,11 @@ export function NoteReadinessControl({
             </header>
             <div className="review-ai-report-body">
               <p id="review-discard-description">
-                O arquivo de aprendizado desta nota não pode ser lido. Descartar remove os arquivos
-                corrompidos (em quarentena) e permite reavaliar a nota do zero — pontuações,
-                memória e agendamento anteriores ficam indisponíveis.
+                Arquivo ilegível. Descartar remove os dados corrompidos e zera
+                pontuações, memória e agendamento — o Markdown fica intacto.
               </p>
               <p className="review-reset-hint">
-                Recomendado: use “Exportar arquivo” antes de descartar para preservar o conteúdo
-                original como evidência.
+                Recomendado: “Exportar arquivo” antes de descartar, para preservar o conteúdo original.
               </p>
               {recoveryError ? <p className="review-reset-error" role="alert">{recoveryError}</p> : null}
             </div>
@@ -894,8 +892,8 @@ export function NoteReadinessControl({
             </header>
             <div className="review-ai-report-body">
               <p id="review-reset-description">
-                Esta ação remove as pontuações, o estado de memória (DSR/FSRS) e as datas de revisão
-                desta nota. O Markdown, as tags, a avaliação de prontidão e a política são preservados.
+                Remove pontuações, memória (DSR/FSRS) e datas de revisão da nota.
+                Markdown, tags e políticas ficam intactos.
               </p>
               {resetBusy ? (
                 <p className="review-ai-stale-report" role="status">Reiniciando…</p>

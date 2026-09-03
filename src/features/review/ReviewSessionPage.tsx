@@ -580,15 +580,14 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             <p className="review-session-kicker">Revisão de síntese</p>
             <h2 id="review-synthesis-title">{item.title}</h2>
             <p>
-              Escreva, com suas palavras, o modelo mental que você construiu desta nota:
-              a ideia central, como os conceitos se conectam, um exemplo de aplicação e
-              o que ainda não domina. A avaliação pontua o entendimento integrado em
-              quatro dimensões — não altera sua memória nem as próximas revisões.
+              Escreva o modelo mental da nota: ideia central, conexões entre
+              conceitos, um exemplo e o que falta. Avaliação diagnóstica — não
+              altera memória nem próximas revisões.
             </p>
             {sessionSources !== null && sessionSources.length > 0 ? (
               <section className="review-synthesis-sources" aria-labelledby="review-synthesis-sources-title">
                 <h3 id="review-synthesis-sources-title">Fontes consideradas</h3>
-                <p>Anexos referenciados por esta nota no material permitido da sessão:</p>
+                <p>Anexos da nota no material permitido da sessão:</p>
                 <ul>
                   {sessionSources.map((source) => (
                     <li key={source.rawTarget}>
@@ -605,7 +604,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
                     </li>
                   ))}
                 </ul>
-                <small>PDFs e notas embutidas têm o texto extraído e incorporado ao material da sessão; imagens permanecem listadas como fontes consideradas sem interpretação visual (OCR fora do escopo local).</small>
+                <small>PDFs e notas embutidas viram material da sessão; imagens entram como fonte, sem interpretação visual.</small>
               </section>
             ) : null}
             <label className="review-synthesis-field" htmlFor="review-synthesis-text">
@@ -673,7 +672,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
         </header>
         {report.inconclusive ? (
           <div className="review-report-inconclusive" role="alert">
-            <p><strong>A cobertura válida desta sessão ficou abaixo do mínimo.</strong> Nenhuma avaliação foi persistida, sua memória não foi alterada e a nota continua vencida — refazer esta revisão não constitui contestação de um resultado.</p>
+            <p><strong>A cobertura válida desta sessão ficou abaixo do mínimo.</strong> Nada foi salvo; a nota segue vencida. Refazer não contesta o resultado.</p>
             <button type="button" className="primary-button" onClick={() => void continueCalibration()} disabled={busy}>
               <RotateCw size={15} aria-hidden="true" />
               Refazer revisão agora
@@ -755,7 +754,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             {!report.inconclusive && report.evidence === 'assistedConversation' ? (
               <p className="review-evidence-note" title="A nota exibida reflete a cobertura da nota; o agendamento considera a força da evidência.">
                 <Info size={15} aria-hidden="true" />
-                Esta conversa recorreu ao contexto revelado: as respostas abertas vieram com ajuda e o agendamento (próxima revisão) usa um peso menor que uma conversa sem contexto.
+                Conversa com contexto revelado: respostas com ajuda contam menos no agendamento.
               </p>
             ) : null}
             {(report.knowledgeSuggestions ?? []).length > 0 ? (
@@ -763,7 +762,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
                 <h3 id="review-knowledge-title">Conhecimento extra que você trouxe</h3>
                 <p className="review-knowledge-hint">
                   <Info size={15} aria-hidden="true" />
-                  Estas informações surgiram na conversa e não estão na nota. Elas não entraram na pontuação — você decide se quer adicioná-las.
+                  Informações da conversa ausentes da nota. Não entraram na pontuação — você decide se adiciona.
                 </p>
                 <ul>
                   {(report.knowledgeSuggestions ?? []).map((suggestion, index) => (

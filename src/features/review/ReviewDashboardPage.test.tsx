@@ -234,7 +234,7 @@ describe('ReviewDashboardPage', () => {
     expect(screen.getByText('Passada')).toBeInTheDocument()
     expect(screen.getByText('Provas/Passada.md')).toBeInTheDocument()
     expect(screen.getByText('#prova-bio')).toBeInTheDocument()
-    expect(screen.getByText(/remover a tag da nota, trocar o perfil da tag nas Configurações ou manter a política atual/)).toBeInTheDocument()
+    expect(screen.getByText(/remova a tag, troque o perfil\s+nas Configurações ou mantenha a política atual/)).toBeInTheDocument()
     expect(screen.getByText('Há 4 dias')).toBeInTheDocument()
   })
 

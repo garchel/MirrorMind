@@ -528,7 +528,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
       >
         <div className="tag-header-actions">
           {atRuleLimit ? (
-            <p className="tag-limit-note" role="status">Limite de 100 regras de tag atingido — edite ou exclua uma regra existente antes de criar outra.</p>
+            <p className="tag-limit-note" role="status">Limite de 100 regras atingido — edite ou exclua uma antes de criar outra.</p>
           ) : null}
           <button
             type="button"

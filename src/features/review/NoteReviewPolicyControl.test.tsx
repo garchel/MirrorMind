@@ -153,7 +153,7 @@ describe('NoteReviewPolicyControl', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Configurar revisão da nota' }))
 
-    expect(screen.getByText(/modo atual é herdado das tags/i)).toBeInTheDocument()
+    expect(screen.getByText(/modo é herdado das tags|modo herdado das tags/i)).toBeInTheDocument()
   })
 
   it('changes only the preferred mode without freezing inherited policy values', async () => {

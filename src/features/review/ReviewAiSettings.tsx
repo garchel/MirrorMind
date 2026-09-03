@@ -350,8 +350,8 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
       <section className="review-ai-comparability" aria-labelledby="comparability-title">
         <h3 id="comparability-title">Comparabilidade de provedores</h3>
         <p className="review-ai-comparability-hint">
-          Avalia a mesma nota fixa, com as mesmas perguntas e respostas, no Ollama local e no provedor remoto
-          configurado (Gemini ou OpenAI-compatible). Nenhum lado falho derruba o relatorio.
+          Mesma nota e perguntas no Ollama local e no provedor remoto;
+          falha em um lado não derruba o relatório.
         </p>
         <div className="review-ai-inline-actions">
           <button type="button" className="secondary-button" onClick={() => void runComparison()} disabled={busy || comparisonLoading}>

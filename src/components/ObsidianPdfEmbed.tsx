@@ -122,7 +122,7 @@ export function ObsidianPdfEmbed({ relativePath, title, vaultPath }: ObsidianPdf
     return <section className="obsidian-pdf-embed is-loading" role="status">Carregando PDF...</section>
   }
   if (pdfState.kind === 'error') {
-    return <section className="obsidian-pdf-embed is-error" role="alert">Não foi possível exibir este PDF.</section>
+    return <section className="obsidian-pdf-embed is-error" role="alert">Falha ao exibir este PDF.</section>
   }
 
   return (

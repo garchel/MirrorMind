@@ -5532,7 +5532,7 @@ function App() {
                         className="editor-mode-control"
                       role="radiogroup"
                       aria-label="Modo de visualização da nota"
-                      title="Como o Markdown será exibido: Edicao mostra o codigo, Misto edita o bloco ativo e Leitura mostra a nota formatada."
+                      title="Edicao mostra o código, Misto edita o bloco ativo, Leitura mostra a nota formatada."
                       onKeyDown={(event) => {
                         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
                         event.preventDefault()
@@ -7012,7 +7012,7 @@ function App() {
                 </div>
                 <div className="settings-section" id="settings-provedor-ia" aria-labelledby="ai-provider-preferences-title">
                   <p className="card-kicker" id="ai-provider-preferences-title">Provedor de IA</p>
-                  <p className="settings-section-description">Escolha onde a revisão com IA é processada e gerencie chaves e consentimentos. O Ollama local nunca envia conteúdo para fora do computador.</p>
+                  <p className="settings-section-description">Onde a revisão com IA roda, com chaves e consentimentos. Ollama local não envia nada para fora do computador.</p>
                   <ReviewAiSettings vaultPath={vault.path} />
                 </div>
                 </div>
@@ -7391,8 +7391,8 @@ function App() {
         <p className="eyebrow">Bem-vindo ao MirrorMind</p>
         <h1>Vault local, notas em Markdown e base pronta para revisar conhecimento.</h1>
         <p className="hero-copy">
-          Suas notas são arquivos Markdown numa pasta do seu computador — nada é enviado para
-          servidores. Abra um vault existente (inclusive do Obsidian) ou crie um novo.
+          Suas notas são Markdown local — nada vai para servidores.
+          Abra um vault (Obsidian incluso) ou crie um.
         </p>
         <div className="status-strip" role="status">
           <span className={`status-dot${loading ? ' is-busy' : ''}`}></span>

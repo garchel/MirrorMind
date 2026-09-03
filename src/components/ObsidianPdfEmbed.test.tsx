@@ -60,7 +60,7 @@ describe('ObsidianPdfEmbed', () => {
     render(<ObsidianPdfEmbed relativePath="segredo.pdf" title="Documento" vaultPath={'C:\\Vault'} />)
 
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Não foi possível exibir este PDF.')
+    expect(alert).toHaveTextContent('Falha ao exibir este PDF.')
     expect(alert).not.toHaveTextContent('asset://')
   })
 

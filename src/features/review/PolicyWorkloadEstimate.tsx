@@ -77,7 +77,7 @@ export function PolicyWorkloadEstimate({
           </small>
         </>
       ) : failed ? (
-        <small className="policy-workload-estimate-note">Não foi possível estimar a carga.</small>
+        <small className="policy-workload-estimate-note">Falha ao estimar a carga.</small>
       ) : valid ? (
         <span className="policy-workload-estimate-summary policy-workload-estimate-loading" role="status">
           <Loader2 size={13} aria-hidden="true" />

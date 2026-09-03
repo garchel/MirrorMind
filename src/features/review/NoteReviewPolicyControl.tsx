@@ -319,7 +319,7 @@ export function NoteReviewPolicyControl({
               </button>
             </header>
 
-            <p className="review-policy-intro">Defina quanto esforço esta nota merece sem misturar prioridade com risco de esquecimento.</p>
+            <p className="review-policy-intro">Defina o esforço da nota — prioridade separada do risco de esquecimento.</p>
 
             <section className="review-policy-origins" aria-labelledby="review-policy-origins-title">
               <h3 id="review-policy-origins-title">Origem de cada campo</h3>
@@ -361,7 +361,7 @@ export function NoteReviewPolicyControl({
               <label><input type="radio" name="preferred-review-mode" checked={form.preferredMode === 'conversation'} onChange={() => setPreferredMode('conversation')} /> <span><strong>Conversa</strong><small>Exploração progressiva.</small></span></label>
               {!policy.modeManual ? (
                 <p className="review-policy-mode-inherited" role="status">
-                  O modo atual é herdado das tags — ao salvar, ele passa a ser definido nesta nota e deixa de acompanhar as tags.
+                  Modo herdado das tags; salvar fixa nesta nota.
                 </p>
               ) : null}
             </fieldset>

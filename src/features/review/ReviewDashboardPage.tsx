@@ -626,8 +626,8 @@ function ExpiredDeadlinesSection({ items, count, onOpenNote, onEditDeadline, onS
         </span>
       </div>
       <p className="review-dashboard-expired-hint">
-        A nota continua em aprendizado e preserva histórico e memória. Depois da prova, escolha:
-        remover a tag da nota, trocar o perfil da tag nas Configurações ou manter a política atual.
+        A nota segue em aprendizado. Depois da prova: remova a tag, troque o perfil
+        nas Configurações ou mantenha a política atual.
       </p>
       {items.length === 0 ? (
         <p className="review-dashboard-deadlines-empty">Nenhuma nota com prazo de estudo encerrado.</p>

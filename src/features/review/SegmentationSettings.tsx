@@ -167,7 +167,7 @@ export function SegmentationSettings({ vaultPath }: Props) {
           <label className="segmentation-field">
             <span>
               <strong>Máximo de palavras por nota inteira</strong>
-              <small>Notas até este tamanho permanecem uma única unidade de aprendizado. Acima dele, cada parágrafo vira uma unidade própria.</small>
+              <small>Até este tamanho, a nota é uma única unidade; acima, cada parágrafo vira uma.</small>
             </span>
             <input
               type="number"

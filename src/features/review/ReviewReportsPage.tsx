@@ -250,7 +250,7 @@ export function ReviewReportsPage({ vaultPath, onOpenNote }: Props) {
               <div className="review-reports-status is-empty">
                 <ClipboardList size={22} strokeWidth={1.4} aria-hidden="true" />
                 <strong>Nenhum relatório ainda.</strong>
-                <p>Conclua uma prova ou conversa de revisão para que o relatório apareça aqui.</p>
+                <p>Conclua uma prova ou conversa para gerar o relatório.</p>
               </div>
             ) : (
               <div className="review-reports-table-wrap">

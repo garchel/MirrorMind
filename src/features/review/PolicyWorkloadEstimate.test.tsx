@@ -69,6 +69,6 @@ describe('PolicyWorkloadEstimate', () => {
   it('mostra falha sem quebrar o formulário', async () => {
     estimateMock.mockRejectedValue(new Error('offline'))
     renderIntensive()
-    expect(await screen.findByText('Não foi possível estimar a carga.')).toBeInTheDocument()
+    expect(await screen.findByText('Falha ao estimar a carga.')).toBeInTheDocument()
   })
 })
