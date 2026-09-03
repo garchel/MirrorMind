@@ -18,6 +18,16 @@ describe('vaultIndex', () => {
     expect(index.getDocuments()?.size).toBe(3)
   })
 
+  it('setDocuments guarda conteudos sem tocar no snapshot', () => {
+    const index = createVaultIndex()
+    index.rebuild('/vault', DOCS)
+    const before = index.getSnapshot()
+    index.setDocuments('/vault', [{ relativePath: 'notas/a.md', content: '# Novo' }])
+    expect(index.getSnapshot()).toBe(before)
+    expect(index.getVaultPath()).toBe('/vault')
+    expect(index.getDocuments()?.get('notas/a.md')?.content).toBe('# Novo')
+  })
+
   it('removePaths tira do indice, invalida conteudos e lista origens afetadas', () => {
     const index = createVaultIndex()
     index.rebuild('/vault', DOCS)

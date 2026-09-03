@@ -56,6 +56,16 @@ export function createVaultIndex() {
       documents = new Map(docs.map((doc) => [doc.relativePath, doc]))
     },
 
+    /**
+     * Guarda os conteudos de uma leitura unificada SEM tocar no snapshot
+     * (abertura do grafo: o grafo constroi o proprio indice a partir destes
+     * conteudos; o snapshot de fundo continua valendo).
+     */
+    setDocuments(path: string, docs: VaultIndexDocument[]): void {
+      vaultPath = path
+      documents = new Map(docs.map((doc) => [doc.relativePath, doc]))
+    },
+
     /** Invalida tudo (falha de indexacao, troca de vault). */
     clear(): void {
       snapshot = null

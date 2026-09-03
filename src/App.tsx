@@ -505,28 +505,12 @@ function App() {
   // Indice do Vault inteiro (lib/vaultIndex): construido em segundo plano ao
   // abrir o Vault e atualizado incrementalmente (save/rename/exclusao).
   // Alimenta a aba de backlinks e o ranqueamento do autocomplete sem
-  // depender do grafo aberto. O grafo mantem seu proprio indice + o cache
-  // de conteudos compartilhado (vaultNoteContentsRef) como seam separada.
+  // depender do grafo aberto. O grafo tambem bebe deste module: reutiliza o
+  // cache de conteudos quando fresco (mesmo Vault e mesmo conjunto de notas)
+  // e constroi o proprio indice a partir dele — um so estoque de conteudos.
   const vaultIndexRef = useRef(createVaultIndex())
   const vaultWikilinkIndexLoadedPathRef = useRef<string | null>(null)
   const vaultWikilinkIndexRequestRef = useRef(0)
-  // Cache dos CONTEUDOS de todas as notas do Vault, populado pela leitura
-  // unificada (`read_vault_notes`) da indexacao em segundo plano. O grafo
-  // reutiliza esse cache quando fresco (mesmo Vault e mesmo conjunto de notas),
-  // evitando a releitura duplicada ao abrir o grafo; entradas sao atualizadas
-  // em salvamentos e o cache e descartado em rename/move/exclusao, troca de
-  // Vault e mudanca estrutural vinda do watcher.
-  const vaultNoteContentsRef = useRef<{
-    vaultPath: string
-    documents: Map<string, GraphDocument>
-  } | null>(null)
-  // Atualiza o cache de conteudos com o estado salvo de UMA nota (mesma fonte
-  // dos indices em memoria, para o grafo refletir edicoes sem re-leitura).
-  function updateVaultNoteContents(relativePath: string, name: string, content: string) {
-    const cached = vaultNoteContentsRef.current
-    if (!cached) return
-    cached.documents.set(relativePath, { relativePath, name, content })
-  }
   // Nota: o indicador de indexacao em segundo plano foi removido junto com a
   // faixa de status do canto inferior direito; o indice continua sendo
   // construido por buildVaultWikilinkIndex sem feedback visual dedicado.
@@ -1520,7 +1504,6 @@ function App() {
 
   useEffect(() => {
     markdownEditorStateCacheRef.current.clear()
-    vaultNoteContentsRef.current = null
     vaultIndexRef.current.markDocumentsStale()
     setMarkdownHistoryStatus({ canUndo: false, canRedo: false })
   }, [vault?.path])
@@ -1725,10 +1708,6 @@ function App() {
       if (requestId !== vaultWikilinkIndexRequestRef.current || vaultWikilinkIndexLoadedPathRef.current !== vaultPath) return
       const contents = allNotes.map((note) => ({ relativePath: note.relativePath, content: note.content }))
       vaultIndexRef.current.rebuild(vaultPath, contents)
-      vaultNoteContentsRef.current = {
-        vaultPath,
-        documents: new Map(allNotes.map((note) => [note.relativePath, note])),
-      }
       // Atualiza os backlinks da nota ativa com o indice pronto.
       if (vault && activeNoteRef.current && activeNoteRef.current.relativePath !== '__new_note__') {
         const snapshot = vaultIndexRef.current.getSnapshot()
@@ -2027,19 +2006,21 @@ function App() {
     setError(null)
 
     try {
-      // Reutiliza o cache de conteudos da indexacao em segundo plano quando
-      // fresco (mesmo Vault e MESMO conjunto de notas): abrir o grafo nao
-      // rele NADA. Mudancas estruturais (notas criadas/removidas/renomeadas
-      // pelo app ou externamente) tornam o conjunto diferente e caem na
-      // leitura unificada abaixo.
-      const cached = vaultNoteContentsRef.current
+      // Reutiliza os conteudos do vaultIndex quando frescos (mesmo Vault e
+      // MESMO conjunto de notas): abrir o grafo nao rele NADA. Nomes vêm das
+      // notas atuais (mesma fonte da checagem); o module guarda so conteudos.
+      const cachedDocuments = vaultIndexRef.current.getDocuments()
       if (
-        cached
-        && cached.vaultPath === vaultPath
-        && cached.documents.size === notes.length
-        && notes.every((note) => cached.documents.has(note.relativePath))
+        cachedDocuments
+        && vaultIndexRef.current.getVaultPath() === vaultPath
+        && cachedDocuments.size === notes.length
+        && notes.every((note) => cachedDocuments.has(note.relativePath))
       ) {
-        const documents = [...cached.documents.values()]
+        const documents = notes.map((note) => ({
+          relativePath: note.relativePath,
+          name: note.name,
+          content: cachedDocuments.get(note.relativePath)?.content ?? '',
+        }))
         setGraphDocuments(documents)
         // Indexa os conteudos em memoria para o grafo e os backlinks.
         graphWikilinkIndexRef.current = buildWikilinkIndex(documents)
@@ -2055,10 +2036,11 @@ function App() {
       setGraphDocuments(allNotes)
       // Indexa os conteudos recém-lidos em memoria para o grafo e os backlinks.
       graphWikilinkIndexRef.current = buildWikilinkIndex(allNotes)
-      vaultNoteContentsRef.current = {
+      // Guarda os conteudos no module (snapshot de fundo continua valendo).
+      vaultIndexRef.current.setDocuments(
         vaultPath,
-        documents: new Map(allNotes.map((note) => [note.relativePath, note])),
-      }
+        allNotes.map((note) => ({ relativePath: note.relativePath, content: note.content })),
+      )
       setFocusedGraphPath(activeNote?.relativePath ?? null)
     } catch {
       if (requestId !== graphLoadRequestRef.current) return
@@ -2878,9 +2860,8 @@ function App() {
       // Reindexa incrementalmente no module (remove o caminho antigo e
       // registra o novo com o mesmo conteudo em notas renomeadas).
       vaultIndexRef.current.remapPaths(remapPath)
-      // Renomear/mover muda caminhos: o cache de conteudos do grafo perde a
-      // validade e e reconstruido na proxima leitura unificada.
-      vaultNoteContentsRef.current = null
+      // Renomear/mover muda caminhos: remapPaths acima ja invalidou o cache
+      // de conteudos, reconstruido na proxima leitura unificada.
       await refreshNotes(vault.path, remapPath(activeNote?.relativePath ?? ''))
       if (target.type === 'note' && activeNote?.relativePath === target.path) {
         void loadBrokenLinks(destinationPath, vault.path)
@@ -3096,9 +3077,8 @@ function App() {
       // O module centraliza a ordem: mesmas entradas, mesmas origens.
       const removal = vaultIndexRef.current.removePaths(isDeletedPath)
       for (const sourcePath of removal.affectedSources) void syncIndexadoraPath(sourcePath)
-      // Exclusao muda o conjunto de notas: o cache de conteudos do grafo
-      // perde a validade e e reconstruido na proxima leitura unificada.
-      vaultNoteContentsRef.current = null
+      // Exclusao muda o conjunto de notas: removePaths acima ja invalidou o
+      // cache de conteudos, reconstruido na proxima leitura unificada.
       await refreshNotes(vault.path, '')
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível excluir o item.')
@@ -3356,8 +3336,7 @@ function App() {
       // Mantem o indice do Vault em dia para backlinks/autocomplete e para a
       // sincronizacao das notas indexadoras (o grafo pode nunca ter sido aberto).
       vaultIndexRef.current.applyEdit(parsedNote.relativePath, parsedNote.content)
-      // O cache de conteudos do grafo acompanha o salvamento.
-      updateVaultNoteContents(parsedNote.relativePath, parsedNote.name, parsedNote.content)
+      // O cache de conteudos do module acompanha o salvamento.
       vaultIndexRef.current.updateDocumentContent(parsedNote.relativePath, parsedNote.content)
       void syncIndexadorasAfterSave(parsedNote, previousTargets)
       if (isStillActive) setStatus(`Nota salva: ${parsedNote.relativePath}`)
@@ -3402,7 +3381,6 @@ function App() {
         graphWikilinkIndexRef.current = applyWikilinkEdit(graphWikilinkIndexRef.current, path, synced)
       }
       vaultIndexRef.current.applyEdit(path, synced)
-      updateVaultNoteContents(path, note.name, synced)
       vaultIndexRef.current.updateDocumentContent(path, synced)
       return true
     } catch {
@@ -4247,7 +4225,6 @@ function App() {
       )
     }
     vaultIndexRef.current.applyEdit(relativePath, content)
-    updateVaultNoteContents(relativePath, savedNote.name, content)
     vaultIndexRef.current.updateDocumentContent(relativePath, content)
     void syncIndexadorasAfterSave(savedNote, previousTargets)
     void refreshHistoryStatus(vault.path)
