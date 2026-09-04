@@ -66,7 +66,9 @@
 
 /* Botão "Nova meta": cores explícitas nos tokens canônicos do app
  * (nunca herda nem depende da ordem do CSS global). Claro: fundo
- * #1c2427 + texto #f7f2e7. Escuro: fundo #e8e6dd + texto #23201b. */
+ * #1c2427 + texto #f7f2e7. Escuro: fundo #e8e6dd + texto #23201b.
+ * Raio md (8px): o mesmo dos botões das páginas Revisar/Tags — a pílula
+ * 999px destoava do restante do app. */
 .goals-page .goals-new-button,
 .goals-page .goals-submit-button {
   display: inline-flex;
@@ -75,7 +77,7 @@
   min-height: 40px;
   padding: 0 16px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--button-bg);
   color: var(--button-text);
   font-size: 14px;
@@ -121,8 +123,12 @@
 
 .goals-dialog-form {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   padding: 24px;
+}
+
+.goals-dialog-form > label > span {
+  font-weight: 600;
 }
 
 .goals-dialog-actions {
@@ -130,6 +136,9 @@
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--goals-line-soft);
 }
 
 .goals-error {
@@ -152,12 +161,28 @@
 
 /* Seletor propositalmente mais específico que `.goals-dialog-form input`
  * para o checkbox nunca herdar `width: 100%` (foi a causa do overflow). */
+/* Opção de IA como cartão de escolha (não um checkbox solto): borda,
+ * fundo afundado e texto em duas linhas (ação + provedor atual). */
 .goals-dialog-form label.goals-dialog-check {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--goals-line-soft);
+  border-radius: var(--radius-md);
+  background: var(--goals-sunk);
   cursor: pointer;
+}
+
+.goals-dialog-form label.goals-dialog-check span {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.goals-dialog-form label.goals-dialog-check small {
+  color: var(--goals-muted);
 }
 
 .goals-dialog-form label.goals-dialog-check input {
@@ -166,6 +191,7 @@
   min-height: 0;
   min-width: 0;
   flex: none;
+  margin-top: 1px;
   accent-color: var(--accent);
 }
 

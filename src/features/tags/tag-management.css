@@ -174,10 +174,16 @@
   color: var(--tag-muted);
   font-size: 12.5px;
   font-weight: 600;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+}
+
+.tag-management-page.tag-management-page button.tag-tree-create svg {
+  display: block;
+  flex: none;
 }
 
 .tag-management-page.tag-management-page button.tag-tree-create:hover:not(:disabled) {
@@ -341,7 +347,13 @@
 
 .tag-unconfigured > svg {
   flex: 0 0 auto;
-  margin-top: 2px;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #8d877e;
+  color: #fff;
 }
 
 .tag-review-status > span {
@@ -391,13 +403,16 @@
 
 .tag-policy-summary dt {
   color: var(--tag-muted);
-  font-size: 11px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .tag-policy-summary dd {
   margin: 7px 0 0;
   color: #33322d;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -463,7 +478,8 @@
   font-size: 12.5px;
 }
 
-/* Lista de notas: apenas o nome da nota e a sua localizacao. */
+/* Lista de notas: nome + localização, com hover e ícone de arquivo para
+ * leitura escaneável (o título da seção é referenciado pelos testes). */
 .tag-note-flat {
   display: grid;
   gap: 2px;
@@ -474,16 +490,32 @@
 
 .tag-note-flat li {
   display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease;
+}
+
+.tag-note-flat li:hover {
+  background: #f2f0e9;
+}
+
+.tag-note-flat-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: #9a97a0;
+}
+
+.tag-note-flat-text {
+  display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
   min-width: 0;
-  padding: 10px 2px;
-  border-bottom: 1px solid #efede6;
-}
-
-.tag-note-flat li:last-child {
-  border-bottom: 0;
+  flex: 1 1 auto;
 }
 
 .tag-note-flat-name {

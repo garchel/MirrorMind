@@ -399,6 +399,7 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
             title="Nova meta"
             titleId="goals-dialog-title"
             closeLabel="Fechar criação de meta"
+            kicker="Plano de estudo"
             onClose={() => setModalOpen(false)}
           />
           <label htmlFor="goals-title-input">

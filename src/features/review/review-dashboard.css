@@ -239,7 +239,14 @@
 }
 
 .review-dashboard-readiness-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   justify-self: end;
+}
+
+.review-dashboard-readiness-open svg {
+  flex: none;
 }
 
 .review-dashboard-calibration {
@@ -445,6 +452,12 @@
   flex: 0 0 auto;
 }
 
+/* Revisar, Abrir e Alterar prazo com a mesma altura. */
+.review-dashboard-deadline-actions .primary-button,
+.review-dashboard-deadline-actions .secondary-button {
+  min-height: 34px;
+}
+
 .review-dashboard-deadline-priority {
   display: inline-flex;
   align-items: center;
@@ -460,8 +473,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 17px;
-  height: 17px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 1px solid var(--review-line-strong);
   border-radius: var(--radius-sm);
@@ -472,6 +485,14 @@
 }
 
 .review-dashboard-deadline-priority-step:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 14%, var(--review-sunk));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--review-line-strong));
+  color: var(--accent-strong);
+}
+
+/* Escudo: o hover global do workspace vence este hover e pintava chapa
+   escura no tema claro — ancestral + classe duplicada restauram o wash. */
+.review-dashboard-page .review-dashboard-deadline-priority-step.review-dashboard-deadline-priority-step:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 14%, var(--review-sunk));
   border-color: color-mix(in srgb, var(--accent) 45%, var(--review-line-strong));
   color: var(--accent-strong);

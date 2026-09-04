@@ -135,6 +135,13 @@
 
 .review-queue-actions { display:flex; align-items:center; gap:8px; }
 
+/* Revisar e Abrir nota com a mesma altura (o secondary encolhia dentro do
+ * workspace). */
+.review-queue-actions .primary-button,
+.review-queue-actions .secondary-button {
+  min-height: 34px;
+}
+
 .review-queue-priority {
   display: inline-flex;
   align-items: center;
@@ -147,8 +154,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 17px;
-  height: 17px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 1px solid var(--review-line-strong);
   border-radius: var(--radius-sm);
@@ -159,6 +166,14 @@
 }
 
 .review-queue-priority-step:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 14%, var(--review-sunk));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--review-line-strong));
+  color: var(--accent-strong);
+}
+
+/* Escudo: o hover global do workspace vence este hover e pintava chapa
+   escura no tema claro — ancestral + classe duplicada restauram o wash. */
+.review-queue-page .review-queue-priority-step.review-queue-priority-step:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 14%, var(--review-sunk));
   border-color: color-mix(in srgb, var(--accent) 45%, var(--review-line-strong));
   color: var(--accent-strong);

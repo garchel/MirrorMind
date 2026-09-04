@@ -6,6 +6,17 @@
   width: 100%;
 }
 
+/* Botão Abrir (ícone + texto): espaço entre ícone e rótulo. */
+.review-reports-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.review-reports-open svg {
+  flex: none;
+}
+
 /* ---------- Retencao estimada ---------- */
 
 .retention-section {

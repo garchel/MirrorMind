@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Check, ChevronRight, Hash, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
+import { AlertTriangle, Check, ChevronRight, FileText, Hash, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
 import {
   getVaultReviewPolicyConfig,
   tagReviewPolicyRuleSchema,
@@ -126,7 +126,7 @@ type TagTreeNode = {
   fullPath: string
   depth: number
   children: TagTreeNode[]
-  /** Entrada exata desta tag (notas + politica), ou null para pasta intermediaria. */
+  /** Entrada exata desta tag (notas + ritmo), ou null para pasta intermediaria. */
   entry: TagEntry | null
   /** Notas proprias + notas de todas as tags descendentes. */
   aggregateCount: number
@@ -426,8 +426,8 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
       setPending({
         title: mode === 'create' ? `Criar #${rule.tag}` : `Salvar alterações em #${selectedTag}`,
         description: currentTag && currentTag !== rule.tag
-          ? `A tag será renomeada para #${rule.tag} nas notas abaixo e sua política será recalculada.`
-          : 'A política de revisão será recalculada para as notas abaixo.',
+          ? `A tag será renomeada para #${rule.tag} nas notas abaixo e seu ritmo será recalculado.`
+          : 'O ritmo de revisão será recalculado para as notas abaixo.',
         change,
         preview,
         tagRules: nextRulesForSave(rule),
@@ -524,7 +524,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
         kicker="Organização"
         title="Tags do vault"
         titleId="tag-management-title"
-        description="Gerencie a classificação das notas e a política de revisão que cada tag transmite."
+        description="Gerencie a classificação das notas e o ritmo de revisão que cada tag transmite."
       >
         <div className="tag-header-actions">
           {atRuleLimit ? (
@@ -638,7 +638,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 </fieldset>
 
                 <fieldset className="tag-policy-fields">
-                  <legend>Parâmetros</legend>
+                  <legend>Ritmo de revisão</legend>
                   <label><span>Primeira revisão</span><div><input aria-label="Primeira revisão" type="number" min="1" max="3650" value={draft.firstReviewIntervalDays} onChange={(event) => updateDraft({ firstReviewIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
                   <label><span>Retenção desejada</span><div><input aria-label="Retenção desejada" type="number" min="50" max="99" value={Math.round(draft.targetRetention * 100)} onChange={(event) => updateDraft({ targetRetention: Number(event.target.value) / 100 })} /><small>%</small></div></label>
                   <label><span>Prioridade na fila</span><div><input aria-label="Prioridade na fila" type="number" min="0.1" max="100" step="0.1" value={draft.priorityWeight} onChange={(event) => updateDraft({ priorityWeight: Number(event.target.value) })} /><small>peso</small></div></label>
@@ -716,8 +716,8 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   <div className={`tag-review-status ${selected.rule.autoEnroll ? 'is-active' : ''}`}>
                     <span><Check size={15} aria-hidden="true" /></span>
                     <div>
-                      <strong>{selected.rule.autoEnroll ? 'Revisão automática ativa' : 'Apenas fornece parâmetros'}</strong>
-                      <p>{selected.rule.autoEnroll ? 'Notas prontas entram automaticamente na fila de aprendizado.' : 'A política é herdada apenas por notas que já participam da revisão.'}</p>
+                      <strong>{selected.rule.autoEnroll ? 'Revisão automática ativa' : 'Apenas ajusta o ritmo'}</strong>
+                      <p>{selected.rule.autoEnroll ? 'Notas prontas entram automaticamente na fila de aprendizado.' : 'O ritmo é herdado apenas por notas que já participam da revisão.'}</p>
                     </div>
                   </div>
                   <dl className="tag-policy-summary">
@@ -734,7 +734,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 <div className="tag-unconfigured">
                   <AlertTriangle size={18} aria-hidden="true" />
                   <div>
-                    <strong>{selected ? 'Sem política própria' : 'Pasta sem regra própria'}</strong>
+                    <strong>{selected ? 'Sem ritmo próprio' : 'Pasta sem regra própria'}</strong>
                     <p>{selected
                       ? 'Esta tag existe nas notas, mas ainda não altera o agendamento. Clique em Editar para configurá-la.'
                       : 'As tags abaixo existem nas notas, mas esta hierarquia ainda não define um ritmo. Clique em Configurar para criar a regra.'}</p>
@@ -754,8 +754,11 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                         const location = segments.slice(0, -1).join('/')
                         return (
                           <li key={path}>
-                            <span className="tag-note-flat-name">{name}</span>
-                            {location ? <small className="tag-note-flat-location">{location}/</small> : null}
+                            <span className="tag-note-flat-icon" aria-hidden="true"><FileText size={14} strokeWidth={1.8} /></span>
+                            <span className="tag-note-flat-text">
+                              <span className="tag-note-flat-name">{name}</span>
+                              {location ? <small className="tag-note-flat-location">{location}/</small> : null}
+                            </span>
                           </li>
                         )
                       })}
@@ -879,7 +882,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   change: { ...pendingDelete.change, removeFromNotes: event.target.checked },
                 })}
               />
-              <span><strong>Remover também das notas</strong><small>{pendingDelete.change.removeFromNotes ? 'O Markdown das notas abaixo será alterado.' : 'A tag continuará no Markdown como uma tag sem política.'}</small></span>
+              <span><strong>Remover também das notas</strong><small>{pendingDelete.change.removeFromNotes ? 'O Markdown das notas abaixo será alterado.' : 'A tag continuará no Markdown como uma tag sem ritmo.'}</small></span>
             </label>
             <div className="tag-impact-notes">
               {pendingDelete.preview.affectedNotePaths.length > 0 ? (

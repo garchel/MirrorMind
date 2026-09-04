@@ -76,6 +76,16 @@
   color: var(--danger);
 }
 
+.workspace-page-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.workspace-page-refresh svg {
+  flex: none;
+}
+
 [data-theme='dark'] .workspace-error-status {
   border-color: var(--border);
   background: color-mix(in srgb, var(--surface) 88%, transparent);
