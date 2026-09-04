@@ -544,10 +544,6 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               placeholder="Buscar tag"
             />
           </label>
-          <div className="tag-tree-summary">
-            <span>{entries.length} tag{entries.length === 1 ? '' : 's'}</span>
-            <span>{entries.filter((entry) => entry.rule?.autoEnroll).length} ativam revisão</span>
-          </div>
           <button
             type="button"
             className="tag-tree-create"
@@ -577,6 +573,10 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               />
             </div>
           ) : null}
+          <div className="tag-tree-summary">
+            <span>{entries.length} tag{entries.length === 1 ? '' : 's'}</span>
+            <span>{entries.filter((entry) => entry.rule?.autoEnroll).length} ativam revisão</span>
+          </div>
         </aside>
 
         <main className="tag-detail">

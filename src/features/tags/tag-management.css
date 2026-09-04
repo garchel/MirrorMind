@@ -97,7 +97,8 @@
 
 .tag-tree-pane {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  /* busca / criar / arvore (rola sozinha) / rodape de totais */
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 10px;
   min-height: 0;
   padding: 4px 18px 20px 0;
@@ -150,10 +151,13 @@
 }
 
 .tag-tree-summary {
+  /* Rodape da arvore: fora do caminho (busca -> criar -> lista), aparece
+   * como assinatura discreta embaixo. */
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 2px;
+  padding: 8px 2px 0;
+  border-top: 1px solid var(--tag-border);
   color: var(--tag-muted);
   font-size: 11px;
 }
