@@ -323,6 +323,11 @@ export type MarkdownFormat =
   | 'heading3'
   | 'bold'
   | 'italic'
+  | 'highlightYellow'
+  | 'highlightGreen'
+  | 'highlightBlue'
+  | 'highlightPink'
+  | 'highlightOrange'
   | 'list'
   | 'orderedList'
   | 'checklist'
@@ -403,6 +408,22 @@ export function transformMarkdownTable(content: string, cursor: number, action: 
 
 export function formatMarkdownSelection(content: string, start: number, end: number, format: MarkdownFormat) {
   const selected = content.slice(start, end) || 'texto'
+  // Marca-texto (cores fixas): persiste como `<mark class="hl-*">` no .md e
+  // renderiza mascarado no Misto/Leitura. Clicar com a mesma selecao ja
+  // marcada remove o destaque (toggle, qualquer cor).
+  const highlightClass: Partial<Record<MarkdownFormat, string>> = {
+    highlightYellow: 'hl-yellow',
+    highlightGreen: 'hl-green',
+    highlightBlue: 'hl-blue',
+    highlightPink: 'hl-pink',
+    highlightOrange: 'hl-orange',
+  }
+  const highlightWrapper = highlightClass[format]
+  if (highlightWrapper) {
+    const unwrapped = selected.match(/^<mark\s+class="hl-[a-z]+">([\s\S]*)<\/mark>$/)
+    const replacement = unwrapped ? unwrapped[1] : `<mark class="${highlightWrapper}">${selected}</mark>`
+    return `${content.slice(0, start)}${replacement}${content.slice(end)}`
+  }
   const wrappers: Record<Extract<MarkdownFormat, 'bold' | 'italic' | 'link' | 'code' | 'codeBlock' | 'strikethrough' | 'math' | 'subscript' | 'superscript' | 'reactionArrow' | 'reverseReactionArrow'>, [string, string]> = {
     bold: ['**', '**'],
     italic: ['_', '_'],
@@ -432,7 +453,7 @@ export function formatMarkdownSelection(content: string, start: number, end: num
   else if (format === 'divider') replacement = '---'
   else if (format === 'table') replacement = '| Coluna 1 | Coluna 2 |\n| --- | --- |\n| Valor 1 | Valor 2 |'
   else {
-    const [before, after] = wrappers[format]
+    const [before, after] = wrappers[format as keyof typeof wrappers]
     replacement = `${before}${selected}${after}`
   }
   return `${content.slice(0, start)}${replacement}${content.slice(end)}`

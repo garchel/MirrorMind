@@ -838,6 +838,41 @@ describe('markdownLivePreview HTML sanitizado (jsdom)', () => {
     await waitFor(() => expect(container.querySelector('.cm-live-html mark')).not.toBeNull())
     expect(container.querySelector('.cm-content')?.textContent).not.toContain('<mark>')
   })
+
+  it('preserva a classe de cor do marca-texto (hl-*) no widget', async () => {
+    const container = await renderLive('Texto com <mark class="hl-green">destaque</mark> fim', 2)
+    await waitFor(() => expect(container.querySelector('.cm-live-html mark.hl-green')).not.toBeNull())
+    expect(container.querySelector('.cm-live-html mark.hl-green')?.textContent).toBe('destaque')
+  })
+
+  it('lacuna dentro do destaque vira halo em volta (gap maior que a cor)', async () => {
+    const value = 'Texto com <mark class="hl-green">destaque</mark> fim'
+    const from = value.indexOf('destaque')
+    const { container } = render(
+      <MarkdownCodeEditor
+        documentKey="halo.md"
+        livePreview
+        onChange={vi.fn()}
+        onHistoryChange={vi.fn()}
+        onOpenLink={vi.fn()}
+        onSessionChange={vi.fn()}
+        reviewGapData={{
+          gaps: [{ classification: 'forgotten', sourceStartUtf16: from, sourceEndUtf16: from + 8 } as never],
+          units: [],
+          enabled: true,
+          bodyOffset: 0,
+        }}
+        session={{ selectionStart: 0, selectionEnd: 0, scrollTop: 0 }}
+        value={value}
+      />,
+    )
+    await waitFor(() => expect(container.querySelector('.cm-live-html mark.hl-green')).not.toBeNull())
+    // O widget do destaque continua intacto e o gap emoldura (respiro).
+    const gaps = [...container.querySelectorAll('.cm-live-gap')]
+    expect(gaps.length).toBeGreaterThan(0)
+    expect(gaps.map((gap) => gap.textContent).join('')).toContain(' ')
+    expect(container.querySelector('.cm-live-html mark.hl-green')?.textContent).toBe('destaque')
+  })
 })
 
 describe('markdownLivePreview blocos de plugin (jsdom)', () => {

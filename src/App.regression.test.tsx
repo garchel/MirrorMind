@@ -1822,13 +1822,13 @@ describe('Regressao do editor no workspace', () => {
     expect(section?.querySelectorAll('.review-unit-score').length).toBeGreaterThan(0)
 
     // Hover-only: a secao marca is-gap-hover-only e mantem marcas e badges no DOM.
-    await user.click(screen.getByRole('radio', { name: 'Lacunas somente no hover' }))
+    await user.click(screen.getByRole('radio', { name: 'Misto (lacunas somente no hover)' }))
     expect(section?.className).toContain('is-gap-hover-only')
     expect(section?.querySelectorAll('.cm-live-gap').length).toBeGreaterThan(0)
     expect(section?.querySelectorAll('.review-unit-score').length).toBeGreaterThan(0)
 
     // Desativado: sem classe de lacunas, sem marcas e sem badges.
-    await user.click(screen.getByRole('radio', { name: 'Lacunas desativadas' }))
+    await user.click(screen.getByRole('radio', { name: 'Minhas cores (somente destaques)' }))
     expect(section?.className).not.toContain('has-gap-marks')
     expect(section?.querySelectorAll('.cm-live-gap').length).toBe(0)
     expect(section?.querySelectorAll('.review-unit-score').length).toBe(0)

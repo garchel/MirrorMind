@@ -4771,6 +4771,34 @@ label.settings-toggle {
   background: #dce6dc;
 }
 
+/* Marca-texto: separador + pastilhas de cor fixa no popover de selecao. */
+.workspace-shell .selection-format-popover .hl-separator {
+  align-self: stretch;
+  width: 1px;
+  margin: 4px 2px;
+  background: #d9d7d0;
+}
+
+.workspace-shell .selection-format-popover .hl-swatches {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.workspace-shell .selection-format-popover .hl-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 44, 39, 0.35);
+}
+
+.workspace-shell .selection-format-popover .hl-dot.hl-yellow { background: #ffe45e; }
+.workspace-shell .selection-format-popover .hl-dot.hl-green { background: #8ce99a; }
+.workspace-shell .selection-format-popover .hl-dot.hl-blue { background: #99c9ff; }
+.workspace-shell .selection-format-popover .hl-dot.hl-pink { background: #ffb3d1; }
+.workspace-shell .selection-format-popover .hl-dot.hl-orange { background: #ffb066; }
+
 .workspace-shell .editor-panel--edit,
 .workspace-shell .markdown-mixed {
   min-height: 0;
@@ -4897,6 +4925,16 @@ label.settings-toggle {
   background: color-mix(in srgb, var(--accent, #5b6f52) 10%, transparent);
 }
 
+/* Controle por nome (Minhas cores | Revisão | Misto): botoes de texto. */
+.workspace-shell .review-gap-mode-control button[role="radio"] {
+  width: auto;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .workspace-shell .editor-panel--edit {
   display: block;
 }
@@ -4947,6 +4985,21 @@ label.settings-toggle {
 .markdown-mixed .cm-live-strike {
   text-decoration: line-through;
 }
+
+/* Marca-texto (cores fixas): o widget HTML sanitizado preserva
+   `<mark class="hl-*">`; o cursor perto revela o HTML cru (edicao). */
+.markdown-mixed .cm-live-html mark {
+  padding: 1px 2px;
+  border-radius: 3px;
+  background: #ffe45e;
+  color: inherit;
+}
+
+.markdown-mixed .cm-live-html mark.hl-yellow { background: #ffe45e; }
+.markdown-mixed .cm-live-html mark.hl-green { background: rgba(140, 233, 154, 0.7); }
+.markdown-mixed .cm-live-html mark.hl-blue { background: rgba(153, 201, 255, 0.7); }
+.markdown-mixed .cm-live-html mark.hl-pink { background: rgba(255, 179, 209, 0.7); }
+.markdown-mixed .cm-live-html mark.hl-orange { background: rgba(255, 176, 102, 0.7); }
 
 .markdown-mixed .cm-live-code {
   padding: 1px 5px;

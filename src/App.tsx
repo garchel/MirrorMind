@@ -8,7 +8,7 @@ import { invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Download, ExternalLink, Eye, EyeOff, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Highlighter, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Download, ExternalLink, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { CiStickyNote } from 'react-icons/ci'
 import 'katex/dist/katex.min.css'
@@ -5281,7 +5281,7 @@ function App() {
                         title="Leitura: mostra a nota formatada"
                       >Leitura</button>
                     </div>
-                    {editorMode === 'read' && (reviewGaps.length > 0 || reviewUnits.length > 0) ? (
+                    {editorMode !== 'edit' && (reviewGaps.length > 0 || reviewUnits.length > 0) ? (
                       <div
                         className="review-gap-mode-control"
                         role="radiogroup"
@@ -5298,13 +5298,24 @@ function App() {
                         <button
                           type="button"
                           role="radio"
+                          aria-checked={reviewGapMode === 'off'}
+                          className={reviewGapMode === 'off' ? 'is-active' : ''}
+                          onClick={() => setReviewGapMode('off')}
+                          title="Minhas cores: mostra só o marca-texto, sem as lacunas"
+                          aria-label="Minhas cores (somente destaques)"
+                        >
+                          Minhas cores
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
                           aria-checked={reviewGapMode === 'always'}
                           className={reviewGapMode === 'always' ? 'is-active' : ''}
                           onClick={() => setReviewGapMode('always')}
-                          title="Lacunas sempre visiveis"
-                          aria-label="Lacunas sempre visiveis"
+                          title="Revisão: lacunas sempre visíveis, com halo em volta do marca-texto"
+                          aria-label="Revisão (lacunas sempre visíveis)"
                         >
-                          <Highlighter size={15} strokeWidth={1.5} aria-hidden="true" />
+                          Revisão
                         </button>
                         <button
                           type="button"
@@ -5312,21 +5323,10 @@ function App() {
                           aria-checked={reviewGapMode === 'hover'}
                           className={reviewGapMode === 'hover' ? 'is-active' : ''}
                           onClick={() => setReviewGapMode('hover')}
-                          title="Lacunas somente no hover"
-                          aria-label="Lacunas somente no hover"
+                          title="Misto: nota limpa, lacunas aparecem no hover"
+                          aria-label="Misto (lacunas somente no hover)"
                         >
-                          <Eye size={15} strokeWidth={1.5} aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={reviewGapMode === 'off'}
-                          className={reviewGapMode === 'off' ? 'is-active' : ''}
-                          onClick={() => setReviewGapMode('off')}
-                          title="Lacunas desativadas"
-                          aria-label="Lacunas desativadas"
-                        >
-                          <EyeOff size={15} strokeWidth={1.5} aria-hidden="true" />
+                          Misto
                         </button>
                       </div>
                     ) : null}
@@ -5512,6 +5512,14 @@ function App() {
                     <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('reactionArrow')} title="Seta de reação com texto acima" aria-label="Seta de reação (seleção)"><ArrowRight size={15} strokeWidth={1.8} aria-hidden="true" /></button>
                     <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('reverseReactionArrow')} title="Seta reversa com texto acima" aria-label="Seta reversa (seleção)"><ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /></button>
                     <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('link')} title="Link" aria-label="Link (seleção)"><Link size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                    <span className="hl-separator" aria-hidden="true" />
+                    <div className="hl-swatches" role="group" aria-label="Marca-texto">
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightYellow')} title="Marca-texto amarelo" aria-label="Marca-texto amarelo (seleção)"><span className="hl-dot hl-yellow" aria-hidden="true" /></button>
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightGreen')} title="Marca-texto verde" aria-label="Marca-texto verde (seleção)"><span className="hl-dot hl-green" aria-hidden="true" /></button>
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightBlue')} title="Marca-texto azul" aria-label="Marca-texto azul (seleção)"><span className="hl-dot hl-blue" aria-hidden="true" /></button>
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightPink')} title="Marca-texto rosa" aria-label="Marca-texto rosa (seleção)"><span className="hl-dot hl-pink" aria-hidden="true" /></button>
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightOrange')} title="Marca-texto laranja" aria-label="Marca-texto laranja (seleção)"><span className="hl-dot hl-orange" aria-hidden="true" /></button>
+                    </div>
                   </div>
                 ) : null}
                 <div className="note-word-count" data-testid="note-word-count" title={`${noteWordCount} palavra${noteWordCount === 1 ? '' : 's'}`}>
@@ -6665,9 +6673,9 @@ function App() {
                       onChange={(event) => setReviewGapMode(event.target.value as ReviewGapMode)}
                       aria-label="Exibição das lacunas da última revisão"
                     >
-                      <option value="always">Sempre visiveis</option>
-                      <option value="hover">Somente no hover</option>
-                      <option value="off">Desativadas</option>
+                      <option value="always">Revisão (sempre visíveis)</option>
+                      <option value="hover">Misto (somente no hover)</option>
+                      <option value="off">Minhas cores (desativadas)</option>
                     </select>
                   </label>
                   <VaultReviewPolicySettings vaultPath={vault.path} />

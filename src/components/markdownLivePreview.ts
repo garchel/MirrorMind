@@ -2517,6 +2517,39 @@ function createPluginBlockField() {
  * quando as props mudam — o fetch de lacunas e assincrono). */
 export const reviewGapDataEffect = StateEffect.define<ReviewGapData | null>()
 
+/** Respiro do halo: quando a lacuna toca um marca-texto do usuário, a marca
+ * faz snap para as bordas do destaque + este respiro de cada lado, para o
+ * fundo do gap emoldurar a cor do usuário em vez de sumir no widget. */
+const GAP_HALO_PAD = 1
+
+/** Faixas-fonte dos marca-textos do usuário (`<mark class="hl-*">…</mark>`,
+ * mesma linha): o widget HTML sanitizado substitui a faixa inteira, então
+ * uma lacuna contida nela não renderizaria. Fora de ranges protegidos
+ * (frontmatter, fences, matemática, blocos com widget) e de spans de código
+ * inline — mesma aproximação do token `html` da máscara. */
+function findHighlightSpecs(doc: Text, protectedRanges: Array<[number, number]>): Array<[number, number]> {
+  const specs: Array<[number, number]> = []
+  const insideProtected = (position: number) => {
+    if (position < 0) return true
+    return protectedRanges.some(([start, end]) => position >= start && position < end)
+  }
+  const highlightPattern = /<mark(?:\s+class="hl-[a-z]+")?>((?:(?!<\/mark>).)*)<\/mark>/g
+  for (let lineNumber = 1; lineNumber <= doc.lines; lineNumber += 1) {
+    const line = doc.line(lineNumber)
+    // Spans de código inline não viram widget (Lezer não emite HTMLTag ali).
+    const codeStripped = line.text.replace(/`+[^`\n]*`+/g, (span) => ' '.repeat(span.length))
+    highlightPattern.lastIndex = 0
+    let match: RegExpExecArray | null
+    while ((match = highlightPattern.exec(codeStripped)) !== null) {
+      const from = line.from + match.index
+      const to = from + match[0].length
+      if (insideProtected(from) || insideProtected(to - 1)) continue
+      specs.push([from, to])
+    }
+  }
+  return specs
+}
+
 /** Ranges de texto protegidos: blocos substituidos por widgets + fences de
  * código + matemática display + frontmatter. Uma lacuna nunca pode cruzar
  * esses ranges (criaria decoração sobreposta ao widget de bloco). */
@@ -2652,13 +2685,30 @@ function buildReviewGapField(doc: Text, data: ReviewGapData | null): ReviewGapFi
     .sort((left, right) => left.start - right.start || left.end - right.end)
 
   let cursor = 0
+  const highlightSpecs = findHighlightSpecs(doc, protectedRanges)
   for (const gap of keptGaps) {
     if (gap.start < cursor) continue
     const slice = content.slice(gap.start, gap.end)
     if (slice.includes('\n') || slice.includes('\r')) continue
     if (insideProtected(gap.start) || insideProtected(gap.end - 1)) continue
-    ranges.push(Decoration.mark({ class: `cm-live-gap is-${gap.classification}` }).range(gap.start, gap.end))
-    cursor = gap.end
+    // Halo do marca-texto: quando a lacuna toca um destaque do usuário, o
+    // widget HTML engoliria a marca — faz snap para as bordas do destaque +
+    // respiro, preso na linha. Se o snap invadir o gap anterior ou um range
+    // protegido, mantém a lacuna original (que renderiza parcialmente).
+    let start = gap.start
+    let end = gap.end
+    const touched = highlightSpecs.filter(([from, to]) => from < end && to > start)
+    if (touched.length > 0) {
+      const line = doc.lineAt(gap.start)
+      const snappedStart = Math.max(line.from, Math.min(gap.start, ...touched.map(([from]) => from)) - GAP_HALO_PAD)
+      const snappedEnd = Math.min(line.to, Math.max(gap.end, ...touched.map(([, to]) => to)) + GAP_HALO_PAD)
+      if (snappedStart >= cursor && !insideProtected(snappedStart) && !insideProtected(snappedEnd - 1)) {
+        start = snappedStart
+        end = snappedEnd
+      }
+    }
+    ranges.push(Decoration.mark({ class: `cm-live-gap is-${gap.classification}` }).range(start, end))
+    cursor = end
   }
 
   // Badges de unidade: widget de ponto no fim da unidade. Se o fim cai dentro

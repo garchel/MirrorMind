@@ -167,6 +167,17 @@ describe('Markdown editing helpers', () => {
     expect(formatMarkdownSelection('Volta', 0, 5, 'reverseReactionArrow')).toBe('$\\xleftarrow{\\text{Volta}}$')
   })
 
+  it('wraps the selected text in marca-texto with fixed colors and toggles off', () => {
+    expect(formatMarkdownSelection('texto', 0, 5, 'highlightYellow')).toBe('<mark class="hl-yellow">texto</mark>')
+    expect(formatMarkdownSelection('texto', 0, 5, 'highlightGreen')).toBe('<mark class="hl-green">texto</mark>')
+    expect(formatMarkdownSelection('texto', 0, 5, 'highlightBlue')).toBe('<mark class="hl-blue">texto</mark>')
+    expect(formatMarkdownSelection('texto', 0, 5, 'highlightPink')).toBe('<mark class="hl-pink">texto</mark>')
+    expect(formatMarkdownSelection('texto', 0, 5, 'highlightOrange')).toBe('<mark class="hl-orange">texto</mark>')
+    const marked = '<mark class="hl-green">texto</mark>'
+    expect(formatMarkdownSelection(marked, 0, marked.length, 'highlightGreen')).toBe('texto')
+    expect(formatMarkdownSelection(marked, 0, marked.length, 'highlightYellow')).toBe('texto')
+  })
+
   it('adds and removes rows and columns in the table at the cursor', () => {
     const table = '| Titulo | Estado |\n| --- | --- |\n| Revisar | Pendente |'
     const withRow = transformMarkdownTable(table, table.length, 'addRow')
