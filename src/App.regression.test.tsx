@@ -896,12 +896,35 @@ describe('Regressao do editor no workspace', () => {
     expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
     expect(screen.getByText('2 notas')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Buscar nota no grafo' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Reorganizar nos' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Filtro do grafo por pasta e tag' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reorganizar nos' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Aproximar grafo' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Abrir nota alvo no grafo' }))
 
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'alvo.md' })))
     expect(screen.getByRole('tab', { name: 'alvo.md' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('[grafo] filtro por pasta destaca sem remover nos do layout', async () => {
+    const user = userEvent.setup()
+    createTauriHarness([
+      { name: 'a.md', relativePath: 'pasta/a.md', content: '# A\n\n[[b]]' },
+      { name: 'b.md', relativePath: 'b.md', content: '# B' },
+    ])
+    await openTestVault(user)
+    await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
+    await screen.findByRole('heading', { name: 'Grafo das notas' })
+    await screen.findByRole('button', { name: 'Abrir nota b no grafo' })
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Filtrar pasta do grafo' }), 'pasta')
+
+    // Quem casa continua normal, quem não casa esmaece — ninguém sai do grafo.
+    expect(screen.getByRole('button', { name: 'Abrir nota a no grafo' }).className).not.toContain('is-dimmed')
+    expect(screen.getByRole('button', { name: 'Abrir nota b no grafo' }).className).toContain('is-dimmed')
+    expect(screen.getByText('1 nota')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Limpar filtro do grafo' }))
+    expect(screen.getByRole('button', { name: 'Abrir nota b no grafo' }).className).not.toContain('is-dimmed')
   })
 
   it('[grafo] cria uma conexao pelo painel do no, anexando o wikilink e salvando', async () => {

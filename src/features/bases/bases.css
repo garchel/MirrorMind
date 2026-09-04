@@ -69,6 +69,11 @@
   min-width: 0;
   border: none;
   outline: none;
+  /* type="search" renderiza com aparência nativa (borda/campo internos no
+     Chromium) — sem isso o filtro fica com borda dupla. */
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 0;
   background: transparent;
   color: var(--bases-text);
   font: 12px/1 var(--sans);

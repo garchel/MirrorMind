@@ -61,7 +61,9 @@ type Props = {
   exportRequest?: Graph3DExportRequest | null
   /** Resposta da exportacao (null quando a cena nao esta pronta). */
   onGraphExport?: (requestId: number, scene: Graph3DExportScene | null) => void
-  /** Incrementado pelo botao "Reorganizar" para recalcular o layout 3D. */
+  /** Caminhos esmaecidos pelo filtro pasta/tag (highlight, sem rebuild). */
+  dimmedPaths?: Set<string> | null
+  /** Versão do layout: força o Big Bang ao mudar. */
   layoutVersion: number
   /** Oculta o nome de todas as notas; o nome aparece apenas no hover do no. */
   hideAllLabels: boolean
@@ -306,14 +308,15 @@ export function NoteGraph3D({
   groupingEnabled,
   exportRequest,
   onGraphExport,
+  dimmedPaths = null,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const engineRef = useRef<Engine | null>(null)
   const [webglAvailable] = useState(supportsWebGL)
 
   // Ultimos valores de props: as closures do motor three leem sempre daqui.
-  const dataRef = useRef({ nodes, links, degreeByPath, focusedPath, currentPath, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth, groupByPath, groupColorByPath, groupingEnabled })
-  dataRef.current = { nodes, links, degreeByPath, focusedPath, currentPath, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth, groupByPath, groupColorByPath, groupingEnabled }
+  const dataRef = useRef({ nodes, links, degreeByPath, focusedPath, currentPath, dimmedPaths, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth, groupByPath, groupColorByPath, groupingEnabled })
+  dataRef.current = { nodes, links, degreeByPath, focusedPath, currentPath, dimmedPaths, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth, groupByPath, groupColorByPath, groupingEnabled }
   const onFocusRef = useRef(onFocus)
   onFocusRef.current = onFocus
   const onOpenNoteRef = useRef(onOpenNote)
@@ -481,11 +484,14 @@ export function NoteGraph3D({
       const degree = data.degreeByPath[path] ?? 0
       const focused = path === data.focusedPath
       const current = path === data.currentPath
+      const dimmed = data.dimmedPaths !== null && data.dimmedPaths !== undefined && data.dimmedPaths.has(path)
       const glow = glows.get(path) ?? 0
       const hover = engineRef.current?.hoverPath === path
       const color = nodeColor(degree, focused, current, groupColorFor(data, path))
         .lerp(new THREE.Color(0xd9f7ff), Math.min(1, glow * 0.9))
         .lerp(new THREE.Color(0xffffff), hover ? 0.38 : 0)
+      // Highlight do filtro: quem não casa afunda na cor do fundo.
+      if (dimmed && glow === 0 && !hover && !focused) color.lerp(new THREE.Color(0x11161d), 0.78)
       // O hover apenas clareia a cor — nao cresce mais o no.
       const radius = nodeRadius(degree, focused) + glow * 0.42
       const dummy = new THREE.Object3D()
@@ -502,7 +508,7 @@ export function NoteGraph3D({
         halo.position.copy(position)
         halo.material.color.copy(color)
         halo.scale.setScalar(radius * ORB_HALO_SCALE * (1 + glow * 0.3))
-        ;(halo.material as THREE.SpriteMaterial).opacity = ORB_HALO_OPACITY * (1 + glow * 0.6)
+        ;(halo.material as THREE.SpriteMaterial).opacity = ORB_HALO_OPACITY * (1 + glow * 0.6) * (dimmed && glow === 0 && !hover && !focused ? 0.25 : 1)
       }
     }
 
@@ -590,7 +596,8 @@ export function NoteGraph3D({
         scene.add(label)
       }
       for (const [path, label] of labels) {
-        label.element.className = `graph3d-label${path === data.focusedPath ? ' is-focused' : ''}${path === data.currentPath ? ' is-current' : ''}`
+        const dimmedLabel = data.dimmedPaths !== null && data.dimmedPaths !== undefined && data.dimmedPaths.has(path)
+        label.element.className = `graph3d-label${path === data.focusedPath ? ' is-focused' : ''}${path === data.currentPath ? ' is-current' : ''}${dimmedLabel ? ' is-dimmed' : ''}`
       }
     }
 
@@ -683,7 +690,10 @@ export function NoteGraph3D({
           dummy.scale.setScalar(radius)
           dummy.updateMatrix()
           nodesMesh!.setMatrixAt(index, dummy.matrix)
-          nodesMesh!.setColorAt(index, nodeColor(degree, focused, current, groupColorFor(data, node.relativePath)))
+          const baseColor = nodeColor(degree, focused, current, groupColorFor(data, node.relativePath))
+          // Highlight do filtro já vale na montagem (sem esperar refreshStyles).
+          if (data.dimmedPaths?.has(node.relativePath)) baseColor.lerp(new THREE.Color(0x11161d), 0.78)
+          nodesMesh!.setColorAt(index, baseColor)
         })
         nodesMesh.instanceMatrix.needsUpdate = true
         if (nodesMesh.instanceColor) nodesMesh.instanceColor.needsUpdate = true
@@ -706,7 +716,12 @@ export function NoteGraph3D({
           const halo = new THREE.Sprite(haloMaterial.clone())
           halo.position.copy(position)
           halo.scale.setScalar(nodeRadius(degree, focused) * ORB_HALO_SCALE)
-          halo.material.color.copy(nodeColor(degree, focused, node.relativePath === data.currentPath, groupColorFor(data, node.relativePath)))
+          const haloBase = nodeColor(degree, focused, node.relativePath === data.currentPath, groupColorFor(data, node.relativePath))
+          if (data.dimmedPaths?.has(node.relativePath)) {
+            haloBase.lerp(new THREE.Color(0x11161d), 0.78)
+            ;(halo.material as THREE.SpriteMaterial).opacity = ORB_HALO_OPACITY * 0.25
+          }
+          halo.material.color.copy(haloBase)
           scene.add(halo)
           halos.set(node.relativePath, halo)
         }
@@ -1334,6 +1349,7 @@ export function NoteGraph3D({
       updateGraph,
       refreshStyles() {
         for (const path of instancePaths) applyNodeStyle(path)
+        updateLabels()
       },
       exportSceneData() {
         const data = currentData()
@@ -1514,6 +1530,17 @@ export function NoteGraph3D({
     engineRef.current?.refreshStyles()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeSize, degreeGrowth])
+
+  // Filtro pasta/tag: highlight sem rebuild — só esmaece quem não casa.
+  // Chave de conteúdo (mesmo estilo do sceneKey): o Set chega novo a cada
+  // render do App, então a identidade não serve como dep do efeito.
+  const dimmedKey = dimmedPaths === null || dimmedPaths === undefined
+    ? ''
+    : [...dimmedPaths].sort().join(' ')
+  useEffect(() => {
+    engineRef.current?.refreshStyles()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dimmedKey])
 
   // Exportacao: ao receber um pedido novo, projeta a cena atual pela camera e
   // devolve os dados para o App montar o SVG/PNG (a rasterizacao fica no App).

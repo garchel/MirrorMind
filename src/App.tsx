@@ -191,7 +191,7 @@ type GraphMode = 'global' | 'local'
  * forcas — molas das arestas, repulsao 1/d² e center force com zona morta —
  * com resfriamento alpha ate assentar. Ao soltar, a simulacao continua (hub
  * fixo no ponto da soltura) ate parar. Uma simulacao AMBIENTE roda ao abrir
- * o grafo (big bang: nos juntos no centro se espalham) e no botao Reorganizar.
+ * o grafo (big bang: nos juntos no centro se espalham).
  * Tudo roda num rAF enquanto houver arrasto, assentamento ou ambiente ativo. */
 type Graph2DPhysics = {
   positions: Map<string, GraphPosition>
@@ -552,7 +552,9 @@ function App() {
   } = useGraphSettings()
   const [graphSurfaceSize, setGraphSurfaceSize] = useState<{ width: number; height: number } | null>(null)
   const [graphMode3d, setGraphMode3d] = useState(false)
-  const [graph3dLayoutVersion, setGraph3dLayoutVersion] = useState(0)
+  // Versão do layout 3D (fixa: sem botão de reorganizar, o Big Bang
+  // acontece só ao abrir/mudar o modo).
+  const [graph3dLayoutVersion] = useState(0)
   const [graphQuery, setGraphQuery] = useState('')
   const [graphFolder, setGraphFolder] = useState('')
   const [graphTag, setGraphTag] = useState('')
@@ -2056,25 +2058,6 @@ function App() {
     }
   }
 
-  function reorganizeGraphNodes() {
-    if (graphMode3d) {
-      setGraph3dLayoutVersion((version) => version + 1)
-      return
-    }
-    // Reorganizar em 2D = nova simulacao ambiente: para a fisica em
-    // andamento, descarta o layout persistido e espalha os nos por toda a
-    // area a partir do circulo inicial (gravidade ao centro + repulsao).
-    if (graphPhysicsFrameRef.current !== null) {
-      cancelAnimationFrame(graphPhysicsFrameRef.current)
-      graphPhysicsFrameRef.current = null
-    }
-    graphPhysicsRef.current = null
-    graphPhysicsLastTimeRef.current = null
-    stopGraph2dWorkerAmbient()
-    setGraphNodeOverrides({})
-    startGraph2dAmbientSimulation()
-  }
-
   function resetGraphView() {
     setGraphViewport({ scale: 1, x: 0, y: 0 })
   }
@@ -2246,7 +2229,7 @@ function App() {
         }
       }
     } else if (physics.ambient) {
-      // Simulacao ambiente (big bang ao abrir o grafo / Reorganizar): todos os
+      // Simulacao ambiente (big bang ao abrir o grafo): todos os
       // nos visiveis partem do centro e se espalham pelas forcas; o alpha
       // decai ate assentar (ou timeout) e o layout final e persistido.
       const ambient = physics.ambient
@@ -2386,10 +2369,10 @@ function App() {
     const visibleGraphDocuments = graphDocuments.filter((document) => {
       const title = document.name.replace(/\.md$/i, '').toLowerCase()
       const matchesQuery = !graphQuery.trim() || title.includes(graphQuery.trim().toLowerCase())
-      const matchesFolder = !graphFolder || document.relativePath.startsWith(`${graphFolder}/`)
-      const matchesTag = !graphTag || graphTagIndexRef.current.tagsOf(document.relativePath).includes(graphTag)
+      // Pasta/tag NÃO excluem nós (highlight sem reset de layout) — só a
+      // busca por nome filtra aqui; o resto é esmaecido no render.
       const isOrphan = (degreeByPath[document.relativePath] ?? 0) === 0
-      return matchesQuery && matchesFolder && matchesTag && (graphMode === 'global' || localGraphPaths.has(document.relativePath)) && (showOnlyGraphOrphans ? isOrphan : showGraphOrphans || !isOrphan)
+      return matchesQuery && (graphMode === 'global' || localGraphPaths.has(document.relativePath)) && (showOnlyGraphOrphans ? isOrphan : showGraphOrphans || !isOrphan)
     })
     const visiblePaths = new Set(visibleGraphDocuments.map((document) => document.relativePath))
     const edges: NoteGraphLayoutLink[] = []
@@ -2548,8 +2531,8 @@ function App() {
    * visiveis partem do centro com pequena perturbacao e se espalham pelas
    * forcas (molas + repulsao 1/d² + center force), com alpha decaindo ate
    * assentar. Os orfaos (sem conexao) sao atraidos ao anel central. Roda ao
-   * abrir o grafo 2D (big bang forcado: `forceBigBang`) e no botao
-   * Reorganizar; qualquer arrasto a cancela. Quando o ambiente oferece um
+   * abrir o grafo 2D (big bang forcado: `forceBigBang`);
+   * qualquer arrasto a cancela. Quando o ambiente oferece um
    * Worker, a simulacao roda FORA da thread de interface (layout em worker);
    * senao, cai no loop local em rAF. */
   function startGraph2dAmbientSimulation(forceBigBang = false) {
@@ -2576,9 +2559,10 @@ function App() {
     kickGraph2dPhysics()
   }
 
-  // Ao abrir o grafo 2D (ou mudar filtros/modo), espalha os nos por toda a
-  // area com a simulacao ambiente, apos a superficie montar. Navegar para
-  // outra pagina ou trocar para 3D limpa a simulacao (efeito acima).
+  // Ao abrir o grafo 2D (ou mudar o modo), espalha os nós por toda a
+  // área com a simulação ambiente, após a superfície montar. Navegar para
+  // outra página ou trocar para 3D limpa a simulação (efeito acima).
+  // Filtro pasta/tag é só highlight — não toca neste efeito.
   useEffect(() => {
     if (workspacePage !== 'graph' || graphMode3d || isGraphLoading || graphDocuments.length === 0) return
     // Big bang forcado ao ABRIR o grafo 2D (sem simulacao ativa = primeira
@@ -2587,7 +2571,7 @@ function App() {
     const forceBigBang = graphPhysicsRef.current === null
     const timeoutId = window.setTimeout(() => startGraph2dAmbientSimulation(forceBigBang), 120)
     return () => window.clearTimeout(timeoutId)
-  }, [workspacePage, graphMode3d, isGraphLoading, graphDocuments, graphMode, graphFolder, graphTag, graphGroupByFolder, showGraphOrphans, showOnlyGraphOrphans])
+  }, [workspacePage, graphMode3d, isGraphLoading, graphDocuments, graphMode, graphGroupByFolder, showGraphOrphans, showOnlyGraphOrphans])
 
   // Mede o tamanho da superficie 2D (para a renderizacao seletiva e o
   // posicionamento do worker). Sem tamanho conhecido (jsdom/desconhecido),
@@ -4427,12 +4411,29 @@ function App() {
     const visibleGraphDocuments = graphDocuments.filter((document) => {
       const title = document.name.replace(/\.md$/i, '').toLowerCase()
       const matchesQuery = !graphQuery.trim() || title.includes(graphQuery.trim().toLowerCase())
-      const matchesFolder = !graphFolder || document.relativePath.startsWith(`${graphFolder}/`)
-      const matchesTag = !graphTag || graphTagIndex.tagsOf(document.relativePath).includes(graphTag)
+      // Pasta/tag NÃO excluem nós (highlight sem reset de layout) — só a
+      // busca por nome filtra aqui; o resto é esmaecido no render.
       const isOrphan = (allGraphDegreeByPath[document.relativePath] ?? 0) === 0
-      return matchesQuery && matchesFolder && matchesTag && (graphMode === 'global' || localGraphPaths.has(document.relativePath)) && (showOnlyGraphOrphans ? isOrphan : showGraphOrphans || !isOrphan)
+      return matchesQuery && (graphMode === 'global' || localGraphPaths.has(document.relativePath)) && (showOnlyGraphOrphans ? isOrphan : showGraphOrphans || !isOrphan)
     })
     const visibleGraphPaths = new Set(visibleGraphDocuments.map((document) => document.relativePath))
+    // Highlight do filtro pasta/tag: conjunto dos que casam (null = sem
+    // filtro). 2D usa `is-dimmed`, 3D recebe `dimmedPaths`; o layout e a
+    // simulação nunca mudam por causa dele. Sem useMemo aqui: este bloco
+    // roda num ramo condicional da página do grafo (hooks quebrariam).
+    // A estabilidade para o 3D é garantida por chave de conteúdo lá dentro.
+    const graphFilterActive = graphFolder !== '' || graphTag !== ''
+    const graphFilterMatchPaths: Set<string> | null = !graphFilterActive ? null : new Set(
+      graphDocuments
+        .filter((document) => (!graphFolder || document.relativePath.startsWith(`${graphFolder}/`))
+          && (!graphTag || graphTagIndex.tagsOf(document.relativePath).includes(graphTag)))
+        .map((document) => document.relativePath),
+    )
+    const graphDimmedPaths: Set<string> | null = graphFilterMatchPaths === null ? null : new Set(
+      graphDocuments
+        .map((document) => document.relativePath)
+        .filter((path) => !graphFilterMatchPaths.has(path)),
+    )
     const graphLinks = allGraphLinks.filter((link) => visibleGraphPaths.has(link.source) && visibleGraphPaths.has(link.target))
     const graphDegreeByPath = graphLinks.reduce<Record<string, number>>((degrees, link) => {
       degrees[link.source] = (degrees[link.source] ?? 0) + 1
@@ -4475,8 +4476,9 @@ function App() {
       viewport: graphViewport,
       surfaceSize: graphSurfaceSize,
       limit: graphRenderLimit,
-      priorityPaths: focusedGraphPath || graphHoverPath
-        ? new Set([...(focusedGraphPath ? [focusedGraphPath] : []), ...(graphHoverNeighbors ?? [])])
+      // Nós destacados pelo filtro nunca são cortados pelo culling.
+      priorityPaths: focusedGraphPath || graphHoverPath || graphFilterMatchPaths
+        ? new Set([...(focusedGraphPath ? [focusedGraphPath] : []), ...(graphHoverNeighbors ?? []), ...(graphFilterMatchPaths ?? [])])
         : undefined,
     })
     const graphRenderedPaths = new Set(renderedGraphDocuments.map((document) => document.relativePath))
@@ -5687,11 +5689,21 @@ function App() {
                           <option value={3}>3 saltos</option>
                         </select>
                       ) : null}
-                      <select value={graphFolder} onChange={(event) => setGraphFolder(event.target.value)} aria-label="Filtrar pasta do grafo"><option value="">Todas as pastas</option>{graphFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}</select>
-                      <select value={graphTag} onChange={(event) => setGraphTag(event.target.value)} aria-label="Filtrar tag do grafo"><option value="">Todas as tags</option>{graphTags.map((tag) => <option key={tag} value={tag}>#{tag}</option>)}</select>
+                      <div className="graph-filter-group" role="group" aria-label="Filtro do grafo por pasta e tag">
+                        <ListFilter size={14} strokeWidth={1.75} aria-hidden="true" />
+                        <select value={graphFolder} onChange={(event) => setGraphFolder(event.target.value)} aria-label="Filtrar pasta do grafo"><option value="">Todas as pastas</option>{graphFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}</select>
+                        <select value={graphTag} onChange={(event) => setGraphTag(event.target.value)} aria-label="Filtrar tag do grafo"><option value="">Todas as tags</option>{graphTags.map((tag) => <option key={tag} value={tag}>#{tag}</option>)}</select>
+                        {graphFilterActive ? (
+                          <>
+                            <span className="graph-filter-count" role="status">{graphFilterMatchPaths?.size ?? 0} {(graphFilterMatchPaths?.size ?? 0) === 1 ? 'nota' : 'notas'}</span>
+                            <button type="button" className="graph-filter-clear" onClick={() => { setGraphFolder(''); setGraphTag('') }} aria-label="Limpar filtro do grafo" title="Limpar filtro">
+                              <X size={12} strokeWidth={2} aria-hidden="true" />
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
                       <span className="graph-header-sep" aria-hidden="true" />
                       <input value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
-                      <button type="button" className="secondary-button" onClick={reorganizeGraphNodes} aria-label="Reorganizar nos">Reorganizar</button>
                       {!graphMode3d ? (
                         <span className="graph-zoom-cluster" aria-label="Zoom do grafo">
                           <button type="button" className="secondary-button" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.min(2.4, view.scale + 0.15) }))} aria-label="Aproximar grafo">+</button>
@@ -5700,12 +5712,12 @@ function App() {
                         </span>
                       ) : null}
                       <span className="graph-header-sep" aria-hidden="true" />
-                      <button type="button" className="secondary-button" onClick={() => void openGraphPage()} disabled={isGraphLoading} aria-label="Atualizar grafo">
+                      <button type="button" className="secondary-button graph-icon-button" onClick={() => void openGraphPage()} disabled={isGraphLoading} aria-label="Atualizar grafo">
                         <RefreshCw size={15} strokeWidth={1.5} aria-hidden="true" />
                       </button>
                       <Popover open={graphExportOpen} onOpenChange={setGraphExportOpen}>
                         <PopoverTrigger asChild>
-                          <button type="button" className="secondary-button graph-export-button" aria-label="Exportar grafo" title="Exportar grafo como SVG ou PNG">
+                          <button type="button" className="secondary-button graph-icon-button graph-export-button" aria-label="Exportar grafo" title="Exportar grafo como SVG ou PNG">
                             <Download size={15} strokeWidth={1.5} aria-hidden="true" />
                           </button>
                         </PopoverTrigger>
@@ -5727,7 +5739,7 @@ function App() {
                       </Popover>
                       <Popover open={graphSettingsOpen} onOpenChange={setGraphSettingsOpenSynced}>
                         <PopoverTrigger asChild>
-                          <button type="button" className="secondary-button graph-settings-button" aria-label="Configurações do grafo" title="Configurações do grafo">
+                          <button type="button" className="secondary-button graph-icon-button graph-settings-button" aria-label="Configurações do grafo" title="Configurações do grafo">
                             <Settings size={15} strokeWidth={1.5} aria-hidden="true" />
                           </button>
                         </PopoverTrigger>
@@ -5888,13 +5900,14 @@ function App() {
                       </Popover>
                     </div>
                     {graphMode3d ? (
-                      <Suspense fallback={<div className="note-graph-3d note-graph-3d-fallback">Carregando grafo 3D...</div>}>
+                      <Suspense fallback={<Graph3DLoader />}>
                         <NoteGraph3D
                           nodes={visibleGraphDocuments.map((document) => ({ name: document.name, relativePath: document.relativePath }))}
                           links={graphLinks}
                           degreeByPath={graphDegreeByPath}
                           focusedPath={focusedGraphPath}
                           currentPath={activeNote?.relativePath ?? null}
+                          dimmedPaths={graphDimmedPaths}
                           layoutVersion={graph3dLayoutVersion}
                           hideAllLabels={graphHideAllNames}
                           nodeSize={graph3dNodeSize}
@@ -5965,9 +5978,11 @@ function App() {
                         // sempre aparece abaixo da bolinha.
                         const hideNameByZoom = graphHideAllNames || (graphViewport.scale < 0.65 && degree < 2)
                         const showLabel = !hideNameByZoom || isHovered
-                        // No hover, nos sem conexao direta com o no sao
-                        // esmaecidos (opacidade reduzida).
-                        const isDimmed = graphHoverNeighbors !== null && !graphHoverNeighbors.has(document.relativePath)
+                        // No hover, nós sem conexão direta com o nó são
+                        // esmaecidos (opacidade reduzida). O filtro pasta/tag
+                        // faz o mesmo com quem não casa — sem remover nós.
+                        const isDimmed = (graphHoverNeighbors !== null && !graphHoverNeighbors.has(document.relativePath))
+                          || (graphFilterMatchPaths !== null && !graphFilterMatchPaths.has(document.relativePath))
                         return (
                           <button
                             key={document.relativePath}

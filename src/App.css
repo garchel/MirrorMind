@@ -794,8 +794,9 @@ button:disabled {
 }
 
 .workspace-shell .tab-close {
-  min-width: 26px;
-  padding: 0 8px;
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
 }
 
 .workspace-shell .empty-tabs {
@@ -2906,7 +2907,26 @@ label.settings-toggle {
 
 .workspace-shell .graph-immersive-header > input { min-width: 150px; }
 .workspace-shell .graph-header-check { display: inline-flex; align-items: center; gap: 5px; color: #5f5f58; font-size: 12px; white-space: nowrap; }
-.workspace-shell .graph-immersive-header .secondary-button { min-height: 30px; padding: 0 9px; }
+.workspace-shell .graph-immersive-header .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  min-width: 30px;
+  padding: 0 9px;
+}
+
+.workspace-shell .graph-immersive-header .secondary-button svg {
+  flex: none;
+}
+
+/* Botoes so-icone (Atualizar/Exportar/Configurar): quadrados 30x30 exatos,
+ * ícone sempre centrado. */
+.workspace-shell .graph-immersive-header .graph-icon-button {
+  width: 30px;
+  padding: 0;
+}
 .workspace-shell .graph-immersive-header .graph-dimension-toggle button { min-height: 26px; }
 
 .workspace-shell .graph-settings-button {
@@ -2914,6 +2934,70 @@ label.settings-toggle {
   align-items: center;
   justify-content: center;
   padding: 0 8px;
+}
+
+/* Grupo de filtro (pasta + tag): pílula única com ícone, selects sem borda
+ * própria, limpar e contagem de destacadas. O filtro NÃO remove nós — só
+ * esmaece quem não casa (highlight), sem resetar o layout. */
+.workspace-shell .graph-immersive-header .graph-filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 30px;
+  padding: 0 6px 0 9px;
+  border: 1px solid #d8d6cf;
+  border-radius: 999px;
+  background: #fffef9;
+  color: #5f5f58;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-group > svg {
+  flex: none;
+  color: #8d9b88;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-group select {
+  min-height: 0;
+  max-width: 130px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 12px;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-group select:focus-visible {
+  outline: 1px solid #8d9b88;
+  outline-offset: 1px;
+}
+
+.workspace-shell .graph-filter-clear {
+  display: grid;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a4b39;
+  cursor: pointer;
+}
+
+.workspace-shell .graph-filter-clear:hover:not(:disabled) {
+  background: #f1ded8;
+}
+
+.workspace-shell .graph-filter-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #e5eee5;
+  color: #31533a;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .ui-popover-content.graph-settings-popover {
@@ -3656,6 +3740,10 @@ label.settings-toggle {
   color: #f2b95c;
 }
 
+.graph3d-label.is-dimmed {
+  opacity: 0.35;
+}
+
 .workspace-shell .note-graph-world {
   position: absolute;
   inset: 0;
@@ -3929,10 +4017,10 @@ label.settings-toggle {
 .workspace-shell .note-find-close {
   display: grid;
   place-items: center;
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  min-height: 24px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
@@ -3953,6 +4041,13 @@ label.settings-toggle {
   cursor: default;
 }
 
+/* Escudo: sem hover próprio, esses botões herdavam a chapa escura global no
+   tema claro — wash claro aqui (mesmo do secondary), sem `!important`. */
+.workspace-shell .note-find-nav-button.note-find-nav-button:hover:not(:disabled),
+.workspace-shell .note-find-close.note-find-close:hover:not(:disabled) {
+  background: #e2e1da;
+}
+
 .workspace-shell.is-markdown-tools-open .editor-surface {
   grid-template-rows: auto 68px minmax(0, 1fr);
 }
@@ -3964,7 +4059,7 @@ label.settings-toggle {
 
 .workspace-shell .tab-chip {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px;
+  grid-template-columns: minmax(0, 1fr) 28px;
   background: #ebeae5;
   border-right-color: var(--workspace-line);
   transition: background-color 180ms ease;
@@ -3989,12 +4084,23 @@ label.settings-toggle {
   color: var(--tab-hover-text-color, #fff);
 }
 
+/* Hover da aba: wash quente no claro (o fallback #171716 pintava chapa
+   escura) e carvão elevado no escuro; texto acompanha o tema. */
 .workspace-shell .tab-chip:hover {
-  background: var(--tab-hover-color, #171716);
+  background: var(--tab-hover-color, #dcdad2);
 }
 
 .workspace-shell .tab-chip:hover .tab-select,
 .workspace-shell .tab-chip:hover .tab-close {
+  color: #45453f;
+}
+
+[data-theme='dark'] .workspace-shell .tab-chip:hover {
+  background: var(--tab-hover-color, #232230);
+}
+
+[data-theme='dark'] .workspace-shell .tab-chip:hover .tab-select,
+[data-theme='dark'] .workspace-shell .tab-chip:hover .tab-close {
   color: var(--tab-hover-text-color, #fbfaf6);
 }
 
@@ -4002,8 +4108,8 @@ label.settings-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  min-width: 38px;
+  width: 28px;
+  min-width: 28px;
   min-height: 37px;
   font-size: 0;
   line-height: 0;
@@ -4029,10 +4135,10 @@ label.settings-toggle {
 }
 
 .workspace-shell .tab-chip .tab-close:hover:not(:disabled) > svg {
-  flex-basis: 26px;
-  width: 26px;
-  height: 26px;
-  padding: 6px;
+  flex-basis: 22px;
+  width: 22px;
+  height: 22px;
+  padding: 4px;
   border-radius: var(--radius-xs);
   background: #d3d2ca;
 }
@@ -5231,8 +5337,13 @@ label.settings-toggle {
 }
 
 .workspace-shell .frontmatter-panel-remove {
-  min-height: auto;
-  padding: 6px 9px;
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
   border: 0;
   border-radius: var(--radius-xs);
   background: transparent;
@@ -5262,17 +5373,28 @@ label.settings-toggle {
 
 .workspace-shell .frontmatter-panel-add {
   display: inline-grid;
-  padding: 2px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
   place-items: center;
   border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #7a786f;
   cursor: pointer;
+  line-height: 1;
+}
+
+.workspace-shell .frontmatter-panel-add svg {
+  display: block;
+  flex: none;
 }
 
 .workspace-shell .frontmatter-panel-add:hover {
   color: #252521;
-  background: transparent;
+  background: #efede4;
 }
 
 /* Popover de propriedades comuns: apenas os icones (grid), com tooltip de
@@ -5437,7 +5559,7 @@ label.settings-toggle {
   display: inline-grid;
   width: 16px;
   min-width: 16px;
-  height: 14px;
+  height: 16px;
   padding: 0;
   place-items: center;
   border: 0;
@@ -5480,6 +5602,24 @@ label.settings-toggle {
 
 .workspace-shell .frontmatter-panel-backlink:hover {
   background: #cfdccc;
+}
+
+/* Escudos de especificidade: o hover global `.workspace-shell
+   button:hover:not(:disabled)` (0,3,1, mais abaixo no arquivo) vence esses
+   hovers (0,3,0) e pintava chapa escura no tema claro. O ancestral extra +
+   `:not(:disabled)` (0,5,0) restaura o hover próprio nos dois temas, sem
+   `!important` (o dark global tem 0,4,1). */
+.workspace-shell .frontmatter-panel-backlink-list .frontmatter-panel-backlink:hover:not(:disabled) {
+  background: #cfdccc;
+}
+
+.workspace-shell .frontmatter-panel-rows .frontmatter-panel-remove:hover:not(:disabled) {
+  background: #f1ded8;
+}
+
+.workspace-shell .frontmatter-panel-section-head .frontmatter-panel-add:hover:not(:disabled) {
+  color: #252521;
+  background: #efede4;
 }
 
 /* Tabela do modo Misto: um <table> real, com a MESMA aparencia do modo
@@ -6720,6 +6860,15 @@ label.settings-toggle {
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel-remove:hover {
   background: rgb(224 160 141 / 15%);
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-add {
+  color: #a8a59d;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-section-head .frontmatter-panel-add:hover:not(:disabled) {
+  color: #ecebe4;
+  background: rgb(236 235 229 / 12%);
 }
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel .field-error {
