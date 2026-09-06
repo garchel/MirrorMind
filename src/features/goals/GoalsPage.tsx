@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BookOpen, Check, ExternalLink, Plus, Trash2 } from 'lucide-react'
-import { ErrorState, LoadingState } from '../../components/ErrorState'
+import { ErrorState } from '../../components/ErrorState'
+import { GoalsSkeleton } from '../../components/PageSkeleton'
 import { Modal, ModalHeader } from '../../components/Modal'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { useReviewAiSettings } from '../review/ReviewAiSettingsContext'
@@ -233,7 +234,7 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
       {createdMessage ? <p role="status" className="goals-success">{createdMessage}</p> : null}
 
       {loading ? (
-        <LoadingState message="Carregando metas..." />
+        <GoalsSkeleton />
       ) : error ? (
         <ErrorState message={error} onRetry={() => setReloadRequest((request) => request + 1)} />
       ) : goals.length === 0 ? (

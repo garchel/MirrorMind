@@ -17,6 +17,7 @@ import {
 import { PolicyWorkloadEstimate } from '../review/PolicyWorkloadEstimate'
 import { Modal, ModalHeader } from '../../components/Modal'
 import { PageHeader } from '../../components/PageHeader'
+import { TagsSkeleton } from '../../components/PageSkeleton'
 import './tag-management.css'
 
 type Props = {
@@ -554,7 +555,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
             <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
             Criar tag
           </button>
-          {loading ? <p className="tag-page-state" role="status">Carregando tags…</p> : null}
+          {loading ? <TagsSkeleton /> : null}
           {!loading && filteredTree.length === 0 ? (
             <div className="tag-empty-state">
               <Hash size={22} aria-hidden="true" />

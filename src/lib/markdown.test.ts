@@ -174,8 +174,58 @@ describe('Markdown editing helpers', () => {
     expect(formatMarkdownSelection('texto', 0, 5, 'highlightPink')).toBe('<mark class="hl-pink">texto</mark>')
     expect(formatMarkdownSelection('texto', 0, 5, 'highlightOrange')).toBe('<mark class="hl-orange">texto</mark>')
     const marked = '<mark class="hl-green">texto</mark>'
-    expect(formatMarkdownSelection(marked, 0, marked.length, 'highlightGreen')).toBe('texto')
-    expect(formatMarkdownSelection(marked, 0, marked.length, 'highlightYellow')).toBe('texto')
+    expect(formatMarkdownSelection(marked, 0, marked.length, 'highlightNone')).toBe('texto')
+  })
+
+  it('troca a cor de um bloco ja colorido (selecao do bloco inteiro)', () => {
+    const marked = '<mark class="hl-yellow">texto</mark>'
+    expect(formatMarkdownSelection(marked, 0, marked.length, 'highlightGreen')).toBe('<mark class="hl-green">texto</mark>')
+    // Mesma cor: toggle (remove).
+    const green = '<mark class="hl-green">texto</mark>'
+    expect(formatMarkdownSelection(green, 0, green.length, 'highlightGreen')).toBe('texto')
+  })
+
+  it('recolore o MEIO de um bloco: pontas mantem a cor original', () => {
+    const marked = '<mark class="hl-yellow">abcdef</mark>'
+    const from = marked.indexOf('cd')
+    const to = from + 2
+    expect(formatMarkdownSelection(marked, from, to, 'highlightBlue')).toBe('<mark class="hl-yellow">ab</mark><mark class="hl-blue">cd</mark><mark class="hl-yellow">ef</mark>')
+  })
+
+  it('recolore um PEDACO do inicio/fim de um bloco', () => {
+    const marked = '<mark class="hl-yellow">abcdef</mark>'
+    const from = marked.indexOf('ab')
+    expect(formatMarkdownSelection(marked, from, from + 2, 'highlightGreen')).toBe('<mark class="hl-green">ab</mark><mark class="hl-yellow">cdef</mark>')
+    const from2 = marked.indexOf('ef')
+    expect(formatMarkdownSelection(marked, from2, from2 + 2, 'highlightGreen')).toBe('<mark class="hl-yellow">abcd</mark><mark class="hl-green">ef</mark>')
+  })
+
+  it('selecao cruzando dois blocos: um bloco novo cobre o trecho (texto solto incluso)', () => {
+    const content = 'a <mark class="hl-yellow">bc</mark> d <mark class="hl-pink">ef</mark> g'
+    const from = content.indexOf('bc')
+    const to = content.indexOf('ef') + 2
+    expect(formatMarkdownSelection(content, from, to, 'highlightBlue')).toBe('a <mark class="hl-blue">bc d ef</mark> g')
+  })
+
+  it('pastilha branca remove so o trecho coberto (bloco dividido)', () => {
+    const marked = '<mark class="hl-yellow">abcdef</mark>'
+    const from = marked.indexOf('b')
+    const to = marked.indexOf('d')
+    expect(formatMarkdownSelection(marked, from, to, 'highlightNone')).toBe('<mark class="hl-yellow">a</mark>bc<mark class="hl-yellow">def</mark>')
+  })
+
+  it('branco sobre selecao exata do bloco remove tudo', () => {
+    const marked = '<mark class="hl-pink">texto</mark>'
+    expect(formatMarkdownSelection(marked, 0, marked.length, 'highlightNone')).toBe('texto')
+  })
+
+  it('branco em selecao sem nenhum bloco nao altera nada', () => {
+    expect(formatMarkdownSelection('texto simples', 0, 5, 'highlightNone')).toBe('texto simples')
+  })
+
+  it('selecao colapsada nao faz nada', () => {
+    const marked = '<mark class="hl-yellow">abc</mark>'
+    expect(formatMarkdownSelection(marked, 2, 2, 'highlightBlue')).toBe(marked)
   })
 
   it('adds and removes rows and columns in the table at the cursor', () => {

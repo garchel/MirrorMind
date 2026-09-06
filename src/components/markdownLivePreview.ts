@@ -3,9 +3,9 @@ import { createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import { ObsidianCallout } from './ObsidianCallout'
-import { EditorState, RangeSet, StateEffect, StateField } from '@codemirror/state'
+import { EditorSelection, EditorState, RangeSet, RangeValue, StateEffect, StateField } from '@codemirror/state'
 import type { Range, Text } from '@codemirror/state'
-import { Decoration, EditorView, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view'
+import { Decoration, EditorView, ViewPlugin, ViewUpdate, WidgetType, keymap } from '@codemirror/view'
 import type { DecorationSet } from '@codemirror/view'
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
@@ -16,6 +16,7 @@ import type { PluginBlockLanguage } from '../lib/pluginBlocks'
 import type { NoteReviewGap } from '../features/review/noteReviewGaps'
 import type { NoteReviewUnit } from '../features/review/noteReviewUnits'
 import { unitOutcomeLabel } from '../features/review/reportMarkdown'
+import { POSTIT_COLOR_HEX, type NotePostit } from '../lib/postits'
 import { ObsidianPdfEmbed } from './ObsidianPdfEmbed'
 import { ObsidianPluginBlock } from './ObsidianPluginBlock'
 
@@ -74,7 +75,25 @@ export type LivePreviewOptions = {
    * o efeito `reviewGapDataEffect` disparado quando a prop muda. null ou
    * `enabled: false` = sem marcas. */
   getReviewGapData?: () => ReviewGapData | null
+  /** Post-its ancorados a paragrafos da nota (frontmatter `postits:`), com as
+   * posicoes resolvidas no doc atual. Getter via ref do componente; o campo
+   * de post-its escuta o efeito `postitDataEffect`. null = sem post-its. */
+  getPostitData?: () => PostitData | null
 }
+
+/** Post-its resolvidos para o doc atual do editor (offsets absolutos do doc,
+ * calculados pelo App a partir do markdown completo). */
+export type PostitData = {
+  /** Post-its com ancora encontrada: offset do inicio do paragrafo no doc. */
+  anchored: Array<{ postit: NotePostit; from: number }>
+  /** Post-its orfaos (paragrafo sumiu/editado): nao recebem widget, mas o
+   * popover de orfaos lista os textos. */
+  orphans: NotePostit[]
+}
+
+/** Efeito que atualiza os widgets de post-it sem recriar o editor (dados que
+ * chegam assincronamente ou mudam com o frontmatter do draft). */
+export const postitDataEffect = StateEffect.define<PostitData | null>()
 
 /** Linhas (chave + valor YAML cru) do painel integrado de frontmatter.
  * O painel vive no cabecalho do App (FrontmatterPanelForm); estes tipos sao
@@ -593,6 +612,53 @@ export function isTokenAdjacentToCaret(token: MaskToken, caret: number) {
   return caret >= token.revealFrom - 1 && caret <= token.revealTo + 1
 }
 
+export type HighlightHtml = {
+  /** Comprimento da tag de abertura (`<mark ...>`) no doc. */
+  openLength: number
+  /** Comprimento da tag de fechamento (`</mark>`) no doc. */
+  closeLength: number
+  /** Classes `hl-*` preservadas (allowlist; resto descartado). */
+  classes: string
+}
+
+/** Marca-texto do usuário: `<mark>` (com ou sem `class="hl-*"`). Retorna
+ * null para qualquer outro HTML (kbd, links, sup...). */
+export function parseHighlightHtml(source: string): HighlightHtml | null {
+  const open = source.match(/^<mark(\s[^>]*)?>/i)
+  if (!open) return null
+  const close = source.match(/<\/mark\s*>$/i)
+  if (!close) return null
+  const classAttr = open[1]?.match(/\sclass\s*=\s*"([^"]*)"/i)?.[1] ?? ''
+  const classes = classAttr.split(/\s+/).filter((cls) => /^hl-[a-z]+$/.test(cls)).join(' ')
+  return { openLength: open[0].length, closeLength: close[0].length, classes }
+}
+
+export type MathDeletionDirection = 'backward' | 'forward'
+
+/**
+ * Localiza a fórmula matemática EXATAMENTE adjacente ao cursor (fim == head
+ * para Backspace, início == head para Delete). Pré-cheque barato no `$`
+ * (toda fórmula começa e termina com `$`); só monta a máscara quando há
+ * chance real. Retorna null quando não há fórmula adjacente.
+ */
+export function findMathTokenForDeletion(state: EditorState, head: number, direction: MathDeletionDirection): { from: number; to: number } | null {
+  const doc = state.doc
+  if (direction === 'backward') {
+    if (head <= 0 || doc.sliceString(head - 1, head) !== '$') return null
+  } else {
+    if (head >= doc.length || doc.sliceString(head, head + 1) !== '$') return null
+  }
+  const tree = ensureSyntaxTree(state, doc.length, 100) ?? syntaxTree(state)
+  if (!tree) return null
+  const mask = findTreeMaskTokens(tree, doc)
+  for (const token of mask.tokens) {
+    if (token.kind !== 'math') continue
+    if (direction === 'backward' && token.to === head) return { from: token.from, to: token.to }
+    if (direction === 'forward' && token.from === head) return { from: token.from, to: token.to }
+  }
+  return null
+}
+
 /**
  * O cursor so revela o Markdown cru de um elemento quando esta NA MESMA LINHA
  * do elemento (tocando-o). Cursor em linha em branco ou vizinha nao revela
@@ -602,6 +668,12 @@ export function isTokenAdjacentToCaret(token: MaskToken, caret: number) {
  * formula $$...$$) revelam quando o cursor esta em qualquer linha interna.
  */
 function isTokenRevealed(token: MaskToken, carets: number[], doc: Text) {
+  // Matemática e marca-texto NUNCA revelam o Markdown cru no Misto/Leitura:
+  // a fórmula segue renderizada e o `<mark>` segue oculto mesmo com o cursor
+  // em cima (a fórmula sai inteira no Backspace/Delete; o destaque edita
+  // letra a letra por dentro).
+  if (token.kind === 'math') return false
+  if (token.kind === 'html' && parseHighlightHtml(token.source) !== null) return false
   if (!carets.some((caret) => isTokenAdjacentToCaret(token, caret))) return false
   const firstLine = lineNumberAt(doc, token.from)
   const lastLine = lineNumberAt(doc, Math.max(token.from, token.to - 1))
@@ -1016,6 +1088,27 @@ function tokenDecorations(token: MaskToken, doc: Text, options: LivePreviewOptio
       }]
     }
     case 'html': {
+      // Marca-texto do usuário (`<mark>`): tags SEMPRE ocultas (nunca revela
+      // o `<mark>`, mesmo com o cursor em cima), texto interno editável letra
+      // a letra com a cor aplicada — mesma robustez do negrito. As tags de
+      // abertura/fechamento entram nos ranges atômicos (cursor não pousa
+      // nelas), então Backspace na borda não as quebra.
+      const highlight = parseHighlightHtml(token.source)
+      if (highlight) {
+        const openTag = token.source.slice(0, highlight.openLength)
+        const closeTag = token.source.slice(token.source.length - highlight.closeLength)
+        const highlightRanges: DecorRange[] = []
+        if (!openTag.includes('\n')) highlightRanges.push({ from: token.from, to: token.from + highlight.openLength, decoration: hidden })
+        if (token.from + highlight.openLength < token.to - highlight.closeLength) {
+          highlightRanges.push({
+            from: token.from + highlight.openLength,
+            to: token.to - highlight.closeLength,
+            decoration: Decoration.mark({ class: highlight.classes ? `cm-live-hl ${highlight.classes}` : 'cm-live-hl' }),
+          })
+        }
+        if (!closeTag.includes('\n')) highlightRanges.push({ from: token.to - highlight.closeLength, to: token.to, decoration: hidden })
+        return highlightRanges
+      }
       // HTML inline sanitizado; blocos multilinha (HTMLBlock) ficam crus
       // (o plugin de view nao substitui quebras de linha).
       const htmlLine = lineNumberAt(doc, token.from)
@@ -2753,6 +2846,101 @@ function createReviewGapField(options: LivePreviewOptions) {
   })
 }
 
+// --- Post-its (margem esquerda) ----------------------------------------------
+//
+// Widget de ponto no INICIO do paragrafo ancorado (side -1, antes do texto),
+// posicionado via CSS absoluto na coluna do padding esquerdo do editor. O
+// widget existe so onde ha post-it (indice colorido persistente); o "add" e um
+// botao fantasma que o App controla por fora (hover da linha), para nao
+// poluir a leitura com um botao por linha.
+
+/** Widget do indice de post-it ancorado: pino colorido com a cor do post-it.
+ * Clique abre o popover (o App escuta via callback registrado em
+ * `window.__mirrormindPostitClick` — padrao de widget CM: sem acesso a
+ * closures React aqui dentro). */
+class PostitAnchorWidget extends WidgetType {
+  private readonly postit: NotePostit
+
+  constructor(postit: NotePostit) {
+    super()
+    this.postit = postit
+  }
+
+  eq(other: PostitAnchorWidget) {
+    return other.postit === this.postit
+  }
+
+  toDOM() {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'postit-anchor-widget'
+    button.dataset.postitId = this.postit.id
+    button.dataset.color = this.postit.color
+    button.style.setProperty('--postit-color', POSTIT_COLOR_HEX[this.postit.color])
+    const label = this.postit.text.trim().slice(0, 80)
+    button.title = this.postit.text.trim() ? `Post-it: ${label}` : 'Post-it vazio'
+    button.setAttribute('aria-label', `Abrir post-it: ${label || 'sem texto'}`)
+    button.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const handler = postitClickHandlers.get(this.postit.id) ?? postitClickHandlers.get('*')
+      handler?.(this.postit.id)
+    })
+    return button
+  }
+
+  ignoreEvent() {
+    return true
+  }
+}
+
+/** Handlers de clique por id (ou '*' para qualquer um). Registrado pelo
+ * MarkdownCodeEditor a partir de uma prop do App; widgets CM nao tem acesso a
+ * props React. */
+const postitClickHandlers = new Map<string, (id: string) => void>()
+
+/** Registra o handler de clique dos widgets de post-it (id especifico ou '*'
+ * para capturar qualquer clique). Retorna a funcao de desregistro. */
+export function registerPostitClickHandler(id: string, handler: (id: string) => void): () => void {
+  postitClickHandlers.set(id, handler)
+  return () => { postitClickHandlers.delete(id) }
+}
+
+type PostitFieldValue = { decorations: DecorationSet }
+
+function buildPostitField(doc: Text, data: PostitData | null): PostitFieldValue {
+  const ranges: Range<Decoration>[] = []
+  if (!data || data.anchored.length === 0) return { decorations: RangeSet.of(ranges, true) }
+  const content = doc.toString()
+  for (const { postit, from } of data.anchored) {
+    if (from < 0 || from > content.length) continue
+    // Ancora no inicio da linha do paragrafo: side -1 fica ANTES do primeiro
+    // caractere (mesmo esquema do badge de unidade, espelhado).
+    ranges.push(Decoration.widget({ widget: new PostitAnchorWidget(postit), side: -1 }).range(from, from))
+  }
+  return { decorations: RangeSet.of(ranges, true) }
+}
+
+/** StateField dos post-its (widgets de margem). Escuta `postitDataEffect` e
+ * reconstroi quando o doc muda (offsets dependem do conteudo). */
+function createPostitField(options: LivePreviewOptions) {
+  return StateField.define<PostitFieldValue>({
+    create(state) {
+      return buildPostitField(state.doc, options.getPostitData?.() ?? null)
+    },
+    update(value, transaction) {
+      for (const effect of transaction.effects) {
+        if (effect.is(postitDataEffect)) {
+          return buildPostitField(transaction.state.doc, effect.value)
+        }
+      }
+      if (!transaction.docChanged) return value
+      return buildPostitField(transaction.state.doc, options.getPostitData?.() ?? null)
+    },
+    provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
+  })
+}
+
 // --- Frontmatter oculto (design do usuario) --------------------------------
 //
 // O YAML inicial (`---` ... `---`) NAO fica no topo da nota: o bloco e
@@ -2843,6 +3031,57 @@ function createFrontmatterField() {
       return buildFrontmatterField(transaction.state.doc)
     },
     provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
+  })
+}
+
+/**
+ * Intervalos atômicos do Misto: o cursor os atravessa como um caractere só
+ * e a seleção não pousa dentro deles — fórmulas matemáticas inteiras +
+ * tags `<mark>` de abertura/fechamento do marca-texto. O texto interno do
+ * destaque fica de fora (editável letra a letra); as tags ficam
+ * inalcançáveis, então Backspace na borda nunca as quebra. Posições dentro
+ * de widgets de bloco (tabelas, frontmatter...) já são inalcançáveis por
+ * si sós. Recalcula só quando o documento muda (o cursor não move ranges).
+ */
+function collectAtomicRanges(mask: TreeMask): Array<{ from: number; to: number }> {
+  const atomicRanges: Array<{ from: number; to: number }> = []
+  for (const token of mask.tokens) {
+    if (token.kind === 'math') {
+      atomicRanges.push({ from: token.from, to: token.to })
+      continue
+    }
+    if (token.kind === 'html') {
+      const highlight = parseHighlightHtml(token.source)
+      if (!highlight) continue
+      if (!token.source.slice(0, highlight.openLength).includes('\n')) {
+        atomicRanges.push({ from: token.from, to: token.from + highlight.openLength })
+      }
+      if (!token.source.slice(token.source.length - highlight.closeLength).includes('\n')) {
+        atomicRanges.push({ from: token.to - highlight.closeLength, to: token.to })
+      }
+    }
+  }
+  return atomicRanges
+}
+
+/** Valor inerte dos intervalos atômicos (só from/to importam para o facet;
+ * comparação por identidade no singleton). */
+class AtomicRangeValue extends RangeValue {}
+const atomicRangeValue = new AtomicRangeValue()
+
+function buildAtomicRanges(state: EditorState): RangeSet<AtomicRangeValue> {
+  const doc = state.doc
+  const tree = ensureSyntaxTree(state, doc.length, 100) ?? syntaxTree(state)
+  if (!tree) return RangeSet.empty
+  const ranges = collectAtomicRanges(findTreeMaskTokens(tree, doc))
+  return RangeSet.of(ranges.map((range) => atomicRangeValue.range(range.from, range.to)), true)
+}
+
+function createAtomicField() {
+  return StateField.define<RangeSet<AtomicRangeValue>>({
+    create: (state) => buildAtomicRanges(state),
+    update: (value, transaction) => (transaction.docChanged ? buildAtomicRanges(transaction.state) : value),
+    provide: (field) => EditorView.atomicRanges.from(field, (ranges) => () => ranges),
   })
 }
 
@@ -3020,6 +3259,44 @@ function livePreviewPlugin(options: LivePreviewOptions, embedField: StateField<E
 }
 
 /**
+ * Backspace/Delete no Misto: a fórmula matemática adjacente ao cursor sai
+ * INTEIRA de uma vez (como um caractere só). Com seleção não vazia ou sem
+ * fórmula adjacente, retorna false e o comportamento padrão assume (a
+ * seleção que cobre a fórmula a remove por inteiro naturalmente).
+ */
+function deleteAdjacentMath(view: EditorView, direction: MathDeletionDirection): boolean {
+  if (view.state.readOnly) return false
+  const targets: Array<{ from: number; to: number }> = []
+  const seen = new Set<string>()
+  for (const range of view.state.selection.ranges) {
+    if (!range.empty) return false
+    const token = findMathTokenForDeletion(view.state, range.head, direction)
+    if (!token) return false
+    const key = `${token.from}/${token.to}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    targets.push(token)
+  }
+  view.dispatch({
+    changes: targets,
+    selection: EditorSelection.create(targets.map((target) => EditorSelection.cursor(target.from))),
+    scrollIntoView: true,
+    userEvent: 'delete',
+  })
+  return true
+}
+
+/** Backspace após a fórmula: apaga a fórmula inteira (nunca revela o `$`). */
+export function deleteMathBackward(view: EditorView): boolean {
+  return deleteAdjacentMath(view, 'backward')
+}
+
+/** Delete antes da fórmula: apaga a fórmula inteira (nunca revela o `$`). */
+export function deleteMathForward(view: EditorView): boolean {
+  return deleteAdjacentMath(view, 'forward')
+}
+
+/**
  * Extensoes do modo Misto. Vira uma factory para receber as opcoes do
  * componente (ex.: callback de navegacao de links, lido via getter para
  * nunca ficar obsoleto entre re-renders).
@@ -3031,15 +3308,26 @@ export function markdownLivePreview(options: LivePreviewOptions = {}) {
   const calloutField = createCalloutField(options)
   const pluginBlockField = createPluginBlockField()
   const reviewGapField = createReviewGapField(options)
+  const postitField = createPostitField(options)
   const frontmatterField = createFrontmatterField()
+  const atomicField = createAtomicField()
   return [
     livePreviewTableField,
     focusTracking,
+    // Deleção atômica de fórmulas (antes do keymap padrão do editor, que vem
+    // depois na ordem de extensões): com fórmula adjacente, consome a tecla;
+    // sem fórmula, devolve false e o Backspace/Delete normal assume.
+    keymap.of([
+      { key: 'Backspace', run: deleteMathBackward },
+      { key: 'Delete', run: deleteMathForward },
+    ]),
     livePreviewPlugin(options, embedField, calloutField, pluginBlockField),
     ...(embedField ? [embedField] : []),
     calloutField,
     pluginBlockField,
     reviewGapField,
+    postitField,
     frontmatterField,
+    atomicField,
   ]
 }

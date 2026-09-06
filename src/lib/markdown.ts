@@ -328,6 +328,7 @@ export type MarkdownFormat =
   | 'highlightBlue'
   | 'highlightPink'
   | 'highlightOrange'
+  | 'highlightNone'
   | 'list'
   | 'orderedList'
   | 'checklist'
@@ -406,23 +407,118 @@ export function transformMarkdownTable(content: string, cursor: number, action: 
   return [...lines.slice(0, start), ...formattedRows, ...lines.slice(end + 1)].join('\n')
 }
 
+export type MarkdownHighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'orange'
+/** Alvo do marca-texto: uma cor fixa ou `none` (remover a coloração). */
+export type MarkdownHighlightTarget = MarkdownHighlightColor | 'none'
+
+/** Sintaxe persistida no .md: `<mark class="hl-cor">texto</mark>`. */
+const HIGHLIGHT_COLORS: readonly MarkdownHighlightColor[] = ['yellow', 'green', 'blue', 'pink', 'orange']
+
+const MARK_ELEMENT_RE = new RegExp(`<mark\\s+class="hl-(${HIGHLIGHT_COLORS.join('|')})">([\\s\\S]*?)<\\/mark>`, 'g')
+
+type MarkElement = {
+  from: number
+  to: number
+  color: MarkdownHighlightColor
+  innerFrom: number
+  innerTo: number
+}
+
+function findMarkElements(content: string): MarkElement[] {
+  const elements: MarkElement[] = []
+  MARK_ELEMENT_RE.lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = MARK_ELEMENT_RE.exec(content)) !== null) {
+    const inner = match[2] ?? ''
+    const innerTo = match.index + match[0].length - '</mark>'.length
+    elements.push({
+      from: match.index,
+      to: match.index + match[0].length,
+      color: match[1] as MarkdownHighlightColor,
+      innerFrom: innerTo - inner.length,
+      innerTo,
+    })
+  }
+  return elements
+}
+
+/**
+ * Marca-texto sobre uma seleção que pode cruzar blocos já coloridos: o trecho
+ * coberto ganha a cor alvo (texto de dentro dos blocos + texto solto entre
+ * eles vira UM bloco novo) e as pontas não selecionadas mantêm a cor original
+ * (o bloco é dividido). `target: 'none'` remove a coloração do trecho coberto.
+ * Seleção exata de um bloco inteiro: mesma cor (ou none) remove, cor
+ * diferente troca a cor do bloco. Seleção colapsada não faz nada.
+ */
+export function applyMarkdownHighlight(content: string, start: number, end: number, target: MarkdownHighlightTarget): string {
+  if (end < start) [start, end] = [end, start]
+  const elements = findMarkElements(content)
+  // Clamp defensivo: seleção caindo DENTRO de uma tag `<mark ...>` (os ranges
+  // atômicos do Misto já evitam; o modo Edição crua permite) arredonda para a
+  // borda do elemento mais próximo.
+  for (const element of elements) {
+    if (start > element.from && start < element.innerFrom) start = element.from
+    if (end > element.innerTo && end < element.to) end = element.to
+  }
+  if (start === end) return content
+  const affected = elements.filter((element) => element.from < end && element.to > start)
+
+  if (affected.length === 0) {
+    if (target === 'none') return content
+    return `${content.slice(0, start)}<mark class="hl-${target}">${content.slice(start, end)}</mark>${content.slice(end)}`
+  }
+
+  const first = affected[0]
+  const last = affected[affected.length - 1]
+
+  // Seleção exata de um único bloco: toggle (mesma cor/none) ou troca direta.
+  if (affected.length === 1 && start === first.from && end === first.to) {
+    if (target === 'none' || target === first.color) {
+      return content.slice(0, first.from) + content.slice(first.innerFrom, first.innerTo) + content.slice(first.to)
+    }
+    return `${content.slice(0, first.from)}<mark class="hl-${target}">${content.slice(first.innerFrom, first.innerTo)}</mark>${content.slice(first.to)}`
+  }
+
+  // Cirurgia: o pedaço do bloco cortado pela seleção mantém a cor original
+  // nas pontas; o miolo coberto vira um bloco novo na cor alvo.
+  let prefixMark = ''
+  if (start > first.from) {
+    const prefix = content.slice(first.innerFrom, Math.min(start, first.innerTo))
+    if (prefix) prefixMark = `<mark class="hl-${first.color}">${prefix}</mark>`
+  }
+  let suffixMark = ''
+  if (end < last.to) {
+    const suffix = content.slice(Math.max(end, last.innerFrom), last.innerTo)
+    if (suffix) suffixMark = `<mark class="hl-${last.color}">${suffix}</mark>`
+  }
+
+  let inner = ''
+  let cursor = start
+  for (const element of affected) {
+    if (element.from > cursor) inner += content.slice(cursor, element.from)
+    const coveredFrom = Math.max(element.innerFrom, cursor)
+    const coveredTo = Math.min(element.innerTo, end)
+    if (coveredTo > coveredFrom) inner += content.slice(coveredFrom, coveredTo)
+    cursor = element.to < end ? element.to : end
+  }
+  if (cursor < end) inner += content.slice(cursor, end)
+
+  const wrapped = inner
+    ? (target === 'none' ? inner : `<mark class="hl-${target}">${inner}</mark>`)
+    : ''
+  const spliceFrom = Math.min(start, first.from)
+  const spliceTo = Math.max(end, last.to)
+  return content.slice(0, spliceFrom) + prefixMark + wrapped + suffixMark + content.slice(spliceTo)
+}
+
 export function formatMarkdownSelection(content: string, start: number, end: number, format: MarkdownFormat) {
   const selected = content.slice(start, end) || 'texto'
-  // Marca-texto (cores fixas): persiste como `<mark class="hl-*">` no .md e
-  // renderiza mascarado no Misto/Leitura. Clicar com a mesma selecao ja
-  // marcada remove o destaque (toggle, qualquer cor).
-  const highlightClass: Partial<Record<MarkdownFormat, string>> = {
-    highlightYellow: 'hl-yellow',
-    highlightGreen: 'hl-green',
-    highlightBlue: 'hl-blue',
-    highlightPink: 'hl-pink',
-    highlightOrange: 'hl-orange',
-  }
-  const highlightWrapper = highlightClass[format]
-  if (highlightWrapper) {
-    const unwrapped = selected.match(/^<mark\s+class="hl-[a-z]+">([\s\S]*)<\/mark>$/)
-    const replacement = unwrapped ? unwrapped[1] : `<mark class="${highlightWrapper}">${selected}</mark>`
-    return `${content.slice(0, start)}${replacement}${content.slice(end)}`
+  // Marca-texto (cores fixas + remoção): delega para a cirurgia de blocos —
+  // troca de cor, divisão parcial e remoção (branco) sobre seleções que
+  // cruzam blocos já coloridos.
+  if (format.startsWith('highlight')) {
+    const target = (format === 'highlightNone' ? 'none' : format.slice('highlight'.length).toLowerCase()) as MarkdownHighlightTarget
+    return applyMarkdownHighlight(content, start, end, target)
   }
   const wrappers: Record<Extract<MarkdownFormat, 'bold' | 'italic' | 'link' | 'code' | 'codeBlock' | 'strikethrough' | 'math' | 'subscript' | 'superscript' | 'reactionArrow' | 'reverseReactionArrow'>, [string, string]> = {
     bold: ['**', '**'],

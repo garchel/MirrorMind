@@ -63,6 +63,8 @@ type Props = {
   onGraphExport?: (requestId: number, scene: Graph3DExportScene | null) => void
   /** Caminhos esmaecidos pelo filtro pasta/tag (highlight, sem rebuild). */
   dimmedPaths?: Set<string> | null
+  /** Caminhos que casam com o filtro pasta/tag (enfase positiva). */
+  highlightPaths?: Set<string> | null
   /** Versão do layout: força o Big Bang ao mudar. */
   layoutVersion: number
   /** Oculta o nome de todas as notas; o nome aparece apenas no hover do no. */
@@ -309,14 +311,15 @@ export function NoteGraph3D({
   exportRequest,
   onGraphExport,
   dimmedPaths = null,
+  highlightPaths = null,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const engineRef = useRef<Engine | null>(null)
   const [webglAvailable] = useState(supportsWebGL)
 
   // Ultimos valores de props: as closures do motor three leem sempre daqui.
-  const dataRef = useRef({ nodes, links, degreeByPath, focusedPath, currentPath, dimmedPaths, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth, groupByPath, groupColorByPath, groupingEnabled })
-  dataRef.current = { nodes, links, degreeByPath, focusedPath, currentPath, dimmedPaths, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth, groupByPath, groupColorByPath, groupingEnabled }
+  const dataRef = useRef({ nodes, links, degreeByPath, focusedPath, currentPath, dimmedPaths, highlightPaths, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth, groupByPath, groupColorByPath, groupingEnabled })
+  dataRef.current = { nodes, links, degreeByPath, focusedPath, currentPath, dimmedPaths, highlightPaths, layoutVersion, hideAllLabels, nodeSize, nodeSpacing, orbitSpeed, maxEdgeLength, minEdgeLength, degreeGrowth, groupByPath, groupColorByPath, groupingEnabled }
   const onFocusRef = useRef(onFocus)
   onFocusRef.current = onFocus
   const onOpenNoteRef = useRef(onOpenNote)
@@ -485,6 +488,7 @@ export function NoteGraph3D({
       const focused = path === data.focusedPath
       const current = path === data.currentPath
       const dimmed = data.dimmedPaths !== null && data.dimmedPaths !== undefined && data.dimmedPaths.has(path)
+      const highlighted = !dimmed && data.highlightPaths !== null && data.highlightPaths !== undefined && data.highlightPaths.has(path)
       const glow = glows.get(path) ?? 0
       const hover = engineRef.current?.hoverPath === path
       const color = nodeColor(degree, focused, current, groupColorFor(data, path))
@@ -492,6 +496,7 @@ export function NoteGraph3D({
         .lerp(new THREE.Color(0xffffff), hover ? 0.38 : 0)
       // Highlight do filtro: quem não casa afunda na cor do fundo.
       if (dimmed && glow === 0 && !hover && !focused) color.lerp(new THREE.Color(0x11161d), 0.78)
+      if (highlighted && glow === 0 && !hover && !focused) color.lerp(new THREE.Color(0xd9f7ff), 0.35)
       // O hover apenas clareia a cor — nao cresce mais o no.
       const radius = nodeRadius(degree, focused) + glow * 0.42
       const dummy = new THREE.Object3D()
@@ -507,8 +512,8 @@ export function NoteGraph3D({
       if (halo) {
         halo.position.copy(position)
         halo.material.color.copy(color)
-        halo.scale.setScalar(radius * ORB_HALO_SCALE * (1 + glow * 0.3))
-        ;(halo.material as THREE.SpriteMaterial).opacity = ORB_HALO_OPACITY * (1 + glow * 0.6) * (dimmed && glow === 0 && !hover && !focused ? 0.25 : 1)
+        halo.scale.setScalar(radius * ORB_HALO_SCALE * (1 + glow * 0.3) * (highlighted && glow === 0 && !hover && !focused ? 1.15 : 1))
+        ;(halo.material as THREE.SpriteMaterial).opacity = ORB_HALO_OPACITY * (1 + glow * 0.6) * (dimmed && glow === 0 && !hover && !focused ? 0.25 : 1) * (highlighted && glow === 0 && !hover && !focused ? 1.6 : 1)
       }
     }
 
@@ -597,7 +602,8 @@ export function NoteGraph3D({
       }
       for (const [path, label] of labels) {
         const dimmedLabel = data.dimmedPaths !== null && data.dimmedPaths !== undefined && data.dimmedPaths.has(path)
-        label.element.className = `graph3d-label${path === data.focusedPath ? ' is-focused' : ''}${path === data.currentPath ? ' is-current' : ''}${dimmedLabel ? ' is-dimmed' : ''}`
+        const highlightedLabel = !dimmedLabel && data.highlightPaths !== null && data.highlightPaths !== undefined && data.highlightPaths.has(path)
+        label.element.className = `graph3d-label${path === data.focusedPath ? ' is-focused' : ''}${path === data.currentPath ? ' is-current' : ''}${dimmedLabel ? ' is-dimmed' : ''}${highlightedLabel ? ' is-highlighted' : ''}`
       }
     }
 
@@ -693,6 +699,7 @@ export function NoteGraph3D({
           const baseColor = nodeColor(degree, focused, current, groupColorFor(data, node.relativePath))
           // Highlight do filtro já vale na montagem (sem esperar refreshStyles).
           if (data.dimmedPaths?.has(node.relativePath)) baseColor.lerp(new THREE.Color(0x11161d), 0.78)
+          else if (data.highlightPaths?.has(node.relativePath)) baseColor.lerp(new THREE.Color(0xd9f7ff), 0.35)
           nodesMesh!.setColorAt(index, baseColor)
         })
         nodesMesh.instanceMatrix.needsUpdate = true
@@ -720,6 +727,9 @@ export function NoteGraph3D({
           if (data.dimmedPaths?.has(node.relativePath)) {
             haloBase.lerp(new THREE.Color(0x11161d), 0.78)
             ;(halo.material as THREE.SpriteMaterial).opacity = ORB_HALO_OPACITY * 0.25
+          } else if (data.highlightPaths?.has(node.relativePath)) {
+            haloBase.lerp(new THREE.Color(0xd9f7ff), 0.35)
+            ;(halo.material as THREE.SpriteMaterial).opacity = ORB_HALO_OPACITY * 1.6
           }
           halo.material.color.copy(haloBase)
           scene.add(halo)
@@ -1349,6 +1359,27 @@ export function NoteGraph3D({
       updateGraph,
       refreshStyles() {
         for (const path of instancePaths) applyNodeStyle(path)
+        if (edgesLine !== null) {
+          const styleData = currentData()
+          const linkColors = edgesLine.geometry.getAttribute('color') as THREE.BufferAttribute
+          const matchedLink = new THREE.Color(0x8fd4f2)
+          const plainLink = new THREE.Color(0x50688a)
+          const sunkLink = new THREE.Color(0x1b232e)
+          const linkColor = new THREE.Color()
+          styleData.links.forEach((link, index) => {
+            const sourceMatch = styleData.highlightPaths?.has(link.source) ?? false
+            const targetMatch = styleData.highlightPaths?.has(link.target) ?? false
+            const sourceDim = styleData.dimmedPaths?.has(link.source) ?? false
+            const targetDim = styleData.dimmedPaths?.has(link.target) ?? false
+            if (sourceMatch && targetMatch) linkColor.copy(matchedLink)
+            else if (sourceDim && targetDim) linkColor.copy(sunkLink)
+            else if (styleData.focusedPath === link.source || styleData.focusedPath === link.target) linkColor.copy(matchedLink)
+            else linkColor.copy(plainLink)
+            linkColors.setXYZ(index * 2, linkColor.r, linkColor.g, linkColor.b)
+            linkColors.setXYZ(index * 2 + 1, linkColor.r, linkColor.g, linkColor.b)
+          })
+          linkColors.needsUpdate = true
+        }
         updateLabels()
       },
       exportSceneData() {
@@ -1541,6 +1572,13 @@ export function NoteGraph3D({
     engineRef.current?.refreshStyles()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dimmedKey])
+  const highlightKey = highlightPaths === null || highlightPaths === undefined
+    ? ''
+    : [...highlightPaths].sort().join(' ')
+  useEffect(() => {
+    engineRef.current?.refreshStyles()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightKey])
 
   // Exportacao: ao receber um pedido novo, projeta a cena atual pela camera e
   // devolve os dados para o App montar o SVG/PNG (a rasterizacao fica no App).

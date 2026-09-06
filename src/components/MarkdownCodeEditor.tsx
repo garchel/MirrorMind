@@ -5,10 +5,11 @@ import { autocompletion, type CompletionContext } from '@codemirror/autocomplete
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
+import { styleTags, tags as highlightTags } from '@lezer/highlight'
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
 import { EditorState, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
 import { Decoration, type DecorationSet, EditorView, keymap } from '@codemirror/view'
-import { markdownLivePreview, reviewGapDataEffect, type LinkTarget, type ReviewGapData } from './markdownLivePreview'
+import { markdownLivePreview, postitDataEffect, registerPostitClickHandler, reviewGapDataEffect, type LinkTarget, type PostitData, type ReviewGapData } from './markdownLivePreview'
 import { getMarkdownAutocompleteResult, type MarkdownAutocompleteData } from '../lib/markdown-autocomplete'
 import { findTextMatches } from '../lib/findMatches'
 
@@ -35,6 +36,14 @@ export type MarkdownCodeEditorHandle = {
   selectRange: (from: number, to: number) => void
   setFindQuery: (query: string) => void
   undo: () => boolean
+  /** Offset do inicio do paragrafo que contem `from` (ou null). Usado pelo
+   * post-it para ancorar na linha onde esta o cursor. */
+  getParagraphStartAt: (from: number) => number | null
+  /** Texto visivel do paragrafo que contem `from` (ou null). */
+  getParagraphTextAt: (from: number) => string | null
+  /** Retangulo (viewport) de uma posicao qualquer do doc, ou null fora do
+   * visivel. Usado para posicionar o popover de post-it sobre o pino. */
+  getRectAt: (from: number) => { bottom: number; left: number; right: number; top: number } | null
 }
 
 type MarkdownCodeEditorProps = {
@@ -65,6 +74,11 @@ type MarkdownCodeEditorProps = {
    * Muda assincronamente após o fetch; o componente dispara
    * `reviewGapDataEffect` para atualizar as decorações sem recriar o editor. */
   reviewGapData?: ReviewGapData | null
+  /** Post-its (pinos na margem esquerda). Muda quando o frontmatter do draft
+   * muda; o componente dispara `postitDataEffect` sem recriar o editor. */
+  postitData?: PostitData | null
+  /** Clique em um pino de post-it (widget CM nao tem acesso a props React). */
+  onPostitClick?: (id: string) => void
   /** Quebra de linha automatica (EditorView.lineWrapping). Padrao: true;
    * o modo Leitura read-only respeita a preferência `reading-line-wrap`. */
   lineWrap?: boolean
@@ -111,6 +125,27 @@ const editorTheme = EditorView.theme({
     backgroundColor: 'rgba(255, 138, 0, 0.55)',
   },
 })
+
+/**
+ * Bug do setext + negrito: um parágrafo terminado em **negrito** seguido de
+ * `---` é SetextHeading2 no Lezer — o syntax highlighter aplica heading2
+ * (bold + underline) ao PARAGRAFO INTEIRO, mesmo com o live preview
+ * renderizando `---` como divisor. Remapeia o ESTILO dos nós setext para
+ * `content`: a árvore sintática continua idêntica (o live preview, que
+ * decide o que mascara, lê a árvore — não os estilos), mas o highlighting
+ * deixa de engrossar a linha. O sublinhado `===` real (SetextHeading1 com
+ * underline válido) também perde o estilo de heading na Edição, mas o
+ * live preview continua o tratando como heading visual no Misto — o custo
+ * é só o destaque do modo Edição crua.
+ */
+const setextAsContentExtension = {
+  props: [
+    styleTags({
+      'SetextHeading1/...': highlightTags.content,
+      'SetextHeading2/...': highlightTags.content,
+    }),
+  ],
+}
 
 function continueMarkdownBlock(view: EditorView) {
   const selection = view.state.selection.main
@@ -256,7 +291,7 @@ const findHighlighter = StateField.define<DecorationSet>({
 })
 
 function MarkdownCodeEditorComponent(
-  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, documentKey, getEmbedContent, historyLimit = 100, lineWrap = true, livePreview = false, onBlur, onChange, onHistoryChange, onOpenLink, onSearchRequest, onSessionChange, readOnly = false, resolveAssetUrl, reviewGapData, session, spellCheck = true, stateCache, value, vaultPath }: MarkdownCodeEditorProps,
+  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, documentKey, getEmbedContent, historyLimit = 100, lineWrap = true, livePreview = false, onBlur, onChange, onHistoryChange, onOpenLink, onPostitClick, onSearchRequest, onSessionChange, readOnly = false, resolveAssetUrl, reviewGapData, postitData, session, spellCheck = true, stateCache, value, vaultPath }: MarkdownCodeEditorProps,
   ref: ForwardedRef<MarkdownCodeEditorHandle>,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -284,10 +319,14 @@ function MarkdownCodeEditorComponent(
   const getEmbedContentRef = useRef(getEmbedContent)
   const vaultPathRef = useRef(vaultPath)
   const reviewGapDataRef = useRef(reviewGapData)
+  const postitDataRef = useRef(postitData)
+  const onPostitClickRef = useRef(onPostitClick)
 
   getEmbedContentRef.current = getEmbedContent
   vaultPathRef.current = vaultPath
   reviewGapDataRef.current = reviewGapData
+  postitDataRef.current = postitData
+  onPostitClickRef.current = onPostitClick
 
   onChangeRef.current = onChange
   onBlurRef.current = onBlur
@@ -315,6 +354,18 @@ function MarkdownCodeEditorComponent(
     view.dispatch({ effects: reviewGapDataEffect.of(reviewGapData ?? null) })
   }, [reviewGapData])
 
+  // Post-its mudam com o frontmatter do draft (criacao/edicao/remocao);
+  // dispara o efeito para o campo de pinos atualizar sem recriar o editor.
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({ effects: postitDataEffect.of(postitData ?? null) })
+  }, [postitData])
+
+  // Widgets CM nao tem acesso a props React: o handler de clique dos pinos e
+  // registrado no modulo do live preview (chave '*' captura qualquer pino).
+  useEffect(() => registerPostitClickHandler('*', (id) => onPostitClickRef.current?.(id)), [])
+
   useEffect(() => {
     viewRef.current?.contentDOM.setAttribute('aria-label', ariaLabel)
   }, [ariaLabel])
@@ -337,7 +388,9 @@ function MarkdownCodeEditorComponent(
         history({ minDepth: historyLimit }),
         // GFM como base: tabelas, tarefas, riscado e links de autolink ganham
         // nos na arvore sintatica, a mesma base do modo Leitura (remark-gfm).
-        markdown({ base: markdownLanguage, codeLanguages: languages }),
+        // A extensao setext desativa o ESTILO de heading (bold) que o
+        // highlighter aplica ao paragrafo inteiro acima de um divisor `---`.
+        markdown({ base: markdownLanguage, codeLanguages: languages, extensions: setextAsContentExtension }),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         search({ top: true }),
         findQueryField,
@@ -356,6 +409,7 @@ function MarkdownCodeEditorComponent(
             getEmbedContent: (relativePath) => getEmbedContentRef.current?.(relativePath) ?? Promise.resolve(''),
             vaultPath: vaultPathRef.current,
             getReviewGapData: () => reviewGapDataRef.current ?? null,
+            getPostitData: () => postitDataRef.current ?? null,
           })
           : []),
         ...(lineWrapRef.current ? [EditorView.lineWrapping] : []),
@@ -430,6 +484,41 @@ function MarkdownCodeEditorComponent(
       if (!start) return null
       return { bottom: start.bottom, left: start.left, right: start.right, top: start.top }
     },
+    getParagraphStartAt(from: number) {
+      const view = viewRef.current
+      if (!view) return null
+      const doc = view.state.doc
+      if (from < 0 || from > doc.length) return null
+      // Paragrafo = bloco de linhas contiguas nao vazias que contem `from`;
+      // volta ate a linha anterior em branco (ou o inicio do doc).
+      let line = doc.lineAt(from)
+      while (line.number > 1 && doc.line(line.number - 1).text.trim() !== '') {
+        line = doc.line(line.number - 1)
+      }
+      return line.from
+    },
+    getParagraphTextAt(from: number) {
+      const view = viewRef.current
+      if (!view) return null
+      const doc = view.state.doc
+      if (from < 0 || from > doc.length) return null
+      let line = doc.lineAt(from)
+      const lines: string[] = [line.text]
+      while (line.number < doc.lines && doc.line(line.number + 1).text.trim() !== '') {
+        line = doc.line(line.number + 1)
+        lines.push(line.text)
+      }
+      return lines.join(' ')
+    },
+    getRectAt(from: number) {
+      const view = viewRef.current
+      if (!view) return null
+      const doc = view.state.doc
+      if (from < 0 || from > doc.length) return null
+      const coords = view.coordsAtPos(from)
+      if (!coords) return null
+      return { bottom: coords.bottom, left: coords.left, right: coords.right, top: coords.top }
+    },
     focus() {
       viewRef.current?.focus()
     },
@@ -437,12 +526,12 @@ function MarkdownCodeEditorComponent(
       const view = viewRef.current
       return view ? redo(view) : false
     },
-    selectRange(from, to) {
+    selectRange(from: number, to: number) {
       const view = viewRef.current
       if (!view) return
       view.dispatch({ selection: { anchor: from, head: to }, scrollIntoView: true })
     },
-    setFindQuery(query) {
+    setFindQuery(query: string) {
       const view = viewRef.current
       if (!view) return
       view.dispatch({ effects: findQueryEffect.of(query) })

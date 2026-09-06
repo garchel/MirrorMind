@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { EditorState } from '@codemirror/state'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { parser, GFM } from '@lezer/markdown'
-import { findMaskTokens, findTreeMaskTokens, isTokenAdjacentToCaret, type MaskToken } from './markdownLivePreview'
+import { findMaskTokens, findMathTokenForDeletion, findTreeMaskTokens, isTokenAdjacentToCaret, parseHighlightHtml, type MaskToken } from './markdownLivePreview'
 
 type InlineToken = Extract<MaskToken, { innerFrom: number }>
 
@@ -226,5 +228,55 @@ describe('isTokenAdjacentToCaret', () => {
 
   it('mascara quando o cursor esta longe do token', () => {
     expect(isTokenAdjacentToCaret(bold, 50)).toBe(false)
+  })
+})
+
+describe('parseHighlightHtml', () => {
+  it('reconhece mark simples e com classe hl-*', () => {
+    expect(parseHighlightHtml('<mark>x</mark>')).toMatchObject({ openLength: 6, closeLength: 7, classes: '' })
+    const hl = parseHighlightHtml('<mark class="hl-green">x</mark>')
+    expect(hl).toMatchObject({ classes: 'hl-green' })
+    expect(hl!.openLength).toBe('<mark class="hl-green">'.length)
+  })
+
+  it('filtra classes fora da allowlist e rejeita outro HTML', () => {
+    expect(parseHighlightHtml('<mark class="hl-green foo" style="x">x</mark>')!.classes).toBe('hl-green')
+    expect(parseHighlightHtml('<kbd>x</kbd>')).toBeNull()
+    expect(parseHighlightHtml('<mark>x')).toBeNull()
+    expect(parseHighlightHtml('x</mark>')).toBeNull()
+  })
+})
+
+describe('findMathTokenForDeletion', () => {
+  const mathState = (text: string) =>
+    EditorState.create({ doc: text, extensions: [markdown({ base: markdownLanguage })] })
+
+  it('acha a formula exatamente adjacente (backspace/delete)', () => {
+    const text = 'Antes $E=mc^2$ depois'
+    const state = mathState(text)
+    const from = text.indexOf('$E=mc^2$')
+    const to = from + '$E=mc^2$'.length
+    expect(findMathTokenForDeletion(state, to, 'backward')).toEqual({ from, to })
+    expect(findMathTokenForDeletion(state, from, 'forward')).toEqual({ from, to })
+  })
+
+  it('retorna null longe da formula ou sem adjacencia exata', () => {
+    const text = 'Antes $E=mc^2$ depois'
+    const state = mathState(text)
+    const from = text.indexOf('$E=mc^2$')
+    expect(findMathTokenForDeletion(state, 2, 'backward')).toBeNull()
+    expect(findMathTokenForDeletion(state, 2, 'forward')).toBeNull()
+    expect(findMathTokenForDeletion(state, from + 2, 'backward')).toBeNull()
+    expect(findMathTokenForDeletion(state, from, 'backward')).toBeNull()
+    expect(findMathTokenForDeletion(state, from, 'forward')!.to).toBeGreaterThan(from)
+  })
+
+  it('cobre display math multilinha', () => {
+    const text = 'a\n\n$$x\ny$$ b'
+    const state = mathState(text)
+    const from = text.indexOf('$$')
+    const to = text.lastIndexOf('$$') + 2
+    expect(findMathTokenForDeletion(state, to, 'backward')).toEqual({ from, to })
+    expect(findMathTokenForDeletion(state, from, 'forward')).toEqual({ from, to })
   })
 })

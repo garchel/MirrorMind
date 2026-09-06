@@ -1,0 +1,154 @@
+/* Loader do grafo 3D: cena em SVG que espelha o visual real (fundo escuro,
+ * nucleo ciano #8fe3ff, arestas #50688a, satelite verde #5fe6b4). Coreografia:
+ * orbita externa 14s, interna 22s em sentido contrario, pulso eletrico 1.8s e
+ * respiracao do halo 2.4s — tudo em transform/opacity. Rotacoes e o dash do
+ * pulso sao loops de progresso (linear permitido); o resto usa ease-in-out. */
+
+.graph3d-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.graph3d-loader-scene {
+  width: 168px;
+  height: 168px;
+  overflow: visible;
+}
+
+.graph3d-loader-ring {
+  fill: none;
+  stroke: #50688a;
+  stroke-opacity: 0.35;
+  stroke-width: 1;
+}
+
+.graph3d-loader-ring.is-inner {
+  stroke-opacity: 0.5;
+}
+
+.graph3d-loader-spoke {
+  stroke: #8fd4f2;
+  stroke-opacity: 0.45;
+  stroke-width: 1;
+}
+
+.graph3d-loader-sat {
+  stroke: #0d1117;
+  stroke-width: 1.5;
+}
+
+.graph3d-loader-sat.is-cyan {
+  fill: #8fe3ff;
+  filter: drop-shadow(0 0 5px rgb(143 227 255 / 80%));
+}
+
+.graph3d-loader-sat.is-green {
+  fill: #5fe6b4;
+  filter: drop-shadow(0 0 5px rgb(95 230 180 / 80%));
+}
+
+.graph3d-loader-core {
+  fill: #d9f7ff;
+  filter: drop-shadow(0 0 8px rgb(143 227 255 / 90%));
+}
+
+.graph3d-loader-halo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: graph3d-loader-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes graph3d-loader-breathe {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+.graph3d-loader-orbit {
+  transform-origin: 100px 100px;
+}
+
+.graph3d-loader-orbit.is-outer {
+  animation: graph3d-loader-spin 14s linear infinite;
+}
+
+.graph3d-loader-orbit.is-inner {
+  animation: graph3d-loader-spin-reverse 22s linear infinite;
+}
+
+@keyframes graph3d-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes graph3d-loader-spin-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.graph3d-loader-pulse {
+  animation: graph3d-loader-pulse-travel 1.8s linear infinite;
+}
+
+@keyframes graph3d-loader-pulse-travel {
+  from {
+    stroke-dashoffset: 452;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.graph3d-loader-text {
+  margin: 0;
+  color: #9fb4c8;
+  font: 500 13px/1.5 var(--sans, system-ui, sans-serif);
+  letter-spacing: 0.02em;
+}
+
+.graph3d-loader-dots span {
+  display: inline-block;
+  animation: graph3d-loader-blink 1.5s ease-in-out infinite;
+}
+
+.graph3d-loader-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.graph3d-loader-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes graph3d-loader-blink {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph3d-loader-halo,
+  .graph3d-loader-orbit,
+  .graph3d-loader-pulse,
+  .graph3d-loader-dots span {
+    animation: none;
+  }
+
+  .graph3d-loader-dots span {
+    opacity: 1;
+  }
+}

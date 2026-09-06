@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { BookOpen, Minus, Plus } from 'lucide-react'
-import { ErrorState, LoadingState } from '../../components/ErrorState'
+import { ErrorState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
+import { QueueSkeleton } from '../../components/PageSkeleton'
 import { setNoteReviewPriority } from './reviewPolicy'
 import { getDueReviewQueue, type DueReviewItem } from './reviewQueue'
 import { formatOverdueDate } from './reviewQueueDate'
@@ -69,7 +70,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview }: Review
       </PageHeader>
 
       {loading ? (
-        <LoadingState message="Carregando revisões vencidas..." />
+        <QueueSkeleton />
       ) : error ? (
         <ErrorState message={error} onRetry={() => setReloadRequest((request) => request + 1)} />
       ) : items.length === 0 ? (

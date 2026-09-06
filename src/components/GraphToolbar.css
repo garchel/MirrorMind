@@ -1,0 +1,243 @@
+/* GraphToolbar + GraphFilterSelect: dropdowns de filtro, larguras fixas
+ * anti-shift e enfase dupla do highlight. Carregado depois de App.css, entao
+ * vence empates de especificidade com as regras base do grafo. */
+
+.graph-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Trigger do filtro (largura fixa + ellipsis: sem shift ao trocar) --- */
+
+.workspace-shell .graph-immersive-header .graph-filter-select {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #3d3d38;
+  font: 12px var(--sans);
+  cursor: pointer;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-select:hover {
+  background: rgb(28 36 39 / 7%);
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-select:focus-visible {
+  outline: 1px solid #8d9b88;
+  outline-offset: 1px;
+}
+
+.graph-filter-select-icon {
+  display: inline-flex;
+  flex: none;
+  color: #8d9b88;
+}
+
+.graph-filter-select.is-active .graph-filter-select-icon {
+  color: #3f6b4c;
+}
+
+.graph-filter-select-value {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-filter-select.is-active .graph-filter-select-value {
+  color: #2c4632;
+  font-weight: 600;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-select > svg:last-child {
+  flex: none;
+  color: #8a8a80;
+}
+
+/* --- Menu do filtro (mesma lingua dos popovers Exportar/Configurar) --- */
+
+.ui-popover-content.graph-filter-select-menu {
+  min-width: 230px;
+  max-width: min(92vw, 300px);
+  padding: 8px;
+}
+
+.graph-filter-select-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  padding: 0 8px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-sm);
+  background: #fffef9;
+  color: #8a8a80;
+}
+
+.graph-filter-select-search input {
+  min-width: 0;
+  flex: 1;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #3d3d38;
+  font: 12px var(--sans);
+}
+
+.graph-filter-select-search input:focus {
+  outline: none;
+}
+
+.graph-filter-select-search:focus-within {
+  border-color: #8d9b88;
+}
+
+.graph-filter-select-list {
+  display: grid;
+  gap: 1px;
+  max-height: 264px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.graph-filter-select-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #3d3d38;
+  font: 12px var(--sans);
+  cursor: pointer;
+  text-align: left;
+}
+
+.graph-filter-select-option:hover {
+  background: rgb(28 36 39 / 6%);
+}
+
+.graph-filter-select-option[aria-selected='true'] {
+  background: #e5eee5;
+  color: #2c4632;
+  font-weight: 600;
+}
+
+.graph-filter-select-check {
+  display: inline-flex;
+  flex: none;
+  width: 15px;
+  justify-content: center;
+  color: #3f6b4c;
+}
+
+.graph-filter-select-option-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-filter-select-empty {
+  margin: 0;
+  padding: 10px 8px;
+  color: #8a8a80;
+  font-size: 12px;
+}
+
+/* --- Larguras fixas: o header nao reflow ao trocar opcoes --- */
+
+.workspace-shell .graph-immersive-header .graph-mode-select,
+.workspace-shell .graph-immersive-header .graph-depth-select {
+  max-width: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .graph-immersive-header .graph-mode-select {
+  width: 118px;
+}
+
+.workspace-shell .graph-immersive-header .graph-depth-select {
+  width: 92px;
+}
+
+.workspace-shell .graph-immersive-header .graph-search-input {
+  width: 150px;
+  min-width: 0;
+  flex: none;
+}
+
+/* Slot reservado da contagem+limpar: visibility (nao mount) = sem shift. */
+.workspace-shell .graph-immersive-header .graph-filter-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 118px;
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-meta[data-active='false'] {
+  visibility: hidden;
+}
+
+/* --- Enfase dupla do highlight (2D) ------------------------------------ */
+
+.workspace-shell .note-graph-links line {
+  transition: opacity 150ms ease;
+}
+
+.workspace-shell .note-graph-node.is-filtered-out {
+  opacity: 0.12;
+}
+
+.workspace-shell .note-graph-node .note-graph-node-dot {
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.workspace-shell .note-graph-node.is-match .note-graph-node-dot {
+  border-color: #3f6b4c;
+  box-shadow: 0 0 0 3px rgb(63 107 76 / 26%), 0 2px 6px rgb(44 54 45 / 14%);
+}
+
+.workspace-shell .note-graph-node.is-match .note-graph-node-label {
+  color: #2c4632;
+}
+
+.workspace-shell .note-graph-links line.is-matched {
+  stroke: #52715a;
+  stroke-width: 0.9;
+  opacity: 1;
+}
+
+.workspace-shell .note-graph-links line.is-faded {
+  opacity: 0.15;
+}
+
+/* --- Enfase dupla do highlight (3D: rotulos) ---------------------------- */
+
+.graph3d-label.is-highlighted {
+  opacity: 1;
+  color: #eef8ff;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgb(143 227 255 / 65%);
+}

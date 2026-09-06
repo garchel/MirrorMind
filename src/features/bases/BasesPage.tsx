@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import { invoke } from '../../lib/tauri'
 import { parseNoteDocumentList } from '../../lib/vault'
 import { PageHeader } from '../../components/PageHeader'
+import { BasesSkeleton } from '../../components/PageSkeleton'
 import { getMarkdownFrontmatterProperties } from '../../lib/markdown'
 import {
   collectColumns,
@@ -211,11 +212,13 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
       {error ? <p className="bases-error" role="alert">{error}</p> : null}
 
       {rows === null ? (
-        <p className="bases-loading" role="status">
-          {loadProgress > 0
-            ? `Lendo as notas... (${loadProgress} de ${notePreviews.length} notas)`
-            : 'Lendo as notas...'}
-        </p>
+        <BasesSkeleton
+          message={
+            loadProgress > 0
+              ? `Lendo as notas... (${loadProgress} de ${notePreviews.length} notas)`
+              : 'Lendo as notas...'
+          }
+        />
       ) : rows.length === 0 ? (
         <div className="bases-empty">
           <Database size={22} strokeWidth={1.5} aria-hidden="true" />

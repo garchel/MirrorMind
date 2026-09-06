@@ -1,9 +1,11 @@
-import { EditorState } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
+import { EditorState, RangeSet } from '@codemirror/state'
+import { EditorView, keymap } from '@codemirror/view'
+import { defaultKeymap, deleteCharBackward } from '@codemirror/commands'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { fireEvent, render, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { MarkdownCodeEditor } from './MarkdownCodeEditor'
-import { markdownLivePreview } from './markdownLivePreview'
+import { deleteMathBackward, deleteMathForward, markdownLivePreview } from './markdownLivePreview'
 import type { LinkTarget, ReviewGapData } from './markdownLivePreview'
 
 // O ObsidianPdfEmbed usa pdfjs + IPC real; nos testes do widget de PDF ele e
@@ -787,12 +789,14 @@ describe('markdownLivePreview frontmatter oculto (jsdom)', () => {
 describe('markdownLivePreview HTML sanitizado (jsdom)', () => {
   it('renderiza HTML inline sanitizado (mark, kbd) sem o código cru', async () => {
     const container = await renderLive('Texto com <mark>destaque</mark> e <kbd>Ctrl+S</kbd>.', 5)
-    await waitFor(() => expect(container.querySelector('.cm-live-html mark')).not.toBeNull())
+    // Marca-texto vira marca interna (tags ocultas); kbd segue widget.
+    await waitFor(() => expect(container.querySelector('.cm-live-hl')).not.toBeNull())
+    await waitFor(() => expect(container.querySelector('.cm-live-html')).not.toBeNull())
     const content = container.querySelector('.cm-content')?.textContent ?? ''
     expect(content).toContain('Texto com destaque e Ctrl+S.')
     expect(content).not.toContain('<mark>')
     expect(content).not.toContain('</mark>')
-    expect(container.querySelector('.cm-live-html mark')?.textContent).toBe('destaque')
+    expect(container.querySelector('.cm-live-hl')?.textContent).toBe('destaque')
   })
 
   it('remove script por inteiro e desembrulha tags desconhecidas', async () => {
@@ -826,23 +830,23 @@ describe('markdownLivePreview HTML sanitizado (jsdom)', () => {
   })
 
   it('cursor perto do HTML inline revela o código cru', async () => {
-    const container = await renderLive('Texto <mark>x</mark> fim', 9)
+    const container = await renderLive('Texto <kbd>x</kbd> fim', 9)
     await waitFor(() => expect(container.querySelector('.cm-editor')).not.toBeNull())
     expect(container.querySelector('.cm-live-html')).toBeNull()
     const content = container.querySelector('.cm-content')?.textContent ?? ''
-    expect(content).toContain('<mark>x</mark>')
+    expect(content).toContain('<kbd>x</kbd>')
   })
 
   it('renderiza sanitizado também em modo read-only (spike do Leitura)', async () => {
     const container = await renderReadOnly('Texto <mark>destaque</mark>.')
-    await waitFor(() => expect(container.querySelector('.cm-live-html mark')).not.toBeNull())
+    await waitFor(() => expect(container.querySelector('.cm-live-hl')).not.toBeNull())
     expect(container.querySelector('.cm-content')?.textContent).not.toContain('<mark>')
   })
 
-  it('preserva a classe de cor do marca-texto (hl-*) no widget', async () => {
+  it('preserva a classe de cor do marca-texto (hl-*) na marca interna', async () => {
     const container = await renderLive('Texto com <mark class="hl-green">destaque</mark> fim', 2)
-    await waitFor(() => expect(container.querySelector('.cm-live-html mark.hl-green')).not.toBeNull())
-    expect(container.querySelector('.cm-live-html mark.hl-green')?.textContent).toBe('destaque')
+    await waitFor(() => expect(container.querySelector('.cm-live-hl.hl-green')).not.toBeNull())
+    expect(container.querySelector('.cm-live-hl.hl-green')?.textContent).toBe('destaque')
   })
 
   it('lacuna dentro do destaque vira halo em volta (gap maior que a cor)', async () => {
@@ -866,12 +870,177 @@ describe('markdownLivePreview HTML sanitizado (jsdom)', () => {
         value={value}
       />,
     )
-    await waitFor(() => expect(container.querySelector('.cm-live-html mark.hl-green')).not.toBeNull())
-    // O widget do destaque continua intacto e o gap emoldura (respiro).
+    await waitFor(() => expect(container.querySelector('.cm-live-hl.hl-green')).not.toBeNull())
+    // A marca do destaque continua intacta e o gap emoldura (respiro).
     const gaps = [...container.querySelectorAll('.cm-live-gap')]
     expect(gaps.length).toBeGreaterThan(0)
     expect(gaps.map((gap) => gap.textContent).join('')).toContain(' ')
-    expect(container.querySelector('.cm-live-html mark.hl-green')?.textContent).toBe('destaque')
+    expect(container.querySelector('.cm-live-hl.hl-green')?.textContent).toBe('destaque')
+  })
+})
+
+describe('markdownLivePreview opaco + delecao atomica (jsdom)', () => {
+  it('marca-texto nunca revela o `<mark>` com o cursor em cima', async () => {
+    const value = 'Texto com <mark class="hl-green">destaque</mark> fim'
+    const caret = value.indexOf('destaque') + 2
+    const container = await renderLive(value, caret)
+    await waitFor(() => expect(container.querySelector('.cm-live-hl.hl-green')).not.toBeNull())
+    const content = container.querySelector('.cm-content')?.textContent ?? ''
+    expect(content).not.toContain('<mark')
+    expect(content).not.toContain('</mark>')
+    expect(container.querySelector('.cm-live-hl.hl-green')?.textContent).toBe('destaque')
+  })
+
+  it('matematica nunca revela o `$` com o cursor adjacente', async () => {
+    const value = 'Antes $E=mc^2$ depois'
+    const caret = value.indexOf('$E=mc^2$') + '$E=mc^2$'.length
+    const container = await renderLive(value, caret)
+    await waitFor(() => expect(container.querySelector('.cm-live-math .katex')).not.toBeNull())
+    const content = container.querySelector('.cm-content')?.textContent ?? ''
+    expect(content).not.toContain('$')
+  })
+
+  function makeView(doc: string, pos: number) {
+    const parent = document.createElement('div')
+    document.body.appendChild(parent)
+    const view = new EditorView({
+      parent,
+      state: EditorState.create({
+        doc,
+        selection: { anchor: pos },
+        // Mesma ordem do componente: live preview antes do keymap padrão.
+        extensions: [markdown({ base: markdownLanguage }), markdownLivePreview(), keymap.of(defaultKeymap)],
+      }),
+    })
+    return { view, parent }
+  }
+
+  function atomicSpans(view: EditorView) {
+    const spans: Array<{ from: number; to: number }> = []
+    const sets = view.state.facet(EditorView.atomicRanges).map((fn) => fn(view))
+    RangeSet.spans(sets, 0, view.state.doc.length, {
+      span(from, to) { spans.push({ from, to }) },
+      point() { /* atomos sao intervalos; pontos ignorados */ },
+    })
+    return spans
+  }
+
+  it('formulas e tags `<mark>` entram nos ranges atomicos', () => {
+    const doc = 'a <mark class="hl-green">x</mark> b $E$ c'
+    const { view, parent } = makeView(doc, 0)
+    try {
+      const spans = atomicSpans(view)
+      const mathFrom = doc.indexOf('$E$')
+      expect(spans).toContainEqual({ from: mathFrom, to: mathFrom + 3 })
+      const markFrom = doc.indexOf('<mark')
+      expect(spans).toContainEqual({ from: markFrom, to: markFrom + '<mark class="hl-green">'.length })
+      const closeFrom = doc.indexOf('</mark>')
+      expect(spans).toContainEqual({ from: closeFrom, to: closeFrom + '</mark>'.length })
+    } finally {
+      view.destroy()
+      parent.remove()
+    }
+  })
+
+  it('Backspace apos a formula apaga a formula inteira', () => {
+    const doc = 'Antes $E=mc^2$ depois'
+    const formula = '$E=mc^2$'
+    const after = doc.indexOf(formula) + formula.length
+    const { view, parent } = makeView(doc, after)
+    try {
+      expect(deleteMathBackward(view)).toBe(true)
+      expect(view.state.doc.toString()).toBe('Antes  depois')
+      expect(view.state.selection.main.head).toBe(doc.indexOf(formula))
+    } finally {
+      view.destroy()
+      parent.remove()
+    }
+  })
+
+  it('Delete antes da formula apaga a formula inteira', () => {
+    const doc = 'Antes $E=mc^2$ depois'
+    const formula = '$E=mc^2$'
+    const before = doc.indexOf(formula)
+    const { view, parent } = makeView(doc, before)
+    try {
+      expect(deleteMathForward(view)).toBe(true)
+      expect(view.state.doc.toString()).toBe('Antes  depois')
+      expect(view.state.selection.main.head).toBe(before)
+    } finally {
+      view.destroy()
+      parent.remove()
+    }
+  })
+
+  it('Backspace longe de formula devolve false e nao altera nada', () => {
+    const doc = 'Antes $E=mc^2$ depois'
+    const { view, parent } = makeView(doc, 2)
+    try {
+      expect(deleteMathBackward(view)).toBe(false)
+      expect(deleteMathForward(view)).toBe(false)
+      expect(view.state.doc.toString()).toBe(doc)
+    } finally {
+      view.destroy()
+      parent.remove()
+    }
+  })
+
+  it('Backspace dentro do destaque apaga 1 letra e preserva as tags', () => {
+    const doc = 'a <mark class="hl-green">bcd</mark> e'
+    const afterB = doc.indexOf('bcd') + 1
+    const { view, parent } = makeView(doc, afterB)
+    try {
+      expect(deleteMathBackward(view)).toBe(false)
+      deleteCharBackward(view)
+      expect(view.state.doc.toString()).toBe('a <mark class="hl-green">cd</mark> e')
+      expect(view.dom.querySelector('.cm-live-hl')?.textContent).toBe('cd')
+    } finally {
+      view.destroy()
+      parent.remove()
+    }
+  })
+
+  it('seta pula a formula como um caractere so', () => {
+    const doc = 'a $E$ b'
+    const formula = '$E$'
+    const after = doc.indexOf(formula) + formula.length
+    const { view, parent } = makeView(doc, after)
+    try {
+      view.focus()
+      fireEvent.keyDown(view.contentDOM, { key: 'ArrowLeft' })
+      expect(view.state.selection.main.head).toBe(doc.indexOf(formula))
+    } finally {
+      view.destroy()
+      parent.remove()
+    }
+  })
+
+  it('Backspace via teclado apaga a formula inteira (precedencia sobre o padrao)', () => {
+    const doc = 'Antes $E=mc^2$ depois'
+    const formula = '$E=mc^2$'
+    const after = doc.indexOf(formula) + formula.length
+    const { view, parent } = makeView(doc, after)
+    try {
+      view.focus()
+      fireEvent.keyDown(view.contentDOM, { key: 'Backspace' })
+      expect(view.state.doc.toString()).toBe('Antes  depois')
+    } finally {
+      view.destroy()
+      parent.remove()
+    }
+  })
+
+  it('Backspace via teclado longe de formula apaga 1 caractere normal', () => {
+    const doc = 'abc'
+    const { view, parent } = makeView(doc, 2)
+    try {
+      view.focus()
+      fireEvent.keyDown(view.contentDOM, { key: 'Backspace' })
+      expect(view.state.doc.toString()).toBe('ac')
+    } finally {
+      view.destroy()
+      parent.remove()
+    }
   })
 })
 

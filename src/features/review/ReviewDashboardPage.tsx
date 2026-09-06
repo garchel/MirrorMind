@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, TimerReset, TrendingUp, X } from 'lucide-react'
-import { ErrorState, LoadingState } from '../../components/ErrorState'
+import { ErrorState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
+import { DashboardSkeleton } from '../../components/PageSkeleton'
 import { applyDeadlineChange, getVaultReviewPolicyConfig, previewDeadlineChange } from './vaultReviewPolicy'
 import { setNoteReviewPriority } from './reviewPolicy'
 import { getVaultReviewDashboard, type CalibrationNoteItem, type ExpiredDeadlineItem, type ReadinessAttentionItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
@@ -281,7 +282,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
       </PageHeader>
 
       {loading ? (
-        <LoadingState message="Calculando métricas do vault..." />
+        <DashboardSkeleton />
       ) : error ? (
         <ErrorState message={error} onRetry={() => setReloadRequest((request) => request + 1)} />
       ) : dashboard ? (

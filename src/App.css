@@ -4905,6 +4905,373 @@ label.settings-toggle {
 .workspace-shell .selection-format-popover .hl-dot.hl-pink { background: #ffb3d1; }
 .workspace-shell .selection-format-popover .hl-dot.hl-orange { background: #ffb066; }
 
+/* Pastilha branca: remover a coloração do trecho selecionado. */
+.workspace-shell .selection-format-popover .hl-dot.hl-none {
+  background: #fffdf7;
+  border: 1px dashed rgba(45, 44, 39, 0.45);
+}
+
+/* Post-its: pino colorido na margem esquerda (inicio do paragrafo ancorado).
+   Point widget side -1 no comeco da linha. O containing block do widget e o
+   `.cm-scroller` (position: relative do baseTheme do CodeMirror), que clipa
+   (overflowX: auto) tudo que sai da borda esquerda — por isso o left e
+   POSITIVO: 12px dentro do scroller, na coluna do padding do cm-content
+   (`28px max(40px, 7vw)`). top: auto mantem o pino na linha do paragrafo. */
+.workspace-shell .postit-anchor-widget {
+  position: absolute;
+  left: 12px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(45, 44, 39, 0.28);
+  border-radius: 999px;
+  background: var(--postit-color, #ffe45e);
+  color: #353531;
+  cursor: pointer;
+  z-index: 6;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.workspace-shell .postit-anchor-widget:hover {
+  transform: scale(1.12);
+  box-shadow: 0 1px 6px rgba(45, 44, 39, 0.25);
+}
+
+.workspace-shell .postit-anchor-widget:focus-visible {
+  outline: 2px solid #9cafa0;
+  outline-offset: 1px;
+}
+
+/* Popover do post-it: PAPEL de post-it colorido — fundo na cor do post-it,
+   textarea transparente (o papel e o campo), cantos como bloco de notas e
+   sombra mais alta de um papel levantado. A cor vem da classe `is-<color>`. */
+.workspace-shell .postit-popover {
+  position: absolute;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(272px, calc(100% - 24px));
+  padding: 10px 10px 8px;
+  border: 1px solid rgba(45, 44, 39, 0.22);
+  border-radius: 2px 14px 2px 10px;
+  background: var(--postit-paper, #ffe45e);
+  box-shadow:
+    0 10px 22px rgba(45, 44, 39, 0.22),
+    0 2px 6px rgba(45, 44, 39, 0.12);
+  /* Dobradica sutil no topo: papel levemente colado na parede. */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 14px);
+  color: #2d2c26;
+}
+
+/* Cores do papel — as mesmas do marca-texto do app. */
+.workspace-shell .postit-popover.postit-paper.is-yellow { --postit-paper: #ffe45e; }
+.workspace-shell .postit-popover.postit-paper.is-green { --postit-paper: #8ce99a; }
+.workspace-shell .postit-popover.postit-paper.is-blue { --postit-paper: #99c9ff; }
+.workspace-shell .postit-popover.postit-paper.is-pink { --postit-paper: #ffb3d1; }
+.workspace-shell .postit-popover.postit-paper.is-orange { --postit-paper: #ffb066; }
+
+.workspace-shell .postit-popover.is-above {
+  transform: translateX(-50%) translateY(-100%);
+}
+
+.workspace-shell .postit-popover.is-below {
+  transform: translateX(-50%);
+}
+
+.workspace-shell .postit-popover-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px -4px 0 0;
+  justify-content: flex-end;
+}
+
+.workspace-shell .postit-popover-pin {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 44, 39, 0.35);
+  background: #fffef9;
+  flex: none;
+}
+
+.workspace-shell .postit-popover-delete,
+.workspace-shell .postit-popover-close {
+  display: grid;
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  height: 24px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  /* Mesmo tom do papel, um pouco mais claro (mix com branco). */
+  background: color-mix(in srgb, var(--postit-paper, #ffe45e) 82%, #fffef9);
+  color: rgba(45, 44, 39, 0.8);
+}
+
+.workspace-shell .postit-popover-delete:hover:not(:disabled),
+.workspace-shell .postit-popover-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--postit-paper, #ffe45e) 62%, #fffef9);
+}
+
+.workspace-shell .postit-popover-delete {
+  color: #a33d2f;
+}
+
+/* Campo de texto: o PROPRIO PAPEL e o campo — sem caixa, linhas de pauta
+   como bloco de notas, cursor escuro. */
+.workspace-shell .postit-popover-input {
+  width: 100%;
+  min-height: 72px;
+  padding: 4px 4px 6px;
+  border: none;
+  border-bottom: 1px dashed rgba(45, 44, 39, 0.28);
+  background: transparent;
+  color: #2d2c26;
+  font: 500 13.5px/1.6 var(--sans);
+  resize: vertical;
+}
+
+.workspace-shell .postit-popover-input::placeholder {
+  color: rgba(45, 44, 39, 0.5);
+}
+
+.workspace-shell .postit-popover-input:focus-visible {
+  outline: none;
+  border-bottom-color: rgba(45, 44, 39, 0.55);
+}
+
+.workspace-shell .postit-popover-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Seletor de cores: pastilhas de PAPEL — o dot selecionado sobe (papel
+   escolhido na pilha), com check branco. */
+.workspace-shell .postit-popover-colors {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  flex: 1;
+}
+
+.workspace-shell .postit-color-dot {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px 5px 3px 4px;
+  border: 1px solid rgba(45, 44, 39, 0.28);
+  cursor: pointer;
+  padding: 0;
+  color: #fffef9;
+  transition: transform 110ms ease, box-shadow 110ms ease;
+}
+
+.workspace-shell .postit-color-dot:hover {
+  transform: translateY(-2px) rotate(-4deg);
+}
+
+.workspace-shell .postit-color-dot:focus-visible {
+  outline: 2px solid rgba(45, 44, 39, 0.65);
+  outline-offset: 2px;
+}
+
+.workspace-shell .postit-color-dot.is-selected {
+  transform: translateY(-3px) rotate(-3deg) scale(1.08);
+  box-shadow: 0 3px 7px rgba(45, 44, 39, 0.3);
+  border-color: rgba(45, 44, 39, 0.55);
+}
+
+.workspace-shell .postit-color-dot.is-yellow { background: #ffe45e; }
+.workspace-shell .postit-color-dot.is-green { background: #8ce99a; }
+.workspace-shell .postit-color-dot.is-blue { background: #99c9ff; }
+.workspace-shell .postit-color-dot.is-pink { background: #ffb3d1; }
+.workspace-shell .postit-color-dot.is-orange { background: #ffb066; }
+
+.workspace-shell .postit-popover-count {
+  font: 600 10.5px/1 var(--mono);
+  color: rgba(45, 44, 39, 0.55);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.workspace-shell .postit-popover-count.is-warning {
+  color: #a33d2f;
+  font-weight: 700;
+}
+
+/* Confirmacao de exclusao armada: botao vermelho com rotulo. */
+.workspace-shell .postit-popover-delete.is-armed {
+  width: auto;
+  padding: 0 8px;
+  font: 700 11px/1 var(--mono);
+  background: #f9e3e0;
+  border-color: #a33d2f;
+  color: #a33d2f;
+}
+
+/* Espacador flexivel do header (pin a esquerda, acoes a direita). */
+.workspace-shell .postit-popover-spacer {
+  flex: 1;
+}
+
+/* Handle de redimensionamento: canto inferior direito do papel, tres
+   traços diagonais no tom do papel (sem componente visual pesado). */
+.workspace-shell .postit-popover-resize {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.workspace-shell .postit-popover-resize::before,
+.workspace-shell .postit-popover-resize::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 11px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(45, 44, 39, 0.4);
+}
+
+.workspace-shell .postit-popover-resize::before {
+  transform: rotate(-45deg);
+  transform-origin: right bottom;
+  right: 3px;
+  bottom: 6px;
+}
+
+.workspace-shell .postit-popover-resize::after {
+  width: 6px;
+  transform: rotate(-45deg);
+  transform-origin: right bottom;
+  right: 3px;
+  bottom: 2px;
+}
+
+/* Animacao de entrada (respeita reduced-motion do app). */
+@keyframes postit-popover-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px) rotate(-1.2deg) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) rotate(-0.6deg);
+  }
+}
+
+.workspace-shell .postit-popover.is-below {
+  animation: postit-popover-in 160ms ease-out;
+  transform: translateX(-50%) rotate(-0.6deg);
+}
+
+@keyframes postit-popover-in-above {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-100%) translateY(-6px) rotate(-1.2deg) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-100%) rotate(-0.6deg);
+  }
+}
+
+.workspace-shell .postit-popover.is-above {
+  animation: postit-popover-in-above 160ms ease-out;
+  transform: translateX(-50%) translateY(-100%) rotate(-0.6deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell .postit-popover.is-above,
+  .workspace-shell .postit-popover.is-below {
+    animation: none;
+  }
+}
+
+/* Tema escuro: papel escurece (post-it de folha fosforada), mantendo as
+   cores reconheciveis — texto claro sobre papel saturado. */
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-yellow { --postit-paper: #8a7326; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-green { --postit-paper: #3e6848; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-blue { --postit-paper: #3f6191; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-pink { --postit-paper: #8f5470; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-orange { --postit-paper: #8f5c2e; }
+
+[data-theme='dark'] .workspace-shell .postit-popover {
+  border-color: rgba(0, 0, 0, 0.4);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 14px);
+  color: #f4f2ea;
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-input {
+  color: #f4f2ea;
+  border-bottom-color: rgba(244, 242, 234, 0.4);
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-input::placeholder {
+  color: rgba(244, 242, 234, 0.6);
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-input:focus-visible {
+  border-bottom-color: rgba(244, 242, 234, 0.75);
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-delete.is-armed {
+  background: #3c2025;
+  border-color: #e08579;
+  color: #ffb4ab;
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-count {
+  color: rgba(244, 242, 234, 0.6);
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-count.is-warning {
+  color: #ffb4ab;
+}
+
+[data-theme='dark'] .workspace-shell .postit-color-dot {
+  border-color: rgba(0, 0, 0, 0.4);
+  color: #17151a;
+}
+
+/* Handle de resize no dark: traços claros sobre o papel escurecido. */
+[data-theme='dark'] .workspace-shell .postit-popover-resize::before,
+[data-theme='dark'] .workspace-shell .postit-popover-resize::after {
+  background: rgba(244, 242, 234, 0.45);
+}
+
+/* Botao X/excluir no dark: mesmo mix claro sobre o papel escuro. */
+[data-theme='dark'] .workspace-shell .postit-popover-delete,
+[data-theme='dark'] .workspace-shell .postit-popover-close {
+  background: color-mix(in srgb, var(--postit-paper, #8a7326) 78%, #fffef9);
+  color: rgba(244, 242, 234, 0.85);
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-delete:hover:not(:disabled),
+[data-theme='dark'] .workspace-shell .postit-popover-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--postit-paper, #8a7326) 60%, #fffef9);
+}
+
+[data-theme='dark'] .workspace-shell .postit-anchor-widget {
+  border-color: rgba(226, 224, 218, 0.4);
+  color: #17151a;
+}
+
 .workspace-shell .editor-panel--edit,
 .workspace-shell .markdown-mixed {
   min-height: 0;
@@ -5093,7 +5460,9 @@ label.settings-toggle {
 }
 
 /* Marca-texto (cores fixas): o widget HTML sanitizado preserva
-   `<mark class="hl-*">`; o cursor perto revela o HTML cru (edicao). */
+   `<mark class="hl-*">` aninhado em outro HTML; o destaque do usuário vira
+   marca interna `.cm-live-hl` (tags `<mark>` sempre ocultas, nunca revela —
+   nem com o cursor em cima). */
 .markdown-mixed .cm-live-html mark {
   padding: 1px 2px;
   border-radius: 3px;
@@ -5106,6 +5475,19 @@ label.settings-toggle {
 .markdown-mixed .cm-live-html mark.hl-blue { background: rgba(153, 201, 255, 0.7); }
 .markdown-mixed .cm-live-html mark.hl-pink { background: rgba(255, 179, 209, 0.7); }
 .markdown-mixed .cm-live-html mark.hl-orange { background: rgba(255, 176, 102, 0.7); }
+
+.markdown-mixed .cm-live-hl {
+  padding: 1px 2px;
+  border-radius: 3px;
+  background: #ffe45e;
+  color: inherit;
+}
+
+.markdown-mixed .cm-live-hl.hl-yellow { background: #ffe45e; }
+.markdown-mixed .cm-live-hl.hl-green { background: rgba(140, 233, 154, 0.7); }
+.markdown-mixed .cm-live-hl.hl-blue { background: rgba(153, 201, 255, 0.7); }
+.markdown-mixed .cm-live-hl.hl-pink { background: rgba(255, 179, 209, 0.7); }
+.markdown-mixed .cm-live-hl.hl-orange { background: rgba(255, 176, 102, 0.7); }
 
 .markdown-mixed .cm-live-code {
   padding: 1px 5px;

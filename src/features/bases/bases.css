@@ -79,6 +79,23 @@
   font: 12px/1 var(--sans);
 }
 
+.bases-search input:focus,
+.bases-search input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* O anel de foco continua existindo — na pilula (.bases-search:focus-within).
+   Sem este escudo, a regra global `.workspace-shell :is(...input...):focus-visible`
+   (0,3,0) vence o `.bases-search input` (0,1,1) e desenha um outline quadrado
+   DENTRO da pilula arredondada: a "borda interna" vista ao clicar/Tab. */
+.workspace-shell .bases-search input:focus,
+.workspace-shell .bases-search input:focus-visible {
+  outline: none;
+  outline-offset: 0;
+  box-shadow: none;
+}
+
 .bases-search input::placeholder {
   color: color-mix(in srgb, var(--bases-muted) 75%, transparent);
 }

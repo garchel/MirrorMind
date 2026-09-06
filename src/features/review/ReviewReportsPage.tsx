@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, ClipboardList, ExternalLink } from 'lucide-react'
-import { ErrorState, LoadingState } from '../../components/ErrorState'
+import { ErrorState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
+import { ReportsSkeleton } from '../../components/PageSkeleton'
 import { getReviewReports, type ReviewReportItem } from './reviewReports'
 import { getRetentionReport, type RetentionReport } from './retentionReport'
 import './review-reports.css'
@@ -152,7 +153,7 @@ export function ReviewReportsPage({ vaultPath, onOpenNote }: Props) {
       </PageHeader>
 
       {loading ? (
-        <LoadingState message="Carregando relatórios..." />
+        <ReportsSkeleton />
       ) : error ? (
         <ErrorState message={error} onRetry={() => setReloadRequest((request) => request + 1)} />
       ) : (

@@ -916,11 +916,14 @@ describe('Regressao do editor no workspace', () => {
     await screen.findByRole('heading', { name: 'Grafo das notas' })
     await screen.findByRole('button', { name: 'Abrir nota b no grafo' })
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Filtrar pasta do grafo' }), 'pasta')
+    await user.click(screen.getByRole('button', { name: 'Filtrar pasta do grafo' }))
+    await user.click(screen.getByRole('option', { name: 'pasta' }))
 
     // Quem casa continua normal, quem não casa esmaece — ninguém sai do grafo.
     expect(screen.getByRole('button', { name: 'Abrir nota a no grafo' }).className).not.toContain('is-dimmed')
+    expect(screen.getByRole('button', { name: 'Abrir nota a no grafo' }).className).toContain('is-match')
     expect(screen.getByRole('button', { name: 'Abrir nota b no grafo' }).className).toContain('is-dimmed')
+    expect(screen.getByRole('button', { name: 'Abrir nota b no grafo' }).className).toContain('is-filtered-out')
     expect(screen.getByText('1 nota')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Limpar filtro do grafo' }))

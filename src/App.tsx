@@ -8,14 +8,15 @@ import { invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Download, ExternalLink, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Info, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, Orbit, Palette, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Settings, Sigma, SlidersHorizontal, Sparkles, Star, Strikethrough, Subscript, Superscript, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, Check, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, ExternalLink, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Sigma, Sparkles, Star, StickyNote, Strikethrough, Subscript, Superscript, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
+import { HugeiconsIcon } from '@hugeicons/react'
+import { File02Icon } from '@hugeicons/core-free-icons'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
-import { CiStickyNote } from 'react-icons/ci'
 import 'katex/dist/katex.min.css'
 import { BuilderModeControl } from './components/BuilderModeControl'
 import { MarkdownCodeEditor } from './components/MarkdownCodeEditor'
 import { TitleBar, TitleBarBrand } from './components/TitleBar'
-import type { FrontmatterPanelData, FrontmatterRow, LinkTarget } from './components/markdownLivePreview'
+import type { FrontmatterPanelData, FrontmatterRow, LinkTarget, PostitData } from './components/markdownLivePreview'
 import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from './components/ui/drawer'
 import { NoteReadinessControl, type ReviewStartInfo } from './features/review/NoteReadinessControl'
@@ -37,6 +38,9 @@ import { isAutoUpdateEnabled, setAutoUpdateEnabled, useAppUpdater } from './lib/
 import { useEscapeToClose } from './lib/escapeStack'
 import { UpdateBanner } from './components/UpdateBanner'
 import { Modal } from './components/Modal'
+import { GraphSkeleton, PageSkeleton } from './components/PageSkeleton'
+import { Graph3DLoader } from './components/Graph3DLoader'
+import { GraphToolbar, type GraphMode } from './components/GraphToolbar'
 import { useGraphSettings } from './lib/useGraphSettings'
 import { useAppearanceSettings, type ReadingFont, type ReadingWidth } from './lib/useAppearanceSettings'
 import { useNoteSearch } from './lib/useNoteSearch'
@@ -90,6 +94,7 @@ import {
 } from './lib/vault'
 import './App.css'
 import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, normalizeMarkdownTag, removeMarkdownFrontmatterProperty, replaceMarkdownBody, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, transformMarkdownTable, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
+import { addNotePostit, deriveAnchorFromParagraph, getNotePostits, POSTIT_COLORS, POSTIT_COLOR_HEX, POSTIT_COLOR_LABELS, POSTIT_MAX_CHARS, removeNotePostit, resolvePostitAnchors, updateNotePostit, type NotePostit, type PostitColor } from './lib/postits'
 import { FrontmatterPanelForm } from './components/FrontmatterPanelForm'
 import { nextPopoverShiftX } from './lib/selectionPopover'
 import {
@@ -184,7 +189,7 @@ type GraphDocument = Pick<NoteDocument, 'name' | 'relativePath' | 'content'>
 type NoteGraphLink = { source: string; target: string }
 type GraphPosition = { x: number; y: number }
 type GraphViewport = { scale: number; x: number; y: number }
-type GraphMode = 'global' | 'local'
+
 
 /** Estado da fisica continua do grafo 2D no modelo do Obsidian: o no arrastado
  * e o UNICO ponto fixado (pinned) e todo o grafo visivel flui pelas mesmas
@@ -337,6 +342,49 @@ function App() {
   // direcao de abertura (acima/abaixo da linha do cursor da selecao) e shiftX
   // (correcao horizontal para o popover inteiro ficar dentro do painel).
   const [selectionPopover, setSelectionPopover] = useState<{ flip: boolean; shiftX: number; x: number; y: number } | null>(null)
+  // Post-its: popover aberto (criacao ou edicao). `anchorFrom` e o offset do
+  // inicio do paragrafo no doc do editor ativo; `postitId` null = novo post-it.
+  const [postitPopover, setPostitPopover] = useState<{
+    postitId: string | null
+    /** Offset do paragrafo ancorado no doc do editor (posicao do pino). */
+    anchorFrom: number | null
+    /** Estado de criacao: cor inicial + texto digitado antes de salvar. */
+    draftText: string
+    draftColor: PostitColor
+    /** Posicao do popover relativa ao painel .editor-content. */
+    x: number
+    y: number
+    flip: boolean
+    /** Confirmacao de exclusao armada (primeiro clique) — o segundo apaga. */
+    deleteArmed: boolean
+  } | null>(null)
+  const postitPopoverRef = useRef<HTMLDivElement | null>(null)
+  const postitSaveTimerRef = useRef<number | null>(null)
+  /** Tamanho do popover redimensionado pelo handle (null = padrao do CSS). */
+  const [postitPopoverSize, setPostitPopoverSize] = useState<{ width: number; height: number } | null>(null)
+  /** Ultimo snapshot commitado (evita commit redundante no auto-save). */
+  const postitLastCommittedRef = useRef<{ id: string | null; text: string; color: PostitColor } | null>(null)
+  /** Espelho de notePostits para leitura em efeitos/closures sem re-render. */
+  const notePostitsRef = useRef<NotePostit[]>([])
+  /** Handlers de commit/flush do post-it canalizados por ref: os efeitos de
+   * auto-save e clique-fora sempre chamam a versao mais recente sem entrar
+   * nas deps (padrao do useEffectEvent, compativel com o lint de hooks). */
+  const postitHandlersRef = useRef<{ commit: (popover: NonNullable<typeof postitPopover>) => boolean; flush: () => void } | null>(null)
+  // Fecha o popover ao clicar fora (mesmo padrao do dropdown de tags). Com
+  // auto-save, fechar PRIMEIRO comita mudancas pendentes (debounce nao
+  // disparado) — o rascunho nunca se perde por fechar cedo.
+  useEffect(() => {
+    if (!postitPopover) return
+    const closePopover = (event: globalThis.MouseEvent) => {
+      if (postitPopoverRef.current && !postitPopoverRef.current.contains(event.target as Node)) {
+        postitHandlersRef.current?.flush()
+        setPostitPopover(null)
+        setPostitPopoverSize(null)
+      }
+    }
+    window.addEventListener('mousedown', closePopover)
+    return () => window.removeEventListener('mousedown', closePopover)
+  }, [postitPopover])
   /** Painel integrado de propriedades (frontmatter): aberto pelo arrow down do
    * cabecalho; sincronizado com o editor via `onFrontmatterExpandedChange`. */
   const [frontmatterPanelOpen, setFrontmatterPanelOpen] = useState(false)
@@ -830,6 +878,10 @@ function App() {
   // componente (pilha global); restam aqui só os casos fora dele: viewer
   // (o estado de "Lendo..." é bloqueante) e palette (UX própria).
   useEscapeToClose(Boolean(specialFileViewer), () => setSpecialFileViewer(null))
+  // Popover de post-it na pilha global de Escape (dialog mais recente fecha
+  // primeiro). O listener global captura o keydown ANTES do textarea, entao
+  // nao ha dupla execucao.
+  useEscapeToClose(Boolean(postitPopover), closePostitPopover)
 
   const isDirty = activeNote !== null && draftContent !== activeNote.content
   // Lacunas da ultima revisao para o motor unico (modo Leitura = Misto
@@ -847,6 +899,25 @@ function App() {
   const noteTags = extractMarkdownTags(draftContent)
   const frontmatterProperties = getMarkdownFrontmatterProperties(draftContent)
   const noteBody = getMarkdownBody(draftContent)
+  // Post-its do draft: resolve as ancoras (texto do paragrafo + ordinal) para
+  // offsets do doc do editor ATIVO. Misto edita `draftContent` (offsets com
+  // frontmatter); Leitura renderiza `noteBody` (sem frontmatter) — por isso o
+  // bodyStartOffset depende do modo. Orfaos (paragrafo sumiu) ficam de fora
+  // dos widgets, mas permanecem salvos no frontmatter.
+  const notePostits = useMemo(() => getNotePostits(draftContent), [draftContent])
+  notePostitsRef.current = notePostits
+  const postitData = useMemo<PostitData | null>(() => {
+    if (!activeNote || editorMode === 'edit') return null
+    const bodyStartOffset = editorMode === 'read' ? 0 : draftContent.length - noteBody.length
+    const resolved = resolvePostitAnchors(notePostits, noteBody, 0)
+    const anchored: Array<{ postit: NotePostit; from: number }> = []
+    const orphans: NotePostit[] = []
+    for (const { postit, from } of resolved) {
+      if (from === null) orphans.push(postit)
+      else anchored.push({ postit, from: from + bodyStartOffset })
+    }
+    return { anchored, orphans }
+  }, [activeNote, draftContent, editorMode, noteBody, notePostits])
   const noteWordCount = useMemo(() => countMarkdownWords(draftContent), [draftContent])
   const canUndoActiveEditor = editorMode === 'edit'
     ? markdownHistoryStatus.canUndo
@@ -3897,6 +3968,9 @@ function App() {
   function getFrontmatterPanelData(): FrontmatterPanelData {
     const rows = Object.keys(frontmatterProperties)
       .filter((key) => key.toLowerCase() !== 'tags')
+      // `postits` e gerenciado pelos pinos da margem esquerda (nao editavel
+      // como texto YAML no painel — o texto do post-it pode conter quebras).
+      .filter((key) => key.toLowerCase() !== 'postits')
       .map((key) => ({
         key,
         value: getMarkdownFrontmatterPropertySource(draftContent, key) ?? '',
@@ -3922,6 +3996,10 @@ function App() {
     const targetKeys = new Set(rows.map((row) => row.key.trim().toLowerCase()))
     for (const key of Object.keys(frontmatterProperties)) {
       if (targetKeys.has(key.toLowerCase())) continue
+      // `postits` e propriedade gerenciada pelos post-its (nao e linha do
+      // painel): NUNCA sai por aqui, senao salvar o painel apagaria os
+      // post-its da nota.
+      if (key.toLowerCase() === 'postits') continue
       const removed = removeMarkdownFrontmatterProperty(content, key)
       if (removed.error) return removed.error
       content = removed.content
@@ -3935,6 +4013,185 @@ function App() {
     }
     setDraftContent(content)
     return null
+  }
+
+  // --- Post-its: handlers ------------------------------------------------------
+
+  /** Fecha o popover de post-it comitando mudancas pendentes (auto-save). */
+  function closePostitPopover() {
+    flushPendingPostitSave()
+    setPostitPopover(null)
+    setPostitPopoverSize(null)
+  }
+
+  /** Persiste de fato o post-it (cria ou atualiza) e devolve true quando
+   * gravou. Usado pelo auto-save com debounce e pelo Ctrl+Enter. */
+  function commitPostitNow(popover: NonNullable<typeof postitPopover>): boolean {
+    if (popover.postitId === null) {
+      // Criacao: precisa de ancora e texto — sem texto, apenas descarta.
+      if (popover.anchorFrom === null) return false
+      const anchorText = postitAnchorTextAt(popover.anchorFrom)
+      if (anchorText === null) return false
+      const text = popover.draftText.trim()
+      if (!text) return false
+      const result = addNotePostit(draftContent, { anchorText, color: popover.draftColor, text })
+      if (result.error) return false
+      setDraftContent(result.content)
+      // Vira edicao do post-it criado: proximos auto-saves atualizam.
+      setPostitPopover((current) => current ? { ...current, postitId: result.postits[result.postits.length - 1].id } : current)
+      postitLastCommittedRef.current = { id: null, text: popover.draftText, color: popover.draftColor }
+      return true
+    }
+    const text = popover.draftText.trim()
+    if (!text) {
+      // Texto vazio em post-it existente: remove (auto-save exclusao).
+      const result = removeNotePostit(draftContent, popover.postitId)
+      if (!result.error) setDraftContent(result.content)
+      return true
+    }
+    const result = updateNotePostit(draftContent, popover.postitId, { text, color: popover.draftColor })
+    if (result.error) return false
+    setDraftContent(result.content)
+    postitLastCommittedRef.current = { id: popover.postitId, text: popover.draftText, color: popover.draftColor }
+    return true
+  }
+
+  /** Auto-save do popover: debounce de 600ms apos a ultima digitacao. Um novo
+   * post-it vira persistente na primeira gravacao bem-sucedida. O snapshot
+   * commitado evita re-commit redundante quando a criacao seta o postitId. */
+  useEffect(() => {
+    if (!postitPopover) return
+    const lastCommitted = postitLastCommittedRef.current
+    if (lastCommitted
+      && lastCommitted.id === postitPopover.postitId
+      && lastCommitted.text === postitPopover.draftText
+      && lastCommitted.color === postitPopover.draftColor
+    ) return
+    if (postitPopover.postitId === null && postitPopover.draftText.trim() === '') return
+    const timer = window.setTimeout(() => {
+      if (postitHandlersRef.current?.commit(postitPopover)) {
+        postitLastCommittedRef.current = { id: postitPopover.postitId, text: postitPopover.draftText, color: postitPopover.draftColor }
+      }
+    }, 600)
+    postitSaveTimerRef.current = timer
+    return () => window.clearTimeout(timer)
+  }, [postitPopover])
+
+  /** Commit imediato pendente antes de fechar/abandonar o popover (Escape,
+   * clique-fora, troca de nota): cancela o debounce e grava já. */
+  function flushPendingPostitSave() {
+    const popover = postitPopover
+    if (!popover) return
+    if (postitSaveTimerRef.current !== null) {
+      window.clearTimeout(postitSaveTimerRef.current)
+      postitSaveTimerRef.current = null
+    }
+    const lastCommitted = postitLastCommittedRef.current
+    if (lastCommitted
+      && lastCommitted.id === popover.postitId
+      && lastCommitted.text === popover.draftText
+      && lastCommitted.color === popover.draftColor
+    ) return
+    if (popover.postitId === null && popover.draftText.trim() === '') return
+    if (commitPostitNow(popover)) {
+      postitLastCommittedRef.current = { id: popover.postitId, text: popover.draftText, color: popover.draftColor }
+    }
+  }
+
+  // Canal dos handlers (sempre a versao mais recente) para os efeitos de
+  // auto-save e clique-fora — sem entra-los nas deps dos useEffects.
+  postitHandlersRef.current = { commit: commitPostitNow, flush: flushPendingPostitSave }
+
+  /** Arrasto do canto inferior direito: redimensiona o papel (largura+altura
+   * em estado, clampado ao painel .editor-content). Padrao do drag da toolbar
+   * flutuante (pointermove/up no window, capturado no down). */
+  const postitResizeStartRef = useRef<{ pointerX: number; pointerY: number; width: number; height: number } | null>(null)
+
+  function startPostitPopoverResize(event: ReactPointerEvent<HTMLSpanElement>) {
+    if (event.button !== 0) return
+    const popover = postitPopoverRef.current
+    if (!popover) return
+    event.preventDefault()
+    const rect = popover.getBoundingClientRect()
+    postitResizeStartRef.current = { pointerX: event.clientX, pointerY: event.clientY, width: rect.width, height: rect.height }
+    const move = (moveEvent: PointerEvent) => {
+      const start = postitResizeStartRef.current
+      if (!start) return
+      setPostitPopoverSize({
+        width: Math.max(220, Math.min(start.width + moveEvent.clientX - start.pointerX, 480)),
+        height: Math.max(150, start.height + moveEvent.clientY - start.pointerY),
+      })
+    }
+    const stop = () => {
+      postitResizeStartRef.current = null
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
+
+  /** Texto de ancora do paragrafo no doc do editor ativo (Misto usa
+   * draftContent com frontmatter; o offset e do doc desse editor). */
+  function postitAnchorTextAt(anchorFrom: number): string | null {
+    const paragraphText = markdownCodeEditorRef.current?.getParagraphTextAt(anchorFrom)
+    if (!paragraphText || paragraphText.trim() === '') return null
+    return deriveAnchorFromParagraph(paragraphText).anchorText
+  }
+
+  /** Abre o popover de post-it ancorado a posicao do cursor no editor. */
+  function openPostitPopoverAtSelection() {
+    const selection = getActiveEditorSelection()
+    const container = editorContentRef.current
+    if (!selection || !container) return
+    const containerRect = container.getBoundingClientRect()
+    const rect = markdownCodeEditorRef.current?.getSelectionRect()
+    const x = rect ? Math.max(80, Math.min((rect.left + rect.right) / 2 - containerRect.left, containerRect.width - 80)) : containerRect.width / 2
+    // Altura estimada do popover (textarea + acoes + head): sem espaco acima,
+    // abre abaixo — `.editor-content` tem overflow hidden e clipa o que estoura.
+    const above = rect ? rect.top - containerRect.top - 10 : 60
+    const flip = above < 220
+    setPostitPopover({
+      postitId: null,
+      anchorFrom: markdownCodeEditorRef.current?.getParagraphStartAt(selection.selectionStart) ?? null,
+      draftText: '',
+      draftColor: 'yellow',
+      x,
+      y: flip ? (rect ? rect.bottom - containerRect.top + 10 : 80) : above,
+      flip,
+      deleteArmed: false,
+    })
+  }
+
+  /** Clique em um pino: abre o popover de edicao ancorado ao paragrafo. */
+  function handlePostitWidgetClick(postitId: string) {
+    const container = editorContentRef.current
+    if (!container) return
+    const postit = notePostits.find((item) => item.id === postitId)
+    if (!postit) return
+    const anchor = postitData?.anchored.find((item) => item.postit.id === postitId)
+    const rect = anchor ? getPostitAnchorRect(anchor.from) : null
+    const containerRect = container.getBoundingClientRect()
+    const x = rect ? Math.max(80, Math.min(rect.left - containerRect.left, containerRect.width - 80)) : containerRect.width / 2
+    // Mesmo flip conservador do openPostitPopoverAtSelection: sem ~220px acima,
+    // abre abaixo do paragrafo (o container clipa popover acima da borda).
+    const above = rect ? rect.top - containerRect.top - 10 : 60
+    const flip = above < 220
+    setPostitPopover({
+      postitId,
+      anchorFrom: anchor?.from ?? null,
+      draftText: postit.text,
+      draftColor: postit.color,
+      x,
+      y: flip ? (rect ? rect.bottom - containerRect.top + 10 : 80) : above,
+      flip,
+      deleteArmed: false,
+    })
+  }
+
+  /** Retangulo de viewport do inicio do paragrafo ancorado (posicao do pino). */
+  function getPostitAnchorRect(anchorFrom: number): { top: number; bottom: number; left: number; right: number } | null {
+    return markdownCodeEditorRef.current?.getRectAt(anchorFrom) ?? null
   }
 
   function selectMarkdownTool(format: MarkdownFormat) {
@@ -4309,7 +4566,7 @@ function App() {
                   disabled={loading || saving}
                   aria-label={`Abrir nota ${node.name.replace(/\.md$/i, '')}`}
                 >
-                  <span className="tree-icon tree-icon--note" aria-hidden="true"><CiStickyNote size={15} strokeWidth={1.3} /></span>
+                  <span className="tree-icon tree-icon--note" aria-hidden="true"><HugeiconsIcon icon={File02Icon} size={14} strokeWidth={1.5} /></span>
                   <span className="tree-item-label">{node.name.replace(/\.md$/i, '')}</span>
                 </button>
               </div>
@@ -5451,6 +5708,8 @@ function App() {
                       getEmbedContent={resolveMixedEmbedBody}
                       vaultPath={vault?.path}
                       reviewGapData={reviewGapData}
+                      postitData={postitData}
+                      onPostitClick={handlePostitWidgetClick}
                       onSearchRequest={openNoteFind}
                       value={noteBody}
                       // O doc do Leitura e `noteBody` (sem frontmatter): o merge
@@ -5482,6 +5741,8 @@ function App() {
                       resolveAssetUrl={resolveMixedAssetUrl}
                       getEmbedContent={resolveMixedEmbedBody}
                       vaultPath={vault?.path}
+                      postitData={postitData}
+                      onPostitClick={handlePostitWidgetClick}
                       onSearchRequest={openNoteFind}
                       value={draftContent}
                       onChange={setDraftContent}
@@ -5515,13 +5776,101 @@ function App() {
                     <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('reverseReactionArrow')} title="Seta reversa com texto acima" aria-label="Seta reversa (seleção)"><ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /></button>
                     <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('link')} title="Link" aria-label="Link (seleção)"><Link size={15} strokeWidth={1.8} aria-hidden="true" /></button>
                     <span className="hl-separator" aria-hidden="true" />
+                    <button type="button" onMouseDown={preserveEditorSelection} onClick={openPostitPopoverAtSelection} title="Post-it no parágrafo" aria-label="Adicionar post-it (parágrafo)"><StickyNote size={15} strokeWidth={1.8} aria-hidden="true" /></button>
                     <div className="hl-swatches" role="group" aria-label="Marca-texto">
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightYellow')} title="Marca-texto amarelo" aria-label="Marca-texto amarelo (seleção)"><span className="hl-dot hl-yellow" aria-hidden="true" /></button>
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightGreen')} title="Marca-texto verde" aria-label="Marca-texto verde (seleção)"><span className="hl-dot hl-green" aria-hidden="true" /></button>
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightBlue')} title="Marca-texto azul" aria-label="Marca-texto azul (seleção)"><span className="hl-dot hl-blue" aria-hidden="true" /></button>
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightPink')} title="Marca-texto rosa" aria-label="Marca-texto rosa (seleção)"><span className="hl-dot hl-pink" aria-hidden="true" /></button>
                       <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightOrange')} title="Marca-texto laranja" aria-label="Marca-texto laranja (seleção)"><span className="hl-dot hl-orange" aria-hidden="true" /></button>
+                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightNone')} title="Remover marca-texto" aria-label="Remover marca-texto (seleção)"><span className="hl-dot hl-none" aria-hidden="true" /></button>
                     </div>
+                  </div>
+                ) : null}
+                {postitPopover && editorMode !== 'edit' ? (
+                  <div
+                    ref={postitPopoverRef}
+                    className={`postit-popover is-${postitPopover.flip ? 'below' : 'above'} postit-paper is-${postitPopover.draftColor}`}
+                    role="dialog"
+                    aria-label={postitPopover.postitId ? 'Editar post-it' : 'Novo post-it'}
+                    style={postitPopoverSize ? { left: postitPopover.x, top: postitPopover.y, width: postitPopoverSize.width, height: postitPopoverSize.height } : { left: postitPopover.x, top: postitPopover.y }}
+                  >
+                    <div className="postit-popover-head">
+                      <span className="postit-popover-pin" style={{ background: POSTIT_COLOR_HEX[postitPopover.draftColor] }} aria-hidden="true" />
+                      <span className="postit-popover-spacer" aria-hidden="true" />
+                      {postitPopover.postitId ? (
+                        <button
+                          type="button"
+                          className={`postit-popover-delete${postitPopover.deleteArmed ? ' is-armed' : ''}`}
+                          onClick={() => {
+                            if (!postitPopover.deleteArmed) {
+                              setPostitPopover((current) => current ? { ...current, deleteArmed: true } : current)
+                              return
+                            }
+                            const result = removeNotePostit(draftContent, postitPopover.postitId!)
+                            if (!result.error) setDraftContent(result.content)
+                            setPostitPopover(null)
+                          }}
+                          title={postitPopover.deleteArmed ? 'Clique de novo para excluir' : 'Excluir post-it'}
+                          aria-label={postitPopover.deleteArmed ? 'Confirmar exclusão do post-it' : 'Excluir post-it'}
+                        >
+                          {postitPopover.deleteArmed ? 'Excluir?' : <Trash2 size={13} strokeWidth={1.7} aria-hidden="true" />}
+                        </button>
+                      ) : null}
+                      <button type="button" className="postit-popover-close" onClick={closePostitPopover} title="Fechar (Esc)" aria-label="Fechar post-it">
+                        <X size={13} strokeWidth={1.7} aria-hidden="true" />
+                      </button>
+                    </div>
+                    <textarea
+                      className="postit-popover-input"
+                      value={postitPopover.draftText}
+                      onChange={(event) => setPostitPopover((current) => current ? { ...current, draftText: event.target.value.slice(0, POSTIT_MAX_CHARS), deleteArmed: false } : current)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          closePostitPopover()
+                        }
+                        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                          event.preventDefault()
+                          flushPendingPostitSave()
+                          setPostitPopover(null)
+                          setPostitPopoverSize(null)
+                        }
+                      }}
+                      placeholder="Sua anotação sobre este parágrafo…"
+                      aria-label="Texto do post-it"
+                      autoFocus
+                      rows={3}
+                      maxLength={POSTIT_MAX_CHARS}
+                    />
+                    <div className="postit-popover-actions">
+                      <div className="postit-popover-colors" role="radiogroup" aria-label="Cor do post-it">
+                        {POSTIT_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            className={`postit-color-dot is-${color}${postitPopover.draftColor === color ? ' is-selected' : ''}`}
+                            onClick={() => setPostitPopover((current) => current ? { ...current, draftColor: color, deleteArmed: false } : current)}
+                            title={`${POSTIT_COLOR_LABELS[color]}${postitPopover.draftColor === color ? ' (atual)' : ''}`}
+                            aria-label={`Cor ${POSTIT_COLOR_LABELS[color]}`}
+                            aria-checked={postitPopover.draftColor === color}
+                            role="radio"
+                          >
+                            {postitPopover.draftColor === color ? <Check size={10} strokeWidth={3} aria-hidden="true" /> : null}
+                          </button>
+                        ))}
+                      </div>
+                      <span className={`postit-popover-count${postitPopover.draftText.length >= POSTIT_MAX_CHARS - 40 ? ' is-warning' : ''}`} aria-live="off">
+                        {postitPopover.draftText.length}/{POSTIT_MAX_CHARS}
+                      </span>
+                    </div>
+                    <span
+                      className="postit-popover-resize"
+                      title="Redimensionar"
+                      aria-hidden="true"
+                      onPointerDown={startPostitPopoverResize}
+                    />
                   </div>
                 ) : null}
                 <div className="note-word-count" data-testid="note-word-count" title={`${noteWordCount} palavra${noteWordCount === 1 ? '' : 's'}`}>
@@ -5590,7 +5939,7 @@ function App() {
             )}
               </>
             ) : workspacePage === 'review' || workspacePage === 'dashboard' || workspacePage === 'reports' || workspacePage === 'tags' || workspacePage === 'bases' || workspacePage === 'goals' ? (
-              <Suspense fallback={<p className="workspace-page-loading">Carregando pagina...</p>}>
+              <Suspense fallback={<PageSkeleton variant={workspacePage} />}>
                 {workspacePage === 'goals' ? (
                   <GoalsPage
                     vaultPath={vault.path}
@@ -5659,246 +6008,91 @@ function App() {
                 onWheel={pokeGraphUi}
               >
                 {isGraphLoading ? (
-                  <p className="graph-empty-state graph-empty-state-overlay" role="status">
-                    {graphLoadProgress !== null && graphLoadProgress > 0
-                      ? `Lendo os links das notas... (${graphLoadProgress} de ${notes.length} notas)`
-                      : 'Lendo os links das notas...'}
-                  </p>
+                  <GraphSkeleton
+                    message={
+                      graphLoadProgress !== null && graphLoadProgress > 0
+                        ? `Lendo os links das notas... (${graphLoadProgress} de ${notes.length} notas)`
+                        : 'Lendo os links das notas...'
+                    }
+                  />
                 ) : graphDocuments.length === 0 ? (
                   <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota disponivel para montar o grafo.</p>
                 ) : (
                   <>
-                    <div
-                      className={`graph-immersive-header${graphUiVisible ? '' : ' is-hidden'}`}
-                      onMouseEnter={() => { setGraphUiVisible(true); if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current) }}
-                      onMouseLeave={pokeGraphUi}
-                      role="toolbar"
-                      aria-label="Controles do grafo"
-                    >
-                      <h2 className="graph-header-title">Grafo das notas</h2>
-                      <span className="graph-header-sep" aria-hidden="true" />
-                      <div className="graph-dimension-toggle" role="radiogroup" aria-label="Dimensao do grafo">
-                        <button type="button" role="radio" aria-checked={!graphMode3d} className={!graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(false)} title="Grafo em 2D">2D</button>
-                        <button type="button" role="radio" aria-checked={graphMode3d} className={graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(true)} title="Grafo 3D com pulsos eletricos">3D</button>
-                      </div>
-                      <select value={graphMode} onChange={(event) => setGraphMode(event.target.value as GraphMode)} aria-label="Modo do grafo"><option value="global">Grafo global</option><option value="local">Grafo local</option></select>
-                      {graphMode === 'local' ? (
-                        <select value={graphLocalDepth} onChange={(event) => setGraphLocalDepth(Number(event.target.value))} aria-label="Profundidade do grafo local">
-                          <option value={1}>1 salto</option>
-                          <option value={2}>2 saltos</option>
-                          <option value={3}>3 saltos</option>
-                        </select>
-                      ) : null}
-                      <div className="graph-filter-group" role="group" aria-label="Filtro do grafo por pasta e tag">
-                        <ListFilter size={14} strokeWidth={1.75} aria-hidden="true" />
-                        <select value={graphFolder} onChange={(event) => setGraphFolder(event.target.value)} aria-label="Filtrar pasta do grafo"><option value="">Todas as pastas</option>{graphFolders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}</select>
-                        <select value={graphTag} onChange={(event) => setGraphTag(event.target.value)} aria-label="Filtrar tag do grafo"><option value="">Todas as tags</option>{graphTags.map((tag) => <option key={tag} value={tag}>#{tag}</option>)}</select>
-                        {graphFilterActive ? (
-                          <>
-                            <span className="graph-filter-count" role="status">{graphFilterMatchPaths?.size ?? 0} {(graphFilterMatchPaths?.size ?? 0) === 1 ? 'nota' : 'notas'}</span>
-                            <button type="button" className="graph-filter-clear" onClick={() => { setGraphFolder(''); setGraphTag('') }} aria-label="Limpar filtro do grafo" title="Limpar filtro">
-                              <X size={12} strokeWidth={2} aria-hidden="true" />
-                            </button>
-                          </>
-                        ) : null}
-                      </div>
-                      <span className="graph-header-sep" aria-hidden="true" />
-                      <input value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
-                      {!graphMode3d ? (
-                        <span className="graph-zoom-cluster" aria-label="Zoom do grafo">
-                          <button type="button" className="secondary-button" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.min(2.4, view.scale + 0.15) }))} aria-label="Aproximar grafo">+</button>
-                          <button type="button" className="secondary-button" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.max(0.55, view.scale - 0.15) }))} aria-label="Afastar grafo">−</button>
-                          <button type="button" className="secondary-button" onClick={resetGraphView} aria-label="Centralizar grafo">Centralizar</button>
-                        </span>
-                      ) : null}
-                      <span className="graph-header-sep" aria-hidden="true" />
-                      <button type="button" className="secondary-button graph-icon-button" onClick={() => void openGraphPage()} disabled={isGraphLoading} aria-label="Atualizar grafo">
-                        <RefreshCw size={15} strokeWidth={1.5} aria-hidden="true" />
-                      </button>
-                      <Popover open={graphExportOpen} onOpenChange={setGraphExportOpen}>
-                        <PopoverTrigger asChild>
-                          <button type="button" className="secondary-button graph-icon-button graph-export-button" aria-label="Exportar grafo" title="Exportar grafo como SVG ou PNG">
-                            <Download size={15} strokeWidth={1.5} aria-hidden="true" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent align="end" sideOffset={6} className="graph-export-popover">
-                          <p className="graph-settings-header-title"><Download size={14} strokeWidth={1.75} aria-hidden="true" /><strong>Exportar grafo</strong></p>
-                          <label className="graph-settings-row">
-                            <span>Resolucao PNG<small>Multiplicador de pixels</small></span>
-                            <select value={graphExportScale} onChange={(event) => setGraphExportScale(Number(event.target.value))} aria-label="Resolução do PNG exportado">
-                              <option value={1}>1x</option>
-                              <option value={2}>2x</option>
-                              <option value={3}>3x</option>
-                            </select>
-                          </label>
-                          <div className="graph-export-actions">
-                            <button type="button" className="secondary-button" onClick={() => handleGraphExport('svg')} aria-label="Exportar grafo como SVG">SVG</button>
-                            <button type="button" className="secondary-button" onClick={() => handleGraphExport('png')} aria-label="Exportar grafo como PNG">PNG</button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <Popover open={graphSettingsOpen} onOpenChange={setGraphSettingsOpenSynced}>
-                        <PopoverTrigger asChild>
-                          <button type="button" className="secondary-button graph-icon-button graph-settings-button" aria-label="Configurações do grafo" title="Configurações do grafo">
-                            <Settings size={15} strokeWidth={1.5} aria-hidden="true" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent align="end" sideOffset={6} className="graph-settings-popover">
-                          <header className="graph-settings-header">
-                            <span className="graph-settings-header-title">
-                              <SlidersHorizontal size={14} strokeWidth={1.75} aria-hidden="true" />
-                              <strong>Configurações do grafo</strong>
-                            </span>
-                            <button type="button" className="graph-settings-reset" onClick={resetGraph3dSettings} title="Restaurar os valores padrao" aria-label="Restaurar os valores padrao">
-                              <RotateCcw size={12} strokeWidth={1.75} aria-hidden="true" />
-                              <span>Padroes</span>
-                            </button>
-                          </header>
-                          <section className="graph-settings-group" aria-label="Visual dos nos">
-                            <p className="graph-settings-group-title"><Palette size={12} strokeWidth={1.75} aria-hidden="true" /> Visual</p>
-                            <label className="graph-settings-row">
-                              <span>Tamanho dos nos<small>Raio base dos orbes</small></span>
-                              <input type="number" min={0.2} max={3} step={0.05} value={graph3dNodeSize} onChange={(event) => setGraph3dNodeSize(updateNumberSetting(event.target.value, graph3dNodeSize, 0.2, 3))} aria-label="Tamanho dos nos no grafo 3D" />
-                            </label>
-                            <label className="graph-settings-row">
-                              <span>Aumento por conexao<small>Crescimento do no por link</small></span>
-                              <input type="number" min={0} max={1} step={0.01} value={graph3dDegreeGrowth} onChange={(event) => setGraph3dDegreeGrowth(updateNumberSetting(event.target.value, graph3dDegreeGrowth, 0, 1))} aria-label="Fator de aumento por conexao no grafo 3D" />
-                            </label>
-                          </section>
-                          <section className="graph-settings-group" aria-label="Orbita dos nos">
-                            <p className="graph-settings-group-title"><Orbit size={12} strokeWidth={1.75} aria-hidden="true" /> Orbita</p>
-                            <label className="graph-settings-row">
-                              <span>Distancia entre nos<small>Raio das orbitas ao redor do nucleo</small></span>
-                              <input type="number" min={2} max={20} step={0.5} value={graph3dNodeSpacing} onChange={(event) => setGraph3dNodeSpacing(updateNumberSetting(event.target.value, graph3dNodeSpacing, 2, 20))} aria-label="Distancia entre nos no grafo 3D" />
-                            </label>
-                            <label className="graph-settings-row">
-                              <span>Velocidade de orbitacao<small>Multiplicador do giro orbital</small></span>
-                              <input type="number" min={0.1} max={5} step={0.1} value={graph3dOrbitSpeed} onChange={(event) => setGraph3dOrbitSpeed(updateNumberSetting(event.target.value, graph3dOrbitSpeed, 0.1, 5))} aria-label="Velocidade de orbitação no grafo 3D" />
-                            </label>
-                          </section>
-                          <section className="graph-settings-group" aria-label="Arestas do grafo">
-                            <p className="graph-settings-group-title"><Link2 size={12} strokeWidth={1.75} aria-hidden="true" /> Arestas</p>
-                            <label className="graph-settings-row">
-                              <span>Aresta maxima<small>Limite superior das conexoes</small></span>
-                              <input type="number" min={4} max={40} step={1} value={graph3dMaxEdgeLength} onChange={(event) => setGraph3dMaxEdgeLength(updateNumberSetting(event.target.value, graph3dMaxEdgeLength, 4, 40))} aria-label="Tamanho maximo das arestas no grafo 3D" />
-                            </label>
-                            <label className="graph-settings-row">
-                              <span>Aresta minima<small>Distancia minima entre conectados</small></span>
-                              <input type="number" min={0} max={30} step={0.5} value={graph3dMinEdgeLength} onChange={(event) => setGraph3dMinEdgeLength(updateNumberSetting(event.target.value, graph3dMinEdgeLength, 0, 30))} aria-label="Tamanho minimo das arestas no grafo 3D" />
-                            </label>
-                          </section>
-                          <section className="graph-settings-group" aria-label="Forcas do grafo 2D">
-                            <p className="graph-settings-group-title"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Forcas (2D)</p>
-                            <label className="graph-settings-row">
-                              <span>Repulsao<small>Forca entre os nos (1/distancia²)</small></span>
-                              <input type="number" step={50} value={graph2dRepulsionStrength} onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, -Infinity, Infinity))} aria-label="Forca de repulsao dos nos no grafo 2D" />
-                            </label>
-                            <label className="graph-settings-row">
-                              <span>Rigidez da mola<small>Forca das arestas por unidade de distancia</small></span>
-                              <input type="number" step={0.1} value={graph2dLinkStiffness} onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, -Infinity, Infinity))} aria-label="Rigidez da mola das arestas no grafo 2D" />
-                            </label>
-                            <label className="graph-settings-row">
-                              <span>Amortecimento<small>Decaimento de velocidade por segundo</small></span>
-                              <input type="number" step={0.05} value={graph2dVelocityDecay} onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, -Infinity, Infinity))} aria-label="Amortecimento da velocidade no grafo 2D" />
-                            </label>
-                            <label className="graph-settings-row">
-                              <span>Distancia do link<small>Descanso das molas entre conectados</small></span>
-                              <input type="number" step={0.5} value={graph2dLinkDistance} onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, -Infinity, Infinity))} aria-label="Distancia do link no grafo 2D" />
-                            </label>
-                            <label className="graph-settings-row">
-                              <span>Forca central<small>Atracao ao anel no meio do grafo</small></span>
-                              <input type="number" step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))} aria-label="Forca central do grafo 2D" />
-                            </label>
-                          </section>
-                          <section className="graph-settings-group" aria-label="Exibição do grafo">
-                            <p className="graph-settings-group-title"><Eye size={12} strokeWidth={1.75} aria-hidden="true" /> Exibicao</p>
-                            <label className="graph-settings-toggle">
-                              <span>Mostrar notas sem conexao<small>Inclui notas isoladas no grafo</small></span>
-                              <input type="checkbox" checked={showGraphOrphans} onChange={(event) => setShowGraphOrphans(event.target.checked)} />
-                              <span className="graph-settings-toggle-track" aria-hidden="true" />
-                            </label>
-                            <label className="graph-settings-toggle">
-                              <span>Somente notas não conectadas<small>Esconde as conectadas</small></span>
-                              <input type="checkbox" checked={showOnlyGraphOrphans} onChange={(event) => setShowOnlyGraphOrphans(event.target.checked)} />
-                              <span className="graph-settings-toggle-track" aria-hidden="true" />
-                            </label>
-                            <label className="graph-settings-toggle">
-                              <span>Ocultar nomes<small>Nome aparece apenas no hover</small></span>
-                              <input type="checkbox" checked={graphHideAllNames} onChange={(event) => setGraphHideAllNames(event.target.checked)} />
-                              <span className="graph-settings-toggle-track" aria-hidden="true" />
-                            </label>
-                            <label className="graph-settings-toggle">
-                              <span>Agrupar por pasta<small>Clusters e cores por pasta com legenda</small></span>
-                              <input type="checkbox" checked={graphGroupByFolder} onChange={(event) => setGraphGroupByFolder(event.target.checked)} aria-label="Agrupar por pasta" />
-                              <span className="graph-settings-toggle-track" aria-hidden="true" />
-                            </label>
-                            <label className="graph-settings-toggle">
-                              <span>Agrupar por tag<small>Clusters e cores pela tag principal com legenda</small></span>
-                              <input type="checkbox" checked={graphGroupByTag} onChange={(event) => setGraphGroupByTag(event.target.checked)} aria-label="Agrupar por tag" />
-                              <span className="graph-settings-toggle-track" aria-hidden="true" />
-                            </label>
-                            {graphGroupByTag ? (
-                              <label className="graph-settings-row">
-                                <span>Tag principal<small>Usada para desempatar notas com varias tags</small></span>
-                                <select
-                                  value={graphPrimaryTag}
-                                  onChange={(event) => setGraphPrimaryTag(event.target.value)}
-                                  aria-label="Tag principal do agrupamento por tag"
-                                >
-                                  <option value="">Primeira tag da nota</option>
-                                  {graphTagIndexRef.current.allTags().map((tag) => (
-                                    <option key={tag} value={tag}>#{tag}</option>
-                                  ))}
-                                </select>
-                              </label>
-                            ) : null}
-                            {graphGroupMaps ? (
-                              <section className="graph-settings-colors" aria-label="Cores dos grupos">
-                                <p className="graph-settings-colors-title"><Palette size={12} strokeWidth={1.75} aria-hidden="true" /> Cores dos grupos</p>
-                                {graphGroupMaps.groups.slice(0, 12).map((group) => {
-                                  const override = graphColorOverrides[group.key]
-                                  return (
-                                    <label key={group.key} className="graph-settings-color-row">
-                                      <input
-                                        type="color"
-                                        value={override && /^#[0-9a-fA-F]{6}$/.test(override) ? override : group.color}
-                                        onChange={(event) => setGraphColorOverrides((current) => ({ ...current, [group.key]: event.target.value }))}
-                                        aria-label={`Cor do grupo ${group.label}`}
-                                      />
-                                      <span className="graph-settings-color-label" title={group.label}>{group.label}</span>
-                                      {override ? (
-                                        <button
-                                          type="button"
-                                          className="graph-settings-color-reset"
-                                          onClick={() => setGraphColorOverrides((current) => {
-                                            const next = { ...current }
-                                            delete next[group.key]
-                                            return next
-                                          })}
-                                          aria-label={`Restaurar cor padrao do grupo ${group.label}`}
-                                        >Restaurar</button>
-                                      ) : null}
-                                    </label>
-                                  )
-                                })}
-                                {Object.keys(graphColorOverrides).length > 0 ? (
-                                  <button
-                                    type="button"
-                                    className="graph-settings-color-reset-all"
-                                    onClick={() => setGraphColorOverrides({})}
-                                  >Restaurar todas as cores</button>
-                                ) : null}
-                              </section>
-                            ) : null}
-                            <label className="graph-settings-row">
-                              <span>Limite de nos renderizados<small>Acima dele, so o viewport e o contexto aparecem</small></span>
-                              <input type="number" min={50} max={10000} step={50} value={graphRenderLimit} onChange={(event) => setGraphRenderLimit(updateNumberSetting(event.target.value, graphRenderLimit, 50, 10000))} aria-label="Limite de nos renderizados no grafo 2D" />
-                            </label>
-                          </section>
-                          <p className="graph-settings-note"><Info size={12} strokeWidth={1.75} aria-hidden="true" /> Sincronizado com a pagina de Configurações.</p>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                    <GraphToolbar
+                      visible={graphUiVisible}
+                      onHoverStart={() => { setGraphUiVisible(true); if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current) }}
+                      onHoverEnd={pokeGraphUi}
+                      graphMode3d={graphMode3d}
+                      setGraphMode3d={setGraphMode3d}
+                      graphMode={graphMode}
+                      setGraphMode={setGraphMode}
+                      graphLocalDepth={graphLocalDepth}
+                      setGraphLocalDepth={setGraphLocalDepth}
+                      graphFolder={graphFolder}
+                      setGraphFolder={setGraphFolder}
+                      graphFolders={graphFolders}
+                      graphTag={graphTag}
+                      setGraphTag={setGraphTag}
+                      graphTags={graphTags}
+                      graphFilterActive={graphFilterActive}
+                      graphFilterMatchPaths={graphFilterMatchPaths}
+                      graphQuery={graphQuery}
+                      setGraphQuery={setGraphQuery}
+                      setGraphViewport={setGraphViewport}
+                      resetGraphView={resetGraphView}
+                      openGraphPage={openGraphPage}
+                      isGraphLoading={isGraphLoading}
+                      graphExportOpen={graphExportOpen}
+                      setGraphExportOpen={setGraphExportOpen}
+                      graphExportScale={graphExportScale}
+                      setGraphExportScale={setGraphExportScale}
+                      handleGraphExport={handleGraphExport}
+                      graphSettingsOpen={graphSettingsOpen}
+                      setGraphSettingsOpenSynced={setGraphSettingsOpenSynced}
+                      resetGraph3dSettings={resetGraph3dSettings}
+                      graph3dNodeSize={graph3dNodeSize}
+                      setGraph3dNodeSize={setGraph3dNodeSize}
+                      graph3dDegreeGrowth={graph3dDegreeGrowth}
+                      setGraph3dDegreeGrowth={setGraph3dDegreeGrowth}
+                      graph3dNodeSpacing={graph3dNodeSpacing}
+                      setGraph3dNodeSpacing={setGraph3dNodeSpacing}
+                      graph3dOrbitSpeed={graph3dOrbitSpeed}
+                      setGraph3dOrbitSpeed={setGraph3dOrbitSpeed}
+                      graph3dMaxEdgeLength={graph3dMaxEdgeLength}
+                      setGraph3dMaxEdgeLength={setGraph3dMaxEdgeLength}
+                      graph3dMinEdgeLength={graph3dMinEdgeLength}
+                      setGraph3dMinEdgeLength={setGraph3dMinEdgeLength}
+                      graph2dRepulsionStrength={graph2dRepulsionStrength}
+                      setGraph2dRepulsionStrength={setGraph2dRepulsionStrength}
+                      graph2dLinkStiffness={graph2dLinkStiffness}
+                      setGraph2dLinkStiffness={setGraph2dLinkStiffness}
+                      graph2dVelocityDecay={graph2dVelocityDecay}
+                      setGraph2dVelocityDecay={setGraph2dVelocityDecay}
+                      graph2dLinkDistance={graph2dLinkDistance}
+                      setGraph2dLinkDistance={setGraph2dLinkDistance}
+                      graph2dCenterForce={graph2dCenterForce}
+                      setGraph2dCenterForce={setGraph2dCenterForce}
+                      updateNumberSetting={updateNumberSetting}
+                      showGraphOrphans={showGraphOrphans}
+                      setShowGraphOrphans={setShowGraphOrphans}
+                      showOnlyGraphOrphans={showOnlyGraphOrphans}
+                      setShowOnlyGraphOrphans={setShowOnlyGraphOrphans}
+                      graphHideAllNames={graphHideAllNames}
+                      setGraphHideAllNames={setGraphHideAllNames}
+                      graphGroupByFolder={graphGroupByFolder}
+                      setGraphGroupByFolder={setGraphGroupByFolder}
+                      graphGroupByTag={graphGroupByTag}
+                      setGraphGroupByTag={setGraphGroupByTag}
+                      graphPrimaryTag={graphPrimaryTag}
+                      setGraphPrimaryTag={setGraphPrimaryTag}
+                      graphTagIndexRef={graphTagIndexRef}
+                      graphGroupMaps={graphGroupMaps}
+                      graphColorOverrides={graphColorOverrides}
+                      setGraphColorOverrides={setGraphColorOverrides}
+                      graphRenderLimit={graphRenderLimit}
+                      setGraphRenderLimit={setGraphRenderLimit}
+                    />
                     {graphMode3d ? (
                       <Suspense fallback={<Graph3DLoader />}>
                         <NoteGraph3D
@@ -5908,6 +6102,7 @@ function App() {
                           focusedPath={focusedGraphPath}
                           currentPath={activeNote?.relativePath ?? null}
                           dimmedPaths={graphDimmedPaths}
+                          highlightPaths={graphFilterMatchPaths}
                           layoutVersion={graph3dLayoutVersion}
                           hideAllLabels={graphHideAllNames}
                           nodeSize={graph3dNodeSize}
@@ -5955,7 +6150,9 @@ function App() {
                             const target = graphNodePositions[link.target]
                             const isFocused = focusedGraphPath === link.source || focusedGraphPath === link.target
                             const isHovered = graphHoverPath !== null && (link.source === graphHoverPath || link.target === graphHoverPath)
-                            const linkClassName = `${isFocused ? 'is-focused' : ''}${isHovered ? ' is-hovered' : ''}`.trim() || undefined
+                            const isLinkMatched = graphFilterMatchPaths !== null && graphFilterMatchPaths.has(link.source) && graphFilterMatchPaths.has(link.target)
+                            const isLinkFaded = graphFilterMatchPaths !== null && !graphFilterMatchPaths.has(link.source) && !graphFilterMatchPaths.has(link.target)
+                            const linkClassName = `${isFocused ? 'is-focused' : ''}${isHovered ? ' is-hovered' : ''}${isLinkMatched ? ' is-matched' : ''}${isLinkFaded ? ' is-faded' : ''}`.trim() || undefined
                             // A linha usa geometria base fixa [0,0]-[100,0] e o
                             // transform (rotacao + escala) liga os nos; o loop
                             // da fisica so reescreve o transform a cada frame
@@ -5977,17 +6174,19 @@ function App() {
                         // "Ocultar nomes" esconde todos. No hover o nome
                         // sempre aparece abaixo da bolinha.
                         const hideNameByZoom = graphHideAllNames || (graphViewport.scale < 0.65 && degree < 2)
-                        const showLabel = !hideNameByZoom || isHovered
+                        const isFilterMatch = graphFilterMatchPaths !== null && graphFilterMatchPaths.has(document.relativePath)
+                        const isFilteredOut = graphFilterMatchPaths !== null && !isFilterMatch
+                        const showLabel = !hideNameByZoom || isHovered || isFilterMatch
                         // No hover, nós sem conexão direta com o nó são
                         // esmaecidos (opacidade reduzida). O filtro pasta/tag
-                        // faz o mesmo com quem não casa — sem remover nós.
+                        // esmaece mais quem não casa e realça quem casa.
                         const isDimmed = (graphHoverNeighbors !== null && !graphHoverNeighbors.has(document.relativePath))
-                          || (graphFilterMatchPaths !== null && !graphFilterMatchPaths.has(document.relativePath))
+                          || isFilteredOut
                         return (
                           <button
                             key={document.relativePath}
                             type="button"
-                            className={`note-graph-node${isCurrent ? ' is-current' : ''}${focusedGraphPath === document.relativePath ? ' is-focused' : ''}${isHovered ? ' is-hovered' : ''}${isDimmed ? ' is-dimmed' : ''}`}
+                            className={`note-graph-node${isCurrent ? ' is-current' : ''}${focusedGraphPath === document.relativePath ? ' is-focused' : ''}${isHovered ? ' is-hovered' : ''}${isDimmed ? ' is-dimmed' : ''}${isFilterMatch ? ' is-match' : ''}${isFilteredOut ? ' is-filtered-out' : ''}`}
                             style={{ left: `${(position.x / GRAPH_2D_WORLD_SIZE) * 100}%`, top: `${(position.y / GRAPH_2D_WORLD_SIZE) * 100}%` } as CSSProperties}
                             ref={(element) => {
                               if (element) graph2dNodeElementsRef.current.set(document.relativePath, element)
