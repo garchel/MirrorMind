@@ -5964,6 +5964,7 @@ function App() {
                         setWorkspacePage('notes')
                         void openNote(relativePath)
                       }}
+                      onBrowseNotes={() => setWorkspacePage('notes')}
                     />
                   )
                 ) : workspacePage === 'dashboard' ? (

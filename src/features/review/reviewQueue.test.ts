@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_DUE_REVIEW_ITEMS, parseDueReviewQueue } from './reviewQueue'
+import { MAX_DUE_REVIEW_ITEMS, parseDueReviewQueue, UPCOMING_PAGE_SIZE } from './reviewQueue'
 
 describe('review queue contract', () => {
   it('accepts the ordered due-note payload exposed by the backend', () => {
@@ -42,5 +42,9 @@ describe('review queue contract', () => {
       preferredMode: 'unknown',
       isFirstReview: true,
     }])).toThrow()
+  })
+
+  it('requests the upcoming page in chunks of five', () => {
+    expect(UPCOMING_PAGE_SIZE).toBe(5)
   })
 })

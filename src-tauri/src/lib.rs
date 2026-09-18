@@ -6120,6 +6120,7 @@ pub fn run() {
             review::ipc::audit_note_structure,
             review::ipc::get_note_review_state,
             review::ipc::list_due_review_queue,
+            review::ipc::list_upcoming_review_queue,
             review::ipc::list_review_reports,
             review::ipc::get_retention_report,
             review::ipc::reset_note_learning,

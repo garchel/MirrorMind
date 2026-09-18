@@ -37,7 +37,7 @@ use super::policy_config::{
 use super::provider::{
     OllamaProvider, OpenAiCompatibleProvider, StructuredAiProvider, OLLAMA_ENDPOINT, OLLAMA_MODEL,
 };
-use super::queue::{list_due_reviews, DueReviewItem};
+use super::queue::{list_due_reviews, list_upcoming_reviews, DueReviewItem, UpcomingReviewQueue};
 use super::reports::{
     build_retention_report as collect_retention_report,
     list_review_reports as collect_review_reports, RetentionReport, ReviewReportItem,
@@ -1024,6 +1024,43 @@ pub(crate) async fn list_due_review_queue(
     })
     .await
     .map_err(|_| "Nao foi possivel carregar a fila de revisao.".to_string())?
+}
+
+/// Página da fila de vencimento (próximas a vencer, futuro próximo primeiro).
+/// `limit` é limitado no backend; `offset` avança a janela para a rolagem
+/// infinita sem repetir itens.
+#[tauri::command]
+pub(crate) async fn list_upcoming_review_queue(
+    path: String,
+    limit: usize,
+    offset: usize,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<UpcomingReviewQueue, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        list_upcoming_reviews(
+            &root,
+            current_unix_ms().map_err(|error| error.to_string())?,
+            limit,
+            offset,
+            |relative_path| {
+                let note_path = crate::resolve_note_path(&root, relative_path)?;
+                match fs::symlink_metadata(&note_path) {
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+                    Err(error) => return Err(error.into()),
+                    Ok(_) => {}
+                }
+                read_bounded_markdown(&root, &note_path).map(Some)
+            },
+        )
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Nao foi possivel carregar os proximos vencimentos.".to_string())?
 }
 #[tauri::command]
 pub(crate) async fn list_review_reports(

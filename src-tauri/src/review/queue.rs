@@ -1,4 +1,4 @@
-use super::contract::{ReadinessAssessment, ReviewMode};
+use super::contract::{LearningDocument, ReadinessAssessment, ReviewMode};
 use super::evaluation::source_hash;
 use super::state::{load_note_review_state, PreferredReviewMode};
 use super::storage::{list_learning_storage_keys, load_learning_document};
@@ -20,6 +20,45 @@ pub struct DueReviewItem {
 }
 
 pub const MAX_DUE_REVIEW_ITEMS: usize = 1_000;
+/// Teto do tamanho da página da fila de vencimento (rolagem infinita).
+pub const MAX_UPCOMING_PAGE_LIMIT: usize = 50;
+
+/// Página da fila de vencimento: itens ordenados + total para a UI saber
+/// quando parar de pedir mais.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpcomingReviewQueue {
+    pub items: Vec<DueReviewItem>,
+    pub total: usize,
+}
+
+fn queue_item_from_document(document: LearningDocument, now_unix_ms: u64) -> DueReviewItem {
+    let relative_path = document.note.relative_path;
+    let title = Path::new(&relative_path)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or(&relative_path)
+        .to_string();
+    DueReviewItem {
+        note_id: document.note.id,
+        relative_path,
+        title,
+        next_review_at_unix_ms: document
+            .scheduling
+            .next_review_at_unix_ms
+            .expect("queue item has a date"),
+        priority_weight: document.effective_policy.priority_weight,
+        deadline_at_unix_ms: document
+            .effective_policy
+            .deadline_at_unix_ms
+            .filter(|deadline| *deadline > now_unix_ms),
+        preferred_mode: match document.note.enrollment.preferred_mode {
+            ReviewMode::Exam => PreferredReviewMode::Exam,
+            ReviewMode::Conversation => PreferredReviewMode::Conversation,
+        },
+        is_first_review: document.scheduling.last_review_at_unix_ms.is_none(),
+    }
+}
 
 fn compare_active_deadline(left: Option<u64>, right: Option<u64>) -> std::cmp::Ordering {
     match (left, right) {
@@ -66,28 +105,7 @@ where
             continue;
         }
 
-        let relative_path = document.note.relative_path;
-        let title = Path::new(&relative_path)
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .unwrap_or(&relative_path)
-            .to_string();
-        queue.push(DueReviewItem {
-            note_id: document.note.id,
-            relative_path,
-            title,
-            next_review_at_unix_ms: next_review_at_unix_ms.expect("due item has a date"),
-            priority_weight: document.effective_policy.priority_weight,
-            deadline_at_unix_ms: document
-                .effective_policy
-                .deadline_at_unix_ms
-                .filter(|deadline| *deadline > now_unix_ms),
-            preferred_mode: match document.note.enrollment.preferred_mode {
-                ReviewMode::Exam => PreferredReviewMode::Exam,
-                ReviewMode::Conversation => PreferredReviewMode::Conversation,
-            },
-            is_first_review: document.scheduling.last_review_at_unix_ms.is_none(),
-        });
+        queue.push(queue_item_from_document(document, now_unix_ms));
     }
 
     queue.sort_by(|left, right| {
@@ -106,9 +124,70 @@ where
     queue.truncate(MAX_DUE_REVIEW_ITEMS);
     Ok(queue)
 }
+
+/// Fila de vencimento: notas agendadas para o futuro, da mais próxima à mais
+/// distante. Paginada (`limit`/`offset`) para rolagem infinita — como o
+/// histórico que carrega mais ao subir a conversa, cada página seguinte
+/// estende a lista sem recarregar o que já está na tela. Notas vencidas
+/// pertencem à fila principal e ficam de fora daqui.
+pub fn list_upcoming_reviews<F>(
+    vault_root: &Path,
+    now_unix_ms: u64,
+    limit: usize,
+    offset: usize,
+    mut read_markdown: F,
+) -> Result<UpcomingReviewQueue>
+where
+    F: FnMut(&str) -> Result<Option<String>>,
+{
+    let limit = limit.clamp(1, MAX_UPCOMING_PAGE_LIMIT);
+    let mut upcoming = Vec::new();
+    for storage_key in list_learning_storage_keys(vault_root)? {
+        let Some(loaded) = load_learning_document(vault_root, &storage_key)? else {
+            continue;
+        };
+        let document = loaded.document;
+        let enrolled = document.note.enrollment.is_enrolled();
+        let next_review_at_unix_ms = document.scheduling.next_review_at_unix_ms;
+        let Some(next) = next_review_at_unix_ms else {
+            continue;
+        };
+        if !enrolled
+            || !matches!(document.note.readiness, ReadinessAssessment::Ready { .. })
+            || next <= now_unix_ms
+        {
+            continue;
+        }
+
+        let Some(markdown) = read_markdown(&document.note.relative_path)? else {
+            continue;
+        };
+        if source_hash(&markdown) != document.note.content_hash {
+            load_note_review_state(
+                vault_root,
+                &document.note.relative_path,
+                &markdown,
+                now_unix_ms,
+            )?;
+            continue;
+        }
+
+        upcoming.push(queue_item_from_document(document, now_unix_ms));
+    }
+
+    upcoming.sort_by(|left, right| {
+        left.next_review_at_unix_ms
+            .cmp(&right.next_review_at_unix_ms)
+            .then_with(|| right.priority_weight.total_cmp(&left.priority_weight))
+            .then_with(|| left.relative_path.cmp(&right.relative_path))
+    });
+    let total = upcoming.len();
+    let items = upcoming.into_iter().skip(offset).take(limit).collect();
+    Ok(UpcomingReviewQueue { items, total })
+}
 #[cfg(test)]
 mod tests {
-    use super::list_due_reviews;
+    use super::{list_due_reviews, list_upcoming_reviews};
     use crate::review::evaluation::{ReadinessReport, ReadinessStatus};
     use crate::review::state::{
         load_note_review_state, persist_readiness_assessment, set_manual_enrollment,
@@ -257,6 +336,84 @@ mod tests {
 
         assert_eq!(queue.len(), 1);
         assert_eq!(queue[0].deadline_at_unix_ms, None);
+    }
+
+    #[test]
+    fn upcoming_lists_future_reviews_nearest_first_with_pagination() {
+        let vault = tempdir().expect("vault");
+        let now = 1_730_000_000_000;
+        create_ready_note(vault.path(), "Primeira.md", now - 8 * DAY_MS, 1.0);
+        create_ready_note(vault.path(), "Segunda.md", now - 3 * DAY_MS, 3.0);
+        create_ready_note(vault.path(), "Terceira.md", now - 5 * DAY_MS, 2.0);
+
+        // Mesma política: a ordem de vencimento acompanha a criação.
+        let dates: Vec<u64> = ["Primeira.md", "Segunda.md", "Terceira.md"]
+            .iter()
+            .map(|path| {
+                load_learning_document(vault.path(), &crate::review::state::note_id_for_path(path))
+                    .expect("load document")
+                    .expect("document exists")
+                    .document
+                    .scheduling
+                    .next_review_at_unix_ms
+                    .expect("scheduled")
+            })
+            .collect();
+        assert!(dates[0] < dates[2]);
+        assert!(dates[2] < dates[1]);
+        let now = dates[0] - 1;
+
+        let page =
+            list_upcoming_reviews(vault.path(), now, 2, 0, |_| Ok(Some(MARKDOWN.to_string())))
+                .expect("list upcoming");
+        assert_eq!(page.total, 3);
+        assert_eq!(page.items.len(), 2);
+        assert_eq!(page.items[0].relative_path, "Primeira.md");
+        assert_eq!(page.items[1].relative_path, "Terceira.md");
+
+        let page =
+            list_upcoming_reviews(vault.path(), now, 2, 2, |_| Ok(Some(MARKDOWN.to_string())))
+                .expect("second page");
+        assert_eq!(page.total, 3);
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].relative_path, "Segunda.md");
+    }
+
+    #[test]
+    fn upcoming_excludes_already_due_notes() {
+        let vault = tempdir().expect("vault");
+        let now = 1_730_000_000_000;
+        create_ready_note(vault.path(), "Vencida.md", now - 8 * DAY_MS, 1.0);
+        create_ready_note(vault.path(), "Futura.md", now - 3 * DAY_MS, 1.0);
+
+        let vencida = load_learning_document(
+            vault.path(),
+            &crate::review::state::note_id_for_path("Vencida.md"),
+        )
+        .expect("load document")
+        .expect("document exists")
+        .document
+        .scheduling
+        .next_review_at_unix_ms
+        .expect("scheduled");
+        let futura = load_learning_document(
+            vault.path(),
+            &crate::review::state::note_id_for_path("Futura.md"),
+        )
+        .expect("load document")
+        .expect("document exists")
+        .document
+        .scheduling
+        .next_review_at_unix_ms
+        .expect("scheduled");
+        assert!(vencida < futura);
+        // Entre as duas datas: a vencida pertence à fila principal.
+        let page = list_upcoming_reviews(vault.path(), futura - 1, 10, 0, |_| {
+            Ok(Some(MARKDOWN.to_string()))
+        })
+        .expect("list upcoming");
+        assert_eq!(page.total, 1);
+        assert_eq!(page.items[0].relative_path, "Futura.md");
     }
 
     #[test]

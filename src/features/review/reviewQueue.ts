@@ -25,3 +25,23 @@ export function parseDueReviewQueue(payload: unknown): DueReviewItem[] {
 export async function getDueReviewQueue(vaultPath: string): Promise<DueReviewItem[]> {
   return parseDueReviewQueue(await invoke('list_due_review_queue', { path: vaultPath }))
 }
+
+/** Tamanho da página da fila de vencimento (rolagem infinita). */
+export const UPCOMING_PAGE_SIZE = 5
+
+const upcomingReviewQueueSchema = z.object({
+  items: z.array(dueReviewItemSchema).max(50),
+  total: z.number().int().nonnegative(),
+}).strict()
+
+export type UpcomingReviewQueue = z.infer<typeof upcomingReviewQueueSchema>
+
+export async function listUpcomingReviewQueue(
+  vaultPath: string,
+  limit: number,
+  offset: number,
+): Promise<UpcomingReviewQueue> {
+  return upcomingReviewQueueSchema.parse(
+    await invoke('list_upcoming_review_queue', { path: vaultPath, limit, offset }),
+  )
+}
