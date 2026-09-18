@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+# Artefatos de build Rust (fora do OneDrive via junction src-tauri/target)
+src-tauri/target
 coverage
 test-results
 *.local
