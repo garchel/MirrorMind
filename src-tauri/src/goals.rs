@@ -19,6 +19,8 @@ use std::{
 
 use crate::review::ipc::{provider_for_selection, reserve_ai_call, AiProviderSelection};
 use crate::review::provider::ProviderRequest;
+use crate::review::schema::validate_instance;
+use serde_json::Value;
 
 const METADATA_DIR: &str = ".mirmind";
 const GOALS_DIR: &str = "goals";
@@ -30,20 +32,9 @@ const MAX_SOURCE_LEN: usize = 100_000;
 const MAX_SUMMARY_LEN: usize = 1_000;
 const MAX_GOAL_FILE_BYTES: u64 = 256 * 1024;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum GoalStepStatus {
-    Planned,
-    InProgress,
-    Done,
-}
-
-impl Default for GoalStepStatus {
-    fn default() -> Self {
-        Self::Planned
-    }
-}
-
+/// O progresso do passo é derivado da existência da nota vinculada
+/// (`note_relative_path`): sem controle manual. Metas antigas que ainda
+/// trazem `status` no JSON continuam lendo (serde ignora o campo).
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GoalStep {
@@ -51,10 +42,23 @@ pub struct GoalStep {
     pub title: String,
     pub summary: String,
     pub suggested_relative_path: String,
-    #[serde(default)]
-    pub status: GoalStepStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note_relative_path: Option<String>,
+}
+
+/// Conteúdo das notas criadas pelo botão +: em branco ou esqueleto gerado
+/// pela IA (estrutura + perguntas-guia, sem fatos inventados).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum NoteContentMode {
+    Blank,
+    Ai,
+}
+
+impl Default for NoteContentMode {
+    fn default() -> Self {
+        Self::Blank
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -70,6 +74,9 @@ pub struct Goal {
     /// `true` quando o plano veio da IA; `false` = segmentação determinística local.
     #[serde(default)]
     pub ai_generated: bool,
+    /// Conteúdo das notas novas do plano; ausente em metas antigas = em branco.
+    #[serde(default)]
+    pub note_content_mode: NoteContentMode,
 }
 
 fn now_unix_ms() -> Result<u64> {
@@ -512,6 +519,7 @@ fn build_goal_from_steps(
     source_text: &str,
     planned: Vec<(String, String)>,
     ai_generated: bool,
+    note_content_mode: NoteContentMode,
 ) -> Result<Goal> {
     if planned.is_empty() || planned.len() > MAX_STEPS {
         bail!("O plano precisa de 1 a 30 passos.");
@@ -536,7 +544,6 @@ fn build_goal_from_steps(
                 suggested_relative_path: suggested_path(&goal_slug, order, &step_title),
                 title: step_title,
                 summary,
-                status: GoalStepStatus::Planned,
                 note_relative_path: None,
             }
         })
@@ -549,6 +556,7 @@ fn build_goal_from_steps(
         created_at_unix_ms: now_unix_ms()?,
         steps,
         ai_generated,
+        note_content_mode,
     };
     validate_goal(&goal)?;
     Ok(goal)
@@ -626,7 +634,6 @@ pub fn update_goal_step(
     vault_root: &Path,
     id: &str,
     order: u32,
-    status: Option<GoalStepStatus>,
     note_relative_path: Option<Option<String>>,
 ) -> Result<Goal> {
     let mut goal =
@@ -636,9 +643,6 @@ pub fn update_goal_step(
         .iter_mut()
         .find(|s| s.order == order)
         .ok_or_else(|| anyhow::anyhow!("O passo nao existe."))?;
-    if let Some(status) = status {
-        step.status = status;
-    }
     if let Some(note) = note_relative_path {
         match note {
             Some(path) if !path.trim().is_empty() => {
@@ -650,10 +654,16 @@ pub fn update_goal_step(
             _ => step.note_relative_path = None,
         }
     }
-    validate_goal(&goal)?;
+    rewrite_goal_file(vault_root, &goal)?;
+    Ok(goal)
+}
+
+/// Reescreve o JSON de uma meta existente de forma atômica.
+fn rewrite_goal_file(vault_root: &Path, goal: &Goal) -> Result<()> {
+    validate_goal(goal)?;
     let dir = ensure_goals_directory(vault_root)?;
     let path = goal_path(&dir, &goal.id);
-    let bytes = serde_json::to_vec_pretty(&goal)?;
+    let bytes = serde_json::to_vec_pretty(goal)?;
     // Reescrita: remove + escreve atomicamente (o id já existe).
     let metadata = fs::symlink_metadata(&path)?;
     if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
@@ -661,7 +671,7 @@ pub fn update_goal_step(
     }
     fs::remove_file(&path)?;
     write_atomic_json(&path, &bytes)?;
-    Ok(goal)
+    Ok(())
 }
 
 // ── Comandos Tauri ──────────────────────────────────────────────────────────
@@ -685,6 +695,7 @@ pub(crate) fn create_goal_command(
     objective: String,
     source_text: String,
     provider: Option<AiProviderSelection>,
+    note_content_mode: Option<NoteContentMode>,
     authorized_paths: tauri::State<'_, crate::AuthorizedPaths>,
 ) -> Result<Goal, String> {
     let root = crate::canonicalize_directory(Path::new(&path)).map_err(|e| e.to_string())?;
@@ -703,16 +714,32 @@ pub(crate) fn create_goal_command(
                 &source_text,
             ) {
                 Some((steps, ai)) => {
-                    return finalize_create(&root, &title, &objective, &source_text, steps, ai)
-                        .map_err(|e| e.to_string());
+                    return finalize_create(
+                        &root,
+                        &title,
+                        &objective,
+                        &source_text,
+                        steps,
+                        ai,
+                        note_content_mode.unwrap_or_default(),
+                    )
+                    .map_err(|e| e.to_string());
                 }
                 None => deterministic_plan(title.trim(), objective.trim(), &source_text),
             }
         }
         None => deterministic_plan(title.trim(), objective.trim(), &source_text),
     };
-    finalize_create(&root, &title, &objective, &source_text, planned, false)
-        .map_err(|e| e.to_string())
+    finalize_create(
+        &root,
+        &title,
+        &objective,
+        &source_text,
+        planned,
+        false,
+        note_content_mode.unwrap_or_default(),
+    )
+    .map_err(|e| e.to_string())
 }
 
 fn try_ai_plan_with_flag(
@@ -732,6 +759,7 @@ fn finalize_create(
     source_text: &str,
     planned: Vec<(String, String)>,
     ai_generated: bool,
+    note_content_mode: NoteContentMode,
 ) -> Result<Goal> {
     let goal = build_goal_from_steps(
         title.trim(),
@@ -739,6 +767,7 @@ fn finalize_create(
         source_text,
         planned,
         ai_generated,
+        note_content_mode,
     )?;
     persist_goal(root, &goal)?;
     Ok(goal)
@@ -770,6 +799,196 @@ pub(crate) fn delete_goal_command(
     delete_goal(&root, id.trim()).map_err(|e| e.to_string())
 }
 
+/// Rascunho de conteúdo gerado pela IA para UMA nota do plano: tags sugeridas
+/// + seções (título e corpo). O frontend monta o Markdown final com o mesmo
+/// montador das notas em branco — o formato nunca depende do modelo.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoalStepDraft {
+    pub tags: Vec<String>,
+    pub sections: Vec<GoalStepDraftSection>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoalStepDraftSection {
+    pub heading: String,
+    pub body: String,
+}
+
+const MAX_DRAFT_TAGS: usize = 8;
+const MAX_DRAFT_TAG_LEN: usize = 64;
+const MAX_DRAFT_SECTIONS: usize = 6;
+const MAX_DRAFT_HEADING_LEN: usize = 80;
+const MAX_DRAFT_BODY_LEN: usize = 2_000;
+const MAX_DRAFT_SOURCE_LEN: usize = 12_000;
+
+fn goal_step_draft_schema() -> Value {
+    serde_json::json!({
+        "type": "object",
+        "properties": {
+            "tags": {
+                "type": "array",
+                "maxItems": MAX_DRAFT_TAGS,
+                "items": { "type": "string", "minLength": 1, "maxLength": MAX_DRAFT_TAG_LEN }
+            },
+            "sections": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": MAX_DRAFT_SECTIONS,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "heading": { "type": "string", "minLength": 1, "maxLength": MAX_DRAFT_HEADING_LEN },
+                        "body": { "type": "string", "minLength": 1, "maxLength": MAX_DRAFT_BODY_LEN }
+                    },
+                    "required": ["heading", "body"],
+                    "additionalProperties": false
+                }
+            }
+        },
+        "required": ["tags", "sections"],
+        "additionalProperties": false
+    })
+}
+
+/// Tag válida para o índice do app: minúsculas, `a-z0-9/-`, sem começar ou
+/// terminar com separador. Inválidas são descartadas, nunca bloqueiam.
+fn sanitize_draft_tag(raw: &str) -> Option<String> {
+    let tag = raw.trim().to_lowercase();
+    if tag.is_empty()
+        || tag.len() > MAX_DRAFT_TAG_LEN
+        || !tag
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'/' || b == b'-')
+        || tag.starts_with(['/', '-'])
+        || tag.ends_with(['/', '-'])
+    {
+        return None;
+    }
+    Some(tag)
+}
+
+fn parse_goal_step_draft(structured: &Value) -> Result<GoalStepDraft> {
+    let schema = goal_step_draft_schema();
+    let errors = validate_instance(&schema, structured);
+    if !errors.is_empty() {
+        bail!(
+            "O rascunho da IA nao corresponde ao contrato solicitado: {}",
+            errors.join(" ")
+        );
+    }
+    let mut tags = Vec::new();
+    if let Some(raw_tags) = structured.get("tags").and_then(Value::as_array) {
+        for raw in raw_tags {
+            if let Some(tag) = raw.as_str().and_then(sanitize_draft_tag) {
+                if !tags.contains(&tag) {
+                    tags.push(tag);
+                }
+            }
+        }
+    }
+    let mut sections = Vec::new();
+    if let Some(raw_sections) = structured.get("sections").and_then(Value::as_array) {
+        for raw in raw_sections {
+            let heading = raw
+                .get("heading")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+            let body = raw
+                .get("body")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+            if heading.is_empty() || body.is_empty() {
+                bail!("O rascunho da IA trouxe uma seção vazia.");
+            }
+            sections.push(GoalStepDraftSection { heading, body });
+        }
+    }
+    if sections.is_empty() {
+        bail!("O rascunho da IA não trouxe nenhuma seção.");
+    }
+    Ok(GoalStepDraft { tags, sections })
+}
+
+/// Gera o rascunho do conteúdo de UMA nota do plano. Esqueleto + perguntas-
+/// guia sempre; trechos do texto-fonte da meta SÓ quando ele existir — nunca
+/// inventa fatos sobre o que o usuário ainda vai estudar. Falhas (sem
+/// consentimento, orçamento, transporte, schema) viram `Err` e o frontend cai
+/// para a nota em branco sem bloquear a criação.
+fn generate_goal_step_draft(
+    vault_root: &Path,
+    provider_selection: AiProviderSelection,
+    goal: &Goal,
+    step: &GoalStep,
+) -> Result<GoalStepDraft> {
+    let provider = provider_for_selection(provider_selection).map_err(|e| anyhow::anyhow!(e))?;
+    let mut source_excerpt = goal.source_text.trim().to_string();
+    if source_excerpt.len() > MAX_DRAFT_SOURCE_LEN {
+        let mut end = MAX_DRAFT_SOURCE_LEN;
+        while end > 0 && !source_excerpt.is_char_boundary(end) {
+            end -= 1;
+        }
+        source_excerpt.truncate(end);
+    }
+    let source_markdown = if source_excerpt.is_empty() {
+        format!(
+            "# {}\n\nObjetivo da meta: {}\n\nPasso {} de {}: {}\n{}",
+            goal.title,
+            goal.objective,
+            step.order,
+            goal.steps.len(),
+            step.title,
+            step.summary
+        )
+    } else {
+        format!(
+            "# {}\n\nObjetivo da meta: {}\n\nPasso {} de {}: {}\n{}\n\n---\n\nTexto-fonte da meta:\n{}",
+            goal.title,
+            goal.objective,
+            step.order,
+            goal.steps.len(),
+            step.title,
+            step.summary,
+            source_excerpt
+        )
+    };
+    let has_source = !source_excerpt.is_empty();
+    reserve_ai_call(vault_root, provider.as_ref(), source_markdown.len() + 800)
+        .map_err(|e| anyhow::anyhow!(e))?;
+    let request = ProviderRequest {
+        system_instructions: "Você monta o ESQUELETO de uma nota de estudo em português. Regras rígidas: (1) responda SOMENTE com o JSON solicitado; (2) NUNCA invente fatos, definições ou exemplos sobre o tema — o estudante ainda vai aprender; (3) quando houver texto-fonte, extraia dele no máximo 2-3 frases literais curtas por seção e marque o resto como perguntas-guia ('Pergunte-se: ...'); (4) sem texto-fonte, cada seção traz 2-4 perguntas-guia e tópicos do que pesquisar, sem afirmar nada; (5) títulos curtos de seção; (6) tags em minúsculas ligadas ao tema da nota.".to_string(),
+        source_markdown,
+        user_content: format!(
+            "Monte o esqueleto da nota '{}' (passo {}).{}",
+            step.title,
+            step.order,
+            if has_source {
+                " Use o texto-fonte quando relevante."
+            } else {
+                " Não há texto-fonte: só estrutura e perguntas-guia."
+            }
+        ),
+        response_schema: goal_step_draft_schema(),
+    };
+    let response = provider.generate_structured(request).map_err(|failure| {
+        if failure.validation_errors.is_empty() {
+            anyhow::anyhow!(failure.message)
+        } else {
+            anyhow::anyhow!(
+                "{}: {}",
+                failure.message,
+                failure.validation_errors.join("; ")
+            )
+        }
+    })?;
+    parse_goal_step_draft(&response.structured)
+}
+
 /// `note_relative_path`: `None` = não altera; `Some(None)` = desvincula;
 /// `Some(Some(path))` = vincula.
 #[tauri::command]
@@ -777,7 +996,6 @@ pub(crate) fn update_goal_step_command(
     path: String,
     id: String,
     order: u32,
-    status: Option<GoalStepStatus>,
     note_relative_path: Option<Option<String>>,
     authorized_paths: tauri::State<'_, crate::AuthorizedPaths>,
 ) -> Result<Goal, String> {
@@ -795,7 +1013,55 @@ pub(crate) fn update_goal_step_command(
             }
         }
     }
-    update_goal_step(&root, id.trim(), order, status, note_relative_path).map_err(|e| e.to_string())
+    update_goal_step(&root, id.trim(), order, note_relative_path).map_err(|e| e.to_string())
+}
+
+/// Altera o conteúdo padrão das notas novas do plano (em branco ou esqueleto
+/// com IA). Vale para os próximos cliques no +; notas já criadas não mudam.
+#[tauri::command]
+pub(crate) fn set_goal_note_content_mode_command(
+    path: String,
+    id: String,
+    note_content_mode: NoteContentMode,
+    authorized_paths: tauri::State<'_, crate::AuthorizedPaths>,
+) -> Result<Goal, String> {
+    let root = crate::canonicalize_directory(Path::new(&path)).map_err(|e| e.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|e| e.to_string())?;
+    let mut goal = load_goal(&root, id.trim())
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "A meta nao existe.".to_string())?;
+    goal.note_content_mode = note_content_mode;
+    rewrite_goal_file(&root, &goal).map_err(|e| e.to_string())?;
+    Ok(goal)
+}
+
+/// Gera o rascunho do conteúdo de UM passo via IA (esqueleto + perguntas-
+/// guia; trechos literais só do texto-fonte da meta). Consome o orçamento do
+/// Vault ANTES do envio e exige o mesmo consentimento da revisão. Qualquer
+/// falha deve levar o frontend à nota em branco, sem bloquear a criação.
+#[tauri::command]
+pub(crate) fn generate_goal_step_draft_command(
+    path: String,
+    id: String,
+    order: u32,
+    provider: AiProviderSelection,
+    authorized_paths: tauri::State<'_, crate::AuthorizedPaths>,
+) -> Result<GoalStepDraft, String> {
+    let root = crate::canonicalize_directory(Path::new(&path)).map_err(|e| e.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|e| e.to_string())?;
+    let goal = load_goal(&root, id.trim())
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "A meta nao existe.".to_string())?;
+    let step = goal
+        .steps
+        .iter()
+        .find(|s| s.order == order)
+        .ok_or_else(|| "O passo nao existe na meta.".to_string())?;
+    generate_goal_step_draft(&root, provider, &goal, step).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -838,6 +1104,7 @@ mod tests {
             "",
             vec![("Acordes básicos".to_string(), "Dedilhados.".to_string())],
             false,
+            NoteContentMode::Blank,
         )
         .expect("build goal");
         assert_eq!(goal.steps.len(), 1);
@@ -851,9 +1118,95 @@ mod tests {
     #[test]
     fn build_goal_without_ai_never_calls_network() {
         let planned = deterministic_plan("X", "Aprender X", "");
-        let goal = build_goal_from_steps("X", "Aprender X", "", planned, false)
-            .expect("deterministic build");
+        let goal = build_goal_from_steps(
+            "X",
+            "Aprender X",
+            "",
+            planned,
+            false,
+            NoteContentMode::Blank,
+        )
+        .expect("deterministic build");
         assert!(!goal.ai_generated);
         assert!(!goal.steps.is_empty());
+    }
+
+    #[test]
+    fn content_mode_defaults_to_blank_for_legacy_goals() {
+        // Metas gravadas antes do campo existirem continuam lendo.
+        let goal: Goal = serde_json::from_str(
+            r#"{"id":"g-1","title":"T","objective":"O","createdAtUnixMs":1,
+                "steps":[{"order":1,"title":"A","summary":"S","suggestedRelativePath":"Metas/t/01-a.md","status":"done"}]}"#,
+        )
+        .expect("legacy goal parses");
+        assert_eq!(goal.note_content_mode, NoteContentMode::Blank);
+        assert!(goal.steps[0].note_relative_path.is_none());
+    }
+
+    #[test]
+    fn draft_schema_rejects_empty_sections_and_unknown_keys() {
+        let schema = goal_step_draft_schema();
+        let empty_sections = serde_json::json!({"tags": [], "sections": []});
+        assert!(!validate_instance(&schema, &empty_sections).is_empty());
+        let with_extra = serde_json::json!({
+            "tags": ["fotossintese"],
+            "sections": [{"heading": "O que estudar", "body": "Pergunte-se: o que é?"}],
+            "extra": 1,
+        });
+        assert!(!validate_instance(&schema, &with_extra).is_empty());
+        let valid = serde_json::json!({
+            "tags": ["fotossintese"],
+            "sections": [{"heading": "O que estudar", "body": "Pergunte-se: o que é?"}],
+        });
+        assert!(validate_instance(&schema, &valid).is_empty());
+    }
+
+    #[test]
+    fn parse_draft_sanitizes_tags_and_requires_sections() {
+        let structured = serde_json::json!({
+            "tags": ["Fotossintese", "NÃO-VÁLIDA!", "fotossintese"],
+            "sections": [{"heading": " O que estudar ", "body": " Pergunte-se: o quê? "}],
+        });
+        let draft = parse_goal_step_draft(&structured).expect("valid draft");
+        assert_eq!(draft.tags, vec!["fotossintese".to_string()]);
+        assert_eq!(draft.sections.len(), 1);
+        assert_eq!(draft.sections[0].heading, "O que estudar");
+
+        let no_sections = serde_json::json!({"tags": [], "sections": []});
+        assert!(parse_goal_step_draft(&no_sections).is_err());
+    }
+
+    #[test]
+    fn sanitize_draft_tag_accepts_only_index_safe_tags() {
+        assert_eq!(
+            sanitize_draft_tag("  Meta/Fotossintese-2 "),
+            Some("meta/fotossintese-2".to_string())
+        );
+        assert!(sanitize_draft_tag("COM ESPAÇO").is_none());
+        assert!(sanitize_draft_tag("/lider").is_none());
+        assert!(sanitize_draft_tag("").is_none());
+    }
+
+    #[test]
+    fn set_content_mode_roundtrips_through_the_file() {
+        let dir = tempfile::tempdir().expect("temp vault");
+        let root = dir.path();
+        let planned = deterministic_plan("X", "Aprender X", "");
+        let goal = build_goal_from_steps(
+            "X",
+            "Aprender X",
+            "",
+            planned,
+            false,
+            NoteContentMode::Blank,
+        )
+        .expect("build goal");
+        persist_goal(root, &goal).expect("persist");
+        let mut updated = load_goal(root, &goal.id).expect("load").expect("exists");
+        assert_eq!(updated.note_content_mode, NoteContentMode::Blank);
+        updated.note_content_mode = NoteContentMode::Ai;
+        rewrite_goal_file(root, &updated).expect("rewrite");
+        let reloaded = load_goal(root, &goal.id).expect("reload").expect("exists");
+        assert_eq!(reloaded.note_content_mode, NoteContentMode::Ai);
     }
 }

@@ -1,20 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, Check, ExternalLink, Plus, Trash2 } from 'lucide-react'
-import { ErrorState } from '../../components/ErrorState'
+import { Check, ChevronDown, ExternalLink, Info, Plus, Target, Trash2 } from 'lucide-react'
+import { EmptyState, ErrorState } from '../../components/ErrorState'
 import { GoalsSkeleton } from '../../components/PageSkeleton'
 import { Modal, ModalHeader } from '../../components/Modal'
+import { useEscapeToClose } from '../../lib/escapeStack'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { useReviewAiSettings } from '../review/ReviewAiSettingsContext'
 import {
   createGoal,
-  createStepNote,
+  createGoalStepNote,
   deleteGoal,
   goalErrorMessage,
+  isStepDone,
   listGoals,
-  updateGoalStep,
+  setGoalNoteContentMode,
   type Goal,
   type GoalProvider,
-  type GoalStepStatus,
+  type NoteContentMode,
 } from './goals'
 import './goals.css'
 
@@ -23,18 +25,127 @@ type GoalsPageProps = {
   onOpenNote: (relativePath: string) => void
 }
 
-const STATUS_LABELS: Record<GoalStepStatus, string> = {
-  planned: 'Planejado',
-  in_progress: 'Estudando',
-  done: 'Concluído',
-}
-
-const STATUS_ORDER: GoalStepStatus[] = ['planned', 'in_progress', 'done']
-
 function goalProgress(goal: Goal): { done: number; total: number; percent: number } {
   const total = goal.steps.length
-  const done = goal.steps.filter((step) => step.status === 'done').length
+  const done = goal.steps.filter(isStepDone).length
   return { done, total, percent: total === 0 ? 0 : Math.round((done / total) * 100) }
+}
+
+const CONTENT_MODE_OPTIONS: ReadonlyArray<{ value: NoteContentMode; label: string }> = [
+  { value: 'blank', label: 'Em branco' },
+  { value: 'ai', label: 'Esqueleto com IA' },
+]
+
+/** Dropdown customizado (botão + listbox) no visual do app: o `<select>`
+ * nativo abre o menu do SO, com cantos quadrados que destoam. Teclado total
+ * (setas/Enter/Escape/Tab) e fechamento no clique fora. */
+function ContentModeSelect({ labelledBy, value, onChange, disabled }: {
+  labelledBy: string
+  value: NoteContentMode
+  onChange: (mode: NoteContentMode) => void
+  disabled?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLUListElement | null>(null)
+  const selectedLabel = value === 'ai' ? 'Esqueleto com IA' : 'Em branco'
+
+  // Escape fecha SÓ o menu (pilha global: registrado depois do modal, logo no
+  // topo) e devolve o foco ao botão; outro Escape fecha o modal.
+  useEscapeToClose(open, () => {
+    setOpen(false)
+    triggerRef.current?.focus()
+  })
+
+  useEffect(() => {
+    if (!open) return
+    menuRef.current?.querySelector<HTMLElement>('[role="option"][aria-selected="true"]')?.focus()
+  }, [open])
+
+  function focusOption(direction: 1 | -1) {
+    const options = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="option"]') ?? [])
+    if (options.length === 0) return
+    const index = options.indexOf(document.activeElement as HTMLElement)
+    const next = options[(index + direction + options.length) % options.length] ?? options[0]
+    next.focus()
+  }
+
+  function choose(next: NoteContentMode) {
+    setOpen(false)
+    if (next !== value) onChange(next)
+    triggerRef.current?.focus()
+  }
+
+  return (
+    <div
+      className="goals-combobox"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false)
+      }}
+      onKeyDown={(event) => {
+        if (!open && event.target === triggerRef.current && event.key === 'ArrowDown') {
+          event.preventDefault()
+          setOpen(true)
+        } else if (open && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+          event.preventDefault()
+          focusOption(event.key === 'ArrowDown' ? 1 : -1)
+        }
+      }}
+    >
+      <button
+        ref={triggerRef}
+        type="button"
+        className="goals-combobox-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-labelledby={labelledBy}
+        onClick={() => setOpen((isOpen) => !isOpen)}
+        disabled={disabled}
+      >
+        <span>{selectedLabel}</span>
+        <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
+      </button>
+      {open ? (
+        <ul ref={menuRef} className="goals-combobox-menu" role="listbox" aria-labelledby={labelledBy}>
+          {CONTENT_MODE_OPTIONS.map((option) => (
+            <li
+              key={option.value}
+              role="option"
+              tabIndex={option.value === value ? 0 : -1}
+              aria-selected={option.value === value}
+              onClick={() => choose(option.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  choose(option.value)
+                }
+              }}
+            >
+              <span className="goals-combobox-check" aria-hidden="true">
+                {option.value === value ? <Check size={13} strokeWidth={2.5} /> : null}
+              </span>
+              <span>{option.label}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
+/** Ícone com tooltip explicando as opções de conteúdo das notas novas. */
+function ContentModeTip({ tipId }: { tipId: string }) {
+  return (
+    <span className="goals-tip">
+      <button type="button" className="goals-tip-button" aria-label="Como funcionam as opções" aria-describedby={tipId}>
+        <Info size={13} strokeWidth={2} aria-hidden="true" />
+      </button>
+      <span className="goals-tip-text" role="tooltip" id={tipId}>
+        <strong>Em branco:</strong> a nota nasce só com título, resumo do plano e seções vazias para preencher.{' '}
+        <strong>Esqueleto com IA:</strong> a IA monta estrutura, perguntas-guia e tags a partir do objetivo e do texto da meta, sem inventar fatos; usa o provedor atual e consome orçamento — se falhar, a nota nasce em branco.
+      </span>
+    </span>
+  )
 }
 
 export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
@@ -43,19 +154,22 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadRequest, setReloadRequest] = useState(0)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(null)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [objective, setObjective] = useState('')
   const [sourceText, setSourceText] = useState('')
   const [useAi, setUseAi] = useState(true)
+  const [contentMode, setContentMode] = useState<NoteContentMode>('blank')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [createdMessage, setCreatedMessage] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [busyStep, setBusyStep] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [draftNotice, setDraftNotice] = useState<string | null>(null)
+  const [modeBusy, setModeBusy] = useState(false)
   const requestIdRef = useRef(0)
 
   useEffect(() => {
@@ -66,7 +180,6 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
       .then((next) => {
         if (requestId !== requestIdRef.current) return
         setGoals(next)
-        setSelectedId((current) => current ?? next[0]?.id ?? null)
       })
       .catch(() => {
         if (requestId === requestIdRef.current) setError('Não foi possível carregar as metas.')
@@ -91,6 +204,8 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
     { steps: 0, done: 0 },
   )
   const totalPercent = totals.steps === 0 ? 0 : Math.round((totals.done / totals.steps) * 100)
+  const detailGoal = goals.find((goal) => goal.id === detailId) ?? null
+  const detailProgress = detailGoal ? goalProgress(detailGoal) : null
 
   function aiProviderForRequest(): GoalProvider | null {
     if (!useAi) return null
@@ -112,13 +227,15 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
         objective: objective.trim(),
         sourceText,
         provider: aiProviderForRequest(),
+        noteContentMode: contentMode,
       })
       setGoals((current) => [goal, ...current])
-      setSelectedId(goal.id)
+      setDetailId(goal.id)
       setCreatedMessage(`Meta “${goal.title}” criada com ${goal.steps.length} notas propostas.`)
       setTitle('')
       setObjective('')
       setSourceText('')
+      setContentMode('blank')
       setModalOpen(false)
     } catch (cause) {
       setCreateError(goalErrorMessage(cause))
@@ -138,7 +255,7 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
     try {
       await deleteGoal(vaultPath, id)
       setGoals((current) => current.filter((goal) => goal.id !== id))
-      setSelectedId((current) => (current === id ? null : current))
+      setDetailId((current) => (current === id ? null : current))
     } catch (cause) {
       setActionError(goalErrorMessage(cause))
     }
@@ -148,32 +265,30 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
     const step = goal.steps.find((item) => item.order === order)
     if (!step || busyStep) return
     // Se a nota já existe/vinculada, só abre na página de notas.
-    if (step.noteRelativePath) {
-      onOpenNote(step.noteRelativePath)
+    if (isStepDone(step)) {
+      onOpenNote(step.noteRelativePath as string)
       return
     }
     const key = `${goal.id}:${order}`
     setBusyStep(key)
     setActionError(null)
+    setDraftNotice(null)
     try {
-      const relativePath = step.suggestedRelativePath
-      await createStepNote({
+      // Cria a nota do passo (em branco ou esqueleto com IA), garante a
+      // indexadora da meta e vincula tudo; depois abre a nota na página de
+      // notas com o título já pronto.
+      const created = await createGoalStepNote({
         vaultPath,
-        relativePath,
-        title: step.title,
-        summary: step.summary,
-        goalTitle: goal.title,
-        order: step.order,
+        goal,
+        order,
+        contentMode: goal.noteContentMode ?? 'blank',
+        provider: aiProviderForRequest(),
       })
-      const updated = await updateGoalStep({
-        vaultPath,
-        id: goal.id,
-        order: step.order,
-        noteRelativePath: relativePath,
-      })
-      setGoals((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-      // Abre na página de notas com o título já pronto.
-      onOpenNote(relativePath)
+      setGoals((current) => current.map((item) => (item.id === created.goal.id ? created.goal : item)))
+      if (created.draftError) {
+        setDraftNotice(`A nota foi criada em branco: ${created.draftError}`)
+      }
+      onOpenNote(created.notePath)
     } catch (cause) {
       setActionError(goalErrorMessage(cause))
     } finally {
@@ -181,18 +296,17 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
     }
   }
 
-  async function handleStepStatus(goal: Goal, order: number, status: GoalStepStatus) {
-    const key = `${goal.id}:${order}:status`
-    if (busyStep) return
-    setBusyStep(key)
+  async function handleContentModeChange(goal: Goal, mode: NoteContentMode) {
+    if (modeBusy || (goal.noteContentMode ?? 'blank') === mode) return
+    setModeBusy(true)
     setActionError(null)
     try {
-      const updated = await updateGoalStep({ vaultPath, id: goal.id, order, status })
+      const updated = await setGoalNoteContentMode({ vaultPath, id: goal.id, noteContentMode: mode })
       setGoals((current) => current.map((item) => (item.id === updated.id ? updated : item)))
     } catch (cause) {
       setActionError(goalErrorMessage(cause))
     } finally {
-      setBusyStep(null)
+      setModeBusy(false)
     }
   }
 
@@ -213,22 +327,11 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
       </PageHeader>
 
       {goals.length > 0 && !loading ? (
-        <dl className="goals-summary" aria-label="Resumo das metas">
-          <div>
-            <dt>Metas</dt>
-            <dd>{goals.length}</dd>
-          </div>
-          <div>
-            <dt>Passos concluídos</dt>
-            <dd>
-              {totals.done}/{totals.steps}
-            </dd>
-          </div>
-          <div>
-            <dt>Progresso geral</dt>
-            <dd>{totalPercent}%</dd>
-          </div>
-        </dl>
+        <p className="goals-headline-stats" aria-label="Resumo das metas">
+          <strong>{goals.length} {goals.length === 1 ? 'meta' : 'metas'}</strong>
+          <span aria-hidden="true"> · </span>
+          <strong>{totalPercent}%</strong> concluído no geral
+        </p>
       ) : null}
 
       {createdMessage ? <p role="status" className="goals-success">{createdMessage}</p> : null}
@@ -238,140 +341,55 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
       ) : error ? (
         <ErrorState message={error} onRetry={() => setReloadRequest((request) => request + 1)} />
       ) : goals.length === 0 ? (
-        <div className="goals-status">
-          <BookOpen size={22} strokeWidth={1.4} aria-hidden="true" />
-          <strong>Nenhuma meta ainda.</strong>
-          <p>Crie a primeira pelo botão “Nova meta” — o card aparece aqui com as notas propostas.</p>
-        </div>
+        <EmptyState
+          icon={<Target size={24} strokeWidth={1.6} aria-hidden="true" />}
+          title="Nenhuma meta ainda."
+          description="Metas viram planos de estudo: o app quebra seu objetivo em notas ordenadas e acompanha o progresso de cada uma."
+          steps={[
+            'Clique em “Nova meta” e descreva o que quer aprender',
+            'Receba o plano em ordem lógica de estudo',
+            'Crie cada nota com o + e veja o progresso andar',
+          ]}
+          action={(
+            <button type="button" className="goals-new-button" onClick={openModal}>
+              <Plus size={15} strokeWidth={2.4} aria-hidden="true" /> Criar primeira meta
+            </button>
+          )}
+        />
       ) : (
         <ul className="goals-list" aria-label="Metas criadas">
           {goals.map((goal) => {
             const progress = goalProgress(goal)
-            const isSelected = goal.id === selectedId
-            const isConfirmingDelete = confirmDeleteId === goal.id
             return (
-              <li key={goal.id} className={`goal-card${isSelected ? ' is-selected' : ''}`}>
-                <div className="goal-card-header">
-                  <div>
-                    <h3>{goal.title}</h3>
-                    <p className="goal-card-objective">{goal.objective}</p>
-                  </div>
-                  <div className="goal-card-actions">
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => setSelectedId(isSelected ? null : goal.id)}
-                      aria-expanded={isSelected}
+              <li key={goal.id} className="goal-card">
+                <button
+                  type="button"
+                  className="goal-card-hit"
+                  onClick={() => setDetailId(goal.id)}
+                  aria-label={`Abrir detalhes da meta ${goal.title}`}
+                />
+                <div className="goal-card-body">
+                  <h3>{goal.title}</h3>
+                  <p className="goal-card-objective">{goal.objective}</p>
+                  <div className="goal-progress-row">
+                    <div
+                      className="goal-progress"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={progress.percent}
+                      aria-label={`Progresso da meta ${goal.title}: ${progress.done} de ${progress.total} passos concluídos`}
                     >
-                      {isSelected ? 'Recolher' : 'Ver plano'}
-                    </button>
-                    {isConfirmingDelete ? (
-                      <>
-                        <button
-                          type="button"
-                          className="secondary-button goal-delete-confirm"
-                          onClick={() => void handleDelete(goal.id)}
-                          aria-label={`Confirmar exclusão da meta ${goal.title}`}
-                        >
-                          Confirmar exclusão
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => setConfirmDeleteId(null)}
-                        >
-                          Cancelar
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => void handleDelete(goal.id)}
-                        aria-label={`Excluir meta ${goal.title}`}
-                        title="Excluir meta"
-                      >
-                        <Trash2 size={14} aria-hidden="true" />
-                      </button>
-                    )}
+                      <span className="goal-progress-fill" style={{ width: `${progress.percent}%` }} />
+                    </div>
+                    <span className="goal-progress-text">
+                      {progress.done}/{progress.total} · {progress.percent}%
+                    </span>
+                  </div>
+                  <div className="goal-card-meta">
+                    <span>{goal.steps.length} {goal.steps.length === 1 ? 'nota proposta' : 'notas propostas'}</span>
                   </div>
                 </div>
-                <div className="goal-card-meta">
-                  <span>{goal.steps.length} notas propostas em ordem</span>
-                  <span>{goal.aiGenerated ? 'Plano gerado por IA' : 'Plano local (determinístico)'}</span>
-                </div>
-                <div className="goal-progress-row">
-                  <div
-                    className="goal-progress"
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={progress.percent}
-                    aria-label={`Progresso da meta ${goal.title}: ${progress.done} de ${progress.total} passos concluídos`}
-                  >
-                    <span className="goal-progress-fill" style={{ width: `${progress.percent}%` }} />
-                  </div>
-                  <span className="goal-progress-text">
-                    {progress.done}/{progress.total} concluídos · {progress.percent}%
-                  </span>
-                </div>
-                {isSelected ? (
-                  <ol className="goal-steps" aria-label={`Plano da meta ${goal.title}`}>
-                    {goal.steps.map((step) => {
-                      const key = `${goal.id}:${step.order}`
-                      const busy = busyStep === key || busyStep === `${key}:status`
-                      const hasNote = Boolean(step.noteRelativePath)
-                      const isDone = step.status === 'done'
-                      return (
-                        <li key={step.order} className={isDone ? 'is-done' : ''}>
-                          <span className="goal-step-order" aria-hidden="true">
-                            {isDone ? <Check size={14} strokeWidth={2.5} aria-hidden="true" /> : step.order}
-                          </span>
-                          <div className="goal-step-copy">
-                            <div className="goal-step-title-row">
-                              <strong>{step.title}</strong>
-                              <button
-                                type="button"
-                                className="goal-step-add"
-                                onClick={() => void handleCreateAndOpenNote(goal, step.order)}
-                                disabled={busy}
-                                aria-busy={busy}
-                                aria-label={hasNote ? `Abrir nota ${step.title}` : `Criar e abrir nota ${step.title}`}
-                                title={hasNote ? `Abrir nota ${step.title}` : `Criar e abrir nota ${step.title}`}
-                              >
-                                {hasNote ? (
-                                  <ExternalLink size={14} strokeWidth={2.2} aria-hidden="true" />
-                                ) : (
-                                  <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
-                                )}
-                              </button>
-                            </div>
-                            {step.summary ? <p>{step.summary}</p> : null}
-                            <code>{step.noteRelativePath ?? step.suggestedRelativePath}</code>
-                          </div>
-                          <div
-                            className="goal-step-status"
-                            role="group"
-                            aria-label={`Status do passo ${step.order}: ${step.title}`}
-                          >
-                            {STATUS_ORDER.map((status) => (
-                              <button
-                                key={status}
-                                type="button"
-                                className={`goal-status-option${step.status === status ? ' is-active' : ''}`}
-                                aria-pressed={step.status === status}
-                                onClick={() => void handleStepStatus(goal, step.order, status)}
-                                disabled={busy || step.status === status}
-                              >
-                                {STATUS_LABELS[status]}
-                              </button>
-                            ))}
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ol>
-                ) : null}
               </li>
             )
           })}
@@ -382,6 +400,126 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
           {actionError}
         </p>
       ) : null}
+
+      <Modal
+        open={detailId !== null}
+        onClose={() => setDetailId(null)}
+        labelledBy="goals-detail-title"
+        className="goals-dialog goals-detail-dialog"
+      >
+        {detailGoal && detailProgress ? (
+          <div className="goals-detail-body">
+            <ModalHeader
+              title={detailGoal.title}
+              titleId="goals-detail-title"
+              closeLabel={`Fechar detalhes da meta ${detailGoal.title}`}
+              kicker="Meta"
+              onClose={() => setDetailId(null)}
+            />
+            <p className="goal-card-objective">{detailGoal.objective}</p>
+            <div className="goal-card-meta">
+              <span>{detailGoal.steps.length} {detailGoal.steps.length === 1 ? 'nota proposta em ordem' : 'notas propostas em ordem'}</span>
+            </div>
+            <div className="goal-detail-field goals-field-row">
+              <span className="goals-field-title">
+                <span id="goals-content-mode-label">Conteúdo das notas novas</span>
+                <ContentModeTip tipId="goals-content-mode-tip" />
+              </span>
+              <ContentModeSelect
+                labelledBy="goals-content-mode-label"
+                value={detailGoal.noteContentMode ?? 'blank'}
+                onChange={(mode) => void handleContentModeChange(detailGoal, mode)}
+                disabled={modeBusy}
+              />
+            </div>
+            {draftNotice ? <p role="status" className="goals-hint">{draftNotice}</p> : null}
+            <div className="goal-detail-progress">
+              <div className="goal-detail-progress-head">
+                <strong>Passos concluídos</strong>
+                <span>{detailProgress.done}/{detailProgress.total} · {detailProgress.percent}%</span>
+              </div>
+              <div
+                className="goal-progress"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={detailProgress.percent}
+                aria-label={`Progresso da meta ${detailGoal.title}: ${detailProgress.done} de ${detailProgress.total} passos concluídos`}
+              >
+                <span className="goal-progress-fill" style={{ width: `${detailProgress.percent}%` }} />
+              </div>
+            </div>
+            <ol className="goal-steps" aria-label={`Plano da meta ${detailGoal.title}`}>
+              {detailGoal.steps.map((step) => {
+                const key = `${detailGoal.id}:${step.order}`
+                const busy = busyStep === key
+                const hasNote = isStepDone(step)
+                const isDone = hasNote
+                return (
+                  <li key={step.order} className={isDone ? 'is-done' : ''}>
+                    <span className="goal-step-order" aria-hidden="true">
+                      {isDone ? <Check size={14} strokeWidth={2.5} aria-hidden="true" /> : step.order}
+                    </span>
+                    <div className="goal-step-copy">
+                      <strong>{step.title}</strong>
+                      {step.summary ? <p>{step.summary}</p> : null}
+                      <code>{step.noteRelativePath ?? step.suggestedRelativePath}</code>
+                    </div>
+                    <div className="goal-step-side">
+                      <button
+                        type="button"
+                        className="goal-step-add"
+                        onClick={() => void handleCreateAndOpenNote(detailGoal, step.order)}
+                        disabled={busy}
+                        aria-busy={busy}
+                        aria-label={hasNote ? `Abrir nota ${step.title}` : `Criar e abrir nota ${step.title}`}
+                        title={hasNote ? `Abrir nota ${step.title}` : `Criar e abrir nota ${step.title}`}
+                      >
+                        {hasNote ? (
+                          <ExternalLink size={14} strokeWidth={2.2} aria-hidden="true" />
+                        ) : (
+                          <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
+                        )}
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ol>
+            <div className="goals-detail-footer">
+              {confirmDeleteId === detailGoal.id ? (
+                <>
+                  <button
+                    type="button"
+                    className="secondary-button goal-delete-confirm"
+                    onClick={() => void handleDelete(detailGoal.id)}
+                    aria-label={`Confirmar exclusão da meta ${detailGoal.title}`}
+                  >
+                    Confirmar exclusão
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setConfirmDeleteId(null)}
+                  >
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => void handleDelete(detailGoal.id)}
+                  aria-label={`Excluir meta ${detailGoal.title}`}
+                  title="Excluir meta"
+                >
+                  <Trash2 size={14} aria-hidden="true" /> Excluir meta
+                </button>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
       <Modal
         open={modalOpen}
@@ -447,6 +585,17 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
             />
             <span>Usar IA do provedor atual para ordenar o plano ({reviewProvider})</span>
           </label>
+          <div className="goal-detail-field goals-field-row">
+            <span className="goals-field-title">
+              <span id="goals-new-content-mode-label">Conteúdo das notas novas</span>
+              <ContentModeTip tipId="goals-new-content-mode-tip" />
+            </span>
+            <ContentModeSelect
+              labelledBy="goals-new-content-mode-label"
+              value={contentMode}
+              onChange={setContentMode}
+            />
+          </div>
           <div className="goals-dialog-actions">
             <button type="button" className="secondary-button" onClick={() => setModalOpen(false)}>
               Cancelar

@@ -20,3 +20,28 @@ export function LoadingState({ message }: { message: string }) {
     <div className="workspace-error-status" role="status">{message}</div>
   )
 }
+
+/** Estado vazio padrao das paginas do workspace (Metas, Revisar, ...):
+ * selo com icone, titulo, descricao, mini-guia numerado opcional e acao
+ * opcional — o vazio vira orientação em vez de beco sem saída. */
+export function EmptyState({ icon, title, description, steps, action }: {
+  icon: React.ReactNode
+  title: string
+  description?: React.ReactNode
+  steps?: string[]
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="workspace-empty-state" role="status">
+      <span className="workspace-empty-icon" aria-hidden="true">{icon}</span>
+      <strong>{title}</strong>
+      {description ? <p>{description}</p> : null}
+      {steps && steps.length > 0 ? (
+        <ol className="workspace-empty-steps">
+          {steps.map((step) => <li key={step}>{step}</li>)}
+        </ol>
+      ) : null}
+      {action}
+    </div>
+  )
+}

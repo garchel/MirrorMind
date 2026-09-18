@@ -6158,7 +6158,9 @@ pub fn run() {
             goals::create_goal_command,
             goals::get_goal_command,
             goals::delete_goal_command,
-            goals::update_goal_step_command
+            goals::update_goal_step_command,
+            goals::set_goal_note_content_mode_command,
+            goals::generate_goal_step_draft_command
         ])
         .setup(|_app| {
             #[cfg(all(debug_assertions, not(feature = "e2e")))]
