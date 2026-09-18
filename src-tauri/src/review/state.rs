@@ -151,6 +151,7 @@ pub fn persist_readiness_assessment(
             &content_hash,
             &document.units,
             max_whole_note_words,
+            &document.sessions,
         );
     }
     let starts_new_cycle =
@@ -260,6 +261,7 @@ pub fn load_note_review_state(
             &current_hash,
             &document.units,
             max_whole_note_words,
+            &document.sessions,
         );
         document.note.content_hash = current_hash.clone();
         document.note.relative_path = relative_path.to_string();
@@ -736,7 +738,13 @@ fn new_learning_document(
                 mode_manual: false,
             },
         },
-        units: build_learning_units_with_limits(markdown, content_hash, &[], max_whole_note_words),
+        units: build_learning_units_with_limits(
+            markdown,
+            content_hash,
+            &[],
+            max_whole_note_words,
+            &[],
+        ),
         effective_policy,
         scheduling: SchedulingState {
             status: SchedulingStatus::NotScheduled,

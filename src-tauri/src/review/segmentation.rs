@@ -1,4 +1,4 @@
-use super::contract::{LearningUnit, LearningUnitKind, UnitIdentity};
+use super::contract::{LearningUnit, LearningUnitKind, ReviewSession, UnitIdentity};
 use super::evaluation::source_hash;
 use std::collections::HashSet;
 
@@ -11,6 +11,8 @@ pub const MAX_CONFIGURABLE_WHOLE_NOTE_WORDS: usize = 10_000;
 pub const MAX_WHOLE_NOTE_BLOCKS: usize = 6;
 
 /// Segmenta o Markdown com o limite padrao de palavras por nota inteira.
+/// Sem sessoes: secoes reconstruidas sem casamento exato nao herdam memoria
+/// (o validador exige projecao vazia quando nao ha resultado contido).
 pub fn build_learning_units(
     markdown: &str,
     content_hash: &str,
@@ -21,6 +23,7 @@ pub fn build_learning_units(
         content_hash,
         previous,
         DEFAULT_MAX_WHOLE_NOTE_WORDS,
+        &[],
     )
 }
 
@@ -41,6 +44,7 @@ pub fn build_learning_units_with_limits(
     content_hash: &str,
     previous: &[LearningUnit],
     max_whole_note_words: usize,
+    sessions: &[ReviewSession],
 ) -> Vec<LearningUnit> {
     let plan = segment_markdown(markdown, max_whole_note_words);
     if plan.whole_note {
@@ -64,52 +68,24 @@ pub fn build_learning_units_with_limits(
             next_context.as_deref(),
             &mut available,
         );
-        // Migracao de segmentacao por secoes: sem casamento exato, uma secao
-        // que agrupa varias unidades antigas (contidas no seu range) herda a
-        // fusao conservadora delas — a secao e tao fragil quanto seu pior
-        // paragrafo, e o agendamento nunca fica mais distante que o pior
-        // estado contido. Apenas agrupamentos reais (mais de uma unidade)
+        // Migracao de segmentacao por secoes: sem casamento exato, a identidade
+        // (id ancora) ainda vem das unidades antigas contidas no range — mas a
+        // PROJECAO (avaliacao + FSRS) vem das sessoes, pela mesma funcao que o
+        // validador usa. Apenas agrupamentos reais (mais de uma unidade)
         // disparam a fusao: um paragrafo unico inalterado ja casa por hash
-        // normalizado, e conteudo alterado nunca herda memoria.
+        // normalizado. Paragrafos refeitos nunca herdam memoria (o validador
+        // exige projecao vazia para eles).
         let merged = matched
             .is_none()
             .then(|| merge_match(segment, &mut available))
             .flatten();
-        let (id, content_hash, fsrs, latest_evaluation) = match matched {
-            Some(previous) => (
-                previous.id.clone(),
-                previous.content_hash.clone(),
-                previous.fsrs.clone(),
-                previous.latest_evaluation.clone(),
-            ),
-            None => match merged {
-                Some(contained) => {
-                    let anchor = contained[0];
-                    let projection = crate::review::contract::conservative_merge(
-                        contained.iter().filter_map(|unit| {
-                            unit.latest_evaluation
-                                .as_ref()
-                                .map(|evaluation| (evaluation, unit.fsrs.as_ref()))
-                        }),
-                    );
-                    let (fsrs, latest_evaluation) = match projection {
-                        Some((evaluation, fsrs)) => (Some(fsrs), Some(evaluation)),
-                        None => (None, None),
-                    };
-                    (
-                        anchor.id.clone(),
-                        source_hash(&segment.content),
-                        fsrs,
-                        latest_evaluation,
-                    )
-                }
-                None => (
-                    fresh_unit_id(&mut used_ids),
-                    source_hash(&segment.content),
-                    None,
-                    None,
-                ),
-            },
+        let (id, content_hash) = match (&matched, &merged) {
+            (Some(previous), _) => (previous.id.clone(), previous.content_hash.clone()),
+            (None, Some(contained)) => {
+                let anchor = contained[0];
+                (anchor.id.clone(), source_hash(&segment.content))
+            }
+            (None, None) => (fresh_unit_id(&mut used_ids), source_hash(&segment.content)),
         };
         // Unidades agrupadas por secao carregam o tipo Section; blocos sem
         // heading (notas sem estrutura ou preambulo) permanecem Paragraph.
@@ -117,6 +93,25 @@ pub fn build_learning_units_with_limits(
             LearningUnitKind::Paragraph
         } else {
             LearningUnitKind::Section
+        };
+        // Unidades reaproveitadas por casamento exato preservam a memoria. Uma
+        // secao reconstruida herda a fusao conservadora das sessoes contidas
+        // no range final — exatamente o que o validador do contrato exige — e
+        // nunca a fusao das unidades antigas (que pode refletir paragrafos
+        // fora do novo range e tornar o documento impersistivel).
+        let (fsrs, latest_evaluation) = match (&matched, kind == LearningUnitKind::Section) {
+            (Some(previous), _) => (previous.fsrs.clone(), previous.latest_evaluation.clone()),
+            (None, true) => {
+                match crate::review::contract::conservative_projection_in_range(
+                    sessions,
+                    segment.start_utf16,
+                    segment.end_utf16,
+                ) {
+                    Some((evaluation, fsrs)) => (Some(fsrs), Some(evaluation)),
+                    None => (None, None),
+                }
+            }
+            (None, false) => (None, None),
         };
         units.push(LearningUnit {
             id,
@@ -477,7 +472,8 @@ fn normalize(content: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_learning_units, build_learning_units_with_limits, normalize, MAX_WHOLE_NOTE_BLOCKS,
+        build_learning_units, build_learning_units_with_limits, normalize,
+        DEFAULT_MAX_WHOLE_NOTE_WORDS, MAX_WHOLE_NOTE_BLOCKS,
     };
     use crate::review::contract::{FsrsState, LearningUnitKind, UnitEvaluation};
     use crate::review::evaluation::source_hash;
@@ -529,7 +525,7 @@ mod tests {
         let changed_frontmatter =
             "---\ntags: [revisao/prova, revisao/manter]\n---\n# ATP\nATP armazena energia.";
         let rebuilt =
-            build_learning_units_with_limits(changed_frontmatter, "sha256:two", &units, 800);
+            build_learning_units_with_limits(changed_frontmatter, "sha256:two", &units, 800, &[]);
         assert_eq!(rebuilt.len(), 1);
         // Mesma identidade e mesmo estado de memoria, apesar do frontmatter
         // novo e do hash de conteudo novo.
@@ -582,12 +578,12 @@ mod tests {
         let content_hash = source_hash(&markdown);
 
         // Com limite 800 as 600 palavras ainda formam uma nota inteira.
-        let whole = build_learning_units_with_limits(&markdown, &content_hash, &[], 800);
+        let whole = build_learning_units_with_limits(&markdown, &content_hash, &[], 800, &[]);
         assert_eq!(whole.len(), 1);
         assert_eq!(whole[0].kind, LearningUnitKind::WholeNote);
 
         // Com limite 400 a mesma nota e dividida em dois paragrafos.
-        let split = build_learning_units_with_limits(&markdown, &content_hash, &[], 400);
+        let split = build_learning_units_with_limits(&markdown, &content_hash, &[], 400, &[]);
         assert_eq!(split.len(), 2);
         assert!(split
             .iter()
@@ -854,7 +850,10 @@ mod tests {
 
     #[test]
     fn re_segmenting_paragraphs_into_sections_merges_projection_conservatively() {
-        use crate::review::contract::{LearningUnit, RecallOutcome, UnitIdentity};
+        use crate::review::contract::{
+            AiProvider, LearningUnit, PolicySource, PolicySourceKind, PolicySources, RecallOutcome,
+            ReviewMode, ReviewPolicy, ReviewSession, SessionUnitResult, UnitIdentity, UnitSnapshot,
+        };
         // O mesmo markdown com headings: a nota longa agora segmenta em duas
         // secoes (A: 3 paragrafos, B: 4) em vez de sete paragrafos.
         let paragraphs = (1..=7)
@@ -933,12 +932,76 @@ mod tests {
                 latest_evaluation,
             });
         }
+        // Resultados de sessao espelhando as avaliacoes antigas: a fusao da
+        // secao vem das sessoes (fonte do validador), nao das unidades.
+        let no_source = || PolicySource {
+            kind: PolicySourceKind::VaultDefault,
+            source_id: None,
+        };
+        let sessions = vec![ReviewSession {
+            id: "session-1".to_string(),
+            note_content_hash: content_hash.clone(),
+            mode: ReviewMode::Exam,
+            provider: AiProvider::Ollama,
+            completed_at_unix_ms: 1_720_000_000_000,
+            overall_score: Some(57),
+            unit_results: [0, 1, 2]
+                .iter()
+                .map(|index| {
+                    let unit = &old_units[*index];
+                    let (evaluation, fsrs) = match index {
+                        0 => (eval_80.clone(), fsrs_80.clone()),
+                        1 => (eval_30.clone(), fsrs_30.clone()),
+                        _ => (eval_60.clone(), fsrs_60.clone()),
+                    };
+                    SessionUnitResult {
+                        unit_snapshot: UnitSnapshot {
+                            id: unit.id.clone(),
+                            ordinal: unit.ordinal,
+                            kind: unit.kind.clone(),
+                            content_hash: unit.content_hash.clone(),
+                            section_path: Vec::new(),
+                            identity: unit.identity.clone(),
+                            source_start_utf16: unit.source_start_utf16,
+                            source_end_utf16: unit.source_end_utf16,
+                        },
+                        evaluation,
+                        fsrs_before: None,
+                        fsrs_after: Some(fsrs),
+                    }
+                })
+                .collect(),
+            effective_policy: ReviewPolicy {
+                first_review_interval_days: 1,
+                target_retention: 0.9,
+                priority_weight: 1.0,
+                min_interval_days: 1,
+                max_interval_days: 30,
+                deadline_at_unix_ms: None,
+                sources: PolicySources {
+                    first_review_interval_days: no_source(),
+                    target_retention: no_source(),
+                    priority_weight: no_source(),
+                    min_interval_days: no_source(),
+                    max_interval_days: no_source(),
+                    deadline_at_unix_ms: None,
+                    active_deadline: None,
+                },
+            },
+            next_review_at_unix_ms: None,
+        }];
 
-        let rebuilt = build_learning_units(&markdown, &content_hash, &old_units);
+        let rebuilt = build_learning_units_with_limits(
+            &markdown,
+            &content_hash,
+            &old_units,
+            DEFAULT_MAX_WHOLE_NOTE_WORDS,
+            &sessions,
+        );
         assert_eq!(rebuilt.len(), 2);
 
         // A secao A herdou a identidade do primeiro contido e a projecao
-        // conservadora (pior nota e menor estabilidade: unit-2).
+        // conservadora das sessoes (pior nota e menor estabilidade: unit-2).
         assert_eq!(rebuilt[0].id, "unit-1");
         assert_eq!(rebuilt[0].kind, LearningUnitKind::Section);
         assert_eq!(rebuilt[0].fsrs.as_ref(), Some(&fsrs_30));
@@ -952,10 +1015,94 @@ mod tests {
         );
         assert_eq!(rebuilt[0].content_hash, source_hash(&section_a_content));
 
-        // A secao B nao tinha projecao nos contidos: comeca sem memoria.
+        // A secao B nao tinha resultado avaliado contido nas sessoes: comeca
+        // sem memoria.
         assert_eq!(rebuilt[1].id, "unit-4");
         assert!(rebuilt[1].fsrs.is_none());
         assert!(rebuilt[1].latest_evaluation.is_none());
+    }
+
+    #[test]
+    fn section_merge_without_session_results_starts_without_memory() {
+        // Regressao: fundir unidades antigas avaliadas SEM resultado de sessao
+        // correspondente produzia projecao que o validador rejeitava
+        // ("A projecao da secao diverge..."), tornando a fila impersistivel.
+        // Agora a secao herda somente a fusao das sessoes contidas.
+        use crate::review::contract::{LearningUnit, UnitIdentity};
+        // Sete paragrafos (acima do limite de blocos) para forcar a
+        // segmentacao em secoes, como no teste de fusao acima.
+        let paragraphs = (1..=7)
+            .map(|index| format!("Paragrafo {index} com conteudo substantivo para revisao."))
+            .collect::<Vec<_>>();
+        let markdown = format!(
+            "# A\n\n{}\n\n{}\n\n{}\n\n# B\n\n{}\n\n{}\n\n{}\n\n{}",
+            paragraphs[0],
+            paragraphs[1],
+            paragraphs[2],
+            paragraphs[3],
+            paragraphs[4],
+            paragraphs[5],
+            paragraphs[6]
+        );
+        let content_hash = source_hash(&markdown);
+        let old_units: Vec<LearningUnit> = paragraphs
+            .iter()
+            .enumerate()
+            .map(|(index, paragraph)| {
+                let start = u64::try_from(markdown.find(paragraph).expect("paragraph"))
+                    .expect("offset")
+                    .try_into()
+                    .expect("u64");
+                let end = start + u64::try_from(paragraph.len()).expect("len");
+                LearningUnit {
+                    id: format!("unit-{}", index + 1),
+                    ordinal: index as u64,
+                    kind: LearningUnitKind::Paragraph,
+                    content_hash: source_hash(paragraph),
+                    section_path: Vec::new(),
+                    identity: UnitIdentity {
+                        signature_version: 1,
+                        normalized_content_hash: source_hash(&normalize(paragraph)),
+                        previous_context_hash: None,
+                        next_context_hash: None,
+                        approximate_start_utf16: start,
+                    },
+                    source_start_utf16: start,
+                    source_end_utf16: end,
+                    fsrs: Some(FsrsState {
+                        difficulty: 5.0,
+                        stability_days: 4.0,
+                        retrievability: 0.8,
+                        last_reviewed_at_unix_ms: 1_720_000_000_000,
+                    }),
+                    latest_evaluation: Some(UnitEvaluation::Evaluated {
+                        score: 70,
+                        outcome: crate::review::contract::RecallOutcome::Good,
+                        evidence: crate::review::contract::EvidenceStrength::FreeRecall,
+                        evaluated_at_unix_ms: 1_720_000_000_000,
+                        gaps: Vec::new(),
+                        assertions: Vec::new(),
+                    }),
+                }
+            })
+            .collect();
+
+        let rebuilt = build_learning_units_with_limits(
+            &markdown,
+            &content_hash,
+            &old_units,
+            DEFAULT_MAX_WHOLE_NOTE_WORDS,
+            &[],
+        );
+        assert_eq!(rebuilt.len(), 2);
+        for section in &rebuilt {
+            assert_eq!(section.kind, LearningUnitKind::Section);
+            assert!(section.fsrs.is_none());
+            assert!(section.latest_evaluation.is_none());
+        }
+        // A identidade (ancora) das secoes e preservada mesmo sem memoria.
+        assert_eq!(rebuilt[0].id, "unit-1");
+        assert_eq!(rebuilt[1].id, "unit-4");
     }
 
     #[test]

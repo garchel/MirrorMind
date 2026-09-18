@@ -595,6 +595,21 @@ pub(crate) fn conservative_section_projection(
     sessions: &[ReviewSession],
     unit: &LearningUnit,
 ) -> Option<(UnitEvaluation, FsrsState)> {
+    conservative_projection_in_range(sessions, unit.source_start_utf16, unit.source_end_utf16)
+}
+
+/// Núcleo por range da projecao acima. A reconstrucao de unidades usa esta
+/// forma porque so conhece o segmento (ainda sem a unidade final) — e PRECISA
+/// usar a mesma fonte do validador (sessoes contidas no range): fundir as
+/// avaliacoes das unidades antigas divergiria, pois elas podem refletir
+/// paragrafos fora do novo range (fusoes anteriores), enquanto o validador
+/// so considera resultados de sessao contidos. Mesma funcao, mesmos
+/// argumentos, mesma resposta — por construcao.
+pub(crate) fn conservative_projection_in_range(
+    sessions: &[ReviewSession],
+    start_utf16: u64,
+    end_utf16: u64,
+) -> Option<(UnitEvaluation, FsrsState)> {
     let mut seen = std::collections::HashSet::new();
     let contained: Vec<&SessionUnitResult> = sessions
         .iter()
@@ -603,8 +618,8 @@ pub(crate) fn conservative_section_projection(
         .filter(|result| {
             let snapshot = &result.unit_snapshot;
             result.evaluation.is_evaluated()
-                && snapshot.source_start_utf16 >= unit.source_start_utf16
-                && snapshot.source_end_utf16 <= unit.source_end_utf16
+                && snapshot.source_start_utf16 >= start_utf16
+                && snapshot.source_end_utf16 <= end_utf16
                 && seen.insert(snapshot.id.clone())
         })
         .collect();

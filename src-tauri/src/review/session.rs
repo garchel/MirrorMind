@@ -2732,6 +2732,7 @@ where
             &current_hash,
             &document.units,
             max_whole_note_words,
+            &document.sessions,
         );
         // A politica efetiva e reconciliada com as tags atuais e as regras
         // mais recentes: a sessao conclui com a politica mais atual e o

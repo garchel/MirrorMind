@@ -25,7 +25,7 @@ pub mod queue;
 pub mod rename_journal;
 pub mod reports;
 pub mod retention_calibration;
-mod schema;
+pub(crate) mod schema;
 pub mod segmentation;
 pub mod session;
 pub mod session_sources;

@@ -928,6 +928,7 @@ where
                         &document.note.content_hash,
                         &document.units,
                         max_whole_note_words,
+                        &document.sessions,
                     );
                     if serde_json::to_value(&document.units)? != serde_json::to_value(&rebuilt)? {
                         document.units = rebuilt;
