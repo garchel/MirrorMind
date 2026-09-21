@@ -69,8 +69,11 @@ describe('buildIndexNoteContent', () => {
       steps: [{ ...goal.steps[0], noteRelativePath: goal.steps[0].suggestedRelativePath }, goal.steps[1]],
     })
     expect(content).toContain('# Aprender fotossíntese')
-    expect(content).toContain('- [x] [[Metas/aprender-fotossintese/01-fundamentos.md|Fundamentos]]')
-    expect(content).toContain('- [ ] [[Metas/aprender-fotossintese/02-pratica-guiada.md|Prática guiada]]')
+    expect(content).toContain('- [x] [[01-fundamentos|Fundamentos]]')
+    expect(content).toContain('- [ ] [[02-pratica-guiada|Prática guiada]]')
+    // Sem a rota completa: só o nome da nota.
+    expect(content).not.toContain('Metas/aprender-fotossintese/01-')
+    expect(content).not.toContain('Metas/aprender-fotossintese/02-')
   })
 })
 
@@ -132,7 +135,7 @@ describe('createGoalStepNote', () => {
     // A indexadora é regravada com o check do passo criado.
     const indexSave = invoke.mock.calls.find(([command, args]) => command === 'save_note' && (args as { relativePath: string }).relativePath.endsWith('00-aprender-fotossintese.md'))
     if (!indexSave) throw new Error('a indexadora não foi regravada')
-    expect((indexSave[1] as { content: string }).content).toContain('- [x] [[Metas/aprender-fotossintese/01-fundamentos.md|Fundamentos]]')
+    expect((indexSave[1] as { content: string }).content).toContain('- [x] [[01-fundamentos|Fundamentos]]')
   })
 
   it('rejeita passo inexistente sem tocar no IPC', async () => {

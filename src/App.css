@@ -2664,8 +2664,8 @@ label.settings-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 42px;
-  padding: 0 10px 0 14px;
+  min-height: 61px;
+  padding: 12px 10px 12px 14px;
   border-top: 1px solid #d9d7d0;
   color: #4f4f49;
   font-size: 12px;
@@ -2678,7 +2678,7 @@ label.settings-toggle {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  min-height: 32px;
+  min-height: 36px;
   padding: 0 6px;
   border: 0;
   border-radius: var(--radius-sm);
@@ -2714,9 +2714,9 @@ label.settings-toggle {
 
 .workspace-shell .vault-refresh-button {
   display: grid;
-  width: 27px;
-  min-width: 27px;
-  min-height: 27px;
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
   padding: 0;
   place-items: center;
 }
@@ -4262,6 +4262,16 @@ label.settings-toggle {
   align-self: start;
   min-height: 30px;
   margin-top: 0;
+}
+
+/* Centraliza o glifo dos botoes do header (busca, desfazer, ...): sem isso o
+ * SVG inline ancora na baseline e o icone sobe ~2.5px. Mesmo padrao dos
+ * botoes com icone+texto abaixo (inline-flex centralizado). */
+.workspace-shell .editor-actions > .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .workspace-shell .editor-header {
@@ -5995,6 +6005,22 @@ label.settings-toggle {
   background: #cfdccc;
 }
 
+/* Chip de link quebrado: mesmo formato dos backlinks, mas em tom de alerta e
+   sem interacao (span, nao abre nada). O `title` mostra o alvo completo. */
+.workspace-shell .frontmatter-panel-broken {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 8px;
+  border: 1px dashed #c08a6d;
+  border-radius: var(--radius-xs);
+  background: #f6e9df;
+  color: #8a4b39;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .workspace-shell .frontmatter-panel-rows .frontmatter-panel-remove:hover:not(:disabled) {
   background: #f1ded8;
 }
@@ -6225,20 +6251,6 @@ label.settings-toggle {
   }
 }
 
-.workspace-shell .backlink-list {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 5px;
-  margin-top: 8px;
-  color: #73736d;
-  font-size: 11px;
-}
-
-.workspace-shell .backlink-list > span {
-  margin-right: 2px;
-}
-
 .workspace-shell .obsidian-note-embed {
   margin: 12px 0;
   padding: 12px 14px;
@@ -6437,18 +6449,6 @@ label.settings-toggle {
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.workspace-shell .broken-link-list {
-  color: #8a4b39;
-}
-
-.workspace-shell .broken-link-list code {
-  padding: 1px 5px;
-  border-radius: var(--radius-xs);
-  background: #f1ded8;
-  color: #8a4b39;
-  font: inherit;
 }
 
 .workspace-shell .external-change-modal {
@@ -7268,6 +7268,12 @@ label.settings-toggle {
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel-backlink:hover {
   background: #2e3f36;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-broken {
+  border-color: #8a6a4d;
+  background: #3a2d24;
+  color: #d8a97f;
 }
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove:hover,

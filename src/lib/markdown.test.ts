@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, findMarkdownWordAtOffset, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownDescription, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderObsidianCalloutsAsMarkdown, renderWikiLinksAsMarkdown, replaceMarkdownBlock, replaceMarkdownBody, setMarkdownDescription, setMarkdownFrontmatterProperties, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable } from './markdown'
+import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, displayWikilinkTargetName, findMarkdownWordAtOffset, formatFrontmatterPropertyInput, formatMarkdownSelection, getMarkdownBody, getMarkdownDescription, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, parseFrontmatterPropertiesInput, parseObsidianCalloutSegments, removeMarkdownFrontmatterProperty, renderObsidianCalloutsAsMarkdown, renderWikiLinksAsMarkdown, replaceMarkdownBlock, replaceMarkdownBody, setMarkdownDescription, setMarkdownFrontmatterProperties, setMarkdownFrontmatterPropertySource, setMarkdownFrontmatterSource, toggleChecklistAtLine, transformMarkdownTable } from './markdown'
 
 describe('note description frontmatter', () => {
   it('creates and reads the description property without changing the body', () => {
@@ -392,3 +392,17 @@ describe('appendWikilinkToContent', () => {
     expect(appendWikilinkToContent('Nota\n', '[[Outra]]')).toBe('Nota\n\n[[Outra]]\n')
   })
 })
+
+describe('displayWikilinkTargetName', () => {
+  it('remove diretorios e a extensao .md do alvo', () => {
+    expect(displayWikilinkTargetName('Metas/aprender-system-design/01-entender-sistemas-de-software')).toBe('01-entender-sistemas-de-software')
+    expect(displayWikilinkTargetName('Metas/aprender-system-design/01-x.md')).toBe('01-x')
+    expect(displayWikilinkTargetName('nota-simples')).toBe('nota-simples')
+  })
+
+  it('preserva o fragmento apos o nome curto', () => {
+    expect(displayWikilinkTargetName('Metas/slug/01-x#secao')).toBe('01-x#secao')
+    expect(displayWikilinkTargetName('#apenas-fragmento')).toBe('#apenas-fragmento')
+  })
+})
+

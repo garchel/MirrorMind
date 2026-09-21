@@ -1,4 +1,5 @@
 import { invoke } from '../../lib/tauri'
+import { displayWikilinkTargetName } from '../../lib/markdown'
 import { z } from 'zod'
 import type { ReviewAiProvider } from '../review/ai'
 
@@ -129,6 +130,27 @@ export async function updateGoalStep(input: {
   return goalSchema.parse(payload)
 }
 
+const reconcileGoalNotesSchema = z.object({
+  goal: goalSchema,
+  changed: z.boolean(),
+})
+
+export type ReconcileGoalNotesResult = z.infer<typeof reconcileGoalNotesSchema>
+
+/** Ao abrir o modal de detalhes: confere no disco as notas vinculadas —
+ * apagadas são desvinculadas (o passo volta ao +), movidas têm o caminho
+ * atualizado. `changed` indica se a indexadora precisa ser regravada. */
+export async function reconcileGoalNotes(input: {
+  vaultPath: string
+  id: string
+}): Promise<ReconcileGoalNotesResult> {
+  const payload = await invoke('reconcile_goal_notes_command', {
+    path: input.vaultPath,
+    id: input.id,
+  })
+  return reconcileGoalNotesSchema.parse(payload)
+}
+
 const ACCENT_MAP: Record<string, string> = {
   á: 'a', à: 'a', ã: 'a', â: 'a', ä: 'a',
   é: 'e', è: 'e', ê: 'e', ë: 'e',
@@ -176,7 +198,9 @@ export function goalIndexRelativePath(input: { title: string; steps: Array<{ sug
 export type IndexableStep = Pick<GoalStep, 'title' | 'suggestedRelativePath' | 'noteRelativePath'>
 
 /** Conteúdo da indexadora: checklist em ordem lógica com wikilinks para cada
- * nota proposta (`[x]` nas já criadas). Regenerado a cada nota criada. */
+ * nota proposta (`[x]` nas já criadas). Os links usam só o nome da nota (sem
+ * a rota `Metas/...`); a resolução por nome-base (mesma pasta, depois o
+ * vault) encontra o destino — igual ao Obsidian. Regenerado a cada nota criada. */
 export function buildIndexNoteContent(input: {
   goalTitle: string
   objective: string
@@ -184,7 +208,7 @@ export function buildIndexNoteContent(input: {
 }): string {
   const lines = input.steps.map((step) => {
     const done = isStepDone(step)
-    const target = step.noteRelativePath ?? step.suggestedRelativePath
+    const target = displayWikilinkTargetName(step.noteRelativePath ?? step.suggestedRelativePath)
     return `- [${done ? 'x' : ' '}] [[${target}|${step.title}]]`
   })
   return `# ${input.goalTitle}\n\n> Meta de estudo: ${input.objective}\n> Esta nota indexadora é atualizada pelo MirrorMind a cada nota do plano criada pelo botão +.\n\n## Notas do plano, em ordem de estudo\n\n${lines.join('\n')}\n`

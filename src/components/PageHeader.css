@@ -172,6 +172,17 @@
   gap: 7px;
 }
 
+/* Tamanho padrão do "Atualizar" em todas as páginas: igual ao das ações
+ * primárias (40px). O seletor em 3 classes vence o `.secondary-button` do
+ * workspace independente da ordem dos CSS no bundle. */
+.workspace-page-header .workspace-page-refresh.secondary-button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .workspace-page-refresh svg {
   flex: none;
 }

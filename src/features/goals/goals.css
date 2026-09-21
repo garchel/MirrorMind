@@ -56,6 +56,8 @@
   flex-wrap: wrap;
 }
 
+
+
 /* Botão "Nova meta": cores explícitas nos tokens canônicos do app
  * (nunca herda nem depende da ordem do CSS global). Claro: fundo
  * #1c2427 + texto #f7f2e7. Escuro: fundo #e8e6dd + texto #23201b.
@@ -136,6 +138,72 @@
 .goals-error {
   margin: 0;
   color: var(--danger);
+}
+
+/* Toast de erro no canto inferior direito (acima do banner de update, abaixo
+ * da titlebar): some sozinho em 8s ou no X. Mesma linguagem do toast de
+ * segmentação, nos tokens da página (claro/escuro). */
+.goals-toast-stack {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 200;
+  display: grid;
+  gap: 8px;
+  width: min(360px, calc(100vw - 36px));
+}
+
+.goals-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid var(--goals-line);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-md);
+  background: var(--goals-surface);
+  box-shadow: 0 12px 32px rgb(28 36 39 / 18%);
+  color: var(--goals-ink);
+  font-size: 13px;
+  line-height: 1.5;
+  animation: goals-toast-in 180ms ease-out;
+}
+
+.goals-toast > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.goals-page .goals-toast-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--goals-muted);
+  cursor: pointer;
+}
+
+.goals-page .goals-toast-close:hover:not(:disabled) {
+  background: var(--goals-sunk);
+  color: var(--goals-ink);
+}
+
+@keyframes goals-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .goals-success {
@@ -687,6 +755,10 @@
   .goal-progress-fill,
   .goals-combobox-trigger svg {
     transition: none;
+  }
+
+  .goals-toast {
+    animation: none;
   }
 }
 

@@ -6160,6 +6160,7 @@ pub fn run() {
             goals::get_goal_command,
             goals::delete_goal_command,
             goals::update_goal_step_command,
+            goals::reconcile_goal_notes_command,
             goals::set_goal_note_content_mode_command,
             goals::generate_goal_step_draft_command
         ])

@@ -13,6 +13,7 @@ function renderPanel(overrides: Partial<Parameters<typeof FrontmatterPanelForm>[
       tags={['biologia', 'prova']}
       availableTags={['quimica']}
       backlinks={[{ name: 'resumo', relativePath: 'resumo.md' }]}
+      brokenLinks={[]}
       onApply={onApply}
       onApplyTag={onApplyTag}
       onRemoveTag={onRemoveTag}
@@ -69,6 +70,26 @@ describe('FrontmatterPanelForm (painel integrado de propriedades)', () => {
     const { onOpenBacklink } = renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'resumo' }))
     expect(onOpenBacklink).toHaveBeenCalledWith('resumo.md')
+  })
+
+  it('links quebrados aparecem compactos com nome curto e alvo cheio no tooltip', () => {
+    renderPanel({
+      brokenLinks: [
+        { target: 'Metas/aprender-system-design/01-entender-sistemas-de-software', displayName: '01-entender-sistemas-de-software' },
+        { target: 'anexo-faltante.md', displayName: 'anexo-faltante' },
+      ],
+    })
+    expect(screen.getByText('Links quebrados (2)')).toBeInTheDocument()
+    const first = screen.getByText('01-entender-sistemas-de-software')
+    // Chip nao clicavel (span) com o alvo completo no tooltip.
+    expect(first.tagName).toBe('SPAN')
+    expect(first).toHaveAttribute('title', 'Metas/aprender-system-design/01-entender-sistemas-de-software')
+    expect(screen.getByText('anexo-faltante')).toBeInTheDocument()
+  })
+
+  it('oculta a secao de links quebrados quando nao ha nenhum', () => {
+    renderPanel()
+    expect(screen.queryByText(/Links quebrados/)).toBeNull()
   })
 
   it('cria tag com Enter pelo popover de adicionar tag', async () => {

@@ -643,6 +643,22 @@ export function resolveObsidianWikiLinkPath(linkPath: string, sourcePath: string
     ?? linkPath
 }
 
+/**
+ * Nome curto para exibir um alvo de wikilink (ex.: secao de links do painel):
+ * remove diretorios e a extensao `.md`, preservando `#fragmento`.
+ * `Metas/aprender-system-design/01-x#secao` -> `01-x#secao`.
+ */
+export function displayWikilinkTargetName(target: string): string {
+  const normalized = target.trim().replace(/\\/g, '/')
+  const fragmentSeparator = normalized.indexOf('#')
+  const rawPath = fragmentSeparator >= 0 ? normalized.slice(0, fragmentSeparator) : normalized
+  const rawFragment = fragmentSeparator >= 0 ? normalized.slice(fragmentSeparator + 1) : ''
+  const baseName = rawPath.split('/').at(-1)?.replace(/\.md$/i, '') ?? ''
+  const fragment = rawFragment.trim()
+  if (!baseName && !fragment) return target.trim()
+  return fragment ? `${baseName}#${fragment}` : baseName
+}
+
 export function resolveObsidianAttachmentPath(embedPath: string, sourcePath: string, attachmentPaths: string[]) {
   const normalize = (path: string) => path.replace(/\\/g, '/').normalize('NFC').toLowerCase()
   const normalizedEmbed = normalize(embedPath)

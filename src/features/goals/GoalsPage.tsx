@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronDown, ExternalLink, Info, Plus, Target, Trash2 } from 'lucide-react'
+import { Check, ChevronDown, ExternalLink, Info, Plus, Target, Trash2, X } from 'lucide-react'
 import { EmptyState, ErrorState } from '../../components/ErrorState'
 import { GoalsSkeleton } from '../../components/PageSkeleton'
 import { Modal, ModalHeader } from '../../components/Modal'
@@ -10,9 +10,11 @@ import {
   createGoal,
   createGoalStepNote,
   deleteGoal,
+  ensureGoalIndexNote,
   goalErrorMessage,
   isStepDone,
   listGoals,
+  reconcileGoalNotes,
   setGoalNoteContentMode,
   type Goal,
   type GoalProvider,
@@ -171,6 +173,27 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
   const [draftNotice, setDraftNotice] = useState<string | null>(null)
   const [modeBusy, setModeBusy] = useState(false)
   const requestIdRef = useRef(0)
+  const reconcileRequestIdRef = useRef(0)
+  const toastTimerRef = useRef<number | undefined>(undefined)
+
+  // Toast de erro some sozinho (8s) e no desmonte; um erro novo reinicia o timer.
+  useEffect(() => {
+    if (toastTimerRef.current !== undefined) {
+      window.clearTimeout(toastTimerRef.current)
+      toastTimerRef.current = undefined
+    }
+    if (actionError === null) return
+    toastTimerRef.current = window.setTimeout(() => {
+      setActionError(null)
+      toastTimerRef.current = undefined
+    }, 8_000)
+    return () => {
+      if (toastTimerRef.current !== undefined) {
+        window.clearTimeout(toastTimerRef.current)
+        toastTimerRef.current = undefined
+      }
+    }
+  }, [actionError])
 
   useEffect(() => {
     const requestId = ++requestIdRef.current
@@ -188,6 +211,26 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
         if (requestId === requestIdRef.current) setLoading(false)
       })
   }, [vaultPath, reloadRequest])
+
+  // Ao abrir o modal de detalhes, confere no disco as notas vinculadas:
+  // apagadas desvinculam (o passo volta ao + e perde o check verde), movidas
+  // têm o caminho atualizado (o botão de abrir mira a nova posição). Se algo
+  // mudou, regrava a indexadora, cujos links usam esses caminhos.
+  useEffect(() => {
+    if (detailId === null) return
+    const requestId = ++reconcileRequestIdRef.current
+    void reconcileGoalNotes({ vaultPath, id: detailId })
+      .then((result) => {
+        if (requestId !== reconcileRequestIdRef.current) return
+        setGoals((current) => current.map((item) => (item.id === result.goal.id ? result.goal : item)))
+        if (result.changed) {
+          void ensureGoalIndexNote(vaultPath, result.goal).catch(() => {})
+        }
+      })
+      .catch(() => {
+        // Vault ilegível ou meta removida: mantém o último estado conhecido.
+      })
+  }, [detailId, vaultPath])
 
   function openModal(): void {
     setCreateError(null)
@@ -395,12 +438,6 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
           })}
         </ul>
       )}
-      {actionError ? (
-        <p role="alert" className="goals-error">
-          {actionError}
-        </p>
-      ) : null}
-
       <Modal
         open={detailId !== null}
         onClose={() => setDetailId(null)}
@@ -517,6 +554,21 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
                 </button>
               )}
             </div>
+            {actionError ? (
+              <div className="goals-toast-stack">
+                <div className="goals-toast is-error" role="alert">
+                  <span>{actionError}</span>
+                  <button
+                    type="button"
+                    className="goals-toast-close"
+                    onClick={() => setActionError(null)}
+                    aria-label="Fechar aviso de erro"
+                  >
+                    <X size={14} strokeWidth={2.2} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </Modal>

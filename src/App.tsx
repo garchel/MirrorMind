@@ -93,7 +93,7 @@ import {
   type ScanDiagnostics,
 } from './lib/vault'
 import './App.css'
-import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, extractMarkdownTags, extractObsidianWikiLinks, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, normalizeMarkdownTag, removeMarkdownFrontmatterProperty, replaceMarkdownBody, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, transformMarkdownTable, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
+import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, displayWikilinkTargetName, extractMarkdownTags, extractObsidianWikiLinks, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, normalizeMarkdownTag, removeMarkdownFrontmatterProperty, replaceMarkdownBody, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, transformMarkdownTable, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
 import { addNotePostit, deriveAnchorFromParagraph, getNotePostits, POSTIT_COLORS, POSTIT_COLOR_HEX, POSTIT_COLOR_LABELS, POSTIT_MAX_CHARS, removeNotePostit, resolvePostitAnchors, updateNotePostit, type NotePostit, type PostitColor } from './lib/postits'
 import { FrontmatterPanelForm } from './components/FrontmatterPanelForm'
 import { nextPopoverShiftX } from './lib/selectionPopover'
@@ -415,6 +415,10 @@ function App() {
   const specialFilesTruncatedRef = useRef(false)
   const openTabsRef = useRef<string[]>([])
   const draftsByPathRef = useRef<Record<string, string>>({})
+  /** Conteúdo do disco em que cada rascunho se baseava (espelho do efeito que
+   * copia `draftContent` para `draftsByPath`): permite saber, ao reabrir, se o
+   * arquivo mudou por baixo do rascunho (apagada + recriada por fora do app). */
+  const draftBaseByPathRef = useRef<Record<string, string>>({})
   const draftContentRef = useRef('')
   const markdownEditorStateCacheRef = useRef(new Map<string, EditorState>())
   const markdownToolsRef = useRef<HTMLDivElement | null>(null)
@@ -1395,6 +1399,7 @@ function App() {
   useEffect(() => {
     if (activeNote) {
       setDraftsByPath((currentDrafts) => ({ ...currentDrafts, [activeNote.relativePath]: draftContent }))
+      draftBaseByPathRef.current[activeNote.relativePath] = activeNote.content
     }
   }, [activeNote, draftContent])
 
@@ -3179,6 +3184,37 @@ function App() {
           [activeNote.relativePath]: draftContent,
         }))
       }
+      // O arquivo pode ter sido apagado e recriado por fora do app depois que
+      // o rascunho foi guardado (o watcher nem sempre vê o ciclo
+      // apagar→recriar). A base diz em qual conteúdo do disco o rascunho se
+      // baseava: se base e rascunho diferem do disco atual, o rascunho é de
+      // outra vida do arquivo — purga rascunho, sessão e estado do editor e
+      // adota o disco. Sem base registrada, mantém o rascunho: nunca se
+      // descarta trabalho não salvo sem prova de que o arquivo mudou.
+      const cachedDraft = draftsByPathRef.current[parsedNote.relativePath]
+      const draftBase = draftBaseByPathRef.current[parsedNote.relativePath]
+      const resurrectedStaleDraft = cachedDraft !== undefined
+        && cachedDraft !== parsedNote.content
+        && draftBase !== undefined
+        && draftBase !== parsedNote.content
+      if (resurrectedStaleDraft) {
+        setDraftsByPath((currentDrafts) => {
+          const { [parsedNote.relativePath]: _discardedDraft, ...remainingDrafts } = currentDrafts
+          return remainingDrafts
+        })
+        delete draftBaseByPathRef.current[parsedNote.relativePath]
+        setEditorSessionsByPath((sessions) => {
+          const { [parsedNote.relativePath]: _discardedSession, ...remainingSessions } = sessions
+          const { [`${parsedNote.relativePath}::leitura`]: _discardedReadSession, ...remaining } = remainingSessions
+          return remaining
+        })
+        for (const key of markdownEditorStateCacheRef.current.keys()) {
+          if (key === parsedNote.relativePath || key.startsWith(`${parsedNote.relativePath}::`)) {
+            markdownEditorStateCacheRef.current.delete(key)
+          }
+        }
+      }
+      draftBaseByPathRef.current[parsedNote.relativePath] = parsedNote.content
       setActiveNote(parsedNote)
       // Painel de propriedades fecha ao trocar de nota (o editor e recriado
       // com o frontmatter colapsado na barra).
@@ -3188,7 +3224,7 @@ function App() {
           ? currentTabs
           : [...currentTabs, parsedNote.relativePath],
       )
-      setDraftContent(draftsByPathRef.current[parsedNote.relativePath] ?? parsedNote.content)
+      setDraftContent(resurrectedStaleDraft ? parsedNote.content : (draftsByPathRef.current[parsedNote.relativePath] ?? parsedNote.content))
       void loadBacklinks(parsedNote.relativePath, targetVaultPath)
       void loadBrokenLinks(parsedNote.relativePath, targetVaultPath)
       setStatus(`Editando ${parsedNote.relativePath}`)
@@ -3515,6 +3551,9 @@ function App() {
     setActiveNote(externalNote)
     setDraftContent(localContent)
     setDraftsByPath((drafts) => ({ ...drafts, [externalNote.relativePath]: localContent }))
+    // O rascunho mantido passa a se basear no disco atual (versão externa):
+    // sem isso, reabrir a nota o trataria como fantasma e o purgaria.
+    draftBaseByPathRef.current[externalNote.relativePath] = externalNote.content
     setExternalNoteConflict(null)
     setStatus('Rascunho local mantido. Salve a nota para aplicar sua versão.')
   }
@@ -3984,6 +4023,12 @@ function App() {
       tags: noteTags,
       availableTags: tagIndex.map((entry) => entry.tag),
       backlinks: backlinkEntries,
+      // Links quebrados moram no painel (secao compacta com nomes curtos);
+      // `brokenLinks` chega junto com a nota e ja vem filtrado por ela.
+      brokenLinks: (brokenLinks ?? []).map((link) => ({
+        target: link.target,
+        displayName: displayWikilinkTargetName(link.target),
+      })),
     }
   }
 
@@ -5262,12 +5307,6 @@ function App() {
                       <p className="markdown-preservation-notice" role="status">
                         Compatibilidade limitada, fonte preservada: {unsupportedMarkdownFeatures.map((feature) => LIMITED_MARKDOWN_FEATURE_LABELS[feature] ?? feature).join(', ')}.
                       </p>
-                    ) : null}
-                    {!isNewNoteDraft && brokenLinks.length > 0 ? (
-                      <div className="backlink-list broken-link-list" aria-label="Links quebrados">
-                        <span>Links quebrados</span>
-                        {brokenLinks.map((link) => <code key={link.target}>{`[[${link.target.replace(/\.md$/i, '')}]]`}</code>)}
-                      </div>
                     ) : null}
                   </div>
                   <div className="editor-actions">

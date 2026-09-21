@@ -3,7 +3,7 @@ import { Plus, X } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { COMMON_PROPERTIES, propertyIcon } from '../lib/commonProperties'
-import type { FrontmatterBacklink, FrontmatterRow } from './markdownLivePreview'
+import type { FrontmatterBacklink, FrontmatterBrokenLink, FrontmatterRow } from './markdownLivePreview'
 
 type FrontmatterPanelFormProps = {
   /** Linhas atuais (chave + valor YAML cru) do frontmatter, SEM a propriedade
@@ -19,6 +19,8 @@ type FrontmatterPanelFormProps = {
   onRemoveTag: (tag: string) => void
   /** Notas que referenciam a nota atual ("Referenciada por"). */
   backlinks: FrontmatterBacklink[]
+  /** Links quebrados da nota atual (chips nao clicaveis com nome curto). */
+  brokenLinks: FrontmatterBrokenLink[]
   /** Aplica as linhas (ao vivo, com debounce); retorna mensagem de erro ou
    * null. O App atualiza o draft preservando o YAML byte a byte. */
   onApply: (rows: FrontmatterRow[]) => string | null
@@ -34,7 +36,7 @@ type FrontmatterPanelFormProps = {
  * "+" abrindo um popover só com ícones das propriedades comuns), além dos
  * backlinks. Sem borda, título nem botoes de Aplicar/Cancelar — parece parte
  * do header e grava ao vivo (debounce). */
-export function FrontmatterPanelForm({ availableTags, backlinks, onApply, onApplyTag, onOpenBacklink, onRemoveTag, rows, tags }: FrontmatterPanelFormProps) {
+export function FrontmatterPanelForm({ availableTags, backlinks, brokenLinks, onApply, onApplyTag, onOpenBacklink, onRemoveTag, rows, tags }: FrontmatterPanelFormProps) {
   const [draft, setDraft] = useState<FrontmatterRow[]>(rows)
   const [error, setError] = useState<string | null>(null)
   const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false)
@@ -241,6 +243,21 @@ export function FrontmatterPanelForm({ availableTags, backlinks, onApply, onAppl
               >
                 {backlink.name}
               </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Links quebrados: contagem no titulo + chips compactos com o nome curto
+          (tooltip com o alvo completo). Nao sao botoes: o destino nao existe. */}
+      {brokenLinks.length > 0 ? (
+        <section className="frontmatter-panel-section frontmatter-panel-backlinks" aria-label="Links quebrados">
+          <span className="frontmatter-panel-section-title">Links quebrados ({brokenLinks.length})</span>
+          <div className="frontmatter-panel-backlink-list">
+            {brokenLinks.map((broken) => (
+              <span key={broken.target} className="frontmatter-panel-broken" title={broken.target}>
+                {broken.displayName}
+              </span>
             ))}
           </div>
         </section>

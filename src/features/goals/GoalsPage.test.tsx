@@ -3,13 +3,15 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GoalsPage } from './GoalsPage'
 
-const { listGoalsMock, createGoalMock, createGoalStepNoteMock, updateStepMock, deleteGoalMock, setModeMock } = vi.hoisted(() => ({
+const { listGoalsMock, createGoalMock, createGoalStepNoteMock, updateStepMock, deleteGoalMock, setModeMock, reconcileMock, ensureIndexMock } = vi.hoisted(() => ({
   listGoalsMock: vi.fn(),
   createGoalMock: vi.fn(),
   createGoalStepNoteMock: vi.fn(),
   updateStepMock: vi.fn(),
   deleteGoalMock: vi.fn(),
   setModeMock: vi.fn(),
+  reconcileMock: vi.fn(),
+  ensureIndexMock: vi.fn(),
 }))
 
 vi.mock('./goals', async (importOriginal) => ({
@@ -20,6 +22,8 @@ vi.mock('./goals', async (importOriginal) => ({
   updateGoalStep: updateStepMock,
   deleteGoal: deleteGoalMock,
   setGoalNoteContentMode: setModeMock,
+  reconcileGoalNotes: reconcileMock,
+  ensureGoalIndexNote: ensureIndexMock,
 }))
 
 vi.mock('../review/ReviewAiSettingsContext', () => ({
@@ -64,8 +68,16 @@ describe('GoalsPage', () => {
     updateStepMock.mockReset()
     deleteGoalMock.mockReset()
     setModeMock.mockReset()
+    reconcileMock.mockReset()
+    ensureIndexMock.mockReset()
     listGoalsMock.mockResolvedValue([sampleGoal])
     deleteGoalMock.mockResolvedValue(undefined)
+    // Sem mudança por padrão: o modal abre com os vínculos da listagem.
+    reconcileMock.mockImplementation(async ({ id }: { id: string }) => ({
+      goal: (await listGoalsMock()).find((goal: { id: string }) => goal.id === id) ?? sampleGoal,
+      changed: false,
+    }))
+    ensureIndexMock.mockResolvedValue('Metas/aprender-fotossintese/00-aprender-fotossintese.md')
   })
   afterEach(() => cleanup())
 
@@ -147,6 +159,21 @@ describe('GoalsPage', () => {
     await waitFor(() => expect(deleteGoalMock).toHaveBeenCalledTimes(1))
     expect(deleteGoalMock.mock.calls[0][1]).toBe('goal-1')
     expect(screen.queryByText('Aprender fotossíntese')).not.toBeInTheDocument()
+  })
+
+  it('mostra o erro da página em toast com fechamento manual', async () => {
+    deleteGoalMock.mockRejectedValueOnce(new Error('Falha ao excluir'))
+    render(<GoalsPage vaultPath={VAULT_PATH} onOpenNote={() => undefined} />)
+    await screen.findByText('Aprender fotossíntese')
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir detalhes da meta Aprender fotossíntese' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Aprender fotossíntese' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Excluir meta Aprender fotossíntese' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Confirmar exclusão da meta Aprender fotossíntese' }))
+    const toast = await screen.findByRole('alert')
+    expect(toast).toHaveTextContent('Falha ao excluir')
+    expect(toast.closest('.goals-toast-stack')).not.toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar aviso de erro' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('deriva o progresso das notas criadas (sem controle manual)', async () => {
@@ -241,6 +268,60 @@ describe('GoalsPage', () => {
     expect(within(dialog).queryByRole('listbox')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
     expect(screen.getByRole('dialog', { name: 'Aprender fotossíntese' })).toBeInTheDocument()
+  })
+
+  it('ao abrir o modal, desvincula a nota apagada (volta o + e some o check)', async () => {
+    const linked = {
+      ...sampleGoal,
+      steps: [{ ...sampleGoal.steps[0], noteRelativePath: sampleGoal.steps[0].suggestedRelativePath }, sampleGoal.steps[1]],
+    }
+    listGoalsMock.mockResolvedValue([linked])
+    // O disco diz que a nota sumiu: backend desvinculou e marcou changed.
+    reconcileMock.mockResolvedValue({ goal: sampleGoal, changed: true })
+    render(<GoalsPage vaultPath={VAULT_PATH} onOpenNote={() => undefined} />)
+    await screen.findByText('Aprender fotossíntese')
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir detalhes da meta Aprender fotossíntese' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Aprender fotossíntese' })
+    await waitFor(() => expect(reconcileMock).toHaveBeenCalledWith({ vaultPath: VAULT_PATH, id: 'goal-1' }))
+    // Passo voltou ao + (sem check verde) e o progresso zerou.
+    expect(await within(dialog).findByRole('button', { name: 'Criar e abrir nota Fundamentos' })).toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Abrir nota Fundamentos' })).not.toBeInTheDocument()
+    expect(within(dialog).getByText('0/2 · 0%')).toBeInTheDocument()
+    // Indexadora regravada com os vínculos novos.
+    await waitFor(() => expect(ensureIndexMock).toHaveBeenCalledTimes(1))
+    expect(ensureIndexMock.mock.calls[0][1]).toEqual(sampleGoal)
+  })
+
+  it('ao abrir o modal, atualiza o caminho da nota movida (abrir mira a nova posição)', async () => {
+    const onOpenNote = vi.fn()
+    const linked = {
+      ...sampleGoal,
+      steps: [{ ...sampleGoal.steps[0], noteRelativePath: sampleGoal.steps[0].suggestedRelativePath }, sampleGoal.steps[1]],
+    }
+    listGoalsMock.mockResolvedValue([linked])
+    const moved = {
+      ...linked,
+      steps: [{ ...linked.steps[0], noteRelativePath: 'Rascunhos/01-fundamentos.md' }, linked.steps[1]],
+    }
+    reconcileMock.mockResolvedValue({ goal: moved, changed: true })
+    render(<GoalsPage vaultPath={VAULT_PATH} onOpenNote={onOpenNote} />)
+    await screen.findByText('Aprender fotossíntese')
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir detalhes da meta Aprender fotossíntese' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Aprender fotossíntese' })
+    // O passo exibe o caminho novo e continua com check (nota existe).
+    expect(await within(dialog).findByText('Rascunhos/01-fundamentos.md')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Abrir nota Fundamentos' })).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Abrir nota Fundamentos' }))
+    expect(onOpenNote).toHaveBeenCalledWith('Rascunhos/01-fundamentos.md')
+  })
+
+  it('ao abrir o modal sem mudanças, não regrava a indexadora', async () => {
+    render(<GoalsPage vaultPath={VAULT_PATH} onOpenNote={() => undefined} />)
+    await screen.findByText('Aprender fotossíntese')
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir detalhes da meta Aprender fotossíntese' }))
+    await screen.findByRole('dialog', { name: 'Aprender fotossíntese' })
+    await waitFor(() => expect(reconcileMock).toHaveBeenCalledTimes(1))
+    expect(ensureIndexMock).not.toHaveBeenCalled()
   })
 
   it('avisa quando a IA falha e a nota nasce em branco', async () => {

@@ -100,12 +100,15 @@ export const postitDataEffect = StateEffect.define<PostitData | null>()
  * o contrato compartilhado entre o App e o formulario. */
 export type FrontmatterRow = { key: string; value: string }
 export type FrontmatterBacklink = { name: string; relativePath: string }
+/** Link quebrado da nota ativa: alvo cru (tooltip) + nome curto (chip). */
+export type FrontmatterBrokenLink = { target: string; displayName: string }
 export type FrontmatterPanelData = {
   rows: FrontmatterRow[]
   /** Exclui a propriedade `tags` (renderizada pela secao de Tags com badges). */
   tags: string[]
   availableTags: string[]
   backlinks: FrontmatterBacklink[]
+  brokenLinks: FrontmatterBrokenLink[]
 }
 
 export type ReviewGapData = {

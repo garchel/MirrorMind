@@ -647,7 +647,11 @@ pub fn update_goal_step(
         match note {
             Some(path) if !path.trim().is_empty() => {
                 let trimmed = path.trim().to_string();
-                crate::resolve_note_path(&PathBuf::from("/tmp/__goals_validate__"), &trimmed)
+                // Validação puramente sintática (mesma do `validate_goal`): a
+                // existência real é verificada pelo comando com a raiz
+                // canônica do vault. (Um `resolve_note_path` com raiz
+                // fictícia falhava sempre, quebrando todo vínculo no Windows.)
+                validate_relative_note_path(&trimmed)
                     .map_err(|_| anyhow::anyhow!("A nota vinculada e invalida."))?;
                 step.note_relative_path = Some(trimmed);
             }
@@ -656,6 +660,247 @@ pub fn update_goal_step(
     }
     rewrite_goal_file(vault_root, &goal)?;
     Ok(goal)
+}
+
+// ── Reconciliação dos vínculos etapa→nota ────────────────────────────────
+// Ao abrir o modal de detalhes da meta, os vínculos gravados (`note_relative_path`)
+// podem estar obsoletos: a nota foi apagada (volta o botão + e sai o check
+// verde) ou movida para fora da pasta da meta (o vínculo passa a apontar para
+// o caminho novo). Tudo acontece aqui no backend, em uma passada só.
+
+/// Teto de arquivos considerados na busca por notas movidas (protege vaults
+/// gigantes: passou disso, passos quebrados são desvinculados sem varredura).
+const MAX_RECONCILE_SCAN_FILES: usize = 20_000;
+/// Teto de bytes lidos por nota na verificação de identidade (cabeçalho:
+/// frontmatter `meta:` + primeiro título `# `).
+const MAX_NOTE_HEAD_BYTES: u64 = 8 * 1024;
+
+/// Caminho relativo com `/` (formato do `note_relative_path`) a partir de um
+/// caminho absoluto dentro da raiz canônica. `None` = fora do vault.
+fn vault_relative_posix(canonical_root: &Path, absolute: &Path) -> Option<String> {
+    let rel = absolute.strip_prefix(canonical_root).ok()?;
+    let mut out = String::new();
+    for (index, component) in rel.components().enumerate() {
+        if index > 0 {
+            out.push('/');
+        }
+        out.push_str(component.as_os_str().to_str()?);
+    }
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
+}
+
+/// Identidade de uma nota de passo lida do cabeçalho do arquivo: o `meta:`
+/// do frontmatter (título da meta) + o primeiro título `# ` (título do passo).
+/// É o que permite reencontrar a nota mesmo renomeada.
+struct StepNoteIdentity {
+    meta: Option<String>,
+    heading: Option<String>,
+}
+
+fn unquote_yaml_scalar(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed.len() >= 2 {
+        let bytes = trimmed.as_bytes();
+        let first = bytes[0];
+        let last = bytes[trimmed.len() - 1];
+        if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
+            return trimmed[1..trimmed.len() - 1].to_string();
+        }
+    }
+    trimmed.to_string()
+}
+
+fn read_step_note_identity(path: &Path) -> StepNoteIdentity {
+    let mut identity = StepNoteIdentity {
+        meta: None,
+        heading: None,
+    };
+    let file = match fs::File::open(path) {
+        Ok(file) => file,
+        Err(_) => return identity,
+    };
+    let mut head = Vec::new();
+    use std::io::Read;
+    if file
+        .take(MAX_NOTE_HEAD_BYTES)
+        .read_to_end(&mut head)
+        .is_err()
+    {
+        return identity;
+    }
+    let text = String::from_utf8_lossy(&head);
+    let mut lines = text.lines();
+    // Frontmatter: só vale se o arquivo começar com `---` (mesma convenção do
+    // restante do app); fecha no próximo `---` ou após 50 linhas.
+    if lines.next().is_some_and(|first| first.trim() == "---") {
+        for line in lines.by_ref().take(50) {
+            if line.trim() == "---" {
+                break;
+            }
+            if let Some(raw) = line.strip_prefix("meta:") {
+                identity.meta = Some(unquote_yaml_scalar(raw));
+            }
+        }
+    }
+    for line in lines {
+        if let Some(heading) = line.trim_start().strip_prefix("# ") {
+            identity.heading = Some(heading.trim().to_string());
+            break;
+        }
+    }
+    identity
+}
+
+/// A nota candidata pertence a este passo? Basta UM dos sinais (o outro pode
+/// ter sido editado pelo usuário): `meta:` igual ao título da meta ou título
+/// `# ` igual ao título do passo.
+fn identity_matches_step(identity: &StepNoteIdentity, goal_title: &str, step_title: &str) -> bool {
+    identity
+        .meta
+        .as_deref()
+        .is_some_and(|meta| meta == goal_title)
+        || identity
+            .heading
+            .as_deref()
+            .is_some_and(|heading| heading == step_title)
+}
+
+/// Verifica os vínculos da meta contra o disco: notas apagadas são
+/// desvinculadas (o passo volta a mostrar o +); notas movidas têm o caminho
+/// atualizado para a nova posição. Retorna a meta e se algo mudou.
+pub fn reconcile_goal_notes(vault_root: &Path, id: &str) -> Result<(Goal, bool)> {
+    let mut goal =
+        load_goal(vault_root, id)?.ok_or_else(|| anyhow::anyhow!("A meta nao existe."))?;
+    let linked: Vec<usize> = goal
+        .steps
+        .iter()
+        .enumerate()
+        .filter(|(_, step)| {
+            step.note_relative_path
+                .as_deref()
+                .is_some_and(|path| !path.trim().is_empty())
+        })
+        .map(|(index, _)| index)
+        .collect();
+    if linked.is_empty() {
+        return Ok((goal, false));
+    }
+    let canonical_root = crate::canonicalize_directory(vault_root)?;
+    let mut broken: Vec<usize> = Vec::new();
+    for index in linked {
+        let stored = goal.steps[index]
+            .note_relative_path
+            .clone()
+            .unwrap_or_default();
+        let exists = crate::resolve_note_path(&canonical_root, stored.trim())
+            .map(|resolved| resolved.is_file())
+            .unwrap_or(false);
+        if !exists {
+            broken.push(index);
+        }
+    }
+    if broken.is_empty() {
+        return Ok((goal, false));
+    }
+    // Uma única listagem do vault para todos os passos quebrados.
+    let vault_notes = crate::collect_markdown_files(&canonical_root).unwrap_or_default();
+    let searchable: Vec<String> = if vault_notes.len() > MAX_RECONCILE_SCAN_FILES {
+        Vec::new()
+    } else {
+        vault_notes
+            .iter()
+            .filter_map(|absolute| vault_relative_posix(&canonical_root, absolute))
+            .collect()
+    };
+    let mut changed = false;
+    for index in broken {
+        let stored = goal.steps[index]
+            .note_relative_path
+            .clone()
+            .unwrap_or_default();
+        let stored_lower = stored.to_lowercase();
+        let file_name = stored_lower.rsplit('/').next().unwrap_or_default();
+        // Fase A: mesmo nome de arquivo em outro lugar (caso comum: arrastar a
+        // nota para fora da pasta da meta). Exige identidade para não vincular
+        // uma nota homônima de outro contexto.
+        let mut same_name: Vec<&String> = searchable
+            .iter()
+            .filter(|candidate| {
+                candidate
+                    .to_lowercase()
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or_default()
+                    == file_name
+                    && candidate.to_lowercase() != stored_lower
+            })
+            .collect();
+        same_name.sort();
+        same_name.dedup();
+        let mut verified: Vec<String> = same_name
+            .iter()
+            .filter(|candidate| {
+                let absolute =
+                    canonical_root.join(candidate.replace('/', std::path::MAIN_SEPARATOR_STR));
+                identity_matches_step(
+                    &read_step_note_identity(&absolute),
+                    goal.title.trim(),
+                    goal.steps[index].title.trim(),
+                )
+            })
+            .map(|candidate| (*candidate).clone())
+            .collect();
+        // Fase B: movida E renomeada — varre o vault pelo conteúdo (`meta:` da
+        // meta + título do passo). Exige os DOIS sinais e unicidade.
+        if verified.is_empty() && !searchable.is_empty() {
+            let mut content_hits: Vec<String> = Vec::new();
+            for candidate in &searchable {
+                if candidate.to_lowercase() == stored_lower {
+                    continue;
+                }
+                let absolute =
+                    canonical_root.join(candidate.replace('/', std::path::MAIN_SEPARATOR_STR));
+                let identity = read_step_note_identity(&absolute);
+                let meta_ok = identity
+                    .meta
+                    .as_deref()
+                    .is_some_and(|meta| meta == goal.title.trim());
+                let heading_ok = identity
+                    .heading
+                    .as_deref()
+                    .is_some_and(|heading| heading == goal.steps[index].title.trim());
+                if meta_ok && heading_ok {
+                    content_hits.push(candidate.clone());
+                }
+            }
+            if content_hits.len() == 1 {
+                verified = content_hits;
+            }
+        }
+        if verified.len() == 1 {
+            let relocated = verified.swap_remove(0);
+            // Cinto e suspensórios: só grava caminho válido (relativo, `.md`,
+            // sem `.mirmind`); se falhar, desvincula em vez de sujar o JSON.
+            if validate_relative_note_path(&relocated).is_ok() {
+                goal.steps[index].note_relative_path = Some(relocated);
+            } else {
+                goal.steps[index].note_relative_path = None;
+            }
+        } else {
+            // Sumiu sem deixar rastro (ou ambígua): desvincula — o passo volta
+            // a mostrar o botão + e perde o check verde.
+            goal.steps[index].note_relative_path = None;
+        }
+        changed = true;
+    }
+    if changed {
+        rewrite_goal_file(vault_root, &goal)?;
+    }
+    Ok((goal, changed))
 }
 
 /// Reescreve o JSON de uma meta existente de forma atômica.
@@ -1016,6 +1261,32 @@ pub(crate) fn update_goal_step_command(
     update_goal_step(&root, id.trim(), order, note_relative_path).map_err(|e| e.to_string())
 }
 
+/// Vínculos verificados contra o disco ao abrir o modal de detalhes da meta:
+/// a meta (com caminhos atualizados/desvinculados) + se algo mudou (o
+/// frontend então regrava a indexadora, cujos links usam esses caminhos).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReconcileGoalNotesResult {
+    pub goal: Goal,
+    pub changed: bool,
+}
+
+/// Confere se as notas vinculadas aos passos ainda existem: apagadas são
+/// desvinculadas (o passo volta ao +); movidas têm o caminho atualizado.
+#[tauri::command]
+pub(crate) fn reconcile_goal_notes_command(
+    path: String,
+    id: String,
+    authorized_paths: tauri::State<'_, crate::AuthorizedPaths>,
+) -> Result<ReconcileGoalNotesResult, String> {
+    let root = crate::canonicalize_directory(Path::new(&path)).map_err(|e| e.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|e| e.to_string())?;
+    let (goal, changed) = reconcile_goal_notes(&root, id.trim()).map_err(|e| e.to_string())?;
+    Ok(ReconcileGoalNotesResult { goal, changed })
+}
+
 /// Altera o conteúdo padrão das notas novas do plano (em branco ou esqueleto
 /// com IA). Vale para os próximos cliques no +; notas já criadas não mudam.
 #[tauri::command]
@@ -1208,5 +1479,172 @@ mod tests {
         rewrite_goal_file(root, &updated).expect("rewrite");
         let reloaded = load_goal(root, &goal.id).expect("reload").expect("exists");
         assert_eq!(reloaded.note_content_mode, NoteContentMode::Ai);
+    }
+
+    #[test]
+    fn linking_a_windows_style_note_path_succeeds() {
+        // Regressão: validar o vínculo com `resolve_note_path` e raiz
+        // fictícia (`/tmp/...`, inexistente no Windows) fazia a contenção
+        // falhar sempre → "A nota vinculada e invalida." em todo clique no +.
+        let dir = tempfile::tempdir().expect("temp vault");
+        let root = dir.path();
+        let goal = build_goal_from_steps(
+            "Aprender System Design",
+            "Explicar sem consultar",
+            "",
+            vec![(
+                "Entender Sistemas de Software".to_string(),
+                "Base.".to_string(),
+            )],
+            false,
+            NoteContentMode::Blank,
+        )
+        .expect("build goal");
+        persist_goal(root, &goal).expect("persist");
+        let linked = update_goal_step(
+            root,
+            &goal.id,
+            1,
+            Some(Some(
+                "Metas/aprender-system-design/01-entender-sistemas-de-software.md".to_string(),
+            )),
+        )
+        .expect("link step");
+        assert_eq!(
+            linked.steps[0].note_relative_path.as_deref(),
+            Some("Metas/aprender-system-design/01-entender-sistemas-de-software.md")
+        );
+        // Desvincular continua funcionando.
+        let unlinked = update_goal_step(root, &goal.id, 1, Some(None)).expect("unlink step");
+        assert!(unlinked.steps[0].note_relative_path.is_none());
+    }
+
+    fn write_vault_note(root: &Path, relative: &str, content: &str) {
+        let path = root.join(relative.replace('/', std::path::MAIN_SEPARATOR_STR));
+        fs::create_dir_all(path.parent().expect("note parent")).expect("note folders");
+        fs::write(path, content).expect("write note");
+    }
+
+    fn step_note_content(goal_title: &str, step_title: &str) -> String {
+        format!(
+            "---\ntags: [meta/teste]\nmeta: \"{goal_title}\"\nstatus: rascunho\n---\n\n# {step_title}\n\ncorpo\n"
+        )
+    }
+
+    fn linked_goal_fixture(root: &Path) -> (Goal, String) {
+        let goal = build_goal_from_steps(
+            "Meta Teste",
+            "Aprender algo",
+            "",
+            vec![("Passo Um".to_string(), "Resumo.".to_string())],
+            false,
+            NoteContentMode::Blank,
+        )
+        .expect("build goal");
+        persist_goal(root, &goal).expect("persist");
+        let stored = goal.steps[0].suggested_relative_path.clone();
+        update_goal_step(root, &goal.id, 1, Some(Some(stored.clone()))).expect("link step");
+        (goal, stored)
+    }
+
+    #[test]
+    fn reconcile_keeps_existing_links_untouched() {
+        let dir = tempfile::tempdir().expect("temp vault");
+        let root = dir.path();
+        let (goal, stored) = linked_goal_fixture(root);
+        write_vault_note(root, &stored, &step_note_content("Meta Teste", "Passo Um"));
+        let (reconciled, changed) = reconcile_goal_notes(root, &goal.id).expect("reconcile");
+        assert!(!changed);
+        assert_eq!(
+            reconciled.steps[0].note_relative_path.as_deref(),
+            Some(stored.as_str())
+        );
+    }
+
+    #[test]
+    fn reconcile_unlinks_deleted_notes() {
+        let dir = tempfile::tempdir().expect("temp vault");
+        let root = dir.path();
+        let (goal, _) = linked_goal_fixture(root);
+        // Nenhum arquivo criado: a nota sumiu.
+        let (reconciled, changed) = reconcile_goal_notes(root, &goal.id).expect("reconcile");
+        assert!(changed);
+        assert!(reconciled.steps[0].note_relative_path.is_none());
+        let reloaded = load_goal(root, &goal.id).expect("load").expect("exists");
+        assert!(reloaded.steps[0].note_relative_path.is_none());
+    }
+
+    #[test]
+    fn reconcile_follows_notes_moved_out_of_the_goal_folder() {
+        let dir = tempfile::tempdir().expect("temp vault");
+        let root = dir.path();
+        let (goal, stored) = linked_goal_fixture(root);
+        let file_name = stored.rsplit('/').next().expect("file name");
+        let moved = format!("Rascunhos/{file_name}");
+        write_vault_note(root, &moved, &step_note_content("Meta Teste", "Passo Um"));
+        let (reconciled, changed) = reconcile_goal_notes(root, &goal.id).expect("reconcile");
+        assert!(changed);
+        assert_eq!(
+            reconciled.steps[0].note_relative_path.as_deref(),
+            Some(moved.as_str())
+        );
+    }
+
+    #[test]
+    fn reconcile_follows_moved_and_renamed_notes_by_content() {
+        let dir = tempfile::tempdir().expect("temp vault");
+        let root = dir.path();
+        let (goal, _) = linked_goal_fixture(root);
+        write_vault_note(
+            root,
+            "Rascunhos/passo-um-renomeado.md",
+            &step_note_content("Meta Teste", "Passo Um"),
+        );
+        let (reconciled, changed) = reconcile_goal_notes(root, &goal.id).expect("reconcile");
+        assert!(changed);
+        assert_eq!(
+            reconciled.steps[0].note_relative_path.as_deref(),
+            Some("Rascunhos/passo-um-renomeado.md")
+        );
+    }
+
+    #[test]
+    fn reconcile_does_not_hijack_unrelated_same_name_notes() {
+        let dir = tempfile::tempdir().expect("temp vault");
+        let root = dir.path();
+        let (goal, stored) = linked_goal_fixture(root);
+        let file_name = stored.rsplit('/').next().expect("file name");
+        // Homônima de outro contexto (outra meta, outro título): desvincula.
+        write_vault_note(
+            root,
+            &format!("Outra-coisa/{file_name}"),
+            &step_note_content("Outra Meta", "Outro Passo"),
+        );
+        let (reconciled, changed) = reconcile_goal_notes(root, &goal.id).expect("reconcile");
+        assert!(changed);
+        assert!(reconciled.steps[0].note_relative_path.is_none());
+    }
+
+    #[test]
+    fn reconcile_unlinks_on_ambiguous_same_name_matches() {
+        let dir = tempfile::tempdir().expect("temp vault");
+        let root = dir.path();
+        let (goal, stored) = linked_goal_fixture(root);
+        let file_name = stored.rsplit('/').next().expect("file name");
+        // Duas candidatas com a mesma identidade: ambíguo, desvincula em vez
+        // de chutar uma delas.
+        write_vault_note(
+            root,
+            &format!("A/{file_name}"),
+            &step_note_content("Meta Teste", "Passo Um"),
+        );
+        write_vault_note(
+            root,
+            &format!("B/{file_name}"),
+            &step_note_content("Meta Teste", "Passo Um"),
+        );
+        let (reconciled, changed) = reconcile_goal_notes(root, &goal.id).expect("reconcile");
+        assert!(changed);
+        assert!(reconciled.steps[0].note_relative_path.is_none());
     }
 }

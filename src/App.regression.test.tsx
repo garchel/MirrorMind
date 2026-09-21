@@ -813,6 +813,25 @@ describe('Regressao do editor no workspace', () => {
     await waitFor(() => expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled())
   })
 
+  it('[mudanca externa] reabre com o conteudo novo quando a nota foi recriada por fora (rascunho velho nao ressuscita)', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    await openTestVault(user)
+    // Nota aberta: o espelho guarda o rascunho e a base no disco atual.
+    expect(document.querySelector('.cm-content')?.textContent ?? '').toContain('Texto inicial')
+    await user.click(screen.getByRole('button', { name: 'Abrir nota alvo' }))
+    expect(document.querySelector('.cm-content')?.textContent ?? '').toContain('Item da lista')
+
+    // Apagada + recriada por fora do app SEM evento do watcher (o ciclo pode
+    // passar batido): o disco tem conteudo novo sob o mesmo caminho.
+    notes.set('inicial.md', { name: 'inicial.md', relativePath: 'inicial.md', content: '# Inicial\n\nConteudo RECRIADO por fora.' })
+
+    await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
+    // O rascunho era de outra vida do arquivo: purga e adota o disco.
+    await waitFor(() => expect(document.querySelector('.cm-content')?.textContent ?? '').toContain('RECRIADO'))
+    expect(document.querySelector('.cm-content')?.textContent ?? '').not.toContain('Texto inicial')
+  })
+
   it('[compatibilidade Obsidian] renderiza callout recolhivel e sanitiza HTML', async () => {
     const user = userEvent.setup()
     createTauriHarness()
