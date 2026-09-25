@@ -1,5 +1,5 @@
 use super::contract::{
-    PolicySource, PolicySourceKind, PolicySources, ReviewPolicy, MAX_SAFE_INTEGER,
+    PolicySource, PolicySourceKind, PolicySources, ReviewMode, ReviewPolicy, MAX_SAFE_INTEGER,
 };
 use super::evaluation::source_hash;
 use super::policy::reschedule;
@@ -59,6 +59,17 @@ pub struct VaultReviewDefaultsInput {
     pub priority_weight: f64,
     pub min_interval_days: u64,
     pub max_interval_days: u64,
+    /// Metodo padrao das sessoes de notas novas, definido pelo usuario nas
+    /// configuracoes (em vez do Prova fixo). Ausente em arquivos antigos =
+    /// Prova (comportamento anterior preservado na migracao).
+    #[serde(default = "default_preferred_mode")]
+    pub preferred_mode: ReviewMode,
+}
+
+/// Prova continua sendo o ponto de partida ate o usuario escolher outro
+/// metodo padrao nas configuracoes.
+fn default_preferred_mode() -> ReviewMode {
+    ReviewMode::Exam
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -115,6 +126,7 @@ impl Default for StoredVaultReviewPolicyConfig {
                 priority_weight: DEFAULT_PRIORITY_WEIGHT,
                 min_interval_days: DEFAULT_MIN_INTERVAL_DAYS,
                 max_interval_days: DEFAULT_MAX_INTERVAL_DAYS,
+                preferred_mode: default_preferred_mode(),
             },
             tag_rules: default_tag_review_rules(),
             segmentation: SegmentationLimits::default(),
@@ -353,6 +365,14 @@ pub fn load_vault_default_review_policy(vault_root: &Path) -> Result<ReviewPolic
     Ok(review_policy_from_defaults(config.defaults))
 }
 
+/// Metodo padrao das sessoes de notas novas (definido pelo usuario nas
+/// configuracoes; Prova ate ele escolher outro). Usado ao criar o documento
+/// de aprendizado — documentos existentes e tags mantem o proprio modo.
+pub fn load_vault_default_mode(vault_root: &Path) -> Result<ReviewMode> {
+    let config = load_vault_review_policy_config(vault_root)?;
+    Ok(config.defaults.preferred_mode)
+}
+
 pub fn load_inherited_review_policy(
     vault_root: &Path,
     markdown: &str,
@@ -441,6 +461,8 @@ pub(crate) fn validate_tag_rules(rules: &mut Vec<TagReviewPolicyRule>) -> Result
             priority_weight: rule.priority_weight,
             min_interval_days: rule.min_interval_days,
             max_interval_days: rule.max_interval_days,
+            // O modo nao entra na validacao numerica; so completa o tipo.
+            preferred_mode: ReviewMode::Exam,
         })?;
     }
     rules.sort_by(|left, right| left.tag.cmp(&right.tag));
@@ -1243,6 +1265,7 @@ mod tests {
                 priority_weight: 2.5,
                 min_interval_days: 2,
                 max_interval_days: 180,
+                preferred_mode: ReviewMode::Exam,
             },
             1_720_000_000_000,
         )
@@ -1328,6 +1351,7 @@ mod tests {
                 priority_weight: 2.5,
                 min_interval_days: 2,
                 max_interval_days: 180,
+                preferred_mode: ReviewMode::Exam,
             },
             assessed_at,
         )
@@ -1405,6 +1429,7 @@ mod tests {
                 priority_weight: 1.0,
                 min_interval_days: 10,
                 max_interval_days: 365,
+                preferred_mode: ReviewMode::Exam,
             },
             assessed_at,
         )
@@ -1435,6 +1460,7 @@ mod tests {
             priority_weight: 2.0,
             min_interval_days: 1,
             max_interval_days: 180,
+            preferred_mode: ReviewMode::Exam,
         };
         set_vault_review_defaults(vault.path(), 0, first, 1_720_000_000_000).expect("first config");
 
@@ -1461,6 +1487,7 @@ mod tests {
             priority_weight: 3.0,
             min_interval_days: 2,
             max_interval_days: 120,
+            preferred_mode: ReviewMode::Exam,
         };
         set_vault_review_defaults(vault.path(), 1, second, 1_720_000_100_000)
             .expect("second config");

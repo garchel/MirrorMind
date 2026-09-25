@@ -36,9 +36,13 @@ describe('PolicyWorkloadEstimate', () => {
       steadyIntervalDays: 90,
     })
     renderIntensive()
-    expect(await screen.findByText(/≈ 3 revisões em 30 dias/)).toBeInTheDocument()
-    expect(screen.getByText(/≈ 7 no primeiro ano/)).toBeInTheDocument()
-    expect(screen.getByText(/estabiliza a cada cerca de 3 meses/)).toBeInTheDocument()
+    // Tres numeros em destaque com rotulos curtos.
+    expect(await screen.findByText('≈ 3')).toBeInTheDocument()
+    expect(screen.getByText('revisões em 30 dias')).toBeInTheDocument()
+    expect(screen.getByText('≈ 7')).toBeInTheDocument()
+    expect(screen.getByText('no primeiro ano')).toBeInTheDocument()
+    expect(screen.getByText('cerca de 3 meses')).toBeInTheDocument()
+    expect(screen.getByText('entre revisões ao estabilizar')).toBeInTheDocument()
     expect(estimateMock).toHaveBeenCalledWith({
       firstReviewIntervalDays: 1,
       targetRetention: 0.9,

@@ -11,6 +11,7 @@ describe('Vault review policy contract', () => {
         priorityWeight: 2.5,
         minIntervalDays: 2,
         maxIntervalDays: 180,
+        preferredMode: 'exam',
       },
       tagRules: [{
         tag: 'revisao/prova',
@@ -39,6 +40,7 @@ describe('Vault review policy contract', () => {
         priorityWeight: 1,
         minIntervalDays: 30,
         maxIntervalDays: 10,
+        preferredMode: 'exam',
       },
       tagRules: [],
       segmentation: { maxWholeNoteWords: 800 },

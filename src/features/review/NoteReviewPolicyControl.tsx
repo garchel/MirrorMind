@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, Settings2, Wrench, X } from 'lucide-react'
+import { AlertTriangle, CalendarDays, Settings2, Wrench, X } from 'lucide-react'
 import {
   getNoteReviewPolicy,
   noteReviewPolicyInputSchema,
@@ -112,6 +112,34 @@ function sourceLabel(policy: NoteReviewPolicy) {
   }
 }
 
+/** Preset cujo ritmo equivale aos valores (para resumo e destaque). */
+function matchPreset(values: {
+  firstReviewIntervalDays: number
+  targetRetention: number
+  priorityWeight: number
+  minIntervalDays: number
+  maxIntervalDays: number
+}): keyof typeof PRESETS | null {
+  const match = (Object.entries(PRESETS) as Array<[keyof typeof PRESETS, (typeof PRESETS)[keyof typeof PRESETS]]>)
+    .find(([, preset]) => POLICY_FIELDS.every((field) => preset.values[field] === values[field]))
+  return match ? match[0] : null
+}
+
+/** Resumo do ritmo para o gatilho ("Equilibrada · 80%"): casa os 5 campos
+ * numericos com um preset; sem match, "Personalizada". Nome acessivel do
+ * botao preservado via aria-label. */
+function presetSummary(policy: NoteReviewPolicy): string {
+  const matched = matchPreset({
+    firstReviewIntervalDays: policy.firstReviewIntervalDays,
+    targetRetention: policy.targetRetention,
+    priorityWeight: policy.priorityWeight,
+    minIntervalDays: policy.minIntervalDays,
+    maxIntervalDays: policy.maxIntervalDays,
+  })
+  const label = matched ? PRESETS[matched].label : 'Personalizada'
+  return `${label} · ${Math.round(policy.targetRetention * 100)}%`
+}
+
 function formatDeadline(policy: NoteReviewPolicy) {
   if (policy.deadlineAtUnixMs === null) return null
   const label = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(policy.deadlineAtUnixMs))
@@ -195,7 +223,46 @@ export function NoteReviewPolicyControl({
   }
 
   const validation = form ? noteReviewPolicyInputSchema.safeParse(form) : null
-  const intervalOrderInvalid = form !== null && form.maxIntervalDays < form.minIntervalDays
+  const matchedPresetKey = form ? matchPreset({
+    firstReviewIntervalDays: form.firstReviewIntervalDays,
+    targetRetention: form.targetRetention,
+    priorityWeight: form.priorityWeight,
+    minIntervalDays: form.minIntervalDays,
+    maxIntervalDays: form.maxIntervalDays,
+  }) : null
+
+  // Blocos partilhados pelos layouts (abas e padrão/lista): consts de
+  // elementos, sem duplicar JSX nos ramos.
+  const estimateBlock = form ? (
+    <PolicyWorkloadEstimate
+      firstReviewIntervalDays={form.firstReviewIntervalDays}
+      targetRetention={form.targetRetention}
+      minIntervalDays={form.minIntervalDays}
+      maxIntervalDays={form.maxIntervalDays}
+      valid={validation?.success === true}
+    />
+  ) : null
+
+  const scheduleBlock = policy ? (
+    <div className="review-policy-schedule">
+      <span className="review-policy-schedule-icon" aria-hidden="true">
+        <CalendarDays size={16} strokeWidth={1.6} />
+      </span>
+      <div className="review-policy-schedule-copy">
+        <span>Próxima revisão</span>
+        <strong>{formatNextReview(policy.nextReviewAtUnixMs)}</strong>
+        {policy.completedReviewCount > 0 ? <small>A alteração recalcula a data preservando o histórico de memória.</small> : <small>Antes da primeira sessão, a data parte de quando a nota ficou pronta.</small>}
+      </div>
+      {formatDeadline(policy) ? <p className="review-policy-deadline" role="status">{formatDeadline(policy)}</p> : null}
+    </div>
+  ) : null
+
+  const feedbackBlock = (
+    <>
+      {error ? <p className="review-policy-error" role="alert">{error}</p> : null}
+      {saved ? <p className="review-policy-success" role="status">Política salva. Configuração da nota aplicada.</p> : null}
+    </>
+  )
 
   function closeDialog() {
     if (saving) return
@@ -211,21 +278,6 @@ export function NoteReviewPolicyControl({
       ...PRESETS[key].values,
       overrideFields: [...POLICY_FIELDS],
       inheritFields: [],
-    } : current)
-    setSaved(false)
-    setError('')
-  }
-
-  function setNumber(field: keyof Pick<NoteReviewPolicyInput,
-    'firstReviewIntervalDays' | 'targetRetention' | 'priorityWeight' | 'minIntervalDays' | 'maxIntervalDays'>,
-  value: number) {
-    setForm((current) => current ? {
-      ...current,
-      [field]: value,
-      overrideFields: current.overrideFields.includes(field)
-        ? current.overrideFields
-        : [...current.overrideFields, field],
-      inheritFields: current.inheritFields.filter((inheritedField) => inheritedField !== field),
     } : current)
     setSaved(false)
     setError('')
@@ -288,7 +340,10 @@ export function NoteReviewPolicyControl({
           <Settings2 size={15} strokeWidth={1.5} />
           <Wrench size={9} strokeWidth={2.25} className="note-review-icon-corner" />
         </span>
-        <span>Política de revisão</span>
+        <span className="note-review-policy-label">
+          <span>Política de revisão</span>
+          {policy && form ? <small>{presetSummary(policy)}</small> : null}
+        </span>
       </button>
 
       {open && policy && form ? (
@@ -301,92 +356,78 @@ export function NoteReviewPolicyControl({
           className="review-policy-dialog"
         >
           <section>
-            <header>
+            <div className="modal-header">
               <div>
-                <span>{sourceLabel(policy)}</span>
-                <h2 id="review-policy-title">Política de revisão</h2>
+                <p className="card-kicker">{sourceLabel(policy)}</p>
+                <h3 id="review-policy-title">Política de revisão</h3>
               </div>
-              <button type="button" className="secondary-button" aria-label="Fechar política de revisão" disabled={saving} onClick={closeDialog}>
-                <X size={16} aria-hidden="true" />
+              <button type="button" className="modal-close" aria-label="Fechar política de revisão" disabled={saving} onClick={closeDialog}>
+                <X size={16} strokeWidth={2.2} aria-hidden="true" />
               </button>
-            </header>
-
-            <p className="review-policy-intro">Defina o esforço da nota — prioridade separada do risco de esquecimento.</p>
-
-            <section className="review-policy-origins" aria-labelledby="review-policy-origins-title">
-              <h3 id="review-policy-origins-title">Origem de cada campo</h3>
-              <dl>
-                {ORIGIN_FIELD_ROWS.map(({ key, label, format }) => (
-                  <div key={key}>
-                    <dt>{label}</dt>
-                    <dd>
-                      <strong>{format(policy[key])}</strong>
-                      <small>{originLabel(policy.sources[key])}</small>
-                    </dd>
-                  </div>
-                ))}
-                <div>
-                  <dt>Prazo de estudo</dt>
-                  <dd>
-                    <strong>{policy.deadlineAtUnixMs === null
-                      ? 'Sem prazo'
-                      : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(policy.deadlineAtUnixMs))}</strong>
-                    <small>{originLabel(policy.sources.deadlineAtUnixMs)}</small>
-                  </dd>
-                </div>
-              </dl>
-            </section>
-
-            <fieldset className="review-policy-presets">
-              <legend>Ritmo</legend>
-              {Object.entries(PRESETS).map(([key, preset]) => (
-                <button type="button" key={key} onClick={() => applyPreset(key as keyof typeof PRESETS)}>
-                  <strong>{preset.label}</strong>
-                  <span>{preset.description}</span>
-                </button>
-              ))}
-            </fieldset>
-
-            <fieldset className="review-policy-modes">
-              <legend>Modo preferido</legend>
-              <label><input type="radio" name="preferred-review-mode" checked={form.preferredMode === 'exam'} onChange={() => setPreferredMode('exam')} /> <span><strong>Prova</strong><small>Perguntas independentes.</small></span></label>
-              <label><input type="radio" name="preferred-review-mode" checked={form.preferredMode === 'conversation'} onChange={() => setPreferredMode('conversation')} /> <span><strong>Conversa</strong><small>Exploração progressiva.</small></span></label>
-              {!policy.modeManual ? (
-                <p className="review-policy-mode-inherited" role="status">
-                  Modo herdado das tags; salvar fixa nesta nota.
-                </p>
-              ) : null}
-            </fieldset>
-
-            <details className="review-policy-advanced">
-              <summary>Opções avançadas</summary>
-              <div>
-                <label>Primeira revisão (dias)<input type="number" min="1" max="3650" value={form.firstReviewIntervalDays} onChange={(event) => setNumber('firstReviewIntervalDays', Number(event.target.value))} /></label>
-                <label>Retenção desejada (%)<input type="number" min="50" max="99" value={Math.round(form.targetRetention * 100)} onChange={(event) => setNumber('targetRetention', Number(event.target.value) / 100)} /></label>
-                <label>Peso de prioridade<input type="number" min="0.1" max="100" step="0.1" value={form.priorityWeight} onChange={(event) => setNumber('priorityWeight', Number(event.target.value))} /></label>
-                <label>Intervalo mínimo (dias)<input type="number" min="1" max="3650" value={form.minIntervalDays} onChange={(event) => setNumber('minIntervalDays', Number(event.target.value))} /></label>
-                <label>Intervalo máximo (dias)<input type="number" min="1" max="36500" value={form.maxIntervalDays} onChange={(event) => setNumber('maxIntervalDays', Number(event.target.value))} /></label>
-              </div>
-              {intervalOrderInvalid ? <p role="alert">O intervalo máximo deve ser igual ou maior que o mínimo.</p> : null}
-            </details>
-
-            <PolicyWorkloadEstimate
-              firstReviewIntervalDays={form.firstReviewIntervalDays}
-              targetRetention={form.targetRetention}
-              minIntervalDays={form.minIntervalDays}
-              maxIntervalDays={form.maxIntervalDays}
-              valid={validation?.success === true}
-            />
-
-            <div className="review-policy-schedule">
-              <span>Próxima revisão</span>
-              <strong>{formatNextReview(policy.nextReviewAtUnixMs)}</strong>
-              {policy.completedReviewCount > 0 ? <small>A alteração recalcula a data preservando o histórico de memória.</small> : <small>Antes da primeira sessão, a data parte de quando a nota ficou pronta.</small>}
-              {formatDeadline(policy) ? <p className="review-policy-deadline" role="status">{formatDeadline(policy)}</p> : null}
             </div>
 
-            {error ? <p className="review-policy-error" role="alert">{error}</p> : null}
-            {saved ? <p className="review-policy-success" role="status">Política salva. Configuração da nota aplicada.</p> : null}
+            <div className="review-policy-body">
+                <p className="review-policy-intro">Comece por um ritmo e ajuste se precisar — o que for salvo aqui vale só para esta nota.</p>
+
+                <fieldset className="review-policy-presets">
+                  <legend>Ritmo</legend>
+                  {Object.entries(PRESETS).map(([key, preset]) => {
+                    const presetKey = key as keyof typeof PRESETS
+                    const isCurrent = matchedPresetKey === presetKey
+                    return (
+                      <button
+                        type="button"
+                        key={key}
+                        className={isCurrent ? 'is-active' : ''}
+                        aria-pressed={isCurrent}
+                        onClick={() => applyPreset(presetKey)}
+                      >
+                        <strong>{preset.label}</strong>
+                        <span>{preset.description}</span>
+                      </button>
+                    )
+                  })}
+                </fieldset>
+
+                <fieldset className="review-policy-modes">
+                  <legend>Método de Revisão</legend>
+                  <label><input type="radio" name="preferred-review-mode" checked={form.preferredMode === 'exam'} onChange={() => setPreferredMode('exam')} /> <span><strong>Prova</strong><small>Perguntas independentes.</small></span></label>
+                  <label><input type="radio" name="preferred-review-mode" checked={form.preferredMode === 'conversation'} onChange={() => setPreferredMode('conversation')} /> <span><strong>Conversa</strong><small>Exploração progressiva.</small></span></label>
+                  {!policy.modeManual ? (
+                    <p className="review-policy-mode-inherited" role="status">
+                      Método herdado; salvar fixa nesta nota.
+                    </p>
+                  ) : null}
+                </fieldset>
+
+                <section className="review-policy-origins" aria-labelledby="review-policy-origins-title">
+                  <h3 id="review-policy-origins-title">Origem de cada campo</h3>
+                  <dl>
+                    {ORIGIN_FIELD_ROWS.map(({ key, label, format }) => (
+                      <div key={key}>
+                        <dt>{label}</dt>
+                        <dd>
+                          <strong>{format(policy[key])}</strong>
+                          <small>{originLabel(policy.sources[key])}</small>
+                        </dd>
+                      </div>
+                    ))}
+                    <div>
+                      <dt>Prazo de estudo</dt>
+                      <dd>
+                        <strong>{policy.deadlineAtUnixMs === null
+                          ? 'Sem prazo'
+                          : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(policy.deadlineAtUnixMs))}</strong>
+                        <small>{originLabel(policy.sources.deadlineAtUnixMs)}</small>
+                      </dd>
+                    </div>
+                  </dl>
+                </section>
+
+                {estimateBlock}
+                {scheduleBlock}
+                {feedbackBlock}
+              </div>
 
             <footer>
               <button type="button" className="secondary-button" disabled={saving} onClick={() => void inheritVaultDefaults()}>Usar padrão do Vault</button>

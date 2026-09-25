@@ -1,12 +1,42 @@
 .policy-workload-estimate {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   margin: 10px 0 4px;
   padding: 10px 12px;
   border-radius: var(--radius-lg);
   background: var(--review-sunk);
   border: 1px solid var(--review-line-soft);
+}
+
+/* Tres numeros lado a lado: cada um com valor em destaque e rotulo curto. */
+.policy-workload-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.policy-workload-stat {
+  display: grid;
+  gap: 1px;
+  padding: 8px 10px;
+  border: 1px solid var(--review-line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--review-field);
+}
+
+.policy-workload-stat > strong {
+  color: var(--review-ink);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.policy-workload-stat > span {
+  color: var(--review-muted);
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .policy-workload-estimate-summary {

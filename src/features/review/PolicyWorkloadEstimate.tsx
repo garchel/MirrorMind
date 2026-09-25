@@ -64,16 +64,22 @@ export function PolicyWorkloadEstimate({
     <div className="policy-workload-estimate" aria-label="Estimativa de carga da política">
       {estimate ? (
         <>
-          <span className="policy-workload-estimate-summary">
-            {`≈ ${estimate.reviewsFirst30Days} ${estimate.reviewsFirst30Days === 1 ? 'revisão' : 'revisões'} em 30 dias`}
-            <span className="policy-workload-estimate-sep" aria-hidden="true">·</span>
-            {`≈ ${estimate.reviewsFirstYear} no primeiro ano`}
-            <span className="policy-workload-estimate-sep" aria-hidden="true">·</span>
-            {`estabiliza a cada ${formatInterval(estimate.steadyIntervalDays)}`}
-          </span>
+          <div className="policy-workload-stats">
+            <div className="policy-workload-stat">
+              <strong>≈ {estimate.reviewsFirst30Days}</strong>
+              <span>{estimate.reviewsFirst30Days === 1 ? 'revisão em 30 dias' : 'revisões em 30 dias'}</span>
+            </div>
+            <div className="policy-workload-stat">
+              <strong>≈ {estimate.reviewsFirstYear}</strong>
+              <span>no primeiro ano</span>
+            </div>
+            <div className="policy-workload-stat">
+              <strong>{formatInterval(estimate.steadyIntervalDays)}</strong>
+              <span>entre revisões ao estabilizar</span>
+            </div>
+          </div>
           <small className="policy-workload-estimate-note">
-            Simulação com acertos consistentes (recall livre) na curva de esquecimento usada pelo
-            agendamento. Use-a para calibrar retenção e intervalos.
+            Simulação com acertos constantes — ajuste retenção e intervalos para calibrar a carga.
           </small>
         </>
       ) : failed ? (

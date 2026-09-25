@@ -27,6 +27,7 @@ const config = {
     priorityWeight: 1,
     minIntervalDays: 1,
     maxIntervalDays: 365,
+    preferredMode: 'exam',
   },
   tagRules: [{
     tag: 'revisao/prova',
@@ -74,6 +75,7 @@ describe('VaultReviewPolicySettings', () => {
         priorityWeight: 3,
         minIntervalDays: 1,
         maxIntervalDays: 90,
+        preferredMode: 'exam',
       },
     }))
   })
@@ -125,5 +127,40 @@ describe('VaultReviewPolicySettings', () => {
 
     await waitFor(() => expect(setDefaultsMock).toHaveBeenCalledTimes(1))
     expect(screen.getByRole('status')).toHaveTextContent(/Padrão do Vault salvo/i)
+  })
+
+  it('salva o metodo padrao das sessoes sem trocar o ritmo', async () => {
+    const user = userEvent.setup()
+    render(<VaultReviewPolicySettings vaultPath={'C:\\Vault'} />)
+
+    await user.click(await screen.findByRole('radio', { name: /Conversa/ }))
+    await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
+    await user.click(await screen.findByRole('button', { name: 'Confirmar alteração' }))
+
+    await waitFor(() => expect(setDefaultsMock).toHaveBeenCalledWith(expect.objectContaining({
+      defaults: expect.objectContaining({
+        preferredMode: 'conversation',
+        // Ritmo da fixture intacto: metodo e esforco sao ortogonais.
+        firstReviewIntervalDays: 2,
+        targetRetention: 0.8,
+      }),
+    })))
+  })
+
+  it('trocar de ritmo preserva o metodo padrao escolhido', async () => {
+    const user = userEvent.setup()
+    render(<VaultReviewPolicySettings vaultPath={'C:\\Vault'} />)
+
+    await user.click(await screen.findByRole('radio', { name: /Conversa/ }))
+    await user.click(screen.getByRole('button', { name: /^Leve/ }))
+    await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
+    await user.click(await screen.findByRole('button', { name: 'Confirmar alteração' }))
+
+    await waitFor(() => expect(setDefaultsMock).toHaveBeenCalledWith(expect.objectContaining({
+      defaults: expect.objectContaining({
+        preferredMode: 'conversation',
+        firstReviewIntervalDays: 7,
+      }),
+    })))
   })
 })

@@ -10,57 +10,42 @@
 
 /* Overlay removido: o diálogo usa o `<Modal>` compartilhado
  * (components/Modal.css) — backdrop nativo do `<dialog>`. */
-.review-policy-dialog {
+.modal.review-policy-dialog {
   /* Estende `.modal`: borda/backdrop/animação vêm da base; aqui só as
-   * medidas específicas da política de revisão. */
+   * medidas específicas da política de revisão. Seletor reforçado para
+   * vencer a largura da base independente da ordem dos arquivos. */
   width: min(620px, 100%);
   max-height: min(760px, calc(100dvh - 48px));
   overflow: auto;
 }
 
-.review-policy-dialog > header,
-.review-policy-dialog > footer {
+.review-policy-dialog .modal-header,
+.review-policy-dialog footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 16px 18px;
 }
 
-.review-policy-dialog > header {
-  border-bottom: 1px solid var(--border, var(--review-line));
-}
-
-.review-policy-dialog > footer {
+.review-policy-dialog footer {
   justify-content: flex-end;
   border-top: 1px solid var(--border, var(--review-line));
 }
 
-.review-policy-dialog h2,
-.review-policy-dialog p {
+/* Corpo em grade unica (padrao dos modais do app): as secoes empilham com
+   gap, sem margens individuais. */
+.review-policy-dialog .review-policy-body {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.review-policy-dialog .review-policy-body > * {
   margin: 0;
 }
 
-.review-policy-dialog header span,
-.review-policy-schedule span {
-  color: var(--muted, #706d66);
-  font-size: 12px;
-}
-
-.review-policy-dialog h2 {
-  margin-top: 2px;
-  font-size: 19px;
-}
-
-.review-policy-intro,
-.review-policy-origins,
-.review-policy-presets,
-.review-policy-modes,
-.review-policy-advanced,
-.review-policy-schedule,
-.review-policy-error,
-.review-policy-success {
-  margin: 16px 18px !important;
+.review-policy-dialog .review-policy-body p {
+  margin: 0;
 }
 
 .review-policy-origins {
@@ -149,20 +134,32 @@
   cursor: pointer;
 }
 
-.review-policy-presets button:hover,
+.review-policy-presets button:hover {
+  border-color: var(--accent);
+}
+
 .review-policy-mode-inherited {
   margin: 0;
-  padding: 9px 11px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  color: var(--review-muted);
+  color: var(--muted, #706d66);
   font-size: 12px;
   line-height: 1.45;
 }
 
+/* Radios na cor do app (sem isso, azul nativo do navegador). */
+.review-policy-modes input[type="radio"] {
+  accent-color: var(--accent);
+  flex: none;
+}
+
 .review-policy-modes label:has(input:checked) {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--surface) 78%, var(--accent));
+  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, #eeece6));
+}
+
+/* Ritmo vigente em destaque (mesmo idioma do modo marcado). */
+.review-policy-presets button.is-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, #eeece6));
 }
 
 .review-policy-presets span,
@@ -189,43 +186,6 @@
   gap: 2px;
 }
 
-.review-policy-advanced {
-  border-top: 1px solid var(--border, var(--review-line));
-  border-bottom: 1px solid var(--border, var(--review-line));
-  padding: 12px 0;
-}
-
-.review-policy-advanced summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.review-policy-advanced > div {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
-  margin-top: 12px;
-}
-
-.review-policy-advanced label {
-  display: grid;
-  gap: 5px;
-  color: var(--muted, #706d66);
-  font-size: 12px;
-}
-
-.review-policy-advanced input {
-  min-height: 34px;
-  box-sizing: border-box;
-  border: 1px solid var(--border, var(--review-line));
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  background: var(--surface);
-  color: var(--text, #24231f);
-  font: inherit;
-}
-
-.review-policy-advanced p,
 .review-policy-error {
   margin-top: 9px !important;
   color: var(--danger, #a33b31);
@@ -233,8 +193,57 @@
 }
 
 .review-policy-schedule {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, var(--review-line));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface) 92%, var(--workspace, #eeece6));
+}
+
+.review-policy-schedule-icon {
   display: grid;
-  gap: 3px;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-strong, #a3541d);
+  line-height: 0;
+}
+
+.review-policy-schedule-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.review-policy-schedule-copy > span {
+  color: var(--muted, #706d66);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.review-policy-schedule-copy > strong {
+  color: var(--text-h, #1c2427);
+  font-size: 14px;
+}
+
+.review-policy-deadline {
+  margin: 0 0 0 auto;
+  align-self: center;
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(112 109 102 / 12%);
+  color: var(--muted, #706d66);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .review-policy-success {
@@ -245,7 +254,6 @@
 @media (max-width: 680px) {
   .review-policy-presets,
   .review-policy-modes,
-  .review-policy-advanced > div,
   .review-policy-origins dl {
     grid-template-columns: 1fr;
   }

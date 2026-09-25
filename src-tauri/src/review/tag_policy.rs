@@ -343,6 +343,7 @@ mod tests {
             priority_weight: 1.0,
             min_interval_days: 1,
             max_interval_days: 365,
+            preferred_mode: crate::review::contract::ReviewMode::Exam,
         })
     }
 

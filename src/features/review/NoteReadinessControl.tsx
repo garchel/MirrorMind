@@ -1,4 +1,7 @@
-import { AlertTriangle, CalendarCheck2, ChartColumnBig, Check, Download, NotebookPen, RotateCcw, Search, X } from 'lucide-react'
+import { AlertTriangle, CalendarCheck2, ChartColumnBig, Check, Download, RotateCcw, Search, Sparkles, X } from 'lucide-react'
+import { HugeiconsIcon } from '@hugeicons/react'
+import { StructureCheckIcon } from '@hugeicons/core-free-icons'
+import type { ReactNode } from 'react'
 import type { NoteReviewState } from './ai'
 import { useNoteReadiness, type ReviewStartInfo } from './useNoteReadiness'
 import { NoteReadinessReport } from './NoteReadinessReport'
@@ -31,6 +34,11 @@ type NoteReadinessControlProps = {
    *  avaliar/revisar salva primeiro e prossegue (notas novas nao precisam de
    *  Ctrl+S manual antes de avaliar). */
   onSaveFirst?: () => Promise<boolean>
+  /** Abre a pagina de avaliacao de estrutura ( auditoria deterministica,
+   *  espelho da pagina de avaliacao da nota). */
+  onAuditStructure?: () => void
+  /** Politica de revisao (vinda do pai): ajustes, apos divisor. */
+  adjustments?: ReactNode
 }
 
 const EMPTY_TAGS: string[] = []
@@ -57,6 +65,8 @@ export function NoteReadinessControl({
   reportOpen = false,
   onReportOpenChange,
   onSaveFirst,
+  onAuditStructure,
+  adjustments,
 }: NoteReadinessControlProps) {
   // Ciclo de vida da prontidao com dono proprio; aqui ficam so props de
   // entrada e render (menu + relatorio + dialogs).
@@ -101,6 +111,12 @@ export function NoteReadinessControl({
     onSaveFirst,
   })
 
+  const startActionBlocked = (isDirty && !onSaveFirst) || !reviewState || reviewState.readiness !== 'ready'
+  const showStartHint = !disabled && !busy && !enrollmentBusy && startActionBlocked
+  const startHintText = (isDirty && !onSaveFirst)
+    ? 'Salve a nota para liberar a revisão.'
+    : 'Avalie a nota para liberar a revisão.'
+
   return reportOpen && attempt ? (
     <NoteReadinessReport
       attempt={attempt}
@@ -112,63 +128,54 @@ export function NoteReadinessControl({
     />
   ) : (
     <>
-      {/* Cartao de status (sempre presente no menu): estado da nota + proxima
-          revisao, agrupados para o layout em bento do popover. */}
-      <div className="note-readiness-status-card">
-        {!stateLoading ? (
-          reviewState ? (
-            <span className={`note-readiness-state is-${reviewState.readiness}`} role="status">
-              {reviewState.readiness === 'ready' ? (
-                <span className="note-readiness-state-check" aria-hidden="true"><Check size={11} strokeWidth={3} /></span>
-              ) : null}
-              Status: {STATUS_BADGE_LABELS[reviewState.readiness]}
+      {/* Cabecalho: titulo a esquerda, status a direita; o cartao reaproveita
+          os estilos da pill e dos selos (proxima revisao, rascunho, riscos). */}
+      <header className="note-review-menu-header note-review-menu-header-row">
+        <div>
+          <strong>Avaliação &amp; revisão</strong>
+          <small>Avalie, revise e ajuste esta nota</small>
+        </div>
+        <div className="note-readiness-status-card">
+          {!stateLoading ? (
+            reviewState ? (
+              <span className={`note-readiness-state is-${reviewState.readiness}`} role="status">
+                {reviewState.readiness === 'ready' ? (
+                  <span className="note-readiness-state-check" aria-hidden="true"><Check size={11} strokeWidth={3} /></span>
+                ) : null}
+                Status: {STATUS_BADGE_LABELS[reviewState.readiness]}
+              </span>
+            ) : (
+              <span className="note-readiness-state is-unassessed" role="status">
+                Status: {isDirty ? 'Alterações não salvas' : STATUS_BADGE_LABELS.unassessed}
+              </span>
+            )
+          ) : null}
+          {isDirty && reviewState ? (
+            <span
+              className="note-review-dirty-hint"
+              role="status"
+              title="A avaliação se refere à versão salva da nota; salve para revalidar as alterações."
+            >
+              Alterações não salvas
             </span>
-          ) : (
-            <span className="note-readiness-state is-unassessed" role="status">
-              Status: {isDirty ? 'Alterações não salvas' : STATUS_BADGE_LABELS.unassessed}
+          ) : null}
+          {reviewState?.nextReviewAtUnixMs ? (
+            <span className="note-review-next-date">
+              Próxima revisão: {new Date(reviewState.nextReviewAtUnixMs).toLocaleDateString('pt-BR')}
             </span>
-          )
-        ) : null}
-        {isDirty && reviewState ? (
-          <span
-            className="note-review-dirty-hint"
-            role="status"
-            title="A avaliação se refere à versão salva da nota; salve para revalidar as alterações."
-          >
-            Alterações não salvas
-          </span>
-        ) : null}
-        {reviewState?.nextReviewAtUnixMs ? (
-          <span className="note-review-next-date">
-            Próxima revisão: {new Date(reviewState.nextReviewAtUnixMs).toLocaleDateString('pt-BR')}
-          </span>
-        ) : null}
-        {reviewState?.deadlineRetentionAtRisk ? (
-          <span className="note-review-risk-badge" role="status" title="Mesmo antecipando revisões, a meta de retenção na data da prova não é atingida.">
-            Meta de retenção em risco
-          </span>
-        ) : null}
-        {reviewState?.recoveredFromBackup ? (
-          <span className="note-recovery-badge" role="status" title="Arquivo de aprendizado restaurado de um backup (possivelmente de versão anterior).">
-            Aprendizado recuperado de backup
-          </span>
-        ) : null}
-      </div>
-      {reviewState?.report ? (
-        <button
-          type="button"
-          className="secondary-button note-readiness-report-trigger"
-          onClick={openPersistedReport}
-          disabled={disabled || isDirty || busy}
-          aria-label="Abrir último relatório de prontidão"
-        >
-          <span className="note-review-icon-stack" aria-hidden="true">
-            <ChartColumnBig size={15} strokeWidth={1.5} />
-            <Search size={9} strokeWidth={2.25} className="note-review-icon-corner" />
-          </span>
-          <span>Ver relatório</span>
-        </button>
-      ) : null}
+          ) : null}
+          {reviewState?.deadlineRetentionAtRisk ? (
+            <span className="note-review-risk-badge" role="status" title="Mesmo antecipando revisões, a meta de retenção na data da prova não é atingida.">
+              Meta de retenção em risco
+            </span>
+          ) : null}
+          {reviewState?.recoveredFromBackup ? (
+            <span className="note-recovery-badge" role="status" title="Arquivo de aprendizado restaurado de um backup (possivelmente de versão anterior).">
+              Aprendizado recuperado de backup
+            </span>
+          ) : null}
+        </div>
+      </header>
       <button
         type="button"
         className="note-review-start-trigger"
@@ -184,11 +191,57 @@ export function NoteReadinessControl({
         <CalendarCheck2 size={15} strokeWidth={1.5} aria-hidden="true" />
         <span>{enrollmentBusy ? 'Preparando…' : 'Fazer revisão agora'}</span>
       </button>
+      {/* Botao desabilitado que nao diz o porquê e beco sem saida: a dica
+          aponta o proximo passo (mesma regra do title, em texto visivel). */}
+      {showStartHint ? (
+        <p className="note-review-hint">{startHintText}</p>
+      ) : null}
+      <button
+        ref={triggerButtonRef}
+        type="button"
+        className="secondary-button note-readiness-trigger"
+        onClick={() => void runAssessment()}
+        disabled={disabled || busy || stateLoading || Boolean(unavailableReason)}
+        title={unavailableReason ?? 'Avaliar se a nota está pronta para revisão'}
+        aria-label="Avaliar prontidão da nota"
+      >
+        <Sparkles size={15} strokeWidth={1.5} aria-hidden="true" />
+        <span>{busy ? 'Avaliando...' : reviewState ? 'Reavaliar nota' : 'Avaliar nota'}</span>
+      </button>
+      {reviewState?.report ? (
+        <button
+          type="button"
+          className="secondary-button note-readiness-report-trigger"
+          onClick={openPersistedReport}
+          disabled={disabled || isDirty || busy}
+          aria-label="Abrir último relatório de prontidão"
+        >
+          <span className="note-review-icon-stack" aria-hidden="true">
+            <ChartColumnBig size={15} strokeWidth={1.5} />
+            <Search size={9} strokeWidth={2.25} className="note-review-icon-corner" />
+          </span>
+          <span>Ver relatório</span>
+        </button>
+      ) : null}
+      {onAuditStructure ? (
+        <button
+          type="button"
+          className="secondary-button note-structure-trigger"
+          onClick={() => onAuditStructure()}
+          disabled={disabled}
+          title="Avaliar a estrutura da nota para a revisão (determinístico, sem IA)"
+          aria-label="Avaliar estrutura da nota"
+        >
+          <span aria-hidden="true"><HugeiconsIcon icon={StructureCheckIcon} size={15} strokeWidth={1.5} /></span>
+          <span>Avaliar estrutura</span>
+        </button>
+      ) : null}
+      {adjustments}
       {suggestedProfiles.length > 0 ? (
         <div className="note-profile-onboarding" role="region" aria-label="Adotar perfil de revisão">
           <div className="note-profile-onboarding-heading">
             <strong>Adotar perfil de revisão?</strong>
-            <small>Nota pronta sem tag de revisão. Escolha um perfil para ativar o agendamento.</small>
+            <small>A tag define ritmo e método desta nota — escolha um perfil para ativar o agendamento.</small>
           </div>
           <div className="note-profile-onboarding-options">
             {suggestedProfiles.map((tag) => {
@@ -206,34 +259,25 @@ export function NoteReadinessControl({
               )
             })}
           </div>
+          <details className="note-profile-why">
+            <summary>Por que uma tag?</summary>
+            <p>Cada tag de revisão carrega um ritmo e um método. Ao adotar, a nota passa a seguir a tag — a origem de cada valor aparece em Política de revisão.</p>
+          </details>
         </div>
       ) : null}
-      <button
-        ref={triggerButtonRef}
-        type="button"
-        className="secondary-button note-readiness-trigger"
-        onClick={() => void runAssessment()}
-        disabled={disabled || busy || stateLoading || Boolean(unavailableReason)}
-        title={unavailableReason ?? 'Avaliar se a nota está pronta para revisão'}
-        aria-label="Avaliar prontidão da nota"
-      >
-        <span className="note-review-icon-stack" aria-hidden="true">
-          <NotebookPen size={15} strokeWidth={1.5} />
-          <RotateCcw size={9} strokeWidth={2.25} className="note-review-icon-corner" />
-        </span>
-        <span>{busy ? 'Avaliando...' : reviewState ? 'Reavaliar nota' : 'Avaliar nota'}</span>
-      </button>
       {!stateLoading && reviewState ? (
-        <button
-          type="button"
-          className="note-review-reset-trigger"
-          onClick={openResetConfirm}
-          disabled={disabled || busy || resetBusy}
-          title="Remove pontuações, estado de memória e datas de revisão desta nota"
-        >
-          <RotateCcw size={13} strokeWidth={1.6} aria-hidden="true" />
-          <span>Reiniciar aprendizado desta nota</span>
-        </button>
+        <div className="note-review-danger-zone">
+          <button
+            type="button"
+            className="note-review-reset-trigger"
+            onClick={openResetConfirm}
+            disabled={disabled || busy || resetBusy}
+            title="Remove pontuações, estado de memória e datas de revisão desta nota"
+          >
+            <RotateCcw size={13} strokeWidth={1.6} aria-hidden="true" />
+            <span>Reiniciar aprendizado desta nota</span>
+          </button>
+        </div>
       ) : null}
       {error && !attempt ? <p className="review-ai-toolbar-error" role="alert">{error}</p> : null}
 
@@ -286,21 +330,21 @@ export function NoteReadinessControl({
           className="review-ai-dialog review-reset-dialog"
         >
           <section aria-describedby="review-discard-description">
-            <header>
+            <div className="modal-header">
               <div>
                 <p className="card-kicker">Recuperação de aprendizado</p>
-                <h2 id="review-discard-title">Descartar aprendizado irrecuperável?</h2>
+                <h3 id="review-discard-title">Descartar aprendizado irrecuperável?</h3>
               </div>
               <button
                 type="button"
-                className="secondary-button"
+                className="modal-close"
                 onClick={closeDiscardConfirm}
                 disabled={recoveryBusy}
                 aria-label="Cancelar descarte"
               >
-                <X size={16} aria-hidden="true" />
+                <X size={16} strokeWidth={2.2} aria-hidden="true" />
               </button>
-            </header>
+            </div>
             <div className="review-ai-report-body">
               <p id="review-discard-description">
                 Arquivo ilegível. Descartar remove os dados corrompidos e zera
@@ -339,31 +383,38 @@ export function NoteReadinessControl({
           className="review-ai-dialog review-reset-dialog"
         >
           <section aria-describedby="review-reset-description">
-            <header>
+            <header className="modal-header review-reset-header">
+              <span className="review-reset-warning-icon" aria-hidden="true">
+                <AlertTriangle size={20} strokeWidth={1.8} />
+              </span>
               <div>
                 <p className="card-kicker">Aprendizado da nota</p>
-                <h2 id="review-reset-title">Reiniciar aprendizado?</h2>
+                <h3 id="review-reset-title">Reiniciar aprendizado?</h3>
               </div>
               <button
                 type="button"
-                className="secondary-button"
+                className="modal-close"
                 onClick={closeResetConfirm}
                 disabled={resetBusy}
                 aria-label="Cancelar reinício"
               >
-                <X size={16} aria-hidden="true" />
+                <X size={16} strokeWidth={2.2} aria-hidden="true" />
               </button>
             </header>
             <div className="review-ai-report-body">
               <p id="review-reset-description">
-                Remove pontuações, memória (DSR/FSRS) e datas de revisão da nota.
-                Markdown, tags e políticas ficam intactos.
+                Isso zera o progresso desta nota e começa um ciclo novo agora.
               </p>
+              <ul className="review-reset-consequences">
+                <li className="is-loss"><strong>Zera</strong> pontuações e memória</li>
+                <li className="is-loss"><strong>Remove</strong> as datas de revisão</li>
+                <li className="is-keep"><strong>Mantém</strong> Markdown, tags e política</li>
+              </ul>
               {resetBusy ? (
                 <p className="review-ai-stale-report" role="status">Reiniciando…</p>
               ) : (
                 <p className="review-reset-hint">
-                  O novo ciclo começa agora, usando o primeiro intervalo da política efetiva.
+                  O novo ciclo usa o primeiro intervalo da política efetiva.
                 </p>
               )}
               {resetError ? <p className="review-reset-error" role="alert">{resetError}</p> : null}

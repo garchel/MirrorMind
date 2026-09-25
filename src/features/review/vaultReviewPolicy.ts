@@ -20,6 +20,9 @@ const reviewPolicyValuesSchema = z.object({
   priorityWeight: z.number().positive().max(100),
   minIntervalDays: z.number().int().min(1).max(3_650),
   maxIntervalDays: z.number().int().min(1).max(36_500),
+  /** Metodo padrao das sessoes de notas novas, definido pelo usuario (em vez
+   * do Prova fixo). Tags e a propria nota continuam podendo sobrescrever. */
+  preferredMode: z.enum(['exam', 'conversation']),
 }).strict()
 
 export const vaultReviewDefaultsSchema = reviewPolicyValuesSchema.superRefine(validateIntervalOrder)

@@ -384,8 +384,9 @@ mod tests {
     };
     use crate::review::contract::{PolicySourceKind, ReviewMode, SchedulingStatus};
     use crate::review::evaluation::{ReadinessReport, ReadinessStatus};
-    use crate::review::policy_config::{set_vault_review_defaults, VaultReviewDefaultsInput};
-    use crate::review::state::{persist_readiness_assessment, set_manual_enrollment};
+    use crate::review::policy_config::{
+        load_vault_default_mode, set_vault_review_defaults, VaultReviewDefaultsInput,
+    };    use crate::review::state::{persist_readiness_assessment, set_manual_enrollment};
     use crate::review::storage::load_learning_document;
     use tempfile::tempdir;
 
@@ -627,6 +628,7 @@ mod tests {
                 priority_weight: 2.5,
                 min_interval_days: 2,
                 max_interval_days: 180,
+                preferred_mode: ReviewMode::Exam,
             },
             assessed_at,
         )
@@ -843,5 +845,59 @@ mod tests {
             inherited.sources.target_retention.source_id.as_deref(),
             Some("revisao/prova")
         );
+    }
+
+    #[test]
+    fn vault_default_mode_flows_into_new_learning_documents() {
+        let vault = tempdir().expect("vault");
+        let assessed_at = 1_720_000_000_000;
+        // Vault novo: o modo padrao e Prova (comportamento anterior preservado).
+        assert_eq!(
+            load_vault_default_mode(vault.path()).expect("default mode"),
+            ReviewMode::Exam
+        );
+        // O usuario escolhe Conversa como padrao do Vault...
+        set_vault_review_defaults(
+            vault.path(),
+            0,
+            VaultReviewDefaultsInput {
+                first_review_interval_days: 2,
+                target_retention: 0.8,
+                priority_weight: 1.0,
+                min_interval_days: 1,
+                max_interval_days: 365,
+                preferred_mode: ReviewMode::Conversation,
+            },
+            assessed_at,
+        )
+        .expect("set Vault defaults");
+        assert_eq!(
+            load_vault_default_mode(vault.path()).expect("updated default mode"),
+            ReviewMode::Conversation
+        );
+        // ...e as avaliacoes novas herdam Conversa em vez do Prova fixo.
+        let markdown = "# Dialogo\n\nConversar aprofunda o entendimento.\n\nPerguntas guiam a exploracao.\n\nExemplos concretizam as ideias.";
+        let state = persist_readiness_assessment(
+            vault.path(),
+            "Notas/Dialogo.md",
+            markdown,
+            &ReadinessReport {
+                status: ReadinessStatus::Ready,
+                explanation: "Pronta.".to_string(),
+                central_idea: None,
+                evaluable_points: Vec::new(),
+                issues: Vec::new(),
+            },
+            assessed_at,
+        )
+        .expect("persist readiness");
+        let loaded = load_learning_document(vault.path(), &state.note_id)
+            .expect("load document")
+            .expect("document exists");
+        assert_eq!(
+            loaded.document.note.enrollment.preferred_mode,
+            ReviewMode::Conversation
+        );
+        assert!(!loaded.document.note.enrollment.mode_manual);
     }
 }

@@ -179,11 +179,11 @@ export function NoteReadinessReport({ attempt, isStaleReport, error, busy, onClo
             <small>Diagnóstico não salvo no Vault; descartado ao fechar.</small>
           </section>
           {error ? <p className="field-error" role="alert">{error}</p> : null}
-          <div className="review-ai-dialog-actions">
-            <button type="button" onClick={onRetry} disabled={busy}>
-              {busy ? 'Gerando…' : 'Gerar novo relatório da IA'}
-            </button>
-          </div>
+           <div className="review-ai-dialog-actions">
+             <button type="button" className="secondary-button" onClick={onRetry} disabled={busy}>
+               {busy ? 'Gerando…' : 'Gerar novo relatório da IA'}
+             </button>
+           </div>
         </div>
       )}
     </div>

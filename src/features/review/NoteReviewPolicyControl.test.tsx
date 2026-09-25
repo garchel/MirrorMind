@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NoteReviewPolicyControl } from './NoteReviewPolicyControl'
@@ -92,25 +92,6 @@ describe('NoteReviewPolicyControl', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/Configuração da nota/i)
   })
 
-  it('shows advanced values and validates interval order before saving', async () => {
-    const user = userEvent.setup()
-    render(<NoteReviewPolicyControl
-      vaultPath={'C:\\Vault'}
-      relativePath="biologia.md"
-      sourceRevision="# Biologia"
-      isDirty={false}
-    />)
-
-    await user.click(await screen.findByRole('button', { name: 'Configurar revisão da nota' }))
-    await user.click(screen.getByText('Opções avançadas'))
-    await user.clear(screen.getByLabelText('Intervalo mínimo (dias)'))
-    await user.type(screen.getByLabelText('Intervalo mínimo (dias)'), '30')
-    await user.clear(screen.getByLabelText('Intervalo máximo (dias)'))
-    await user.type(screen.getByLabelText('Intervalo máximo (dias)'), '10')
-
-    expect(screen.getByRole('button', { name: 'Salvar política' })).toBeDisabled()
-    expect(screen.getByText(/máximo deve ser igual ou maior/i)).toBeInTheDocument()
-  })
   it('offers a retry when the policy cannot be loaded', async () => {
     const user = userEvent.setup()
     getPolicyMock.mockRejectedValueOnce(new Error('O arquivo mudou')).mockResolvedValueOnce(policy)
@@ -153,7 +134,7 @@ describe('NoteReviewPolicyControl', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Configurar revisão da nota' }))
 
-    expect(screen.getByText(/modo é herdado das tags|modo herdado das tags/i)).toBeInTheDocument()
+    expect(screen.getByText(/método herdado/i)).toBeInTheDocument()
   })
 
   it('changes only the preferred mode without freezing inherited policy values', async () => {
@@ -188,15 +169,13 @@ describe('NoteReviewPolicyControl', () => {
     />)
 
     await user.click(await screen.findByRole('button', { name: 'Configurar revisão da nota' }))
-    await user.click(screen.getByText('Opções avançadas'))
-    const priority = screen.getByLabelText('Peso de prioridade')
-    await user.clear(priority)
-    await user.type(priority, '9')
+    // Rascunho sujo via ritmo (sem Opções avançadas): cancelar descarta.
+    await user.click(screen.getByRole('button', { name: /^Intensiva/ }))
+    expect(screen.getByRole('button', { name: /^Intensiva/ })).toHaveAttribute('aria-pressed', 'true')
     await user.click(screen.getByRole('button', { name: 'Cancelar' }))
     await user.click(screen.getByRole('button', { name: 'Configurar revisão da nota' }))
-    await user.click(screen.getByText('Opções avançadas'))
 
-    expect(screen.getByLabelText('Peso de prioridade')).toHaveValue(1)
+    expect(screen.getByRole('button', { name: /^Intensiva/ })).toHaveAttribute('aria-pressed', 'false')
   })
   it('removes note overrides and returns every numeric field to the Vault policy', async () => {
     const user = userEvent.setup()
@@ -308,7 +287,7 @@ describe('NoteReviewPolicyControl', () => {
     expect(screen.getByText(/Prazo de estudo encerrado:/)).toBeInTheDocument()
   })
 
-  it('can return to the Vault policy even when draft intervals are invalid', async () => {
+  it('returns every numeric field to the Vault policy on demand', async () => {
     const user = userEvent.setup()
     render(<NoteReviewPolicyControl
       vaultPath={'C:\\Vault'}
@@ -318,11 +297,8 @@ describe('NoteReviewPolicyControl', () => {
     />)
 
     await user.click(await screen.findByRole('button', { name: 'Configurar revisão da nota' }))
-    await user.click(screen.getByText('Opções avançadas'))
-    await user.clear(screen.getByLabelText('Intervalo mínimo (dias)'))
-    await user.type(screen.getByLabelText('Intervalo mínimo (dias)'), '30')
-    await user.clear(screen.getByLabelText('Intervalo máximo (dias)'))
-    await user.type(screen.getByLabelText('Intervalo máximo (dias)'), '10')
+    // Rascunho sujo via ritmo, depois volta tudo ao padrão do Vault.
+    await user.click(screen.getByRole('button', { name: /^Intensiva/ }))
     await user.click(screen.getByRole('button', { name: 'Usar padrão do Vault' }))
 
     await waitFor(() => expect(setPolicyMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -337,5 +313,66 @@ describe('NoteReviewPolicyControl', () => {
         ],
       }),
     })))
+  })
+
+  it('mostra o resumo do ritmo no gatilho sem renomear o botao', async () => {    render(<NoteReviewPolicyControl
+      vaultPath={'C:\\Vault'}
+      relativePath="biologia.md"
+      sourceRevision="# Biologia"
+      isDirty={false}
+    />)
+    // Fixture fora de preset: "Personalizada · 80%", nome acessivel intacto.
+    const trigger = await screen.findByRole('button', { name: 'Configurar revisão da nota' })
+    expect(trigger).toHaveTextContent('Personalizada · 80%')
+    cleanup()
+
+    // Ritmo identico ao preset Equilibrada: casa o nome do preset.
+    getPolicyMock.mockResolvedValue({
+      ...policy,
+      priorityWeight: 2,
+    })
+    render(<NoteReviewPolicyControl
+      vaultPath={'C:\\Vault'}
+      relativePath="biologia.md"
+      sourceRevision="# Biologia"
+      isDirty={false}
+    />)
+    expect(await screen.findByRole('button', { name: 'Configurar revisão da nota' }))
+      .toHaveTextContent('Equilibrada · 80%')
+  })
+
+  it('destaca o ritmo vigente sem selo de texto', async () => {
+    const user = userEvent.setup()
+    render(<NoteReviewPolicyControl
+      vaultPath={'C:\\Vault'}
+      relativePath="biologia.md"
+      sourceRevision="# Biologia"
+      isDirty={false}
+    />)
+    await user.click(await screen.findByRole('button', { name: 'Configurar revisão da nota' }))
+    // Fixture fora de preset: nenhum destaque antes de escolher.
+    expect(screen.queryByText('Atual')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^Intensiva/ }))
+    const intensive = screen.getByRole('button', { name: /^Intensiva/ })
+    expect(intensive).toHaveAttribute('aria-pressed', 'true')
+    expect(intensive).toHaveClass('is-active')
+    expect(screen.queryByText('Atual')).not.toBeInTheDocument()
+  })
+
+  it('mostra a proxima revisao em destaque com o prazo como selo', async () => {
+    const user = userEvent.setup()
+    getPolicyMock.mockResolvedValue({ ...policy, deadlineAtUnixMs: 1_920_259_200_000 })
+    render(<NoteReviewPolicyControl
+      vaultPath={'C:\\Vault'}
+      relativePath="biologia.md"
+      sourceRevision="# Biologia"
+      isDirty={false}
+    />)
+    await user.click(await screen.findByRole('button', { name: 'Configurar revisão da nota' }))
+    expect(screen.getByText('Próxima revisão')).toBeInTheDocument()
+    const year = String(new Date(1_920_172_800_000).getFullYear())
+    const copy = screen.getByText('Próxima revisão').closest('div')!
+    expect(within(copy).getByText(new RegExp(year))).toBeInTheDocument()
+    expect(screen.getByText(/Prazo de estudo:/)).toBeInTheDocument()
   })
 })

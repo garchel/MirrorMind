@@ -200,6 +200,20 @@
   line-height: 1.4;
 }
 
+.note-profile-why summary {
+  cursor: pointer;
+  color: var(--muted, #706d66);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.note-profile-why p {
+  margin: 6px 0 0;
+  color: var(--muted, #706d66);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .note-recovery-banner {
   display: flex;
   align-items: flex-start;
@@ -454,6 +468,12 @@
   color: var(--muted, #706d66);
 }
 
+.review-readiness-section h3 > span[aria-hidden="true"] {
+  display: inline-grid;
+  place-items: center;
+  line-height: 0;
+}
+
 .review-readiness-count {
   min-width: 18px;
   padding: 1px 6px;
@@ -521,6 +541,19 @@
 
 .review-readiness-point-list .review-ai-markdown > p {
   margin: 0;
+}
+
+/* Achado de estrutura dentro do item numerado: chip + mensagem + sugestao. */
+.review-structure-finding-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  justify-items: start;
+}
+
+.review-structure-finding-body > strong {
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 /* Issues: cartoes com gravidade codificada por cor na borda esquerda. */
@@ -760,9 +793,105 @@
   }
 }
 
-/* Dialogo de confirmacao do reinicio do aprendizado da nota. */
-.review-reset-dialog {
+/* Dialogo de confirmacao do reinicio do aprendizado da nota (largura
+   reforçada para vencer a base `.modal` independente da ordem dos CSS). */
+.modal.review-reset-dialog {
   width: min(440px, 100%);
+}
+
+/* Cabecalho no padrao ModalHeader (flex + .modal-close), com o icone de
+   alerta a esquerda. Sem isso o titulo, o icone e o X empilhavam. */
+.review-reset-dialog .review-reset-header {
+  padding: 16px 18px 0;
+}
+
+/* X dos dialogos de revisao: levemente arredondado (8px) como o restante
+   do app, em vez do circulo do `.modal-close` padrao. Escopo so nestes
+   dialogos — os demais modais mantem o X circular. */
+.modal.review-policy-dialog .modal-close,
+.modal.review-reset-dialog .modal-close {
+  border-radius: var(--radius-md);
+}
+
+.review-reset-dialog .review-reset-header > div {
+  flex: 1;
+}
+
+/* Corpo no mesmo ritmo do dialogo de politica (grade 14, 16/18). */
+.review-reset-dialog .review-ai-report-body {
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.review-reset-dialog .review-reset-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.review-reset-warning-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 50%;
+  background: rgb(179 38 30 / 10%);
+  color: var(--danger, var(--review-bad));
+  line-height: 0;
+}
+
+/* Consequencias em lista: verbos em destaque, perda vs. preservacao com cor. */
+.review-reset-consequences {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-reset-consequences li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.review-reset-consequences li::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--danger, var(--review-bad));
+}
+
+.review-reset-consequences li.is-keep::before {
+  background: #4a7c59;
+}
+
+.review-reset-consequences li strong {
+  font-weight: 700;
+}
+
+/* Anti-pilula nos dialogos (mesmo motivo do menu): secondary/primary sem
+   medida propria herdam 34px e raio-md. O confirm vermelho tem medida
+   propria e fica de fora. */
+.modal.review-policy-dialog .secondary-button,
+.modal.review-policy-dialog .primary-button,
+.modal.review-reset-dialog .secondary-button {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  font-size: 12.5px;
+}
+
+/* Rodape no padrao dos modais do app (acoes a direita, com divisor): sem
+   isso os botoes ficavam colados na borda inferior do dialogo. */
+.review-reset-dialog .review-ai-dialog-actions {
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--border, var(--review-line));
 }
 
 .review-reset-hint {

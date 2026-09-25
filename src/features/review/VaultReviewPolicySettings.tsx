@@ -108,6 +108,13 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
     updateForm({ ...form, [field]: value })
   }
 
+  /** Metodo padrao das sessoes (ritmos nao mexem nele: esforço e metodo sao
+   * ortogonais). */
+  function setPreferredMode(preferredMode: VaultReviewDefaults['preferredMode']) {
+    if (!form) return
+    updateForm({ ...form, preferredMode })
+  }
+
   async function requestSave() {
     if (!config || !validation?.success) return
     const generation = generationRef.current
@@ -184,13 +191,27 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
                 key={preset.label}
                 className="secondary-button"
                 disabled={busy}
-                onClick={() => updateForm({ ...preset.defaults })}
+                onClick={() => {
+                  if (!form) return
+                  // Ritmos definem esforço; o metodo padrao e escolha separada
+                  // e sobrevive a troca de ritmo.
+                  updateForm({ ...preset.defaults, preferredMode: form.preferredMode })
+                }}
               >
                 <strong>{preset.label}</strong>
                 <small>{preset.description}</small>
               </button>
             ))}
           </div>
+
+          <fieldset className="vault-review-policy-modes">
+            <legend>Método de Revisão</legend>
+            <p className="vault-review-policy-modes-hint">Método padrão das sessões de notas novas. Tags e a própria nota podem sobrescrever.</p>
+            <div>
+              <label><input type="radio" name="vault-default-review-mode" checked={form.preferredMode === 'exam'} onChange={() => setPreferredMode('exam')} /> <span><strong>Prova</strong><small>Perguntas independentes.</small></span></label>
+              <label><input type="radio" name="vault-default-review-mode" checked={form.preferredMode === 'conversation'} onChange={() => setPreferredMode('conversation')} /> <span><strong>Conversa</strong><small>Exploração progressiva.</small></span></label>
+            </div>
+          </fieldset>
 
           <details className="vault-review-policy-advanced">
             <summary>Opções avançadas</summary>

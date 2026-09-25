@@ -29,6 +29,68 @@
   line-height: 1.35;
 }
 
+/* Metodo padrao das sessoes (Prova/Conversa): cartoes de radio na mesma
+   linguagem dos ritmos, com o radio na cor do app. */
+.vault-review-policy-modes {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.vault-review-policy-modes legend {
+  margin-bottom: 8px;
+  color: var(--muted, #706d66);
+  font-size: 12px;
+}
+
+.vault-review-policy-modes-hint {
+  margin: 0;
+  color: var(--muted, #706d66);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.vault-review-policy-modes > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.vault-review-policy-modes label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, var(--review-line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, #eeece6));
+  cursor: pointer;
+}
+
+.vault-review-policy-modes label:has(input:checked) {
+  border-color: var(--accent);
+}
+
+.vault-review-policy-modes input[type="radio"] {
+  margin-top: 2px;
+  accent-color: var(--accent);
+  flex: none;
+}
+
+.vault-review-policy-modes label span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vault-review-policy-modes label small {
+  color: var(--muted, #706d66);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .vault-review-policy-advanced {
   border-top: 1px solid var(--border, var(--review-line));
   border-bottom: 1px solid var(--border, var(--review-line));
@@ -87,6 +149,7 @@
 
 @media (max-width: 720px) {
   .vault-review-policy-presets,
+  .vault-review-policy-modes > div,
   .vault-review-policy-advanced > div {
     grid-template-columns: 1fr;
   }

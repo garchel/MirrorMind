@@ -483,6 +483,16 @@ describe('NoteReadinessControl', () => {
     expect(dirtyButton).toHaveAttribute('title', expect.stringContaining('Salve a nota'))
   })
 
+  it('explica sob o CTA bloqueado qual e o proximo passo', async () => {
+    render(control())
+    expect(screen.getByRole('button', { name: 'Iniciar revisão agora' })).toBeDisabled()
+    expect(screen.getByText('Avalie a nota para liberar a revisão.')).toBeInTheDocument()
+    cleanup()
+
+    render(control({ isDirty: true }))
+    expect(screen.getByText('Salve a nota para liberar a revisão.')).toBeInTheDocument()
+  })
+
   it('reopens the persisted report of an enrolled modified note', async () => {
     const user = userEvent.setup()
     const modifiedState: NoteReviewState = {
@@ -536,6 +546,11 @@ describe('NoteReadinessControl', () => {
 
     await user.click(await screen.findByRole('button', { name: /Reiniciar aprendizado desta nota/ }))
     expect(screen.getByRole('dialog', { name: /Reiniciar aprendizado/ })).toBeInTheDocument()
+    // Consequencias explicitas: o que zera e o que fica intacto.
+    expect(screen.getByText('Zera')).toBeInTheDocument()
+    expect(screen.getByText('Remove')).toBeInTheDocument()
+    expect(screen.getByText('Mantém')).toBeInTheDocument()
+    expect(screen.getByText(/Markdown, tags e política/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Reiniciar aprendizado' }))
 
     expect(resetNoteLearningMock).toHaveBeenCalledWith({
@@ -719,8 +734,32 @@ describe('NoteReadinessControl', () => {
     render(control({ noteTags: [], onApplyTag }))
 
     expect(await screen.findByText('Adotar perfil de revisão?')).toBeInTheDocument()
+    expect(screen.getByText(/A tag define ritmo e método/)).toBeInTheDocument()
     await userEvent.setup().click(screen.getByRole('button', { name: /Intensiva/ }))
     expect(onApplyTag).toHaveBeenCalledWith('revisao/prova')
+  })
+
+  it('explica no expansor que a tag dita ritmo e metodo com origem visivel', async () => {
+    getNoteReviewStateMock.mockResolvedValue({
+      noteId: 'note-1',
+      relativePath: 'biologia.md',
+      contentHash: 'sha256:content',
+      readiness: 'ready',
+      assessedAtUnixMs: 1_730_000_000_000,
+      report: null,
+      enrolled: false,
+      preferredMode: 'exam',
+      schedulingStatus: 'notScheduled',
+      firstReviewAtUnixMs: null,
+      nextReviewAtUnixMs: null,
+      deadlineRetentionAtRisk: false,
+      recoveredFromBackup: false,
+    })
+    const user = userEvent.setup()
+    render(control({ noteTags: [], onApplyTag: vi.fn() }))
+
+    await user.click(await screen.findByText('Por que uma tag?'))
+    expect(screen.getByText(/a origem de cada valor aparece em Política de revisão/)).toBeInTheDocument()
   })
 
   it('nao sugere perfil quando a nota ja tem uma tag de revisao aplicada', async () => {
@@ -767,5 +806,40 @@ describe('NoteReadinessControl', () => {
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(screen.queryByText('Adotar perfil de revisão?')).not.toBeInTheDocument()
     expect(getVaultReviewPolicyConfigMock).not.toHaveBeenCalled()
+  })
+
+  it('menu unico: cabecalho com status e 3 acoes principais em ordem', async () => {
+    const onAuditStructure = vi.fn()
+    render(control({ onAuditStructure }))
+
+    // Titulo a esquerda, status a direita, na mesma linha do cabecalho.
+    expect(screen.getByText('Avaliação & revisão')).toBeInTheDocument()
+    expect(await screen.findByText(/Status: Não avaliada/)).toBeInTheDocument()
+    // Ordem: revisar, avaliar, estrutura.
+    const buttons = screen.getAllByRole('button')
+    const names = buttons.map((button) => button.getAttribute('aria-label') ?? button.textContent)
+    const start = names.indexOf('Iniciar revisão agora')
+    const assess = names.findIndex((name) => name?.includes('Avaliar prontidão'))
+    const structure = names.indexOf('Avaliar estrutura da nota')
+    expect(start).toBeGreaterThanOrEqual(0)
+    expect(assess).toBeGreaterThan(start)
+    expect(structure).toBeGreaterThan(assess)
+    // CTA bloqueado explica o proximo passo em texto visivel.
+    expect(screen.getByText('Avalie a nota para liberar a revisão.')).toBeInTheDocument()
+  })
+
+  it('botao Avaliar estrutura chama o pai (pagina de estrutura)', async () => {
+    const user = userEvent.setup()
+    const onAuditStructure = vi.fn()
+    render(control({ onAuditStructure }))
+    await user.click(screen.getByRole('button', { name: 'Avaliar estrutura da nota' }))
+    expect(onAuditStructure).toHaveBeenCalledTimes(1)
+  })
+
+  it('esconde Avaliar estrutura sem callback (como antes, sem acao orfa)', () => {
+    render(control())
+    expect(screen.queryByRole('button', { name: 'Avaliar estrutura da nota' })).not.toBeInTheDocument()
+    // As demais acoes continuam.
+    expect(screen.getByRole('button', { name: /Avaliar/ })).toBeInTheDocument()
   })
 })

@@ -129,6 +129,11 @@ pub fn persist_readiness_assessment(
         None => {
             let inherited =
                 load_inherited_review_policy(vault_root, markdown, assessed_at_unix_ms)?;
+            // Modo inicial = padrao do Vault escolhido pelo usuario (Prova ate
+            // ele definir outro); tags e a propria nota continuam podendo
+            // sobrescrever depois, pela precedencia normal.
+            let initial_preferred_mode =
+                super::policy_config::load_vault_default_mode(vault_root)?;
             new_learning_document(
                 note_id.clone(),
                 relative_path,
@@ -136,6 +141,7 @@ pub fn persist_readiness_assessment(
                 &content_hash,
                 inherited.policy,
                 inherited.auto_enrollment_tag_ids,
+                initial_preferred_mode,
                 max_whole_note_words,
             )
         }
@@ -714,6 +720,7 @@ fn new_learning_document(
     content_hash: &str,
     effective_policy: ReviewPolicy,
     inherited_from_tag_ids: Vec<String>,
+    initial_preferred_mode: super::contract::ReviewMode,
     max_whole_note_words: usize,
 ) -> LearningDocument {
     LearningDocument {
@@ -734,7 +741,7 @@ fn new_learning_document(
                 manual: false,
                 manual_paused: false,
                 inherited_from_tag_ids,
-                preferred_mode: ReviewMode::Exam,
+                preferred_mode: initial_preferred_mode,
                 mode_manual: false,
             },
         },
