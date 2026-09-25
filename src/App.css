@@ -1085,7 +1085,10 @@ label.settings-toggle {
   text-transform: uppercase;
 }
 
-.settings-nav button {
+/* Qualificado ao tema claro: no escuro o bloco [data-theme='dark'] manda.
+   Especificidade (0,4,0+) vence a chapa escura global
+   `.workspace-shell button` (0,1,1), que empatava e vencia por ordem. */
+:root:not([data-theme='dark']) .workspace-shell .settings-nav button {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -1102,11 +1105,11 @@ label.settings-toggle {
   transition: background 150ms ease, color 150ms ease;
 }
 
-.settings-nav button:hover {
+:root:not([data-theme='dark']) .workspace-shell .settings-nav button:hover {
   background: #f2efe7;
 }
 
-.settings-nav button.is-active {
+:root:not([data-theme='dark']) .workspace-shell .settings-nav button.is-active {
   background: #e7e3d8;
   box-shadow: inset 3px 0 0 #2e6b4f;
   color: #1c2427;
@@ -4060,6 +4063,7 @@ label.settings-toggle {
 .workspace-shell .tab-chip {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 28px;
+  padding-right: 6px;
   background: #ebeae5;
   border-right-color: var(--workspace-line);
   transition: background-color 180ms ease;
@@ -4212,6 +4216,75 @@ label.settings-toggle {
   background: transparent;
 }
 
+/* Linha de tags sempre visivel abaixo do titulo (reaproveita badges,
+   remove e popover da antiga secao de Tags do painel). */
+.workspace-shell .note-header-tags {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+  max-width: min(100%, 620px);
+}
+
+/* Sem transicao em TODA a zona de tags (toggle, resumo, chevron, badges, X
+   e "+"): a transicao global de `button` (background 180ms + opacity/X
+   140ms) promove camadas no compositor a cada hover; a zona cola no editor
+   (viagem de <100ms), entao entrar no editor ainda com a transicao de saida
+   rodando prende o I-beam em branco no WebView2 — e nenhum pulso posterior
+   cobre a janela com folga. O hover continua com o mesmo estado final
+   (cinza + icone escuro), so sem o fade. */
+.workspace-shell .note-header-tags .note-tags-toggle,
+.workspace-shell .note-header-tags .note-tags-summary,
+.workspace-shell .note-header-tags .note-tags-chevron,
+.workspace-shell .note-header-tags .frontmatter-panel-tag-badge,
+.workspace-shell .note-header-tags .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove,
+.workspace-shell .note-header-tags .frontmatter-panel-add {
+  transition: none;
+}
+
+/* Resumo colapsado de uma linha: some no conteudo, aparece no hover. */
+.workspace-shell .note-header-tags .note-tags-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  justify-self: start;
+  max-width: 100%;
+  padding: 2px 6px 2px 4px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #73736d;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.workspace-shell .note-header-tags .note-tags-toggle:hover {
+  background: #efede4;
+  color: #343532;
+}
+
+.workspace-shell .note-header-tags .note-tags-toggle.is-empty {
+  opacity: 0.6;
+}
+
+.workspace-shell .note-header-tags .note-tags-toggle.is-empty:hover {
+  opacity: 1;
+}
+
+.workspace-shell .note-header-tags .note-tags-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .note-header-tags .note-tags-toggle .note-tags-chevron {
+  flex: none;
+  transition: transform 140ms ease;
+}
+
+.workspace-shell .note-header-tags .note-tags-toggle[aria-expanded="false"] .note-tags-chevron {
+  transform: rotate(-90deg);
+}
+
 .workspace-shell .editor-title-button:hover:not(:disabled) {
   border-bottom-color: transparent;
   background: transparent;
@@ -4257,11 +4330,19 @@ label.settings-toggle {
 
 .workspace-shell .editor-actions {
   display: flex;
+  flex-wrap: nowrap;
   gap: 8px;
   align-items: center;
   align-self: start;
   min-height: 30px;
   margin-top: 0;
+  overflow: hidden;
+}
+
+/* Os botoes nunca espremem: sem espaco, mudam para o menu "Mais acoes"
+   (medido via ResizeObserver) em vez de encolher. */
+.workspace-shell .editor-actions > * {
+  flex-shrink: 0;
 }
 
 /* Centraliza o glifo dos botoes do header (busca, desfazer, ...): sem isso o
@@ -4316,17 +4397,28 @@ label.settings-toggle {
 .workspace-shell .editor-actions > .note-review-menu-trigger {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  min-width: 30px;
   min-height: 30px;
-  padding: 0 10px;
+  padding: 0 8px;
 }
 
 .workspace-shell .editor-actions > .indexadora-button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  min-width: 30px;
   min-height: 30px;
-  padding: 0 10px;
+  padding: 0 8px;
+}
+
+/* Gatilho icon-only da verificacao factual (sem regra propria de tamanho). */
+.workspace-shell .editor-actions > .structural-audit-trigger {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 8px;
 }
 
 .workspace-shell .editor-actions > .indexadora-button.is-active {
@@ -4336,6 +4428,100 @@ label.settings-toggle {
 
 .workspace-shell .editor-actions > .indexadora-button.is-active:hover {
   background: #d5e8d8;
+}
+
+/* Cabecalho: titulo a esquerda, status a direita, na mesma linha. */
+.ui-popover-content.note-review-menu > .note-review-menu-header-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ui-popover-content.note-review-menu > .note-review-menu-header-row > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.ui-popover-content.note-review-menu > .note-review-menu-header-row .note-readiness-status-card {
+  justify-content: flex-end;
+  max-width: 58%;
+  min-height: 0;
+}
+
+/* Pagina de estrutura (espelho da pagina de avaliacao): cabecalho com voltar
+   + conteudo no escopo .structural-audit-scope. */
+.ui-popover-content.note-review-menu .note-audit-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ui-popover-content.note-review-menu .note-audit-report-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ui-popover-content.note-review-menu .note-audit-report-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-popover-content.note-review-menu .note-audit-report-header strong {
+  color: var(--text-h, #1c2427);
+  font: 600 13px var(--sans);
+}
+
+.ui-popover-content.note-review-menu .note-audit-report-header small {
+  color: var(--muted, #7e7466);
+  font-size: 11px;
+}
+
+/* Botao "Mais acoes" (overflow do header): quadrado como os demais. */
+.workspace-shell .editor-actions > .header-overflow-trigger {
+  display: grid;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  place-items: center;
+  line-height: 0;
+}
+
+/* Menu do overflow: acoes empilhadas em largura toda; o rotulo vem do
+   aria-label do botao (os gatilhos sao icon-only no header). */
+.ui-popover-content.header-overflow-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  padding: 6px;
+}
+
+.ui-popover-content.header-overflow-menu > .secondary-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 10px;
+  text-align: left;
+}
+
+.ui-popover-content.header-overflow-menu > .secondary-button::after {
+  content: attr(aria-label);
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Menu (Popover do shadcn) que agrupa as acoes de avaliacao/revisao da nota.
@@ -4348,12 +4534,43 @@ label.settings-toggle {
    Radix em document.body — fora do .workspace-shell — entao o escopo usa o
    seletor do proprio conteudo (.ui-popover-content). */
 .ui-popover-content.note-review-menu {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   min-width: 344px;
+  max-width: min(400px, calc(100vw - 32px));
   padding: 10px 11px 11px;
   font-size: 12px;
+}
+
+/* Dica sob o CTA desabilitado: diz o proximo passo em vez de so apagar. */
+.ui-popover-content.note-review-menu .note-review-hint {
+  margin: 0;
+  padding: 0 2px;
+  color: var(--muted, #7e7466);
+  font-size: 11px;
+}
+
+/* Zona de atencao (reiniciar aprendizado): separada por divisor, no fim. */
+.ui-popover-content.note-review-menu .note-review-danger-zone {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid #e8e5dd;
+}
+
+/* Resumo do ritmo dentro do gatilho da politica ("Equilibrada · 80%"). */
+.ui-popover-content.note-review-menu .note-review-policy-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  line-height: 1.35;
+}
+
+.ui-popover-content.note-review-menu .note-review-policy-label > small {
+  color: var(--muted, #7e7466);
+  font-size: 11px;
+  font-weight: 400;
 }
 
 /* Cabecalho: ocupa a largura toda (o divisor fica abaixo da faixa de status). */
@@ -4375,17 +4592,15 @@ label.settings-toggle {
   font-size: 11px;
 }
 
-/* Faixa de status: largura toda, pill grande + proxima revisao, com divisor. */
+/* Faixa de status: pill grande + proxima revisao (sem divisor proprio — as
+   secoes ja separam os blocos). */
 .ui-popover-content.note-review-menu .note-readiness-status-card {
-  grid-column: 1 / -1;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 6px 10px;
   min-height: 34px;
-  padding: 0 2px 9px;
-  border-bottom: 1px solid #e8e5dd;
-  margin-bottom: 3px;
+  padding: 0 2px;
 }
 
 /* Pill de status unificada: maior e mais visivel, circulo branco de check. */
@@ -4429,10 +4644,25 @@ label.settings-toggle {
   white-space: nowrap;
 }
 
+/* Anti-pilula: a base global `button` e uma pilula de 46px; dentro do menu,
+   todo secondary/primary sem medida propria herda 34px e raio-md (8px), a
+   linguagem do app. `:where` zera a especificidade do filtro para empatar
+   (0,3,0) com as regras especificas abaixo, que vencem por virem depois.
+   Excecoes com medida propria (aplicar, confirmar e cards de perfil) ficam
+   de fora. */
+.ui-popover-content.note-review-menu .secondary-button:where(:not(.structural-audit-apply):not(.review-reset-confirm):not(.note-profile-onboarding-options *)),
+.ui-popover-content.note-review-menu .primary-button:where(:not(.structural-audit-apply):not(.review-reset-confirm):not(.note-profile-onboarding-options *)) {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+}
+
 /* Botoes de acao: alturas uniformes e compactas. */
 .ui-popover-content.note-review-menu .note-review-start-trigger,
 .ui-popover-content.note-review-menu .note-readiness-report-trigger,
 .ui-popover-content.note-review-menu .note-readiness-trigger,
+.ui-popover-content.note-review-menu .note-structure-trigger,
 .ui-popover-content.note-review-menu .note-review-policy-trigger {
   display: flex;
   align-items: center;
@@ -4445,11 +4675,8 @@ label.settings-toggle {
   white-space: nowrap;
 }
 
-/* CTA primaria (Fazer revisao agora): fundo escuro, coluna direita, com a
-   politica de revisao na celula logo abaixo (mesma coluna, linha 4). */
+/* CTA primaria (Fazer revisao agora): fundo escuro, largura toda da secao. */
 .ui-popover-content.note-review-menu .note-review-start-trigger {
-  grid-column: 2;
-  grid-row: 3;
   border: 0;
   background: var(--button-bg, #1c2427);
   color: var(--button-text, #f7f2e7);
@@ -4465,40 +4692,33 @@ label.settings-toggle {
   cursor: not-allowed;
 }
 
-/* Celulas leves: relatorio, reavaliar e politica. */
+/* Celulas leves: relatorio, avaliar, estrutura e politica. */
 .ui-popover-content.note-review-menu .note-readiness-report-trigger,
 .ui-popover-content.note-review-menu .note-readiness-trigger,
+.ui-popover-content.note-review-menu .note-structure-trigger,
 .ui-popover-content.note-review-menu .note-review-policy-trigger {
   border: 1px solid #e0ddd4;
   background: #f5f2ea;
 }
 
-.ui-popover-content.note-review-menu .note-readiness-report-trigger { grid-column: 1; grid-row: 3; }
-.ui-popover-content.note-review-menu .note-readiness-trigger { grid-column: 1; grid-row: 4; }
-.ui-popover-content.note-review-menu .note-review-policy-trigger { grid-column: 2; grid-row: 4; }
-
-/* Robustez com celulas condicionais (:has e suportado no WebView2/Chromium):
-   sem "Ver relatorio", o CTA vira a celula da esquerda com a politica logo
-   abaixo dela (mesma coluna); "Reavaliar" ocupa a celula da direita. */
-.ui-popover-content.note-review-menu:not(:has(.note-readiness-report-trigger)) .note-review-start-trigger {
-  grid-column: 1;
-  grid-row: 3;
-}
-
-.ui-popover-content.note-review-menu:not(:has(.note-readiness-report-trigger)) .note-readiness-trigger {
-  grid-column: 2;
-  grid-row: 3;
-}
-
-.ui-popover-content.note-review-menu:not(:has(.note-readiness-report-trigger)) .note-review-policy-trigger {
-  grid-column: 1;
-  grid-row: 4;
-}
-
 .ui-popover-content.note-review-menu .note-readiness-report-trigger:not(:disabled):hover,
 .ui-popover-content.note-review-menu .note-readiness-trigger:not(:disabled):hover,
+.ui-popover-content.note-review-menu .note-structure-trigger:not(:disabled):hover,
 .ui-popover-content.note-review-menu .note-review-policy-trigger:not(:disabled):hover {
   background: #ece8dd;
+}
+
+/* Icone HugeIcons dentro do botao: o svg e inline e ancora na baseline do
+   span (empurra o glifo para cima); os lucides vao diretos como flex items.
+   Grade centralizada iguala os dois. */
+.ui-popover-content.note-review-menu .note-structure-trigger > span[aria-hidden="true"] {
+  display: inline-grid;
+  place-items: center;
+  line-height: 0;
+}
+
+.ui-popover-content.note-review-menu .note-structure-trigger svg {
+  display: block;
 }
 
 /* Icones empilhados (grafico+lupa, caderno+reciclar, engrenagem+chave):
@@ -4881,6 +5101,11 @@ label.settings-toggle {
   border-radius: var(--radius-sm);
   background: #fbfaf6;
   color: #353531;
+  /* Sem transicao em toda a toolbar (botoes + submenu de cores): hovers
+     sucessivos manteriam o compositor sempre em churn e prenderiam o
+     I-beam em branco ao entrar no editor — mesma licao da zona de tags.
+     Os estados finais de hover sao identicos, so sem o fade. */
+  transition: none;
 }
 
 .workspace-shell .selection-format-popover button:hover:not(:disabled) {
@@ -4893,6 +5118,39 @@ label.settings-toggle {
   width: 1px;
   margin: 4px 2px;
   background: #d9d7d0;
+}
+
+/* Submenu de cores para cima (marca-texto e post-it): abre por clique ou
+   hover no botao pai; os dots reaproveitam o estilo das pastilhas. */
+.workspace-shell .selection-format-popover .format-submenu-wrap {
+  position: relative;
+  display: flex;
+}
+
+.workspace-shell .selection-format-popover .format-submenu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-sm);
+  background: #fbfaf6;
+  box-shadow: 0 8px 18px rgba(45, 44, 39, 0.18);
+}
+
+/* Ponte invisivel sobre o vao entre botao e menu: atravessar continua
+   "dentro" do wrap (sem ela, o hit-test cai no fundo e o mouseleave fecha).
+   Somada ao fechamento com atraso, a travessia so por hover funciona. */
+.workspace-shell .selection-format-popover .format-submenu::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: -4px;
+  right: -4px;
+  height: 10px;
 }
 
 .workspace-shell .selection-format-popover .hl-swatches {
@@ -4914,6 +5172,8 @@ label.settings-toggle {
 .workspace-shell .selection-format-popover .hl-dot.hl-blue { background: #99c9ff; }
 .workspace-shell .selection-format-popover .hl-dot.hl-pink { background: #ffb3d1; }
 .workspace-shell .selection-format-popover .hl-dot.hl-orange { background: #ffb066; }
+.workspace-shell .selection-format-popover .hl-dot.hl-purple { background: #c7a3f2; }
+.workspace-shell .selection-format-popover .hl-dot.hl-red { background: #f19191; }
 
 /* Pastilha branca: remover a coloração do trecho selecionado. */
 .workspace-shell .selection-format-popover .hl-dot.hl-none {
@@ -4984,6 +5244,8 @@ label.settings-toggle {
 .workspace-shell .postit-popover.postit-paper.is-blue { --postit-paper: #99c9ff; }
 .workspace-shell .postit-popover.postit-paper.is-pink { --postit-paper: #ffb3d1; }
 .workspace-shell .postit-popover.postit-paper.is-orange { --postit-paper: #ffb066; }
+.workspace-shell .postit-popover.postit-paper.is-purple { --postit-paper: #c7a3f2; }
+.workspace-shell .postit-popover.postit-paper.is-red { --postit-paper: #f19191; }
 
 .workspace-shell .postit-popover.is-above {
   transform: translateX(-50%) translateY(-100%);
@@ -5047,6 +5309,11 @@ label.settings-toggle {
   color: #2d2c26;
   font: 500 13.5px/1.6 var(--sans);
   resize: vertical;
+  scrollbar-width: none;
+}
+
+.workspace-shell .postit-popover-input::-webkit-scrollbar {
+  display: none;
 }
 
 .workspace-shell .postit-popover-input::placeholder {
@@ -5058,10 +5325,83 @@ label.settings-toggle {
   border-bottom-color: rgba(45, 44, 39, 0.55);
 }
 
+/* Faixa da frase ancorada ao post-it: SOMENTE borda (como a borda de um
+   botao) — sem fundo, para nao confundir com marca-texto. Apagada em
+   repouso, cheia no hover. Sem transicao: a zona do editor nao promove
+   camadas — licao do cursor branco. A bolinha antes da frase abre o
+   post-it; o clique no texto posiciona o cursor. */
+.markdown-mixed .cm-live-postit-range {
+  border-radius: 4px;
+  outline: 1.5px solid color-mix(in srgb, var(--postit-color, #ffe45e) 45%, transparent);
+  outline-offset: 1px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  color: inherit;
+}
+
+.markdown-mixed .cm-live-postit-range:hover,
+.markdown-mixed .cm-live-postit-range.is-dot-hover {
+  outline: 2px solid var(--postit-color, #ffe45e);
+  outline-offset: 1px;
+}
+
+.markdown-mixed button.postit-range-dot {
+  display: inline-grid;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0 4px 0 0;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(45, 44, 39, 0.28);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--postit-color, #ffe45e) 78%, transparent);
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+/* Especificidade vence a chapa escura global `.workspace-shell
+   button:hover` (que pintava a bolinha de preto): o hover mantem a cor
+   base, cheia. */
+.markdown-mixed button.postit-range-dot:hover:not(:disabled) {
+  background: var(--postit-color, #ffe45e);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--postit-color, #ffe45e) 55%, transparent);
+}
+
+.markdown-mixed button.postit-range-dot:focus-visible {
+  outline: 2px solid #2d2c26;
+  outline-offset: 1px;
+}
+
 .workspace-shell .postit-popover-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Linha da troca de area: botao em dois tempos (Alterar area -> Selecione o
+   texto… (desabilitado) -> Confirmar area). */
+.workspace-shell .postit-popover-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  color: rgba(45, 44, 39, 0.75);
+}
+
+.workspace-shell .postit-popover-range .secondary-button {
+  flex: none;
+  min-height: 26px;
+  font-size: 11.5px;
+}
+
+/* Hover na cor do papel (mesma mistura dos icones do popover), em vez do
+   cinza frio do secondary global. */
+.workspace-shell .postit-popover-range .secondary-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--postit-paper, #ffe45e) 62%, #fffef9);
+  color: rgba(45, 44, 39, 0.9);
 }
 
 /* Seletor de cores: pastilhas de PAPEL — o dot selecionado sobe (papel
@@ -5220,6 +5560,8 @@ label.settings-toggle {
 [data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-blue { --postit-paper: #3f6191; }
 [data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-pink { --postit-paper: #8f5470; }
 [data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-orange { --postit-paper: #8f5c2e; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-purple { --postit-paper: #5f4b85; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-red { --postit-paper: #8f4a4a; }
 
 [data-theme='dark'] .workspace-shell .postit-popover {
   border-color: rgba(0, 0, 0, 0.4);
@@ -5474,7 +5816,7 @@ label.settings-toggle {
    marca interna `.cm-live-hl` (tags `<mark>` sempre ocultas, nunca revela —
    nem com o cursor em cima). */
 .markdown-mixed .cm-live-html mark {
-  padding: 1px 2px;
+  padding: 1px 0;
   border-radius: 3px;
   background: #ffe45e;
   color: inherit;
@@ -5485,9 +5827,11 @@ label.settings-toggle {
 .markdown-mixed .cm-live-html mark.hl-blue { background: rgba(153, 201, 255, 0.7); }
 .markdown-mixed .cm-live-html mark.hl-pink { background: rgba(255, 179, 209, 0.7); }
 .markdown-mixed .cm-live-html mark.hl-orange { background: rgba(255, 176, 102, 0.7); }
+.markdown-mixed .cm-live-html mark.hl-purple { background: rgba(199, 163, 242, 0.7); }
+.markdown-mixed .cm-live-html mark.hl-red { background: rgba(241, 145, 145, 0.7); }
 
 .markdown-mixed .cm-live-hl {
-  padding: 1px 2px;
+  padding: 1px 0;
   border-radius: 3px;
   background: #ffe45e;
   color: inherit;
@@ -5498,6 +5842,8 @@ label.settings-toggle {
 .markdown-mixed .cm-live-hl.hl-blue { background: rgba(153, 201, 255, 0.7); }
 .markdown-mixed .cm-live-hl.hl-pink { background: rgba(255, 179, 209, 0.7); }
 .markdown-mixed .cm-live-hl.hl-orange { background: rgba(255, 176, 102, 0.7); }
+.markdown-mixed .cm-live-hl.hl-purple { background: rgba(199, 163, 242, 0.7); }
+.markdown-mixed .cm-live-hl.hl-red { background: rgba(241, 145, 145, 0.7); }
 
 .markdown-mixed .cm-live-code {
   padding: 1px 5px;
@@ -5509,8 +5855,21 @@ label.settings-toggle {
 }
 
 .markdown-mixed .cm-live-link {
-  color: #3a5a6e;
+  color: #1e4fa3;
   text-decoration: underline;
+}
+
+/* Wikilink sem nota correspondente: vinho puxado ao marrom. */
+.markdown-mixed .cm-live-link.is-broken {
+  color: #74352a;
+}
+
+[data-theme='dark'] .markdown-mixed .cm-live-link {
+  color: #8fb0ec;
+}
+
+[data-theme='dark'] .markdown-mixed .cm-live-link.is-broken {
+  color: #d08d7b;
 }
 
 .markdown-mixed .cm-live-heading {
@@ -5680,6 +6039,9 @@ label.settings-toggle {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(190px, 0.9fr) minmax(0, 1.5fr);
+  /* Dense: secoes com coluna definida (ex.: Referenciada por na 1)
+     preenchem a linha atual em vez de cairem para a proxima. */
+  grid-auto-flow: dense;
   column-gap: 26px;
   color: #343532;
 }
@@ -5784,7 +6146,10 @@ label.settings-toggle {
   flex: none;
 }
 
-.workspace-shell .frontmatter-panel-add:hover {
+/* O `:not(:disabled)` eleva a especificidade a (0,4,0), vencendo a chapa
+   escura global `.workspace-shell button:hover` (0,3,1): o hover do "+"
+   (tags e Propriedades) e o mesmo cinza, com o icone escuro legivel. */
+.workspace-shell .frontmatter-panel-add:hover:not(:disabled) {
   color: #252521;
   background: #efede4;
 }
@@ -5884,6 +6249,14 @@ label.settings-toggle {
   font-size: 11px;
 }
 
+/* Observacoes sobre a nota (exibicao limitada): texto corrido discreto. */
+.workspace-shell .frontmatter-panel-note {
+  margin: 0;
+  color: #7a786f;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
 /* Linha da chave: icone da propriedade + input da chave. */
 .workspace-shell .frontmatter-panel-key-wrap {
   display: flex;
@@ -5909,17 +6282,12 @@ label.settings-toggle {
   padding-top: 6px;
 }
 
-.workspace-shell .frontmatter-panel-tags {
-  grid-column: 1;
-}
-
 .workspace-shell .frontmatter-panel-props {
   grid-column: 2;
 }
 
 .workspace-shell .frontmatter-panel-backlinks {
-  grid-column: 1 / -1;
-  margin-top: 14px;
+  grid-column: 1;
 }
 
 .workspace-shell .frontmatter-panel-section-title {
@@ -5930,8 +6298,42 @@ label.settings-toggle {
   text-transform: uppercase;
 }
 
+/* Acordeon das secoes de links: titulo clicavel com chevron que gira.
+   O botao abraca so o conteudo (justify-self): sem esticar na largura da
+   secao e com respiro a esquerda. */
+.workspace-shell .frontmatter-panel-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  max-width: 100%;
+  padding: 4px 10px 4px 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+/* Especificidade (0,4,0) vence a chapa escura global
+   `.workspace-shell button:hover` (0,3,1): o hover e o mesmo cinza do
+   botao "+" de Propriedades. */
+.workspace-shell .frontmatter-panel-section .frontmatter-panel-section-toggle:hover {
+  background: #efede4;
+}
+
+.workspace-shell .frontmatter-panel-section-toggle .frontmatter-panel-section-chevron {
+  color: #73736d;
+  transition: transform 140ms ease;
+}
+
+.workspace-shell .frontmatter-panel-section-toggle[aria-expanded="true"] .frontmatter-panel-section-chevron {
+  transform: rotate(180deg);
+}
+
 /* Linha de tags: MESMA implementacao das tags abaixo do titulo da nota
-   (NoteTagPicker + badges), com a mesma espacamento do `.note-tag-list`. */
+   (NoteTagRow + badges), com a mesma espacamento do `.note-tag-list`. */
 .workspace-shell .frontmatter-panel-tag-row {
   display: flex;
   flex-wrap: wrap;
@@ -5939,12 +6341,25 @@ label.settings-toggle {
   gap: 6px;
 }
 
-/* Badge de tag com botao de remocao (X) dentro, visivel no hover. O X ocupa
-   SEMPRE o espaco dele na badge (width 16px fixo; apenas a opacidade muda no
-   hover), entao a badge nunca muda de tamanho ao expandir — evita que uma
-   badge na borda da linha estoure a largura maxima e quebre o wrap. */
+/* Badge de tag minimalista: contorno fino + cantos do app (radius-xs),
+   sem o fundo chapado da pílula shadcn. O X ocupa SEMPRE o espaco dele na
+   badge (width 16px fixo; apenas a opacidade muda no hover), entao a badge
+   nunca muda de tamanho ao expandir — evita que uma badge na borda da linha
+   estoure a largura maxima e quebre o wrap. */
 .workspace-shell .frontmatter-panel-tag-badge {
   max-width: 100%;
+  padding: 2px 4px 2px 7px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #6b6b64;
+  font-size: 11px;
+  opacity: 1;
+}
+
+.workspace-shell .frontmatter-panel-tag-badge:hover {
+  border-color: #b9b6ab;
+  background: rgb(28 36 39 / 4%);
 }
 
 .workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove {
@@ -6360,13 +6775,6 @@ label.settings-toggle {
   color: #7d3f30;
 }
 
-.workspace-shell .markdown-preservation-notice {
-  margin: 8px 0 0;
-  color: #6b654c;
-  font-size: 11px;
-  font-style: italic;
-}
-
 .workspace-shell .obsidian-callout {
   --callout-accent: #455f75;
   --callout-surface: #edf2f4;
@@ -6642,10 +7050,11 @@ label.settings-toggle {
   padding: 0 10px;
 }
 
-/* Painel de auditoria estrutural (portado para document.body pelo Radix).
-   Lista vertical de achados, cada um com severidade, mensagem, sugestao,
-   citacao do trecho e acao "Aplicar no rascunho" quando ha edicao determinista. */
-.ui-popover-content.structural-audit-panel {
+/* Painel de auditoria estrutural e verificacao factual (portados para
+   document.body pelo Radix). Lista vertical de achados, cada um com
+   severidade, mensagem, sugestao, citacao do trecho e acao "Aplicar no
+   rascunho" quando ha edicao determinista. */
+.ui-popover-content.fact-check-panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -6656,7 +7065,7 @@ label.settings-toggle {
   overflow-y: auto;
 }
 
-.ui-popover-content.structural-audit-panel > .structural-audit-header {
+.structural-audit-scope > .structural-audit-header {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -6664,17 +7073,17 @@ label.settings-toggle {
   border-bottom: 1px solid #e8e5dd;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-header strong {
+.structural-audit-scope .structural-audit-header strong {
   color: var(--text-h, #1c2427);
   font: 600 13px var(--sans);
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-header small {
+.structural-audit-scope .structural-audit-header small {
   color: var(--muted, #7e7466);
   font-size: 11px;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-state {
+.structural-audit-scope .structural-audit-state {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -6685,24 +7094,24 @@ label.settings-toggle {
   color: var(--muted, #7e7466);
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-state.is-error {
+.structural-audit-scope .structural-audit-state.is-error {
   flex-direction: column;
   align-items: flex-start;
   color: var(--danger, #b3261e);
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-state.is-clean {
+.structural-audit-scope .structural-audit-state.is-clean {
   background: #eef4ee;
   color: #2e6b4f;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-findings {
+.structural-audit-scope .structural-audit-findings {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-finding {
+.structural-audit-scope .structural-audit-finding {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -6712,21 +7121,21 @@ label.settings-toggle {
   background: #fbfaf6;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-finding.is-warning {
+.structural-audit-scope .structural-audit-finding.is-warning {
   border-left: 3px solid #d99a2b;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-finding.is-info {
+.structural-audit-scope .structural-audit-finding.is-info {
   border-left: 3px solid #7c93c4;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-finding-head {
+.structural-audit-scope .structural-audit-finding-head {
   display: flex;
   align-items: flex-start;
   gap: 8px;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-severity {
+.structural-audit-scope .structural-audit-severity {
   flex: none;
   margin-top: 1px;
   padding: 2px 7px;
@@ -6739,24 +7148,24 @@ label.settings-toggle {
   text-transform: uppercase;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-finding.is-info .structural-audit-severity {
+.structural-audit-scope .structural-audit-finding.is-info .structural-audit-severity {
   background: #e7ecf6;
   color: #4a5f93;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-finding-head p {
+.structural-audit-scope .structural-audit-finding-head p {
   margin: 0;
   color: var(--text-h, #1c2427);
   line-height: 1.45;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-suggestion {
+.structural-audit-scope .structural-audit-suggestion {
   margin: 0;
   color: var(--muted, #7e7466);
   line-height: 1.45;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-quote {
+.structural-audit-scope .structural-audit-quote {
   margin: 0;
   padding: 6px 8px;
   border-radius: var(--radius-sm);
@@ -6769,7 +7178,7 @@ label.settings-toggle {
   overflow-y: auto;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-apply-row {
+.structural-audit-scope .structural-audit-apply-row {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -6777,7 +7186,7 @@ label.settings-toggle {
   padding-top: 2px;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-apply {
+.structural-audit-scope .structural-audit-apply {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -6790,21 +7199,21 @@ label.settings-toggle {
   font-size: 11.5px;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-apply:not(:disabled):hover {
+.structural-audit-scope .structural-audit-apply:not(:disabled):hover {
   background: #2f3a3e;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-apply:disabled {
+.structural-audit-scope .structural-audit-apply:disabled {
   opacity: 0.55;
   cursor: default;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-hint {
+.structural-audit-scope .structural-audit-hint {
   color: var(--muted, #7e7466);
   font-size: 10.5px;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-footer {
+.structural-audit-scope .structural-audit-footer {
   display: flex;
   flex-direction: column;
   padding-top: 2px;
@@ -6813,7 +7222,7 @@ label.settings-toggle {
 /* "Re-executar auditoria" com o mesmo visual dos botoes do menu de
    Avaliacao & revisao: celula clara (borda e fundo identicos), icone + texto
    alinhados a esquerda, altura uniforme e largura total do painel. */
-.ui-popover-content.structural-audit-panel .structural-audit-rerun {
+.structural-audit-scope .structural-audit-rerun {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -6829,23 +7238,23 @@ label.settings-toggle {
   white-space: nowrap;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-rerun:not(:disabled):hover {
+.structural-audit-scope .structural-audit-rerun:not(:disabled):hover {
   background: #ece8dd;
 }
 
-.ui-popover-content.structural-audit-panel .structural-audit-rerun:disabled {
+.structural-audit-scope .structural-audit-rerun:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
 /* ------------------------------------------------------------------ */
 /* Verificacao factual opcional: painel separado da avaliacao de memoria,
- * usa a base .structural-audit-panel com blocos de achado proprio. */
-.ui-popover-content.structural-audit-panel.fact-check-panel {
+ * usa a base .structural-audit-scope com blocos de achado proprio. */
+.ui-popover-content.fact-check-panel {
   min-width: min(420px, calc(100vw - 32px));
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-results {
+.structural-audit-scope .fact-check-results {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -6854,14 +7263,14 @@ label.settings-toggle {
   padding-right: 2px;
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-summary {
+.structural-audit-scope .fact-check-summary {
   color: var(--text-secondary, #6b6358);
   font-size: 12.5px;
   line-height: 1.5;
   margin: 0;
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-finding {
+.structural-audit-scope .fact-check-finding {
   border: 1px solid var(--border, #e2dccf);
   border-left-width: 3px;
   border-radius: var(--radius-sm);
@@ -6869,25 +7278,25 @@ label.settings-toggle {
   background: var(--surface-raised, #fffdf8);
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-finding.is-confirmed {
+.structural-audit-scope .fact-check-finding.is-confirmed {
   border-left-color: #4f9d5f;
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-finding.is-divergent {
+.structural-audit-scope .fact-check-finding.is-divergent {
   border-left-color: #c4573a;
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-finding.is-uncertain {
+.structural-audit-scope .fact-check-finding.is-uncertain {
   border-left-color: #c08a2d;
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-finding-head {
+.structural-audit-scope .fact-check-finding-head {
   display: flex;
   align-items: flex-start;
   gap: 8px;
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-finding-head p {
+.structural-audit-scope .fact-check-finding-head p {
   margin: 0;
   font-size: 12.5px;
   font-weight: 600;
@@ -6895,7 +7304,7 @@ label.settings-toggle {
   flex: 1;
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-status {
+.structural-audit-scope .fact-check-status {
   flex: none;
   font-size: 9.5px;
   font-weight: 700;
@@ -6907,29 +7316,29 @@ label.settings-toggle {
   color: #6b6358;
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-finding.is-confirmed .fact-check-status {
+.structural-audit-scope .fact-check-finding.is-confirmed .fact-check-status {
   background: #e3efe4;
   color: #2e6e3c;
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-finding.is-divergent .fact-check-status {
+.structural-audit-scope .fact-check-finding.is-divergent .fact-check-status {
   background: #f6e4dd;
   color: #a03a20;
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-finding.is-uncertain .fact-check-status {
+.structural-audit-scope .fact-check-finding.is-uncertain .fact-check-status {
   background: #f5ead2;
   color: #8a621a;
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-reason {
+.structural-audit-scope .fact-check-reason {
   margin: 6px 0 0;
   font-size: 12px;
   line-height: 1.5;
   color: var(--text-secondary, #6b6358);
 }
 
-.ui-popover-content.structural-audit-panel .fact-check-source {
+.structural-audit-scope .fact-check-source {
   margin: 4px 0 0;
   font-size: 10.5px;
   font-style: italic;
@@ -7183,6 +7592,14 @@ label.settings-toggle {
   color: #d6d4cd;
 }
 
+[data-theme='dark'] .workspace-shell .frontmatter-panel-section-toggle:hover {
+  background: #2e2b33;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-section-toggle .frontmatter-panel-section-chevron {
+  color: #a8a59d;
+}
+
 [data-theme='dark'] .workspace-shell .frontmatter-panel-add {
   color: #a8a59d;
 }
@@ -7268,6 +7685,31 @@ label.settings-toggle {
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel-backlink:hover {
   background: #2e3f36;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-tag-badge {
+  border-color: rgb(232 230 221 / 18%);
+  color: #a8a59d;
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-tag-badge:hover {
+  border-color: rgb(232 230 221 / 32%);
+  background: rgb(232 230 221 / 6%);
+}
+
+[data-theme='dark'] .workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove:hover,
+[data-theme='dark'] .workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove:focus-visible {
+  background: rgb(232 230 221 / 10%);
+  color: #e0a08d;
+}
+
+[data-theme='dark'] .workspace-shell .note-header-tags .note-tags-toggle {
+  color: #a8a59d;
+}
+
+[data-theme='dark'] .workspace-shell .note-header-tags .note-tags-toggle:hover {
+  background: #2e2b33;
+  color: #d6d4cd;
 }
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel-broken {

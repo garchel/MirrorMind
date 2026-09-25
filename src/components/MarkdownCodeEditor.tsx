@@ -9,7 +9,7 @@ import { styleTags, tags as highlightTags } from '@lezer/highlight'
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
 import { EditorState, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
 import { Decoration, type DecorationSet, EditorView, keymap } from '@codemirror/view'
-import { markdownLivePreview, postitDataEffect, registerPostitClickHandler, reviewGapDataEffect, type LinkTarget, type PostitData, type ReviewGapData } from './markdownLivePreview'
+import { markdownLivePreview, postitDataEffect, registerPostitClickHandler, registerPostitPeekHandler, reviewGapDataEffect, type LinkTarget, type PostitData, type PostitPeekHandler, type ReviewGapData } from './markdownLivePreview'
 import { getMarkdownAutocompleteResult, type MarkdownAutocompleteData } from '../lib/markdown-autocomplete'
 import { findTextMatches } from '../lib/findMatches'
 
@@ -79,6 +79,9 @@ type MarkdownCodeEditorProps = {
   postitData?: PostitData | null
   /** Clique em um pino de post-it (widget CM nao tem acesso a props React). */
   onPostitClick?: (id: string) => void
+  /** Peek por hover na bolinha do post-it (abrir sem foco + fechar com
+   * tolerancia). Registrado como o clique, via getter para nunca obsoletar. */
+  onPostitPeek?: { onOpen: (id: string) => void; onClose: (id: string) => void }
   /** Quebra de linha automatica (EditorView.lineWrapping). Padrao: true;
    * o modo Leitura read-only respeita a preferência `reading-line-wrap`. */
   lineWrap?: boolean
@@ -291,7 +294,7 @@ const findHighlighter = StateField.define<DecorationSet>({
 })
 
 function MarkdownCodeEditorComponent(
-  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, documentKey, getEmbedContent, historyLimit = 100, lineWrap = true, livePreview = false, onBlur, onChange, onHistoryChange, onOpenLink, onPostitClick, onSearchRequest, onSessionChange, readOnly = false, resolveAssetUrl, reviewGapData, postitData, session, spellCheck = true, stateCache, value, vaultPath }: MarkdownCodeEditorProps,
+  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, documentKey, getEmbedContent, historyLimit = 100, lineWrap = true, livePreview = false, onBlur, onChange, onHistoryChange, onOpenLink, onPostitClick, onPostitPeek, onSearchRequest, onSessionChange, readOnly = false, resolveAssetUrl, reviewGapData, postitData, session, spellCheck = true, stateCache, value, vaultPath }: MarkdownCodeEditorProps,
   ref: ForwardedRef<MarkdownCodeEditorHandle>,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -321,12 +324,14 @@ function MarkdownCodeEditorComponent(
   const reviewGapDataRef = useRef(reviewGapData)
   const postitDataRef = useRef(postitData)
   const onPostitClickRef = useRef(onPostitClick)
+  const onPostitPeekRef = useRef<PostitPeekHandler | undefined>(onPostitPeek)
 
   getEmbedContentRef.current = getEmbedContent
   vaultPathRef.current = vaultPath
   reviewGapDataRef.current = reviewGapData
   postitDataRef.current = postitData
   onPostitClickRef.current = onPostitClick
+  onPostitPeekRef.current = onPostitPeek
 
   onChangeRef.current = onChange
   onBlurRef.current = onBlur
@@ -365,6 +370,10 @@ function MarkdownCodeEditorComponent(
   // Widgets CM nao tem acesso a props React: o handler de clique dos pinos e
   // registrado no modulo do live preview (chave '*' captura qualquer pino).
   useEffect(() => registerPostitClickHandler('*', (id) => onPostitClickRef.current?.(id)), [])
+  useEffect(() => registerPostitPeekHandler('*', {
+    onOpen: (id) => onPostitPeekRef.current?.onOpen(id),
+    onClose: (id) => onPostitPeekRef.current?.onClose(id),
+  }), [])
 
   useEffect(() => {
     viewRef.current?.contentDOM.setAttribute('aria-label', ariaLabel)
@@ -410,6 +419,10 @@ function MarkdownCodeEditorComponent(
             vaultPath: vaultPathRef.current,
             getReviewGapData: () => reviewGapDataRef.current ?? null,
             getPostitData: () => postitDataRef.current ?? null,
+            getNotePaths: () => autocompleteDataRef.current.notePaths,
+            // documentKey pode ter sufixo de modo (`::leitura`, `::misto::gfm`):
+            // a base da resolucao relativa e o caminho real da nota.
+            getSourcePath: () => activeDocumentKeyRef.current.split('::')[0] ?? '',
           })
           : []),
         ...(lineWrapRef.current ? [EditorView.lineWrapping] : []),
@@ -603,14 +616,18 @@ function MarkdownCodeEditorComponent(
 
     const selectionStart = Math.min(session?.selectionStart ?? 0, value.length)
     const selectionEnd = Math.min(session?.selectionEnd ?? selectionStart, value.length)
+    // Rolagem preservada na MESMA moldura: o dispatch rola a selecao (as
+    // vezes obsoleta) para a vista e o navegador pintaria esse estado antes
+    // do restore em rAF — esse era o flick da scrollbar ao aplicar
+    // marca-texto com a pagina no meio. O cursor continua restaurado; so a
+    // rolagem fica onde o usuario estava.
+    const previousScrollTop = view.scrollDOM.scrollTop
     view.dispatch({
       changes: { from: 0, to: currentValue.length, insert: value },
       selection: { anchor: selectionStart, head: selectionEnd },
     })
+    view.scrollDOM.scrollTop = previousScrollTop
     activeDocumentKeyRef.current = documentKey
-    requestAnimationFrame(() => {
-      view.scrollDOM.scrollTop = session?.scrollTop ?? 0
-    })
   }, [createEditorState, documentKey, session, value])
 
   return <div ref={containerRef} className="codemirror-markdown-editor" />

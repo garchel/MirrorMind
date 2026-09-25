@@ -173,6 +173,8 @@ describe('Markdown editing helpers', () => {
     expect(formatMarkdownSelection('texto', 0, 5, 'highlightBlue')).toBe('<mark class="hl-blue">texto</mark>')
     expect(formatMarkdownSelection('texto', 0, 5, 'highlightPink')).toBe('<mark class="hl-pink">texto</mark>')
     expect(formatMarkdownSelection('texto', 0, 5, 'highlightOrange')).toBe('<mark class="hl-orange">texto</mark>')
+    expect(formatMarkdownSelection('texto', 0, 5, 'highlightPurple')).toBe('<mark class="hl-purple">texto</mark>')
+    expect(formatMarkdownSelection('texto', 0, 5, 'highlightRed')).toBe('<mark class="hl-red">texto</mark>')
     const marked = '<mark class="hl-green">texto</mark>'
     expect(formatMarkdownSelection(marked, 0, marked.length, 'highlightNone')).toBe('texto')
   })
@@ -183,6 +185,14 @@ describe('Markdown editing helpers', () => {
     // Mesma cor: toggle (remove).
     const green = '<mark class="hl-green">texto</mark>'
     expect(formatMarkdownSelection(green, 0, green.length, 'highlightGreen')).toBe('texto')
+  })
+
+  it('a cirurgia reconhece as cores novas (roxo/vermelho)', () => {
+    const purple = '<mark class="hl-purple">abcdef</mark>'
+    const from = purple.indexOf('cd')
+    expect(formatMarkdownSelection(purple, from, from + 2, 'highlightRed')).toBe('<mark class="hl-purple">ab</mark><mark class="hl-red">cd</mark><mark class="hl-purple">ef</mark>')
+    const red = '<mark class="hl-red">texto</mark>'
+    expect(formatMarkdownSelection(red, 0, red.length, 'highlightNone')).toBe('texto')
   })
 
   it('recolore o MEIO de um bloco: pontas mantem a cor original', () => {

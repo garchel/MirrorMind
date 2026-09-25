@@ -29,6 +29,7 @@ const config = {
     priorityWeight: 1,
     minIntervalDays: 1,
     maxIntervalDays: 365,
+    preferredMode: 'exam',
   },
   tagRules: [rule],
   segmentation: { maxWholeNoteWords: 800 },

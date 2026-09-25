@@ -45,8 +45,12 @@ export function useSettingsNav(isSettingsOpen: boolean) {
   const settingsScrollRef = useRef<HTMLElement>(null)
   const pendingSettingsSectionRef = useRef<SettingsSectionId | null>(null)
 
-  /** Destaque no menu lateral conforme a secao visivel no painel rolavel. */
+  /** Destaque no menu lateral conforme a secao visivel no painel rolavel.
+   * Engata ao ABRIR as Configuracoes: o painel (`settingsScrollRef`) so
+   * existe com a pagina montada, entao o efeito com `[]` lia a ref nula no
+   * mount do App e nunca anexava o listener. */
   useEffect(() => {
+    if (!isSettingsOpen) return
     const panel = settingsScrollRef.current
     if (!panel) return
     const updateActiveSection = () => {
@@ -63,7 +67,7 @@ export function useSettingsNav(isSettingsOpen: boolean) {
     updateActiveSection()
     panel.addEventListener('scroll', updateActiveSection, { passive: true })
     return () => panel.removeEventListener('scroll', updateActiveSection)
-  }, [])
+  }, [isSettingsOpen])
 
   /** Rola o painel de Configuracoes ate a secao escolhida no menu lateral. */
   function scrollToSettingsSection(sectionId: SettingsSectionId) {

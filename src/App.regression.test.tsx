@@ -173,6 +173,7 @@ function createTauriHarness(
             priorityWeight: 1,
             minIntervalDays: 1,
             maxIntervalDays: 365,
+            preferredMode: 'exam',
           },
           tagRules: vaultReviewTagRules,
           segmentation: { maxWholeNoteWords: 800 },
@@ -439,11 +440,13 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
 
-    // As tags vivem no menu integrado (arrow down + botao "+" da secao Tags):
-    // o botao so existe com o menu aberto.
-    expect(screen.queryByRole('button', { name: 'Adicionar tag' })).not.toBeInTheDocument()
+    // As tags vivem ABAIXO do titulo (NoteTagRow colapsada), nao no menu:
+    // o toggle existe com o menu fechado...
+    expect(screen.getByRole('button', { name: /Tags da nota/ })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Expandir propriedades da nota/ }))
-    expect(screen.getByRole('button', { name: 'Adicionar tag' })).toBeInTheDocument()
+    await waitFor(() => expect(document.querySelector('.frontmatter-panel')).not.toBeNull())
+    // ...e o painel nao tem secao de tags (so Propriedades + links).
+    expect(document.querySelector('.frontmatter-panel .frontmatter-panel-tag-row')).toBeNull()
     expect(screen.queryByRole('textbox', { name: 'Descricao da nota' })).not.toBeInTheDocument()
   })
 
@@ -452,7 +455,9 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Auditoria estrutural da nota' }))
+    // A auditoria mora no menu Avaliacao & revisao (pagina Estrutura).
+    await user.click(screen.getByRole('button', { name: 'Avaliação e revisão da nota' }))
+    await user.click(await screen.findByRole('button', { name: 'Avaliar estrutura da nota' }))
 
     expect(await screen.findByText('Os paragrafos antes do primeiro título formam um preambulo sem rotulo de secao.')).toBeInTheDocument()
     expect(invokeMock).toHaveBeenCalledWith('audit_note_structure', expect.objectContaining({ relativePath: 'inicial.md' }))
@@ -531,7 +536,8 @@ describe('Regressao do editor no workspace', () => {
     const { notes } = createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: /Expandir propriedades da nota/ }))
+    // As tags vivem abaixo do titulo: expande o toggle e adiciona.
+    await user.click(screen.getByRole('button', { name: /Tags da nota/ }))
     await user.click(screen.getByRole('button', { name: 'Adicionar tag' }))
     const input = await screen.findByLabelText('Nome da nova tag')
     await user.type(input, 'quimica{Enter}')
@@ -783,6 +789,27 @@ describe('Regressao do editor no workspace', () => {
 
     await waitFor(() => expect(notes.has('nova/página.md')).toBe(true))
     expect(await screen.findByRole('tab', { name: 'página.md' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('[links internos] cria a nota do wikilink inexistente na mesma pasta da origem', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness([
+      { name: 'treino.md', relativePath: 'Metas/violao/treino.md', content: '# Treino\n\nCrie [[ideia nova]].' },
+    ])
+    await openTestVault(user)
+
+    // Abre a nota dentro da pasta de meta pelo explorador.
+    await user.click(document.querySelector('summary[aria-label="Pasta Metas"]')!)
+    await user.click(document.querySelector('summary[aria-label="Pasta violao"]')!)
+    await user.click(screen.getByRole('button', { name: 'Abrir nota treino' }))
+    await user.click(screen.getByRole('radio', { name: 'Leitura' }))
+
+    await user.click(await screen.findByRole('link', { name: 'ideia nova' }))
+
+    // Sem pasta no `[[...]]`: nasce junto da nota de origem, nao na raiz.
+    await waitFor(() => expect(notes.has('Metas/violao/ideia nova.md')).toBe(true))
+    expect(notes.has('ideia nova.md')).toBe(false)
+    expect(await screen.findByRole('tab', { name: 'ideia nova.md' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('[links internos] cria uma nota apenas uma vez em cliques concorrentes', async () => {
@@ -1743,8 +1770,8 @@ describe('Regressao do editor no workspace', () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
     localStorage.setItem('mirrormind.auto-save', 'true')
-    // Nota com tags no frontmatter: o painel deve mostra-las na secao de Tags
-    // (mesma implementacao das tags abaixo do titulo).
+    // Nota com tags no frontmatter: elas aparecem ABAIXO do titulo (toggle
+    // colapsado com os nomes); o painel do arrow down so tem Propriedades.
     notes.set('inicial.md', {
       name: 'inicial.md',
       relativePath: 'inicial.md',
@@ -1754,16 +1781,16 @@ describe('Regressao do editor no workspace', () => {
 
     // Sem YAML cru no topo: o painel abre pelo arrow down do cabecalho.
     expect(document.querySelector('.cm-content')?.textContent ?? '').not.toContain('title:')
+    expect(screen.getByRole('button', { name: 'Tags da nota: #biologia #prova' })).toBeInTheDocument()
     const arrowDown = screen.getByRole('button', { name: 'Expandir propriedades da nota' })
     expect(arrowDown).toHaveAttribute('aria-expanded', 'false')
     await user.click(arrowDown)
     await waitFor(() => expect(document.querySelector('.frontmatter-panel')).not.toBeNull())
     expect(arrowDown).toHaveAttribute('aria-expanded', 'true')
 
-    // Secao de Tags: badges das tags do frontmatter (como abaixo do titulo),
-    // e a propriedade `tags` NAO vira uma linha crua do formulario.
-    const tagBadges = [...document.querySelectorAll('.frontmatter-panel-tag-row .ui-badge')].map((badge) => badge.textContent)
-    expect(tagBadges).toEqual(['#biologia', '#prova'])
+    // Sem secao de Tags no painel, e a propriedade `tags` NAO vira uma linha
+    // crua do formulario (so `title`).
+    expect(document.querySelector('.frontmatter-panel .frontmatter-panel-tag-row')).toBeNull()
     const panelKeys = [...document.querySelectorAll('.frontmatter-panel-key')].map((input) => (input as HTMLInputElement).value)
     expect(panelKeys).toContain('title')
     expect(panelKeys).not.toContain('tags')
@@ -1785,12 +1812,10 @@ describe('Regressao do editor no workspace', () => {
     })
     await openTestVault(user)
 
-    const arrowDown = await screen.findByRole('button', { name: 'Expandir propriedades da nota' })
-    await user.click(arrowDown)
-    await waitFor(() => expect(document.querySelector('.frontmatter-panel')).not.toBeNull())
-
-    // O X vive DENTRO da badge (a direita do nome); clicar remove a tag da
-    // nota (gravacao ao vivo, sem YAML cru em lugar nenhum).
+    // As tags vivem abaixo do titulo: expande o toggle do header e o X vive
+    // DENTRO da badge (a direita do nome); clicar remove a tag da nota
+    // (gravacao ao vivo, sem YAML cru em lugar nenhum).
+    await user.click(screen.getByRole('button', { name: 'Tags da nota: #biologia #prova' }))
     const badge = await screen.findByText('#biologia')
     const removeButton = await screen.findByRole('button', { name: 'Remover tag biologia' })
     expect(badge.contains(removeButton)).toBe(true)
@@ -2015,6 +2040,206 @@ describe('Regressao do editor no workspace', () => {
     await waitFor(() => expect(screen.queryByRole('toolbar', { name: 'Formatar seleção' })).not.toBeInTheDocument())
   })
 
+  it('[formatacao] submenu de marca-texto abre para cima e aplica a cor', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+    await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
+    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+
+    const content = document.querySelector('.cm-content')
+    fireEvent.keyDown(content!, { key: 'f', ctrlKey: true })
+    const findInput = await screen.findByRole('textbox', { name: 'Buscar na nota' })
+    await user.type(findInput, 'Equação')
+    await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Formatar seleção' })).toBeInTheDocument())
+
+    // Hover abre o menu de cores para cima; clique aplica o roxo.
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Marca-texto' }))
+    await screen.findByRole('group', { name: 'Cor do marca-texto' })
+    await user.click(screen.getByRole('button', { name: 'Marca-texto roxo (seleção)' }))
+    await waitFor(() => expect(document.querySelector('.cm-content')).toHaveTextContent('hl-purple'))
+  })
+
+  it('[formatacao] submenu tolera a travessia: nao fecha de imediato ao sair', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+    await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
+    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+
+    const content = document.querySelector('.cm-content')
+    fireEvent.keyDown(content!, { key: 'f', ctrlKey: true })
+    const findInput = await screen.findByRole('textbox', { name: 'Buscar na nota' })
+    await user.type(findInput, 'Equação')
+    await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Formatar seleção' })).toBeInTheDocument())
+
+    // Abre por hover e sai: o menu continua por ~180ms (travessia do vao) e
+    // so entao fecha — hover puro alcanca as cores.
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Marca-texto' }))
+    await screen.findByRole('group', { name: 'Cor do marca-texto' })
+    const wrap = screen.getByRole('button', { name: 'Marca-texto' }).closest('.format-submenu-wrap')!
+    fireEvent.mouseLeave(wrap)
+    expect(screen.getByRole('group', { name: 'Cor do marca-texto' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'Cor do marca-texto' })).not.toBeInTheDocument(), { timeout: 2_000 })
+  })
+
+  it('[postit] cria pela seleção com faixa colorida, abre pelo clique e re-ancora', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    await openTestVault(user)
+
+    // Seleciona "Texto" via busca (Misto e o modo padrao).
+    const content = document.querySelector('.cm-content')
+    fireEvent.keyDown(content!, { key: 'f', ctrlKey: true })
+    const findInput = await screen.findByRole('textbox', { name: 'Buscar na nota' })
+    await user.type(findInput, 'Texto')
+    await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Formatar seleção' })).toBeInTheDocument())
+
+    // Cria o post-it da selecao (ancora de frase, nao pino): abre o submenu
+    // de cores e escolhe azul (pre-seleciona a cor do papel). Abre por
+    // mouseEnter (user.click rastreia hover no jsdom e o mouseleave fecharia
+    // o menu antes do clique no item — em browser real descendente nao sai).
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Adicionar post-it' }))
+    await user.click(await screen.findByRole('button', { name: 'Criar post-it azul' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Novo post-it' })
+    expect(document.querySelector('.postit-popover.postit-paper.is-blue')).not.toBeNull()
+    await user.type(within(dialog).getByRole('textbox', { name: 'Texto do post-it' }), 'lembrete')
+    await waitFor(() => expect(notes.get('inicial.md')?.content).toContain('quote: Texto'), { timeout: 3_000 })
+
+    // Faixa colorida no editor cobrindo a frase (sem pino de paragrafo; o
+    // destaque do find pode aninhar um span dentro da marca).
+    await waitFor(() => expect(document.querySelector('.cm-live-postit-range')).not.toBeNull())
+    const mark = document.querySelector('.cm-live-postit-range')!
+    expect(mark.textContent).toBe('Texto')
+    expect(mark).toHaveAttribute('data-postit-range-id')
+
+    // Fecha, seleciona outra frase ("Equação", sem sobreposicao) e SO ENTAO
+    // reabre pelo clique na faixa: selecionar com o mouse e com o popover
+    // aberto fecharia o popover (clique-fora), entao a ordem e essa.
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Novo post-it' })).not.toBeInTheDocument())
+    fireEvent.keyDown(document.querySelector('.cm-content')!, { key: 'f', ctrlKey: true })
+    const findAgain = await screen.findByRole('textbox', { name: 'Buscar na nota' })
+    await user.clear(findAgain)
+    await user.type(findAgain, 'Equação')
+    await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Formatar seleção' })).toBeInTheDocument())
+    fireEvent.click(document.querySelector('.cm-live-postit-range')!)
+    // Clique no TEXTO nao abre (posiciona o cursor para editar); a bolinha
+    // antes da frase e quem abre o post-it.
+    expect(screen.queryByRole('dialog', { name: 'Editar post-it' })).not.toBeInTheDocument()
+    fireEvent.click(document.querySelector('.postit-range-dot')!)
+    const editDialog = await screen.findByRole('dialog', { name: 'Editar post-it' })
+    // Troca de area em dois tempos: armar e confirmar.
+    await user.click(within(editDialog).getByRole('button', { name: 'Alterar área' }))
+    await user.click(await within(editDialog).findByRole('button', { name: 'Confirmar área' }))
+    await waitFor(() => expect(notes.get('inicial.md')?.content).toContain('quote: Equação'), { timeout: 3_000 })
+    await waitFor(() => {
+      const rangeMark = document.querySelector('.cm-live-postit-range')
+      expect(rangeMark?.textContent).toContain('Equação')
+    })
+  })
+
+  it('[postit] segundo post-it no mesmo paragrafo aparece (nao some)', async () => {
+    // O segundo post-it do paragrafo tem ordinal alem das ocorrencias (from
+    // null), mas a faixa resolve: ele deve renderizar a marca, nao ir para
+    // orfaos invisiveis.
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    notes.set('inicial.md', {
+      name: 'inicial.md',
+      relativePath: 'inicial.md',
+      content: '---\ntitle: Nota\npostits:\n  - id: postit-1\n    anchorText: Alfa e beta aqui.\n    anchorOrdinal: 0\n    range:\n      quote: Alfa\n      prefix: ""\n      suffix: ""\n      occurrence: 0\n    color: yellow\n    text: primeiro\n    createdAt: 2026-01-01T00:00:00.000Z\n    updatedAt: 2026-01-01T00:00:00.000Z\n  - id: postit-2\n    anchorText: Alfa e beta aqui.\n    anchorOrdinal: 1\n    range:\n      quote: beta\n      prefix: ""\n      suffix: ""\n      occurrence: 0\n    color: blue\n    text: segundo\n    createdAt: 2026-01-01T00:00:00.000Z\n    updatedAt: 2026-01-01T00:00:00.000Z\n---\n\n# Nota\n\nAlfa e beta aqui.\n',
+    })
+    await openTestVault(user)
+    await waitFor(() => expect(document.querySelectorAll('.cm-live-postit-range').length).toBe(2))
+    const texts = [...document.querySelectorAll('.cm-live-postit-range')].map((mark) => mark.textContent)
+    expect(texts).toEqual(expect.arrayContaining(['Alfa', 'beta']))
+    expect(document.querySelector('.postit-anchor-widget')).toBeNull()
+  })
+
+  it('[postit] hover na bolinha mostra previa sem foco; sair fecha; clique fixa', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    notes.set('inicial.md', {
+      name: 'inicial.md',
+      relativePath: 'inicial.md',
+      content: '---\ntitle: Nota\npostits:\n  - id: postit-1\n    anchorText: Texto\n    anchorOrdinal: 0\n    range:\n      quote: Texto\n      prefix: ""\n      suffix: ""\n      occurrence: 0\n    color: yellow\n    text: lembrete\n    createdAt: 2026-01-01T00:00:00.000Z\n    updatedAt: 2026-01-01T00:00:00.000Z\n---\n\n# Nota\n\nTexto inicial e mais conteudo.\n',
+    })
+    await openTestVault(user)
+    await waitFor(() => expect(document.querySelector('.postit-range-dot')).not.toBeNull())
+
+    // Hover mostra a previa sem roubar o foco do editor.
+    const dot = document.querySelector('.postit-range-dot')!
+    fireEvent.mouseEnter(dot)
+    await screen.findByRole('dialog', { name: 'Editar post-it' })
+    expect(document.activeElement?.tagName).not.toBe('TEXTAREA')
+
+    // Sair fecha (tolerancia de ~150ms para atravessar ate o popover).
+    fireEvent.mouseLeave(dot)
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Editar post-it' })).not.toBeInTheDocument())
+
+    // Clicar fixa: sair do mouse nao fecha mais.
+    fireEvent.mouseEnter(dot)
+    await screen.findByRole('dialog', { name: 'Editar post-it' })
+    fireEvent.click(dot)
+    fireEvent.mouseLeave(dot)
+    await new Promise((resolve) => setTimeout(resolve, 350))
+    expect(screen.getByRole('dialog', { name: 'Editar post-it' })).toBeInTheDocument()
+    expect(document.activeElement?.tagName).toBe('TEXTAREA')
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Editar post-it' })).not.toBeInTheDocument())
+  })
+
+  it('[postit] coexiste com marca-texto sobre a mesma frase', async () => {
+    // Post-it criado antes; depois o usuario marca "inicial" de azul. A
+    // citacao casa no texto visivel (ignorando as tags) e a faixa cobre os
+    // offsets crus — bolinha e borda no lugar, highlight intacto.
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    notes.set('inicial.md', {
+      name: 'inicial.md',
+      relativePath: 'inicial.md',
+      content: '---\ntitle: Nota\npostits:\n  - id: postit-1\n    anchorText: Texto\n    anchorOrdinal: 0\n    range:\n      quote: Texto inicial\n      prefix: ""\n      suffix: ""\n      occurrence: 0\n    color: yellow\n    text: lembrete\n    createdAt: 2026-01-01T00:00:00.000Z\n    updatedAt: 2026-01-01T00:00:00.000Z\n---\n\n# Nota\n\nTexto <mark class="hl-blue">inicial</mark> aqui.\n',
+    })
+    await openTestVault(user)
+    await waitFor(() => expect(document.querySelector('.cm-live-postit-range')).not.toBeNull())
+    const mark = document.querySelector('.cm-live-postit-range')!
+    expect(mark.textContent).toContain('Texto')
+    expect(mark.textContent).toContain('inicial')
+    expect(document.querySelector('.cm-live-hl.hl-blue')).not.toBeNull()
+    expect(document.querySelector('.postit-range-dot')).not.toBeNull()
+    expect(document.querySelector('.postit-anchor-widget')).toBeNull()
+  })
+
+  it('[postit] bloqueia criacao sobre a area de outro post-it', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    // Ancora curta (paragrafo estendido apos a criacao): o frontmatter nao
+    // contem "nicial", entao a busca seleciona no corpo.
+    notes.set('inicial.md', {
+      name: 'inicial.md',
+      relativePath: 'inicial.md',
+      content: '---\ntitle: Nota\npostits:\n  - id: postit-1\n    anchorText: Texto\n    anchorOrdinal: 0\n    range:\n      quote: Texto\n      prefix: ""\n      suffix: ""\n      occurrence: 0\n    color: yellow\n    text: lembrete\n    createdAt: 2026-01-01T00:00:00.000Z\n    updatedAt: 2026-01-01T00:00:00.000Z\n---\n\n# Nota\n\nTexto inicial e mais conteudo.\n',
+    })
+    await openTestVault(user)
+    await waitFor(() => {
+      const rangeMark = document.querySelector('.cm-live-postit-range')
+      expect(rangeMark?.textContent).toBe('Texto')
+    })
+
+    // Seleciona "to inicial" (sai da area "Texto" para texto so do corpo,
+    // sem casar no frontmatter) e tenta criar: bloqueia com aviso.
+    fireEvent.keyDown(document.querySelector('.cm-content')!, { key: 'f', ctrlKey: true })
+    const findInput = await screen.findByRole('textbox', { name: 'Buscar na nota' })
+    await user.type(findInput, 'to inicial')
+    await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Formatar seleção' })).toBeInTheDocument())
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Adicionar post-it' }))
+    await user.click(await screen.findByRole('button', { name: 'Criar post-it amarelo' }))
+    expect(screen.queryByRole('dialog', { name: 'Novo post-it' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('sobrepõe')
+  })
+
   it('[aparência] alterna o tema escuro, aplica no documento e persiste a preferência', async () => {
     const user = userEvent.setup()
     createTauriHarness()
@@ -2045,6 +2270,30 @@ describe('Regressao do editor no workspace', () => {
     // Volta para Claro e o atributo acompanha de novo.
     await user.click(screen.getByRole('radio', { name: 'Claro' }))
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe('light'))
+  })
+
+  it('[configurações] o destaque do menu acompanha a rolagem do painel', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Configurações' }))
+    const nav = await screen.findByRole('navigation', { name: 'Seções das configurações' })
+    const panel = document.querySelector('.workspace-page') as HTMLElement
+    expect(panel).not.toBeNull()
+
+    // Geometria simulada: painel no topo 0; Leitura e a ultima secao acima
+    // do limiar de 140px (as seguintes ficam bem abaixo).
+    vi.spyOn(panel, 'getBoundingClientRect').mockReturnValue({ top: 0 } as DOMRect)
+    const tops: Record<string, number> = { aparencia: 0, workspace: 50, leitura: 100 }
+    for (const section of ['aparencia', 'workspace', 'leitura', 'atalhos', 'grafo3d', 'grafo2d', 'revisao', 'aplicativo', 'provedor-ia']) {
+      const element = document.getElementById(`settings-${section}`)!
+      vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({ top: tops[section] ?? 1000 } as DOMRect)
+    }
+    fireEvent.scroll(panel)
+
+    await waitFor(() => expect(within(nav).getByRole('button', { name: 'Leitura' })).toHaveAttribute('aria-current', 'true'))
+    expect(within(nav).getByRole('button', { name: 'Aparência' })).not.toHaveAttribute('aria-current', 'true')
   })
 
   it('[aparência] renderiza blocos Dataview e Tasks somente leitura no modo Leitura', async () => {

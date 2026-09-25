@@ -328,6 +328,8 @@ export type MarkdownFormat =
   | 'highlightBlue'
   | 'highlightPink'
   | 'highlightOrange'
+  | 'highlightPurple'
+  | 'highlightRed'
   | 'highlightNone'
   | 'list'
   | 'orderedList'
@@ -407,12 +409,12 @@ export function transformMarkdownTable(content: string, cursor: number, action: 
   return [...lines.slice(0, start), ...formattedRows, ...lines.slice(end + 1)].join('\n')
 }
 
-export type MarkdownHighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'orange'
+export type MarkdownHighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'orange' | 'purple' | 'red'
 /** Alvo do marca-texto: uma cor fixa ou `none` (remover a coloração). */
 export type MarkdownHighlightTarget = MarkdownHighlightColor | 'none'
 
 /** Sintaxe persistida no .md: `<mark class="hl-cor">texto</mark>`. */
-const HIGHLIGHT_COLORS: readonly MarkdownHighlightColor[] = ['yellow', 'green', 'blue', 'pink', 'orange']
+const HIGHLIGHT_COLORS: readonly MarkdownHighlightColor[] = ['yellow', 'green', 'blue', 'pink', 'orange', 'purple', 'red']
 
 const MARK_ELEMENT_RE = new RegExp(`<mark\\s+class="hl-(${HIGHLIGHT_COLORS.join('|')})">([\\s\\S]*?)<\\/mark>`, 'g')
 

@@ -4,36 +4,27 @@ import { FrontmatterPanelForm } from './FrontmatterPanelForm'
 
 function renderPanel(overrides: Partial<Parameters<typeof FrontmatterPanelForm>[0]> = {}) {
   const onApply = vi.fn().mockReturnValue(null)
-  const onApplyTag = vi.fn()
-  const onRemoveTag = vi.fn()
   const onOpenBacklink = vi.fn()
   render(
     <FrontmatterPanelForm
       rows={[{ key: 'title', value: 'Fotossíntese' }]}
-      tags={['biologia', 'prova']}
-      availableTags={['quimica']}
       backlinks={[{ name: 'resumo', relativePath: 'resumo.md' }]}
       brokenLinks={[]}
       onApply={onApply}
-      onApplyTag={onApplyTag}
-      onRemoveTag={onRemoveTag}
       onOpenBacklink={onOpenBacklink}
       {...overrides}
     />,
   )
-  return { onApply, onApplyTag, onOpenBacklink, onRemoveTag }
+  return { onApply, onOpenBacklink }
 }
 
 afterEach(cleanup)
 
 describe('FrontmatterPanelForm (painel integrado de propriedades)', () => {
-  it('renderiza as secoes de Tags e Propriedades sem o YAML cru', () => {
+  it('renderiza a secao de Propriedades sem o YAML cru (Tags moram no header)', () => {
     renderPanel()
-    expect(screen.getByText('Tags')).toBeInTheDocument()
+    expect(screen.queryByText('Tags')).toBeNull()
     expect(screen.getByText('Propriedades')).toBeInTheDocument()
-    // Badges das tags (mesma implementacao das tags abaixo do titulo).
-    const badges = screen.getAllByText(/#biologia|#prova/)
-    expect(badges.map((badge) => badge.textContent)).toEqual(['#biologia', '#prova'])
     // A linha do titulo como campos estruturados (sem `---`).
     expect(screen.getByLabelText('Nome da propriedade 1')).toHaveValue('title')
     expect(screen.getByLabelText('Valor YAML da propriedade 1')).toHaveValue('Fotossíntese')
@@ -72,14 +63,14 @@ describe('FrontmatterPanelForm (painel integrado de propriedades)', () => {
     expect(onOpenBacklink).toHaveBeenCalledWith('resumo.md')
   })
 
-  it('links quebrados aparecem compactos com nome curto e alvo cheio no tooltip', () => {
+  it('links pendentes aparecem compactos com nome curto e alvo cheio no tooltip', () => {
     renderPanel({
       brokenLinks: [
         { target: 'Metas/aprender-system-design/01-entender-sistemas-de-software', displayName: '01-entender-sistemas-de-software' },
         { target: 'anexo-faltante.md', displayName: 'anexo-faltante' },
       ],
     })
-    expect(screen.getByText('Links quebrados (2)')).toBeInTheDocument()
+    expect(screen.getByText('Links pendentes (2)')).toBeInTheDocument()
     const first = screen.getByText('01-entender-sistemas-de-software')
     // Chip nao clicavel (span) com o alvo completo no tooltip.
     expect(first.tagName).toBe('SPAN')
@@ -87,37 +78,43 @@ describe('FrontmatterPanelForm (painel integrado de propriedades)', () => {
     expect(screen.getByText('anexo-faltante')).toBeInTheDocument()
   })
 
-  it('oculta a secao de links quebrados quando nao ha nenhum', () => {
+  it('oculta a secao de links pendentes quando nao ha nenhum', () => {
     renderPanel()
-    expect(screen.queryByText(/Links quebrados/)).toBeNull()
+    expect(screen.queryByText(/Links pendentes/)).toBeNull()
   })
 
-  it('cria tag com Enter pelo popover de adicionar tag', async () => {
-    const { onApplyTag } = renderPanel()
-    fireEvent.click(screen.getByRole('button', { name: 'Adicionar tag' }))
-    const input = await screen.findByLabelText('Nome da nova tag')
-    fireEvent.change(input, { target: { value: 'quimica' } })
-    // As sugestoes filtram conforme digita.
-    expect(await screen.findByRole('button', { name: '#quimica' })).toBeInTheDocument()
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(onApplyTag).toHaveBeenCalledWith('quimica')
+  it('acordeons de links recolhem e expandem o conteudo', () => {
+    renderPanel({
+      brokenLinks: [{ target: 'anexo-faltante.md', displayName: 'anexo-faltante' }],
+    })
+    const backlinksToggle = screen.getByRole('button', { name: /Referenciada por \(1\)/ })
+    const brokenToggle = screen.getByRole('button', { name: /Links pendentes \(1\)/ })
+    expect(backlinksToggle).toHaveAttribute('aria-expanded', 'true')
+    expect(brokenToggle).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(backlinksToggle)
+    expect(screen.queryByRole('button', { name: 'resumo' })).not.toBeInTheDocument()
+    expect(backlinksToggle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(brokenToggle)
+    expect(screen.queryByText('anexo-faltante')).not.toBeInTheDocument()
+    fireEvent.click(brokenToggle)
+    expect(screen.getByText('anexo-faltante')).toBeInTheDocument()
   })
 
-  it('aplica tag existente clicando na sugestao', async () => {
-    const { onApplyTag } = renderPanel()
-    fireEvent.click(screen.getByRole('button', { name: 'Adicionar tag' }))
-    const suggestion = await screen.findByRole('button', { name: '#quimica' })
-    fireEvent.click(suggestion)
-    expect(onApplyTag).toHaveBeenCalledWith('quimica')
-  })
-
-  it('remove tag pelo X dentro da badge (visivel no hover)', () => {
-    const { onRemoveTag } = renderPanel()
-    // O botao de remocao vive DENTRO da badge, a direita do nome.
-    const badge = screen.getByText('#biologia')
-    const removeButton = screen.getByRole('button', { name: 'Remover tag biologia' })
-    expect(badge.contains(removeButton)).toBe(true)
-    fireEvent.click(removeButton)
-    expect(onRemoveTag).toHaveBeenCalledWith('biologia')
+  it('mostra observacoes em linguagem simples e oculta a secao sem notas', () => {
+    const { unmount } = render(
+      <FrontmatterPanelForm
+        rows={[]}
+        backlinks={[]}
+        brokenLinks={[]}
+        compatibilityNotes={['Partes em HTML aparecem simplificadas na leitura, mas o texto original continua intacto no arquivo.']}
+        onApply={vi.fn().mockReturnValue(null)}
+        onOpenBacklink={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Observações')).toBeInTheDocument()
+    expect(screen.getByText(/texto original continua intacto/)).toBeInTheDocument()
+    unmount()
+    renderPanel()
+    expect(screen.queryByText('Observações')).toBeNull()
   })
 })

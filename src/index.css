@@ -1,4 +1,10 @@
 :root {
+  /* Superficie clara declarada: sem isso o valor inicial `normal` faz o
+   * Chromium herdar a preferencia do SO — com Windows em modo escuro, ele
+   * serve a variante BRANCA do I-beam nativo mesmo sobre o papel claro
+   * (invisivel), e nenhum `cursor:` muda isso (forma, nao cor). O bloco
+   * escuro abaixo reescopa para `dark`. */
+  color-scheme: light;
   --text: #4d5048;
   --text-h: #1c2427;
   --muted: #7e7466;

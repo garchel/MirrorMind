@@ -10,7 +10,7 @@ import type { DecorationSet } from '@codemirror/view'
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import type { Tree } from '@lezer/common'
-import { parseObsidianEmbed } from '../lib/markdown'
+import { parseObsidianEmbed, resolveObsidianWikiLinkPath } from '../lib/markdown'
 import { extractObsidianEmbedFragment } from '../lib/obsidianEmbed'
 import type { PluginBlockLanguage } from '../lib/pluginBlocks'
 import type { NoteReviewGap } from '../features/review/noteReviewGaps'
@@ -79,13 +79,23 @@ export type LivePreviewOptions = {
    * posicoes resolvidas no doc atual. Getter via ref do componente; o campo
    * de post-its escuta o efeito `postitDataEffect`. null = sem post-its. */
   getPostitData?: () => PostitData | null
+  /** Clique na faixa da frase ancorada (marca com `data-postit-range-id`).
+   * Getter via ref do componente (mesmo padrao do `getOpenLink`). */
+  getPostitClick?: () => ((id: string) => void) | undefined
+  /** Caminhos `.md` do vault (via ref do componente): `[[alvo]]` sem nota
+   * correspondente ganha a classe `is-broken` (tom vinho). Sem inventario,
+   * nenhum link e acusado de quebrado. */
+  getNotePaths?: () => string[]
+  /** Caminho da nota atual (via ref do componente): base da resolucao
+   * relativa de wikilinks (mesma logica do clique). */
+  getSourcePath?: () => string
 }
 
 /** Post-its resolvidos para o doc atual do editor (offsets absolutos do doc,
  * calculados pelo App a partir do markdown completo). */
 export type PostitData = {
   /** Post-its com ancora encontrada: offset do inicio do paragrafo no doc. */
-  anchored: Array<{ postit: NotePostit; from: number }>
+  anchored: Array<{ postit: NotePostit; from: number; range: { from: number; to: number } | null }>
   /** Post-its orfaos (paragrafo sumiu/editado): nao recebem widget, mas o
    * popover de orfaos lista os textos. */
   orphans: NotePostit[]
@@ -104,9 +114,6 @@ export type FrontmatterBacklink = { name: string; relativePath: string }
 export type FrontmatterBrokenLink = { target: string; displayName: string }
 export type FrontmatterPanelData = {
   rows: FrontmatterRow[]
-  /** Exclui a propriedade `tags` (renderizada pela secao de Tags com badges). */
-  tags: string[]
-  availableTags: string[]
   backlinks: FrontmatterBacklink[]
   brokenLinks: FrontmatterBrokenLink[]
 }
@@ -693,6 +700,7 @@ const emMark = Decoration.mark({ class: 'cm-live-em' })
 const strikeMark = Decoration.mark({ class: 'cm-live-strike' })
 const codeMark = Decoration.mark({ class: 'cm-live-code' })
 const linkMark = Decoration.mark({ class: 'cm-live-link' })
+const linkBrokenMark = Decoration.mark({ class: 'cm-live-link is-broken' })
 const quoteMark = Decoration.mark({ class: 'cm-live-quote' })
 const fenceContentMark = Decoration.mark({ class: 'cm-live-fence-content' })
 const headingMarks = [1, 2, 3, 4, 5, 6].map((level) => Decoration.mark({ class: `cm-live-heading cm-live-h${level}` }))
@@ -730,27 +738,45 @@ function markdownLinkTarget(hrefSource: string): LinkTarget {
   return { kind: 'url', href }
 }
 
+/** `true` quando o alvo `[[...]]` nao tem nota correspondente no vault
+ * (mesma resolucao do clique: relativo + sufixo `.md` + basename).
+ * URLs externas nunca sao quebradas; sem inventario, nada e acusado. */
+function isMissingWikiTarget(target: LinkTarget, options: LivePreviewOptions): boolean {
+  if (target.kind !== 'note') return false
+  const notePaths = options.getNotePaths?.() ?? []
+  if (notePaths.length === 0) return false
+  const sourcePath = options.getSourcePath?.() ?? ''
+  const resolveCandidate = (candidate: string) => resolveObsidianWikiLinkPath(candidate, sourcePath, notePaths)
+  let resolved = resolveCandidate(target.path)
+  if (resolved === target.path && !target.path.toLowerCase().endsWith('.md')) {
+    resolved = resolveCandidate(`${target.path}.md`)
+  }
+  return !notePaths.some((path) => path.toLowerCase() === resolved.toLowerCase())
+}
+
 // Link clicavel: substitui o texto interno mascarado por um widget que navega
 // ao clique (o cursor NAO esta perto — senao o token estaria revelado).
 class LinkWidget extends WidgetType {
   private readonly text: string
   private readonly target: LinkTarget
+  private readonly broken: boolean
   private readonly getOpenLink: LivePreviewOptions['getOpenLink']
 
-  constructor(text: string, target: LinkTarget, getOpenLink: LivePreviewOptions['getOpenLink']) {
+  constructor(text: string, target: LinkTarget, broken: boolean, getOpenLink: LivePreviewOptions['getOpenLink']) {
     super()
     this.text = text
     this.target = target
+    this.broken = broken
     this.getOpenLink = getOpenLink
   }
 
   eq(other: LinkWidget) {
-    return other.text === this.text && linkTargetsEqual(other.target, this.target)
+    return other.text === this.text && other.broken === this.broken && linkTargetsEqual(other.target, this.target)
   }
 
   toDOM() {
     const span = document.createElement('span')
-    span.className = 'cm-live-link cm-live-link-widget'
+    span.className = `cm-live-link cm-live-link-widget${this.broken ? ' is-broken' : ''}`
     span.textContent = this.text
     span.setAttribute('role', 'link')
     span.addEventListener('click', (event) => {
@@ -1134,9 +1160,10 @@ function tokenDecorations(token: MaskToken, doc: Text, options: LivePreviewOptio
         : markdownLinkTarget(doc.sliceString(token.innerTo, token.to))
       const innerLine = lineNumberAt(doc, token.innerFrom)
       const spansLineBreak = lineNumberAt(doc, Math.max(token.innerFrom, token.innerTo - 1)) !== innerLine
+      const broken = isMissingWikiTarget(target, options)
       const contentDecoration = spansLineBreak
-        ? linkMark
-        : Decoration.replace({ widget: new LinkWidget(innerText, target, options.getOpenLink) })
+        ? (broken ? linkBrokenMark : linkMark)
+        : Decoration.replace({ widget: new LinkWidget(innerText, target, broken, options.getOpenLink) })
       return [
         { from: token.from, to: token.innerFrom, decoration: hidden },
         { from: token.innerFrom, to: token.innerTo, decoration: contentDecoration },
@@ -2897,16 +2924,94 @@ class PostitAnchorWidget extends WidgetType {
   }
 }
 
+/** Bolinha inline no inicio da frase ancorada: abre o post-it (botao real,
+ * focavel por teclado). O texto da faixa segue 100% editavel — o clique no
+ * texto posiciona o cursor, so a bolinha abre. Sem `title` nativo (a mesma
+ * corrida de tooltip que prendia o cursor branco). */
+class PostitRangeDotWidget extends WidgetType {
+  private readonly postit: NotePostit
+
+  constructor(postit: NotePostit) {
+    super()
+    this.postit = postit
+  }
+
+  eq(other: PostitRangeDotWidget) {
+    return other.postit === this.postit
+  }
+
+  toDOM() {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'postit-range-dot'
+    button.dataset.postitId = this.postit.id
+    button.style.setProperty('--postit-color', POSTIT_COLOR_HEX[this.postit.color])
+    const label = this.postit.text.trim().slice(0, 80)
+    button.setAttribute('aria-label', `Abrir post-it: ${label || 'sem texto'}`)
+    button.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const handler = postitClickHandlers.get(this.postit.id) ?? postitClickHandlers.get('*')
+      handler?.(this.postit.id)
+    })
+    // Hover revela o popover (peek) e sair agenda o fechamento — o App
+    // decide (com tolerancia para atravessar ate o popover). A faixa ganha
+    // a classe de destaque junto (mesma opacidade do hover direto). Sem
+    // `title` nativo (a mesma corrida de tooltip que prendia o cursor branco).
+    const peekFor = (run: (handler: PostitPeekHandler) => void) => {
+      const specific = postitPeekHandlers.get(this.postit.id)
+      if (specific) {
+        run(specific)
+        return
+      }
+      const wildcard = postitPeekHandlers.get('*')
+      if (wildcard) run(wildcard)
+    }
+    const setRangeEmphasis = (on: boolean) => {
+      for (const mark of document.querySelectorAll(`[data-postit-range-id="${CSS.escape(this.postit.id)}"]`)) {
+        mark.classList.toggle('is-dot-hover', on)
+      }
+    }
+    button.addEventListener('mouseenter', () => {
+      setRangeEmphasis(true)
+      peekFor((handler) => handler.onOpen(this.postit.id))
+    })
+    button.addEventListener('mouseleave', () => {
+      setRangeEmphasis(false)
+      peekFor((handler) => handler.onClose(this.postit.id))
+    })
+    return button
+  }
+
+  ignoreEvent() {
+    return true
+  }
+}
+
 /** Handlers de clique por id (ou '*' para qualquer um). Registrado pelo
  * MarkdownCodeEditor a partir de uma prop do App; widgets CM nao tem acesso a
  * props React. */
 const postitClickHandlers = new Map<string, (id: string) => void>()
-
 /** Registra o handler de clique dos widgets de post-it (id especifico ou '*'
  * para capturar qualquer clique). Retorna a funcao de desregistro. */
 export function registerPostitClickHandler(id: string, handler: (id: string) => void): () => void {
   postitClickHandlers.set(id, handler)
   return () => { postitClickHandlers.delete(id) }
+}
+
+/** Peek por hover na bolinha: abrir sem roubar o foco + agendar fechar com
+ * tolerancia para atravessar ate o popover. Mesma chave '*' do clique. */
+export type PostitPeekHandler = {
+  onOpen: (id: string) => void
+  onClose: (id: string) => void
+}
+
+const postitPeekHandlers = new Map<string, PostitPeekHandler>()
+
+/** Registra o handler de peek (id especifico ou '*'). Retorna o desregistro. */
+export function registerPostitPeekHandler(id: string, handler: PostitPeekHandler): () => void {
+  postitPeekHandlers.set(id, handler)
+  return () => { postitPeekHandlers.delete(id) }
 }
 
 type PostitFieldValue = { decorations: DecorationSet }
@@ -2915,7 +3020,22 @@ function buildPostitField(doc: Text, data: PostitData | null): PostitFieldValue 
   const ranges: Range<Decoration>[] = []
   if (!data || data.anchored.length === 0) return { decorations: RangeSet.of(ranges, true) }
   const content = doc.toString()
-  for (const { postit, from } of data.anchored) {
+  for (const { postit, from, range } of data.anchored) {
+    // Faixa da frase (post-it com citacao): marca inline na cor do post-it
+    // (fundo no hover via CSS) + bolinha que abre — o texto segue editavel
+    // e dois post-its na mesma linha nunca se sobrepoem (bolinhas em
+    // posicoes distintas). Fora dos limites do doc, ignora.
+    if (range && range.from >= 0 && range.to <= content.length && range.from < range.to) {
+      ranges.push(Decoration.widget({ widget: new PostitRangeDotWidget(postit), side: -1 }).range(range.from, range.from))
+      ranges.push(Decoration.mark({
+        class: 'cm-live-postit-range',
+        attributes: {
+          'data-postit-range-id': postit.id,
+          style: `--postit-color: ${POSTIT_COLOR_HEX[postit.color]}`,
+        },
+      }).range(range.from, range.to))
+      continue
+    }
     if (from < 0 || from > content.length) continue
     // Ancora no inicio da linha do paragrafo: side -1 fica ANTES do primeiro
     // caractere (mesmo esquema do badge de unidade, espelhado).

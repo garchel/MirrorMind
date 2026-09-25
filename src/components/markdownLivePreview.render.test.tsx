@@ -208,6 +208,36 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(onOpenLink).toHaveBeenCalledWith({ kind: 'note', path: 'fotosintese', fragment: undefined })
   })
 
+  it('wikilink existente fica azul; inexistente ganha is-broken (vinho)', async () => {
+    const { container } = render(
+      <MarkdownCodeEditor
+        documentKey="atual.md"
+        livePreview
+        onChange={vi.fn()}
+        onHistoryChange={vi.fn()}
+        onOpenLink={vi.fn()}
+        onSessionChange={vi.fn()}
+        autocompleteData={{ attachments: [], notePaths: ['atual.md', 'Pasta/fotosintese.md'], tags: [] }}
+        session={{ selectionStart: 0, selectionEnd: 0, scrollTop: 0 }}
+        value="Veja [[fotosintese]] e [[nota-nova]] e [site](https://exemplo.com/x)."
+      />,
+    )
+    await waitFor(() => expect(container.querySelectorAll('.cm-live-link-widget').length).toBe(3))
+    const widgets = container.querySelectorAll<HTMLElement>('.cm-live-link-widget')
+    // Por basename resolve: sem classe de quebrado.
+    expect(widgets[0].classList.contains('is-broken')).toBe(false)
+    // Sem nota correspondente: quebrado (clicar ainda cria a nota).
+    expect(widgets[1].classList.contains('is-broken')).toBe(true)
+    // URL externa nunca e quebrada.
+    expect(widgets[2].classList.contains('is-broken')).toBe(false)
+  })
+
+  it('sem inventario nenhum wikilink e acusado de quebrado', async () => {
+    const container = await renderLive('Veja [[nota-nova]].', 0)
+    await waitFor(() => expect(container.querySelector('.cm-live-link-widget')).not.toBeNull())
+    expect(container.querySelector('.cm-live-link-widget.is-broken')).toBeNull()
+  })
+
   it('imagem markdown ![alt](url) vira um <img> com a URL remota', async () => {
     const container = await renderLive('Veja ![cloroplasto](https://exemplo.com/img.png).')
     await waitFor(() => expect(container.querySelector('.cm-live-image')).not.toBeNull())
@@ -849,6 +879,17 @@ describe('markdownLivePreview HTML sanitizado (jsdom)', () => {
     expect(container.querySelector('.cm-live-hl.hl-green')?.textContent).toBe('destaque')
   })
 
+  it('marcas adjacentes de cores distintas viram um span por cor (juncao visual pelo CSS)', async () => {    // Troca de cor no meio da palavra ("Dependencia" com "pe" amarelo e "n"
+    // azul): cada cor vira um `.cm-live-hl` proprio; o CSS zera o padding
+    // horizontal das marcas, entao nao ha espacamento entre elas.
+    const container = await renderLive('De<mark class="hl-yellow">pe</mark><mark class="hl-blue">n</mark>dencia fim', 0)
+    await waitFor(() => expect(container.querySelectorAll('.cm-live-hl').length).toBe(2))
+    const [first, second] = container.querySelectorAll<HTMLElement>('.cm-live-hl')
+    expect(first.textContent).toBe('pe')
+    expect(second.textContent).toBe('n')
+    expect(second.classList.contains('hl-blue')).toBe(true)
+  })
+
   it('lacuna dentro do destaque vira halo em volta (gap maior que a cor)', async () => {
     const value = 'Texto com <mark class="hl-green">destaque</mark> fim'
     const from = value.indexOf('destaque')
@@ -1246,5 +1287,102 @@ describe('markdownLivePreview lacunas da revisão (jsdom)', () => {
     const container = await renderReadOnly(tabled, undefined, undefined, undefined, undefined, undefined, data)
     await waitFor(() => expect(container.querySelector('.cm-editor')).not.toBeNull())
     expect(container.querySelector('.cm-live-gap')).toBeNull()
+  })
+})
+
+describe('markdownLivePreview post-its por frase (jsdom)', () => {
+  const rangePostit = {
+    id: 'postit-range-1',
+    anchorText: 'Texto frase aqui.',
+    anchorOrdinal: 0,
+    range: { quote: 'frase', prefix: 'Texto', suffix: 'aqui.', occurrence: 0 },
+    color: 'blue' as const,
+    text: 'nota sobre a frase',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  }
+
+  function renderWithPostits(
+    postitData: { anchored: Array<{ postit: Omit<typeof rangePostit, 'range'> & { range: typeof rangePostit.range | null }; from: number; range: { from: number; to: number } | null }>; orphans: never[] },
+    onPostitClick?: (id: string) => void,
+    onPostitPeek?: { onOpen: (id: string) => void; onClose: (id: string) => void },
+  ) {
+    return render(
+      <MarkdownCodeEditor
+        documentKey="nota.md"
+        livePreview
+        onChange={vi.fn()}
+        onHistoryChange={vi.fn()}
+        onOpenLink={vi.fn()}
+        onPostitClick={onPostitClick ?? vi.fn()}
+        onPostitPeek={onPostitPeek}
+        onSessionChange={vi.fn()}
+        postitData={postitData}
+        session={{ selectionStart: 0, selectionEnd: 0, scrollTop: 0 }}
+        value="Texto frase aqui."
+      />,
+    )
+  }
+
+  it('faixa resolvida vira marca na cor do post-it + bolinha (sem pino)', async () => {
+    const { container } = renderWithPostits({ anchored: [{ postit: rangePostit, from: 0, range: { from: 6, to: 11 } }], orphans: [] })
+    await waitFor(() => expect(container.querySelector('.cm-live-postit-range')).not.toBeNull())
+    const mark = container.querySelector<HTMLElement>('.cm-live-postit-range')!
+    expect(mark.textContent).toBe('frase')
+    expect(mark.getAttribute('data-postit-range-id')).toBe('postit-range-1')
+    expect(mark.style.getPropertyValue('--postit-color')).toBe('#99c9ff')
+    const dot = container.querySelector<HTMLElement>('.postit-range-dot')!
+    expect(dot.getAttribute('aria-label')).toBe('Abrir post-it: nota sobre a frase')
+    // Sem pino: dois post-its na mesma linha nunca se sobrepoem.
+    expect(container.querySelector('.postit-anchor-widget')).toBeNull()
+  })
+
+  it('sem faixa resolvida mantem o pino de paragrafo (legado)', async () => {
+    const { container } = renderWithPostits({
+      anchored: [{ postit: { ...rangePostit, id: 'postit-legacy', range: null }, from: 0, range: null }],
+      orphans: [],
+    })
+    await waitFor(() => expect(container.querySelector('.postit-anchor-widget')).not.toBeNull())
+    expect(container.querySelector('.cm-live-postit-range')).toBeNull()
+  })
+
+  it('clique na bolinha abre o post-it; clique no texto nao abre (edicao)', async () => {
+    const onPostitClick = vi.fn()
+    const { container } = renderWithPostits(
+      { anchored: [{ postit: rangePostit, from: 0, range: { from: 6, to: 11 } }], orphans: [] },
+      onPostitClick,
+    )
+    await waitFor(() => expect(container.querySelector('.postit-range-dot')).not.toBeNull())
+    fireEvent.click(container.querySelector('.cm-live-postit-range')!)
+    expect(onPostitClick).not.toHaveBeenCalled()
+    fireEvent.click(container.querySelector('.postit-range-dot')!)
+    expect(onPostitClick).toHaveBeenCalledWith('postit-range-1')
+  })
+
+  it('hover na bolinha dispara o peek (abrir sem foco + agendar fechar)', async () => {
+    const onOpen = vi.fn()
+    const onClose = vi.fn()
+    const { container } = renderWithPostits(
+      { anchored: [{ postit: rangePostit, from: 0, range: { from: 6, to: 11 } }], orphans: [] },
+      undefined,
+      { onOpen, onClose },
+    )
+    await waitFor(() => expect(container.querySelector('.postit-range-dot')).not.toBeNull())
+    fireEvent.mouseEnter(container.querySelector('.postit-range-dot')!)
+    expect(onOpen).toHaveBeenCalledWith('postit-range-1')
+    fireEvent.mouseLeave(container.querySelector('.postit-range-dot')!)
+    expect(onClose).toHaveBeenCalledWith('postit-range-1')
+  })
+
+  it('hover na bolinha acende a borda da faixa (is-dot-hover)', async () => {
+    const { container } = renderWithPostits(
+      { anchored: [{ postit: rangePostit, from: 0, range: { from: 6, to: 11 } }], orphans: [] },
+    )
+    await waitFor(() => expect(container.querySelector('.postit-range-dot')).not.toBeNull())
+    const mark = container.querySelector('.cm-live-postit-range')!
+    fireEvent.mouseEnter(container.querySelector('.postit-range-dot')!)
+    expect(mark.classList.contains('is-dot-hover')).toBe(true)
+    fireEvent.mouseLeave(container.querySelector('.postit-range-dot')!)
+    expect(mark.classList.contains('is-dot-hover')).toBe(false)
   })
 })

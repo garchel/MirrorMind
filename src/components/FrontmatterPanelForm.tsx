@@ -1,26 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, X } from 'lucide-react'
-import { Badge } from './ui/badge'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, Plus, X } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { COMMON_PROPERTIES, propertyIcon } from '../lib/commonProperties'
 import type { FrontmatterBacklink, FrontmatterBrokenLink, FrontmatterRow } from './markdownLivePreview'
 
 type FrontmatterPanelFormProps = {
   /** Linhas atuais (chave + valor YAML cru) do frontmatter, SEM a propriedade
-   * `tags` (que e renderizada pela secao de Tags com badges). */
+   * `tags` (que e renderizada pela linha de Tags abaixo do titulo). */
   rows: FrontmatterRow[]
-  /** Tags atuais da nota (badges). */
-  tags: string[]
-  /** Todas as tags do vault (sugestoes do popover de adicionar tag). */
-  availableTags: string[]
-  /** Aplica uma tag (cria com Enter ou aplica uma sugestao existente). */
-  onApplyTag: (tag: string) => void
-  /** Remove uma tag da nota (X no hover da badge). */
-  onRemoveTag: (tag: string) => void
   /** Notas que referenciam a nota atual ("Referenciada por"). */
   backlinks: FrontmatterBacklink[]
   /** Links quebrados da nota atual (chips nao clicaveis com nome curto). */
   brokenLinks: FrontmatterBrokenLink[]
+  /** Avisos em linguagem simples sobre trechos com exibicao limitada
+   * (ex.: HTML simplificado). Secao discreta no fim do painel. */
+  compatibilityNotes?: string[]
   /** Aplica as linhas (ao vivo, com debounce); retorna mensagem de erro ou
    * null. O App atualiza o draft preservando o YAML byte a byte. */
   onApply: (rows: FrontmatterRow[]) => string | null
@@ -31,17 +25,17 @@ type FrontmatterPanelFormProps = {
 /* Propriedades comuns (chave, rotulo, icone) vivem em lib/commonProperties.ts
    — a MESMA lista usada pelo seletor de colunas da pagina Tabela. */
 
-/** Painel integrado do frontmatter (modo Misto): secao de Tags (badges + "+"
- * com campo de digitação e sugestões) e de Propriedades (chave + valor, com
- * "+" abrindo um popover só com ícones das propriedades comuns), além dos
- * backlinks. Sem borda, título nem botoes de Aplicar/Cancelar — parece parte
- * do header e grava ao vivo (debounce). */
-export function FrontmatterPanelForm({ availableTags, backlinks, brokenLinks, onApply, onApplyTag, onOpenBacklink, onRemoveTag, rows, tags }: FrontmatterPanelFormProps) {
+/** Painel integrado do frontmatter (modo Misto): secao de Propriedades
+ * (chave + valor, com "+" abrindo um popover só com ícones das propriedades
+ * comuns), além dos backlinks. As Tags moram na linha abaixo do titulo
+ * (NoteTagRow). Sem borda, título nem botoes de Aplicar/Cancelar — parece
+ * parte do header e grava ao vivo (debounce). */
+export function FrontmatterPanelForm({ backlinks, brokenLinks, compatibilityNotes = [], onApply, onOpenBacklink, rows }: FrontmatterPanelFormProps) {
   const [draft, setDraft] = useState<FrontmatterRow[]>(rows)
   const [error, setError] = useState<string | null>(null)
   const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false)
-  const [tagsPopoverOpen, setTagsPopoverOpen] = useState(false)
-  const [tagQuery, setTagQuery] = useState('')
+  const [backlinksOpen, setBacklinksOpen] = useState(true)
+  const [brokenOpen, setBrokenOpen] = useState(true)
   const onApplyRef = useRef(onApply)
   onApplyRef.current = onApply
   const skipFirstApplyRef = useRef(true)
@@ -74,89 +68,8 @@ export function FrontmatterPanelForm({ availableTags, backlinks, brokenLinks, on
     setError(null)
   }
 
-  /** Tags existentes que casam com a digitacao (exclui as ja aplicadas). */
-  const suggestedTags = useMemo(() => {
-    const query = tagQuery.trim().toLowerCase()
-    return [...new Set(availableTags)]
-      .filter((tag) => !tags.includes(tag))
-      .filter((tag) => !query || tag.toLowerCase().includes(query))
-      .sort((left, right) => left.localeCompare(right, 'pt-BR'))
-  }, [availableTags, tags, tagQuery])
-
-  function applyTag(tag: string) {
-    const normalized = tag.trim().replace(/^#/, '')
-    if (!normalized) return
-    onApplyTag(normalized)
-    setTagsPopoverOpen(false)
-    setTagQuery('')
-  }
-
   return (
     <div className="frontmatter-panel" data-testid="frontmatter-panel">
-      {/* Secao de Tags: badges das tags atuais + botao "+" que abre um popover
-          com campo de digitacao na primeira linha e as tags existentes como
-          sugestoes (filtra conforme digita; Enter cria a tag digitada). */}
-      <section className="frontmatter-panel-section frontmatter-panel-tags" aria-label="Tags">
-        <div className="frontmatter-panel-section-head">
-          <span className="frontmatter-panel-section-title">Tags</span>
-          <Popover open={tagsPopoverOpen} onOpenChange={(open) => { setTagsPopoverOpen(open); if (!open) setTagQuery('') }}>
-            <PopoverTrigger asChild>
-              <button type="button" className="frontmatter-panel-add" aria-label="Adicionar tag" title="Adicionar tag">
-                <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={6} className="frontmatter-tag-popover">
-              <input
-                autoFocus
-                value={tagQuery}
-                onChange={(event) => setTagQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    applyTag(tagQuery)
-                  }
-                }}
-                placeholder="Digite e Enter para criar"
-                aria-label="Nome da nova tag"
-                spellCheck={false}
-                autoComplete="off"
-              />
-              {suggestedTags.length > 0 ? (
-                <div className="frontmatter-tag-popover-list">
-                  {suggestedTags.map((tag) => (
-                    <button key={tag} type="button" onClick={() => applyTag(tag)}>
-                      #{tag}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              {suggestedTags.length === 0 && tagQuery.trim() ? (
-                <p className="frontmatter-tag-popover-hint">Pressione Enter para criar #{tagQuery.trim().replace(/^#/, '')}</p>
-              ) : null}
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div className="frontmatter-panel-tag-row">
-          {tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="frontmatter-panel-tag-badge">
-              #{tag}
-              {/* X dentro da badge, visivel no hover (a badge cresce para
-                  revela-lo): remove a tag da nota. */}
-              <button
-                type="button"
-                className="frontmatter-panel-tag-remove"
-                onClick={() => onRemoveTag(tag)}
-                aria-label={`Remover tag ${tag}`}
-                title={`Remover #${tag}`}
-              >
-                <X size={10} strokeWidth={2.2} aria-hidden="true" />
-              </button>
-            </Badge>
-          ))}
-          {tags.length === 0 ? <span className="frontmatter-panel-empty">Nenhuma tag ainda.</span> : null}
-        </div>
-      </section>
-
       {/* Secao de Propriedades: chave + valor YAML cru (sem a propriedade
           tags). O botao "+" abre um popover com apenas os icones das
           propriedades comuns (ex.: telefone → phone). */}
@@ -232,34 +145,66 @@ export function FrontmatterPanelForm({ availableTags, backlinks, brokenLinks, on
 
       {backlinks.length > 0 ? (
         <section className="frontmatter-panel-section frontmatter-panel-backlinks" aria-label="Backlinks">
-          <span className="frontmatter-panel-section-title">Referenciada por</span>
-          <div className="frontmatter-panel-backlink-list">
-            {backlinks.map((backlink) => (
-              <button
-                key={backlink.relativePath}
-                type="button"
-                className="frontmatter-panel-backlink"
-                onClick={() => onOpenBacklink(backlink.relativePath)}
-              >
-                {backlink.name}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            className="frontmatter-panel-section-toggle"
+            aria-expanded={backlinksOpen}
+            onClick={() => setBacklinksOpen((open) => !open)}
+          >
+            <span className="frontmatter-panel-section-title">Referenciada por ({backlinks.length})</span>
+            <ChevronDown size={13} strokeWidth={2} aria-hidden="true" className="frontmatter-panel-section-chevron" />
+          </button>
+          {backlinksOpen ? (
+            <div className="frontmatter-panel-backlink-list">
+              {backlinks.map((backlink) => (
+                <button
+                  key={backlink.relativePath}
+                  type="button"
+                  className="frontmatter-panel-backlink"
+                  onClick={() => onOpenBacklink(backlink.relativePath)}
+                >
+                  {backlink.name}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </section>
       ) : null}
 
-      {/* Links quebrados: contagem no titulo + chips compactos com o nome curto
-          (tooltip com o alvo completo). Nao sao botoes: o destino nao existe. */}
+      {/* Links pendentes: apontam para notas que ainda nao existem (contagem
+          no titulo + chips compactos com o nome curto e alvo completo no
+          tooltip). Nao sao botoes: o destino nao existe. */}
       {brokenLinks.length > 0 ? (
-        <section className="frontmatter-panel-section frontmatter-panel-backlinks" aria-label="Links quebrados">
-          <span className="frontmatter-panel-section-title">Links quebrados ({brokenLinks.length})</span>
-          <div className="frontmatter-panel-backlink-list">
-            {brokenLinks.map((broken) => (
-              <span key={broken.target} className="frontmatter-panel-broken" title={broken.target}>
-                {broken.displayName}
-              </span>
-            ))}
-          </div>
+        <section className="frontmatter-panel-section frontmatter-panel-backlinks" aria-label="Links pendentes">
+          <button
+            type="button"
+            className="frontmatter-panel-section-toggle"
+            aria-expanded={brokenOpen}
+            title="Apontam para notas que ainda não existem"
+            onClick={() => setBrokenOpen((open) => !open)}
+          >
+            <span className="frontmatter-panel-section-title">Links pendentes ({brokenLinks.length})</span>
+            <ChevronDown size={13} strokeWidth={2} aria-hidden="true" className="frontmatter-panel-section-chevron" />
+          </button>
+          {brokenOpen ? (
+            <div className="frontmatter-panel-backlink-list">
+              {brokenLinks.map((broken) => (
+                <span key={broken.target} className="frontmatter-panel-broken" title={broken.target}>
+                  {broken.displayName}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+      {/* Observacoes sobre a nota: trechos com exibicao limitada, explicados
+          em linguagem simples (o texto original segue intacto). */}
+      {compatibilityNotes.length > 0 ? (
+        <section className="frontmatter-panel-section frontmatter-panel-backlinks" aria-label="Observações sobre a nota">
+          <span className="frontmatter-panel-section-title">Observações</span>
+          {compatibilityNotes.map((note) => (
+            <p key={note} className="frontmatter-panel-note">{note}</p>
+          ))}
         </section>
       ) : null}
     </div>

@@ -8,9 +8,11 @@ import { invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, Check, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, ExternalLink, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, LayoutDashboard, Link, Link2, List, ListFilter, ListOrdered, Minus, Network, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Sigma, Sparkles, Star, StickyNote, Strikethrough, Subscript, Superscript, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, Check, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, ExternalLink, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, LayoutDashboard, Link, Link2, List, ListFilter,
+ListOrdered, Minus, MoreHorizontal, Network, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Sigma, Star, Strikethrough, Subscript, Superscript, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { File02Icon } from '@hugeicons/core-free-icons'
+import { File02Icon, HighlighterIcon, StickyNote02Icon } from '@hugeicons/core-free-icons'
+import { RiFocus2Fill, RiFocus2Line } from '@remixicon/react'
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import 'katex/dist/katex.min.css'
 import { BuilderModeControl } from './components/BuilderModeControl'
@@ -20,6 +22,7 @@ import type { FrontmatterPanelData, FrontmatterRow, LinkTarget, PostitData } fro
 import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from './components/ui/drawer'
 import { NoteReadinessControl, type ReviewStartInfo } from './features/review/NoteReadinessControl'
+import { NoteStructureReport } from './features/review/NoteStructureReport'
 import { applyStructuralAuditEdit } from './features/review/structuralAuditApply'
 import { NoteReviewPolicyControl } from './features/review/NoteReviewPolicyControl'
 import type { ExpiredDeadlineItem, UpcomingDeadlineItem } from './features/review/reviewDashboard'
@@ -32,6 +35,7 @@ import { ReviewAiSettings } from './features/review/ReviewAiSettings'
 import { ReviewNotificationSettings } from './features/review/ReviewNotificationSettings'
 import { checkReviewNotifications, type ReviewNotificationCheck } from './features/review/reviewNotifications'
 import { localDayStartUnixMs } from './features/review/reviewDashboard'
+import { nudgeCursor } from './lib/nudgeCursor'
 import { SegmentationSettings } from './features/review/SegmentationSettings'
 import { VaultReviewPolicySettings } from './features/review/VaultReviewPolicySettings'
 import { isAutoUpdateEnabled, setAutoUpdateEnabled, useAppUpdater } from './lib/useAppUpdater'
@@ -94,8 +98,9 @@ import {
 } from './lib/vault'
 import './App.css'
 import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, displayWikilinkTargetName, extractMarkdownTags, extractObsidianWikiLinks, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, normalizeMarkdownTag, removeMarkdownFrontmatterProperty, replaceMarkdownBody, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, transformMarkdownTable, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
-import { addNotePostit, deriveAnchorFromParagraph, getNotePostits, POSTIT_COLORS, POSTIT_COLOR_HEX, POSTIT_COLOR_LABELS, POSTIT_MAX_CHARS, removeNotePostit, resolvePostitAnchors, updateNotePostit, type NotePostit, type PostitColor } from './lib/postits'
+import { addNotePostit, deriveAnchorFromParagraph, deriveRangeAnchorFromSelection, getNotePostits, POSTIT_COLORS, POSTIT_COLOR_HEX, POSTIT_COLOR_LABELS, POSTIT_MAX_CHARS, POSTIT_QUOTE_MAX_CHARS, postitRangesOverlap, removeNotePostit, resolvePostitAnchors, resolvePostitRange, updateNotePostit, type NotePostit, type PostitColor, type PostitRangeAnchor } from './lib/postits'
 import { FrontmatterPanelForm } from './components/FrontmatterPanelForm'
+import { NoteTagRow } from './components/NoteTagRow'
 import { nextPopoverShiftX } from './lib/selectionPopover'
 import {
   accumulateObsidianForces2D,
@@ -283,6 +288,12 @@ function updateNumberSetting(raw: string, current: number, min: number, max: num
 
 const AUTO_SAVE_DELAY_MS = 650
 
+/** Acoes do cabecalho da nota que podem ir para o menu "Mais acoes" quando a
+ * largura nao comporta (ordem de prioridade visual; o historico fica sempre
+ * visivel por ser pequeno e primario). */
+const HEADER_ACTION_KEYS = ['favorite', 'indexadora', 'review', 'factcheck'] as const
+type HeaderActionKey = (typeof HEADER_ACTION_KEYS)[number]
+
 /** Sessoes da pagina de Configuracoes, na ordem do menu lateral. */
 // three.js e pesado (~600 KB): carregado sob demanda, apenas quando o usuario
 // abre o modo 3D do grafo pela primeira vez.
@@ -299,30 +310,31 @@ const TagManagementPage = lazy(() => import('./features/tags/TagManagementPage')
 const BasesPage = lazy(() => import('./features/bases/BasesPage').then((module) => ({ default: module.BasesPage })))
 const GoalsPage = lazy(() => import('./features/goals/GoalsPage').then((module) => ({ default: module.GoalsPage })))
 
-const LIMITED_MARKDOWN_FEATURE_LABELS: Record<string, string> = {
-  html: 'HTML sanitizado',
-  'obsidian-comment': 'comentario Obsidian',
-  'plugin-block': 'bloco de plugin',
-  'plugin-inline': 'sintaxe inline de plugin',
+/** Avisos em linguagem simples sobre trechos com exibicao limitada (vão para
+ * o painel do arrow down, nao para o cabecalho). A promessa e sempre a
+ * mesma: o texto original fica intacto, so a exibicao simplifica. */
+const COMPATIBILITY_NOTES: Record<string, string> = {
+  html: 'Partes em HTML aparecem simplificadas na leitura, mas o texto original continua intacto no arquivo.',
+  'obsidian-comment': 'Comentários %% do Obsidian ficam ocultos na leitura; continuam salvos no arquivo.',
+  'plugin-block': 'Blocos de plugins (como dataview) mostram o código em vez do resultado — nada é executado nem alterado.',
+  'plugin-inline': 'Comandos de plugins no meio do texto aparecem como texto comum — nada é executado.',
 }
 
 function formatTrashDate(day: number) {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(day * 86_400_000))
 }
 
-/** Recuperacao do cursor do WebView2/Windows: apos mudancas de composicao
- * (trocar de pagina, entrar no editor — o I-beam, montar o canvas WebGL do
- * grafo), o Chromium as vezes deixa o cursor do SO preso renderizado branco
- * (perde a parte preta e fica invisivel no tema claro). Forcar uma mudanca
- * de cursor por um instante faz o compositor redesenhar o cursor nativo — o
- * mesmo mecanismo do workaround classico de "minimizar/restaurar" a janela.
- * `durationMs` curto (30-40ms) para nao piscar o cursor. */
-function nudgeCursor(durationMs = 40) {
-  const style = document.createElement('style')
-  style.textContent = '* { cursor: auto !important; }'
-  document.head.appendChild(style)
-  window.setTimeout(() => style.remove(), durationMs)
-}
+/** Itens do submenu de marca-texto (botao highlighter da toolbar): formato,
+ * rotulo em minusculas (composto nos titles/aria) e classe do dot. */
+const HIGHLIGHT_MENU_ITEMS: Array<{ format: MarkdownFormat; label: string; dotClass: string }> = [
+  { format: 'highlightYellow', label: 'amarelo', dotClass: 'hl-yellow' },
+  { format: 'highlightGreen', label: 'verde', dotClass: 'hl-green' },
+  { format: 'highlightBlue', label: 'azul', dotClass: 'hl-blue' },
+  { format: 'highlightPink', label: 'rosa', dotClass: 'hl-pink' },
+  { format: 'highlightOrange', label: 'laranja', dotClass: 'hl-orange' },
+  { format: 'highlightPurple', label: 'roxo', dotClass: 'hl-purple' },
+  { format: 'highlightRed', label: 'vermelho', dotClass: 'hl-red' },
+]
 
 function App() {
   const { provider: reviewProvider } = useReviewAiSettings()
@@ -341,13 +353,46 @@ function App() {
   // Popover de formatacao da selecao: posicao (relativa ao painel de conteudo),
   // direcao de abertura (acima/abaixo da linha do cursor da selecao) e shiftX
   // (correcao horizontal para o popover inteiro ficar dentro do painel).
+  // `formatSubmenu` abre o menu de cores para cima (marca-texto ou post-it),
+  // por clique ou hover; fecha ao escolher, no Escape ou sem selecao.
   const [selectionPopover, setSelectionPopover] = useState<{ flip: boolean; shiftX: number; x: number; y: number } | null>(null)
+  const [formatSubmenu, setFormatSubmenu] = useState<null | 'highlight' | 'postit'>(null)
+  // Sem selecao, sem submenu: o popover desmonta e o estado nao vaza para a
+  // proxima abertura.
+  useEffect(() => {
+    if (!selectionPopover) setFormatSubmenu(null)
+  }, [selectionPopover])
+  /** Fechamento com tolerancia do submenu de cores: atravessar o vao entre o
+   * botao e o menu (ou um movimento diagonal rapido) nao pode fechar na
+   * hora — agenda e cancela ao reentrar. */
+  const formatSubmenuCloseTimerRef = useRef<number | null>(null)
+  function cancelFormatSubmenuClose() {
+    if (formatSubmenuCloseTimerRef.current !== null) {
+      window.clearTimeout(formatSubmenuCloseTimerRef.current)
+      formatSubmenuCloseTimerRef.current = null
+    }
+  }
+  function openFormatSubmenu(which: 'highlight' | 'postit') {
+    cancelFormatSubmenuClose()
+    setFormatSubmenu(which)
+  }
+  function scheduleFormatSubmenuClose(which: 'highlight' | 'postit') {
+    cancelFormatSubmenuClose()
+    formatSubmenuCloseTimerRef.current = window.setTimeout(() => {
+      formatSubmenuCloseTimerRef.current = null
+      setFormatSubmenu((open) => open === which ? null : open)
+    }, 180)
+  }
   // Post-its: popover aberto (criacao ou edicao). `anchorFrom` e o offset do
   // inicio do paragrafo no doc do editor ativo; `postitId` null = novo post-it.
   const [postitPopover, setPostitPopover] = useState<{
     postitId: string | null
     /** Offset do paragrafo ancorado no doc do editor (posicao do pino). */
     anchorFrom: number | null
+    /** Ancora de frase capturada da selecao (null = post-it de paragrafo). */
+    pendingRange: PostitRangeAnchor | null
+    /** Peek por hover: aberto sem roubar o foco; qualquer interacao fixa. */
+    peek?: boolean
     /** Estado de criacao: cor inicial + texto digitado antes de salvar. */
     draftText: string
     draftColor: PostitColor
@@ -363,23 +408,40 @@ function App() {
   /** Tamanho do popover redimensionado pelo handle (null = padrao do CSS). */
   const [postitPopoverSize, setPostitPopoverSize] = useState<{ width: number; height: number } | null>(null)
   /** Ultimo snapshot commitado (evita commit redundante no auto-save). */
-  const postitLastCommittedRef = useRef<{ id: string | null; text: string; color: PostitColor } | null>(null)
+  const postitLastCommittedRef = useRef<{ id: string | null; text: string; color: PostitColor; rangeKey: string } | null>(null)
   /** Espelho de notePostits para leitura em efeitos/closures sem re-render. */
   const notePostitsRef = useRef<NotePostit[]>([])
   /** Handlers de commit/flush do post-it canalizados por ref: os efeitos de
    * auto-save e clique-fora sempre chamam a versao mais recente sem entrar
    * nas deps (padrao do useEffectEvent, compativel com o lint de hooks). */
   const postitHandlersRef = useRef<{ commit: (popover: NonNullable<typeof postitPopover>) => boolean; flush: () => void } | null>(null)
+  /** Modo "armado" da troca de area: apos clicar em "Alterar area", o
+   * popover ignora o clique-fora para o usuario conseguir selecionar o
+   * trecho com o mouse (o mousedown fecharia tudo). Escape/X fecha e
+   * desarma. Espelho em ref para o listener de mousedown. */
+  const [postitRangeArming, setPostitRangeArming] = useState(false)
+  const postitRangeArmingRef = useRef(false)
+  postitRangeArmingRef.current = postitRangeArming
+  /** Peek por hover: id com previa aberta + timer de fechamento com
+   * tolerancia para atravessar ate o popover. */
+  const postitPeekIdRef = useRef<string | null>(null)
+  const postitPeekCloseTimerRef = useRef<number | null>(null)
   // Fecha o popover ao clicar fora (mesmo padrao do dropdown de tags). Com
   // auto-save, fechar PRIMEIRO comita mudancas pendentes (debounce nao
   // disparado) — o rascunho nunca se perde por fechar cedo.
   useEffect(() => {
     if (!postitPopover) return
     const closePopover = (event: globalThis.MouseEvent) => {
+      if (postitRangeArmingRef.current) return
       if (postitPopoverRef.current && !postitPopoverRef.current.contains(event.target as Node)) {
         postitHandlersRef.current?.flush()
         setPostitPopover(null)
         setPostitPopoverSize(null)
+        postitPeekIdRef.current = null
+        if (postitPeekCloseTimerRef.current !== null) {
+          window.clearTimeout(postitPeekCloseTimerRef.current)
+          postitPeekCloseTimerRef.current = null
+        }
       }
     }
     window.addEventListener('mousedown', closePopover)
@@ -478,14 +540,27 @@ function App() {
   // Entrar na superficie do editor (explorador -> editor) troca o cursor para
   // o I-beam — outro gatilho conhecido do cursor branco. Reemite o cursor ao
   // entrar, via delegacao (a superficie e recriada quando um vault abre).
+  // O segundo vigia cobre a entrada no editor VINDO DE DENTRO da propria
+  // superficie (ex.: header/tags -> editor): as tags moram dentro de
+  // `.editor-surface`, entao esse movimento nunca re-dispara o vigia da
+  // superficie — mas a transicao de hover do "+" e o popover de tags tambem
+  // prendem o I-beam em branco no WebView2. O pulso tardio (+300ms) cobre o
+  // caso em que a transicao/animacao ainda roda quando o pulso imediato
+  // expira: o cursor so fixa depois que a composicao assenta.
   useEffect(() => {
     let insideSurface = false
+    let insideEditor = false
     const onMouseOver = (event: globalThis.MouseEvent) => {
       const target = event.target
       if (!(target instanceof Element)) return
       if (target.closest('.workspace-shell .editor-surface') && !insideSurface) {
         insideSurface = true
         nudgeCursor(30)
+      }
+      if (target.closest('.workspace-shell .codemirror-markdown-editor') && !insideEditor) {
+        insideEditor = true
+        nudgeCursor(30)
+        window.setTimeout(() => nudgeCursor(30), 300)
       }
     }
     const onMouseOut = (event: globalThis.MouseEvent) => {
@@ -497,6 +572,12 @@ function App() {
         !(related instanceof Element && related.closest('.workspace-shell .editor-surface'))
       ) {
         insideSurface = false
+      }
+      if (
+        target.closest('.workspace-shell .codemirror-markdown-editor') &&
+        !(related instanceof Element && related.closest('.workspace-shell .codemirror-markdown-editor'))
+      ) {
+        insideEditor = false
       }
     }
     document.addEventListener('mouseover', onMouseOver, { passive: true })
@@ -511,9 +592,10 @@ function App() {
   // Quando o relatorio de prontidao esta aberto, ele substitui TODO o conteudo
   // do popover (cabecalho e politica inclusos); o botao de voltar o fecha.
   const [reviewReportOpen, setReviewReportOpen] = useState(false)
-  // Auditoria estrutural deterministica (sem IA): achados + sugestoes aplicaveis
-  // uma a uma no rascunho do editor.
-  const [structuralAuditOpen, setStructuralAuditOpen] = useState(false)
+  // Auditoria estrutural deterministica (sem IA): pagina propria dentro do
+  // menu (espelho da pagina de avaliacao da nota), aberta pelo botao
+  // "Avaliar estrutura".
+  const [auditReportOpen, setAuditReportOpen] = useState(false)
   const [structuralAudit, setStructuralAudit] = useState<StructuralAudit | null>(null)
   const [structuralAuditLoading, setStructuralAuditLoading] = useState(false)
   const [structuralAuditError, setStructuralAuditError] = useState<string | null>(null)
@@ -525,6 +607,12 @@ function App() {
   const [factCheckLoading, setFactCheckLoading] = useState(false)
   const [factCheckError, setFactCheckError] = useState<string | null>(null)
   const [notificationLastCheck, setNotificationLastCheck] = useState<ReviewNotificationCheck | null>(null)
+  // Acoes do cabecalho escondidas no menu "Mais acoes" (medicao via
+  // ResizeObserver; em ordem de prioridade, da ultima para a primeira).
+  const [hiddenActions, setHiddenActions] = useState<HeaderActionKey[]>([])
+  const hiddenActionsRef = useRef<HeaderActionKey[]>([])
+  const headerActionsRef = useRef<HTMLDivElement | null>(null)
+  const headerActionsWidthRef = useRef(0)
   const [reviewGaps, setReviewGaps] = useState<NoteReviewGap[]>([])
   const [reviewUnits, setReviewUnits] = useState<NoteReviewUnit[]>([])
   const [reviewGapMode, setReviewGapMode] = usePref<ReviewGapMode>(
@@ -914,11 +1002,18 @@ function App() {
     if (!activeNote || editorMode === 'edit') return null
     const bodyStartOffset = editorMode === 'read' ? 0 : draftContent.length - noteBody.length
     const resolved = resolvePostitAnchors(notePostits, noteBody, 0)
-    const anchored: Array<{ postit: NotePostit; from: number }> = []
+    const anchored: Array<{ postit: NotePostit; from: number; range: { from: number; to: number } | null }> = []
     const orphans: NotePostit[] = []
-    for (const { postit, from } of resolved) {
-      if (from === null) orphans.push(postit)
-      else anchored.push({ postit, from: from + bodyStartOffset })
+    for (const { postit, from, range } of resolved) {
+      // Orfao SO quando paragrafo E frase falham: o segundo post-it do mesmo
+      // paragrafo tem ordinal alem das ocorrencias (from null) mas a faixa
+      // resolve — ele deve aparecer, nao sumir.
+      const rangeDoc = range ? { from: range.from + bodyStartOffset, to: range.to + bodyStartOffset } : null
+      if (from === null && rangeDoc === null) {
+        orphans.push(postit)
+        continue
+      }
+      anchored.push({ postit, from: (from ?? range!.from) + bodyStartOffset, range: rangeDoc })
     }
     return { anchored, orphans }
   }, [activeNote, draftContent, editorMode, noteBody, notePostits])
@@ -2039,17 +2134,16 @@ function App() {
     setStructuralAuditAppliedIndex(index)
   }
 
-  // Re-executa a auditoria sempre que o painel abre (o conteudo salvo pode ter
+  // Abre a pagina de estrutura (sempre re-executa: o conteudo salvo pode ter
   // mudado) e fecha/limpa ao trocar de nota.
-  useEffect(() => {
-    if (structuralAuditOpen && vault && activeNote && !isNewNoteDraft) {
-      void runStructuralAudit()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [structuralAuditOpen])
+  function openAuditReport() {
+    if (!vault || !activeNote || isNewNoteDraft) return
+    setAuditReportOpen(true)
+    void runStructuralAudit()
+  }
 
   useEffect(() => {
-    setStructuralAuditOpen(false)
+    setAuditReportOpen(false)
     setStructuralAudit(null)
     setStructuralAuditError(null)
     setStructuralAuditAppliedIndex(null)
@@ -2057,6 +2151,45 @@ function App() {
     setFactCheck(null)
     setFactCheckError(null)
   }, [activeNote?.relativePath])
+
+  useEffect(() => {
+    hiddenActionsRef.current = hiddenActions
+  }, [hiddenActions])
+
+  // Overflow do cabecalho em cascata: enquanto o conteudo exceder a largura,
+  // esconde a ultima acao visivel (ordem de prioridade). So esconde, nunca
+  // mostra — converge porque as chaves sao finitas. Sem layout real (ex.:
+  // jsdom, clientWidth 0) mantem tudo inline.
+  useEffect(() => {
+    const container = headerActionsRef.current
+    if (!container || container.clientWidth === 0) return
+    if (container.scrollWidth > container.clientWidth) {
+      const hidden = hiddenActionsRef.current
+      const victim = [...HEADER_ACTION_KEYS].reverse().find((key) => !hidden.includes(key))
+      if (victim) setHiddenActions([...hidden, victim])
+    }
+  }, [hiddenActions])
+
+  // ResizeObserver: quando o cabecalho CRESCE, tenta trazer de volta a ultima
+  // escondida (maior prioridade entre as escondidas); a cascata acima
+  // re-esconde se ainda nao couber. Sem reacao a encolhimento aqui (a cascata
+  // ja cobre) — e sem re-disparo por mover filhos (a largura do conteiner e
+  // definida pelo pai, nao pelo conteudo).
+  useEffect(() => {
+    const container = headerActionsRef.current
+    if (!container || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => {
+      const target = headerActionsRef.current
+      if (!target || target.clientWidth === 0) return
+      const hidden = hiddenActionsRef.current
+      if (hidden.length > 0 && target.clientWidth > headerActionsWidthRef.current) {
+        setHiddenActions(hidden.slice(0, -1))
+      }
+      headerActionsWidthRef.current = target.clientWidth
+    })
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
 
   /** Le todos os conteudos do Vault em UMA chamada IPC (`read_vault_notes`),
    *  ouvindo o progresso emitido pelo backend para a UI nao parecer travada em
@@ -4020,8 +4153,6 @@ function App() {
     }))
     return {
       rows,
-      tags: noteTags,
-      availableTags: tagIndex.map((entry) => entry.tag),
       backlinks: backlinkEntries,
       // Links quebrados moram no painel (secao compacta com nomes curtos);
       // `brokenLinks` chega junto com a nota e ja vem filtrado por ela.
@@ -4067,6 +4198,12 @@ function App() {
     flushPendingPostitSave()
     setPostitPopover(null)
     setPostitPopoverSize(null)
+    setPostitRangeArming(false)
+    postitPeekIdRef.current = null
+    if (postitPeekCloseTimerRef.current !== null) {
+      window.clearTimeout(postitPeekCloseTimerRef.current)
+      postitPeekCloseTimerRef.current = null
+    }
   }
 
   /** Persiste de fato o post-it (cria ou atualiza) e devolve true quando
@@ -4079,12 +4216,12 @@ function App() {
       if (anchorText === null) return false
       const text = popover.draftText.trim()
       if (!text) return false
-      const result = addNotePostit(draftContent, { anchorText, color: popover.draftColor, text })
+      const result = addNotePostit(draftContent, { anchorText, color: popover.draftColor, text, range: popover.pendingRange })
       if (result.error) return false
       setDraftContent(result.content)
       // Vira edicao do post-it criado: proximos auto-saves atualizam.
       setPostitPopover((current) => current ? { ...current, postitId: result.postits[result.postits.length - 1].id } : current)
-      postitLastCommittedRef.current = { id: null, text: popover.draftText, color: popover.draftColor }
+      postitLastCommittedRef.current = { id: null, text: popover.draftText, color: popover.draftColor, rangeKey: JSON.stringify(popover.pendingRange ?? null) }
       return true
     }
     const text = popover.draftText.trim()
@@ -4094,10 +4231,16 @@ function App() {
       if (!result.error) setDraftContent(result.content)
       return true
     }
-    const result = updateNotePostit(draftContent, popover.postitId, { text, color: popover.draftColor })
+    const result = updateNotePostit(draftContent, popover.postitId, {
+      text,
+      color: popover.draftColor,
+      // So toca na area quando o popover capturou uma (re-ancoragem); senao
+      // a citacao salva e preservada.
+      ...(popover.pendingRange ? { range: popover.pendingRange } : {}),
+    })
     if (result.error) return false
     setDraftContent(result.content)
-    postitLastCommittedRef.current = { id: popover.postitId, text: popover.draftText, color: popover.draftColor }
+    postitLastCommittedRef.current = { id: popover.postitId, text: popover.draftText, color: popover.draftColor, rangeKey: JSON.stringify(popover.pendingRange ?? null) }
     return true
   }
 
@@ -4111,11 +4254,12 @@ function App() {
       && lastCommitted.id === postitPopover.postitId
       && lastCommitted.text === postitPopover.draftText
       && lastCommitted.color === postitPopover.draftColor
+      && lastCommitted.rangeKey === JSON.stringify(postitPopover.pendingRange ?? null)
     ) return
     if (postitPopover.postitId === null && postitPopover.draftText.trim() === '') return
     const timer = window.setTimeout(() => {
       if (postitHandlersRef.current?.commit(postitPopover)) {
-        postitLastCommittedRef.current = { id: postitPopover.postitId, text: postitPopover.draftText, color: postitPopover.draftColor }
+        postitLastCommittedRef.current = { id: postitPopover.postitId, text: postitPopover.draftText, color: postitPopover.draftColor, rangeKey: JSON.stringify(postitPopover.pendingRange ?? null) }
       }
     }, 600)
     postitSaveTimerRef.current = timer
@@ -4136,10 +4280,11 @@ function App() {
       && lastCommitted.id === popover.postitId
       && lastCommitted.text === popover.draftText
       && lastCommitted.color === popover.draftColor
+      && lastCommitted.rangeKey === JSON.stringify(popover.pendingRange ?? null)
     ) return
     if (popover.postitId === null && popover.draftText.trim() === '') return
     if (commitPostitNow(popover)) {
-      postitLastCommittedRef.current = { id: popover.postitId, text: popover.draftText, color: popover.draftColor }
+      postitLastCommittedRef.current = { id: popover.postitId, text: popover.draftText, color: popover.draftColor, rangeKey: JSON.stringify(popover.pendingRange ?? null) }
     }
   }
 
@@ -4148,24 +4293,35 @@ function App() {
   postitHandlersRef.current = { commit: commitPostitNow, flush: flushPendingPostitSave }
 
   /** Arrasto do canto inferior direito: redimensiona o papel (largura+altura
-   * em estado, clampado ao painel .editor-content). Padrao do drag da toolbar
-   * flutuante (pointermove/up no window, capturado no down). */
-  const postitResizeStartRef = useRef<{ pointerX: number; pointerY: number; width: number; height: number } | null>(null)
+   * em estado, clampado ao painel .editor-content). O popover e centralizado
+   * no ancora (`translateX(-50%)`), entao sem correcao a largura cresceria
+   * para os dois lados e invadiria o explorador a esquerda: a cada passo o
+   * `x` anda metade do delta da largura, fixando a borda esquerda onde o
+   * arrasto comecou — o crescimento vai so para a direita (e para baixo).
+   * Padrao do drag da toolbar flutuante (pointermove/up no window,
+   * capturado no down). */
+  const postitResizeStartRef = useRef<{ pointerX: number; pointerY: number; width: number; height: number; anchorX: number } | null>(null)
 
   function startPostitPopoverResize(event: ReactPointerEvent<HTMLSpanElement>) {
     if (event.button !== 0) return
     const popover = postitPopoverRef.current
-    if (!popover) return
+    const anchor = postitPopover
+    if (!popover || !anchor) return
     event.preventDefault()
     const rect = popover.getBoundingClientRect()
-    postitResizeStartRef.current = { pointerX: event.clientX, pointerY: event.clientY, width: rect.width, height: rect.height }
+    postitResizeStartRef.current = { pointerX: event.clientX, pointerY: event.clientY, width: rect.width, height: rect.height, anchorX: anchor.x }
     const move = (moveEvent: PointerEvent) => {
       const start = postitResizeStartRef.current
       if (!start) return
+      const newWidth = Math.max(220, Math.min(start.width + moveEvent.clientX - start.pointerX, 480))
       setPostitPopoverSize({
-        width: Math.max(220, Math.min(start.width + moveEvent.clientX - start.pointerX, 480)),
+        width: newWidth,
         height: Math.max(150, start.height + moveEvent.clientY - start.pointerY),
       })
+      // Borda esquerda fixa em (anchorX - largura inicial / 2): com o
+      // centramento, `x - largura / 2` e a borda — anda junto com a largura.
+      const pinnedLeft = start.anchorX - start.width / 2
+      setPostitPopover((current) => current ? { ...current, x: pinnedLeft + newWidth / 2 } : current)
     }
     const stop = () => {
       postitResizeStartRef.current = null
@@ -4184,11 +4340,73 @@ function App() {
     return deriveAnchorFromParagraph(paragraphText).anchorText
   }
 
-  /** Abre o popover de post-it ancorado a posicao do cursor no editor. */
-  function openPostitPopoverAtSelection() {
+  /** Faixas resolvidas (coordenadas do corpo) para bloquear sobreposicao,
+   * ignorando o proprio post-it na re-ancoragem. */
+  function resolvedPostitBodyRanges(ignoreId: string | null): Array<{ from: number; to: number }> {
+    const out: Array<{ from: number; to: number }> = []
+    for (const { postit, range } of resolvePostitAnchors(notePostits, noteBody, 0)) {
+      if (postit.id !== ignoreId && range) out.push(range)
+    }
+    return out
+  }
+
+  /** Captura a ancora de frase da selecao atual (coordenadas do corpo).
+   * `paragraph` = sem selecao util (cai no pino de paragrafo, legado);
+   * `blocked` = avisado via status (fora do corpo, gigante ou sobreposta). */
+  function capturePostitRangeFromSelection(ignoreId: string | null):
+    | { kind: 'paragraph' }
+    | { kind: 'range'; anchor: PostitRangeAnchor }
+    | { kind: 'blocked' } {
+    const selection = getActiveEditorSelection()
+    if (!selection || selection.selectionEnd <= selection.selectionStart) return { kind: 'paragraph' }
+    const bodyStartOffset = draftContent.length - noteBody.length
+    const bodyFrom = selection.selectionStart - bodyStartOffset
+    const bodyTo = selection.selectionEnd - bodyStartOffset
+    if (bodyFrom < 0 || bodyTo > noteBody.length) {
+      // `setError` (banner com role=alert) em vez de `setStatus`: o status so
+      // aparece na tela de vault, nao no workspace.
+      setError('Post-it: selecione um trecho do texto da nota (fora do frontmatter).')
+      return { kind: 'blocked' }
+    }
+    const selectedText = noteBody.slice(bodyFrom, bodyTo)
+    if (!selectedText.trim()) return { kind: 'paragraph' }
+    if (selectedText.length > POSTIT_QUOTE_MAX_CHARS) {
+      setError(`Post-it: selecione até ${POSTIT_QUOTE_MAX_CHARS} caracteres para a área.`)
+      return { kind: 'blocked' }
+    }
+    const anchor = deriveRangeAnchorFromSelection(noteBody, bodyFrom, bodyTo)
+    if (!anchor) return { kind: 'blocked' }
+    const resolved = resolvePostitRange(anchor, noteBody)
+    if (!resolved) return { kind: 'blocked' }
+    if (resolvedPostitBodyRanges(ignoreId).some((existing) => postitRangesOverlap(resolved, existing))) {
+      setError('Post-it: a área sobrepõe a área de outro post-it.')
+      return { kind: 'blocked' }
+    }
+    return { kind: 'range', anchor }
+  }
+
+  /** Re-ancora o post-it do popover para a selecao atual do editor. So roda
+   * via botao "Confirmar area" (selecao ativa garantida pelo estado do
+   * botao); o auto-save commita (o snapshot com rangeKey difere). Em
+   * bloqueio, mantém armado para o usuario selecionar outro trecho. */
+  function reanchorPostitToSelection() {
+    if (!postitPopover || editorMode === 'read') return
+    const capture = capturePostitRangeFromSelection(postitPopover.postitId)
+    if (capture.kind !== 'range') return
+    setPostitPopover((current) => current ? { ...current, pendingRange: capture.anchor } : current)
+    setPostitRangeArming(false)
+  }
+
+  /** Abre o popover de post-it ancorado a posicao do cursor no editor. Com
+   * selecao nao-colapsada, ancora a FRASE (faixa com borda); sem selecao,
+   * cai no pino de paragrafo. Bloqueio (aviso via status) nao abre nada.
+   * `color` preseleciona a cor (menu do botao sticky na toolbar). */
+  function openPostitPopoverAtSelection(color: PostitColor = 'yellow') {
     const selection = getActiveEditorSelection()
     const container = editorContentRef.current
     if (!selection || !container) return
+    const capture = capturePostitRangeFromSelection(null)
+    if (capture.kind === 'blocked') return
     const containerRect = container.getBoundingClientRect()
     const rect = markdownCodeEditorRef.current?.getSelectionRect()
     const x = rect ? Math.max(80, Math.min((rect.left + rect.right) / 2 - containerRect.left, containerRect.width - 80)) : containerRect.width / 2
@@ -4196,11 +4414,13 @@ function App() {
     // abre abaixo — `.editor-content` tem overflow hidden e clipa o que estoura.
     const above = rect ? rect.top - containerRect.top - 10 : 60
     const flip = above < 220
+    setPostitRangeArming(false)
     setPostitPopover({
       postitId: null,
       anchorFrom: markdownCodeEditorRef.current?.getParagraphStartAt(selection.selectionStart) ?? null,
+      pendingRange: capture.kind === 'range' ? capture.anchor : null,
       draftText: '',
-      draftColor: 'yellow',
+      draftColor: color,
       x,
       y: flip ? (rect ? rect.bottom - containerRect.top + 10 : 80) : above,
       flip,
@@ -4208,23 +4428,45 @@ function App() {
     })
   }
 
-  /** Clique em um pino: abre o popover de edicao ancorado ao paragrafo. */
-  function handlePostitWidgetClick(postitId: string) {
+  /** Clique em um pino ou na bolinha da frase (ou peek por hover): abre o
+   * popover de edicao. A faixa (quando resolvida) posiciona o popover sobre
+   * a frase; sem ela, cai para o paragrafo (pino/legado). Peek abre sem
+   * roubar o foco e semeia o snapshot para o fechamento nao gravar nada. */
+  function handlePostitWidgetClick(postitId: string, peek = false) {
+    if (postitPeekCloseTimerRef.current !== null) {
+      window.clearTimeout(postitPeekCloseTimerRef.current)
+      postitPeekCloseTimerRef.current = null
+    }
+    postitPeekIdRef.current = peek ? postitId : null
     const container = editorContentRef.current
     if (!container) return
     const postit = notePostits.find((item) => item.id === postitId)
     if (!postit) return
     const anchor = postitData?.anchored.find((item) => item.postit.id === postitId)
-    const rect = anchor ? getPostitAnchorRect(anchor.from) : null
+    const position = anchor?.range?.from ?? anchor?.from ?? null
+    const rect = position !== null ? getPostitAnchorRect(position) : null
     const containerRect = container.getBoundingClientRect()
     const x = rect ? Math.max(80, Math.min(rect.left - containerRect.left, containerRect.width - 80)) : containerRect.width / 2
     // Mesmo flip conservador do openPostitPopoverAtSelection: sem ~220px acima,
     // abre abaixo do paragrafo (o container clipa popover acima da borda).
     const above = rect ? rect.top - containerRect.top - 10 : 60
     const flip = above < 220
+    setPostitRangeArming(false)
+    if (peek) {
+      // Previa sem edicao possivel (sem foco): semeia o snapshot para o
+      // fechamento nao reescrever nada.
+      postitLastCommittedRef.current = {
+        id: postitId,
+        text: postit.text,
+        color: postit.color,
+        rangeKey: JSON.stringify(null),
+      }
+    }
     setPostitPopover({
       postitId,
       anchorFrom: anchor?.from ?? null,
+      pendingRange: null,
+      peek: peek || undefined,
       draftText: postit.text,
       draftColor: postit.color,
       x,
@@ -4232,6 +4474,45 @@ function App() {
       flip,
       deleteArmed: false,
     })
+    if (!peek) {
+      // Clique apos peek: sem remontar, leva o foco ao texto.
+      window.requestAnimationFrame(() => {
+        postitPopoverRef.current?.querySelector('textarea')?.focus()
+      })
+    }
+  }
+
+  /** Peek por hover na bolinha: so quando nenhum popover esta aberto (sem
+   * brigar com edicao em curso). */
+  function openPostitPeek(postitId: string) {
+    if (postitPopover) return
+    handlePostitWidgetClick(postitId, true)
+  }
+
+  /** Agenda o fechamento da previa com tolerancia para atravessar ate o
+   * popover (que cancela ao entrar). */
+  function schedulePostitPeekClose(postitId: string) {
+    if (postitPeekIdRef.current !== postitId) return
+    if (postitPeekCloseTimerRef.current !== null) {
+      window.clearTimeout(postitPeekCloseTimerRef.current)
+    }
+    postitPeekCloseTimerRef.current = window.setTimeout(() => {
+      postitPeekCloseTimerRef.current = null
+      if (postitPeekIdRef.current !== postitId) return
+      postitPeekIdRef.current = null
+      postitHandlersRef.current?.flush()
+      setPostitPopover(null)
+      setPostitPopoverSize(null)
+      setPostitRangeArming(false)
+    }, 150)
+  }
+
+  /** Entrar no popover cancela o fechamento agendado (vira interacao). */
+  function cancelPostitPeekClose() {
+    if (postitPeekCloseTimerRef.current !== null) {
+      window.clearTimeout(postitPeekCloseTimerRef.current)
+      postitPeekCloseTimerRef.current = null
+    }
   }
 
   /** Retangulo de viewport do inicio do paragrafo ancorado (posicao do pino). */
@@ -4381,7 +4662,14 @@ function App() {
       resolvedPath = resolveCandidate(`${relativePath}.md`)
     }
     const existingPath = notes.find((note) => note.relativePath.toLowerCase() === resolvedPath.toLowerCase())?.relativePath
-    const targetPath = existingPath ?? resolvedPath
+    let targetPath = existingPath ?? resolvedPath
+    if (!existingPath && !relativePath.includes('/') && !relativePath.includes('\\') && sourcePath.includes('/')) {
+      // `[[nome]]` sem pasta, criado a partir de uma nota dentro de pasta
+      // (ex.: meta): nasce na mesma pasta da nota de origem, nao na raiz.
+      // Com pasta explicita (`[[nova/página]]`) o caminho pedido e respeitado.
+      const sourceFolder = sourcePath.split('/').slice(0, -1).join('/')
+      targetPath = `${sourceFolder}/${targetPath}`
+    }
 
     if (activeNote?.relativePath.toLowerCase() === targetPath.toLowerCase()) {
       if (fragment) window.setTimeout(() => scrollToWikiHeading(fragment), 0)
@@ -4591,8 +4879,17 @@ function App() {
                   onDrop={(event) => dropNoteInFolder(event, node.path)}
                 >
                   <summary aria-label={`Pasta ${node.name}`} onMouseEnter={(event) => setTruncatedLabelTooltip(event, node.name)} onContextMenu={(event) => openExplorerContextMenu(event, { path: node.path, name: node.name, type: 'folder' })} onDragEnter={(event) => allowNoteDrop(event, node.path)} onDragOver={(event) => allowNoteDrop(event, node.path)} onDrop={(event) => dropNoteInFolder(event, node.path)}>
-                    <Folder className="tree-icon tree-icon--folder-closed" size={14} strokeWidth={1.5} aria-hidden="true" />
-                    <FolderOpen className="tree-icon tree-icon--folder-open" size={14} strokeWidth={1.5} aria-hidden="true" />
+                    {depth === 0 && node.path === 'Metas' ? (
+                      <>
+                        <RiFocus2Line className="tree-icon tree-icon--folder-closed" size={14} aria-hidden="true" />
+                        <RiFocus2Fill className="tree-icon tree-icon--folder-open" size={14} aria-hidden="true" />
+                      </>
+                    ) : (
+                      <>
+                        <Folder className="tree-icon tree-icon--folder-closed" size={14} strokeWidth={1.5} aria-hidden="true" />
+                        <FolderOpen className="tree-icon tree-icon--folder-open" size={14} strokeWidth={1.5} aria-hidden="true" />
+                      </>
+                    )}
                     <span className="tree-item-label">{node.name}</span>
                   </summary>
                   {node.children?.length ? renderTree(node.children, depth + 1) : null}
@@ -4634,7 +4931,7 @@ function App() {
       note.relativePath !== activeNote?.relativePath && note.relativePath.toLowerCase().includes(noteLinkQuery.trim().toLowerCase()),
     )
     const activeTags = extractMarkdownTags(draftContent)
-    const unsupportedMarkdownFeatures = detectUnsupportedMarkdownFeatures(draftContent)
+    const compatibilityNotes = detectUnsupportedMarkdownFeatures(draftContent).map((feature) => COMPATIBILITY_NOTES[feature] ?? feature)
     const activeNotePaths = notes.map((note) => note.relativePath)
     // Notas conectadas para ranquear o autocomplete: derivacao pura no lib
     // (alvos do rascunho + backlinks do indice, com fallback para o grafo).
@@ -4927,6 +5224,164 @@ function App() {
     const moveDestinationOptions = ['', ...folders].filter((folder) =>
       !moveTarget || moveTarget.type === 'note' || (folder !== moveTarget.path && !folder.startsWith(`${moveTarget.path}/`)),
     )
+
+    /** Acoes do cabecalho por chave, icon-only (icone + tooltip): o mesmo
+     * elemento rende inline ou no menu "Mais acoes". Chamada de funcao, nao
+     * componente — mover de lugar nao remonta. Retorna null em rascunho de
+     * nota nova (sem acoes de nota existente). */
+    function renderHeaderAction(key: HeaderActionKey) {
+      if (isNewNoteDraft || !activeNote || !vault) return null
+      switch (key) {
+        case 'favorite':
+          return (
+            <button key={key} type="button" className={`secondary-button favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></button>
+          )
+        case 'indexadora':
+          return (
+            <button
+              key={key}
+              type="button"
+              className={`secondary-button indexadora-button${isIndexadora(activeNote.content) ? ' is-active' : ''}`}
+              onClick={() => void toggleActiveNoteIndexadora()}
+              disabled={saving || loading}
+              title={isIndexadora(activeNote.content) ? 'Nota indexadora: remove a lista automatica de referencias' : 'Declarar como nota indexadora: lista automaticamente as notas que referenciam esta nota'}
+              aria-label="Declarar nota como indexadora"
+              aria-pressed={isIndexadora(activeNote.content)}
+            >
+              <BookMarked size={15} strokeWidth={1.5} aria-hidden="true" />
+            </button>
+          )
+        case 'review':
+          return (
+            <Popover key={key} open={reviewMenuOpen} onOpenChange={(open) => {
+              setReviewMenuOpen(open)
+              if (!open) setReviewReportOpen(false)
+            }}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="secondary-button note-review-menu-trigger"
+                  aria-label="Avaliação e revisão da nota"
+                  title="Avaliação e revisão da nota"
+                >
+                  <span className={`note-review-status-dot is-${noteReadiness ?? 'none'}`} aria-hidden="true" />
+                  <ClipboardList size={15} strokeWidth={1.5} aria-hidden="true" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" sideOffset={6} className="note-review-menu">
+                {auditReportOpen ? (
+                  <NoteStructureReport
+                    audit={structuralAudit}
+                    loading={structuralAuditLoading}
+                    error={structuralAuditError}
+                    appliedIndex={structuralAuditAppliedIndex}
+                    onBack={() => setAuditReportOpen(false)}
+                    onRetry={() => void runStructuralAudit()}
+                    onApply={handleApplyStructuralAuditEdit}
+                  />
+                ) : (
+                <NoteReadinessControl
+                  vaultPath={vault.path}
+                  relativePath={activeNote.relativePath}
+                  sourceRevision={activeNote.content}
+                  isDirty={isDirty}
+                  disabled={loading || saving}
+                  noteTags={activeTags}
+                  onApplyTag={applyReviewProfileTag}
+                  onStatusChange={setNoteReadiness}
+                  onStartReview={(info) => void handleStartReviewNow(info)}
+                  reportOpen={reviewReportOpen}
+                  onReportOpenChange={setReviewReportOpen}
+                  onSaveFirst={async () => {
+                    try {
+                      return await saveActiveNote(false)
+                    } catch {
+                      return false
+                    }
+                  }}
+                  onAuditStructure={openAuditReport}
+                  adjustments={reviewReportOpen ? null : (
+                    <>
+                      <NoteReviewPolicyControl
+                        vaultPath={vault.path}
+                        relativePath={activeNote.relativePath}
+                        sourceRevision={activeNote.content}
+                        isDirty={isDirty}
+                        disabled={loading || saving}
+                      />
+                    </>
+                  )}
+                />
+                )}
+              </PopoverContent>
+            </Popover>
+          )
+        case 'factcheck':
+          return (
+            <Popover key={key} open={factCheckOpen} onOpenChange={(open) => {
+              setFactCheckOpen(open)
+              if (open && factCheck === null && factCheckError === null) void runFactCheck()
+            }}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="secondary-button structural-audit-trigger"
+                  aria-label="Verificar fatos da nota"
+                  title="Verificação factual opcional — compara as afirmações com conhecimento externo, sem alterar a nota nem as pontuações"
+                >
+                  <CheckCircle2 size={15} strokeWidth={1.5} aria-hidden="true" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" sideOffset={6} className="structural-audit-scope fact-check-panel">
+                <header className="structural-audit-header">
+                  <strong>Verificacao factual</strong>
+                  <small>Compara as afirmacoes da nota com conhecimento externo — nao altera a nota nem as revisoes.</small>
+                </header>
+                {factCheckLoading ? (
+                  <div className="structural-audit-state">Verificando os fatos…</div>
+                ) : factCheckError ? (
+                  <div className="structural-audit-state is-error">
+                    <span>{factCheckError}</span>
+                    <button type="button" className="secondary-button" onClick={() => void runFactCheck()}>Tentar novamente</button>
+                  </div>
+                ) : factCheck === null ? (
+                    <div className="structural-audit-state">Preparando a verificação…</div>
+                ) : factCheck.outcome === 'invalid' ? (
+                  <div className="structural-audit-state is-error">
+                    <span>{factCheck.message}</span>
+                    {factCheck.validationErrors.length > 0 ? (
+                      <ul>{factCheck.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="fact-check-results">
+                    <p className="fact-check-summary">{factCheck.report.overallSummary}</p>
+                    <ul>
+                      {factCheck.report.findings.map((finding, index) => (
+                        <li key={`${finding.claim}-${index}`} className={`fact-check-finding is-${finding.status}`}>
+                          <div className="fact-check-finding-head">
+                            <span className="fact-check-status">
+                              {finding.status === 'confirmed' ? 'Confirmado' : finding.status === 'divergent' ? 'Divergente' : 'Incerto'}
+                            </span>
+                            <p>{finding.claim}</p>
+                          </div>
+                          {finding.quote && finding.quote !== finding.claim ? (
+                            <pre className="structural-audit-quote">{finding.quote}</pre>
+                          ) : null}
+                          <p className="fact-check-reason">{finding.reason}</p>
+                          {finding.source ? <p className="fact-check-source">Fonte: {finding.source}</p> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          )
+        default:
+          return null
+      }
+    }
 
     return (
       <main
@@ -5303,13 +5758,16 @@ function App() {
                         {activeNote.name.replace(/\.md$/i, '')}
                       </button>
                     )}
-                    {unsupportedMarkdownFeatures.length > 0 ? (
-                      <p className="markdown-preservation-notice" role="status">
-                        Compatibilidade limitada, fonte preservada: {unsupportedMarkdownFeatures.map((feature) => LIMITED_MARKDOWN_FEATURE_LABELS[feature] ?? feature).join(', ')}.
-                      </p>
-                    ) : null}
+                    {/* Tags sempre visiveis abaixo do titulo (antes moravam no
+                        painel do arrow down): badges + "+" com popover. */}
+                    <NoteTagRow
+                      tags={noteTags}
+                      availableTags={tagIndex.map((entry) => entry.tag)}
+                      onApplyTag={applyExistingTag}
+                      onRemoveTag={removeTag}
+                    />
                   </div>
-                  <div className="editor-actions">
+                  <div className="editor-actions" ref={headerActionsRef}>
                     <div className="history-actions" aria-label="Histórico de edicao">
                       <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void undoLastCommand()} disabled={!canUndoActiveEditor || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
                       <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void redoLastCommand()} disabled={!canRedoActiveEditor || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
@@ -5319,226 +5777,27 @@ function App() {
                         {autoSaveState === 'pending' ? 'Alterações pendentes' : autoSaveState === 'saving' ? 'Salvando...' : autoSaveState === 'saved' ? 'Salvo' : 'Auto Save'}
                       </span>
                     ) : null}
-                    {!isNewNoteDraft ? <button type="button" className={`secondary-button favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></button> : null}
-                    {!isNewNoteDraft ? (
-                      <button
-                        type="button"
-                        className={`secondary-button indexadora-button${isIndexadora(activeNote.content) ? ' is-active' : ''}`}
-                        onClick={() => void toggleActiveNoteIndexadora()}
-                        disabled={saving || loading}
-                        title={isIndexadora(activeNote.content) ? 'Nota indexadora: remove a lista automatica de referencias' : 'Declarar como nota indexadora: lista automaticamente as notas que referenciam esta nota'}
-                        aria-label="Declarar nota como indexadora"
-                        aria-pressed={isIndexadora(activeNote.content)}
-                      >
-                        <BookMarked size={15} strokeWidth={1.5} aria-hidden="true" />
-                        <span>Indexadora</span>
-                      </button>
-                    ) : null}
-                    {!isNewNoteDraft ? (                        <Popover open={reviewMenuOpen} onOpenChange={(open) => {
-                          setReviewMenuOpen(open)
-                          if (!open) setReviewReportOpen(false)
-                        }}>
+                    {!hiddenActions.includes('favorite') ? renderHeaderAction('favorite') : null}
+                    {!hiddenActions.includes('indexadora') ? renderHeaderAction('indexadora') : null}
+                    {!hiddenActions.includes('review') ? renderHeaderAction('review') : null}
+                    {!hiddenActions.includes('factcheck') ? renderHeaderAction('factcheck') : null}
+                    {hiddenActions.length > 0 ? (
+                      <Popover>
                         <PopoverTrigger asChild>
                           <button
                             type="button"
-                            className="secondary-button note-review-menu-trigger"
-                            aria-label="Avaliação e revisão da nota"
-                            title="Avaliação e revisão da nota"
+                            className="secondary-button header-overflow-trigger"
+                            aria-label="Mais ações"
+                            title="Mais ações"
                           >
-                            <span className={`note-review-status-dot is-${noteReadiness ?? 'none'}`} aria-hidden="true" />
-                            <ClipboardList size={15} strokeWidth={1.5} aria-hidden="true" />
-                            <span>Avaliação &amp; revisão</span>
+                            <MoreHorizontal size={15} strokeWidth={1.8} aria-hidden="true" />
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent align="end" sideOffset={6} className="note-review-menu">
-                          {reviewReportOpen ? null : (
-                            <header className="note-review-menu-header">
-                              <strong>Avaliação &amp; revisão</strong>
-                              <small>Prontidão, agenda e política desta nota</small>
-                            </header>
-                          )}
-                          <NoteReadinessControl
-                            vaultPath={vault.path}
-                            relativePath={activeNote.relativePath}
-                            sourceRevision={activeNote.content}
-                            isDirty={isDirty}
-                            disabled={loading || saving}
-                            noteTags={activeTags}
-                            onApplyTag={applyReviewProfileTag}
-                            onStatusChange={setNoteReadiness}
-                            onStartReview={(info) => void handleStartReviewNow(info)}
-                            reportOpen={reviewReportOpen}
-                            onReportOpenChange={setReviewReportOpen}
-                            onSaveFirst={async () => {
-                              try {
-                                return await saveActiveNote(false)
-                              } catch {
-                                return false
-                              }
-                            }}
-                          />
-                          {reviewReportOpen ? null : (
-                            <NoteReviewPolicyControl
-                              vaultPath={vault.path}
-                              relativePath={activeNote.relativePath}
-                              sourceRevision={activeNote.content}
-                              isDirty={isDirty}
-                              disabled={loading || saving}
-                            />
-                          )}
-                          </PopoverContent>
-                        </Popover>
-                      ) : null}
-                      {!isNewNoteDraft ? (
-                        <Popover open={factCheckOpen} onOpenChange={(open) => {
-                          setFactCheckOpen(open)
-                          if (open && factCheck === null && factCheckError === null) void runFactCheck()
-                        }}>
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              className="secondary-button structural-audit-trigger"
-                              aria-label="Verificar fatos da nota"
-                              title="Verificação factual opcional — compara as afirmações com conhecimento externo, sem alterar a nota nem as pontuações"
-                            >
-                              <CheckCircle2 size={15} strokeWidth={1.5} aria-hidden="true" />
-                              <span>Verificar fatos</span>
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent align="end" sideOffset={6} className="structural-audit-panel fact-check-panel">
-                            <header className="structural-audit-header">
-                              <strong>Verificacao factual</strong>
-                              <small>Compara as afirmacoes da nota com conhecimento externo — nao altera a nota nem as revisoes.</small>
-                            </header>
-                            {factCheckLoading ? (
-                              <div className="structural-audit-state">Verificando os fatos…</div>
-                            ) : factCheckError ? (
-                              <div className="structural-audit-state is-error">
-                                <span>{factCheckError}</span>
-                                <button type="button" className="secondary-button" onClick={() => void runFactCheck()}>Tentar novamente</button>
-                              </div>
-                            ) : factCheck === null ? (
-                              <div className="structural-audit-state">Abra a verificacao para analisar os fatos.</div>
-                            ) : factCheck.outcome === 'invalid' ? (
-                              <div className="structural-audit-state is-error">
-                                <span>{factCheck.message}</span>
-                                {factCheck.validationErrors.length > 0 ? (
-                                  <ul>{factCheck.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul>
-                                ) : null}
-                              </div>
-                            ) : (
-                              <div className="fact-check-results">
-                                <p className="fact-check-summary">{factCheck.report.overallSummary}</p>
-                                <ul>
-                                  {factCheck.report.findings.map((finding, index) => (
-                                    <li key={`${finding.claim}-${index}`} className={`fact-check-finding is-${finding.status}`}>
-                                      <div className="fact-check-finding-head">
-                                        <span className="fact-check-status">
-                                          {finding.status === 'confirmed' ? 'Confirmado' : finding.status === 'divergent' ? 'Divergente' : 'Incerto'}
-                                        </span>
-                                        <p>{finding.claim}</p>
-                                      </div>
-                                      {finding.quote && finding.quote !== finding.claim ? (
-                                        <pre className="structural-audit-quote">{finding.quote}</pre>
-                                      ) : null}
-                                      <p className="fact-check-reason">{finding.reason}</p>
-                                      {finding.source ? <p className="fact-check-source">Fonte: {finding.source}</p> : null}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </PopoverContent>
-                        </Popover>
-                      ) : null}
-                      {!isNewNoteDraft ? (
-                        <Popover open={structuralAuditOpen} onOpenChange={setStructuralAuditOpen}>
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              className="secondary-button structural-audit-trigger"
-                              aria-label="Auditoria estrutural da nota"
-                              title="Auditoria estrutural — sugere melhorias na organização da nota para a revisão"
-                            >
-                              <Sparkles size={15} strokeWidth={1.5} aria-hidden="true" />
-                              <span>Propor melhorias</span>
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent align="end" sideOffset={6} className="structural-audit-panel">
-                            <header className="structural-audit-header">
-                              <strong>Auditoria estrutural</strong>
-                              <small>
-                                {structuralAudit
-                                  ? `${structuralAudit.noteWords.toLocaleString('pt-BR')} palavras · ${structuralAudit.unitCount} ${structuralAudit.unitCount === 1 ? 'unidade' : 'unidades'} de revisão`
-                                  : 'Analisa a organização da nota com a regra de segmentação por seções.'}
-                              </small>
-                            </header>
-                            {structuralAuditLoading ? (
-                              <div className="structural-audit-state">Analisando a estrutura da nota…</div>
-                            ) : structuralAuditError ? (
-                              <div className="structural-audit-state is-error">
-                                <span>{structuralAuditError}</span>
-                                <button type="button" className="secondary-button" onClick={() => void runStructuralAudit()}>Tentar novamente</button>
-                              </div>
-                            ) : structuralAudit === null ? (
-                              <div className="structural-audit-state">Abra a auditoria para ver as sugestoes.</div>
-                            ) : structuralAudit.findings.length === 0 ? (
-                              <div className="structural-audit-state is-clean">
-                                <CheckSquare size={15} strokeWidth={1.5} aria-hidden="true" />
-                                <span>Estrutura boa para revisao — nenhum achado.</span>
-                              </div>
-                            ) : (
-                              <div className="structural-audit-findings">
-                                {structuralAudit.findings.map((finding, index) => (
-                                  <article key={`${finding.code}-${index}`} className={`structural-audit-finding is-${finding.severity}`}>
-                                    <div className="structural-audit-finding-head">
-                                      <span className="structural-audit-severity">
-                                        {finding.severity === 'warning' ? 'Atencao' : 'Dica'}
-                                      </span>
-                                      <p>{finding.message}</p>
-                                    </div>
-                                    <p className="structural-audit-suggestion">{finding.suggestion}</p>
-                                    {finding.sourceQuote ? (
-                                      <pre className="structural-audit-quote">{finding.sourceQuote}</pre>
-                                    ) : null}
-                                    {finding.edit ? (
-                                      <div className="structural-audit-apply-row">
-                                        <button
-                                          type="button"
-                                          className="primary-button structural-audit-apply"
-                                          onClick={() => handleApplyStructuralAuditEdit(index)}
-                                          disabled={structuralAuditAppliedIndex !== null && structuralAuditAppliedIndex !== index}
-                                        >
-                                          {structuralAuditAppliedIndex === index ? (
-                                            <><CheckSquare size={13} strokeWidth={1.8} aria-hidden="true" /> Aplicado no rascunho</>
-                                          ) : (
-                                            'Aplicar no rascunho'
-                                          )}
-                                        </button>
-                                        {structuralAuditAppliedIndex !== null && structuralAuditAppliedIndex !== index ? (
-                                          <small className="structural-audit-hint">Aplique uma de cada vez; re-execute a auditoria depois.</small>
-                                        ) : null}
-                                      </div>
-                                    ) : null}
-                                  </article>
-                                ))}
-                              </div>
-                            )}
-                            {structuralAudit !== null && !structuralAuditLoading ? (
-                              <footer className="structural-audit-footer">
-                                <button
-                                  type="button"
-                                  className="structural-audit-rerun"
-                                  onClick={() => void runStructuralAudit()}
-                                >
-                                  <RotateCcw size={14} strokeWidth={1.75} aria-hidden="true" />
-                                  <span>Re-executar auditoria</span>
-                                </button>
-                              </footer>
-                            ) : null}
-                          </PopoverContent>
-                        </Popover>
-                      ) : null}
+                        <PopoverContent align="end" sideOffset={6} className="header-overflow-menu">
+                          {HEADER_ACTION_KEYS.filter((key) => hiddenActions.includes(key)).map((key) => renderHeaderAction(key))}
+                        </PopoverContent>
+                      </Popover>
+                    ) : null}
                       <div
                         className="editor-mode-control"
                       role="radiogroup"
@@ -5662,8 +5921,7 @@ function App() {
                           <div id="frontmatter-menu-panel" className="frontmatter-menu-panel">
                             <FrontmatterPanelForm
                               {...getFrontmatterPanelData()}
-                              onApplyTag={applyExistingTag}
-                              onRemoveTag={removeTag}
+                              compatibilityNotes={compatibilityNotes}
                               onApply={applyFrontmatterPanel}
                               onOpenBacklink={(relativePath) => void openNote(relativePath)}
                             />
@@ -5749,6 +6007,7 @@ function App() {
                       reviewGapData={reviewGapData}
                       postitData={postitData}
                       onPostitClick={handlePostitWidgetClick}
+                      onPostitPeek={{ onOpen: openPostitPeek, onClose: schedulePostitPeekClose }}
                       onSearchRequest={openNoteFind}
                       value={noteBody}
                       // O doc do Leitura e `noteBody` (sem frontmatter): o merge
@@ -5782,6 +6041,7 @@ function App() {
                       vaultPath={vault?.path}
                       postitData={postitData}
                       onPostitClick={handlePostitWidgetClick}
+                      onPostitPeek={{ onOpen: openPostitPeek, onClose: schedulePostitPeekClose }}
                       onSearchRequest={openNoteFind}
                       value={draftContent}
                       onChange={setDraftContent}
@@ -5815,14 +6075,72 @@ function App() {
                     <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('reverseReactionArrow')} title="Seta reversa com texto acima" aria-label="Seta reversa (seleção)"><ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /></button>
                     <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('link')} title="Link" aria-label="Link (seleção)"><Link size={15} strokeWidth={1.8} aria-hidden="true" /></button>
                     <span className="hl-separator" aria-hidden="true" />
-                    <button type="button" onMouseDown={preserveEditorSelection} onClick={openPostitPopoverAtSelection} title="Post-it no parágrafo" aria-label="Adicionar post-it (parágrafo)"><StickyNote size={15} strokeWidth={1.8} aria-hidden="true" /></button>
-                    <div className="hl-swatches" role="group" aria-label="Marca-texto">
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightYellow')} title="Marca-texto amarelo" aria-label="Marca-texto amarelo (seleção)"><span className="hl-dot hl-yellow" aria-hidden="true" /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightGreen')} title="Marca-texto verde" aria-label="Marca-texto verde (seleção)"><span className="hl-dot hl-green" aria-hidden="true" /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightBlue')} title="Marca-texto azul" aria-label="Marca-texto azul (seleção)"><span className="hl-dot hl-blue" aria-hidden="true" /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightPink')} title="Marca-texto rosa" aria-label="Marca-texto rosa (seleção)"><span className="hl-dot hl-pink" aria-hidden="true" /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightOrange')} title="Marca-texto laranja" aria-label="Marca-texto laranja (seleção)"><span className="hl-dot hl-orange" aria-hidden="true" /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownFormat('highlightNone')} title="Remover marca-texto" aria-label="Remover marca-texto (seleção)"><span className="hl-dot hl-none" aria-hidden="true" /></button>
+                    <div
+                      className="format-submenu-wrap"
+                      onMouseEnter={() => openFormatSubmenu('postit')}
+                      onMouseLeave={() => scheduleFormatSubmenuClose('postit')}
+                    >
+                      <button
+                        type="button"
+                        onMouseDown={preserveEditorSelection}
+                        onClick={() => setFormatSubmenu('postit')}
+                        onKeyDown={(event) => { if (event.key === 'Escape') setFormatSubmenu(null) }}
+                        title="Post-it no trecho selecionado"
+                        aria-label="Adicionar post-it"
+                        aria-expanded={formatSubmenu === 'postit'}
+                      >
+                        <HugeiconsIcon icon={StickyNote02Icon} size={16} strokeWidth={1.5} aria-hidden="true" />
+                      </button>
+                      {formatSubmenu === 'postit' ? (
+                        <div className="format-submenu" role="group" aria-label="Cor do post-it">
+                          {POSTIT_COLORS.map((color) => (
+                            <button
+                              key={color}
+                              type="button"
+                              onMouseDown={preserveEditorSelection}
+                              onClick={() => { setFormatSubmenu(null); openPostitPopoverAtSelection(color) }}
+                              title={`Post-it ${POSTIT_COLOR_LABELS[color].toLowerCase()}`}
+                              aria-label={`Criar post-it ${POSTIT_COLOR_LABELS[color].toLowerCase()}`}
+                            >
+                              <span className="hl-dot" style={{ background: POSTIT_COLOR_HEX[color] }} aria-hidden="true" />
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div
+                      className="format-submenu-wrap"
+                      onMouseEnter={() => openFormatSubmenu('highlight')}
+                      onMouseLeave={() => scheduleFormatSubmenuClose('highlight')}
+                    >
+                      <button
+                        type="button"
+                        onMouseDown={preserveEditorSelection}
+                        onClick={() => setFormatSubmenu('highlight')}
+                        onKeyDown={(event) => { if (event.key === 'Escape') setFormatSubmenu(null) }}
+                        title="Marca-texto"
+                        aria-label="Marca-texto"
+                        aria-expanded={formatSubmenu === 'highlight'}
+                      >
+                        <HugeiconsIcon icon={HighlighterIcon} size={16} strokeWidth={1.5} aria-hidden="true" />
+                      </button>
+                      {formatSubmenu === 'highlight' ? (
+                        <div className="format-submenu" role="group" aria-label="Cor do marca-texto">
+                          {HIGHLIGHT_MENU_ITEMS.map((item) => (
+                            <button
+                              key={item.format}
+                              type="button"
+                              onMouseDown={preserveEditorSelection}
+                              onClick={() => { setFormatSubmenu(null); applyMarkdownFormat(item.format) }}
+                              title={`Marca-texto ${item.label}`}
+                              aria-label={`Marca-texto ${item.label} (seleção)`}
+                            >
+                              <span className={`hl-dot ${item.dotClass}`} aria-hidden="true" />
+                            </button>
+                          ))}
+                          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => { setFormatSubmenu(null); applyMarkdownFormat('highlightNone') }} title="Remover marca-texto" aria-label="Remover marca-texto (seleção)"><span className="hl-dot hl-none" aria-hidden="true" /></button>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ) : null}
@@ -5832,6 +6150,10 @@ function App() {
                     className={`postit-popover is-${postitPopover.flip ? 'below' : 'above'} postit-paper is-${postitPopover.draftColor}`}
                     role="dialog"
                     aria-label={postitPopover.postitId ? 'Editar post-it' : 'Novo post-it'}
+                    onMouseEnter={cancelPostitPeekClose}
+                    onMouseLeave={() => {
+                      if (postitPopover.peek && postitPopover.postitId) schedulePostitPeekClose(postitPopover.postitId)
+                    }}
                     style={postitPopoverSize ? { left: postitPopover.x, top: postitPopover.y, width: postitPopoverSize.width, height: postitPopoverSize.height } : { left: postitPopover.x, top: postitPopover.y }}
                   >
                     <div className="postit-popover-head">
@@ -5879,7 +6201,7 @@ function App() {
                       }}
                       placeholder="Sua anotação sobre este parágrafo…"
                       aria-label="Texto do post-it"
-                      autoFocus
+                      autoFocus={!postitPopover.peek}
                       rows={3}
                       maxLength={POSTIT_MAX_CHARS}
                     />
@@ -5904,6 +6226,25 @@ function App() {
                         {postitPopover.draftText.length}/{POSTIT_MAX_CHARS}
                       </span>
                     </div>
+                    {editorMode === 'read' ? null : (() => {
+                      // Troca de area em dois tempos: "Alterar area" arma (e o
+                      // clique-fora e suprimido para dar para selecionar com o
+                      // mouse); sem selecao o botao fica desabilitado pedindo
+                      // o texto; com selecao, "Confirmar area" aplica.
+                      const selection = getActiveEditorSelection()
+                      const hasSelection = !!selection && selection.selectionEnd > selection.selectionStart
+                      return (
+                        <div className="postit-popover-range">
+                          {!postitRangeArming ? (
+                            <button type="button" className="secondary-button" onClick={() => setPostitRangeArming(true)}>Alterar área</button>
+                          ) : hasSelection ? (
+                            <button type="button" className="secondary-button" onClick={reanchorPostitToSelection}>Confirmar área</button>
+                          ) : (
+                            <button type="button" className="secondary-button" disabled>Selecione o texto…</button>
+                          )}
+                        </div>
+                      )
+                    })()}
                     <span
                       className="postit-popover-resize"
                       title="Redimensionar"
