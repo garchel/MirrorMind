@@ -9,7 +9,7 @@ import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Bold, BookMarked, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Folder, FolderOpen, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, Link, List,
-ListOrdered, Minus, PanelLeft, PanelTop, Paperclip, Plus, Quote, RotateCcw, Search, Star, Table2, TextQuote, Trash2, X } from 'lucide-react'
+ListOrdered, Minus, PanelLeft, PanelTop, Paperclip, Plus, Quote, Search, Star, Table2, TextQuote, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { File02Icon } from '@hugeicons/core-free-icons'
 import { RiFocus2Fill, RiFocus2Line } from '@remixicon/react'
@@ -123,6 +123,7 @@ import { ExplorerItemMenu, ExplorerSidebar, type ExplorerContextMenu } from './f
 import { EditorHeader, HEADER_ACTION_KEYS, type HeaderActionKey, type NoteTemplate } from './features/editor/EditorHeader'
 import { VaultSelection } from './features/vault/VaultSelection'
 import { TabStrip, WorkspaceRail, WorkspaceTopbar, type WorkspacePage } from './features/shell/WorkspaceChrome'
+import { TrashPage } from './features/trash/TrashPage'
 import { useSettingsNav, type SettingsSectionId } from './features/settings/useSettingsNav'
 import { buildGraphSvg, downloadPng, downloadSvg, graphNodeExportColor } from './lib/graphExport'
 import type { Graph3DExportRequest, Graph3DExportScene } from './components/NoteGraph3D'
@@ -239,10 +240,6 @@ const COMPATIBILITY_NOTES: Record<string, string> = {
   'obsidian-comment': 'Comentários %% do Obsidian ficam ocultos na leitura; continuam salvos no arquivo.',
   'plugin-block': 'Blocos de plugins (como dataview) mostram o código em vez do resultado — nada é executado nem alterado.',
   'plugin-inline': 'Comandos de plugins no meio do texto aparecem como texto comum — nada é executado.',
-}
-
-function formatTrashDate(day: number) {
-  return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(day * 86_400_000))
 }
 
 function App() {
@@ -5430,33 +5427,12 @@ function App() {
                 setGraphConnectSource={setGraphConnectSource}
               />
             ) : workspacePage === 'trash' ? (
-              <section className="workspace-page trash-page" data-builder-name="trash-page">
-                <p className="card-kicker">Lixeira</p>
-                <h2>Arquivos excluidos</h2>
-                <p>Arquivos na lixeira sao excluidos permanentemente apos 30 dias.</p>
-                <div className="trash-table-wrap" data-builder-name="trash-files">
-                  <table>
-                    <thead>
-                      <tr><th>Arquivo</th><th>Tipo</th><th>Excluído em</th><th>Ações</th></tr>
-                    </thead>
-                    <tbody>
-                      {trashItems.length === 0 ? <tr><td colSpan={4}>A lixeira esta vazia.</td></tr> : trashItems.map((item) => (
-                        <tr key={item.id}>
-                          <td title={item.originalRelativePath}>{item.originalRelativePath.replace(/\.md$/i, '')}</td>
-                          <td>{item.itemType === 'folder' ? 'Pasta' : 'Nota'}</td>
-                          <td>{formatTrashDate(item.deletedAtDay)}</td>
-                          <td>
-                            <div className="trash-table-actions">
-                              <button type="button" className="secondary-button" onClick={() => void restoreTrashItem(item.id)} disabled={loading} title="Restaurar item" aria-label="Restaurar item"><RotateCcw size={14} strokeWidth={1.5} aria-hidden="true" /></button>
-                              <button type="button" className="secondary-button danger-button" onClick={() => setPermanentDeleteTarget(item)} disabled={loading} title="Excluir permanentemente" aria-label="Excluir permanentemente"><Trash2 size={14} strokeWidth={1.5} aria-hidden="true" /></button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+              <TrashPage
+                trashItems={trashItems}
+                loading={loading}
+                restoreTrashItem={restoreTrashItem}
+                setPermanentDeleteTarget={setPermanentDeleteTarget}
+              />
             ) : (
               <SettingsPage
                 vaultPath={vault.path}
