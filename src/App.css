@@ -1035,6 +1035,11 @@ label.settings-toggle {
   color: #fbfaf6;
 }
 
+.settings-segmented button.is-active:hover:not(:disabled) {
+  background: #2e6b4f;
+  color: #fbfaf6;
+}
+
 .settings-segmented button:focus-visible {
   outline: 2px solid rgb(46 107 79 / 45%);
   outline-offset: -2px;
@@ -7686,7 +7691,16 @@ label.settings-toggle {
   color: #c9c6c0;
 }
 
+[data-theme='dark'] .settings-segmented button:hover:not(:disabled) {
+  background: rgba(232, 230, 221, 0.07);
+}
+
 [data-theme='dark'] .settings-segmented button.is-active {
+  background: #2e5544;
+  color: #e8f4ec;
+}
+
+[data-theme='dark'] .settings-segmented button.is-active:hover:not(:disabled) {
   background: #2e5544;
   color: #e8f4ec;
 }

@@ -225,6 +225,17 @@ function createTauriHarness(
         notes.set(relativePath, saved)
         return saved
       }
+      case 'delete_vault_item': {
+        // Fidelidade ao backend: arquivo sumido some do proximo scan.
+        const relativePath = args?.relativePath ?? ''
+        notes.delete(relativePath)
+        if (inventorySyncConflictCopies !== undefined) {
+          inventorySyncConflictCopies = inventorySyncConflictCopies.filter(
+            (copy) => (copy as { relativePath?: string }).relativePath !== relativePath,
+          )
+        }
+        return undefined
+      }
       case 'get_note_review_gaps':
         if (args?.relativePath === 'inicial.md') {
           return [
@@ -2243,6 +2254,8 @@ describe('Regressao do editor no workspace', () => {
     await user.click(within(reopened).getByRole('button', { name: 'Excluir?' }))
     await waitFor(() => expect(notes.get('inicial.md')?.content).not.toContain('lembrete-orfao'))
     expect(screen.queryByRole('button', { name: '1 post-it sem âncora' })).not.toBeInTheDocument()
+    // Lista zerada fecha o dialogo sozinho.
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Post-its sem âncora' })).not.toBeInTheDocument())
   })
 
   it('[sync] copias de conflito listam, abrem e promovem a copia', async () => {
@@ -2275,6 +2288,8 @@ describe('Regressao do editor no workspace', () => {
       'delete_vault_item',
       expect.objectContaining({ relativePath: 'nota (conflito).md' }),
     ))
+    // Lista zerada fecha o dialogo sozinho.
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Cópias de conflito' })).not.toBeInTheDocument())
   })
 
   it('[postit] menu lista os postits e abre pelo item', async () => {

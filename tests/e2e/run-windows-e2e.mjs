@@ -84,6 +84,10 @@ const journeys = [
     spec: 'tests/e2e/goals-create-complete.e2e.mjs',
     phases: ['goals-create', 'verify-goals'],
   },
+  {
+    spec: 'tests/e2e/sync-conflicts.e2e.mjs',
+    phases: ['sync-conflicts'],
+  },
 ]
 
 // WebView2 demora a liberar o compositor apos o fechamento do app; a pausa

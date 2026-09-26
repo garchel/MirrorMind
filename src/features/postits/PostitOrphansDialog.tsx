@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { POSTIT_COLOR_HEX, type NotePostit } from '../../lib/postits'
 import { Modal, ModalHeader } from '../../components/Modal'
 
@@ -18,6 +18,10 @@ export type PostitOrphansDialogProps = {
 export function PostitOrphansDialog({ open, orphans, onClose, onOpen, onDelete }: PostitOrphansDialogProps) {
   const [error, setError] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  // Lista esvaziada (exclusões) fecha sozinho: sem nada a mostrar.
+  useEffect(() => {
+    if (open && orphans.length === 0) onClose()
+  }, [open, orphans.length, onClose])
   return (
     <Modal open={open} onClose={onClose} label="Post-its sem âncora" labelledBy="postit-orphans-title">
       <ModalHeader

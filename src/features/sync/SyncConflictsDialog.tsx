@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { SyncConflictCopy } from '../../lib/vault'
 import { Modal, ModalHeader } from '../../components/Modal'
 
@@ -27,6 +27,10 @@ export function SyncConflictsDialog({ open, copies, hasOriginal, onClose, onOpen
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Lista esvaziada fecha sozinho: sem nada a resolver.
+  useEffect(() => {
+    if (open && copies.length === 0) onClose()
+  }, [open, copies.length, onClose])
 
   async function promote(copy: SyncConflictCopy) {
     setBusyId(copy.relativePath)
@@ -41,7 +45,7 @@ export function SyncConflictsDialog({ open, copies, hasOriginal, onClose, onOpen
   }
 
   return (
-    <Modal open={open} onClose={onClose} label="Cópias de conflito de sincronização" labelledBy="sync-conflicts-title">
+    <Modal open={open} onClose={onClose} label="Cópias de conflito de sincronização" labelledBy="sync-conflicts-title" className="sync-conflicts-modal">
       <ModalHeader
         titleId="sync-conflicts-title"
         title="Cópias de conflito"
@@ -51,6 +55,9 @@ export function SyncConflictsDialog({ open, copies, hasOriginal, onClose, onOpen
       />
       <p className="sync-conflicts-lead">
         A nuvem guardou uma versão paralela e o app a escondeu das notas para não duplicar links e grafo.
+      </p>
+      <p className="sync-conflicts-lead">
+        Cópias do tipo nome-PC do OneDrive não são detectadas automaticamente.
       </p>
       {error ? <p className="sync-conflicts-error" role="alert">{error}</p> : null}
       <ul className="sync-conflicts-list">
