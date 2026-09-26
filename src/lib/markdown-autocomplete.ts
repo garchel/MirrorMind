@@ -1,5 +1,5 @@
 import type { Completion } from '@codemirror/autocomplete'
-import { extractObsidianWikiLinks, resolveObsidianWikiLinkPath } from './markdown'
+import { buildWikilinkPathIndex, extractObsidianWikiLinks, resolveObsidianWikiLinkPathWithIndex } from './markdown'
 
 export type MarkdownAutocompleteData = {
   attachments: string[]
@@ -25,8 +25,10 @@ export function resolveMarkdownAutocompleteData(input: {
 }): MarkdownAutocompleteData {
   const connectedNotePaths = new Set<string>()
   if (input.activeNotePath && !input.isNewNoteDraft) {
+    // Indice montado uma vez por chamada (O(P + L) em vez de O(L x P) por link).
+    const pathIndex = buildWikilinkPathIndex(input.notePaths)
     for (const link of extractObsidianWikiLinks(input.draftContent)) {
-      const targetPath = resolveObsidianWikiLinkPath(link.path, input.activeNotePath, input.notePaths)
+      const targetPath = resolveObsidianWikiLinkPathWithIndex(link.path, input.activeNotePath, pathIndex)
       if (targetPath !== input.activeNotePath) connectedNotePaths.add(targetPath)
     }
     const backlinks = input.vaultBacklinks ?? input.graphBacklinks

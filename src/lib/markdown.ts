@@ -616,6 +616,8 @@ export function parseObsidianWikiLink(rawLink: string): ObsidianWikiLink | null 
 }
 
 export function resolveObsidianWikiLinkPath(linkPath: string, sourcePath: string, availablePaths: string[]) {
+  // Caminho por chamada: array simples (mais rapido que Maps quando o indice
+  // nao e reaproveitado — ver perf de wikilinkIndex). Lotes usam o indice.
   const normalize = (path: string) => path.replace(/\\/g, '/').toLowerCase()
   const normalizedLink = normalize(linkPath)
   const normalizedPaths = availablePaths.map((path) => ({ normalized: normalize(path), path }))
@@ -643,6 +645,62 @@ export function resolveObsidianWikiLinkPath(linkPath: string, sourcePath: string
         return sharedSegments(right.normalized) - sharedSegments(left.normalized) || compareUnicodeCodePoints(left.path, right.path)
       })[0]?.path
     ?? linkPath
+}
+
+/** Indice precomputado dos caminhos do vault: montar uma vez por lote
+ * (ex.: por tecla no autocomplete) em vez de uma vez por link — O(P + L)
+ * em vez de O(L x P). */
+export type WikilinkPathIndex = {
+  /** Caminho normalizado -> original (primeira ocorrencia, como o find). */
+  byNormalized: Map<string, string>
+  /** basename normalizado -> entradas (ordem do inventario, sort estavel). */
+  byBasename: Map<string, Array<{ normalized: string; path: string }>>
+}
+
+export function buildWikilinkPathIndex(availablePaths: string[]): WikilinkPathIndex {
+  const normalize = (path: string) => path.replace(/\\/g, '/').toLowerCase()
+  const byNormalized = new Map<string, string>()
+  const byBasename = new Map<string, Array<{ normalized: string; path: string }>>()
+  for (const path of availablePaths) {
+    const normalized = normalize(path)
+    if (!byNormalized.has(normalized)) byNormalized.set(normalized, path)
+    const basename = normalized.split('/').at(-1) ?? normalized
+    const bucket = byBasename.get(basename)
+    if (bucket) bucket.push({ normalized, path })
+    else byBasename.set(basename, [{ normalized, path }])
+  }
+  return { byNormalized, byBasename }
+}
+
+/** Mesma regra do resolver (candidato relativo -> exato -> basename por
+ * proximidade), lendo do indice. */
+export function resolveObsidianWikiLinkPathWithIndex(linkPath: string, sourcePath: string, index: WikilinkPathIndex): string {
+  const normalize = (path: string) => path.replace(/\\/g, '/').toLowerCase()
+  const normalizedLink = normalize(linkPath)
+  const normalizedSource = normalize(sourcePath)
+  if (!normalizedLink) return index.byNormalized.get(normalizedSource) ?? sourcePath
+
+  const sourceFolder = normalizedSource.split('/').slice(0, -1).join('/')
+  const relativeCandidate = sourceFolder ? `${sourceFolder}/${normalizedLink}` : normalizedLink
+  const exactRootMatch = index.byNormalized.get(normalizedLink)
+
+  if (normalizedLink.includes('/')) return exactRootMatch ?? linkPath
+
+  const relativeMatch = index.byNormalized.get(relativeCandidate)
+  if (relativeMatch !== undefined) return relativeMatch
+  if (exactRootMatch !== undefined) return exactRootMatch
+  const bucket = index.byBasename.get(normalizedLink.split('/').at(-1) ?? normalizedLink) ?? []
+  const [best] = [...bucket].sort((left, right) => {
+    const sourceSegments = sourceFolder.split('/')
+    const sharedSegments = (path: string) => {
+      const pathSegments = path.split('/')
+      let count = 0
+      while (count < sourceSegments.length && pathSegments[count] === sourceSegments[count]) count += 1
+      return count
+    }
+    return sharedSegments(right.normalized) - sharedSegments(left.normalized) || compareUnicodeCodePoints(left.path, right.path)
+  })
+  return best?.path ?? linkPath
 }
 
 /**

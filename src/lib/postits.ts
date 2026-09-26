@@ -303,6 +303,8 @@ export type ResolvedPostit = {
 
 export function resolvePostitAnchors(postits: NotePostit[], body: string, bodyStartOffset: number): ResolvedPostit[] {
   const paragraphs = findBodyParagraphs(body, bodyStartOffset)
+  // Strip uma vez por lote (o corpo de 200KB domina o custo por post-it).
+  const { text: visible, map } = stripInlineHtmlForMatch(body)
   return postits.map((postit) => {
     const target = normalizeAnchorText(postit.anchorText)
     if (!target) return { postit, from: null, range: null }
@@ -321,7 +323,7 @@ export function resolvePostitAnchors(postits: NotePostit[], body: string, bodySt
     // Faixa da frase quando existe (offsets no corpo, sem bodyStartOffset —
     // o chamador soma como faz com `from`); sem citacao resolvida, o pino do
     // paragrafo assume (retrocompat total).
-    const range = postit.range ? resolvePostitRange(postit.range, body) : null
+    const range = postit.range ? resolveQuoteInVisible(postit.range, visible, map, body.length) : null
     if (paragraphFrom === null && range === null) return { postit, from: null, range: null }
     return { postit, from: paragraphFrom, range }
   })
@@ -451,12 +453,23 @@ export function deriveRangeAnchorFromSelection(body: string, from: number, to: n
  * (migracao silenciosa). */
 export function resolvePostitRange(range: PostitRangeAnchor, body: string): { from: number; to: number } | null {
   const { text: visible, map } = stripInlineHtmlForMatch(body)
+  return resolveQuoteInVisible(range, visible, map, body.length)
+}
+
+/** Nucleo da resolucao sobre texto visivel + mapa (o strip roda uma vez por
+ * lote, nao uma vez por post-it). */
+function resolveQuoteInVisible(
+  range: PostitRangeAnchor,
+  visible: string,
+  map: number[],
+  bodyLength: number,
+): { from: number; to: number } | null {
   const strippedQuote = stripInlineHtmlForMatch(range.quote).text
   const quote = normalizeRangeText(strippedQuote) ? strippedQuote : range.quote
   const candidates = contextualQuoteMatches(visible, quote, normalizeRangeText(range.prefix), normalizeRangeText(range.suffix))
   if (candidates.length === 0 || range.occurrence < 0 || range.occurrence >= candidates.length) return null
   const match = candidates[range.occurrence]
-  return { from: map[match.from], to: match.to < visible.length ? map[match.to] : body.length }
+  return { from: map[match.from], to: match.to < visible.length ? map[match.to] : bodyLength }
 }
 
 /** Quantos caracteres visiveis existem antes do offset original. */
