@@ -471,6 +471,7 @@ fn scan_vault_inventory(
             files: scan.special_files,
             truncated: scan.special_files_truncated,
         },
+        sync_conflict_copies: scan.sync_conflict_copies.clone(),
         diagnostics: scan.diagnostics,
     })
 }
@@ -513,6 +514,12 @@ fn apply_vault_inventory_changes(
         .sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
     scan.special_files
         .dedup_by(|left, right| left.relative_path == right.relative_path);
+    scan.sync_conflict_copies.sort_by(|left, right| {
+        left.relative_path
+            .cmp(&right.relative_path)
+            .then_with(|| left.original_path.cmp(&right.original_path))
+    });
+    scan.sync_conflict_copies.dedup_by(|left, right| left.relative_path == right.relative_path);
     scan.diagnostics.attachments_truncated =
         truncate_attachment_inventory(&mut scan.attachments, MAX_ATTACHMENT_INVENTORY_FILES);
     Ok(VaultInventory {
@@ -531,6 +538,7 @@ fn apply_vault_inventory_changes(
             files: scan.special_files.clone(),
             truncated: scan.special_files_truncated,
         },
+        sync_conflict_copies: scan.sync_conflict_copies.clone(),
         diagnostics: scan.diagnostics.clone(),
     })
 }
@@ -653,6 +661,9 @@ fn remove_inventory_path(scan: &mut VaultScan, root: &Path, relative: &str) {
     scan.special_files.retain(|file| {
         file.relative_path != relative && !file.relative_path.starts_with(&relative_prefix)
     });
+    scan.sync_conflict_copies.retain(|copy| {
+        copy.relative_path != relative && !copy.relative_path.starts_with(&relative_prefix)
+    });
 }
 
 /// Renomeia um caminho (pasta: tudo sob ela) no inventario, usando o proprio
@@ -693,6 +704,15 @@ fn rename_inventory_path(scan: &mut VaultScan, root: &Path, from: &str, to: &str
             if let Some(suffix) = file.relative_path.strip_prefix(&from_prefix) {
                 file.relative_path = format!("{to_prefix}{suffix}");
                 found = true;
+            }
+        }
+        for copy in &mut scan.sync_conflict_copies {
+            if let Some(suffix) = copy.relative_path.strip_prefix(&from_prefix) {
+                copy.relative_path = format!("{to_prefix}{suffix}");
+                found = true;
+            }
+            if let Some(suffix) = copy.original_path.strip_prefix(&from_prefix) {
+                copy.original_path = format!("{to_prefix}{suffix}");
             }
         }
         if !found {
@@ -4619,7 +4639,85 @@ struct VaultInventory {
     folders: Vec<String>,
     attachments: Vec<String>,
     special_files: SpecialVaultInventory,
+    /// Copias de conflito de sincronizacao (fora do inventario de notas).
+    sync_conflict_copies: Vec<SyncConflictCopy>,
     diagnostics: ScanDiagnostics,
+}
+
+/// Provedor de sincronizacao que gerou a copia de conflito. `Cloud` cobre os
+/// formatos indistinguiveis entre si (Dropbox, Nextcloud e o parentetico do
+/// OneDrive/Office); o padrao `-Computador` do OneDrive NAO entra de
+/// proposito (indistinguivel de arquivos legitimos como `nota-PC.md`).
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+enum SyncConflictProvider {
+    Syncthing,
+    Cloud,
+}
+
+/// Copia de conflito de sincronizacao (OneDrive/Dropbox/Syncthing/...): sai
+/// do inventario de notas (poluiria explorador, grafo e autocomplete) e vai
+/// para resolucao propria, com o original presumido para comparar.
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct SyncConflictCopy {
+    relative_path: String,
+    original_path: String,
+    provider: SyncConflictProvider,
+}
+
+/// Detecta copias de conflito pelo NOME do arquivo. Retorna o nome original
+/// presumido + provedor. `conflito.md` puro ou `nota (final).md` NAO casam
+/// (a palavra precisa estar parentetizada ou no formato sync-conflict).
+fn parse_sync_conflict_copy(file_name: &str) -> Option<(String, SyncConflictProvider)> {
+    // Syncthing: `nota.sync-conflict-20260926-120000-ABC1234.md`.
+    if let Some(sync_index) = file_name.find(".sync-conflict-") {
+        let stem = &file_name[..sync_index];
+        let rest = &file_name[sync_index + ".sync-conflict-".len()..];
+        let mut dash_parts = rest.splitn(3, '-');
+        let (Some(date), Some(time), Some(hash_ext)) =
+            (dash_parts.next(), dash_parts.next(), dash_parts.next())
+        else {
+            return None;
+        };
+        if stem.is_empty()
+            || date.len() != 8
+            || !date.bytes().all(|byte| byte.is_ascii_digit())
+            || time.len() != 6
+            || !time.bytes().all(|byte| byte.is_ascii_digit())
+        {
+            return None;
+        }
+        let dot = hash_ext.rfind('.')?;
+        let (hash, extension) = (&hash_ext[..dot], &hash_ext[dot + 1..]);
+        if !extension.eq_ignore_ascii_case("md") || !is_ascii_alphanumeric_str(hash) {
+            return None;
+        }
+        return Some((format!("{stem}.md"), SyncConflictProvider::Syncthing));
+    }
+    // Dropbox/Nextcloud/OneDrive: `nota (conflito de PAPC ...).md` /
+    // `nota (Joe's conflicted copy ...).md` — ultimo parentetico antes da
+    // extensao, com a palavra-chave dentro.
+    let dot = file_name.rfind('.')?;
+    let (stem, extension) = (&file_name[..dot], &file_name[dot + 1..]);
+    if !extension.eq_ignore_ascii_case("md") {
+        return None;
+    }
+    let open = stem.rfind('(')?;
+    let close = stem[open..].rfind(')')?;
+    let inner = stem[open + 1..open + close].to_lowercase();
+    if !(inner.contains("conflict") || inner.contains("conflito")) {
+        return None;
+    }
+    let original = format!("{}{}", stem[..open].trim_end(), &file_name[dot..]);
+    if original.is_empty() {
+        return None;
+    }
+    Some((original, SyncConflictProvider::Cloud))
+}
+
+fn is_ascii_alphanumeric_str(hash: &str) -> bool {
+    !hash.is_empty() && hash.bytes().all(|byte| byte.is_ascii_alphanumeric())
 }
 
 /// Resultado bruto (caminhos) da varredura unificada, antes de montar os
@@ -4631,6 +4729,7 @@ struct VaultScan {
     attachments: Vec<PathBuf>,
     special_files: Vec<SpecialVaultFile>,
     special_files_truncated: bool,
+    sync_conflict_copies: Vec<SyncConflictCopy>,
     diagnostics: ScanDiagnostics,
 }
 
@@ -4648,6 +4747,7 @@ fn scan_vault_unified(root: &Path) -> Result<VaultScan> {
         attachments: Vec::new(),
         special_files: Vec::new(),
         special_files_truncated: false,
+        sync_conflict_copies: Vec::new(),
         diagnostics: ScanDiagnostics::default(),
     };
     let mut visited_directories = HashSet::new();
@@ -4660,6 +4760,12 @@ fn scan_vault_unified(root: &Path) -> Result<VaultScan> {
     scan.notes.sort();
     scan.folders.sort();
     scan.attachments.sort();
+    scan.sync_conflict_copies.sort_by(|left, right| {
+        left.relative_path
+            .cmp(&right.relative_path)
+            .then_with(|| left.original_path.cmp(&right.original_path))
+    });
+    scan.sync_conflict_copies.dedup_by(|left, right| left.relative_path == right.relative_path);
     scan.special_files
         .sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
     if scan.special_files.len() > MAX_SPECIAL_VAULT_FILES {
@@ -4765,7 +4871,21 @@ fn visit_unified_vault_directory(
         if extension.as_deref() == Some("md")
             && !file_name.to_lowercase().ends_with(".excalidraw.md")
         {
-            scan.notes.push(path);
+            // Copias de conflito da nuvem NAO viram notas (poluiriam
+            // explorador, grafo e autocomplete): vao para resolucao propria.
+            if let Some((original_name, provider)) = parse_sync_conflict_copy(file_name) {
+                let relative_path = to_relative_display(canonical_root, &path);
+                let original_path = match relative_path.rfind('/') {
+                    Some(index) => format!("{}/{}", &relative_path[..index], original_name),
+                    None => original_name,
+                };
+                let entry = SyncConflictCopy { relative_path, original_path, provider };
+                if !scan.sync_conflict_copies.contains(&entry) {
+                    scan.sync_conflict_copies.push(entry);
+                }
+            } else {
+                scan.notes.push(path);
+            }
         } else if is_attachment {
             scan.attachments.push(path);
         } else if let Some(kind) = special_vault_file_kind(&path) {
@@ -6195,6 +6315,7 @@ mod tests {
         record_history, recover_note_in_root, rename_vault_item_in_root,
         rename_vault_item_in_root_with_state, resolve_folder_path, resolve_note_path,
         restore_trash_item_in_root, save_note_in_root, scan_vault_unified, search_notes_in_root,
+        parse_sync_conflict_copy, remove_inventory_path, rename_inventory_path, SyncConflictProvider,
         to_relative_display, truncate_attachment_inventory, update_wiki_links_for_note_path_change,
         update_wiki_links_for_note_path_change_with_hook,
         update_wiki_links_for_note_path_change_with_hooks, update_wikilink_index_after_save,
@@ -7014,6 +7135,121 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(names, vec!["nota.md"]);
+    }
+
+    #[test]
+    fn parse_sync_conflict_copy_recognizes_providers() {
+        use SyncConflictProvider::{Cloud, Syncthing};
+        assert_eq!(
+            parse_sync_conflict_copy("nota (João's conflicted copy 2026-09-26).md"),
+            Some(("nota.md".to_string(), Cloud)),
+        );
+        assert_eq!(
+            parse_sync_conflict_copy("estudo (cópia em conflito de PAPC).md"),
+            Some(("estudo.md".to_string(), Cloud)),
+        );
+        assert_eq!(
+            parse_sync_conflict_copy("nota.sync-conflict-20260926-120000-ABC1234.md"),
+            Some(("nota.md".to_string(), Syncthing)),
+        );
+        assert_eq!(
+            parse_sync_conflict_copy("NOTA (CONFLICTED COPY X).MD"),
+            Some(("NOTA.MD".to_string(), Cloud)),
+        );
+        // Negativas: palavra solta, parentetico inocente, padrao `-PC` do
+        // OneDrive (indistinguivel de arquivo legitimo) e comparacao literal.
+        assert_eq!(parse_sync_conflict_copy("conflito.md"), None);
+        assert_eq!(parse_sync_conflict_copy("nota (final).md"), None);
+        assert_eq!(parse_sync_conflict_copy("nota-PC.md"), None);
+        assert_eq!(parse_sync_conflict_copy("a < b.md"), None);
+        assert_eq!(parse_sync_conflict_copy("nota.sync-conflict-xyz.md"), None);
+        assert_eq!(parse_sync_conflict_copy("img.sync-conflict-20260926-120000-ABC1234.png"), None);
+    }
+
+    #[test]
+    fn scan_vault_unified_reports_sync_conflict_copies_outside_notes() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path();
+        fs::write(root.join("nota.md"), "# Nota").expect("write note");
+        fs::write(
+            root.join("nota (João's conflicted copy 2026-09-26).md"),
+            "# Copia",
+        )
+        .expect("write dropbox copy");
+        fs::create_dir_all(root.join("Pasta")).expect("create folder");
+        fs::write(
+            root.join("Pasta").join("outra.sync-conflict-20260926-120000-ABC1234.md"),
+            "# Copia",
+        )
+        .expect("write syncthing copy");
+
+        // collect_markdown_files (visao de notas) exclui as copias...
+        let notes = collect_markdown_files(root).expect("collect notes");
+        let names = notes
+            .iter()
+            .map(|path| path.file_name().unwrap().to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(names, vec!["nota.md"]);
+
+        // ...e a varredura as reporta com original + provedor, ordenadas.
+        let scan = scan_vault_unified(&root.canonicalize().expect("canonical root"))
+            .expect("unified scan");
+        let copies = scan
+            .sync_conflict_copies
+            .iter()
+            .map(|copy| {
+                (
+                    copy.relative_path.replace('\\', "/"),
+                    copy.original_path.replace('\\', "/"),
+                    copy.provider.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            copies,
+            vec![
+                (
+                    "Pasta/outra.sync-conflict-20260926-120000-ABC1234.md".to_string(),
+                    "Pasta/outra.md".to_string(),
+                    SyncConflictProvider::Syncthing,
+                ),
+                (
+                    "nota (João's conflicted copy 2026-09-26).md".to_string(),
+                    "nota.md".to_string(),
+                    SyncConflictProvider::Cloud,
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn inventory_increment_keeps_sync_conflict_copies_consistent() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory.path().canonicalize().expect("canonical root");
+        fs::write(root.join("nota.md"), "# Nota").expect("write note");
+        fs::write(
+            root.join("nota (conflito de PAPC).md"),
+            "# Copia",
+        )
+        .expect("write copy");
+
+        let mut scan = scan_vault_unified(&root).expect("unified scan");
+        assert_eq!(scan.sync_conflict_copies.len(), 1);
+
+        // Remover a copia purga a lista (nao vira orfao invisivel).
+        remove_inventory_path(&mut scan, &root, "nota (conflito de PAPC).md");
+        assert!(scan.sync_conflict_copies.is_empty());
+        assert_eq!(scan.notes.len(), 1);
+
+        // Renomear a pasta reescreve os caminhos relativos da copia.
+        fs::create_dir_all(root.join("Velha")).expect("create folder");
+        fs::write(root.join("Velha").join("x (conflito).md"), "# X").expect("write x");
+        let mut scan = scan_vault_unified(&root).expect("rescan");
+        assert_eq!(scan.sync_conflict_copies.len(), 2);
+        rename_inventory_path(&mut scan, &root, "Velha", "Nova");
+        assert_eq!(scan.sync_conflict_copies.len(), 2);
+        assert!(scan.sync_conflict_copies.iter().any(|copy| copy.relative_path.replace('\\', "/")
+            == "Nova/x (conflito).md"));
     }
 
     #[test]

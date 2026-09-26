@@ -172,6 +172,14 @@ const specialVaultInventorySchema = z.object({
   truncated: z.boolean(),
 })
 
+export const syncConflictCopySchema = z.object({
+  relativePath: z.string().min(1),
+  originalPath: z.string().min(1),
+  provider: z.enum(['syncthing', 'cloud']),
+})
+
+export type SyncConflictCopy = z.infer<typeof syncConflictCopySchema>
+
 export const unreadableReasonSchema = z.enum(['notUtf8', 'unreadable', 'tagIndexFailure'])
 
 export const scanDiagnosticsSchema = z.object({
@@ -236,6 +244,7 @@ const vaultInventorySchema = z.object({
   folders: z.array(z.string()),
   attachments: z.array(z.string()),
   specialFiles: specialVaultInventorySchema,
+  syncConflictCopies: z.array(syncConflictCopySchema).default([]),
   diagnostics: scanDiagnosticsSchema.default(EMPTY_SCAN_DIAGNOSTICS),
 })
 

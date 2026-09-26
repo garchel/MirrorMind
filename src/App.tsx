@@ -8,7 +8,7 @@ import { invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, ExternalLink, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, LayoutDashboard, Link, Link2, List, ListFilter,
+import { AlertTriangle, ArrowLeft, ArrowRight, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, ExternalLink, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, LayoutDashboard, Link, Link2, List, ListFilter,
 ListOrdered, Minus, MoreHorizontal, Network, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Sigma, Star, Strikethrough, Subscript, Superscript, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { File02Icon, HighlighterIcon, StickyNote02Icon } from '@hugeicons/core-free-icons'
@@ -95,6 +95,7 @@ import {
   scanDiagnosticsSummary,
   suggestVaultName,
   type ScanDiagnostics,
+  type SyncConflictCopy,
 } from './lib/vault'
 import './App.css'
 import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, displayWikilinkTargetName, extractMarkdownTags, extractObsidianWikiLinks, formatMarkdownSelection, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, normalizeMarkdownTag, removeMarkdownFrontmatterProperty, replaceMarkdownBody, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, transformMarkdownTable, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
@@ -103,6 +104,7 @@ import { usePostitPopover } from './features/postits/usePostitPopover'
 import { PostitPopover } from './features/postits/PostitPopover'
 import { PostitMenu } from './features/postits/PostitMenu'
 import { PostitOrphansDialog } from './features/postits/PostitOrphansDialog'
+import { SyncConflictsDialog } from './features/sync/SyncConflictsDialog'
 import { FrontmatterPanelForm } from './components/FrontmatterPanelForm'
 import { NoteTagRow } from './components/NoteTagRow'
 import { nextPopoverShiftX } from './lib/selectionPopover'
@@ -849,6 +851,8 @@ function App() {
   const [specialFileViewerError, setSpecialFileViewerError] = useState<string | null>(null)
   const [vaultDiagnostics, setVaultDiagnostics] = useState<ScanDiagnostics | null>(null)
   const [diagnosticsDismissed, setDiagnosticsDismissed] = useState(false)
+  const [syncConflictCopies, setSyncConflictCopies] = useState<SyncConflictCopy[]>([])
+  const [showSyncConflicts, setShowSyncConflicts] = useState(false)
   const [showSpecialFilesDialog, setShowSpecialFilesDialog] = useState(false)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [tagFilterQuery, setTagFilterQuery] = useState('')
@@ -1176,6 +1180,7 @@ function App() {
           const inventory = parseVaultInventory(updated)
           setFolders(inventory.folders)
           setAttachments(inventory.attachments)
+          setSyncConflictCopies(inventory.syncConflictCopies)
         }
         return
       }
@@ -1290,6 +1295,7 @@ function App() {
       setSpecialFiles([])
       setSpecialFilesTruncated(false)
       setVaultDiagnostics(null)
+      setSyncConflictCopies([])
       setDiagnosticsDismissed(false)
       setShowSpecialFilesDialog(false)
       setSelectedTags([])
@@ -1857,10 +1863,12 @@ function App() {
         await invoke<unknown>('scan_vault_inventory', { path: vault.path }),
       )
       setVaultDiagnostics(inventory.diagnostics)
+      setSyncConflictCopies(inventory.syncConflictCopies)
       setDiagnosticsDismissed(false)
       setStatus('Varredura refeita.')
     } catch {
       setVaultDiagnostics(null)
+      setSyncConflictCopies([])
       setStatus('Não foi possível refazer a varredura do vault.')
     }
   }
@@ -1890,6 +1898,7 @@ function App() {
       setFavorites(nextFavorites)
       setTemplates(nextTemplates)
       setVaultDiagnostics(inventory.diagnostics)
+      setSyncConflictCopies(inventory.syncConflictCopies)
       setDiagnosticsDismissed(false)
 
       if (nextNotes.length === 0) {
@@ -3245,6 +3254,29 @@ function App() {
     setDeleteTarget(target)
   }
 
+  /** Resolve uma copia de conflito substituindo o original pelo conteudo
+   * dela; a copia vai para a lixeira (rede de seguranca) e o inventario e
+   * refeito. Devolve o erro ou null. */
+  async function promoteSyncConflictCopy(copy: SyncConflictCopy): Promise<string | null> {
+    if (!vault) return 'Nenhum vault aberto.'
+    setLoading(true)
+    try {
+      const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath: copy.relativePath })
+      const copyNote = parseNoteDocument(payload)
+      await invoke('save_note', { path: vault.path, relativePath: copy.originalPath, content: copyNote.content })
+      await deleteVaultItem({
+        path: copy.relativePath,
+        name: copy.relativePath.split('/').at(-1) ?? copy.relativePath,
+        type: 'note',
+      })
+      return null
+    } catch (caughtError) {
+      return caughtError instanceof Error ? caughtError.message : 'Não foi possível substituir pelo conteúdo da cópia.'
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function openNote(relativePath: string, vaultPathOverride?: string) {
     const targetVaultPath = vaultPathOverride ?? vault?.path
 
@@ -4547,95 +4579,143 @@ function App() {
     )
   }
 
-  if (vault) {
-    const filteredNotes = selectedTags.length > 0
-      ? notes.filter((note) => selectedTags.every((tag) => tagIndex.find((entry) => entry.tag === tag)?.notePaths.includes(note.relativePath)))
-      : notes
-    const visibleFolders = selectedTags.length > 0
-      ? folders.filter((folder) => filteredNotes.some((note) => note.relativePath.startsWith(`${folder}/`)))
-      : folders
-    const noteTree = buildNoteTree(filteredNotes, visibleFolders)
-    const linkableNotes = notes.filter((note) =>
-      note.relativePath !== activeNote?.relativePath && note.relativePath.toLowerCase().includes(noteLinkQuery.trim().toLowerCase()),
-    )
-    const activeTags = extractMarkdownTags(draftContent)
-    const compatibilityNotes = detectUnsupportedMarkdownFeatures(draftContent).map((feature) => COMPATIBILITY_NOTES[feature] ?? feature)
-    const activeNotePaths = notes.map((note) => note.relativePath)
-    // Notas conectadas para ranquear o autocomplete: derivacao pura no lib
-    // (alvos do rascunho + backlinks do indice, com fallback para o grafo).
-    const markdownAutocompleteData = resolveMarkdownAutocompleteData({
-      notePaths: activeNotePaths,
-      activeNotePath: activeNote?.relativePath ?? null,
-      isNewNoteDraft,
-      draftContent,
-      attachments,
-      tags: tagIndex.map((entry) => entry.tag),
-      vaultBacklinks: vaultIndexRef.current.getSnapshot()?.backlinks ?? null,
-      graphBacklinks: graphWikilinkIndex?.backlinks ?? null,
-    })
-    const favoriteNotes = notes.filter((note) => favorites.includes(note.relativePath))
-    const matchingTagSuggestions = tagIndex.filter((entry) =>
-      !selectedTags.includes(entry.tag) && entry.tag.includes(tagFilterQuery.trim().replace(/^#/, '').toLowerCase()),
-    )
-    const allGraphLinks = graphWikilinkIndex
+  // Derivacoes caras do render (arvore, grafo, autocomplete, listas):
+  // memoizadas para a digitacao nao reconstruir estruturas do vault a cada
+  // tecla. Tudo aqui e derivacao pura das deps — refs mutaveis sao lidas
+  // fora (snapshot/backlinks) para nao congelar, e o `if (vault)` abaixo so
+  // consome (com guards para vault nulo).
+  const hasSelectedTags = selectedTags.length > 0
+  const filteredNotes = useMemo(() => {
+    if (!vault) return []
+    if (!hasSelectedTags) return notes
+    return notes.filter((note) => selectedTags.every((tag) => tagIndex.find((entry) => entry.tag === tag)?.notePaths.includes(note.relativePath)))
+  }, [vault, notes, hasSelectedTags, selectedTags, tagIndex])
+  const visibleFolders = useMemo(() => {
+    if (!vault) return []
+    if (!hasSelectedTags) return folders
+    return folders.filter((folder) => filteredNotes.some((note) => note.relativePath.startsWith(`${folder}/`)))
+  }, [vault, folders, hasSelectedTags, filteredNotes])
+  const noteTree = useMemo(() => buildNoteTree(filteredNotes, visibleFolders), [filteredNotes, visibleFolders])
+  const linkableNotes = useMemo(() => {
+    if (!vault) return []
+    const activePath = activeNote?.relativePath
+    const query = noteLinkQuery.trim().toLowerCase()
+    return notes.filter((note) => note.relativePath !== activePath && note.relativePath.toLowerCase().includes(query))
+  }, [vault, notes, activeNote, noteLinkQuery])
+  const activeTags = useMemo(() => extractMarkdownTags(draftContent), [draftContent])
+  const compatibilityNotes = useMemo(
+    () => detectUnsupportedMarkdownFeatures(draftContent).map((feature) => COMPATIBILITY_NOTES[feature] ?? feature),
+    [draftContent],
+  )
+  const activeNotePaths = useMemo(() => notes.map((note) => note.relativePath), [notes])
+  const tagKeys = useMemo(() => tagIndex.map((entry) => entry.tag), [tagIndex])
+  const vaultSnapshot = vaultIndexRef.current.getSnapshot()
+  const graphBacklinks = graphWikilinkIndex?.backlinks ?? null
+  // Notas conectadas para ranquear o autocomplete: derivacao pura no lib
+  // (alvos do rascunho + backlinks do indice, com fallback para o grafo).
+  const markdownAutocompleteData = useMemo(() => resolveMarkdownAutocompleteData({
+    notePaths: activeNotePaths,
+    activeNotePath: activeNote?.relativePath ?? null,
+    isNewNoteDraft,
+    draftContent,
+    attachments,
+    tags: tagKeys,
+    vaultBacklinks: vaultSnapshot?.backlinks ?? null,
+    graphBacklinks,
+  }), [activeNotePaths, activeNote, isNewNoteDraft, draftContent, attachments, tagKeys, vaultSnapshot, graphBacklinks])
+  const favoriteNotes = useMemo(() => {
+    if (!vault) return []
+    return notes.filter((note) => favorites.includes(note.relativePath))
+  }, [vault, notes, favorites])
+  const matchingTagSuggestions = useMemo(() => {
+    if (!vault) return []
+    const query = tagFilterQuery.trim().replace(/^#/, '').toLowerCase()
+    return tagIndex.filter((entry) => !selectedTags.includes(entry.tag) && entry.tag.includes(query))
+  }, [vault, tagIndex, selectedTags, tagFilterQuery])
+  const allGraphLinks = useMemo(() => {
+    if (!vault) return []
+    return graphWikilinkIndex
       ? buildNoteGraphLinksFromIndex(graphWikilinkIndex, graphDocuments)
-      : buildNoteGraphLinks(graphDocuments, notes.map((note) => note.relativePath))
-    const allGraphDegreeByPath = allGraphLinks.reduce<Record<string, number>>((degrees, link) => {
-      degrees[link.source] = (degrees[link.source] ?? 0) + 1
-      degrees[link.target] = (degrees[link.target] ?? 0) + 1
-      return degrees
-    }, {})
-    const orphanGraphDocuments = graphDocuments.filter((document) => (allGraphDegreeByPath[document.relativePath] ?? 0) === 0)
-    const localGraphCenterPath = focusedGraphPath ?? activeNote?.relativePath ?? null
-    // Grafo local por profundidade: BFS a partir do centro ate `graphLocalDepth`
-    // saltos; `localGraphBeyond` sao as notas alcancaveis alem dessa profundidade
-    // (usadas no aviso de resultado limitado).
-    const localGraphReached = new Set<string>()
-    if (localGraphCenterPath) localGraphReached.add(localGraphCenterPath)
-    let localGraphFrontier = localGraphCenterPath ? [localGraphCenterPath] : []
-    for (let hop = 1; hop <= graphLocalDepth; hop++) {
+      : buildNoteGraphLinks(graphDocuments, activeNotePaths)
+  }, [vault, graphWikilinkIndex, graphDocuments, activeNotePaths])
+  const allGraphDegreeByPath = useMemo(() => allGraphLinks.reduce<Record<string, number>>((degrees, link) => {
+    degrees[link.source] = (degrees[link.source] ?? 0) + 1
+    degrees[link.target] = (degrees[link.target] ?? 0) + 1
+    return degrees
+  }, {}), [allGraphLinks])
+  const orphanGraphDocuments = useMemo(() => {
+    if (!vault) return []
+    return graphDocuments.filter((document) => (allGraphDegreeByPath[document.relativePath] ?? 0) === 0)
+  }, [vault, graphDocuments, allGraphDegreeByPath])
+  const localGraphCenterPath = focusedGraphPath ?? activeNote?.relativePath ?? null
+  // Grafo local por profundidade: BFS a partir do centro ate `graphLocalDepth`
+  // saltos; `localGraphBeyond` sao as notas alcancaveis alem dessa profundidade
+  // (usadas no aviso de resultado limitado).
+  const { localGraphReached, localGraphBeyond } = useMemo(() => {
+    const reached = new Set<string>()
+    const beyond = new Set<string>()
+    if (!vault || !localGraphCenterPath) return { localGraphReached: reached, localGraphBeyond: beyond }
+    reached.add(localGraphCenterPath)
+    let frontier = [localGraphCenterPath]
+    for (let hop = 1; hop <= graphLocalDepth; hop += 1) {
       const nextLevel = new Set<string>()
-      for (const node of localGraphFrontier) {
+      for (const node of frontier) {
         for (const link of allGraphLinks) {
-          if (link.source === node && !localGraphReached.has(link.target)) nextLevel.add(link.target)
-          else if (link.target === node && !localGraphReached.has(link.source)) nextLevel.add(link.source)
+          if (link.source === node && !reached.has(link.target)) nextLevel.add(link.target)
+          else if (link.target === node && !reached.has(link.source)) nextLevel.add(link.source)
         }
       }
-      for (const path of nextLevel) localGraphReached.add(path)
-      localGraphFrontier = [...nextLevel]
+      for (const path of nextLevel) reached.add(path)
+      frontier = [...nextLevel]
     }
-    const localGraphBeyond = new Set<string>()
-    for (const node of localGraphFrontier) {
+    for (const node of frontier) {
       for (const link of allGraphLinks) {
-        if (link.source === node && !localGraphReached.has(link.target)) localGraphBeyond.add(link.target)
-        else if (link.target === node && !localGraphReached.has(link.source)) localGraphBeyond.add(link.source)
+        if (link.source === node && !reached.has(link.target)) beyond.add(link.target)
+        else if (link.target === node && !reached.has(link.source)) beyond.add(link.source)
       }
     }
-    const localGraphPaths = localGraphReached
-    const graphFolders = [...new Set(graphDocuments.map((document) => document.relativePath.split('/').slice(0, -1).join('/')).filter(Boolean))].sort()
-    const graphTags = graphTagIndex.allTags()
-    const focusedGraphDocument = graphDocuments.find((document) => document.relativePath === focusedGraphPath) ?? null
-    // Notas candidatas a nova conexao no grafo: exclui a propria nota de origem
-    // e as que ja sao alvo de uma saida existente (pelo indice em memoria). A
-    // origem pode ser o no focado (drawer) ou uma nota orfa (painel de limpeza).
-    const connectSourceIndexTargets = graphConnectSource
-      ? new Set(graphWikilinkIndexRef.current ? getWikilinkTargets(graphWikilinkIndexRef.current, graphConnectSource.relativePath) : [])
+    return { localGraphReached: reached, localGraphBeyond: beyond }
+  }, [vault, localGraphCenterPath, graphLocalDepth, allGraphLinks])
+  const localGraphPaths = localGraphReached
+  const graphFolders = useMemo(() => {
+    if (!vault) return []
+    return [...new Set(graphDocuments.map((document) => document.relativePath.split('/').slice(0, -1).join('/')).filter(Boolean))].sort()
+  }, [vault, graphDocuments])
+  const focusedGraphDocument = useMemo(() => {
+    if (!vault) return null
+    return graphDocuments.find((document) => document.relativePath === focusedGraphPath) ?? null
+  }, [vault, graphDocuments, focusedGraphPath])
+  // Notas candidatas a nova conexao no grafo: exclui a propria nota de origem
+  // e as que ja sao alvo de uma saida existente (pelo indice em memoria). A
+  // origem pode ser o no focado (drawer) ou uma nota orfa (painel de limpeza).
+  const graphConnectNotes = useMemo(() => {
+    if (!vault || !graphConnectSource) return []
+    const indexTargets = graphWikilinkIndex
+      ? new Set(getWikilinkTargets(graphWikilinkIndex, graphConnectSource.relativePath))
       : new Set<string>()
-    const graphConnectNotes = graphConnectSource
-      ? notes.filter((note) =>
-          note.relativePath !== graphConnectSource.relativePath
-          && !connectSourceIndexTargets.has(note.relativePath)
-          && note.relativePath.toLowerCase().includes(graphConnectQuery.trim().toLowerCase()),
-        )
-      : []
-    const focusedIncomingLinks = focusedGraphPath ? allGraphLinks.filter((link) => link.target === focusedGraphPath) : []
-    const focusedOutgoingLinks = focusedGraphPath ? allGraphLinks.filter((link) => link.source === focusedGraphPath) : []
-    // Notas que referenciam a selecionada (para os chips clicaveis no drawer).
-    const focusedIncomingNotes = focusedIncomingLinks
-      .map((link) => graphDocuments.find((document) => document.relativePath === link.source))
-      .filter((document): document is GraphDocument => document !== undefined)
-      .sort((left, right) => left.relativePath.localeCompare(right.relativePath))
-    const visibleGraphDocuments = graphDocuments.filter((document) => {
+    return notes.filter((note) =>
+      note.relativePath !== graphConnectSource.relativePath
+      && !indexTargets.has(note.relativePath)
+      && note.relativePath.toLowerCase().includes(graphConnectQuery.trim().toLowerCase()),
+    )
+  }, [vault, notes, graphConnectSource, graphConnectQuery, graphWikilinkIndex])
+  const focusedIncomingLinks = useMemo(
+    () => (focusedGraphPath ? allGraphLinks.filter((link) => link.target === focusedGraphPath) : []),
+    [focusedGraphPath, allGraphLinks],
+  )
+  const focusedOutgoingLinks = useMemo(
+    () => (focusedGraphPath ? allGraphLinks.filter((link) => link.source === focusedGraphPath) : []),
+    [focusedGraphPath, allGraphLinks],
+  )
+  // Notas que referenciam a selecionada (para os chips clicaveis no drawer).
+  const focusedIncomingNotes = useMemo(() => focusedIncomingLinks
+    .map((link) => graphDocuments.find((document) => document.relativePath === link.source))
+    .filter((document): document is GraphDocument => document !== undefined)
+    .sort((left, right) => left.relativePath.localeCompare(right.relativePath)),
+  [focusedIncomingLinks, graphDocuments])
+  const visibleGraphDocuments = useMemo(() => {
+    if (!vault) return []
+    return graphDocuments.filter((document) => {
       const title = document.name.replace(/\.md$/i, '').toLowerCase()
       const matchesQuery = !graphQuery.trim() || title.includes(graphQuery.trim().toLowerCase())
       // Pasta/tag NÃO excluem nós (highlight sem reset de layout) — só a
@@ -4643,7 +4723,14 @@ function App() {
       const isOrphan = (allGraphDegreeByPath[document.relativePath] ?? 0) === 0
       return matchesQuery && (graphMode === 'global' || localGraphPaths.has(document.relativePath)) && (showOnlyGraphOrphans ? isOrphan : showGraphOrphans || !isOrphan)
     })
-    const visibleGraphPaths = new Set(visibleGraphDocuments.map((document) => document.relativePath))
+  }, [vault, graphDocuments, graphQuery, graphMode, localGraphPaths, showOnlyGraphOrphans, showGraphOrphans, allGraphDegreeByPath])
+  const visibleGraphPaths = useMemo(
+    () => new Set(visibleGraphDocuments.map((document) => document.relativePath)),
+    [visibleGraphDocuments],
+  )
+
+  if (vault) {
+    const graphTags = graphTagIndex.allTags()
     // Highlight do filtro pasta/tag: conjunto dos que casam (null = sem
     // filtro). 2D usa `is-dimmed`, 3D recebe `dimmedPaths`; o layout e a
     // simulação nunca mudam por causa dele. Sem useMemo aqui: este bloco
@@ -5288,6 +5375,18 @@ function App() {
                     >
                       <FileWarning size={15} strokeWidth={1.5} aria-hidden="true" />
                       <span aria-hidden="true">{specialFiles.length}{specialFilesTruncated ? '+' : ''}</span>
+                    </button>
+                  ) : null}
+                  {syncConflictCopies.length > 0 ? (
+                    <button
+                      type="button"
+                      className="secondary-button special-files-button"
+                      onClick={() => setShowSyncConflicts(true)}
+                      title={`${syncConflictCopies.length} ${syncConflictCopies.length === 1 ? 'cópia de conflito' : 'cópias de conflito'} de sincronização fora do inventário`}
+                      aria-label={`Resolver ${syncConflictCopies.length} ${syncConflictCopies.length === 1 ? 'cópia de conflito' : 'cópias de conflito'} de sincronização`}
+                    >
+                      <AlertTriangle size={15} strokeWidth={1.5} aria-hidden="true" />
+                      <span aria-hidden="true">{syncConflictCopies.length}</span>
                     </button>
                   ) : null}
                   </div>
@@ -6960,14 +7059,29 @@ function App() {
               </div>
             </div>
           ) : null}
+        <SyncConflictsDialog
+          open={showSyncConflicts}
+          copies={syncConflictCopies}
+          hasOriginal={(originalPath) => notes.some((note) => note.relativePath === originalPath)}
+          onClose={() => setShowSyncConflicts(false)}
+          onOpen={(relativePath) => {
+            setShowSyncConflicts(false)
+            void openNote(relativePath)
+          }}
+          onPromote={(copy) => promoteSyncConflictCopy(copy)}
+          onDelete={(copy) => requestDelete({
+            path: copy.relativePath,
+            name: copy.relativePath.split('/').at(-1) ?? copy.relativePath,
+            type: 'note',
+          })}
+        />
         {externalNoteConflict ? (
           <Modal
             open
             onClose={() => setExternalNoteConflict(null)}
             label="Alteração externa detectada"
             className="note-search-modal external-change-modal"
-          >
-            <div className="move-item-heading">
+          >            <div className="move-item-heading">
                 <strong>Alteracao externa detectada</strong>
                 <span>A nota <b>{externalNoteConflict.externalNote.name.replace(/\.md$/i, '')}</b> foi modificada fora do MirrorMind enquanto voce tinha um rascunho local.</span>
               </div>

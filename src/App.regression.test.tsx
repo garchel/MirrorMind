@@ -24,6 +24,8 @@ const { invokeMock, listenMock, onDragDropEventMock, getCurrentWindowMock } = vi
 // Diagnosticos opcionais do inventario: quando definidos, o mock de
 // scan_vault_inventory os inclui no payload (banner de leitura parcial).
 let inventoryDiagnostics: unknown = undefined
+/** Copias de conflito de sincronizacao para o inventario (default: ausente). */
+let inventorySyncConflictCopies: unknown[] | undefined = undefined
 /** Regras de tag do vault para o onboarding de perfil de revisao (o default e
  *  sem regras; testes do fluxo de adocao definem os tres perfis padrao). */
 let vaultReviewTagRules: Array<Record<string, unknown>> = []
@@ -159,6 +161,7 @@ function createTauriHarness(
             truncated: false,
           },
           ...(inventoryDiagnostics !== undefined ? { diagnostics: inventoryDiagnostics } : {}),
+          ...(inventorySyncConflictCopies !== undefined ? { syncConflictCopies: inventorySyncConflictCopies } : {}),
         }
       case 'get_tag_index':
       case 'get_backlinks':
@@ -326,6 +329,7 @@ describe('Regressao do editor no workspace', () => {
   beforeEach(() => {
     localStorage.clear()
     inventoryDiagnostics = undefined
+    inventorySyncConflictCopies = undefined
     vaultReviewTagRules = []
     invokeMock.mockReset()
     listenMock.mockReset()
@@ -2239,6 +2243,38 @@ describe('Regressao do editor no workspace', () => {
     await user.click(within(reopened).getByRole('button', { name: 'Excluir?' }))
     await waitFor(() => expect(notes.get('inicial.md')?.content).not.toContain('lembrete-orfao'))
     expect(screen.queryByRole('button', { name: '1 post-it sem âncora' })).not.toBeInTheDocument()
+  })
+
+  it('[sync] copias de conflito listam, abrem e promovem a copia', async () => {
+    const user = userEvent.setup()
+    inventorySyncConflictCopies = [
+      { relativePath: 'nota (conflito).md', originalPath: 'nota.md', provider: 'cloud' },
+    ]
+    const { notes } = createTauriHarness([
+      { name: 'nota.md', relativePath: 'nota.md', content: '# Nota\n\nOriginal.' },
+      { name: 'nota (conflito).md', relativePath: 'nota (conflito).md', content: '# Nota\n\nVersao da nuvem.' },
+    ])
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: /cópia de conflito/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Cópias de conflito' })
+    expect(dialog).toHaveTextContent('nota (conflito).md')
+    expect(dialog).toHaveTextContent('de nota.md')
+
+    // Abrir copia navega ate ela.
+    await user.click(within(dialog).getByRole('button', { name: 'Abrir cópia' }))
+    expect(await screen.findByRole('tab', { name: 'nota (conflito).md' })).toHaveAttribute('aria-selected', 'true')
+
+    // Substituir grava o conteudo da copia no original e manda a copia para a lixeira.
+    await user.click(screen.getByRole('button', { name: /cópia de conflito/ }))
+    const reopened = await screen.findByRole('dialog', { name: 'Cópias de conflito' })
+    await user.click(within(reopened).getByRole('button', { name: 'Substituir' }))
+    await user.click(within(reopened).getByRole('button', { name: 'Confirmar substituição' }))
+    await waitFor(() => expect(notes.get('nota.md')?.content).toContain('Versao da nuvem'), { timeout: 5_000 })
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith(
+      'delete_vault_item',
+      expect.objectContaining({ relativePath: 'nota (conflito).md' }),
+    ))
   })
 
   it('[postit] menu lista os postits e abre pelo item', async () => {

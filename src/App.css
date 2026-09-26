@@ -5527,6 +5527,55 @@ label.settings-toggle {
   font-size: 12px;
 }
 
+/* Dialogo de copias de conflito: item com nome + origem e grade de acoes. */
+.sync-conflicts-lead {
+  margin: 0 0 4px;
+  color: #6b6b64;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.sync-conflicts-error {
+  color: #8a4b39;
+  font-size: 12px;
+}
+
+.sync-conflicts-list {
+  display: grid;
+  gap: 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sync-conflicts-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-sm);
+  background: #fffdf8;
+}
+
+.sync-conflicts-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.sync-conflicts-copy small {
+  color: #8a877e;
+  font-size: 11px;
+}
+
+.sync-conflicts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 /* Linha da troca de area: botao em dois tempos (Alterar area -> Selecione o
    texto… (desabilitado) -> Confirmar area). */
 .workspace-shell .postit-popover-range {
