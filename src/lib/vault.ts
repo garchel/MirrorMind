@@ -70,6 +70,12 @@ export type RecentVaultPreference = {
 
 export type HistoryStatus = { canUndo: boolean; canRedo: boolean }
 
+/** Entrada do índice de tags do vault (`get_tag_index`): tag + notas que a usam. */
+export type TagSummary = {
+  tag: string
+  notePaths: string[]
+}
+
 export type NoteTreeNode = {
   id: string
   name: string
