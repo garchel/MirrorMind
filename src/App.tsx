@@ -8,7 +8,7 @@ import { invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { AlertTriangle, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, ExternalLink, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, LayoutDashboard, Link, Link2, List, ListFilter,
+import { AlertTriangle, Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Eye, FileWarning, Filter, Folder, FolderInput, FolderOpen, FolderPlus, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, LayoutDashboard, Link, List, ListFilter,
 ListOrdered, Minus, MoreHorizontal, Network, PanelLeft, PanelTop, Paperclip, Pencil, Plus, Quote, Redo2, RefreshCw, RotateCcw, Search, Star, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { File02Icon } from '@hugeicons/core-free-icons'
@@ -20,7 +20,6 @@ import { MarkdownCodeEditor } from './components/MarkdownCodeEditor'
 import { TitleBar, TitleBarBrand } from './components/TitleBar'
 import type { FrontmatterPanelData, FrontmatterRow, LinkTarget } from './components/markdownLivePreview'
 import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover'
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from './components/ui/drawer'
 import { NoteReadinessControl, type ReviewStartInfo } from './features/review/NoteReadinessControl'
 import { NoteStructureReport } from './features/review/NoteStructureReport'
 import { applyStructuralAuditEdit } from './features/review/structuralAuditApply'
@@ -38,9 +37,8 @@ import { isAutoUpdateEnabled, setAutoUpdateEnabled, useAppUpdater } from './lib/
 import { useEscapeToClose } from './lib/escapeStack'
 import { UpdateBanner } from './components/UpdateBanner'
 import { Modal } from './components/Modal'
-import { GraphSkeleton, PageSkeleton } from './components/PageSkeleton'
-import { Graph3DLoader } from './components/Graph3DLoader'
-import { GraphToolbar, type GraphMode } from './components/GraphToolbar'
+import { PageSkeleton } from './components/PageSkeleton'
+import { type GraphMode } from './components/GraphToolbar'
 import { useGraphSettings } from './lib/useGraphSettings'
 import { useAppearanceSettings } from './lib/useAppearanceSettings'
 import { useNoteSearch } from './lib/useNoteSearch'
@@ -93,7 +91,7 @@ import {
   type SyncConflictCopy,
 } from './lib/vault'
 import './App.css'
-import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, displayWikilinkTargetName, extractMarkdownTags, extractObsidianWikiLinks, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, getMarkdownPreviewText, normalizeMarkdownTag, removeMarkdownFrontmatterProperty, replaceMarkdownBody, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, transformMarkdownTable, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
+import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, displayWikilinkTargetName, extractMarkdownTags, extractObsidianWikiLinks, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, normalizeMarkdownTag, removeMarkdownFrontmatterProperty, replaceMarkdownBody, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, transformMarkdownTable, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
 import { usePostitPopover } from './features/postits/usePostitPopover'
 import { PostitPopover } from './features/postits/PostitPopover'
 import { useFormatToolbar } from './features/format/useFormatToolbar'
@@ -112,6 +110,13 @@ import {
   OBSIDIAN_PHYSICS_2D,
   type NoteGraphLayoutLink,
 } from './lib/noteGraphLayout'
+import {
+  type Graph2DPhysics,
+  type GraphDocument,
+  type GraphPosition,
+  type GraphViewport,
+  type NoteGraphLink,
+} from './lib/graphTypes'
 import { buildGraph2dGroupCentersForGroups, buildGraphGroups, buildGroupMaps } from './lib/graphGrouping'
 import { selectRenderedGraphDocuments } from './lib/graphCulling'
 import { TagIndex } from './lib/tagIndex'
@@ -121,6 +126,7 @@ import {
   fontFamilyCss,
 } from './lib/appearance'
 import { SettingsPage, type ReviewGapMode } from './features/settings/SettingsPage'
+import { GraphPage } from './features/graph/GraphPage'
 import { useSettingsNav, type SettingsSectionId } from './features/settings/useSettingsNav'
 import { buildGraphSvg, downloadPng, downloadSvg, graphNodeExportColor } from './lib/graphExport'
 import type { Graph3DExportRequest, Graph3DExportScene } from './components/NoteGraph3D'
@@ -179,62 +185,7 @@ type ExplorerContextMenu = {
   target: { path: string; name: string; type: 'note' | 'folder' }
 }
 
-type GraphDocument = Pick<NoteDocument, 'name' | 'relativePath' | 'content'>
-type NoteGraphLink = { source: string; target: string }
-type GraphPosition = { x: number; y: number }
-type GraphViewport = { scale: number; x: number; y: number }
-
-
-/** Estado da fisica continua do grafo 2D no modelo do Obsidian: o no arrastado
- * e o UNICO ponto fixado (pinned) e todo o grafo visivel flui pelas mesmas
- * forcas — molas das arestas, repulsao 1/d² e center force com zona morta —
- * com resfriamento alpha ate assentar. Ao soltar, a simulacao continua (hub
- * fixo no ponto da soltura) ate parar. Uma simulacao AMBIENTE roda ao abrir
- * o grafo (big bang: nos juntos no centro se espalham).
- * Tudo roda num rAF enquanto houver arrasto, assentamento ou ambiente ativo. */
-type Graph2DPhysics = {
-  positions: Map<string, GraphPosition>
-  /** Arestas entre os nos visiveis (molas), usadas por drag/coast/ambient.
-   * Ja em forma de objeto para o loop nao alocar arrays por frame. */
-  edges: NoteGraphLayoutLink[]
-  /** Tamanho em px da superficie capturado no inicio da simulacao (para
-   * converter as posicoes % em transform translate px — composicao GPU, sem
-   * forcar layout a cada frame). */
-  surfaceSize: { width: number; height: number } | null
-  drag: {
-    anchor: string
-    /** Todos os nos visiveis menos o ancora (fluem pelas forcas). */
-    paths: string[]
-    velocities: Map<string, GraphPosition>
-    draggedTarget: GraphPosition
-    /** Ultima posicao do alvo processada (para detectar cursor parado e
-     * "dormir" o loop — 60fps desnecessarios com o arrasto imovel). */
-    lastTarget: GraphPosition
-    startX: number
-    startY: number
-    moved: boolean
-    /** Bounds da superficie capturados no inicio do arrasto (para nao chamar
-     * getBoundingClientRect a cada pointermove, que forca layout sincrono). */
-    bounds: { left: number; top: number; width: number; height: number } | null
-  } | null
-  /** Assentamento pos-arrasto: o no que foi arrastado fica FIXO no ponto da
-   * soltura e o restante do grafo visivel assenta com alpha decaindo. */
-  coast: {
-    hub: string
-    paths: string[]
-    velocities: Map<string, GraphPosition>
-    startedAt: number
-    alpha: number
-  } | null
-  /** Simulacao ambiente (big bang): todos os nos visiveis partem do centro
-   * com pequena perturbacao e se espalham pelas forcas ate assentar. */
-  ambient: {
-    paths: string[]
-    velocities: Map<string, GraphPosition>
-    startedAt: number
-    alpha: number
-  } | null
-}
+/** Tipos do grafo (documento, links, viewport, fisica): ver `lib/graphTypes`. */
 
 function buildNoteGraphLinks(documents: GraphDocument[], availablePaths: string[]) {
   return documents.flatMap((document) => {
@@ -284,10 +235,6 @@ const HEADER_ACTION_KEYS = ['favorite', 'indexadora', 'review', 'factcheck'] as 
 type HeaderActionKey = (typeof HEADER_ACTION_KEYS)[number]
 
 /** Sessoes da pagina de Configuracoes, na ordem do menu lateral. */
-// three.js e pesado (~600 KB): carregado sob demanda, apenas quando o usuario
-// abre o modo 3D do grafo pela primeira vez.
-const NoteGraph3D = lazy(() => import('./components/NoteGraph3D').then((module) => ({ default: module.NoteGraph3D })))
-
 // Paginas secundarias (revisao e tags) sao carregadas sob demanda: o codigo
 // (e as dependencias exclusivas de cada pagina) so entra no bundle inicial
 // quando o usuario navega ate elas.
@@ -550,18 +497,11 @@ function App() {
   const graph = useGraphSettings()
   const {
     graphRenderLimit,
-    setGraphRenderLimit,
-    graph3dNodeSize,
     setGraph3dNodeSize,
-    graph3dNodeSpacing,
     setGraph3dNodeSpacing,
-    graph3dOrbitSpeed,
     setGraph3dOrbitSpeed,
-    graph3dMaxEdgeLength,
     setGraph3dMaxEdgeLength,
-    graph3dMinEdgeLength,
     setGraph3dMinEdgeLength,
-    graph3dDegreeGrowth,
     setGraph3dDegreeGrowth,
     graph2dRepulsionStrength,
     setGraph2dRepulsionStrength,
@@ -726,6 +666,11 @@ function App() {
   function handleToggleAutoUpdate(enabled: boolean) {
     setAutoUpdateEnabled(enabled)
     setAutoUpdateEnabledState(enabled)
+  }
+  /** Abre nota a partir do grafo (4 fluxos: 3D, nó 2D, drawer, órfãos). */
+  function handleOpenNoteFromGraph(relativePath: string) {
+    setWorkspacePage('notes')
+    void openNote(relativePath)
   }
   // Resumo diario de revisoes vencidas: verifica a cada 5 minutos enquanto ha
   // um vault aberto. O backend garante no maximo uma notificacao por dia local.
@@ -5857,347 +5802,105 @@ function App() {
                 )}
               </Suspense>
             ) : workspacePage === 'graph' ? (
-              <section
-                className="workspace-page graph-page"
-                data-builder-name="note-graph-page"
-                onPointerMove={pokeGraphUi}
-                onPointerDown={pokeGraphUi}
-                onWheel={pokeGraphUi}
-              >
-                {isGraphLoading ? (
-                  <GraphSkeleton
-                    message={
-                      graphLoadProgress !== null && graphLoadProgress > 0
-                        ? `Lendo os links das notas... (${graphLoadProgress} de ${notes.length} notas)`
-                        : 'Lendo os links das notas...'
-                    }
-                  />
-                ) : graphDocuments.length === 0 ? (
-                  <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota disponivel para montar o grafo.</p>
-                ) : (
-                  <>
-                    <GraphToolbar
-                      visible={graphUiVisible}
-                      onHoverStart={() => { setGraphUiVisible(true); if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current) }}
-                      onHoverEnd={pokeGraphUi}
-                      graphMode3d={graphMode3d}
-                      setGraphMode3d={setGraphMode3d}
-                      graphMode={graphMode}
-                      setGraphMode={setGraphMode}
-                      graphLocalDepth={graphLocalDepth}
-                      setGraphLocalDepth={setGraphLocalDepth}
-                      graphFolder={graphFolder}
-                      setGraphFolder={setGraphFolder}
-                      graphFolders={graphFolders}
-                      graphTag={graphTag}
-                      setGraphTag={setGraphTag}
-                      graphTags={graphTags}
-                      graphFilterActive={graphFilterActive}
-                      graphFilterMatchPaths={graphFilterMatchPaths}
-                      graphQuery={graphQuery}
-                      setGraphQuery={setGraphQuery}
-                      setGraphViewport={setGraphViewport}
-                      resetGraphView={resetGraphView}
-                      openGraphPage={openGraphPage}
-                      isGraphLoading={isGraphLoading}
-                      graphExportOpen={graphExportOpen}
-                      setGraphExportOpen={setGraphExportOpen}
-                      graphExportScale={graphExportScale}
-                      setGraphExportScale={setGraphExportScale}
-                      handleGraphExport={handleGraphExport}
-                      graphSettingsOpen={graphSettingsOpen}
-                      setGraphSettingsOpenSynced={setGraphSettingsOpenSynced}
-                      resetGraph3dSettings={resetGraph3dSettings}
-                      graph3dNodeSize={graph3dNodeSize}
-                      setGraph3dNodeSize={setGraph3dNodeSize}
-                      graph3dDegreeGrowth={graph3dDegreeGrowth}
-                      setGraph3dDegreeGrowth={setGraph3dDegreeGrowth}
-                      graph3dNodeSpacing={graph3dNodeSpacing}
-                      setGraph3dNodeSpacing={setGraph3dNodeSpacing}
-                      graph3dOrbitSpeed={graph3dOrbitSpeed}
-                      setGraph3dOrbitSpeed={setGraph3dOrbitSpeed}
-                      graph3dMaxEdgeLength={graph3dMaxEdgeLength}
-                      setGraph3dMaxEdgeLength={setGraph3dMaxEdgeLength}
-                      graph3dMinEdgeLength={graph3dMinEdgeLength}
-                      setGraph3dMinEdgeLength={setGraph3dMinEdgeLength}
-                      graph2dRepulsionStrength={graph2dRepulsionStrength}
-                      setGraph2dRepulsionStrength={setGraph2dRepulsionStrength}
-                      graph2dLinkStiffness={graph2dLinkStiffness}
-                      setGraph2dLinkStiffness={setGraph2dLinkStiffness}
-                      graph2dVelocityDecay={graph2dVelocityDecay}
-                      setGraph2dVelocityDecay={setGraph2dVelocityDecay}
-                      graph2dLinkDistance={graph2dLinkDistance}
-                      setGraph2dLinkDistance={setGraph2dLinkDistance}
-                      graph2dCenterForce={graph2dCenterForce}
-                      setGraph2dCenterForce={setGraph2dCenterForce}
-                      updateNumberSetting={updateNumberSetting}
-                      showGraphOrphans={showGraphOrphans}
-                      setShowGraphOrphans={setShowGraphOrphans}
-                      showOnlyGraphOrphans={showOnlyGraphOrphans}
-                      setShowOnlyGraphOrphans={setShowOnlyGraphOrphans}
-                      graphHideAllNames={graphHideAllNames}
-                      setGraphHideAllNames={setGraphHideAllNames}
-                      graphGroupByFolder={graphGroupByFolder}
-                      setGraphGroupByFolder={setGraphGroupByFolder}
-                      graphGroupByTag={graphGroupByTag}
-                      setGraphGroupByTag={setGraphGroupByTag}
-                      graphPrimaryTag={graphPrimaryTag}
-                      setGraphPrimaryTag={setGraphPrimaryTag}
-                      graphTagIndexRef={graphTagIndexRef}
-                      graphGroupMaps={graphGroupMaps}
-                      graphColorOverrides={graphColorOverrides}
-                      setGraphColorOverrides={setGraphColorOverrides}
-                      graphRenderLimit={graphRenderLimit}
-                      setGraphRenderLimit={setGraphRenderLimit}
-                    />
-                    {graphMode3d ? (
-                      <Suspense fallback={<Graph3DLoader />}>
-                        <NoteGraph3D
-                          nodes={visibleGraphDocuments.map((document) => ({ name: document.name, relativePath: document.relativePath }))}
-                          links={graphLinks}
-                          degreeByPath={graphDegreeByPath}
-                          focusedPath={focusedGraphPath}
-                          currentPath={activeNote?.relativePath ?? null}
-                          dimmedPaths={graphDimmedPaths}
-                          highlightPaths={graphFilterMatchPaths}
-                          layoutVersion={graph3dLayoutVersion}
-                          hideAllLabels={graphHideAllNames}
-                          nodeSize={graph3dNodeSize}
-                          nodeSpacing={graph3dNodeSpacing}
-                          orbitSpeed={graph3dOrbitSpeed}
-                          maxEdgeLength={graph3dMaxEdgeLength}
-                          minEdgeLength={graph3dMinEdgeLength}
-                          degreeGrowth={graph3dDegreeGrowth}
-                          groupByPath={graphGroupMaps?.groupByPath}
-                          groupColorByPath={graphGroupMaps?.groupColorByPath}
-                          groupingEnabled={Boolean(graphGroupingKind)}
-                          exportRequest={graphExportRequest}
-                          onGraphExport={handleGraph3dExport}
-                          onFocus={(path) => { setFocusedGraphPath(path); setGraphDetailOpen(Boolean(path)) }}
-                          onOpenNote={(relativePath) => { setWorkspacePage('notes'); void openNote(relativePath) }}
-                        />
-                      </Suspense>
-                    ) : (
-                    <div
-                      ref={graphSurfaceRef}
-                      className="note-graph"
-                      role="region"
-                      aria-label="Grafo interativo das notas"
-                      onWheel={(event) => { event.preventDefault(); setGraphViewport((view) => ({ ...view, scale: Math.max(0.55, Math.min(2.4, view.scale + (event.deltaY < 0 ? 0.1 : -0.1))) })) }}
-                      onPointerDown={(event) => { if (event.target instanceof Element && event.target.closest('.note-graph-node')) return; event.currentTarget.setPointerCapture?.(event.pointerId); graphPanRef.current = { x: event.clientX, y: event.clientY, viewport: graphViewport } }}
-                      onPointerMove={(event) => {
-                        const pan = graphPanRef.current
-                        if (pan) {
-                          setGraphViewport({ ...pan.viewport, x: pan.viewport.x + event.clientX - pan.x, y: pan.viewport.y + event.clientY - pan.y })
-                        } else if (!(event.target instanceof Element && event.target.closest('.note-graph-node'))) {
-                          // Sem arrastar e sem estar sobre um no: limpa o hover
-                          // (mantem o valor para nao re-renderizar a cada move).
-                          setGraphHoverPath((current) => (current === null ? current : null))
-                        }
-                      }}
-                      onPointerUp={(event) => { graphPanRef.current = null; event.currentTarget.releasePointerCapture?.(event.pointerId) }}
-                      onPointerCancel={() => { graphPanRef.current = null }}
-                      onPointerLeave={() => setGraphHoverPath(null)}
-                    >
-                      <div className="note-graph-world" style={{ transform: `translate(${graphViewport.x}px, ${graphViewport.y}px) scale(${graphViewport.scale})` }}>
-                        <svg className="note-graph-links" viewBox={`0 0 ${GRAPH_2D_WORLD_SIZE} ${GRAPH_2D_WORLD_SIZE}`} preserveAspectRatio="none" aria-hidden="true">
-                          {graphLinks.map((link) => {
-                            if (!graphRenderedPaths.has(link.source) || !graphRenderedPaths.has(link.target)) return null
-                            const source = graphNodePositions[link.source]
-                            const target = graphNodePositions[link.target]
-                            const isFocused = focusedGraphPath === link.source || focusedGraphPath === link.target
-                            const isHovered = graphHoverPath !== null && (link.source === graphHoverPath || link.target === graphHoverPath)
-                            const isLinkMatched = graphFilterMatchPaths !== null && graphFilterMatchPaths.has(link.source) && graphFilterMatchPaths.has(link.target)
-                            const isLinkFaded = graphFilterMatchPaths !== null && !graphFilterMatchPaths.has(link.source) && !graphFilterMatchPaths.has(link.target)
-                            const linkClassName = `${isFocused ? 'is-focused' : ''}${isHovered ? ' is-hovered' : ''}${isLinkMatched ? ' is-matched' : ''}${isLinkFaded ? ' is-faded' : ''}`.trim() || undefined
-                            // A linha usa geometria base fixa [0,0]-[100,0] e o
-                            // transform (rotacao + escala) liga os nos; o loop
-                            // da fisica so reescreve o transform a cada frame
-                            // (composicao por GPU, sem invalidar layout SVG).
-                            return <line className={linkClassName} key={`${link.source}-${link.target}`} x1="0" y1="0" x2="100" y2="0" transform={graph2dLineTransform(source, target)} ref={(element) => {
-                              const linkKey = `${link.source}\u0000${link.target}`
-                              if (element) graph2dLinkElementsRef.current.set(linkKey, element)
-                              else graph2dLinkElementsRef.current.delete(linkKey)
-                            }} />
-                          })}
-                        </svg>
-                      {renderedGraphDocuments.map((document) => {
-                        const position = graphNodePositions[document.relativePath]
-                        const degree = graphDegreeByPath[document.relativePath] ?? 0
-                        const isCurrent = document.relativePath === activeNote?.relativePath
-                        const isHovered = graphHoverPath === document.relativePath
-                        // O nome aparece de acordo com o zoom: com o zoom bem
-                        // afastado nos de poucas conexoes ocultam o nome, e
-                        // "Ocultar nomes" esconde todos. No hover o nome
-                        // sempre aparece abaixo da bolinha.
-                        const hideNameByZoom = graphHideAllNames || (graphViewport.scale < 0.65 && degree < 2)
-                        const isFilterMatch = graphFilterMatchPaths !== null && graphFilterMatchPaths.has(document.relativePath)
-                        const isFilteredOut = graphFilterMatchPaths !== null && !isFilterMatch
-                        const showLabel = !hideNameByZoom || isHovered || isFilterMatch
-                        // No hover, nós sem conexão direta com o nó são
-                        // esmaecidos (opacidade reduzida). O filtro pasta/tag
-                        // esmaece mais quem não casa e realça quem casa.
-                        const isDimmed = (graphHoverNeighbors !== null && !graphHoverNeighbors.has(document.relativePath))
-                          || isFilteredOut
-                        return (
-                          <button
-                            key={document.relativePath}
-                            type="button"
-                            className={`note-graph-node${isCurrent ? ' is-current' : ''}${focusedGraphPath === document.relativePath ? ' is-focused' : ''}${isHovered ? ' is-hovered' : ''}${isDimmed ? ' is-dimmed' : ''}${isFilterMatch ? ' is-match' : ''}${isFilteredOut ? ' is-filtered-out' : ''}`}
-                            style={{ left: `${(position.x / GRAPH_2D_WORLD_SIZE) * 100}%`, top: `${(position.y / GRAPH_2D_WORLD_SIZE) * 100}%` } as CSSProperties}
-                            ref={(element) => {
-                              if (element) graph2dNodeElementsRef.current.set(document.relativePath, element)
-                              else graph2dNodeElementsRef.current.delete(document.relativePath)
-                            }}
-                            onPointerEnter={() => setGraphHoverPath(document.relativePath)}
-                            onPointerDown={(event) => { startGraph2dNodeDrag(document.relativePath, event) }}
-                            onPointerMove={(event) => {
-                              if (graphNodeDragRef.current !== document.relativePath) return
-                              graphSkipNodeClickRef.current = true
-                              const physics = graphPhysicsRef.current
-                              if (!physics?.drag) return
-                              const bounds = physics.drag.bounds
-                              // Unico ponto fixado: o no arrastado segue o cursor
-                              // (os vizinhos fluem pelas forcas no rAF). Bounds
-                              // capturados no inicio do arrasto — sem chamadas de
-                              // getBoundingClientRect no caminho quente.
-                              if (bounds && bounds.width > 0 && bounds.height > 0) {
-                                physics.drag.draggedTarget = {
-                                  x: Math.max(GRAPH_2D_BOUNDS.minX, Math.min(GRAPH_2D_BOUNDS.maxX, ((event.clientX - bounds.left - graphViewport.x) / (bounds.width * graphViewport.scale)) * GRAPH_2D_WORLD_SIZE)),
-                                  y: Math.max(GRAPH_2D_BOUNDS.minY, Math.min(GRAPH_2D_BOUNDS.maxY, ((event.clientY - bounds.top - graphViewport.y) / (bounds.height * graphViewport.scale)) * GRAPH_2D_WORLD_SIZE)),
-                                }
-                              }
-                              // Acorda o loop se estava dormindo (cursor parado).
-                              if (graphPhysicsFrameRef.current === null) kickGraph2dPhysics()
-                              if (Math.hypot(event.clientX - physics.drag.startX, event.clientY - physics.drag.startY) > 3) physics.drag.moved = true
-                            }}
-                            onPointerUp={(event) => { finishGraph2dNodeDrag(event) }}
-                            onPointerCancel={() => {
-                              graphNodeDragRef.current = null
-                              const physics = graphPhysicsRef.current
-                              if (physics) {
-                                physics.drag = null
-                                physics.coast = null
-                              }
-                              if (graphPhysicsFrameRef.current !== null) {
-                                cancelAnimationFrame(graphPhysicsFrameRef.current)
-                                graphPhysicsFrameRef.current = null
-                              }
-                            }}
-                            onFocus={() => setFocusedGraphPath(document.relativePath)}
-                            onClick={() => { if (graphSkipNodeClickRef.current) { graphSkipNodeClickRef.current = false; return }; setWorkspacePage('notes'); void openNote(document.relativePath) }}
-                            aria-label={`Abrir nota ${document.name.replace(/\.md$/i, '')} no grafo`}
-                            title={`${document.name.replace(/\.md$/i, '')}${degree ? `, ${degree} conexao(oes)` : ''}`}
-                          >
-                            {/* Bolinha sempre circular; cresce com as conexoes. Com
-                               agrupamento por pasta, a cor vem do grupo. */}
-                            <span className="note-graph-node-dot" style={{ '--graph-scale': 1 + Math.min(degree, 8) * 0.13, ...(graphGroupingKind && graphGroupMaps ? { '--node-folder-color': graphGroupMaps.groupColorByPath[graphGroupMaps.groupByPath[document.relativePath] ?? ''] } : {}) } as CSSProperties} />
-                            <span className={`note-graph-node-label${showLabel ? '' : ' is-hidden'}`}>{document.name.replace(/\.md$/i, '')}</span>
-                          </button>
-                        )
-                      })}
-                      </div>
-                    </div>
-                    )}
-                    {graphGroupingKind && graphGroupMaps && graphGroupMaps.groups.length > 0 ? (
-                      <aside className="graph-group-legend" aria-label={graphGroupingKind === 'folder' ? 'Legenda das pastas do grafo' : 'Legenda das tags do grafo'}>
-                        {graphGroupMaps.groups.map((group) => (
-                          <span key={group.key} className="graph-group-legend-row" title={`${group.label}: ${group.paths.length} ${group.paths.length === 1 ? 'nota' : 'notas'}`}>
-                            <span className="graph-group-legend-swatch" style={{ background: group.color }} aria-hidden="true" />
-                            <span className="graph-group-legend-name">{group.label}</span>
-                            <span className="graph-group-legend-count">{group.paths.length}</span>
-                          </span>
-                        ))}
-                      </aside>
-                    ) : null}
-                    <div className="graph-summary-counter" aria-label="Resumo do grafo">
-                      {graphIsSummarized ? (
-                        <span>{renderedGraphDocuments.length} de {visibleGraphDocuments.length} notas</span>
-                      ) : (
-                        <span>{visibleGraphDocuments.length} {visibleGraphDocuments.length === 1 ? 'nota' : 'notas'}</span>
-                      )}
-                      <span>{graphLinks.length} {graphLinks.length === 1 ? 'conexao' : 'conexoes'}</span>
-                    </div>
-                    {graphIsSummarized ? (
-                      <p className="graph-culling-note" role="status">Grafo resumido: exibindo {renderedGraphDocuments.length} de {visibleGraphDocuments.length} nos no viewport (limite de {graphRenderLimit}). Aproxime ou reduza o limite nas configuracoes para ver os demais.</p>
-                    ) : null}
-                    {graphMode === 'local' && localGraphBeyond.size > 0 ? (
-                      <p className="graph-local-limit-note">Grafo local limitado: {localGraphBeyond.size} {localGraphBeyond.size === 1 ? 'nota esta' : 'notas estão'} alem de {graphLocalDepth} {graphLocalDepth === 1 ? 'salto' : 'saltos'} de {localGraphCenterPath?.split('/').at(-1)?.replace(/\.md$/i, '') ?? 'a nota central'}.</p>
-                    ) : null}
-                    <Drawer direction="right" open={graphDetailOpen && Boolean(focusedGraphDocument)} onOpenChange={(open) => { if (!open) { setGraphDetailOpen(false); setFocusedGraphPath(null) } }}>
-                      <DrawerContent className="graph-note-drawer">
-                        {focusedGraphDocument ? (
-                          <>
-                            <DrawerHeader className="graph-note-drawer-header">
-                              <div className="graph-note-drawer-heading">
-                                <p className="graph-note-drawer-eyebrow">Nota no grafo</p>
-                                <DrawerTitle>{focusedGraphDocument.name.replace(/\.md$/i, '')}</DrawerTitle>
-                                <DrawerDescription>{focusedGraphDocument.relativePath}</DrawerDescription>
-                              </div>
-                              <button type="button" className="graph-note-drawer-close" onClick={() => setGraphDetailOpen(false)} aria-label="Fechar detalhes da nota">
-                                <X size={16} strokeWidth={1.75} aria-hidden="true" />
-                              </button>
-                            </DrawerHeader>
-                            <div className="graph-detail-stats" aria-label="Metricas da nota no grafo">
-                              <div className="graph-detail-stat"><strong>{focusedIncomingLinks.length}</strong><span>entradas</span></div>
-                              <div className="graph-detail-stat"><strong>{focusedOutgoingLinks.length}</strong><span>saidas</span></div>
-                              <div className="graph-detail-stat"><strong>{graphDegreeByPath[focusedGraphDocument.relativePath] ?? 0}</strong><span>conexoes</span></div>
-                            </div>
-                            <div className="graph-note-drawer-section">
-                              <p className="graph-note-drawer-section-title">Conteudo</p>
-                              <p className="graph-note-drawer-preview">{getMarkdownPreviewText(focusedGraphDocument.content, 240) || 'Nota vazia.'}</p>
-                            </div>
-                            {focusedIncomingNotes.length > 0 ? (
-                              <div className="graph-note-drawer-section">
-                                <p className="graph-note-drawer-section-title">Referenciada por</p>
-                                <div className="graph-note-drawer-references">
-                                  {focusedIncomingNotes.map((note) => (
-                                    <button
-                                      key={note.relativePath}
-                                      type="button"
-                                      className="graph-note-drawer-ref"
-                                      onClick={() => setFocusedGraphPath(note.relativePath)}
-                                      title={`Focar ${note.name.replace(/\.md$/i, '')} no grafo`}
-                                    >
-                                      {note.name.replace(/\.md$/i, '')}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : null}
-                            <div className="graph-note-drawer-actions">
-                              <button type="button" className="graph-note-drawer-primary" onClick={() => { setWorkspacePage('notes'); void openNote(focusedGraphDocument.relativePath) }}>
-                                <ExternalLink size={14} strokeWidth={1.75} aria-hidden="true" /> Abrir nota
-                              </button>
-                              <div className="graph-note-drawer-actions-grid">
-                                <button type="button" className="secondary-button" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(focusedGraphDocument) }} title={`Criar uma conexao de ${focusedGraphDocument.name.replace(/\.md$/i, '')} para outra nota`}>
-                                  <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Criar conexao
-                                </button>
-                                <button type="button" className="secondary-button" onClick={() => void revealNoteInExplorer(focusedGraphDocument.relativePath)} title="Revelar no explorador de notas">
-                                  <PanelLeft size={14} strokeWidth={1.75} aria-hidden="true" /> Revelar no explorador
-                                </button>
-                                <button type="button" className="secondary-button" onClick={() => void copyGraphWikiLink(focusedGraphDocument.relativePath)}>
-                                  <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Copiar wikilink
-                                </button>
-                                <button type="button" className="secondary-button" onClick={() => { setGraphDetailOpen(false); setGraphMode('local') }}>
-                                  <Network size={14} strokeWidth={1.75} aria-hidden="true" /> Grafo local
-                                </button>
-                              </div>
-                            </div>
-                          </>
-                        ) : null}
-                      </DrawerContent>
-                    </Drawer>
-                    {showOnlyGraphOrphans ? (
-                      <section className="graph-orphan-panel" aria-label="Notas não conectadas">
-                        <div><p className="card-kicker">Limpeza do vault</p><h3>{orphanGraphDocuments.length} notas não conectadas</h3></div>
-                        {orphanGraphDocuments.length > 0 ? <div className="graph-orphan-list">{orphanGraphDocuments.map((document) => <div key={document.relativePath}><span>{document.name.replace(/\.md$/i, '')}</span><div className="graph-orphan-actions"><button type="button" className="secondary-button" onClick={() => void revealNoteInExplorer(document.relativePath)} title="Revelar no explorador de notas">Revelar</button><button type="button" className="secondary-button" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(document) }} title={`Criar uma conexao de ${document.name.replace(/\.md$/i, '')} para outra nota`}>Conectar</button><button type="button" className="secondary-button" onClick={() => { setWorkspacePage('notes'); void openNote(document.relativePath) }}>Abrir</button></div></div>)}</div> : <p>Nenhuma nota isolada com os filtros atuais.</p>}
-                      </section>
-                    ) : null}
-                    {visibleGraphDocuments.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota corresponde aos filtros atuais.</p> : graphLinks.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Ainda nao ha links internos entre estas notas. Use <code>[[Nome da nota]]</code> para criar conexoes.</p> : null}
-                  </>
-                )}
-              </section>
+              <GraphPage
+                graph={graph}
+                updateNumberSetting={updateNumberSetting}
+                totalNoteCount={notes.length}
+                graphDocuments={graphDocuments}
+                visibleGraphDocuments={visibleGraphDocuments}
+                renderedGraphDocuments={renderedGraphDocuments}
+                orphanGraphDocuments={orphanGraphDocuments}
+                graphLinks={graphLinks}
+                graphDegreeByPath={graphDegreeByPath}
+                graphNodePositions={graphNodePositions}
+                graphRenderedPaths={graphRenderedPaths}
+                graphDimmedPaths={graphDimmedPaths}
+                graphHoverNeighbors={graphHoverNeighbors}
+                graphFolders={graphFolders}
+                graphTags={graphTags}
+                graphFilterActive={graphFilterActive}
+                graphFilterMatchPaths={graphFilterMatchPaths}
+                graphGroupingKind={graphGroupingKind}
+                graphGroupMaps={graphGroupMaps}
+                graphIsSummarized={graphIsSummarized}
+                isGraphLoading={isGraphLoading}
+                graphLoadProgress={graphLoadProgress}
+                graphUiVisible={graphUiVisible}
+                setGraphUiVisible={setGraphUiVisible}
+                graphSettingsOpen={graphSettingsOpen}
+                setGraphSettingsOpenSynced={setGraphSettingsOpenSynced}
+                graphExportOpen={graphExportOpen}
+                setGraphExportOpen={setGraphExportOpen}
+                graphExportScale={graphExportScale}
+                setGraphExportScale={setGraphExportScale}
+                graphExportRequest={graphExportRequest}
+                graph3dLayoutVersion={graph3dLayoutVersion}
+                graphMode3d={graphMode3d}
+                setGraphMode3d={setGraphMode3d}
+                graphMode={graphMode}
+                setGraphMode={setGraphMode}
+                graphLocalDepth={graphLocalDepth}
+                setGraphLocalDepth={setGraphLocalDepth}
+                graphFolder={graphFolder}
+                setGraphFolder={setGraphFolder}
+                graphTag={graphTag}
+                setGraphTag={setGraphTag}
+                graphQuery={graphQuery}
+                setGraphQuery={setGraphQuery}
+                graphViewport={graphViewport}
+                setGraphViewport={setGraphViewport}
+                showGraphOrphans={showGraphOrphans}
+                setShowGraphOrphans={setShowGraphOrphans}
+                showOnlyGraphOrphans={showOnlyGraphOrphans}
+                setShowOnlyGraphOrphans={setShowOnlyGraphOrphans}
+                graphHideAllNames={graphHideAllNames}
+                setGraphHideAllNames={setGraphHideAllNames}
+                graphGroupByFolder={graphGroupByFolder}
+                setGraphGroupByFolder={setGraphGroupByFolder}
+                graphGroupByTag={graphGroupByTag}
+                setGraphGroupByTag={setGraphGroupByTag}
+                graphPrimaryTag={graphPrimaryTag}
+                setGraphPrimaryTag={setGraphPrimaryTag}
+                graphColorOverrides={graphColorOverrides}
+                setGraphColorOverrides={setGraphColorOverrides}
+                focusedGraphPath={focusedGraphPath}
+                setFocusedGraphPath={setFocusedGraphPath}
+                focusedGraphDocument={focusedGraphDocument}
+                focusedIncomingLinks={focusedIncomingLinks}
+                focusedOutgoingLinks={focusedOutgoingLinks}
+                focusedIncomingNotes={focusedIncomingNotes}
+                graphDetailOpen={graphDetailOpen}
+                setGraphDetailOpen={setGraphDetailOpen}
+                graphHoverPath={graphHoverPath}
+                setGraphHoverPath={setGraphHoverPath}
+                localGraphBeyond={localGraphBeyond}
+                localGraphCenterPath={localGraphCenterPath}
+                activeNotePath={activeNote?.relativePath ?? null}
+                graphSurfaceRef={graphSurfaceRef}
+                graphPanRef={graphPanRef}
+                graphNodeDragRef={graphNodeDragRef}
+                graphSkipNodeClickRef={graphSkipNodeClickRef}
+                graphPhysicsRef={graphPhysicsRef}
+                graphPhysicsFrameRef={graphPhysicsFrameRef}
+                graph2dNodeElementsRef={graph2dNodeElementsRef}
+                graph2dLinkElementsRef={graph2dLinkElementsRef}
+                graphUiHideTimerRef={graphUiHideTimerRef}
+                graphTagIndexRef={graphTagIndexRef}
+                pokeGraphUi={pokeGraphUi}
+                resetGraphView={resetGraphView}
+                openGraphPage={openGraphPage}
+                resetGraph3dSettings={resetGraph3dSettings}
+                handleGraphExport={handleGraphExport}
+                handleGraph3dExport={handleGraph3dExport}
+                startGraph2dNodeDrag={startGraph2dNodeDrag}
+                finishGraph2dNodeDrag={finishGraph2dNodeDrag}
+                kickGraph2dPhysics={kickGraph2dPhysics}
+                revealNoteInExplorer={revealNoteInExplorer}
+                copyGraphWikiLink={copyGraphWikiLink}
+                onOpenNote={handleOpenNoteFromGraph}
+                setGraphConnectQuery={setGraphConnectQuery}
+                setGraphConnectSource={setGraphConnectSource}
+              />
             ) : workspacePage === 'trash' ? (
               <section className="workspace-page trash-page" data-builder-name="trash-page">
                 <p className="card-kicker">Lixeira</p>
