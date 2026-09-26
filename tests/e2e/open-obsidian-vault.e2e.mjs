@@ -161,7 +161,7 @@ if (phase === 'open-obsidian-vault') describe('Abrir Vault Obsidian', () => {
 
     // Edita a nota e salva pelos bytes do arquivo. O modo Edicao propaga a
     // digitacao programatica como sujeira (o Misto nao) e o Ctrl+S grava.
-    const editorMode = await $('[aria-label="Modo de visualizacao da nota"]')
+    const editorMode = await $('[aria-label="Modo de visualização da nota"]')
     const editButton = editorMode.$('.//button[normalize-space()="Edicao"]')
     await expect(editButton).toBeDisplayed()
     await editButton.click()

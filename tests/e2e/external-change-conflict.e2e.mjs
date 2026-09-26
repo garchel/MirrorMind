@@ -93,7 +93,7 @@ async function openNoteAndType(noteLabel, content) {
   await $('[aria-label="Abrir nota ' + noteLabel + '"]').click()
   const editor = await $('[aria-label^="Editor Markdown"]')
   await expect(editor).toBeDisplayed()
-  const editorMode = await $('[aria-label="Modo de visualizacao da nota"]')
+  const editorMode = await $('[aria-label="Modo de visualização da nota"]')
   await selectEditorMode(editorMode, 'edit')
   await typeEditorText(content)
 }
@@ -101,7 +101,7 @@ async function openNoteAndType(noteLabel, content) {
 /** Dispara o salvamento (Ctrl+S) e aguarda o dialogo de conflito aparecer. */
 async function saveAndWaitForConflict() {
   await browser.keys(['Control', 's'])
-  const dialog = await $('[aria-label="Alteracao externa detectada"]')
+  const dialog = await $('[aria-label="Alteração externa detectada"]')
   await expect(dialog).toBeDisplayed({ wait: 15_000 })
   return dialog
 }
@@ -203,7 +203,7 @@ if (phase === 'automatic-detect') describe('Deteccao automatica de mudanca exter
     await expect($('[aria-label="Abrir nota auto"]')).toBeDisplayed()
     await $('[aria-label="Abrir nota auto"]').click()
     await expect($('[aria-label^="Editor Markdown"]')).toBeDisplayed()
-    const editorMode = await $('[aria-label="Modo de visualizacao da nota"]')
+    const editorMode = await $('[aria-label="Modo de visualização da nota"]')
     await selectEditorMode(editorMode, 'edit')
     await waitForEditorText(initial)
 
@@ -212,7 +212,7 @@ if (phase === 'automatic-detect') describe('Deteccao automatica de mudanca exter
     await typeEditorText(draft)
     await waitForEditorText(draft)
     writeFileSync(notePath, externalWithDraft)
-    const dialog = await $('[aria-label="Alteracao externa detectada"]')
+    const dialog = await $('[aria-label="Alteração externa detectada"]')
     await expect(dialog).toBeDisplayed({ wait: 12_000 })
 
     // 2. "Carregar arquivo externo" reconcilia o editor com os bytes externos.
@@ -245,7 +245,7 @@ if (phase === 'verify-external-change') describe('Reabrir apos mudanca externa e
     // A reconciliacao e a restauracao persistiram entre processos.
     expect(readFileSync(localNotePath, 'utf8')).toBe(secondExternal)
     expect(readFileSync(removedNotePath, 'utf8')).toBe(removedDraft)
-    await expect($('[aria-label="Alteracao externa detectada"]')).not.toBeDisplayed()
+    await expect($('[aria-label="Alteração externa detectada"]')).not.toBeDisplayed()
     await expect($('[aria-label="Nota removida fora do MirrorMind"]')).not.toBeDisplayed()
 
     // A interface lista as duas notas e abre a primeira no editor.

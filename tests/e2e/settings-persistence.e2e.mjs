@@ -66,7 +66,7 @@ async function createVault(vaultName) {
 
 async function assertConfiguredSettings() {
   // Autosave permanece ligado apos o reinicio.
-  await $('[aria-label="Configuracoes"]').click()
+  await $('[aria-label="Configurações"]').click()
   const autoSaveToggle = await $('.settings-toggle*=Auto Save').$('input[type="checkbox"]')
   await expect(autoSaveToggle).toBeSelected()
 
@@ -78,7 +78,7 @@ async function assertConfiguredSettings() {
 }
 
 async function selectEditMode() {
-  const editorMode = await $('[aria-label="Modo de visualizacao da nota"]')
+  const editorMode = await $('[aria-label="Modo de visualização da nota"]')
   const editButton = editorMode.$('.//button[normalize-space()="Edicao"]')
   await expect(editButton).toBeDisplayed()
   await editButton.click()
@@ -91,7 +91,7 @@ if (phase === 'configure-settings') describe('Configurar preferencias', () => {
     await createVault(VAULT_NAME)
 
     // Autosave ligado nas configuracoes do vault.
-    await $('[aria-label="Configuracoes"]').click()
+    await $('[aria-label="Configurações"]').click()
     const autoSaveToggle = await $('.settings-toggle*=Auto Save').$('input[type="checkbox"]')
     await expect(autoSaveToggle).toBeDisplayed()
     if (!(await autoSaveToggle.isSelected())) {
@@ -136,7 +136,7 @@ if (phase === 'verify-settings-reopen') describe('Reiniciar e confirmar preferen
 
     // O atalho personalizado abre a captura de nova nota.
     await browser.keys(['Control', 'Shift', 'N'])
-    await expect($('[aria-label="Titulo da nova nota"]')).toBeDisplayed()
+    await expect($('[aria-label="Título da nova nota"]')).toBeDisplayed()
 
     // Autosave de verdade: edita uma nota existente e os bytes chegam ao disco
     // sem nenhum Ctrl+S (apenas o debounce de 650ms do autosave).

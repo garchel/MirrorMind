@@ -159,7 +159,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
 
     const sourceNote = await $('[aria-label="Abrir nota aula"]')
     await openContextMenu(sourceNote)
-    const noteMenu = await $('[aria-label="Acoes para aula.md"]')
+    const noteMenu = await $('[aria-label="Ações para aula.md"]')
     await expect(noteMenu).toBeDisplayed()
     await noteMenu.$('.//button[normalize-space()="Renomear"]').click()
     const renameNoteDialog = await $('[aria-label="Renomear nota"]')
@@ -182,7 +182,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
     const movedNoteTab = await $('[role="tab"]*=resumo.md')
     await movedNoteTab.click()
     await expect($('.editor-title-button')).toHaveText('resumo')
-    const editorMode = await $('[aria-label="Modo de visualizacao da nota"]')
+    const editorMode = await $('[aria-label="Modo de visualização da nota"]')
     await selectEditorMode(editorMode, 'edit')
     await expect(editorMode.$('.//button[normalize-space()="Edicao"]')).toHaveAttribute('aria-checked', 'true')
     await waitForEditorText(targetContent)
@@ -194,7 +194,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
 
     const currentCourseFolder = await $('[aria-label="Pasta curso"]')
     await openContextMenu(currentCourseFolder)
-    const folderMenu = await $('[aria-label="Acoes para curso"]')
+    const folderMenu = await $('[aria-label="Ações para curso"]')
     await folderMenu.$('.//button[normalize-space()="Renomear"]').click()
     const renameFolderDialog = await $('[aria-label="Renomear pasta"]')
     await renameFolderDialog.$('[aria-label="Novo nome"]').setValue('estudos')
@@ -206,7 +206,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
 
     const studiesFolder = await $('[aria-label="Pasta estudos"]')
     await openContextMenu(studiesFolder)
-    const studiesMenu = await $('[aria-label="Acoes para estudos"]')
+    const studiesMenu = await $('[aria-label="Ações para estudos"]')
     await studiesMenu.$('.//button[normalize-space()="Mover pasta"]').click()
     const moveFolderDialog = await $('[aria-label="Mover pasta"]')
     await moveFolderDialog.$('[aria-label="Pasta de destino"]').setValue('arquivo')
@@ -220,7 +220,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
     await expect($('.editor-title-button')).toHaveText('material-interno')
     // O salvamento pelo atalho exige o editor em modo Edicao (o modo Misto
     // nao propaga a entrada programatica do WebdriverIO como sujeira).
-    const nestedEditorMode = await $('[aria-label="Modo de visualizacao da nota"]')
+    const nestedEditorMode = await $('[aria-label="Modo de visualização da nota"]')
     await selectEditorMode(nestedEditorMode, 'edit')
     await expect(nestedEditorMode.$('.//button[normalize-space()="Edicao"]')).toHaveAttribute('aria-checked', 'true')
     await waitForEditorText(nestedContent)
@@ -261,7 +261,7 @@ if (phase === 'verify-rename-and-move') describe('Reabrir rename e move', () => 
 
     await $('[aria-label="Pasta destino-nota"]').click()
     await $('[aria-label="Abrir nota resumo"]').click()
-    const editorMode = await $('[aria-label="Modo de visualizacao da nota"]')
+    const editorMode = await $('[aria-label="Modo de visualização da nota"]')
     await selectEditorMode(editorMode, 'edit')
     await expect(editorMode.$('.//button[normalize-space()="Edicao"]')).toHaveAttribute('aria-checked', 'true')
     await waitForEditorText(targetContent)

@@ -86,9 +86,9 @@ if (phase === 'safe-failure') describe('Falha segura', () => {
     // desligado por padrao: o salvamento acontece so pelo Ctrl+S). O modo
     // Edicao propaga a digitacao programatica como sujeira (o Misto nao).
     await $('[aria-label="Nova nota"]').click()
-    await $('[aria-label="Titulo da nova nota"]').setValue('Bloqueada')
+    await $('[aria-label="Título da nova nota"]').setValue('Bloqueada')
     await expect($('[aria-label^="Editor Markdown"]')).toBeDisplayed()
-    const editorMode = await $('[aria-label="Modo de visualizacao da nota"]')
+    const editorMode = await $('[aria-label="Modo de visualização da nota"]')
     const editButton = editorMode.$('.//button[normalize-space()="Edicao"]')
     await expect(editButton).toBeDisplayed()
     await editButton.click()

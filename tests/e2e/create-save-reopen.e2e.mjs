@@ -71,7 +71,7 @@ if (phase === 'create-and-save') describe('Criar e salvar', () => {
       { timeout: 20_000, timeoutMsg: 'O scan inicial do Vault nao foi concluido.' },
     )
 
-    await $('[aria-label="Configuracoes"]').click()
+    await $('[aria-label="Configurações"]').click()
     const autoSaveToggle = await $('.settings-toggle*=Auto Save').$('input[type="checkbox"]')
     await expect(autoSaveToggle).toBeDisplayed()
     if (!(await autoSaveToggle.isSelected())) {
@@ -82,7 +82,7 @@ if (phase === 'create-and-save') describe('Criar e salvar', () => {
 
     await $('[aria-label="Nova nota"]').click()
 
-    const titleInput = await $('[aria-label="Titulo da nova nota"]')
+    const titleInput = await $('[aria-label="Título da nova nota"]')
     await expect(titleInput).toBeDisplayed()
     await titleInput.setValue(noteTitle)
 

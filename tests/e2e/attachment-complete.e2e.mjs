@@ -129,7 +129,7 @@ async function createVault(vaultName) {
 }
 
 async function switchToReadMode() {
-  const editorMode = await $('[aria-label="Modo de visualizacao da nota"]')
+  const editorMode = await $('[aria-label="Modo de visualização da nota"]')
   const readButton = editorMode.$('.//button[normalize-space()="Leitura"]')
   await expect(readButton).toBeDisplayed()
   await readButton.click()
@@ -176,7 +176,7 @@ if (phase === 'attachment-complete') describe('Anexo completo', () => {
     // Redigita o conteudo para deixar o cursor no FIM (posicao deterministica
     // onde o embed inserido pelo drop vai parar). O modo Edicao propaga a
     // digitacao programatica como sujeira (o Misto nao).
-    const editorMode = await $('[aria-label="Modo de visualizacao da nota"]')
+    const editorMode = await $('[aria-label="Modo de visualização da nota"]')
     const editButton = editorMode.$('.//button[normalize-space()="Edicao"]')
     await expect(editButton).toBeDisplayed()
     await editButton.click()

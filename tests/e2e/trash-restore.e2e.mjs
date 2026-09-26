@@ -79,7 +79,7 @@ async function sendNoteToTrash(noteName, noteLabel) {
   const note = await $(`[aria-label="Abrir nota ${noteLabel}"]`)
   await expect(note).toBeDisplayed()
   await openContextMenu(note)
-  const noteMenu = await $('[aria-label="Acoes para ' + noteName + '"]')
+  const noteMenu = await $('[aria-label="Ações para ' + noteName + '"]')
   await expect(noteMenu).toBeDisplayed()
   await noteMenu.$('.//button[normalize-space()="Enviar para lixeira"]').click()
   const deleteDialog = await $('[aria-label="Excluir nota"]')
