@@ -8,14 +8,12 @@ import { invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { Bold, BookMarked, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Folder, FolderOpen, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, Link, List,
-ListOrdered, Minus, PanelLeft, PanelTop, Paperclip, Plus, Quote, Search, Star, Table2, TextQuote, X } from 'lucide-react'
+import { BookMarked, CheckCircle2, ClipboardList, Folder, FolderOpen, Star, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { File02Icon } from '@hugeicons/core-free-icons'
 import { RiFocus2Fill, RiFocus2Line } from '@remixicon/react'
 import 'katex/dist/katex.min.css'
 import { BuilderModeControl } from './components/BuilderModeControl'
-import { MarkdownCodeEditor } from './components/MarkdownCodeEditor'
 import { TitleBar } from './components/TitleBar'
 import type { FrontmatterPanelData, FrontmatterRow, LinkTarget } from './components/markdownLivePreview'
 import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover'
@@ -87,11 +85,9 @@ import {
   type SyncConflictCopy,
 } from './lib/vault'
 import './App.css'
-import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, displayWikilinkTargetName, extractMarkdownTags, extractObsidianWikiLinks, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, normalizeMarkdownTag, removeMarkdownFrontmatterProperty, replaceMarkdownBody, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, transformMarkdownTable, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
+import { appendWikilinkToContent, countMarkdownWords, detectUnsupportedMarkdownFeatures, displayWikilinkTargetName, extractMarkdownTags, extractObsidianWikiLinks, getMarkdownBody, getMarkdownFrontmatterProperties, getMarkdownFrontmatterPropertySource, normalizeMarkdownTag, removeMarkdownFrontmatterProperty, resolveObsidianWikiLinkPath, setMarkdownFrontmatterPropertySource, transformMarkdownTable, type MarkdownFormat, type MarkdownTableAction } from './lib/markdown'
 import { usePostitPopover } from './features/postits/usePostitPopover'
-import { PostitPopover } from './features/postits/PostitPopover'
 import { useFormatToolbar } from './features/format/useFormatToolbar'
-import { FormatToolbar } from './features/format/FormatToolbar'
 import { SyncConflictsDialog } from './features/sync/SyncConflictsDialog'
 import {
   accumulateObsidianForces2D,
@@ -121,6 +117,7 @@ import { SettingsPage, type ReviewGapMode } from './features/settings/SettingsPa
 import { GraphPage } from './features/graph/GraphPage'
 import { ExplorerItemMenu, ExplorerSidebar, type ExplorerContextMenu } from './features/explorer/ExplorerSidebar'
 import { EditorHeader, HEADER_ACTION_KEYS, type HeaderActionKey, type NoteTemplate } from './features/editor/EditorHeader'
+import { EditorContent } from './features/editor/EditorContent'
 import { VaultSelection } from './features/vault/VaultSelection'
 import { TabStrip, WorkspaceRail, WorkspaceTopbar, type WorkspacePage } from './features/shell/WorkspaceChrome'
 import { TrashPage } from './features/trash/TrashPage'
@@ -819,25 +816,6 @@ function App() {
       editorContent: () => editorContentRef.current,
     },
   })
-  const {
-    postitPopover,
-    postitPopoverRef,
-    postitPopoverSize,
-    postitRangeArming,
-    setPostitRangeArming,
-    postitData,
-    closePostitPopover,
-    requestDeletePostit,
-    updateDraftText,
-    updateDraftColor,
-    startPostitPopoverResize,
-    openPostitPopoverAtSelection,
-    handlePostitWidgetClick,
-    openPostitPeek,
-    schedulePostitPeekClose,
-    cancelPostitPeekClose,
-    reanchorPostitToSelection,
-  } = postits
   const noteWordCount = useMemo(() => countMarkdownWords(draftContent), [draftContent])
   const canUndoActiveEditor = editorMode === 'edit'
     ? markdownHistoryStatus.canUndo
@@ -3762,16 +3740,7 @@ function App() {
 
   // Toolbar de formatacao (features/format): posicionada pela sessao do
   // editor; sem nota ou sem selecao, o componente nao renderiza nada.
-  const {
-    selectionPopover,
-    selectionPopoverRef,
-    formatSubmenu,
-    setFormatSubmenu,
-    openFormatSubmenu,
-    scheduleFormatSubmenuClose,
-    applyMarkdownFormat,
-    hideSelectionPopover,
-  } = useFormatToolbar({
+  const format = useFormatToolbar({
     activeEditorSession,
     hasActiveNote: activeNote !== null,
     editorMode,
@@ -3783,6 +3752,7 @@ function App() {
       editorContent: () => editorContentRef.current,
     },
   })
+  const { applyMarkdownFormat, hideSelectionPopover } = format
 
   // Popover de formatacao: aparece nos modos com editor quando ha uma selecao
   // nao-colapsada (logica no hook); o blur e tratado abaixo (onBlur).
@@ -5039,219 +5009,58 @@ function App() {
                   openNote={openNote}
                 />
 
-                <div id="note-editor" className="editor-content" ref={editorContentRef} data-builder-name="editor-content">
-                {noteFindOpen && activeNote ? (
-                  <div className="note-find-bar" role="search">
-                    <Search size={13} strokeWidth={1.7} aria-hidden="true" />
-                    <input
-                      ref={noteFindInputRef}
-                      value={noteFindQuery}
-                      onChange={(event) => setNoteFindQuery(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault()
-                          navigateNoteFind(event.shiftKey ? -1 : 1)
-                        }
-                        if (event.key === 'Escape') {
-                          event.preventDefault()
-                          closeNoteFind()
-                        }
-                      }}
-                      placeholder="Buscar na nota"
-                      aria-label="Buscar na nota"
-                      autoFocus
-                      spellCheck={false}
-                      autoComplete="off"
-                    />
-                    <span className="note-find-count" aria-live="polite">
-                      {noteFindQuery.trim() && findTotal > 0 ? `${noteFindIndex + 1}/${findTotal}` : '0/0'}
-                    </span>
-                    <button type="button" className="note-find-nav-button" onClick={() => navigateNoteFind(-1)} disabled={findTotal === 0} title="Correspondência anterior" aria-label="Correspondência anterior"><ChevronUp size={14} strokeWidth={1.7} aria-hidden="true" /></button>
-                    <button type="button" className="note-find-nav-button" onClick={() => navigateNoteFind(1)} disabled={findTotal === 0} title="Próxima correspondência" aria-label="Próxima correspondência"><ChevronDown size={14} strokeWidth={1.7} aria-hidden="true" /></button>
-                    <button type="button" className="note-find-close" onClick={closeNoteFind} title="Fechar busca (Esc)" aria-label="Fechar busca"><X size={13} strokeWidth={1.7} aria-hidden="true" /></button>
-                  </div>
-                ) : null}
-                {editorMode === 'edit' ? (
-                  <MarkdownCodeEditor
-                    ref={markdownCodeEditorRef}
-                    ariaLabel={`Editor Markdown da nota ${activeNote.name.replace(/\.md$/i, '')}`}
-                    documentKey={activeNote.relativePath}
-                    historyLimit={historyLimit}
-                    spellCheck={isSpellCheckEnabled}
-                    stateCache={markdownEditorStateCacheRef.current}
-                    autocompleteData={markdownAutocompleteData}
-                    onBlur={hideSelectionPopover}
-                    onSearchRequest={openNoteFind}
-                    value={draftContent}
-                    onHistoryChange={setMarkdownHistoryStatus}
-                    session={editorSessionsByPath[activeNote.relativePath]}
-                    onChange={setDraftContent}
-                    onSessionChange={(session) => {
-                      setEditorSessionsByPath((currentSessions) => ({
-                        ...currentSessions,
-                        [activeNote.relativePath]: session,
-                      }))
-                    }}
-                  />
-                ) : editorMode === 'read' ? (
-                  <section ref={editorPanelRef} className={`markdown-mixed markdown-reading-engine${reviewGapData ? ' has-gap-marks' : ''}${reviewGapMode === 'hover' ? ' is-gap-hover-only' : ''}`} style={readingStyle}>
-                    <MarkdownCodeEditor
-                      ref={markdownCodeEditorRef}
-                      ariaLabel={`Leitura da nota ${activeNote.name.replace(/\.md$/i, '')}`}
-                      documentKey={`${activeNote.relativePath}::leitura`}
-                      livePreview
-                      readOnly
-                      lineWrap={isReadingLineWrapEnabled}
-                      historyLimit={historyLimit}
-                      spellCheck={isSpellCheckEnabled}
-                      stateCache={markdownEditorStateCacheRef.current}
-                      autocompleteData={markdownAutocompleteData}
-                      onBlur={hideSelectionPopover}
-                      onOpenLink={handleMixedOpenLink}
-                      resolveAssetUrl={resolveMixedAssetUrl}
-                      getEmbedContent={resolveMixedEmbedBody}
-                      vaultPath={vault?.path}
-                      reviewGapData={reviewGapData}
-                      postitData={postitData}
-                      onPostitClick={handlePostitWidgetClick}
-                      onPostitPeek={{ onOpen: openPostitPeek, onClose: schedulePostitPeekClose }}
-                      onSearchRequest={openNoteFind}
-                      value={noteBody}
-                      // O doc do Leitura e `noteBody` (sem frontmatter): o merge
-                      // preserva o frontmatter do draft ao alternar um checkbox.
-                      onChange={(content) => setDraftContent((current) => replaceMarkdownBody(current, content))}
-                      onHistoryChange={setMarkdownHistoryStatus}
-                      onSessionChange={(session) => {
-                        setEditorSessionsByPath((currentSessions) => ({
-                          ...currentSessions,
-                          [`${activeNote.relativePath}::leitura`]: session,
-                        }))
-                      }}
-                      session={editorSessionsByPath[`${activeNote.relativePath}::leitura`]}
-                    />
-                  </section>
-                ) : (
-                  <section ref={editorPanelRef} className={`markdown-mixed${reviewGapData ? ' has-gap-marks' : ''}${reviewGapMode === 'hover' ? ' is-gap-hover-only' : ''}`}>
-                    <MarkdownCodeEditor
-                      ref={markdownCodeEditorRef}
-                      ariaLabel={`Editor Markdown (Misto) da nota ${activeNote.name.replace(/\.md$/i, '')}`}
-                      documentKey={`${activeNote.relativePath}::misto::gfm`}
-                      livePreview
-                      historyLimit={historyLimit}
-                      spellCheck={isSpellCheckEnabled}
-                      stateCache={markdownEditorStateCacheRef.current}
-                      autocompleteData={markdownAutocompleteData}
-                      onBlur={hideSelectionPopover}
-                      onOpenLink={handleMixedOpenLink}
-                      resolveAssetUrl={resolveMixedAssetUrl}
-                      getEmbedContent={resolveMixedEmbedBody}
-                      vaultPath={vault?.path}
-                      postitData={postitData}
-                      onPostitClick={handlePostitWidgetClick}
-                      onPostitPeek={{ onOpen: openPostitPeek, onClose: schedulePostitPeekClose }}
-                      onSearchRequest={openNoteFind}
-                      value={draftContent}
-                      onChange={setDraftContent}
-                      onHistoryChange={setMarkdownHistoryStatus}
-                      onSessionChange={(session) => {
-                        setEditorSessionsByPath((currentSessions) => ({
-                          ...currentSessions,
-                          [`${activeNote.relativePath}::misto::gfm`]: session,
-                        }))
-                      }}
-                      session={editorSessionsByPath[`${activeNote.relativePath}::misto::gfm`]}
-                    />
-                  </section>
-                )}
-                {selectionPopover && editorMode !== 'read' ? (
-                  <FormatToolbar
-                    popover={selectionPopover}
-                    popoverRef={selectionPopoverRef}
-                    submenu={formatSubmenu}
-                    setSubmenu={setFormatSubmenu}
-                    onOpenSubmenu={openFormatSubmenu}
-                    onScheduleCloseSubmenu={scheduleFormatSubmenuClose}
-                    onApplyFormat={applyMarkdownFormat}
-                    onOpenPostit={(color) => openPostitPopoverAtSelection(color)}
-                  />
-                ) : null}
-                {postitPopover && editorMode !== 'edit' ? (
-                  <PostitPopover
-                    popover={postitPopover}
-                    containerRef={postitPopoverRef}
-                    size={postitPopoverSize}
-                    editable={editorMode !== 'read'}
-                    rangeArming={postitRangeArming}
-                    canReanchor={(() => {
-                      if (editorMode === 'read') return false
-                      const selection = getActiveEditorSelection()
-                      return !!selection && selection.selectionEnd > selection.selectionStart
-                    })()}
-                    peekPostitId={postitPopover.peek ? postitPopover.postitId : null}
-                    onArmRange={() => setPostitRangeArming(true)}
-                    onConfirmRange={reanchorPostitToSelection}
-                    onClose={closePostitPopover}
-                    onResizeStart={startPostitPopoverResize}
-                    onPeekEnter={cancelPostitPeekClose}
-                    onPeekLeave={(postitId) => schedulePostitPeekClose(postitId)}
-                    onDeleteRequest={requestDeletePostit}
-                    onDraftTextChange={updateDraftText}
-                    onDraftColorChange={updateDraftColor}
-                  />
-                ) : null}
-                <div className="note-word-count" data-testid="note-word-count" title={`${noteWordCount} palavra${noteWordCount === 1 ? '' : 's'}`}>
-                  {noteWordCount} palavra{noteWordCount === 1 ? '' : 's'}
-                </div>
-                {isMarkdownToolsOpen && editorMode !== 'read' ? (
-                  <div
-                    ref={markdownToolsRef}
-                    className={`floating-markdown-toolbar is-${markdownToolsOrientation}`}
-                    role="toolbar"
-                    aria-label="Ferramentas de Markdown"
-                    style={{ right: markdownToolsPosition.x, top: markdownToolsPosition.y }}
-                  >
-                    <button type="button" className="markdown-tools-drag-handle" onPointerDown={startMarkdownToolsDrag} title="Arrastar ferramentas" aria-label="Arrastar ferramentas">
-                      <GripHorizontal size={15} strokeWidth={1.7} aria-hidden="true" />
-                    </button>
-                    <button type="button" className="markdown-tools-orientation" onClick={toggleMarkdownToolsOrientation} title={markdownToolsOrientation === 'horizontal' ? 'Usar barra vertical' : 'Usar barra horizontal'} aria-label={markdownToolsOrientation === 'horizontal' ? 'Usar barra vertical' : 'Usar barra horizontal'}>
-                      {markdownToolsOrientation === 'horizontal' ? <PanelLeft size={15} strokeWidth={1.5} aria-hidden="true" /> : <PanelTop size={15} strokeWidth={1.5} aria-hidden="true" />}
-                    </button>
-                    <div className="markdown-toolbar-group" aria-label="Titulos">
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('heading1')} title="Titulo 1"><Heading1 size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('heading2')} title="Titulo 2"><Heading2 size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('heading3')} title="Titulo 3"><Heading3 size={16} /></button>
-                    </div>
-                    <div className="markdown-toolbar-group" aria-label="Texto">
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('bold')} title="Negrito (Ctrl+B)"><Bold size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('italic')} title="Italico (Ctrl+I)"><Italic size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('link')} title="Link"><Link size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('quote')} title="Citação"><TextQuote size={16} /></button>
-                    </div>
-                    <div className="markdown-toolbar-group" aria-label="Listas">
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('list')} title="Lista"><List size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('orderedList')} title="Lista numerada"><ListOrdered size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('checklist')} title="Checklist"><CheckSquare size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('table')} title="Inserir tabela"><Table2 size={16} /></button>
-                    </div>
-                    <div className="markdown-toolbar-group" aria-label="Tabela">
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('addRow')} title="Adicionar linha a tabela" aria-label="Adicionar linha a tabela"><Plus size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('removeRow')} title="Remover linha da tabela" aria-label="Remover linha da tabela"><Minus size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('addColumn')} title="Adicionar coluna a tabela" aria-label="Adicionar coluna a tabela"><Plus size={14} /><Table2 size={13} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('removeColumn')} title="Remover coluna da tabela" aria-label="Remover coluna da tabela"><Minus size={14} /><Table2 size={13} /></button>
-                    </div>
-                    <div className="markdown-toolbar-group" aria-label="Blocos">
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('code')} title="Codigo inline"><Code2 size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('codeBlock')} title="Bloco de codigo"><Quote size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('divider')} title="Divisor"><Minus size={16} /></button>
-                    </div>
-                    <div className="markdown-toolbar-group" aria-label="Insercao">
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => void insertAttachment()} title="Anexar arquivo"><Paperclip size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => setShowNoteLinkDialog(true)} title="Inserir link para nota"><Link size={16} /></button>
-                      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => setShowTagDialog(true)} title="Inserir tag"><Hash size={16} /></button>
-                    </div>
-                  </div>
-                ) : null}
-                </div>
+                <EditorContent
+                  activeNoteName={activeNote.name.replace(/\.md$/i, '')}
+                  activeNotePath={activeNote.relativePath}
+                  editorContentRef={editorContentRef}
+                  noteFindOpen={noteFindOpen}
+                  noteFindInputRef={noteFindInputRef}
+                  noteFindQuery={noteFindQuery}
+                  setNoteFindQuery={setNoteFindQuery}
+                  navigateNoteFind={navigateNoteFind}
+                  closeNoteFind={closeNoteFind}
+                  noteFindIndex={noteFindIndex}
+                  findTotal={findTotal}
+                  editorMode={editorMode}
+                  markdownCodeEditorRef={markdownCodeEditorRef}
+                  historyLimit={historyLimit}
+                  isSpellCheckEnabled={isSpellCheckEnabled}
+                  markdownEditorStateCacheRef={markdownEditorStateCacheRef}
+                  markdownAutocompleteData={markdownAutocompleteData}
+                  hideSelectionPopover={hideSelectionPopover}
+                  openNoteFind={openNoteFind}
+                  draftContent={draftContent}
+                  setDraftContent={setDraftContent}
+                  setMarkdownHistoryStatus={setMarkdownHistoryStatus}
+                  editorSessionsByPath={editorSessionsByPath}
+                  setEditorSessionsByPath={setEditorSessionsByPath}
+                  editorPanelRef={editorPanelRef}
+                  reviewGapData={reviewGapData}
+                  reviewGapMode={reviewGapMode}
+                  readingStyle={readingStyle}
+                  handleMixedOpenLink={handleMixedOpenLink}
+                  resolveMixedAssetUrl={resolveMixedAssetUrl}
+                  resolveMixedEmbedBody={resolveMixedEmbedBody}
+                  vaultPath={vault?.path}
+                  noteBody={noteBody}
+                  isReadingLineWrapEnabled={isReadingLineWrapEnabled}
+                  getActiveEditorSelection={getActiveEditorSelection}
+                  format={format}
+                  postits={postits}
+                  noteWordCount={noteWordCount}
+                  isMarkdownToolsOpen={isMarkdownToolsOpen}
+                  markdownToolsRef={markdownToolsRef}
+                  markdownToolsOrientation={markdownToolsOrientation}
+                  markdownToolsPosition={markdownToolsPosition}
+                  startMarkdownToolsDrag={startMarkdownToolsDrag}
+                  toggleMarkdownToolsOrientation={toggleMarkdownToolsOrientation}
+                  preserveEditorSelection={preserveEditorSelection}
+                  selectMarkdownTool={selectMarkdownTool}
+                  applyMarkdownTableAction={applyMarkdownTableAction}
+                  insertAttachment={insertAttachment}
+                  setShowNoteLinkDialog={setShowNoteLinkDialog}
+                  setShowTagDialog={setShowTagDialog}
+                />
               </>
             ) : (
               <div className="editor-empty-state">
