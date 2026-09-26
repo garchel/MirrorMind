@@ -2212,11 +2212,59 @@ describe('Regressao do editor no workspace', () => {
     expect(document.querySelector('.postit-anchor-widget')).toBeNull()
   })
 
-  it('[postit] bloqueia criacao sobre a area de outro post-it', async () => {
+  it('[postit] orfaos aparecem no chip, abrem e excluem pelo dialogo', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
-    // Ancora curta (paragrafo estendido apos a criacao): o frontmatter nao
-    // contem "nicial", entao a busca seleciona no corpo.
+    notes.set('inicial.md', {
+      name: 'inicial.md',
+      relativePath: 'inicial.md',
+      content: '---\ntitle: Nota\npostits:\n  - id: postit-1\n    anchorText: frase que sumiu\n    anchorOrdinal: 0\n    range:\n      quote: sumiu\n      prefix: ""\n      suffix: ""\n      occurrence: 0\n    color: pink\n    text: lembrete-orfao\n    createdAt: 2026-01-01T00:00:00.000Z\n    updatedAt: 2026-01-01T00:00:00.000Z\n---\n\n# Nota\n\nTexto sem a ancora.\n',
+    })
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: '1 post-it sem âncora' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Post-its sem âncora' })
+    expect(dialog).toHaveTextContent('lembrete-orfao')
+
+    // Abrir posiciona o popover (re-ancoravel pelo fluxo normal).
+    await user.click(within(dialog).getByRole('button', { name: 'Abrir' }))
+    await screen.findByRole('dialog', { name: 'Editar post-it' })
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Editar post-it' })).not.toBeInTheDocument())
+
+    // Excluir em dois cliques remove do frontmatter e apaga o chip.
+    await user.click(screen.getByRole('button', { name: '1 post-it sem âncora' }))
+    const reopened = await screen.findByRole('dialog', { name: 'Post-its sem âncora' })
+    await user.click(within(reopened).getByRole('button', { name: 'Excluir' }))
+    await user.click(within(reopened).getByRole('button', { name: 'Excluir?' }))
+    await waitFor(() => expect(notes.get('inicial.md')?.content).not.toContain('lembrete-orfao'))
+    expect(screen.queryByRole('button', { name: '1 post-it sem âncora' })).not.toBeInTheDocument()
+  })
+
+  it('[postit] menu lista os postits e abre pelo item', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    notes.set('inicial.md', {
+      name: 'inicial.md',
+      relativePath: 'inicial.md',
+      content: '---\ntitle: Nota\npostits:\n  - id: postit-1\n    anchorText: Texto\n    anchorOrdinal: 0\n    range:\n      quote: Texto\n      prefix: ""\n      suffix: ""\n      occurrence: 0\n    color: yellow\n    text: lembrete\n    createdAt: 2026-01-01T00:00:00.000Z\n    updatedAt: 2026-01-01T00:00:00.000Z\n  - id: postit-2\n    anchorText: sumiu\n    anchorOrdinal: 0\n    range:\n      quote: sumiu\n      prefix: ""\n      suffix: ""\n      occurrence: 0\n    color: pink\n    text: orfao-teste\n    createdAt: 2026-01-01T00:00:00.000Z\n    updatedAt: 2026-01-01T00:00:00.000Z\n---\n\n# Nota\n\nTexto inicial e mais conteudo.\n',
+    })
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Post-its da nota (2)' }))
+    const item = await screen.findByRole('button', { name: 'Post-it: orfao-teste' })
+    expect(item).toHaveTextContent('sem âncora')
+    await user.click(await screen.findByRole('button', { name: 'Post-it: lembrete' }))
+    await screen.findByRole('dialog', { name: 'Editar post-it' })
+    expect(notes.get('inicial.md')?.content).toContain('orfao-teste')
+  })
+
+  it('[postit] sobreposicao parcial abre um segundo post-it (empilha)', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    // (seed com ancora curta + faixa "Texto"; area identica continua
+    // bloqueada — nao ha como seleciona-la via find sem casar o frontmatter,
+    // entao esse ramo e garantido por revisao.)
     notes.set('inicial.md', {
       name: 'inicial.md',
       relativePath: 'inicial.md',
@@ -2228,16 +2276,24 @@ describe('Regressao do editor no workspace', () => {
       expect(rangeMark?.textContent).toBe('Texto')
     })
 
-    // Seleciona "to inicial" (sai da area "Texto" para texto so do corpo,
-    // sem casar no frontmatter) e tenta criar: bloqueia com aviso.
+    // Seleciona "to inicial" (sobrepoe parcialmente "Texto") e cria: abre.
     fireEvent.keyDown(document.querySelector('.cm-content')!, { key: 'f', ctrlKey: true })
     const findInput = await screen.findByRole('textbox', { name: 'Buscar na nota' })
     await user.type(findInput, 'to inicial')
     await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Formatar seleção' })).toBeInTheDocument())
     fireEvent.mouseEnter(screen.getByRole('button', { name: 'Adicionar post-it' }))
     await user.click(await screen.findByRole('button', { name: 'Criar post-it amarelo' }))
-    expect(screen.queryByRole('dialog', { name: 'Novo post-it' })).not.toBeInTheDocument()
-    expect(await screen.findByRole('alert')).toHaveTextContent('sobrepõe')
+    const dialog = await screen.findByRole('dialog', { name: 'Novo post-it' })
+    await user.type(within(dialog).getByRole('textbox', { name: 'Texto do post-it' }), 'segundo')
+    await waitFor(() => expect(notes.get('inicial.md')?.content).toContain('segundo'), { timeout: 3_000 })
+    // Empilhamento: o CodeMirror divide as marcas na interseção ("Tex" +
+    // "to" do primeiro + "to inicial" do segundo) — ambas as frases marcadas.
+    await waitFor(() => {
+      const texts = [...document.querySelectorAll('.cm-live-postit-range')].map((el) => el.textContent ?? '')
+      expect(texts.some((text) => text.includes('to inicial'))).toBe(true)
+      expect(texts.join('')).toContain('Texto')
+    })
+    expect((notes.get('inicial.md')?.content.match(/id: postit-/g) ?? []).length).toBe(2)
   })
 
   it('[aparência] alterna o tema escuro, aplica no documento e persiste a preferência', async () => {
