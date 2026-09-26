@@ -8,8 +8,8 @@ import { invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Eye, Folder, FolderOpen, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, LayoutDashboard, Link, List,
-ListOrdered, Minus, MoreHorizontal, Network, PanelLeft, PanelTop, Paperclip, Plus, Quote, Redo2, RotateCcw, Search, Star, Table2, Target, TextCursorInput, TextQuote, Trash2, Undo2, X } from 'lucide-react'
+import { Bold, BookMarked, BookOpenCheck, CheckCircle2, CheckSquare, ChevronDown, ChevronUp, ClipboardList, Code2, Folder, FolderOpen, GripHorizontal, Hash, Heading1, Heading2, Heading3, Italic, LayoutDashboard, Link, List,
+ListOrdered, Minus, Network, PanelLeft, PanelTop, Paperclip, Plus, Quote, RotateCcw, Search, Star, Table2, Target, TextQuote, Trash2, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { File02Icon } from '@hugeicons/core-free-icons'
 import { RiFocus2Fill, RiFocus2Line } from '@remixicon/react'
@@ -94,11 +94,7 @@ import { usePostitPopover } from './features/postits/usePostitPopover'
 import { PostitPopover } from './features/postits/PostitPopover'
 import { useFormatToolbar } from './features/format/useFormatToolbar'
 import { FormatToolbar } from './features/format/FormatToolbar'
-import { PostitMenu } from './features/postits/PostitMenu'
-import { PostitOrphansDialog } from './features/postits/PostitOrphansDialog'
 import { SyncConflictsDialog } from './features/sync/SyncConflictsDialog'
-import { FrontmatterPanelForm } from './components/FrontmatterPanelForm'
-import { NoteTagRow } from './components/NoteTagRow'
 import {
   accumulateObsidianForces2D,
   graph2dLineTransform,
@@ -126,6 +122,7 @@ import {
 import { SettingsPage, type ReviewGapMode } from './features/settings/SettingsPage'
 import { GraphPage } from './features/graph/GraphPage'
 import { ExplorerItemMenu, ExplorerSidebar, type ExplorerContextMenu } from './features/explorer/ExplorerSidebar'
+import { EditorHeader, HEADER_ACTION_KEYS, type HeaderActionKey, type NoteTemplate } from './features/editor/EditorHeader'
 import { useSettingsNav, type SettingsSectionId } from './features/settings/useSettingsNav'
 import { buildGraphSvg, downloadPng, downloadSvg, graphNodeExportColor } from './lib/graphExport'
 import type { Graph3DExportRequest, Graph3DExportScene } from './components/NoteGraph3D'
@@ -172,7 +169,6 @@ type ExternalRemovedNote = {
   wasActive: boolean
 }
 
-type NoteTemplate = { id: string; name: string; content: string }
 type PaletteCommand = { id: string; label: string; description: string; disabled?: boolean }
 
 /** Tipos do grafo (documento, links, viewport, fisica): ver `lib/graphTypes`. */
@@ -221,8 +217,7 @@ const AUTO_SAVE_DELAY_MS = 650
 /** Acoes do cabecalho da nota que podem ir para o menu "Mais acoes" quando a
  * largura nao comporta (ordem de prioridade visual; o historico fica sempre
  * visivel por ser pequeno e primario). */
-const HEADER_ACTION_KEYS = ['favorite', 'indexadora', 'review', 'factcheck'] as const
-type HeaderActionKey = (typeof HEADER_ACTION_KEYS)[number]
+/** Chaves das ações do header: ver `features/editor/EditorHeader`. */
 
 /** Sessoes da pagina de Configuracoes, na ordem do menu lateral. */
 // Paginas secundarias (revisao e tags) sao carregadas sob demanda: o codigo
@@ -811,29 +806,7 @@ function App() {
   // chamada fica aqui porque as deps — draft, corpo, modo, refs do editor —
   // sao deste componente). A desestruturacao mantem os nomes, entao o JSX e
   // os editores nao mudam.
-  const {
-    postitPopover,
-    postitPopoverRef,
-    postitPopoverSize,
-    postitRangeArming,
-    setPostitRangeArming,
-    postitData,
-    notePostits,
-    postitMenuItems,
-    orphans: postitOrphans,
-    closePostitPopover,
-    requestDeletePostit,
-    deletePostitById,
-    updateDraftText,
-    updateDraftColor,
-    startPostitPopoverResize,
-    openPostitPopoverAtSelection,
-    handlePostitWidgetClick,
-    openPostitPeek,
-    schedulePostitPeekClose,
-    cancelPostitPeekClose,
-    reanchorPostitToSelection,
-  } = usePostitPopover({
+  const postits = usePostitPopover({
     draftContent,
     setDraftContent,
     noteBody,
@@ -849,6 +822,25 @@ function App() {
       editorContent: () => editorContentRef.current,
     },
   })
+  const {
+    postitPopover,
+    postitPopoverRef,
+    postitPopoverSize,
+    postitRangeArming,
+    setPostitRangeArming,
+    postitData,
+    closePostitPopover,
+    requestDeletePostit,
+    updateDraftText,
+    updateDraftColor,
+    startPostitPopoverResize,
+    openPostitPopoverAtSelection,
+    handlePostitWidgetClick,
+    openPostitPeek,
+    schedulePostitPeekClose,
+    cancelPostitPeekClose,
+    reanchorPostitToSelection,
+  } = postits
   const noteWordCount = useMemo(() => countMarkdownWords(draftContent), [draftContent])
   const canUndoActiveEditor = editorMode === 'edit'
     ? markdownHistoryStatus.canUndo
@@ -5149,259 +5141,56 @@ function App() {
               <>
             {activeNote ? (
               <>
-                <div className="editor-header" data-builder-name="editor-header">
-                  <div>
-                    {isNewNoteDraft ? (
-                      <>
-                      <input
-                        id="note-title-input"
-                        className="editor-title-input"
-                        value={createNoteForm.title}
-                        onChange={(event) => setCreateNoteForm({ title: event.target.value })}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' && !saving && !loading && formatNoteTitleAsPath(createNoteForm.title)) {
-                            event.preventDefault()
-                            void saveActiveNote()
-                          }
-                        }}
-                        placeholder="Titulo da nota"
-                        aria-label="Título da nova nota"
-                        autoComplete="off"
-                        spellCheck={false}
-                      />
-                      <select value={selectedTemplateId} onChange={(event) => applyTemplate(event.target.value)} aria-label="Template da nota">
-                        {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
-                      </select>
-                      </>
-                    ) : isInlineTitleEditing ? (
-                      <input
-                        className="editor-title-input"
-                        value={inlineTitle}
-                        onChange={(event) => {
-                          const nextTitle = event.target.value
-                          setInlineTitle(nextTitle)
-                          renameActiveNoteFromTitle(nextTitle)
-                        }}
-                        onBlur={() => setInlineTitleEditing(false)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') event.currentTarget.blur()
-                          if (event.key === 'Escape') {
-                            setInlineTitle(activeNote.name.replace(/\.md$/i, ''))
-                            event.currentTarget.blur()
-                          }
-                        }}
-                        aria-label="Renomear nota"
-                        autoComplete="off"
-                        autoFocus
-                        spellCheck={false}
-                      />
-                    ) : (
-                      <button type="button" className="editor-title-button" onClick={startInlineTitleRename} title="Clique para renomear a nota">
-                        {activeNote.name.replace(/\.md$/i, '')}
-                      </button>
-                    )}
-                    {/* Tags sempre visiveis abaixo do titulo (antes moravam no
-                        painel do arrow down): badges + "+" com popover. */}
-                    <NoteTagRow
-                      tags={noteTags}
-                      availableTags={tagIndex.map((entry) => entry.tag)}
-                      onApplyTag={applyExistingTag}
-                      onRemoveTag={removeTag}
-                    />
-                    {postitOrphans.length > 0 || notePostits.length > 0 ? (
-                      <div className="note-header-postits">
-                        {notePostits.length > 0 ? (
-                          <PostitMenu items={postitMenuItems} onOpen={handlePostitWidgetClick} />
-                        ) : null}
-                        {postitOrphans.length > 0 ? (
-                          <button
-                            type="button"
-                            className="postit-orphans-chip"
-                            onClick={() => setShowPostitOrphans(true)}
-                            title="Post-its cuja âncora sumiu da nota"
-                          >
-                            {postitOrphans.length === 1
-                              ? '1 post-it sem âncora'
-                              : `${postitOrphans.length} post-its sem âncora`}
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    <PostitOrphansDialog
-                      open={showPostitOrphans}
-                      orphans={postitOrphans}
-                      onClose={() => setShowPostitOrphans(false)}
-                      onOpen={(postitId) => {
-                        setShowPostitOrphans(false)
-                        handlePostitWidgetClick(postitId)
-                      }}
-                      onDelete={deletePostitById}
-                    />
-                  </div>
-                  <div className="editor-actions" ref={headerActionsRef}>
-                    <div className="history-actions" aria-label="Histórico de edicao">
-                      <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void undoLastCommand()} disabled={!canUndoActiveEditor || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
-                      <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void redoLastCommand()} disabled={!canRedoActiveEditor || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
-                    </div>
-                    {isAutoSaveEnabled && !isNewNoteDraft ? (
-                      <span className={`autosave-indicator is-${autoSaveState}`} aria-live="polite">
-                        {autoSaveState === 'pending' ? 'Alterações pendentes' : autoSaveState === 'saving' ? 'Salvando...' : autoSaveState === 'saved' ? 'Salvo' : 'Auto Save'}
-                      </span>
-                    ) : null}
-                    {!hiddenActions.includes('favorite') ? renderHeaderAction('favorite') : null}
-                    {!hiddenActions.includes('indexadora') ? renderHeaderAction('indexadora') : null}
-                    {!hiddenActions.includes('review') ? renderHeaderAction('review') : null}
-                    {!hiddenActions.includes('factcheck') ? renderHeaderAction('factcheck') : null}
-                    {hiddenActions.length > 0 ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className="secondary-button header-overflow-trigger"
-                            aria-label="Mais ações"
-                            title="Mais ações"
-                          >
-                            <MoreHorizontal size={15} strokeWidth={1.8} aria-hidden="true" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent align="end" sideOffset={6} className="header-overflow-menu">
-                          {HEADER_ACTION_KEYS.filter((key) => hiddenActions.includes(key)).map((key) => renderHeaderAction(key))}
-                        </PopoverContent>
-                      </Popover>
-                    ) : null}
-                      <div
-                        className="editor-mode-control"
-                      role="radiogroup"
-                      aria-label="Modo de visualização da nota"
-                      title="Edicao mostra o código, Misto edita o bloco ativo, Leitura mostra a nota formatada."
-                      onKeyDown={(event) => {
-                        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
-                        event.preventDefault()
-                        const modes: Array<'edit' | 'mixed' | 'read'> = ['edit', 'mixed', 'read']
-                        const currentIndex = modes.indexOf(editorMode)
-                        const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1
-                        changeEditorMode(modes[(currentIndex + direction + modes.length) % modes.length])
-                      }}
-                    >
-                      <Eye size={15} strokeWidth={1.5} aria-hidden="true" />
-                      <button
-                        type="button"
-                        role="radio"
-                        className={`editor-mode-button${editorMode === 'edit' ? ' is-active' : ''}`}
-                        onClick={() => changeEditorMode('edit')}
-                        aria-checked={editorMode === 'edit'}
-                        title="Edicao: mostra o Markdown puro"
-                      >Edicao</button>
-                      <button
-                        type="button"
-                        role="radio"
-                        className={`editor-mode-button${editorMode === 'mixed' ? ' is-active' : ''}`}
-                        onClick={() => changeEditorMode('mixed')}
-                        aria-checked={editorMode === 'mixed'}
-                        title="Misto: edita o bloco ativo com a nota formatada"
-                      >Misto</button>
-                      <button
-                        type="button"
-                        role="radio"
-                        className={`editor-mode-button${editorMode === 'read' ? ' is-active' : ''}`}
-                        onClick={() => changeEditorMode('read')}
-                        aria-checked={editorMode === 'read'}
-                        title="Leitura: mostra a nota formatada"
-                      >Leitura</button>
-                    </div>
-                    {editorMode !== 'edit' && (reviewGaps.length > 0 || reviewUnits.length > 0) ? (
-                      <div
-                        className="review-gap-mode-control"
-                        role="radiogroup"
-                        aria-label="Exibição das lacunas da última revisão"
-                        onKeyDown={(event) => {
-                          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
-                          event.preventDefault()
-                          const modes: ReviewGapMode[] = ['always', 'hover', 'off']
-                          const currentIndex = modes.indexOf(reviewGapMode)
-                          const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1
-                          setReviewGapMode(modes[(currentIndex + direction + modes.length) % modes.length])
-                        }}
-                      >
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={reviewGapMode === 'off'}
-                          className={reviewGapMode === 'off' ? 'is-active' : ''}
-                          onClick={() => setReviewGapMode('off')}
-                          title="Minhas cores: mostra só o marca-texto, sem as lacunas"
-                          aria-label="Minhas cores (somente destaques)"
-                        >
-                          Minhas cores
-                        </button>
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={reviewGapMode === 'always'}
-                          className={reviewGapMode === 'always' ? 'is-active' : ''}
-                          onClick={() => setReviewGapMode('always')}
-                          title="Revisão: lacunas sempre visíveis, com halo em volta do marca-texto"
-                          aria-label="Revisão (lacunas sempre visíveis)"
-                        >
-                          Revisão
-                        </button>
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={reviewGapMode === 'hover'}
-                          className={reviewGapMode === 'hover' ? 'is-active' : ''}
-                          onClick={() => setReviewGapMode('hover')}
-                          title="Misto: nota limpa, lacunas aparecem no hover"
-                          aria-label="Misto (lacunas somente no hover)"
-                        >
-                          Misto
-                        </button>
-                      </div>
-                    ) : null}
-                    <button type="button" className="secondary-button" onClick={openNoteFind} title="Buscar na nota (Ctrl+F)" aria-label="Buscar na nota"><Search size={15} strokeWidth={1.5} aria-hidden="true" /></button>
-                    {editorMode !== 'read' ? (
-                      <button
-                        type="button"
-                        className={`secondary-button markdown-tools-toggle${isMarkdownToolsOpen ? ' is-active' : ''}`}
-                        onClick={() => setMarkdownToolsOpen((isOpen) => !isOpen)}
-                        title="Ferramentas de Markdown"
-                        aria-label="Ferramentas de Markdown"
-                        aria-expanded={isMarkdownToolsOpen}
-                      >
-                        <TextCursorInput size={15} strokeWidth={1.5} aria-hidden="true" />
-                      </button>
-                    ) : null}
-                  </div>
-                  {editorMode === 'mixed' ? (
-                    <div className="frontmatter-menu">
-                      {/* Arrow down: fica em cima da borda inferior do header e,
-                          ao clicar, desce junto com a borda (animacao slide
-                          down) — o menu integrado abre dentro do header. */}
-                      <button
-                        type="button"
-                        className={`editor-disclosure-button${frontmatterPanelOpen ? ' is-open' : ''}`}
-                        onClick={() => setFrontmatterPanelOpen((isOpen) => !isOpen)}
-                        aria-expanded={frontmatterPanelOpen}
-                        aria-controls="frontmatter-menu-panel"
-                        title={frontmatterPanelOpen ? 'Recolher propriedades da nota' : 'Expandir propriedades da nota'}
-                      >
-                        <ChevronDown size={16} strokeWidth={1.5} aria-hidden="true" />
-                      </button>
-                      {frontmatterPanelOpen ? (
-                        <div className="frontmatter-menu-collapse">
-                          <div id="frontmatter-menu-panel" className="frontmatter-menu-panel">
-                            <FrontmatterPanelForm
-                              {...getFrontmatterPanelData()}
-                              compatibilityNotes={compatibilityNotes}
-                              onApply={applyFrontmatterPanel}
-                              onOpenBacklink={(relativePath) => void openNote(relativePath)}
-                            />
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
+                <EditorHeader
+                  activeNoteName={activeNote.name.replace(/\.md$/i, '')}
+                  isNewNoteDraft={isNewNoteDraft}
+                  createNoteForm={createNoteForm}
+                  setCreateNoteForm={setCreateNoteForm}
+                  saveActiveNote={saveActiveNote}
+                  saving={saving}
+                  loading={loading}
+                  templates={templates}
+                  selectedTemplateId={selectedTemplateId}
+                  applyTemplate={applyTemplate}
+                  isInlineTitleEditing={isInlineTitleEditing}
+                  setInlineTitleEditing={setInlineTitleEditing}
+                  inlineTitle={inlineTitle}
+                  setInlineTitle={setInlineTitle}
+                  renameActiveNoteFromTitle={renameActiveNoteFromTitle}
+                  startInlineTitleRename={startInlineTitleRename}
+                  noteTags={noteTags}
+                  tagIndex={tagIndex}
+                  applyExistingTag={applyExistingTag}
+                  removeTag={removeTag}
+                  postits={postits}
+                  showPostitOrphans={showPostitOrphans}
+                  setShowPostitOrphans={setShowPostitOrphans}
+                  headerActionsRef={headerActionsRef}
+                  preserveEditorSelection={preserveEditorSelection}
+                  undoLastCommand={undoLastCommand}
+                  redoLastCommand={redoLastCommand}
+                  canUndoActiveEditor={canUndoActiveEditor}
+                  canRedoActiveEditor={canRedoActiveEditor}
+                  isAutoSaveEnabled={isAutoSaveEnabled}
+                  autoSaveState={autoSaveState}
+                  hiddenActions={hiddenActions}
+                  renderHeaderAction={renderHeaderAction}
+                  editorMode={editorMode}
+                  changeEditorMode={changeEditorMode}
+                  reviewGaps={reviewGaps}
+                  reviewUnits={reviewUnits}
+                  reviewGapMode={reviewGapMode}
+                  setReviewGapMode={setReviewGapMode}
+                  openNoteFind={openNoteFind}
+                  isMarkdownToolsOpen={isMarkdownToolsOpen}
+                  setMarkdownToolsOpen={setMarkdownToolsOpen}
+                  frontmatterPanelOpen={frontmatterPanelOpen}
+                  setFrontmatterPanelOpen={setFrontmatterPanelOpen}
+                  getFrontmatterPanelData={getFrontmatterPanelData}
+                  compatibilityNotes={compatibilityNotes}
+                  applyFrontmatterPanel={applyFrontmatterPanel}
+                  openNote={openNote}
+                />
 
                 <div id="note-editor" className="editor-content" ref={editorContentRef} data-builder-name="editor-content">
                 {noteFindOpen && activeNote ? (
