@@ -1429,6 +1429,38 @@ function escapeHtml(text: string) {
 const CELL_INLINE_RE =
   /(\$[^$\n]+\$)|`([^`\n]+)`|\*\*([^*\n]+?)\*\*|__([^_\n]+?)__|~~([^~\n]+?)~~|(?<!\*)\*(?!\s)([^*\n]+?)(?<!\s)\*(?!\*)|(?<!\w)_(?!\s)([^_\n]+?)(?<!\s)_(?!\w)/g
 
+/** Token inline da celula (offsets no texto + fonte original). Mesmos matches
+ * do modo Leitura (CELL_INLINE_RE): matematica, codigo, negrito, italico e
+ * riscado. No modo de edicao cada token vira elemento formatado nao-editavel
+ * com o fonte em `data-cell-source` (round-trip exato no commit). */
+type CellInlineToken = {
+  from: number
+  to: number
+  source: string
+  kind: 'math' | 'code' | 'bold' | 'italic' | 'strike'
+  inner: string
+}
+
+function findCellInlineTokens(text: string): CellInlineToken[] {
+  const out: CellInlineToken[] = []
+  for (const match of text.matchAll(CELL_INLINE_RE)) {
+    const full = match[0]
+    const index = match.index ?? 0
+    const math = match[1] as string | undefined
+    if (math !== undefined) {
+      out.push({ from: index, to: index + full.length, source: full, kind: 'math', inner: math.slice(1, -1) })
+      continue
+    }
+    const code = match[2] as string | undefined
+    const bold = (match[3] ?? match[4]) as string | undefined
+    const strike = match[5] as string | undefined
+    const italic = (match[6] ?? match[7]) as string | undefined
+    const kind = code !== undefined ? 'code' : bold !== undefined ? 'bold' : strike !== undefined ? 'strike' : 'italic'
+    out.push({ from: index, to: index + full.length, source: full, kind, inner: code ?? bold ?? strike ?? italic ?? '' })
+  }
+  return out
+}
+
 /** Conteudo de uma celula: formata negrito/italico/codigo/riscado e renderiza
  * matematica $...$ via KaTeX — como o modo Leitura. */
 function renderCellHtml(text: string) {
@@ -1457,9 +1489,12 @@ function renderCellHtml(text: string) {
 
 /** Tabela editavel: um <table> real (mesma aparencia do modo Leitura) cujas
  * celulas sao editaveis inline. A tabela NUNCA revela o Markdown cru — nem
- * com o cursor ao redor nem dentro dela. Ao clicar numa celula, ela troca o
- * conteudo formatado pelo texto cru (para editar); ao sair, volta a formatar.
- * Cada edicao e sincronizada de volta ao documento por transacoes. */
+ * com o cursor ao redor nem dentro dela. Ao clicar numa celula, o texto fica
+ * editavel mas os efeitos inline (matematica, codigo, negrito, italico,
+ * riscado) continuam renderizados e nao-editaveis, como fora da tabela:
+ * duplo clique revela o fonte do efeito, apagar o no o remove; ao sair,
+ * tudo volta a formatar. Cada edicao e sincronizada de volta ao documento
+ * por transacoes. */
 class TableWidget extends WidgetType {
   private view: EditorView | null = null
   /** Tabela em modo de leitura (editor readOnly): sem grips nem edicao de celula. */
@@ -1493,6 +1528,7 @@ class TableWidget extends WidgetType {
     wrap.className = 'cm-live-table-wrap'
     ;(wrap as unknown as { __liveTableWidget: TableWidget }).__liveTableWidget = this
     wrap.addEventListener('mousedown', (event) => this.onMouseDown(event as MouseEvent), true)
+    wrap.addEventListener('dblclick', (event) => this.onDoubleClick(event as MouseEvent), true)
     wrap.addEventListener('focusin', (event) => this.onFocusIn(event as FocusEvent))
     wrap.addEventListener('focusout', (event) => this.onFocusOut(event as FocusEvent))
     wrap.addEventListener('input', (event) => this.onInput(event as InputEvent))
@@ -1553,7 +1589,10 @@ class TableWidget extends WidgetType {
       const cell = row === 0 ? this.spec.header[col] : this.spec.rows[row - 1]?.[col]
       if (!cell) return
       if (el.dataset.raw === 'true') {
-        if (el.textContent !== cell.text) el.textContent = cell.text
+        // Em edicao: compara pelo fonte reconstruido (o textContent inclui o
+        // texto do KaTeX renderizado); so reconstrói vindo de fora (o caret
+        // se perde, como ja acontecia com o texto cru).
+        if (this.cellSourceText(el) !== cell.text) this.renderEditContent(el, cell.text)
       } else {
         const html = renderCellHtml(cell.text)
         if (el.innerHTML !== html) el.innerHTML = html
@@ -1573,7 +1612,34 @@ class TableWidget extends WidgetType {
     return wrap ? (wrap as unknown as { __liveTableWidget?: TableWidget }).__liveTableWidget : undefined
   }
 
-  /** Troca a celula para o modo de edicao (texto cru + contenteditable). */
+  /** Monta o conteudo editavel da celula: texto cru com os efeitos inline
+   * renderizados (nos nao-editaveis com o fonte em `data-cell-source`). */
+  private renderEditContent(cell: HTMLElement, text: string) {
+    cell.textContent = ''
+    let cursor = 0
+    for (const token of findCellInlineTokens(text)) {
+      if (token.from > cursor) cell.appendChild(document.createTextNode(text.slice(cursor, token.from)))
+      cell.appendChild(this.makeEditToken(token))
+      cursor = token.to
+    }
+    if (cursor < text.length) cell.appendChild(document.createTextNode(text.slice(cursor)))
+  }
+
+  /** Elemento formatado nao-editavel para um token (fonte guardado para o
+   * commit e para o duplo clique revelar). */
+  private makeEditToken(token: CellInlineToken): HTMLElement {
+    const span = document.createElement(token.kind === 'math' ? 'span' : token.kind === 'code' ? 'code' : token.kind === 'bold' ? 'strong' : token.kind === 'italic' ? 'em' : 'del')
+    if (token.kind === 'math') span.className = 'cm-live-table-math'
+    span.dataset.cellSource = token.source
+    span.contentEditable = 'false'
+    span.innerHTML = token.kind === 'math'
+      ? katex.renderToString(token.inner, { displayMode: false, output: 'html', throwOnError: false })
+      : escapeHtml(token.inner)
+    return span
+  }
+
+  /** Troca a celula para o modo de edicao (texto editavel + efeitos inline
+   * renderizados e nao-editaveis, como fora da tabela). */
   private enterEditMode(cell: HTMLElement) {
     if (this.readOnly) return
     if (cell.dataset.raw === 'true') return
@@ -1583,9 +1649,41 @@ class TableWidget extends WidgetType {
     const tableCell = widget.cellFromSpec(row, col)
     if (!tableCell) return
     cell.dataset.raw = 'true'
-    cell.textContent = tableCell.text
+    this.renderEditContent(cell, tableCell.text)
     cell.contentEditable = 'true'
     cell.classList.add('is-editing')
+  }
+
+  /** Le o conteudo editado da celula de volta para o fonte: nos formatados
+   * voltam como o original (round-trip exato quando intocados); o resto e
+   * texto (com fallback para elementos colados). */
+  private cellSourceText(cell: HTMLElement): string {
+    let source = ''
+    for (const node of Array.from(cell.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        source += node.textContent ?? ''
+      } else if (node instanceof Element) {
+        source += node.getAttribute('data-cell-source') ?? node.textContent ?? ''
+      }
+    }
+    return source
+  }
+
+  /** Duplo clique num efeito da celula em edicao: revela o fonte e seleciona,
+   * para editar no lugar (ao sair, volta a renderizar). */
+  private revealCellSourceAt(cell: HTMLElement, target: EventTarget | null): boolean {
+    if (!(target instanceof Element)) return false
+    const span = target.closest('[data-cell-source]')
+    if (!span || !cell.contains(span)) return false
+    const source = span.getAttribute('data-cell-source') ?? ''
+    const text = document.createTextNode(source)
+    span.replaceWith(text)
+    const range = document.createRange()
+    range.selectNode(text)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    return true
   }
 
   private cellFromSpec(row: number, col: number) {
@@ -1609,6 +1707,12 @@ class TableWidget extends WidgetType {
     const cell = this.cellForEvent(event.target)
     if (cell && this.view) this.enterEditMode(cell)
     // Deixa o comportamento padrao colocar o caret no ponto do clique.
+  }
+
+  private onDoubleClick(event: MouseEvent) {
+    const cell = this.cellForEvent(event.target)
+    if (!cell || cell.dataset.raw !== 'true') return
+    if (this.revealCellSourceAt(cell, event.target)) event.preventDefault()
   }
 
   private onFocusIn(event: FocusEvent) {
@@ -1636,7 +1740,7 @@ class TableWidget extends WidgetType {
     const col = Number(cell.dataset.col)
     const tableCell = row === 0 ? widget.spec.header[col] : widget.spec.rows[row - 1]?.[col]
     if (!tableCell) return
-    const newText = escapeCellText(cell.textContent ?? '')
+    const newText = escapeCellText(this.cellSourceText(cell))
     const oldText = this.view.state.doc.sliceString(tableCell.from, tableCell.to)
     if (newText !== oldText) {
       this.view.dispatch({ changes: { from: tableCell.from, to: tableCell.to, insert: newText } })

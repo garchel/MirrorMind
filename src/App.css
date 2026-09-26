@@ -664,7 +664,11 @@ button:disabled {
   font-size: 12px;
 }
 
-.workspace-shell button {
+/* Base de botoes da sidebar: `:where` zera a especificidade para (0,0,1) —
+   botoes nus mantem o visual escuro, mas QUALQUER regra de componente vence
+   sem precisar de escalacao (fim da classe de bugs "hover/chapa escura"
+   vencendo o componente por ordem). */
+:where(.workspace-shell) button {
   min-height: 30px;
   border-radius: var(--radius-xs);
   background: #25232f;
@@ -673,7 +677,7 @@ button:disabled {
   font-weight: 500;
 }
 
-.workspace-shell button:hover:not(:disabled) {
+:where(.workspace-shell) button:hover:not(:disabled) {
   transform: none;
   background: #302e3c;
 }
@@ -2068,12 +2072,14 @@ label.settings-toggle {
   color: var(--workspace-text);
 }
 
-.workspace-shell button {
+/* Base de botoes do workspace: `:where` zera a especificidade para (0,0,1) /
+ * (0,2,1) no hover — mesmo contrato da base da sidebar acima. */
+:where(.workspace-shell) button {
   background: #292926;
   color: #fbfaf6;
 }
 
-.workspace-shell button:hover:not(:disabled) {
+:where(.workspace-shell) button:hover:not(:disabled) {
   background: #11110f;
 }
 
@@ -5380,6 +5386,147 @@ label.settings-toggle {
   gap: 8px;
 }
 
+/* Linha de post-its do header (menu + chip de orfaos). */
+.workspace-shell .note-header-postits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+  max-width: min(100%, 620px);
+}
+
+/* Botao do menu de post-its: chip neutro como o toggle de tags. */
+.workspace-shell .postit-menu-trigger {
+  padding: 3px 10px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #6b6b64;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.workspace-shell .postit-menu-trigger:hover {
+  border-color: #b9b6ab;
+  background: rgb(28 36 39 / 4%);
+}
+
+/* Popover do menu: portalado fora do shell (mesmo escopo do popover de tags). */
+.ui-popover-content.postit-menu-popover {
+  width: 264px;
+  min-width: 0;
+  padding: 6px;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-list {
+  display: grid;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #343532;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-item:hover {
+  background: #efede4;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 44, 39, 0.3);
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-detail {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8a877e;
+  font-size: 11px;
+}
+
+/* Chip de post-its sem ancora (abaixo das tags): aviso discreto em ambar. */
+.workspace-shell .postit-orphans-chip {
+  padding: 3px 10px;
+  border: 1px solid rgba(138, 90, 42, 0.4);
+  border-radius: var(--radius-xs);
+  background: rgb(196 106 43 / 8%);
+  color: #8a5a2a;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.workspace-shell .postit-orphans-chip:hover {
+  background: rgb(196 106 43 / 16%);
+}
+
+/* Dialogo de orfaos: lista com dot da cor, texto e acoes. */
+.postit-orphans-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.postit-orphans-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.postit-orphans-dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 44, 39, 0.3);
+}
+
+.postit-orphans-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.postit-orphans-error {
+  color: #8a4b39;
+  font-size: 12px;
+}
+
 /* Linha da troca de area: botao em dois tempos (Alterar area -> Selecione o
    texto… (desabilitado) -> Confirmar area). */
 .workspace-shell .postit-popover-range {
@@ -6460,6 +6607,14 @@ label.settings-toggle {
 
 .markdown-mixed .cm-live-table-wrap table {
   width: 100%;
+}
+
+/* Matematica na celula em edicao: no renderizado nao-editavel (duplo clique
+   revela o fonte). Inline-block para o caret navegar ao redor. */
+.markdown-mixed .cm-live-table-math {
+  display: inline-block;
+  vertical-align: baseline;
+  cursor: default;
 }
 
 /* Bordas redimensionaveis: a inferior altera as linhas, a direita altera as

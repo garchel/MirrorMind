@@ -121,11 +121,73 @@ describe('markdownLivePreview render (jsdom)', () => {
 
   it('não revela o Markdown cru com o cursor dentro da tabela', async () => {
     // Cursor na posicao da celula "1" (dentro da tabela).
-    const container = await renderLive('Introducao\n\n| A | B |\n|---|---|\n| 1 | 2 |', 33)
+    const container = await renderLive('Introducao\n\n| Operacao | Nome |\n|---|---|\n| 2 * 3 | foo_bar_baz |', 33)
     await waitFor(() => expect(table(container)).not.toBeNull())
     const content = container.querySelector('.cm-content')
     expect(content?.textContent).not.toContain('|')
     expect(container.querySelectorAll('thead th').length).toBe(2)
+  })
+
+  it('matematica continua renderizada na celula em edicao (igual fora da tabela)', async () => {
+    const container = await renderLive('Tabela\n\n| A | $x+1$ |\n|---|---|\n| B | $y+2$ |', 0)
+    await waitFor(() => expect(table(container)).not.toBeNull())
+    const cell = container.querySelector<HTMLElement>('.cm-live-table-cell[data-row="1"][data-col="1"]')!
+    fireEvent.mouseDown(cell)
+    fireEvent.focusIn(cell)
+    // No renderizado nao-editavel com o fonte guardado (caret navega ao redor).
+    const math = cell.querySelector<HTMLElement>('.cm-live-table-math')!
+    expect(math.getAttribute('data-cell-source')).toBe('$y+2$')
+    expect(math.querySelector('.katex')).not.toBeNull()
+    expect(math.contentEditable).toBe('false')
+    expect(cell.contentEditable).toBe('true')
+  })
+
+  it('negrito e codigo continuam renderizados na celula em edicao (round-trip exato)', async () => {
+    const container = await renderLive('Tabela\n\n| A | **forte** e `x` |\n|---|---|\n| B | ok |', 0)
+    await waitFor(() => expect(table(container)).not.toBeNull())
+    const cell = container.querySelector<HTMLElement>('.cm-live-table-cell[data-row="0"][data-col="1"]')!
+    fireEvent.mouseDown(cell)
+    fireEvent.focusIn(cell)
+    const strong = cell.querySelector('strong')!
+    const code = cell.querySelector('code')!
+    expect(strong.getAttribute('data-cell-source')).toBe('**forte**')
+    expect(code.getAttribute('data-cell-source')).toBe('`x`')
+    expect(strong.contentEditable).toBe('false')
+    // Duplo clique revela o fonte do negrito para editar no lugar.
+    fireEvent.doubleClick(strong)
+    expect(cell.querySelector('strong')).toBeNull()
+    expect(cell.textContent).toContain('**forte**')
+  })
+
+  it('duplo clique na formula da celula revela o fonte; blur volta a renderizar sem reescrever o doc', async () => {
+    const onChange = vi.fn()
+    const { container } = render(
+      <MarkdownCodeEditor
+        documentKey="tabela.md"
+        livePreview
+        onChange={onChange}
+        onHistoryChange={vi.fn()}
+        onOpenLink={vi.fn()}
+        onSessionChange={vi.fn()}
+        session={{ selectionStart: 0, selectionEnd: 0, scrollTop: 0 }}
+        value={'Tabela\n\n| A | $x+1$ |\n|---|---|\n| B | $y+2$ |'}
+      />,
+    )
+    const content = container.querySelector('.cm-content')!
+    fireEvent.focus(content)
+    await waitFor(() => expect(table(container)).not.toBeNull())
+    const cell = container.querySelector<HTMLElement>('.cm-live-table-cell[data-row="1"][data-col="1"]')!
+    fireEvent.mouseDown(cell)
+    fireEvent.focusIn(cell)
+    const math = cell.querySelector('.cm-live-table-math')!
+    fireEvent.doubleClick(math)
+    // Fonte revelado como texto selecionado (sem no de matematica).
+    expect(cell.querySelector('.cm-live-table-math')).toBeNull()
+    expect(cell.textContent).toContain('$y+2$')
+    // Blur reformata a partir do spec: sem edicao, nenhum dispatch corrompe.
+    fireEvent.blur(cell)
+    await waitFor(() => expect(cell.querySelector('.katex')).not.toBeNull())
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('renderiza matematica com KaTeX (widget presente no DOM)', async () => {
