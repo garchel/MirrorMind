@@ -1,6 +1,15 @@
 import { $, browser, expect } from '@wdio/globals'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import {
+  createVault,
+  openContextMenu,
+  selectEditorMode,
+  typeIntoEditor,
+  waitForEditorText,
+  waitForFile,
+  waitForTauriPlugin,
+} from './helpers.mjs'
 
 const phase = process.env.MIRRORMIND_E2E_PHASE
 const journeyStatePath = join(process.env.MIRRORMIND_E2E_RUN_ROOT, 'rename-move-state.json')
@@ -8,66 +17,13 @@ const supportedPhases = ['rename-and-move', 'verify-rename-and-move']
 
 if (!supportedPhases.includes(phase)) throw new Error(`Unexpected rename/move E2E phase: ${phase}`)
 
-async function waitForTauriPlugin() {
-  await browser.waitUntil(
-    async () => browser.execute(() => 'wdioTauri' in window),
-    { timeout: 15_000, timeoutMsg: 'O plugin WebdriverIO nao foi inicializado.' },
-  )
-}
-
-async function waitForFile(path, predicate, timeoutMsg) {
-  await browser.waitUntil(
-    () => {
-      try {
-        return predicate(readFileSync(path, 'utf8'))
-      } catch {
-        return false
-      }
-    },
-    { timeout: 20_000, timeoutMsg },
-  )
-}
-
-async function waitForEditorText(expectedText) {
-  const expectedEditorText = expectedText.replace(/\r\n/g, '\n').trimEnd()
-  await browser.waitUntil(
-    async () => {
-      const editor = await $('[aria-label^="Editor Markdown"]')
-      return (await editor.isExisting())
-        && await browser.execute((target) => (
-          Array.from(target.querySelectorAll('.cm-line'))
-            .map((line) => line.textContent ?? '')
-            .join('\n')
-        ), editor).then((text) => text.replace(/\r\n/g, '\n').trimEnd()) === expectedEditorText
-    },
-    {
-      timeout: 10_000,
-      timeoutMsg: `O editor nao exibiu o conteudo esperado: ${expectedText}`,
-    },
-  )
-}
-
 async function saveEditorText(path, content) {
   // Remounts (troca de modo/aba) e corridas com o autosave/watcher podem
-  // invalidar o foco ou o no entre a consulta e a digitacao: tenta ate 3
-  // vezes com elementos frescos antes de desistir.
+  // invalidar a digitacao: tenta ate 3 vezes antes de desistir.
   let typed = false
   for (let attempt = 0; attempt < 3 && !typed; attempt += 1) {
-    const editor = await $('[aria-label^="Editor Markdown"]')
-    await editor.click()
-    // So digita com o foco confirmado dentro do editor.
-    await browser.waitUntil(
-      async () => browser.execute(() => {
-        const target = document.querySelector('[aria-label^="Editor Markdown"]')
-        return !!target && target.contains(document.activeElement)
-      }),
-      { timeout: 5_000, timeoutMsg: 'O editor nao recebeu foco antes da digitacao.' },
-    )
-    await browser.keys(['Control', 'a'])
-    await browser.keys('Delete')
-    await editor.addValue(content)
     try {
-      await waitForEditorText(content)
+      await typeIntoEditor(content)
       typed = true
     } catch {
       if (attempt === 2) throw new Error(`O editor nao exibiu o conteudo esperado apos 3 tentativas: ${content}`)
@@ -82,42 +38,6 @@ async function saveEditorText(path, content) {
     (persistedContent) => persistedContent === content,
     `A aba remapeada nao salvou no caminho final: ${path}`,
   )
-}
-
-async function selectEditorMode(modeElement, mode) {
-  // O controle de modo deixou de ser um <select> nativo e virou um grupo de
-  // radios (Edicao/Misto/Leitura): clica no radio correspondente.
-  const labels = { edit: 'Edicao', mixed: 'Misto', read: 'Leitura' }
-  const radio = modeElement.$(`.//button[normalize-space()="${labels[mode]}"]`)
-  await expect(radio).toBeDisplayed()
-  await radio.click()
-}
-
-async function createVault(vaultName) {
-  const createCard = await $('article.action-card--accent')
-  await expect(createCard).toBeDisplayed()
-  await createCard.$('input').setValue(vaultName)
-  await createCard.$('.//button[normalize-space()="Escolher pasta pai"]').click()
-  await browser.waitUntil(
-    async () => (await createCard.$('small').getText()).includes(vaultName),
-    { timeoutMsg: 'A pasta pai isolada nao foi selecionada.' },
-  )
-  await createCard.$('.//button[normalize-space()="Criar vault"]').click()
-  await expect($('.workspace-shell')).toBeDisplayed()
-  await browser.waitUntil(
-    async () => (await $('.workspace-title').getText()).includes(vaultName),
-    { timeout: 20_000, timeoutMsg: 'O scan inicial do Vault nao foi concluido.' },
-  )
-}
-async function openContextMenu(element) {
-  await browser.execute((target) => {
-    const bounds = target.getBoundingClientRect()
-    target.dispatchEvent(new MouseEvent('contextmenu', {
-      bubbles: true,
-      clientX: bounds.left + bounds.width / 2,
-      clientY: bounds.top + bounds.height / 2,
-    }))
-  }, element)
 }
 
 async function dropNoteInFolder(sourcePath, folderElement) {

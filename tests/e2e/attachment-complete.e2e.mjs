@@ -1,6 +1,7 @@
 import { $, browser, expect } from '@wdio/globals'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createVault, typeIntoEditor, waitForEditorText, waitForFile, waitForTauriPlugin } from './helpers.mjs'
 
 const phase = process.env.MIRRORMIND_E2E_PHASE
 const journeyStatePath = join(process.env.MIRRORMIND_E2E_RUN_ROOT, 'attachment-state.json')
@@ -34,26 +35,6 @@ async function dropFileIntoEditor(sourcePath) {
   ), { sourcePath, position })
 }
 
-async function waitForTauriPlugin() {
-  await browser.waitUntil(
-    async () => browser.execute(() => 'wdioTauri' in window),
-    { timeout: 15_000, timeoutMsg: 'O plugin WebdriverIO nao foi inicializado.' },
-  )
-}
-
-async function waitForFile(path, predicate, timeoutMsg) {
-  await browser.waitUntil(
-    () => {
-      try {
-        return predicate(readFileSync(path, 'utf8'))
-      } catch {
-        return false
-      }
-    },
-    { timeout: 20_000, timeoutMsg },
-  )
-}
-
 async function waitForFileBytes(path, predicate, timeoutMsg) {
   await browser.waitUntil(
     () => {
@@ -64,22 +45,6 @@ async function waitForFileBytes(path, predicate, timeoutMsg) {
       }
     },
     { timeout: 20_000, timeoutMsg },
-  )
-}
-
-async function waitForEditorText(expectedText) {
-  const expected = expectedText.replace(/\r\n/g, '\n').trimEnd()
-  await browser.waitUntil(
-    async () => {
-      const editor = await $('[aria-label^="Editor Markdown"]')
-      return (await editor.isExisting())
-        && await browser.execute((target) => (
-          Array.from(target.querySelectorAll('.cm-line'))
-            .map((line) => line.textContent ?? '')
-            .join('\n')
-        ), editor).then((text) => text.replace(/\r\n/g, '\n').trimEnd()) === expected
-    },
-    { timeout: 10_000, timeoutMsg: `O editor nao exibiu o conteudo esperado: ${expectedText}` },
   )
 }
 
@@ -97,34 +62,6 @@ async function waitForEditorTextContaining(expectedParts) {
       return expectedParts.every((part) => text.includes(part))
     },
     { timeout: 10_000, timeoutMsg: `O editor nao contem os embeds esperados: ${expectedParts.join(' | ')}` },
-  )
-}
-
-async function typeIntoEditor(content) {
-  const editor = await $('[aria-label^="Editor Markdown"]')
-  await editor.click()
-  await browser.keys(['Control', 'a'])
-  await browser.keys('Delete')
-  await editor.addValue(content)
-  await waitForEditorText(content)
-}
-
-
-
-async function createVault(vaultName) {
-  const createCard = await $('article.action-card--accent')
-  await expect(createCard).toBeDisplayed()
-  await createCard.$('input').setValue(vaultName)
-  await createCard.$('.//button[normalize-space()="Escolher pasta pai"]').click()
-  await browser.waitUntil(
-    async () => (await createCard.$('small').getText()).includes(vaultName),
-    { timeoutMsg: 'A pasta pai isolada nao foi selecionada.' },
-  )
-  await createCard.$('.//button[normalize-space()="Criar vault"]').click()
-  await expect($('.workspace-shell')).toBeDisplayed()
-  await browser.waitUntil(
-    async () => (await $('.workspace-title').getText()).includes(vaultName),
-    { timeout: 20_000, timeoutMsg: 'O scan inicial do Vault nao foi concluido.' },
   )
 }
 

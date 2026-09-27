@@ -1,6 +1,15 @@
 import { $, browser, expect } from '@wdio/globals'
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import {
+  createVault,
+  selectEditorMode,
+  typeIntoEditor,
+  waitForEditorText,
+  waitForFile,
+  waitForMissing,
+  waitForTauriPlugin,
+} from './helpers.mjs'
 
 const phase = process.env.MIRRORMIND_E2E_PHASE
 const journeyStatePath = join(process.env.MIRRORMIND_E2E_RUN_ROOT, 'external-conflict-state.json')
@@ -8,94 +17,13 @@ const supportedPhases = ['external-change-conflict', 'verify-external-change', '
 
 if (!supportedPhases.includes(phase)) throw new Error(`Unexpected external-change E2E phase: ${phase}`)
 
-async function waitForTauriPlugin() {
-  await browser.waitUntil(
-    async () => browser.execute(() => 'wdioTauri' in window),
-    { timeout: 15_000, timeoutMsg: 'O plugin WebdriverIO nao foi inicializado.' },
-  )
-}
-
-async function waitForFile(path, predicate, timeoutMsg) {
-  await browser.waitUntil(
-    () => {
-      try {
-        return predicate(readFileSync(path, 'utf8'))
-      } catch {
-        return false
-      }
-    },
-    { timeout: 20_000, timeoutMsg },
-  )
-}
-
-async function waitForMissing(path, timeoutMsg) {
-  await browser.waitUntil(
-    () => !existsSync(path),
-    { timeout: 20_000, timeoutMsg },
-  )
-}
-
-async function waitForEditorText(expectedText) {
-  const expectedEditorText = expectedText.replace(/\r\n/g, '\n').trimEnd()
-  await browser.waitUntil(
-    async () => {
-      const editor = await $('[aria-label^="Editor Markdown"]')
-      return (await editor.isExisting())
-        && await browser.execute((target) => (
-          Array.from(target.querySelectorAll('.cm-line'))
-            .map((line) => line.textContent ?? '')
-            .join('\n')
-        ), editor).then((text) => text.replace(/\r\n/g, '\n').trimEnd()) === expectedEditorText
-    },
-    {
-      timeout: 10_000,
-      timeoutMsg: `O editor nao exibiu o conteudo esperado: ${expectedText}`,
-    },
-  )
-}
-
-async function selectEditorMode(modeElement, mode) {
-  const labels = { edit: 'Edicao', mixed: 'Misto', read: 'Leitura' }
-  const radio = modeElement.$(`.//button[normalize-space()="${labels[mode]}"]`)
-  await expect(radio).toBeDisplayed()
-  await radio.click()
-}
-
-async function createVault(vaultName) {
-  const createCard = await $('article.action-card--accent')
-  await expect(createCard).toBeDisplayed()
-  await createCard.$('input').setValue(vaultName)
-  await createCard.$('.//button[normalize-space()="Escolher pasta pai"]').click()
-  await browser.waitUntil(
-    async () => (await createCard.$('small').getText()).includes(vaultName),
-    { timeoutMsg: 'A pasta pai isolada nao foi selecionada.' },
-  )
-  await createCard.$('.//button[normalize-space()="Criar vault"]').click()
-  await expect($('.workspace-shell')).toBeDisplayed()
-  await browser.waitUntil(
-    async () => (await $('.workspace-title').getText()).includes(vaultName),
-    { timeout: 20_000, timeoutMsg: 'O scan inicial do Vault nao foi concluido.' },
-  )
-}
-
-async function typeEditorText(content) {
-  // Digitacao explicita no CodeMirror: foca, seleciona tudo, apaga e digita.
-  // O `setValue` do WebdriverIO nao tipa de forma confiavel no contenteditable.
-  const editor = await $('[aria-label^="Editor Markdown"]')
-  await editor.click()
-  await browser.keys(['Control', 'a'])
-  await browser.keys('Delete')
-  await editor.addValue(content)
-  await waitForEditorText(content)
-}
-
 async function openNoteAndType(noteLabel, content) {
   await $('[aria-label="Abrir nota ' + noteLabel + '"]').click()
   const editor = await $('[aria-label^="Editor Markdown"]')
   await expect(editor).toBeDisplayed()
   const editorMode = await $('[aria-label="Modo de visualização da nota"]')
   await selectEditorMode(editorMode, 'edit')
-  await typeEditorText(content)
+  await typeIntoEditor(content)
 }
 
 /** Dispara o salvamento (Ctrl+S) e aguarda o dialogo de conflito aparecer. */
@@ -152,7 +80,7 @@ if (phase === 'external-change-conflict') describe('Mudanca externa e conflito',
 
     // 3. Segundo conflito: desta vez o usuario carrega a versao externa; o
     //    editor passa a refletir exatamente esses bytes e o disco concorda.
-    await typeEditorText(secondDraft)
+    await typeIntoEditor(secondDraft)
     writeFileSync(localNotePath, secondExternal)
     const secondConflict = await saveAndWaitForConflict()
     await secondConflict.$('.//button[normalize-space()="Carregar arquivo externo"]').click()
@@ -209,7 +137,7 @@ if (phase === 'automatic-detect') describe('Deteccao automatica de mudanca exter
 
     // 1. Com rascunho nao salvo: o dialogo de conflito aparece SOZINHO, sem
     //    nenhum Ctrl+S — via watcher (debounce 220ms) ou check periodico (2,5s).
-    await typeEditorText(draft)
+    await typeIntoEditor(draft)
     await waitForEditorText(draft)
     writeFileSync(notePath, externalWithDraft)
     const dialog = await $('[aria-label="Alteração externa detectada"]')

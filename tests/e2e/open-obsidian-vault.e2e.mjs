@@ -1,6 +1,7 @@
 import { $, browser, expect } from '@wdio/globals'
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { waitForEditorText, waitForFile, waitForTauriPlugin } from './helpers.mjs'
 
 const phase = process.env.MIRRORMIND_E2E_PHASE
 const journeyStatePath = join(process.env.MIRRORMIND_E2E_RUN_ROOT, 'obsidian-vault-state.json')
@@ -23,42 +24,6 @@ const PROTECTED_FILES = [
   '.DS_Store',
   'arquivo-sem-extensao',
 ]
-
-async function waitForTauriPlugin() {
-  await browser.waitUntil(
-    async () => browser.execute(() => 'wdioTauri' in window),
-    { timeout: 15_000, timeoutMsg: 'O plugin WebdriverIO nao foi inicializado.' },
-  )
-}
-
-async function waitForEditorText(expectedText) {
-  const expected = expectedText.replace(/\r\n/g, '\n').trimEnd()
-  await browser.waitUntil(
-    async () => {
-      const editor = await $('[aria-label^="Editor Markdown"]')
-      return (await editor.isExisting())
-        && await browser.execute((target) => (
-          Array.from(target.querySelectorAll('.cm-line'))
-            .map((line) => line.textContent ?? '')
-            .join('\n')
-        ), editor).then((text) => text.replace(/\r\n/g, '\n').trimEnd()) === expected
-    },
-    { timeout: 10_000, timeoutMsg: `O editor nao exibiu o conteudo esperado: ${expectedText}` },
-  )
-}
-
-async function waitForFile(path, predicate, timeoutMsg) {
-  await browser.waitUntil(
-    () => {
-      try {
-        return predicate(readFileSync(path, 'utf8'))
-      } catch {
-        return false
-      }
-    },
-    { timeout: 20_000, timeoutMsg },
-  )
-}
 
 function snapshotFiles(vaultPath, relativePaths) {
   return relativePaths.map((relativePath) => {

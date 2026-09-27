@@ -1,6 +1,7 @@
 import { $, browser, expect } from '@wdio/globals'
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createVault, waitForTauriPlugin } from './helpers.mjs'
 
 const phase = process.env.MIRRORMIND_E2E_PHASE
 if (phase !== 'session-abandon') throw new Error(`Unexpected E2E phase: ${phase}`)
@@ -13,30 +14,6 @@ const NOTE_CONTENT = [
   'O processo libera oxigenio como subproduto.',
   'A glicose e o principal produto da fase escura.',
 ].join('\n')
-
-async function waitForTauriPlugin() {
-  await browser.waitUntil(
-    async () => browser.execute(() => 'wdioTauri' in window),
-    { timeout: 15_000, timeoutMsg: 'O plugin WebdriverIO nao foi inicializado.' },
-  )
-}
-
-async function createVault() {
-  const createCard = await $('article.action-card--accent')
-  await expect(createCard).toBeDisplayed()
-  await createCard.$('input').setValue(VAULT_NAME)
-  await createCard.$('.//button[normalize-space()="Escolher pasta pai"]').click()
-  await browser.waitUntil(
-    async () => (await createCard.$('small').getText()).includes(VAULT_NAME),
-    { timeoutMsg: 'A pasta pai isolada nao foi selecionada.' },
-  )
-  await createCard.$('.//button[normalize-space()="Criar vault"]').click()
-  await expect($('.workspace-shell')).toBeDisplayed()
-  await browser.waitUntil(
-    async () => (await $('.workspace-title').getText()).includes(VAULT_NAME),
-    { timeout: 20_000, timeoutMsg: 'O scan inicial do Vault nao foi concluido.' },
-  )
-}
 
 function learningDocumentFiles(vaultPath) {
   const learningRoot = join(vaultPath, '.mirmind', 'learning')
@@ -108,7 +85,7 @@ async function assertBackToQueue() {
 describe('Abandono nativo de sessao', () => {
   it('prepara um vault com uma nota vencida e inicia uma sessao real com o mock de IA', async () => {
     await waitForTauriPlugin()
-    await createVault()
+    await createVault(VAULT_NAME)
     const vaultPath = join(process.env.MIRRORMIND_E2E_VAULT_PARENT, VAULT_NAME)
     writeFileSync(join(vaultPath, `${NOTE_SLUG}.md`), NOTE_CONTENT)
     await $('[aria-label="Atualizar explorador de arquivos"]').click()

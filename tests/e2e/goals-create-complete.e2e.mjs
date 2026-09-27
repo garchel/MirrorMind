@@ -1,6 +1,7 @@
 import { $, browser, expect } from '@wdio/globals'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createVault, waitForTauriPlugin as waitForApp } from './helpers.mjs'
 
 const phase = process.env.MIRRORMIND_E2E_PHASE
 const journeyStatePath = join(process.env.MIRRORMIND_E2E_RUN_ROOT, 'journey-state.json')
@@ -12,31 +13,6 @@ if (!['goals-create', 'verify-goals'].includes(phase)) throw new Error(`Unexpect
 const vaultName = 'Vault Metas E2E'
 const goalTitle = 'Aprender fotossintese E2E'
 
-async function waitForApp() {
-  await browser.waitUntil(
-    async () => browser.execute(() => 'wdioTauri' in window),
-    { timeout: 15_000, timeoutMsg: 'O plugin WebdriverIO nao foi inicializado no frontend.' },
-  )
-}
-
-async function createVault() {
-  const createCard = await $('article.action-card--accent')
-  await expect(createCard).toBeDisplayed()
-  await createCard.$('input').setValue(vaultName)
-  await createCard.$('.//button[normalize-space()="Escolher pasta pai"]').click()
-  await browser.waitUntil(
-    async () => (await createCard.$('small').getText()).includes(vaultName),
-    { timeoutMsg: 'A pasta pai isolada nao foi selecionada.' },
-  )
-  await createCard.$('.//button[normalize-space()="Criar vault"]').click()
-
-  await expect($('.workspace-shell')).toBeDisplayed()
-  await browser.waitUntil(
-    async () => (await $('.workspace-title').getText()).includes(vaultName),
-    { timeout: 20_000, timeoutMsg: 'O scan inicial do Vault nao foi concluido.' },
-  )
-}
-
 async function openGoals() {
   await $('[aria-label="Abrir metas de aprendizado"]').click()
   await expect($('.goals-page')).toBeDisplayed()
@@ -45,7 +21,7 @@ async function openGoals() {
 if (phase === 'goals-create') describe('Metas: criar e concluir passo', () => {
   it('cria a meta com plano deterministico e conclui o primeiro passo', async () => {
     await waitForApp()
-    await createVault()
+    await createVault(vaultName)
     await openGoals()
 
     await $('.goals-page').$('.//button[normalize-space()="Nova meta"]').click()

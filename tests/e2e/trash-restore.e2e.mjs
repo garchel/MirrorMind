@@ -1,39 +1,13 @@
 import { $, browser, expect } from '@wdio/globals'
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createVault, openContextMenu, waitForFile, waitForMissing, waitForTauriPlugin } from './helpers.mjs'
 
 const phase = process.env.MIRRORMIND_E2E_PHASE
 const journeyStatePath = join(process.env.MIRRORMIND_E2E_RUN_ROOT, 'trash-restore-state.json')
 const supportedPhases = ['trash-and-restore', 'verify-trash-restore']
 
 if (!supportedPhases.includes(phase)) throw new Error(`Unexpected trash/restore E2E phase: ${phase}`)
-
-async function waitForTauriPlugin() {
-  await browser.waitUntil(
-    async () => browser.execute(() => 'wdioTauri' in window),
-    { timeout: 15_000, timeoutMsg: 'O plugin WebdriverIO nao foi inicializado.' },
-  )
-}
-
-async function waitForFile(path, predicate, timeoutMsg) {
-  await browser.waitUntil(
-    () => {
-      try {
-        return predicate(readFileSync(path, 'utf8'))
-      } catch {
-        return false
-      }
-    },
-    { timeout: 20_000, timeoutMsg },
-  )
-}
-
-async function waitForMissing(path, timeoutMsg) {
-  await browser.waitUntil(
-    () => !existsSync(path),
-    { timeout: 20_000, timeoutMsg },
-  )
-}
 
 function trashEntries(root) {
   const trashRoot = join(root, '.mirmind', 'trash')
@@ -45,34 +19,6 @@ function trashJson(root) {
   const path = join(root, '.mirmind', 'trash.json')
   if (!existsSync(path)) return []
   return JSON.parse(readFileSync(path, 'utf8'))
-}
-
-async function createVault(vaultName) {
-  const createCard = await $('article.action-card--accent')
-  await expect(createCard).toBeDisplayed()
-  await createCard.$('input').setValue(vaultName)
-  await createCard.$('.//button[normalize-space()="Escolher pasta pai"]').click()
-  await browser.waitUntil(
-    async () => (await createCard.$('small').getText()).includes(vaultName),
-    { timeoutMsg: 'A pasta pai isolada nao foi selecionada.' },
-  )
-  await createCard.$('.//button[normalize-space()="Criar vault"]').click()
-  await expect($('.workspace-shell')).toBeDisplayed()
-  await browser.waitUntil(
-    async () => (await $('.workspace-title').getText()).includes(vaultName),
-    { timeout: 20_000, timeoutMsg: 'O scan inicial do Vault nao foi concluido.' },
-  )
-}
-
-async function openContextMenu(element) {
-  await browser.execute((target) => {
-    const bounds = target.getBoundingClientRect()
-    target.dispatchEvent(new MouseEvent('contextmenu', {
-      bubbles: true,
-      clientX: bounds.left + bounds.width / 2,
-      clientY: bounds.top + bounds.height / 2,
-    }))
-  }, element)
 }
 
 async function sendNoteToTrash(noteName, noteLabel) {

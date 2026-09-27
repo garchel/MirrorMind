@@ -1,43 +1,12 @@
 import { $, browser, expect } from '@wdio/globals'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { typeIntoEditor, waitForEditorText } from './helpers.mjs'
 
 const phase = process.env.MIRRORMIND_E2E_PHASE
 const journeyStatePath = join(process.env.MIRRORMIND_E2E_RUN_ROOT, 'journey-state.json')
 
 if (!['create-and-save', 'reopen'].includes(phase)) throw new Error(`Unexpected E2E phase: ${phase}`)
-
-// Le o documento do CodeMirror unindo as linhas `.cm-line` (o textContent do
-// contenteditable nao contem os finais de linha entre linhas).
-async function readEditorDocument(editor) {
-  return browser.execute((target) => (
-    Array.from(target.querySelectorAll('.cm-line'))
-      .map((line) => line.textContent ?? '')
-      .join('\n')
-  ), editor).then((text) => text.replace(/\r\n/g, '\n').trimEnd())
-}
-
-async function waitForEditorText(expectedText) {
-  const expected = expectedText.replace(/\r\n/g, '\n').trimEnd()
-  await browser.waitUntil(
-    async () => {
-      const editor = await $('[aria-label^="Editor Markdown"]')
-      return (await editor.isExisting()) && (await readEditorDocument(editor)) === expected
-    },
-    { timeout: 10_000, timeoutMsg: `O editor nao exibiu o conteudo esperado: ${expectedText}` },
-  )
-}
-
-// Digitacao explicita no CodeMirror: foca, seleciona tudo, apaga e digita. O
-// `setValue` do WebdriverIO nao tipa de forma confiavel no contenteditable.
-async function typeIntoEditor(content) {
-  const editor = await $('[aria-label^="Editor Markdown"]')
-  await editor.click()
-  await browser.keys(['Control', 'a'])
-  await browser.keys('Delete')
-  await editor.addValue(content)
-  await waitForEditorText(content)
-}
 
 if (phase === 'create-and-save') describe('Criar e salvar', () => {
   it('persiste uma nota no NTFS antes de encerrar o app', async () => {

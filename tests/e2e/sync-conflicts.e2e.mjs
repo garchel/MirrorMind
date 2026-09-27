@@ -1,6 +1,7 @@
 import { $, browser, expect } from '@wdio/globals'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { waitForTauriPlugin } from './helpers.mjs'
 
 const phase = process.env.MIRRORMIND_E2E_PHASE
 const supportedPhases = ['sync-conflicts']
@@ -12,13 +13,6 @@ const NOTE_NAME = 'nota.md'
 const COPY_NAME = 'nota (conflicted copy abc).md'
 const ORIGINAL_CONTENT = '# Nota\n\nConteudo original.'
 const COPY_CONTENT = '# Nota\n\nVersao da nuvem.'
-
-async function waitForTauriPlugin() {
-  await browser.waitUntil(
-    async () => browser.execute(() => 'wdioTauri' in window),
-    { timeout: 15_000, timeoutMsg: 'O plugin WebdriverIO nao foi inicializado.' },
-  )
-}
 
 if (phase === 'sync-conflicts') describe('Copias de conflito de sincronizacao', () => {
   it('esconde a copia do inventario e resolve pelo dialogo (abrir e substituir)', async () => {
