@@ -154,18 +154,20 @@ if (phase === 'open-obsidian-vault') describe('Abrir Vault Obsidian', () => {
     // Nenhum arquivo do Obsidian nem desconhecido foi tocado so pela abertura.
     assertSnapshotUnchanged(vaultPath, protectedSnapshot, 'Abertura')
 
-    // Navega pelas pastas e abre a nota suportada.
+    // Navega pelas pastas e abre a nota suportada. O Misto formata o `#` para
+    // fora do DOM (Decoration.replace), entao o markdown cru e verificado no
+    // modo Edicao.
     await $('[aria-label="Pasta Notas"]').click()
     await $('[aria-label="Abrir nota estudo"]').click()
-    await waitForEditorText('# Estudo\n\nConteudo original do vault Obsidian.')
-
-    // Edita a nota e salva pelos bytes do arquivo. O modo Edicao propaga a
-    // digitacao programatica como sujeira (o Misto nao) e o Ctrl+S grava.
     const editorMode = await $('[aria-label="Modo de visualização da nota"]')
     const editButton = editorMode.$('.//button[normalize-space()="Edicao"]')
     await expect(editButton).toBeDisplayed()
     await editButton.click()
     await expect(editButton).toHaveAttribute('aria-checked', 'true')
+    await waitForEditorText('# Estudo\n\nConteudo original do vault Obsidian.')
+
+    // Edita a nota e salva pelos bytes do arquivo. O modo Edicao propaga a
+    // digitacao programatica como sujeira (o Misto nao) e o Ctrl+S grava.
     const editor = await $('[aria-label^="Editor Markdown"]')
     await editor.click()
     await browser.keys(['Control', 'a'])
@@ -179,9 +181,12 @@ if (phase === 'open-obsidian-vault') describe('Abrir Vault Obsidian', () => {
       'A edicao da nota suportada nao chegou ao arquivo Markdown.',
     )
 
-    // A segunda nota continua listada e abre sem problemas.
+    // A segunda nota continua listada e abre sem problemas (cru no Edicao,
+    // como acima: o Misto formata o `#` para fora do DOM).
     await $('[aria-label="Pasta Diario"]').click()
     await $('[aria-label="Abrir nota 2026-08-14"]').click()
+    await editButton.click()
+    await expect(editButton).toHaveAttribute('aria-checked', 'true')
     await waitForEditorText('# Diario\n\nEntrada diaria do vault.')
 
     // O .obsidian e os arquivos desconhecidos continuam intactos apos editar.
@@ -214,6 +219,10 @@ if (phase === 'verify-open-obsidian-vault') describe('Reabrir vault Obsidian', (
 
     await $('[aria-label="Pasta Notas"]').click()
     await $('[aria-label="Abrir nota estudo"]').click()
+    const editorModeVerify = await $('[aria-label="Modo de visualização da nota"]')
+    const editButtonVerify = editorModeVerify.$('.//button[normalize-space()="Edicao"]')
+    await editButtonVerify.click()
+    await expect(editButtonVerify).toHaveAttribute('aria-checked', 'true')
     await waitForEditorText(editedContent)
 
     // O inventario continua listando os arquivos desconhecidos e o .obsidian

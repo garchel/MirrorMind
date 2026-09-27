@@ -48,13 +48,31 @@ async function waitForEditorText(expectedText) {
 }
 
 async function saveEditorText(path, content) {
-  const editor = await $('[aria-label^="Editor Markdown"]')
-  // Digitacao explicita no CodeMirror: foca, seleciona tudo, apaga e digita.
-  // O `setValue` do WebdriverIO nao tipa de forma confiavel no contenteditable.
-  await editor.click()
-  await browser.keys(['Control', 'a'])
-  await browser.keys('Delete')
-  await editor.addValue(content)
+  // Remounts (troca de modo/aba) e corridas com o autosave/watcher podem
+  // invalidar o foco ou o no entre a consulta e a digitacao: tenta ate 3
+  // vezes com elementos frescos antes de desistir.
+  let typed = false
+  for (let attempt = 0; attempt < 3 && !typed; attempt += 1) {
+    const editor = await $('[aria-label^="Editor Markdown"]')
+    await editor.click()
+    // So digita com o foco confirmado dentro do editor.
+    await browser.waitUntil(
+      async () => browser.execute(() => {
+        const target = document.querySelector('[aria-label^="Editor Markdown"]')
+        return !!target && target.contains(document.activeElement)
+      }),
+      { timeout: 5_000, timeoutMsg: 'O editor nao recebeu foco antes da digitacao.' },
+    )
+    await browser.keys(['Control', 'a'])
+    await browser.keys('Delete')
+    await editor.addValue(content)
+    try {
+      await waitForEditorText(content)
+      typed = true
+    } catch {
+      if (attempt === 2) throw new Error(`O editor nao exibiu o conteudo esperado apos 3 tentativas: ${content}`)
+    }
+  }
   // O atalho Ctrl+S so salva quando o estado sujo ja foi commitado pelo React:
   // espera o editor refletir o conteudo digitado antes de enviar a tecla.
   await waitForEditorText(content)

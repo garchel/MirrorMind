@@ -49,7 +49,9 @@ if (phase === 'goals-create') describe('Metas: criar e concluir passo', () => {
     await openGoals()
 
     await $('.goals-page').$('.//button[normalize-space()="Nova meta"]').click()
-    const dialog = await $('dialog.goals-dialog')
+    // O dialogo de detalhe tambem usa `goals-dialog` (oculto, anterior no
+    // DOM): o seletor exclui ele para mirar o modal de criacao.
+    const dialog = await $('dialog.goals-dialog:not(.goals-detail-dialog)')
     await expect(await dialog.$('#goals-title-input')).toBeDisplayed()
     await dialog.$('#goals-title-input').setValue(goalTitle)
     await dialog.$('#goals-objective-input').setValue('Explicar o processo sem consultar e resolver exercicios.')
@@ -62,14 +64,22 @@ if (phase === 'goals-create') describe('Metas: criar e concluir passo', () => {
 
     await dialog.$('.//button[contains(normalize-space(),"Criar meta")]').click()
 
-    const firstStepGroup = await $('[aria-label^="Status do passo 1:"]')
-    await browser.waitUntil(
-      async () => firstStepGroup.isExisting(),
-      { timeout: 30_000, timeoutMsg: 'O plano da meta nao foi gerado.' },
-    )
-    await expect($('.goals-list')).toHaveText(expect.stringContaining(goalTitle))
+    const firstStepGroup = await $('.goals-list')
+    await expect(firstStepGroup).toHaveText(expect.stringContaining(goalTitle))
 
-    await firstStepGroup.$('.//button[normalize-space()="Concluído"]').click()
+    // Concluir um passo = criar a nota dele: abre o detalhe da meta e cria
+    // a nota do passo 1 (UX atual; sem botao "Concluido" avulso).
+    await $(`[aria-label="Abrir detalhes da meta ${goalTitle}"]`).click()
+    const stepButton = await $('[aria-label="Criar e abrir nota Capitulo 1"]')
+    await expect(stepButton).toBeDisplayed()
+    await stepButton.click()
+    // A nota do passo abre na pagina de notas; de volta as metas, o
+    // progresso reflete 1 de 2.
+    await browser.waitUntil(
+      async () => (await $('.editor-title-button').isExisting()),
+      { timeout: 20_000, timeoutMsg: 'A nota do passo nao foi aberta.' },
+    )
+    await $('[aria-label="Abrir metas de aprendizado"]').click()
     await browser.waitUntil(
       async () => (await $(`[aria-label="Progresso da meta ${goalTitle}: 1 de 2 passos concluídos"]`).isExisting()),
       { timeout: 20_000, timeoutMsg: 'O passo concluido nao refletiu no progresso.' },

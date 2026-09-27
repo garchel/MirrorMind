@@ -139,7 +139,7 @@ async function switchToReadMode() {
 async function expectEmbeddedImageRendered() {
   await browser.waitUntil(
     async () => browser.execute(() => (
-      Array.from(document.querySelectorAll('.markdown-reading img'))
+      Array.from(document.querySelectorAll('.markdown-reading-engine img'))
         .map((img) => img.getAttribute('src') ?? '')
         .some((src) => src.includes('asset.localhost') && src.includes('grafico.png'))
     )),
