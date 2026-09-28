@@ -287,8 +287,7 @@ describe('ReviewSessionPage', () => {
     expect(submitted[0].answer).toMatch(/^B\) Opção A beta$/)
   })
 
-  it('renders the evaluated note with the gap marked and the paragraph score badge', async () => {
-    renderPage()
+  it('renders the evaluated note with the gap marked and the paragraph score badge', async () => {    renderPage()
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
     for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
@@ -303,6 +302,30 @@ describe('ReviewSessionPage', () => {
     expect(badge).toHaveTextContent('72')
     expect(badge).toHaveAttribute('data-outcome', 'good')
     expect(screen.getByRole('list', { name: 'Faixas de pontuação por parágrafo' })).toBeInTheDocument()
+  })
+
+  it('opens external report links outside the app WebView instead of navigating it', async () => {
+    completeMock.mockResolvedValue(report(
+      'Veja o [site externo](https://evil.test/relatorio) para detalhes.',
+    ))
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
+    for (const option of ['Opção A alfa', 'Opção B alfa', 'Opção C alfa']) {
+      await answerExamQuestion(user, option)
+    }
+
+    const link = await screen.findByRole('link', { name: 'site externo' })
+    expect(link).toHaveAttribute('href', 'https://evil.test/relatorio')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'))
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    try {
+      await user.click(link)
+      expect(openSpy).toHaveBeenCalledWith('https://evil.test/relatorio', '_blank', 'noopener,noreferrer')
+    } finally {
+      openSpy.mockRestore()
+    }
   })
 
   it('shows the adaptive coverage note and the not-evaluated badge for out-of-scope paragraphs', async () => {

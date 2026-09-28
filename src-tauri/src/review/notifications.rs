@@ -128,6 +128,17 @@ pub fn save_settings(app: &tauri::AppHandle, settings: &ReviewNotificationSettin
         .with_context(|| format!("Nao foi possivel escrever '{}'.", path.display()))
 }
 
+/// Remove o arquivo de preferencias de notificacao (LGPD Art.18 VI, via
+/// "Apagar dados locais"); ausente ou ilegivel = sucesso.
+pub(crate) fn delete_settings(app: &tauri::AppHandle) {
+    let Ok(path) = settings_path(app) else {
+        return;
+    };
+    if path.exists() {
+        let _ = std::fs::remove_file(&path);
+    }
+}
+
 /// Conta notas vencidas com o mesmo predicado da fila (inscrita, pronta e com
 /// data passada) sem ler o Markdown de cada arquivo — suficiente para o resumo
 /// diario.

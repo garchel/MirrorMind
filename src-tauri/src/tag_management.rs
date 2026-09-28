@@ -566,7 +566,12 @@ fn rewrite_comma_entries(
                 .next()
                 .is_some_and(char::is_whitespace)
         {
-            position += 1;
+            // Espaço multibyte (ex.: U+00A0): avançar 1 byte cai no meio do
+            // char e o próximo slice entra em pânico.
+            position += entries[position..]
+                .chars()
+                .next()
+                .map_or(1, |c| c.len_utf8());
         }
         if position >= entries.len() {
             break;
@@ -1453,6 +1458,25 @@ mod tests {
         assert!(rewritten.contains("#revisao/prova texto `#prova`"));
         assert!(rewritten.contains("<!-- #prova -->"));
         assert!(rewritten.contains("```\r\n#prova\r\n```"));
+    }
+
+    #[test]
+    fn rewriting_comma_tags_with_multibyte_whitespace_does_not_panic() {
+        // NBSP (U+00A0, 2 bytes em UTF-8) entre entradas: o avanço do cursor
+        // precisa respeitar a fronteira do char, senao o slice entra em panico.
+        let mut found = 0;
+        let mut unsupported = false;
+        let (rewritten, _changed) = rewrite_comma_entries(
+            "prova,\u{a0}manter",
+            "prova",
+            Some("revisao/prova"),
+            &mut found,
+            &mut unsupported,
+        )
+        .expect("rewrite");
+        assert_eq!(found, 1);
+        assert!(rewritten.contains("revisao/prova"));
+        assert!(rewritten.contains("manter"));
     }
 
     #[test]

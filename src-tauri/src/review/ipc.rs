@@ -477,11 +477,16 @@ pub async fn run_provider_comparability() -> Result<DivergenceReport, String> {
         let store = NativeCredentialStore::new();
         let ollama = OllamaProvider::new().map_err(|error| error.to_string())?;
         let ollama_name = "ollama-qwen2.5:7b";
-        // Segundo lado: Gemini se configurado, senao OpenAI-compatible.
+        // Segundo lado: Gemini se configurado, senao OpenAI-compatible. Como
+        // os demais caminhos, exige o consentimento correspondente: a chave
+        // existir nao autoriza o envio.
         let remote_name: &'static str;
         let remote: Box<dyn StructuredAiProvider>;
         match load_gemini_api_key(&store).map_err(|error| error.to_string())? {
             Some(_) => {
+                if !has_gemini_consent(&store).map_err(|error| error.to_string())? {
+                    return Err("Autorize o envio do conteudo ao Gemini antes de comparar provedores.".to_string());
+                }
                 remote_name = "gemini-3.5-flash";
                 remote = Box::new(GeminiProvider::from_store(&store).map_err(|error| error.to_string())?);
             }
@@ -489,6 +494,9 @@ pub async fn run_provider_comparability() -> Result<DivergenceReport, String> {
                 .map_err(|error| error.to_string())?
             {
                 Some(configuration) => {
+                    if !has_openai_compatible_consent(&store).map_err(|error| error.to_string())? {
+                        return Err("Autorize o envio do conteudo ao servidor OpenAI-compatible antes de comparar provedores.".to_string());
+                    }
                     remote_name = "openai-compatible";
                     remote = Box::new(
                         OpenAiCompatibleProvider::new(

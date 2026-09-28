@@ -2990,7 +2990,9 @@ fn save_note_in_root(root: &Path, relative_path: &str, content: &str) -> Result<
     let note_path = resolve_note_path(root, relative_path)?;
     let before_content = fs::read_to_string(&note_path)
         .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
-    fs::write(&note_path, content.as_bytes())
+    // Escrita endurecida (no-follow + verificacao de regular + raiz): um
+    // symlink plantado no caminho da nota nao desvia o autosave para fora.
+    write_file_regular_no_follow(&note_path, root, content.as_bytes())
         .with_context(|| format!("Nao foi possivel salvar '{}'.", note_path.display()))?;
 
     if before_content != content {
@@ -4441,13 +4443,14 @@ fn persist_recent_vault(app: &AppHandle, root: &Path) -> Result<()> {
 
 #[tauri::command]
 fn clear_local_app_data(app: AppHandle) -> Result<(), String> {
-    // LGPD Art.18 VI — elimina recent-vault.json e chaves do cofre local.
-    // O localStorage (WebView2) é limpo no frontend; aqui limpamos o que é
-    // nativo (arquivo de preferência + segredos do OS keyring).
+    // LGPD Art.18 VI — elimina recent-vault.json, preferencias de notificacao
+    // e chaves do cofre local. O localStorage (WebView2) é limpo no frontend;
+    // aqui limpamos o que é nativo (arquivos de preferência + segredos).
     let path = recent_vault_preference_path(&app).map_err(|e| e.to_string())?;
     if path.exists() {
         fs::remove_file(&path).map_err(|e| e.to_string())?;
     }
+    review::notifications::delete_settings(&app);
     // Remove chaves do cofre (ignora NoEntry — já limpo é sucesso).
     let store = review::credentials::NativeCredentialStore::new();
     let _ = review::credentials::delete_gemini_api_key(&store);

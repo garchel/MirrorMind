@@ -23,7 +23,7 @@ export function TrashPage({
     <section className="workspace-page trash-page" data-builder-name="trash-page">
       <p className="card-kicker">Lixeira</p>
       <h2>Arquivos excluidos</h2>
-      <p>Arquivos na lixeira sao excluidos permanentemente apos 30 dias.</p>
+      <p>Arquivos na lixeira sao excluidos permanentemente apos 30 dias. O conteúdo também pode permanecer no histórico de desfazer (até 100 ações) dentro da pasta .mirmind do vault.</p>
       <div className="trash-table-wrap" data-builder-name="trash-files">
         <table>
           <thead>

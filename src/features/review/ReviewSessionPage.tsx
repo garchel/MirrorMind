@@ -131,7 +131,22 @@ function ReviewRichMarkdown({ content, inline = false }: { content: string; inli
         a: ({ href, children }) => (
           href?.startsWith('https://mirrormind.local/')
             ? <span>{children}</span>
-            : <a href={href}>{children}</a>
+            : (
+              <a
+                href={href}
+                target="_blank"
+                rel="noreferrer noopener"
+                onClick={(event) => {
+                  // Links externos nunca navegam o WebView do app (phishing /
+                  // perda da sessao): abrem fora, como no modo Misto.
+                  if (!href) return
+                  event.preventDefault()
+                  window.open(href, '_blank', 'noopener,noreferrer')
+                }}
+              >
+                {children}
+              </a>
+            )
         ),
         ...(inline ? { p: ({ children }: { children?: ReactNode }) => <span>{children}</span> } : null),
       }}
