@@ -37,12 +37,19 @@ export type ExplorerContextMenu = {
  * ações (nova nota/pasta, filtro de tags, especiais, conflitos), banner de
  * diagnóstico, árvore (`renderTree` continua no App) e rodapé de troca de
  * vault. Mesmos nomes, textos e comportamentos. */
-export type ExplorerSidebarProps = {
+export type ExplorerOverview = {
   vault: VaultSummary
   totalNoteCount: number
+}
+
+export type ExplorerTree = {
   favoriteNotes: NotePreview[]
   noteTree: NoteTreeNode[]
   renderTree: (nodes: NoteTreeNode[]) => ReactNode
+  dropFolderPath: string | null
+}
+
+export type ExplorerTagFilter = {
   selectedTags: string[]
   setSelectedTags: Dispatch<SetStateAction<string[]>>
   tagFilterQuery: string
@@ -51,6 +58,9 @@ export type ExplorerSidebarProps = {
   setShowTagFilterDropdown: Dispatch<SetStateAction<boolean>>
   matchingTagSuggestions: TagSummary[]
   tagFilterDropdownRef: RefObject<HTMLDivElement | null>
+}
+
+export type ExplorerNotices = {
   specialFiles: SpecialVaultFile[]
   specialFilesTruncated: boolean
   setShowSpecialFilesDialog: (show: boolean) => void
@@ -59,50 +69,76 @@ export type ExplorerSidebarProps = {
   vaultDiagnostics: ScanDiagnostics | null
   diagnosticsDismissed: boolean
   setDiagnosticsDismissed: (dismissed: boolean) => void
-  dropFolderPath: string | null
+}
+
+export type ExplorerFooter = {
   loading: boolean
   saving: boolean
-  startNewNote: () => void
-  openNote: (relativePath: string) => Promise<void>
   chooseExistingVault: () => void
   refreshNotes: (vaultPath: string) => void
+}
+
+export type ExplorerActions = {
+  startNewNote: () => void
+  openNote: (relativePath: string) => Promise<void>
   retryVaultDiagnostics: () => void
   setShowFolderDialog: (show: boolean) => void
   setStatus: (message: string) => void
 }
 
+export type ExplorerSidebarProps = {
+  overview: ExplorerOverview
+  tree: ExplorerTree
+  tagFilter: ExplorerTagFilter
+  notices: ExplorerNotices
+  footer: ExplorerFooter
+  actions: ExplorerActions
+}
+
 export function ExplorerSidebar({
-  vault,
-  totalNoteCount,
-  favoriteNotes,
-  noteTree,
-  renderTree,
-  selectedTags,
-  setSelectedTags,
-  tagFilterQuery,
-  setTagFilterQuery,
-  showTagFilterDropdown,
-  setShowTagFilterDropdown,
-  matchingTagSuggestions,
-  tagFilterDropdownRef,
-  specialFiles,
-  specialFilesTruncated,
-  setShowSpecialFilesDialog,
-  syncConflictCopies,
-  setShowSyncConflicts,
-  vaultDiagnostics,
-  diagnosticsDismissed,
-  setDiagnosticsDismissed,
-  dropFolderPath,
-  loading,
-  saving,
-  startNewNote,
-  openNote,
-  chooseExistingVault,
-  refreshNotes,
-  retryVaultDiagnostics,
-  setShowFolderDialog,
-  setStatus,
+  overview: {
+    vault,
+    totalNoteCount,
+  },
+  tree: {
+    favoriteNotes,
+    noteTree,
+    renderTree,
+    dropFolderPath,
+  },
+  tagFilter: {
+    selectedTags,
+    setSelectedTags,
+    tagFilterQuery,
+    setTagFilterQuery,
+    showTagFilterDropdown,
+    setShowTagFilterDropdown,
+    matchingTagSuggestions,
+    tagFilterDropdownRef,
+  },
+  notices: {
+    specialFiles,
+    specialFilesTruncated,
+    setShowSpecialFilesDialog,
+    syncConflictCopies,
+    setShowSyncConflicts,
+    vaultDiagnostics,
+    diagnosticsDismissed,
+    setDiagnosticsDismissed,
+  },
+  footer: {
+    loading,
+    saving,
+    chooseExistingVault,
+    refreshNotes,
+  },
+  actions: {
+    startNewNote,
+    openNote,
+    retryVaultDiagnostics,
+    setShowFolderDialog,
+    setStatus,
+  },
 }: ExplorerSidebarProps) {
   return (
     <aside className="notes-sidebar" data-builder-name="notes-sidebar">

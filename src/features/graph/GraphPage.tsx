@@ -31,208 +31,264 @@ const NoteGraph3D = lazy(() => import('../../components/NoteGraph3D').then((modu
  * simulações (2D/3D), dos memos derivados e das ações de vault; aqui entra
  * só o render. Valores numéricos do grafo vêm do `graph` (useGraphSettings),
  * como na página de Configurações. */
-export type GraphPageProps = {
-  graph: ReturnType<typeof useGraphSettings>
-  updateNumberSetting: (raw: string, current: number, min: number, max: number) => number
+/** Documentos do grafo (listas + contagem para o progresso). */
+export type GraphDocuments = {
   /** `notes.length` (mensagem de progresso da leitura dos links). */
   totalNoteCount: number
-  graphDocuments: GraphDocument[]
-  visibleGraphDocuments: GraphDocument[]
-  renderedGraphDocuments: GraphDocument[]
-  orphanGraphDocuments: GraphDocument[]
-  graphLinks: NoteGraphLink[]
-  graphDegreeByPath: Record<string, number>
-  graphNodePositions: Record<string, GraphPosition>
-  graphRenderedPaths: Set<string>
-  graphDimmedPaths: Set<string> | null
-  graphHoverNeighbors: Set<string> | null
-  graphFolders: string[]
-  graphTags: string[]
-  graphFilterActive: boolean
-  graphFilterMatchPaths: Set<string> | null
-  graphGroupingKind: 'folder' | 'tag' | null
-  graphGroupMaps: ReturnType<typeof buildGroupMaps> | null
-  graphIsSummarized: boolean
-  isGraphLoading: boolean
-  graphLoadProgress: number | null
-  graphUiVisible: boolean
-  setGraphUiVisible: (visible: boolean) => void
-  graphSettingsOpen: boolean
-  setGraphSettingsOpenSynced: (open: boolean) => void
-  graphExportOpen: boolean
-  setGraphExportOpen: Dispatch<SetStateAction<boolean>>
-  graphExportScale: number
-  setGraphExportScale: (scale: number) => void
-  graphExportRequest: Graph3DExportRequest | null
-  graph3dLayoutVersion: number
-  graphMode3d: boolean
-  setGraphMode3d: Dispatch<SetStateAction<boolean>>
-  graphMode: GraphMode
-  setGraphMode: Dispatch<SetStateAction<GraphMode>>
-  graphLocalDepth: number
-  setGraphLocalDepth: Dispatch<SetStateAction<number>>
-  graphFolder: string
-  setGraphFolder: Dispatch<SetStateAction<string>>
-  graphTag: string
-  setGraphTag: Dispatch<SetStateAction<string>>
-  graphQuery: string
-  setGraphQuery: Dispatch<SetStateAction<string>>
-  graphViewport: GraphViewport
-  setGraphViewport: Dispatch<SetStateAction<GraphViewport>>
-  showGraphOrphans: boolean
-  setShowGraphOrphans: Dispatch<SetStateAction<boolean>>
-  showOnlyGraphOrphans: boolean
-  setShowOnlyGraphOrphans: Dispatch<SetStateAction<boolean>>
-  graphHideAllNames: boolean
-  setGraphHideAllNames: Dispatch<SetStateAction<boolean>>
-  graphGroupByFolder: boolean
-  setGraphGroupByFolder: Dispatch<SetStateAction<boolean>>
-  graphGroupByTag: boolean
-  setGraphGroupByTag: Dispatch<SetStateAction<boolean>>
-  graphPrimaryTag: string
-  setGraphPrimaryTag: Dispatch<SetStateAction<string>>
-  graphColorOverrides: Record<string, string>
-  setGraphColorOverrides: Dispatch<SetStateAction<Record<string, string>>>
-  focusedGraphPath: string | null
-  setFocusedGraphPath: (path: string | null) => void
-  focusedGraphDocument: GraphDocument | null
-  focusedIncomingLinks: NoteGraphLink[]
-  focusedOutgoingLinks: NoteGraphLink[]
-  focusedIncomingNotes: GraphDocument[]
-  graphDetailOpen: boolean
-  setGraphDetailOpen: (open: boolean) => void
-  graphHoverPath: string | null
-  setGraphHoverPath: Dispatch<SetStateAction<string | null>>
-  localGraphBeyond: Set<string>
-  localGraphCenterPath: string | null
+  all: GraphDocument[]
+  visible: GraphDocument[]
+  rendered: GraphDocument[]
+  orphans: GraphDocument[]
+}
+
+/** Topologia derivada (links, graus, posições e conjuntos de highlight). */
+export type GraphTopology = {
+  links: NoteGraphLink[]
+  degreeByPath: Record<string, number>
+  positions: Record<string, GraphPosition>
+  renderedPaths: Set<string>
+  dimmedPaths: Set<string> | null
+  hoverNeighbors: Set<string> | null
+}
+
+/** Filtros, agrupamento e órfãs (valores + setters). */
+export type GraphFilters = {
+  folders: string[]
+  tags: string[]
+  active: boolean
+  matchPaths: Set<string> | null
+  groupingKind: 'folder' | 'tag' | null
+  groupMaps: ReturnType<typeof buildGroupMaps> | null
+  summarized: boolean
+  mode: GraphMode
+  setMode: Dispatch<SetStateAction<GraphMode>>
+  localDepth: number
+  setLocalDepth: Dispatch<SetStateAction<number>>
+  folder: string
+  setFolder: Dispatch<SetStateAction<string>>
+  tag: string
+  setTag: Dispatch<SetStateAction<string>>
+  query: string
+  setQuery: Dispatch<SetStateAction<string>>
+  hideAllNames: boolean
+  setHideAllNames: Dispatch<SetStateAction<boolean>>
+  groupByFolder: boolean
+  setGroupByFolder: Dispatch<SetStateAction<boolean>>
+  groupByTag: boolean
+  setGroupByTag: Dispatch<SetStateAction<boolean>>
+  primaryTag: string
+  setPrimaryTag: Dispatch<SetStateAction<string>>
+  colorOverrides: Record<string, string>
+  setColorOverrides: Dispatch<SetStateAction<Record<string, string>>>
+  showOrphans: boolean
+  setShowOrphans: Dispatch<SetStateAction<boolean>>
+  showOnlyOrphans: boolean
+  setShowOnlyOrphans: Dispatch<SetStateAction<boolean>>
+}
+
+/** Estado visual: loading, toolbar, exportação, 3D e viewport. */
+export type GraphView = {
+  loading: boolean
+  loadProgress: number | null
+  uiVisible: boolean
+  setUiVisible: (visible: boolean) => void
+  settingsOpen: boolean
+  setSettingsOpenSynced: (open: boolean) => void
+  exportOpen: boolean
+  setExportOpen: Dispatch<SetStateAction<boolean>>
+  exportScale: number
+  setExportScale: (scale: number) => void
+  exportRequest: Graph3DExportRequest | null
+  layoutVersion: number
+  mode3d: boolean
+  setMode3d: Dispatch<SetStateAction<boolean>>
+  viewport: GraphViewport
+  setViewport: Dispatch<SetStateAction<GraphViewport>>
+}
+
+/** Seleção: foco, hover, drawer e centro local. */
+export type GraphSelection = {
+  focusedPath: string | null
+  setFocusedPath: (path: string | null) => void
+  focusedDocument: GraphDocument | null
+  incomingLinks: NoteGraphLink[]
+  outgoingLinks: NoteGraphLink[]
+  incomingNotes: GraphDocument[]
+  detailOpen: boolean
+  setDetailOpen: (open: boolean) => void
+  hoverPath: string | null
+  setHoverPath: Dispatch<SetStateAction<string | null>>
+  localBeyond: Set<string>
+  localCenterPath: string | null
   /** `activeNote?.relativePath` (realce do nó atual). */
   activeNotePath: string | null
-  graphSurfaceRef: RefObject<HTMLDivElement | null>
-  graphPanRef: RefObject<{ x: number; y: number; viewport: GraphViewport } | null>
-  graphNodeDragRef: RefObject<string | null>
-  graphSkipNodeClickRef: RefObject<boolean>
-  graphPhysicsRef: RefObject<Graph2DPhysics | null>
-  graphPhysicsFrameRef: RefObject<number | null>
-  graph2dNodeElementsRef: RefObject<Map<string, HTMLButtonElement>>
-  graph2dLinkElementsRef: RefObject<Map<string, SVGLineElement>>
-  graphUiHideTimerRef: RefObject<number | null>
-  graphTagIndexRef: RefObject<TagIndex>
-  pokeGraphUi: () => void
-  resetGraphView: () => void
-  openGraphPage: () => void
-  resetGraph3dSettings: () => void
-  handleGraphExport: (format: 'svg' | 'png') => void
-  handleGraph3dExport: (requestId: number, scene: Graph3DExportScene | null) => void
-  startGraph2dNodeDrag: (relativePath: string, event: PointerEvent<HTMLButtonElement>) => void
-  finishGraph2dNodeDrag: (event: PointerEvent<HTMLButtonElement>) => void
-  kickGraph2dPhysics: () => void
-  revealNoteInExplorer: (relativePath: string) => void
-  copyGraphWikiLink: (relativePath: string) => void
+}
+
+/** Refs imperativas do loop 2D e da toolbar. */
+export type GraphRefs = {
+  surfaceRef: RefObject<HTMLDivElement | null>
+  panRef: RefObject<{ x: number; y: number; viewport: GraphViewport } | null>
+  nodeDragRef: RefObject<string | null>
+  skipNodeClickRef: RefObject<boolean>
+  physicsRef: RefObject<Graph2DPhysics | null>
+  physicsFrameRef: RefObject<number | null>
+  nodeElementsRef: RefObject<Map<string, HTMLButtonElement>>
+  linkElementsRef: RefObject<Map<string, SVGLineElement>>
+  uiHideTimerRef: RefObject<number | null>
+  tagIndexRef: RefObject<TagIndex>
+}
+
+/** Ações: callbacks do App (sem estado). */
+export type GraphActions = {
+  updateNumberSetting: (raw: string, current: number, min: number, max: number) => number
+  poke: () => void
+  resetView: () => void
+  openPage: () => void
+  reset3d: () => void
+  handleExport: (format: 'svg' | 'png') => void
+  handle3dExport: (requestId: number, scene: Graph3DExportScene | null) => void
+  startNodeDrag: (relativePath: string, event: PointerEvent<HTMLButtonElement>) => void
+  finishNodeDrag: (event: PointerEvent<HTMLButtonElement>) => void
+  kickPhysics: () => void
+  revealInExplorer: (relativePath: string) => void
+  copyWikiLink: (relativePath: string) => void
   /** Vai para `notes` e abre a nota (cobre os 4 fluxos de abertura do grafo). */
-  onOpenNote: (relativePath: string) => void
-  setGraphConnectQuery: (query: string) => void
-  setGraphConnectSource: (document: GraphDocument | null) => void
+  openNote: (relativePath: string) => void
+  setConnectQuery: (query: string) => void
+  setConnectSource: (document: GraphDocument | null) => void
+}
+
+export type GraphPageProps = {
+  graph: ReturnType<typeof useGraphSettings>
+  documents: GraphDocuments
+  topology: GraphTopology
+  filters: GraphFilters
+  view: GraphView
+  selection: GraphSelection
+  refs: GraphRefs
+  actions: GraphActions
 }
 
 export function GraphPage({
   graph,
-  updateNumberSetting,
-  totalNoteCount,
-  graphDocuments,
-  visibleGraphDocuments,
-  renderedGraphDocuments,
-  orphanGraphDocuments,
-  graphLinks,
-  graphDegreeByPath,
-  graphNodePositions,
-  graphRenderedPaths,
-  graphDimmedPaths,
-  graphHoverNeighbors,
-  graphFolders,
-  graphTags,
-  graphFilterActive,
-  graphFilterMatchPaths,
-  graphGroupingKind,
-  graphGroupMaps,
-  graphIsSummarized,
-  isGraphLoading,
-  graphLoadProgress,
-  graphUiVisible,
-  setGraphUiVisible,
-  graphSettingsOpen,
-  setGraphSettingsOpenSynced,
-  graphExportOpen,
-  setGraphExportOpen,
-  graphExportScale,
-  setGraphExportScale,
-  graphExportRequest,
-  graph3dLayoutVersion,
-  graphMode3d,
-  setGraphMode3d,
-  graphMode,
-  setGraphMode,
-  graphLocalDepth,
-  setGraphLocalDepth,
-  graphFolder,
-  setGraphFolder,
-  graphTag,
-  setGraphTag,
-  graphQuery,
-  setGraphQuery,
-  graphViewport,
-  setGraphViewport,
-  showGraphOrphans,
-  setShowGraphOrphans,
-  showOnlyGraphOrphans,
-  setShowOnlyGraphOrphans,
-  graphHideAllNames,
-  setGraphHideAllNames,
-  graphGroupByFolder,
-  setGraphGroupByFolder,
-  graphGroupByTag,
-  setGraphGroupByTag,
-  graphPrimaryTag,
-  setGraphPrimaryTag,
-  graphColorOverrides,
-  setGraphColorOverrides,
-  focusedGraphPath,
-  setFocusedGraphPath,
-  focusedGraphDocument,
-  focusedIncomingLinks,
-  focusedOutgoingLinks,
-  focusedIncomingNotes,
-  graphDetailOpen,
-  setGraphDetailOpen,
-  graphHoverPath,
-  setGraphHoverPath,
-  localGraphBeyond,
-  localGraphCenterPath,
-  activeNotePath,
-  graphSurfaceRef,
-  graphPanRef,
-  graphNodeDragRef,
-  graphSkipNodeClickRef,
-  graphPhysicsRef,
-  graphPhysicsFrameRef,
-  graph2dNodeElementsRef,
-  graph2dLinkElementsRef,
-  graphUiHideTimerRef,
-  graphTagIndexRef,
-  pokeGraphUi,
-  resetGraphView,
-  openGraphPage,
-  resetGraph3dSettings,
-  handleGraphExport,
-  handleGraph3dExport,
-  startGraph2dNodeDrag,
-  finishGraph2dNodeDrag,
-  kickGraph2dPhysics,
-  revealNoteInExplorer,
-  copyGraphWikiLink,
-  onOpenNote,
-  setGraphConnectQuery,
-  setGraphConnectSource,
+  documents,
+  topology,
+  filters,
+  view,
+  selection,
+  refs,
+  actions,
 }: GraphPageProps) {
+  const {
+    totalNoteCount,
+    all: graphDocuments,
+    visible: visibleGraphDocuments,
+    rendered: renderedGraphDocuments,
+    orphans: orphanGraphDocuments,
+  } = documents
+  const {
+    links: graphLinks,
+    degreeByPath: graphDegreeByPath,
+    positions: graphNodePositions,
+    renderedPaths: graphRenderedPaths,
+    dimmedPaths: graphDimmedPaths,
+    hoverNeighbors: graphHoverNeighbors,
+  } = topology
+  const {
+    folders: graphFolders,
+    tags: graphTags,
+    active: graphFilterActive,
+    matchPaths: graphFilterMatchPaths,
+    groupingKind: graphGroupingKind,
+    groupMaps: graphGroupMaps,
+    summarized: graphIsSummarized,
+    mode: graphMode,
+    setMode: setGraphMode,
+    localDepth: graphLocalDepth,
+    setLocalDepth: setGraphLocalDepth,
+    folder: graphFolder,
+    setFolder: setGraphFolder,
+    tag: graphTag,
+    setTag: setGraphTag,
+    query: graphQuery,
+    setQuery: setGraphQuery,
+    hideAllNames: graphHideAllNames,
+    setHideAllNames: setGraphHideAllNames,
+    groupByFolder: graphGroupByFolder,
+    setGroupByFolder: setGraphGroupByFolder,
+    groupByTag: graphGroupByTag,
+    setGroupByTag: setGraphGroupByTag,
+    primaryTag: graphPrimaryTag,
+    setPrimaryTag: setGraphPrimaryTag,
+    colorOverrides: graphColorOverrides,
+    setColorOverrides: setGraphColorOverrides,
+    showOrphans: showGraphOrphans,
+    setShowOrphans: setShowGraphOrphans,
+    showOnlyOrphans: showOnlyGraphOrphans,
+    setShowOnlyOrphans: setShowOnlyGraphOrphans,
+  } = filters
+  const {
+    loading: isGraphLoading,
+    loadProgress: graphLoadProgress,
+    uiVisible: graphUiVisible,
+    setUiVisible: setGraphUiVisible,
+    settingsOpen: graphSettingsOpen,
+    setSettingsOpenSynced: setGraphSettingsOpenSynced,
+    exportOpen: graphExportOpen,
+    setExportOpen: setGraphExportOpen,
+    exportScale: graphExportScale,
+    setExportScale: setGraphExportScale,
+    exportRequest: graphExportRequest,
+    layoutVersion: graph3dLayoutVersion,
+    mode3d: graphMode3d,
+    setMode3d: setGraphMode3d,
+    viewport: graphViewport,
+    setViewport: setGraphViewport,
+  } = view
+  const {
+    focusedPath: focusedGraphPath,
+    setFocusedPath: setFocusedGraphPath,
+    focusedDocument: focusedGraphDocument,
+    incomingLinks: focusedIncomingLinks,
+    outgoingLinks: focusedOutgoingLinks,
+    incomingNotes: focusedIncomingNotes,
+    detailOpen: graphDetailOpen,
+    setDetailOpen: setGraphDetailOpen,
+    hoverPath: graphHoverPath,
+    setHoverPath: setGraphHoverPath,
+    localBeyond: localGraphBeyond,
+    localCenterPath: localGraphCenterPath,
+    activeNotePath,
+  } = selection
+  const {
+    surfaceRef: graphSurfaceRef,
+    panRef: graphPanRef,
+    nodeDragRef: graphNodeDragRef,
+    skipNodeClickRef: graphSkipNodeClickRef,
+    physicsRef: graphPhysicsRef,
+    physicsFrameRef: graphPhysicsFrameRef,
+    nodeElementsRef: graph2dNodeElementsRef,
+    linkElementsRef: graph2dLinkElementsRef,
+    uiHideTimerRef: graphUiHideTimerRef,
+    tagIndexRef: graphTagIndexRef,
+  } = refs
+  const {
+    updateNumberSetting,
+    poke: pokeGraphUi,
+    resetView: resetGraphView,
+    openPage: openGraphPage,
+    reset3d: resetGraph3dSettings,
+    handleExport: handleGraphExport,
+    handle3dExport: handleGraph3dExport,
+    startNodeDrag: startGraph2dNodeDrag,
+    finishNodeDrag: finishGraph2dNodeDrag,
+    kickPhysics: kickGraph2dPhysics,
+    revealInExplorer: revealNoteInExplorer,
+    copyWikiLink: copyGraphWikiLink,
+    openNote: onOpenNote,
+    setConnectQuery: setGraphConnectQuery,
+    setConnectSource: setGraphConnectSource,
+  } = actions
   const {
     graphRenderLimit,
     setGraphRenderLimit,

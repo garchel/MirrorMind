@@ -35,7 +35,7 @@ export type NoteTemplate = { id: string; name: string; content: string }
  * inline, botão), tags, post-its, ações (histórico, autosave, overflow),
  * controle de modo, lacunas de revisão, busca, ferramentas Markdown e
  * painel de frontmatter. O App continua dono dos estados e callbacks. */
-export type EditorHeaderProps = {
+export type HeaderTitle = {
   activeNoteName: string
   isNewNoteDraft: boolean
   createNoteForm: CreateNoteForm
@@ -52,92 +52,122 @@ export type EditorHeaderProps = {
   setInlineTitle: (title: string) => void
   renameActiveNoteFromTitle: (nextTitle: string) => void
   startInlineTitleRename: () => void
+}
+
+export type HeaderTags = {
   noteTags: string[]
   tagIndex: TagSummary[]
   applyExistingTag: (tag: string) => void
   removeTag: (tag: string) => void
+}
+
+export type HeaderHistory = {
+  actionsRef: RefObject<HTMLDivElement | null>
+  preserveSelection: (event: MouseEvent<HTMLButtonElement>) => void
+  undo: () => void
+  redo: () => void
+  canUndo: boolean
+  canRedo: boolean
+}
+
+export type HeaderModes = {
+  editorMode: EditorMode
+  changeMode: (mode: EditorMode) => void
+  reviewGaps: NoteReviewGap[]
+  reviewUnits: NoteReviewUnit[]
+  reviewGapMode: ReviewGapMode
+  setReviewGapMode: (mode: ReviewGapMode) => void
+  openNoteFind: () => void
+  markdownToolsOpen: boolean
+  setMarkdownToolsOpen: Dispatch<SetStateAction<boolean>>
+}
+
+export type HeaderFrontmatter = {
+  panelOpen: boolean
+  setPanelOpen: Dispatch<SetStateAction<boolean>>
+  getData: () => FrontmatterPanelData
+  compatibilityNotes: ComponentProps<typeof FrontmatterPanelForm>['compatibilityNotes']
+  applyPanel: (rows: FrontmatterRow[]) => string | null
+  openNote: (relativePath: string) => Promise<void>
+}
+
+export type EditorHeaderProps = {
+  title: HeaderTitle
+  tags: HeaderTags
   postits: Pick<
     ReturnType<typeof usePostitPopover>,
     'notePostits' | 'postitMenuItems' | 'orphans' | 'handlePostitWidgetClick' | 'deletePostitById'
   >
   showPostitOrphans: boolean
   setShowPostitOrphans: (show: boolean) => void
-  headerActionsRef: RefObject<HTMLDivElement | null>
-  preserveEditorSelection: (event: MouseEvent<HTMLButtonElement>) => void
-  undoLastCommand: () => void
-  redoLastCommand: () => void
-  canUndoActiveEditor: boolean
-  canRedoActiveEditor: boolean
+  history: HeaderHistory
   isAutoSaveEnabled: boolean
   autoSaveState: 'idle' | 'pending' | 'saving' | 'saved'
   hiddenActions: HeaderActionKey[]
   renderHeaderAction: (key: HeaderActionKey) => ReactNode
-  editorMode: EditorMode
-  changeEditorMode: (mode: EditorMode) => void
-  reviewGaps: NoteReviewGap[]
-  reviewUnits: NoteReviewUnit[]
-  reviewGapMode: ReviewGapMode
-  setReviewGapMode: (mode: ReviewGapMode) => void
-  openNoteFind: () => void
-  isMarkdownToolsOpen: boolean
-  setMarkdownToolsOpen: Dispatch<SetStateAction<boolean>>
-  frontmatterPanelOpen: boolean
-  setFrontmatterPanelOpen: Dispatch<SetStateAction<boolean>>
-  getFrontmatterPanelData: () => FrontmatterPanelData
-  compatibilityNotes: ComponentProps<typeof FrontmatterPanelForm>['compatibilityNotes']
-  applyFrontmatterPanel: (rows: FrontmatterRow[]) => string | null
-  openNote: (relativePath: string) => Promise<void>
+  modes: HeaderModes
+  frontmatter: HeaderFrontmatter
 }
 
 export function EditorHeader({
-  activeNoteName,
-  isNewNoteDraft,
-  createNoteForm,
-  setCreateNoteForm,
-  saveActiveNote,
-  saving,
-  loading,
-  templates,
-  selectedTemplateId,
-  applyTemplate,
-  isInlineTitleEditing,
-  setInlineTitleEditing,
-  inlineTitle,
-  setInlineTitle,
-  renameActiveNoteFromTitle,
-  startInlineTitleRename,
-  noteTags,
-  tagIndex,
-  applyExistingTag,
-  removeTag,
+  title: {
+    activeNoteName,
+    isNewNoteDraft,
+    createNoteForm,
+    setCreateNoteForm,
+    saveActiveNote,
+    saving,
+    loading,
+    templates,
+    selectedTemplateId,
+    applyTemplate,
+    isInlineTitleEditing,
+    setInlineTitleEditing,
+    inlineTitle,
+    setInlineTitle,
+    renameActiveNoteFromTitle,
+    startInlineTitleRename,
+  },
+  tags: {
+    noteTags,
+    tagIndex,
+    applyExistingTag,
+    removeTag,
+  },
   postits,
   showPostitOrphans,
   setShowPostitOrphans,
-  headerActionsRef,
-  preserveEditorSelection,
-  undoLastCommand,
-  redoLastCommand,
-  canUndoActiveEditor,
-  canRedoActiveEditor,
+  history: {
+    actionsRef: headerActionsRef,
+    preserveSelection: preserveEditorSelection,
+    undo: undoLastCommand,
+    redo: redoLastCommand,
+    canUndo: canUndoActiveEditor,
+    canRedo: canRedoActiveEditor,
+  },
   isAutoSaveEnabled,
   autoSaveState,
   hiddenActions,
   renderHeaderAction,
-  editorMode,
-  changeEditorMode,
-  reviewGaps,
-  reviewUnits,
-  reviewGapMode,
-  setReviewGapMode,
-  openNoteFind,
-  isMarkdownToolsOpen,
-  setMarkdownToolsOpen,
-  frontmatterPanelOpen,
-  setFrontmatterPanelOpen,
-  getFrontmatterPanelData,
-  compatibilityNotes,
-  applyFrontmatterPanel,
-  openNote,
+  modes: {
+    editorMode,
+    changeMode: changeEditorMode,
+    reviewGaps,
+    reviewUnits,
+    reviewGapMode,
+    setReviewGapMode,
+    openNoteFind,
+    markdownToolsOpen: isMarkdownToolsOpen,
+    setMarkdownToolsOpen,
+  },
+  frontmatter: {
+    panelOpen: frontmatterPanelOpen,
+    setPanelOpen: setFrontmatterPanelOpen,
+    getData: getFrontmatterPanelData,
+    compatibilityNotes,
+    applyPanel: applyFrontmatterPanel,
+    openNote,
+  },
 }: EditorHeaderProps) {
   const {
     notePostits,

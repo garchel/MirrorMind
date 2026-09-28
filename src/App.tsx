@@ -4994,38 +4994,31 @@ function App() {
 
         <section className="workspace-grid">
           <ExplorerSidebar
-            vault={vault}
-              totalNoteCount={notes.length}
-              favoriteNotes={favoriteNotes}
-              noteTree={noteTree}
-              renderTree={renderTree}
-              selectedTags={selectedTags}
-              setSelectedTags={setSelectedTags}
-              tagFilterQuery={tagFilterQuery}
-              setTagFilterQuery={setTagFilterQuery}
-              showTagFilterDropdown={showTagFilterDropdown}
-              setShowTagFilterDropdown={setShowTagFilterDropdown}
-              matchingTagSuggestions={matchingTagSuggestions}
-              tagFilterDropdownRef={tagFilterDropdownRef}
-              specialFiles={specialFiles}
-              specialFilesTruncated={specialFilesTruncated}
-              setShowSpecialFilesDialog={setShowSpecialFilesDialog}
-              syncConflictCopies={syncConflictCopies}
-              setShowSyncConflicts={setShowSyncConflicts}
-              vaultDiagnostics={vaultDiagnostics}
-              diagnosticsDismissed={diagnosticsDismissed}
-              setDiagnosticsDismissed={setDiagnosticsDismissed}
-              dropFolderPath={dropFolderPath}
-              loading={loading}
-              saving={saving}
-              startNewNote={startNewNote}
-              openNote={openNote}
-              chooseExistingVault={chooseExistingVault}
-              refreshNotes={refreshNotes}
-              retryVaultDiagnostics={retryVaultDiagnostics}
-              setShowFolderDialog={setShowFolderDialog}
-              setStatus={setStatus}
-            />
+            overview={{ vault, totalNoteCount: notes.length }}
+            tree={{ favoriteNotes, noteTree, renderTree, dropFolderPath }}
+            tagFilter={{
+              selectedTags,
+              setSelectedTags,
+              tagFilterQuery,
+              setTagFilterQuery,
+              showTagFilterDropdown,
+              setShowTagFilterDropdown,
+              matchingTagSuggestions,
+              tagFilterDropdownRef,
+            }}
+            notices={{
+              specialFiles,
+              specialFilesTruncated,
+              setShowSpecialFilesDialog,
+              syncConflictCopies,
+              setShowSyncConflicts,
+              vaultDiagnostics,
+              diagnosticsDismissed,
+              setDiagnosticsDismissed,
+            }}
+            footer={{ loading, saving, chooseExistingVault, refreshNotes }}
+            actions={{ startNewNote, openNote, retryVaultDiagnostics, setShowFolderDialog, setStatus }}
+          />
 
           <section id="workspace-content" className="editor-surface" role="region" aria-label="Conteudo do workspace" tabIndex={-1} data-builder-name="workspace-content-panel">
             {workspacePage === 'notes' ? (
@@ -5033,107 +5026,125 @@ function App() {
             {activeNote ? (
               <>
                 <EditorHeader
-                  activeNoteName={activeNote.name.replace(/\.md$/i, '')}
-                  isNewNoteDraft={isNewNoteDraft}
-                  createNoteForm={createNoteForm}
-                  setCreateNoteForm={setCreateNoteForm}
-                  saveActiveNote={saveActiveNote}
-                  saving={saving}
-                  loading={loading}
-                  templates={templates}
-                  selectedTemplateId={selectedTemplateId}
-                  applyTemplate={applyTemplate}
-                  isInlineTitleEditing={isInlineTitleEditing}
-                  setInlineTitleEditing={setInlineTitleEditing}
-                  inlineTitle={inlineTitle}
-                  setInlineTitle={setInlineTitle}
-                  renameActiveNoteFromTitle={renameActiveNoteFromTitle}
-                  startInlineTitleRename={startInlineTitleRename}
-                  noteTags={noteTags}
-                  tagIndex={tagIndex}
-                  applyExistingTag={applyExistingTag}
-                  removeTag={removeTag}
+                  title={{
+                    activeNoteName: activeNote.name.replace(/\.md$/i, ''),
+                    isNewNoteDraft,
+                    createNoteForm,
+                    setCreateNoteForm,
+                    saveActiveNote,
+                    saving,
+                    loading,
+                    templates,
+                    selectedTemplateId,
+                    applyTemplate,
+                    isInlineTitleEditing,
+                    setInlineTitleEditing,
+                    inlineTitle,
+                    setInlineTitle,
+                    renameActiveNoteFromTitle,
+                    startInlineTitleRename,
+                  }}
+                  tags={{
+                    noteTags,
+                    tagIndex,
+                    applyExistingTag,
+                    removeTag,
+                  }}
                   postits={postits}
                   showPostitOrphans={showPostitOrphans}
                   setShowPostitOrphans={setShowPostitOrphans}
-                  headerActionsRef={headerActionsRef}
-                  preserveEditorSelection={preserveEditorSelection}
-                  undoLastCommand={undoLastCommand}
-                  redoLastCommand={redoLastCommand}
-                  canUndoActiveEditor={canUndoActiveEditor}
-                  canRedoActiveEditor={canRedoActiveEditor}
+                  history={{
+                    actionsRef: headerActionsRef,
+                    preserveSelection: preserveEditorSelection,
+                    undo: undoLastCommand,
+                    redo: redoLastCommand,
+                    canUndo: canUndoActiveEditor,
+                    canRedo: canRedoActiveEditor,
+                  }}
                   isAutoSaveEnabled={isAutoSaveEnabled}
                   autoSaveState={autoSaveState}
                   hiddenActions={hiddenActions}
                   renderHeaderAction={renderHeaderAction}
-                  editorMode={editorMode}
-                  changeEditorMode={changeEditorMode}
-                  reviewGaps={reviewGaps}
-                  reviewUnits={reviewUnits}
-                  reviewGapMode={reviewGapMode}
-                  setReviewGapMode={setReviewGapMode}
-                  openNoteFind={openNoteFind}
-                  isMarkdownToolsOpen={isMarkdownToolsOpen}
-                  setMarkdownToolsOpen={setMarkdownToolsOpen}
-                  frontmatterPanelOpen={frontmatterPanelOpen}
-                  setFrontmatterPanelOpen={setFrontmatterPanelOpen}
-                  getFrontmatterPanelData={getFrontmatterPanelData}
-                  compatibilityNotes={compatibilityNotes}
-                  applyFrontmatterPanel={applyFrontmatterPanel}
-                  openNote={openNote}
+                  modes={{
+                    editorMode,
+                    changeMode: changeEditorMode,
+                    reviewGaps,
+                    reviewUnits,
+                    reviewGapMode,
+                    setReviewGapMode,
+                    openNoteFind,
+                    markdownToolsOpen: isMarkdownToolsOpen,
+                    setMarkdownToolsOpen,
+                  }}
+                  frontmatter={{
+                    panelOpen: frontmatterPanelOpen,
+                    setPanelOpen: setFrontmatterPanelOpen,
+                    getData: getFrontmatterPanelData,
+                    compatibilityNotes,
+                    applyPanel: applyFrontmatterPanel,
+                    openNote,
+                  }}
                 />
 
                 <EditorContent
-                  activeNoteName={activeNote.name.replace(/\.md$/i, '')}
-                  activeNotePath={activeNote.relativePath}
+                  note={{
+                    name: activeNote.name.replace(/\.md$/i, ''),
+                    path: activeNote.relativePath,
+                  }}
                   editorContentRef={editorContentRef}
-                  noteFindOpen={noteFindOpen}
-                  noteFindInputRef={noteFindInputRef}
-                  noteFindQuery={noteFindQuery}
-                  setNoteFindQuery={setNoteFindQuery}
-                  navigateNoteFind={navigateNoteFind}
-                  closeNoteFind={closeNoteFind}
-                  noteFindIndex={noteFindIndex}
-                  findTotal={findTotal}
-                  editorMode={editorMode}
-                  markdownCodeEditorRef={markdownCodeEditorRef}
-                  historyLimit={historyLimit}
-                  isSpellCheckEnabled={isSpellCheckEnabled}
-                  markdownEditorStateCacheRef={markdownEditorStateCacheRef}
-                  markdownAutocompleteData={markdownAutocompleteData}
-                  hideSelectionPopover={hideSelectionPopover}
-                  openNoteFind={openNoteFind}
-                  draftContent={draftContent}
-                  setDraftContent={setDraftContent}
-                  setMarkdownHistoryStatus={setMarkdownHistoryStatus}
-                  editorSessionsByPath={editorSessionsByPath}
-                  setEditorSessionsByPath={setEditorSessionsByPath}
-                  editorPanelRef={editorPanelRef}
-                  reviewGapData={reviewGapData}
-                  reviewGapMode={reviewGapMode}
-                  readingStyle={readingStyle}
-                  handleMixedOpenLink={handleMixedOpenLink}
-                  resolveMixedAssetUrl={resolveMixedAssetUrl}
-                  resolveMixedEmbedBody={resolveMixedEmbedBody}
-                  vaultPath={vault?.path}
-                  noteBody={noteBody}
-                  isReadingLineWrapEnabled={isReadingLineWrapEnabled}
-                  getActiveEditorSelection={getActiveEditorSelection}
+                  find={{
+                    open: noteFindOpen,
+                    inputRef: noteFindInputRef,
+                    query: noteFindQuery,
+                    setQuery: setNoteFindQuery,
+                    navigate: navigateNoteFind,
+                    close: closeNoteFind,
+                    index: noteFindIndex,
+                    total: findTotal,
+                  }}
+                  engines={{
+                    mode: editorMode,
+                    codeEditorRef: markdownCodeEditorRef,
+                    historyLimit,
+                    spellCheck: isSpellCheckEnabled,
+                    stateCacheRef: markdownEditorStateCacheRef,
+                    autocompleteData: markdownAutocompleteData,
+                    hideSelectionPopover,
+                    openNoteFind,
+                    draftContent,
+                    setDraftContent,
+                    setHistoryStatus: setMarkdownHistoryStatus,
+                    sessionsByPath: editorSessionsByPath,
+                    setSessionsByPath: setEditorSessionsByPath,
+                    panelRef: editorPanelRef,
+                    reviewGapData,
+                    reviewGapMode,
+                    readingStyle,
+                    handleMixedOpenLink,
+                    resolveMixedAssetUrl,
+                    resolveMixedEmbedBody,
+                    vaultPath: vault?.path,
+                    noteBody,
+                    lineWrap: isReadingLineWrapEnabled,
+                    getActiveSelection: getActiveEditorSelection,
+                  }}
                   format={format}
                   postits={postits}
                   noteWordCount={noteWordCount}
-                  isMarkdownToolsOpen={isMarkdownToolsOpen}
-                  markdownToolsRef={markdownToolsRef}
-                  markdownToolsOrientation={markdownToolsOrientation}
-                  markdownToolsPosition={markdownToolsPosition}
-                  startMarkdownToolsDrag={startMarkdownToolsDrag}
-                  toggleMarkdownToolsOrientation={toggleMarkdownToolsOrientation}
-                  preserveEditorSelection={preserveEditorSelection}
-                  selectMarkdownTool={selectMarkdownTool}
-                  applyMarkdownTableAction={applyMarkdownTableAction}
-                  insertAttachment={insertAttachment}
-                  setShowNoteLinkDialog={setShowNoteLinkDialog}
-                  setShowTagDialog={setShowTagDialog}
+                  tools={{
+                    open: isMarkdownToolsOpen,
+                    toolsRef: markdownToolsRef,
+                    orientation: markdownToolsOrientation,
+                    position: markdownToolsPosition,
+                    startDrag: startMarkdownToolsDrag,
+                    toggleOrientation: toggleMarkdownToolsOrientation,
+                    preserveSelection: preserveEditorSelection,
+                    selectTool: selectMarkdownTool,
+                    applyTableAction: applyMarkdownTableAction,
+                    insertAttachment,
+                    setShowNoteLinkDialog,
+                    setShowTagDialog,
+                  }}
                 />
               </>
             ) : (
@@ -5197,102 +5208,116 @@ function App() {
             ) : workspacePage === 'graph' ? (
               <GraphPage
                 graph={graph}
-                updateNumberSetting={updateNumberSetting}
-                totalNoteCount={notes.length}
-                graphDocuments={graphDocuments}
-                visibleGraphDocuments={visibleGraphDocuments}
-                renderedGraphDocuments={renderedGraphDocuments}
-                orphanGraphDocuments={orphanGraphDocuments}
-                graphLinks={graphLinks}
-                graphDegreeByPath={graphDegreeByPath}
-                graphNodePositions={graphNodePositions}
-                graphRenderedPaths={graphRenderedPaths}
-                graphDimmedPaths={graphDimmedPaths}
-                graphHoverNeighbors={graphHoverNeighbors}
-                graphFolders={graphFolders}
-                graphTags={graphTags}
-                graphFilterActive={graphFilterActive}
-                graphFilterMatchPaths={graphFilterMatchPaths}
-                graphGroupingKind={graphGroupingKind}
-                graphGroupMaps={graphGroupMaps}
-                graphIsSummarized={graphIsSummarized}
-                isGraphLoading={isGraphLoading}
-                graphLoadProgress={graphLoadProgress}
-                graphUiVisible={graphUiVisible}
-                setGraphUiVisible={setGraphUiVisible}
-                graphSettingsOpen={graphSettingsOpen}
-                setGraphSettingsOpenSynced={setGraphSettingsOpenSynced}
-                graphExportOpen={graphExportOpen}
-                setGraphExportOpen={setGraphExportOpen}
-                graphExportScale={graphExportScale}
-                setGraphExportScale={setGraphExportScale}
-                graphExportRequest={graphExportRequest}
-                graph3dLayoutVersion={graph3dLayoutVersion}
-                graphMode3d={graphMode3d}
-                setGraphMode3d={setGraphMode3d}
-                graphMode={graphMode}
-                setGraphMode={setGraphMode}
-                graphLocalDepth={graphLocalDepth}
-                setGraphLocalDepth={setGraphLocalDepth}
-                graphFolder={graphFolder}
-                setGraphFolder={setGraphFolder}
-                graphTag={graphTag}
-                setGraphTag={setGraphTag}
-                graphQuery={graphQuery}
-                setGraphQuery={setGraphQuery}
-                graphViewport={graphViewport}
-                setGraphViewport={setGraphViewport}
-                showGraphOrphans={showGraphOrphans}
-                setShowGraphOrphans={setShowGraphOrphans}
-                showOnlyGraphOrphans={showOnlyGraphOrphans}
-                setShowOnlyGraphOrphans={setShowOnlyGraphOrphans}
-                graphHideAllNames={graphHideAllNames}
-                setGraphHideAllNames={setGraphHideAllNames}
-                graphGroupByFolder={graphGroupByFolder}
-                setGraphGroupByFolder={setGraphGroupByFolder}
-                graphGroupByTag={graphGroupByTag}
-                setGraphGroupByTag={setGraphGroupByTag}
-                graphPrimaryTag={graphPrimaryTag}
-                setGraphPrimaryTag={setGraphPrimaryTag}
-                graphColorOverrides={graphColorOverrides}
-                setGraphColorOverrides={setGraphColorOverrides}
-                focusedGraphPath={focusedGraphPath}
-                setFocusedGraphPath={setFocusedGraphPath}
-                focusedGraphDocument={focusedGraphDocument}
-                focusedIncomingLinks={focusedIncomingLinks}
-                focusedOutgoingLinks={focusedOutgoingLinks}
-                focusedIncomingNotes={focusedIncomingNotes}
-                graphDetailOpen={graphDetailOpen}
-                setGraphDetailOpen={setGraphDetailOpen}
-                graphHoverPath={graphHoverPath}
-                setGraphHoverPath={setGraphHoverPath}
-                localGraphBeyond={localGraphBeyond}
-                localGraphCenterPath={localGraphCenterPath}
-                activeNotePath={activeNote?.relativePath ?? null}
-                graphSurfaceRef={graphSurfaceRef}
-                graphPanRef={graphPanRef}
-                graphNodeDragRef={graphNodeDragRef}
-                graphSkipNodeClickRef={graphSkipNodeClickRef}
-                graphPhysicsRef={graphPhysicsRef}
-                graphPhysicsFrameRef={graphPhysicsFrameRef}
-                graph2dNodeElementsRef={graph2dNodeElementsRef}
-                graph2dLinkElementsRef={graph2dLinkElementsRef}
-                graphUiHideTimerRef={graphUiHideTimerRef}
-                graphTagIndexRef={graphTagIndexRef}
-                pokeGraphUi={pokeGraphUi}
-                resetGraphView={resetGraphView}
-                openGraphPage={openGraphPage}
-                resetGraph3dSettings={resetGraph3dSettings}
-                handleGraphExport={handleGraphExport}
-                handleGraph3dExport={handleGraph3dExport}
-                startGraph2dNodeDrag={startGraph2dNodeDrag}
-                finishGraph2dNodeDrag={finishGraph2dNodeDrag}
-                kickGraph2dPhysics={kickGraph2dPhysics}
-                revealNoteInExplorer={revealNoteInExplorer}
-                copyGraphWikiLink={copyGraphWikiLink}
-                onOpenNote={openNoteInWorkspace}
-                setGraphConnectQuery={setGraphConnectQuery}
-                setGraphConnectSource={setGraphConnectSource}
+                documents={{
+                  totalNoteCount: notes.length,
+                  all: graphDocuments,
+                  visible: visibleGraphDocuments,
+                  rendered: renderedGraphDocuments,
+                  orphans: orphanGraphDocuments,
+                }}
+                topology={{
+                  links: graphLinks,
+                  degreeByPath: graphDegreeByPath,
+                  positions: graphNodePositions,
+                  renderedPaths: graphRenderedPaths,
+                  dimmedPaths: graphDimmedPaths,
+                  hoverNeighbors: graphHoverNeighbors,
+                }}
+                filters={{
+                  folders: graphFolders,
+                  tags: graphTags,
+                  active: graphFilterActive,
+                  matchPaths: graphFilterMatchPaths,
+                  groupingKind: graphGroupingKind,
+                  groupMaps: graphGroupMaps,
+                  summarized: graphIsSummarized,
+                  mode: graphMode,
+                  setMode: setGraphMode,
+                  localDepth: graphLocalDepth,
+                  setLocalDepth: setGraphLocalDepth,
+                  folder: graphFolder,
+                  setFolder: setGraphFolder,
+                  tag: graphTag,
+                  setTag: setGraphTag,
+                  query: graphQuery,
+                  setQuery: setGraphQuery,
+                  hideAllNames: graphHideAllNames,
+                  setHideAllNames: setGraphHideAllNames,
+                  groupByFolder: graphGroupByFolder,
+                  setGroupByFolder: setGraphGroupByFolder,
+                  groupByTag: graphGroupByTag,
+                  setGroupByTag: setGraphGroupByTag,
+                  primaryTag: graphPrimaryTag,
+                  setPrimaryTag: setGraphPrimaryTag,
+                  colorOverrides: graphColorOverrides,
+                  setColorOverrides: setGraphColorOverrides,
+                  showOrphans: showGraphOrphans,
+                  setShowOrphans: setShowGraphOrphans,
+                  showOnlyOrphans: showOnlyGraphOrphans,
+                  setShowOnlyOrphans: setShowOnlyGraphOrphans,
+                }}
+                view={{
+                  loading: isGraphLoading,
+                  loadProgress: graphLoadProgress,
+                  uiVisible: graphUiVisible,
+                  setUiVisible: setGraphUiVisible,
+                  settingsOpen: graphSettingsOpen,
+                  setSettingsOpenSynced: setGraphSettingsOpenSynced,
+                  exportOpen: graphExportOpen,
+                  setExportOpen: setGraphExportOpen,
+                  exportScale: graphExportScale,
+                  setExportScale: setGraphExportScale,
+                  exportRequest: graphExportRequest,
+                  layoutVersion: graph3dLayoutVersion,
+                  mode3d: graphMode3d,
+                  setMode3d: setGraphMode3d,
+                  viewport: graphViewport,
+                  setViewport: setGraphViewport,
+                }}
+                selection={{
+                  focusedPath: focusedGraphPath,
+                  setFocusedPath: setFocusedGraphPath,
+                  focusedDocument: focusedGraphDocument,
+                  incomingLinks: focusedIncomingLinks,
+                  outgoingLinks: focusedOutgoingLinks,
+                  incomingNotes: focusedIncomingNotes,
+                  detailOpen: graphDetailOpen,
+                  setDetailOpen: setGraphDetailOpen,
+                  hoverPath: graphHoverPath,
+                  setHoverPath: setGraphHoverPath,
+                  localBeyond: localGraphBeyond,
+                  localCenterPath: localGraphCenterPath,
+                  activeNotePath: activeNote?.relativePath ?? null,
+                }}
+                refs={{
+                  surfaceRef: graphSurfaceRef,
+                  panRef: graphPanRef,
+                  nodeDragRef: graphNodeDragRef,
+                  skipNodeClickRef: graphSkipNodeClickRef,
+                  physicsRef: graphPhysicsRef,
+                  physicsFrameRef: graphPhysicsFrameRef,
+                  nodeElementsRef: graph2dNodeElementsRef,
+                  linkElementsRef: graph2dLinkElementsRef,
+                  uiHideTimerRef: graphUiHideTimerRef,
+                  tagIndexRef: graphTagIndexRef,
+                }}
+                actions={{
+                  updateNumberSetting,
+                  poke: pokeGraphUi,
+                  resetView: resetGraphView,
+                  openPage: openGraphPage,
+                  reset3d: resetGraph3dSettings,
+                  handleExport: handleGraphExport,
+                  handle3dExport: handleGraph3dExport,
+                  startNodeDrag: startGraph2dNodeDrag,
+                  finishNodeDrag: finishGraph2dNodeDrag,
+                  kickPhysics: kickGraph2dPhysics,
+                  revealInExplorer: revealNoteInExplorer,
+                  copyWikiLink: copyGraphWikiLink,
+                  openNote: openNoteInWorkspace,
+                  setConnectQuery: setGraphConnectQuery,
+                  setConnectSource: setGraphConnectSource,
+                }}
               />
             ) : workspacePage === 'trash' ? (
               <TrashPage

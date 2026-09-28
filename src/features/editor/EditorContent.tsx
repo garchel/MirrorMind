@@ -54,32 +54,37 @@ import type { ReviewGapMode } from '../settings/SettingsPage'
  * três motores (Edição, Leitura, Misto), popover de formatação, popover de
  * post-it, contagem de palavras e barra flutuante de Markdown. O App
  * continua dono dos estados, sessões, física de post-its e callbacks. */
-export type EditorContentProps = {
-  activeNoteName: string
-  activeNotePath: string
-  editorContentRef: RefObject<HTMLDivElement | null>
-  noteFindOpen: boolean
-  noteFindInputRef: RefObject<HTMLInputElement | null>
-  noteFindQuery: string
-  setNoteFindQuery: (query: string) => void
-  navigateNoteFind: (delta: number) => void
-  closeNoteFind: () => void
-  noteFindIndex: number
-  findTotal: number
-  editorMode: EditorMode
-  markdownCodeEditorRef: RefObject<MarkdownCodeEditorHandle | null>
+export type EditorNote = {
+  name: string
+  path: string
+}
+
+export type EditorFind = {
+  open: boolean
+  inputRef: RefObject<HTMLInputElement | null>
+  query: string
+  setQuery: (query: string) => void
+  navigate: (delta: number) => void
+  close: () => void
+  index: number
+  total: number
+}
+
+export type EditorEngines = {
+  mode: EditorMode
+  codeEditorRef: RefObject<MarkdownCodeEditorHandle | null>
   historyLimit: number
-  isSpellCheckEnabled: boolean
-  markdownEditorStateCacheRef: RefObject<Map<string, EditorState>>
-  markdownAutocompleteData: MarkdownAutocompleteData
+  spellCheck: boolean
+  stateCacheRef: RefObject<Map<string, EditorState>>
+  autocompleteData: MarkdownAutocompleteData
   hideSelectionPopover: () => void
   openNoteFind: () => void
   draftContent: string
   setDraftContent: Dispatch<SetStateAction<string>>
-  setMarkdownHistoryStatus: Dispatch<SetStateAction<MarkdownEditorHistoryStatus>>
-  editorSessionsByPath: Record<string, MarkdownEditorSession>
-  setEditorSessionsByPath: Dispatch<SetStateAction<Record<string, MarkdownEditorSession>>>
-  editorPanelRef: RefObject<HTMLElement | null>
+  setHistoryStatus: Dispatch<SetStateAction<MarkdownEditorHistoryStatus>>
+  sessionsByPath: Record<string, MarkdownEditorSession>
+  setSessionsByPath: Dispatch<SetStateAction<Record<string, MarkdownEditorSession>>>
+  panelRef: RefObject<HTMLElement | null>
   reviewGapData: ReviewGapData | null
   reviewGapMode: ReviewGapMode
   readingStyle: CSSProperties
@@ -88,8 +93,30 @@ export type EditorContentProps = {
   resolveMixedEmbedBody: (relativePath: string) => Promise<string>
   vaultPath: string | undefined
   noteBody: string
-  isReadingLineWrapEnabled: boolean
-  getActiveEditorSelection: () => { value: string; selectionStart: number; selectionEnd: number } | null
+  lineWrap: boolean
+  getActiveSelection: () => { value: string; selectionStart: number; selectionEnd: number } | null
+}
+
+export type EditorTools = {
+  open: boolean
+  toolsRef: RefObject<HTMLDivElement | null>
+  orientation: 'horizontal' | 'vertical'
+  position: { x: number; y: number }
+  startDrag: (event: PointerEvent<HTMLButtonElement>) => void
+  toggleOrientation: () => void
+  preserveSelection: (event: MouseEvent<HTMLButtonElement>) => void
+  selectTool: (format: MarkdownFormat) => void
+  applyTableAction: (action: MarkdownTableAction) => void
+  insertAttachment: () => void
+  setShowNoteLinkDialog: (show: boolean) => void
+  setShowTagDialog: (show: boolean) => void
+}
+
+export type EditorContentProps = {
+  note: EditorNote
+  editorContentRef: RefObject<HTMLDivElement | null>
+  find: EditorFind
+  engines: EditorEngines
   format: Pick<
     ReturnType<typeof useFormatToolbar>,
     | 'selectionPopover'
@@ -121,71 +148,68 @@ export type EditorContentProps = {
     | 'updateDraftColor'
   >
   noteWordCount: number
-  isMarkdownToolsOpen: boolean
-  markdownToolsRef: RefObject<HTMLDivElement | null>
-  markdownToolsOrientation: 'horizontal' | 'vertical'
-  markdownToolsPosition: { x: number; y: number }
-  startMarkdownToolsDrag: (event: PointerEvent<HTMLButtonElement>) => void
-  toggleMarkdownToolsOrientation: () => void
-  preserveEditorSelection: (event: MouseEvent<HTMLButtonElement>) => void
-  selectMarkdownTool: (format: MarkdownFormat) => void
-  applyMarkdownTableAction: (action: MarkdownTableAction) => void
-  insertAttachment: () => void
-  setShowNoteLinkDialog: (show: boolean) => void
-  setShowTagDialog: (show: boolean) => void
+  tools: EditorTools
 }
 
 export function EditorContent({
-  activeNoteName,
-  activeNotePath,
+  note: {
+    name: activeNoteName,
+    path: activeNotePath,
+  },
   editorContentRef,
-  noteFindOpen,
-  noteFindInputRef,
-  noteFindQuery,
-  setNoteFindQuery,
-  navigateNoteFind,
-  closeNoteFind,
-  noteFindIndex,
-  findTotal,
-  editorMode,
-  markdownCodeEditorRef,
-  historyLimit,
-  isSpellCheckEnabled,
-  markdownEditorStateCacheRef,
-  markdownAutocompleteData,
-  hideSelectionPopover,
-  openNoteFind,
-  draftContent,
-  setDraftContent,
-  setMarkdownHistoryStatus,
-  editorSessionsByPath,
-  setEditorSessionsByPath,
-  editorPanelRef,
-  reviewGapData,
-  reviewGapMode,
-  readingStyle,
-  handleMixedOpenLink,
-  resolveMixedAssetUrl,
-  resolveMixedEmbedBody,
-  vaultPath,
-  noteBody,
-  isReadingLineWrapEnabled,
-  getActiveEditorSelection,
+  find: {
+    open: noteFindOpen,
+    inputRef: noteFindInputRef,
+    query: noteFindQuery,
+    setQuery: setNoteFindQuery,
+    navigate: navigateNoteFind,
+    close: closeNoteFind,
+    index: noteFindIndex,
+    total: findTotal,
+  },
+  engines: {
+    mode: editorMode,
+    codeEditorRef: markdownCodeEditorRef,
+    historyLimit,
+    spellCheck: isSpellCheckEnabled,
+    stateCacheRef: markdownEditorStateCacheRef,
+    autocompleteData: markdownAutocompleteData,
+    hideSelectionPopover,
+    openNoteFind,
+    draftContent,
+    setDraftContent,
+    setHistoryStatus: setMarkdownHistoryStatus,
+    sessionsByPath: editorSessionsByPath,
+    setSessionsByPath: setEditorSessionsByPath,
+    panelRef: editorPanelRef,
+    reviewGapData,
+    reviewGapMode,
+    readingStyle,
+    handleMixedOpenLink,
+    resolveMixedAssetUrl,
+    resolveMixedEmbedBody,
+    vaultPath,
+    noteBody,
+    lineWrap: isReadingLineWrapEnabled,
+    getActiveSelection: getActiveEditorSelection,
+  },
   format,
   postits,
   noteWordCount,
-  isMarkdownToolsOpen,
-  markdownToolsRef,
-  markdownToolsOrientation,
-  markdownToolsPosition,
-  startMarkdownToolsDrag,
-  toggleMarkdownToolsOrientation,
-  preserveEditorSelection,
-  selectMarkdownTool,
-  applyMarkdownTableAction,
-  insertAttachment,
-  setShowNoteLinkDialog,
-  setShowTagDialog,
+  tools: {
+    open: isMarkdownToolsOpen,
+    toolsRef: markdownToolsRef,
+    orientation: markdownToolsOrientation,
+    position: markdownToolsPosition,
+    startDrag: startMarkdownToolsDrag,
+    toggleOrientation: toggleMarkdownToolsOrientation,
+    preserveSelection: preserveEditorSelection,
+    selectTool: selectMarkdownTool,
+    applyTableAction: applyMarkdownTableAction,
+    insertAttachment,
+    setShowNoteLinkDialog,
+    setShowTagDialog,
+  },
 }: EditorContentProps) {
   const {
     selectionPopover,
