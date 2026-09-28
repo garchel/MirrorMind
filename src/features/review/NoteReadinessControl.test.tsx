@@ -6,6 +6,7 @@ import { NoteReadinessControl } from './NoteReadinessControl'
 import { prepareReportMarkdown } from './readinessReportMarkdown'
 import type { NoteReviewState, ReadinessAttempt } from './ai'
 import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
+import { EntitlementProvider } from '../../lib/entitlement'
 
 const {
   assessNoteReadinessMock,
@@ -80,17 +81,19 @@ const validAttempt: ReadinessAttempt = {
 function Harness(props?: Partial<React.ComponentProps<typeof NoteReadinessControl>>) {
   const [reportOpen, setReportOpen] = useState(false)
   return (
-    <ReviewAiSettingsProvider>
-      <NoteReadinessControl
-        vaultPath={'C:\\Vault'}
-        relativePath="biologia.md"
-        sourceRevision="# Biologia"
-        isDirty={false}
-        reportOpen={reportOpen}
-        onReportOpenChange={setReportOpen}
-        {...props}
-      />
-    </ReviewAiSettingsProvider>
+    <EntitlementProvider>
+      <ReviewAiSettingsProvider>
+        <NoteReadinessControl
+          vaultPath={'C:\\Vault'}
+          relativePath="biologia.md"
+          sourceRevision="# Biologia"
+          isDirty={false}
+          reportOpen={reportOpen}
+          onReportOpenChange={setReportOpen}
+          {...props}
+        />
+      </ReviewAiSettingsProvider>
+    </EntitlementProvider>
   )
 }
 

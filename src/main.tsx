@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { RootErrorBoundary } from './components/RootErrorBoundary'
 import { ReviewAiSettingsProvider } from './features/review/ReviewAiSettingsContext'
+import { EntitlementProvider } from './lib/entitlement'
 
 async function startApp() {
   if (import.meta.env.MODE === 'e2e') {
@@ -13,9 +14,11 @@ async function startApp() {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <RootErrorBoundary>
-        <ReviewAiSettingsProvider>
-          <App />
-        </ReviewAiSettingsProvider>
+        <EntitlementProvider>
+          <ReviewAiSettingsProvider>
+            <App />
+          </ReviewAiSettingsProvider>
+        </EntitlementProvider>
       </RootErrorBoundary>
     </StrictMode>,
   )

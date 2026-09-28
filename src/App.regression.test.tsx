@@ -100,6 +100,7 @@ vi.mock('./components/NoteGraph3D', async () => {
 import App from './App'
 import { isNodeInViewport } from './lib/graphCulling'
 import { ReviewAiSettingsProvider } from './features/review/ReviewAiSettingsContext'
+import { EntitlementProvider } from './lib/entitlement'
 import obsidianStudyNote from './fixtures/obsidian-vaults/study-vault/Notas/Quimica.md?raw'
 
 type StoredNote = { name: string; relativePath: string; content: string }
@@ -331,7 +332,7 @@ function createTauriHarness(
 }
 
 async function openTestVault(user: ReturnType<typeof userEvent.setup>) {
-  render(<ReviewAiSettingsProvider><App /></ReviewAiSettingsProvider>)
+  render(<EntitlementProvider><ReviewAiSettingsProvider><App /></ReviewAiSettingsProvider></EntitlementProvider>)
   await user.click(await screen.findByRole('button', { name: 'Escolher pasta' }))
   await screen.findByRole('button', { name: 'Abrir nota inicial' })
 }

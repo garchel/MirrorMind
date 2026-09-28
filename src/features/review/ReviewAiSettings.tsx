@@ -21,7 +21,7 @@ function estimatedManagedInputChars(): number {
 }
 
 export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
-  const { provider, setProvider, geminiConsent, setGeminiConsent, openAiConsent, setOpenAiConsent, managedStatus, canUseManaged, managedUnavailableMessage } = useReviewAiSettings()
+  const { provider, selectProvider, geminiConsent, setGeminiConsent, openAiConsent, setOpenAiConsent, managedGate } = useReviewAiSettings()
   const [configuration, setConfiguration] = useState<ReviewAiConfiguration | null>(null)
   const [apiKey, setApiKey] = useState('')
   const [openAiBaseUrl, setOpenAiBaseUrl] = useState('')
@@ -183,13 +183,13 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
         <select
           className="settings-select"
           value={provider}
-          onChange={(event) => setProvider(event.target.value as ReviewAiProvider)}
+          onChange={(event) => selectProvider(event.target.value as ReviewAiProvider)}
           aria-label="Provedor da revisão"
         >
           <option value="ollama">Ollama local</option>
           <option value="gemini">Gemini</option>
           <option value="openAiCompatible">OpenAI-compatible</option>
-          <option value="managed" disabled>MirrorMind (assinatura) — em breve</option>
+          <option value="managed" disabled={!managedGate.allowed}>{managedGate.label}</option>
         </select>
       </label>
 
@@ -233,19 +233,10 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
         </div>
       ) : provider === 'managed' ? (
         <div className="review-ai-provider-panel">
-          <p>{managedUnavailableMessage}</p>
-          {managedStatus.subscribed ? (
-            <dl className="review-ai-usage">
-              <div><dt>Plano</dt><dd>{managedStatus.plan}</dd></div>
-              <div><dt>Custo estimado no mês</dt><dd>US$ {managedStatus.usedCostUsdMonth.toFixed(2)} de US$ {managedStatus.includedCostUsdPerMonth.toFixed(2)}</dd></div>
-              <div><dt>Chamada estimada</dt><dd>US$ {estimateManagedCallCostUsd(estimatedManagedInputChars()).toFixed(2)}</dd></div>
-            </dl>
-          ) : (
-            <p className="review-ai-managed-scaffold">
-              Custo estimado por chamada gerenciada: US$ {estimateManagedCallCostUsd(estimatedManagedInputChars()).toFixed(2)} ·
-              {' '}{canUseManaged(0.01) ? 'quota disponível' : 'aguardando o serviço de assinatura'}
-            </p>
-          )}
+          <p>{managedGate.message}</p>
+          <p className="review-ai-managed-scaffold">
+            Custo estimado por chamada gerenciada: US$ {estimateManagedCallCostUsd(estimatedManagedInputChars()).toFixed(2)}
+          </p>
         </div>
       ) : provider === 'openAiCompatible' ? (
         <div className="review-ai-provider-panel">

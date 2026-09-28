@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
+import { EntitlementProvider } from '../../lib/entitlement'
 import { ReviewSessionPage } from './ReviewSessionPage'
 
 const { startMock, completeMock, continueMock, reclassifyMock, previewMock, synthesisMock, sourcesMock } = vi.hoisted(() => ({
@@ -95,9 +96,11 @@ async function answerExamQuestion(user: ReturnType<typeof userEvent.setup>, opti
 
 function renderPage(onExit = vi.fn(), onCompleted = vi.fn()) {
   return { onExit, onCompleted, ...render(
-    <ReviewAiSettingsProvider>
-      <ReviewSessionPage vaultPath={VAULT_PATH} item={item} onExit={onExit} onCompleted={onCompleted} />
-    </ReviewAiSettingsProvider>,
+    <EntitlementProvider>
+      <ReviewAiSettingsProvider>
+        <ReviewSessionPage vaultPath={VAULT_PATH} item={item} onExit={onExit} onCompleted={onCompleted} />
+      </ReviewAiSettingsProvider>
+    </EntitlementProvider>,
   ) }
 }
 
@@ -713,10 +716,12 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
   it('guards rail navigation and discards the active session only after confirmation', async () => {
     const onExit = vi.fn()
     render(
-      <ReviewAiSettingsProvider>
-        <aside className="workspace-rail"><button type="button">Notas</button></aside>
-        <ReviewSessionPage vaultPath="C:\\Vault" item={item} onExit={onExit} onCompleted={vi.fn()} />
-      </ReviewAiSettingsProvider>,
+      <EntitlementProvider>
+        <ReviewAiSettingsProvider>
+          <aside className="workspace-rail"><button type="button">Notas</button></aside>
+          <ReviewSessionPage vaultPath="C:\\Vault" item={item} onExit={onExit} onCompleted={vi.fn()} />
+        </ReviewAiSettingsProvider>
+      </EntitlementProvider>,
     )
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))
@@ -738,10 +743,12 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
   it('guards vault switching during a session with the same confirmation dialog', async () => {
     const onExit = vi.fn()
     render(
-      <ReviewAiSettingsProvider>
-        <footer><button type="button" className="vault-switch-button">Meu Vault</button></footer>
-        <ReviewSessionPage vaultPath="C:\\Vault" item={item} onExit={onExit} onCompleted={vi.fn()} />
-      </ReviewAiSettingsProvider>,
+      <EntitlementProvider>
+        <ReviewAiSettingsProvider>
+          <footer><button type="button" className="vault-switch-button">Meu Vault</button></footer>
+          <ReviewSessionPage vaultPath="C:\\Vault" item={item} onExit={onExit} onCompleted={vi.fn()} />
+        </ReviewAiSettingsProvider>
+      </EntitlementProvider>,
     )
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Iniciar revisão' }))

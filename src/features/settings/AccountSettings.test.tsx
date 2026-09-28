@@ -2,7 +2,16 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccountSettings } from './AccountSettings'
+import { EntitlementProvider } from '../../lib/entitlement'
 import { ANON_SESSION, type SessionClient, type SessionSnapshot } from '../../lib/session'
+
+function renderAccount(client: SessionClient) {
+  return render(
+    <EntitlementProvider>
+      <AccountSettings client={client} />
+    </EntitlementProvider>,
+  )
+}
 
 function makeFakeClient(): SessionClient & { emit: (snapshot: SessionSnapshot) => void } {
   const listeners = new Set<(snapshot: SessionSnapshot) => void>()
@@ -43,7 +52,7 @@ describe('AccountSettings', () => {
   it('entra com e-mail e mostra o painel logado', async () => {
     const client = makeFakeClient()
     const user = userEvent.setup()
-    render(<AccountSettings client={client} />)
+    renderAccount(client)
     await user.type(screen.getByLabelText('E-mail da conta'), 'a@b.c')
     await user.type(screen.getByLabelText('Senha da conta'), 'segredo')
     await user.click(screen.getByRole('button', { name: 'Entrar' }))
@@ -56,7 +65,7 @@ describe('AccountSettings', () => {
       throw new Error('credenciais invalidas')
     })
     const user = userEvent.setup()
-    render(<AccountSettings client={client} />)
+    renderAccount(client)
     await user.click(screen.getByRole('button', { name: 'Entrar' }))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('credenciais invalidas'))
 
@@ -73,7 +82,7 @@ describe('AccountSettings', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const user = userEvent.setup()
     try {
-      render(<AccountSettings client={client} />)
+      renderAccount(client)
       await waitFor(() => expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument())
       await user.click(screen.getByRole('button', { name: 'Excluir conta' }))
       expect(confirmSpy).toHaveBeenCalled()
@@ -83,6 +92,32 @@ describe('AccountSettings', () => {
       await waitFor(() => expect(client.signOut).toHaveBeenCalled())
     } finally {
       confirmSpy.mockRestore()
+    }
+  })
+
+  it('esconde o painel de plano enquanto a cobranca esta desligada', () => {
+    vi.stubEnv('VITE_BILLING_ENABLED', 'false')
+    try {
+      renderAccount(makeFakeClient())
+      expect(screen.queryByLabelText('Plano de teste')).not.toBeInTheDocument()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('plano manual concede e revoga direitos sem cobrar', async () => {
+    vi.stubEnv('VITE_BILLING_ENABLED', 'true')
+    const user = userEvent.setup()
+    try {
+      renderAccount(makeFakeClient())
+      const plan = await screen.findByLabelText('Plano de teste')
+      await user.selectOptions(plan, 'ia_mensal')
+      await waitFor(() => expect(screen.getByText(/ajuste manual da F2/)).toHaveTextContent('IA Mensal'))
+
+      await user.selectOptions(plan, 'gratis')
+      await waitFor(() => expect(screen.getByText(/ajuste manual da F2/)).toHaveTextContent('Grátis'))
+    } finally {
+      vi.unstubAllEnvs()
     }
   })
 })

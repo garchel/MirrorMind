@@ -19,10 +19,10 @@ describe('billing foundation', () => {
 
   it('sem cobranca ou sem direitos, tudo opera como gratis', () => {
     const now = 1_700_000_000_000
-    expect(resolveEntitlement(null, now)).toEqual({ plan: 'gratis', status: 'active' })
+    expect(resolveEntitlement(null, now)).toEqual({ plan: 'gratis', status: 'active', periodEndUnixMs: null })
     expect(
       resolveEntitlement({ plan: 'ia_mensal', status: 'active', periodEndUnixMs: null, checkedAtUnixMs: now }, now),
-    ).toEqual({ plan: 'gratis', status: 'active' })
+    ).toEqual({ plan: 'gratis', status: 'active', periodEndUnixMs: null })
   })
 
   it('graca offline de 30 dias expira para gratis', () => {

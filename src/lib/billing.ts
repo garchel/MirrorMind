@@ -72,17 +72,17 @@ export function isBillingEnabled(): boolean {
 export function resolveEntitlement(
   entitlement: Entitlement | null,
   nowUnixMs: number,
-): { plan: PlanId; status: EntitlementStatus } {
+): { plan: PlanId; status: EntitlementStatus; periodEndUnixMs: number | null } {
   if (!isBillingEnabled() || entitlement === null) {
-    return { plan: DEFAULT_PLAN, status: 'active' }
+    return { plan: DEFAULT_PLAN, status: 'active', periodEndUnixMs: null }
   }
   if (nowUnixMs - entitlement.checkedAtUnixMs > ENTITLEMENT_OFFLINE_GRACE_MS) {
-    return { plan: DEFAULT_PLAN, status: 'expired' }
+    return { plan: DEFAULT_PLAN, status: 'expired', periodEndUnixMs: null }
   }
   if (entitlement.status === 'expired') {
-    return { plan: DEFAULT_PLAN, status: 'expired' }
+    return { plan: DEFAULT_PLAN, status: 'expired', periodEndUnixMs: null }
   }
-  return { plan: entitlement.plan, status: entitlement.status }
+  return { plan: entitlement.plan, status: entitlement.status, periodEndUnixMs: entitlement.periodEndUnixMs }
 }
 
 /** IA gerenciada liberada? Ollama/BYOK nunca passam por aqui (sempre livres). */

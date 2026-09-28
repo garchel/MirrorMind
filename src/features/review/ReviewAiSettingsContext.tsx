@@ -1,7 +1,8 @@
 // oxlint-disable react/only-export-components -- provider and its guarded hook form one public boundary.
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { reviewProvider } from './reviewProvider'
-import { canUseManagedProvider, MANAGED_PROVIDER_UNAVAILABLE_MESSAGE, SCAFFOLD_MANAGED_STATUS, type ManagedProviderStatus } from './managedProvider'
+import { managedAiGate, type ManagedAiGate } from './managedProvider'
+import { useEntitlement } from '../../lib/entitlement'
 import type { ReactNode } from 'react'
 import type { ReviewAiProvider } from './ai'
 
@@ -11,20 +12,19 @@ const OPENAI_CONSENT_KEY = 'mirrormind.review.openai-consent.v1'
 
 type ReviewAiSettingsValue = {
   provider: ReviewAiProvider
-  setProvider: (provider: ReviewAiProvider) => void
+  /** Troca de provedor respeitando o gate: `managed` negado cai em ollama. */
+  selectProvider: (provider: ReviewAiProvider) => void
   geminiConsent: boolean
   setGeminiConsent: (consent: boolean) => void
   openAiConsent: boolean
   setOpenAiConsent: (consent: boolean) => void
-  /** Status da conta gerenciada pela assinatura (scaffolding pre-venda). */
-  managedStatus: ManagedProviderStatus
-  canUseManaged: (estimatedCostUsd: number) => boolean
-  managedUnavailableMessage: string
+  /** Gate da IA gerenciada: o mesmo que sera aplicado na execucao. */
+  managedGate: ManagedAiGate
 }
 
 const ReviewAiSettingsContext = createContext<ReviewAiSettingsValue | null>(null)
 
-const STORED_PROVIDERS: readonly ReviewAiProvider[] = ['gemini', 'openAiCompatible']
+const STORED_PROVIDERS: readonly ReviewAiProvider[] = ['gemini', 'openAiCompatible', 'managed']
 
 function storedProvider(): ReviewAiProvider {
   const stored = window.localStorage.getItem(PROVIDER_KEY) as ReviewAiProvider | null
@@ -39,6 +39,8 @@ export function ReviewAiSettingsProvider({ children }: { children: ReactNode }) 
   const [openAiConsent, setOpenAiConsent] = useState(
     () => window.localStorage.getItem(OPENAI_CONSENT_KEY) === 'accepted',
   )
+  const { entitlement } = useEntitlement()
+  const managedGate = useMemo(() => managedAiGate(entitlement, Date.now()), [entitlement])
 
   useEffect(() => window.localStorage.setItem(PROVIDER_KEY, provider), [provider])
   useEffect(() => {
@@ -55,19 +57,23 @@ export function ReviewAiSettingsProvider({ children }: { children: ReactNode }) 
       if (openAiConsent) setOpenAiConsent(false)
     })
   }, [openAiConsent])
+  // Fail-closed no gasto: perder o plano devolve a revisao ao Ollama local.
+  useEffect(() => {
+    if (provider === 'managed' && !managedGate.allowed) setProvider('ollama')
+  }, [managedGate.allowed, provider])
 
-  const value = useMemo(() => ({
+  const value = useMemo<ReviewAiSettingsValue>(() => ({
     provider,
-    setProvider,
+    selectProvider: (next: ReviewAiProvider) => {
+      if (next === 'managed' && !managedGate.allowed) return
+      setProvider(next)
+    },
     geminiConsent,
     setGeminiConsent,
     openAiConsent,
     setOpenAiConsent,
-    managedStatus: SCAFFOLD_MANAGED_STATUS,
-    canUseManaged: (estimatedCostUsd: number) =>
-      canUseManagedProvider(SCAFFOLD_MANAGED_STATUS, estimatedCostUsd),
-    managedUnavailableMessage: MANAGED_PROVIDER_UNAVAILABLE_MESSAGE,
-  }), [geminiConsent, openAiConsent, provider])
+    managedGate,
+  }), [geminiConsent, managedGate, openAiConsent, provider])
 
   return <ReviewAiSettingsContext value={value}>{children}</ReviewAiSettingsContext>
 }

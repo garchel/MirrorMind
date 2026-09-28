@@ -1,12 +1,33 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ENTITLEMENT_OFFLINE_GRACE_MS, type Entitlement } from '../../lib/billing'
 import {
-  canUseManagedProvider,
   estimateManagedCallCostUsd,
+  formatManagedRenewal,
+  managedAiGate,
   MANAGED_PROVIDER_UNAVAILABLE_MESSAGE,
-  SCAFFOLD_MANAGED_STATUS,
 } from './managedProvider'
 
-describe('managedProvider scaffolding', () => {
+const NOW = 1_700_000_000_000
+
+function paidPlan(overrides: Partial<Entitlement> = {}): Entitlement {
+  return {
+    plan: 'ia_mensal',
+    status: 'active',
+    periodEndUnixMs: NOW + 30 * 24 * 60 * 60 * 1000,
+    checkedAtUnixMs: NOW,
+    ...overrides,
+  }
+}
+
+function withBilling(on: boolean) {
+  vi.stubEnv('VITE_BILLING_ENABLED', on ? 'true' : 'false')
+}
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
+
+describe('managedProvider', () => {
   it('estimates the managed call cost from the prompt size', () => {
     expect(estimateManagedCallCostUsd(0)).toBeGreaterThan(0)
     const small = estimateManagedCallCostUsd(1_000)
@@ -17,25 +38,49 @@ describe('managedProvider scaffolding', () => {
     expect(large).toBeCloseTo(expected, 9)
   })
 
-  it('starts unsubscribed and refuses calls until the managed service exists', () => {
-    expect(SCAFFOLD_MANAGED_STATUS.subscribed).toBe(false)
-    expect(SCAFFOLD_MANAGED_STATUS.plan).toBe('free')
-    expect(SCAFFOLD_MANAGED_STATUS.includedCostUsdPerMonth).toBe(0)
-    expect(canUseManagedProvider(SCAFFOLD_MANAGED_STATUS, 0.01)).toBe(false)
+  it('formata a renovacao em pt-BR', () => {
+    expect(formatManagedRenewal(NOW)).toMatch(/\d{2}\/\d{2}\/\d{4}/)
   })
 
-  it('gates calls on the remaining monthly quota once subscribed', () => {
-    const status = {
-      subscribed: true,
-      plan: 'pro' as const,
-      includedCostUsdPerMonth: 20,
-      usedCostUsdMonth: 19.9,
-    }
-    expect(canUseManagedProvider(status, 0.05)).toBe(true)
-    expect(canUseManagedProvider(status, 0.2)).toBe(false)
+  it('desligado, nega e explica que o servico ainda nao existe', () => {
+    withBilling(false)
+    const gate = managedAiGate(paidPlan(), NOW)
+    expect(gate.allowed).toBe(false)
+    expect(gate.message).toBe(MANAGED_PROVIDER_UNAVAILABLE_MESSAGE)
+    expect(gate.label).toContain('em breve')
   })
 
-  it('explains that the managed provider is not yet available', () => {
-    expect(MANAGED_PROVIDER_UNAVAILABLE_MESSAGE).toContain('assinatura')
+  it('plano manual libera a IA gerenciada com cota e renovacao', () => {
+    withBilling(true)
+    const gate = managedAiGate(paidPlan(), NOW)
+    expect(gate.allowed).toBe(true)
+    expect(gate.label).toContain('IA Mensal')
+    expect(gate.message).toContain('200 chamadas por ciclo')
+    expect(gate.message).toContain('renovação em')
+  })
+
+  it('plano gratis nega com alternativa local, sem exigir assinatura paga', () => {
+    withBilling(true)
+    const gate = managedAiGate(paidPlan({ plan: 'gratis' }), NOW)
+    expect(gate.allowed).toBe(false)
+    expect(gate.message).toContain('Ollama')
+    expect(gate.label).toContain('exige plano')
+  })
+
+  it('inadimplente nega com caminho de regularizacao', () => {
+    withBilling(true)
+    const gate = managedAiGate(paidPlan({ status: 'past_due' }), NOW)
+    expect(gate.allowed).toBe(false)
+    expect(gate.message).toContain('pendente')
+  })
+
+  it('expiracao simulada: passing da graca volta a negar', () => {
+    withBilling(true)
+    const checked = NOW
+    const entitlement = paidPlan({ checkedAtUnixMs: checked })
+    expect(managedAiGate(entitlement, checked).allowed).toBe(true)
+    const afterGrace = managedAiGate(entitlement, checked + ENTITLEMENT_OFFLINE_GRACE_MS + 1)
+    expect(afterGrace.allowed).toBe(false)
+    expect(afterGrace.message).toContain('planos pagos')
   })
 })

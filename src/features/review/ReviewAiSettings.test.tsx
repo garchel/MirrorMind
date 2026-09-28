@@ -1,8 +1,10 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewAiSettings } from './ReviewAiSettings'
 import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
+import { EntitlementProvider, type EntitlementStore } from '../../lib/entitlement'
+import type { Entitlement } from '../../lib/billing'
 
 const mocks = vi.hoisted(() => ({
   checkOllama: vi.fn(),
@@ -45,11 +47,22 @@ const configuration = {
   openAiCompatibleModel: null,
 }
 
+/** Cache de direitos em memoria (o provedor le de forma assincrona). */
+let cached: Entitlement | null = null
+const entitlementStore: EntitlementStore = {
+  load: async () => cached,
+  save: async (next) => {
+    cached = next
+  },
+}
+
 function renderSettings(vaultPath?: string) {
   return render(
-    <ReviewAiSettingsProvider>
-      <ReviewAiSettings vaultPath={vaultPath} />
-    </ReviewAiSettingsProvider>,
+    <EntitlementProvider store={entitlementStore}>
+      <ReviewAiSettingsProvider>
+        <ReviewAiSettings vaultPath={vaultPath} />
+      </ReviewAiSettingsProvider>
+    </EntitlementProvider>,
   )
 }
 
@@ -287,4 +300,56 @@ describe('ReviewAiSettings', () => {
 
     expect(await screen.findByText('indisponível (algum lado sem nota válida)')).toBeInTheDocument()
     expect(screen.getByText('Avaliação inválida: Ollama indisponivel')).toBeInTheDocument()
-  })})
+  })
+
+  describe('gate da IA gerenciada (F2)', () => {
+    beforeEach(() => {
+      cached = null
+    })
+
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    it('cobranca desligada mantem a opcao bloqueada com aviso', async () => {
+      renderSettings()
+      const option = await screen.findByRole('option', { name: /MirrorMind \(assinatura\)/ })
+      expect(option).toBeDisabled()
+      expect(option).toHaveTextContent('em breve')
+    })
+
+    it('plano manual libera a opcao e o painel explica cota e renovacao', async () => {
+      const user = userEvent.setup()
+      vi.stubEnv('VITE_BILLING_ENABLED', 'true')
+      cached = { plan: 'ia_mensal', status: 'active', periodEndUnixMs: null, checkedAtUnixMs: Date.now() }
+      renderSettings()
+
+      const option = await screen.findByRole('option', { name: 'MirrorMind (assinatura) — IA Mensal' })
+      expect(option).toBeEnabled()
+      await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'managed')
+      expect(await screen.findByText(/200 chamadas por ciclo/)).toBeInTheDocument()
+    })
+
+    it('plano gratis nega com alternativa local', async () => {
+      vi.stubEnv('VITE_BILLING_ENABLED', 'true')
+      cached = { plan: 'gratis', status: 'active', periodEndUnixMs: null, checkedAtUnixMs: Date.now() }
+      renderSettings()
+
+      const option = await screen.findByRole('option', { name: /exige plano/ })
+      expect(option).toBeDisabled()
+    })
+
+    it('perder o plano devolve a revisao ao Ollama local', async () => {
+      vi.stubEnv('VITE_BILLING_ENABLED', 'true')
+      // Provedor gerenciado persistido de uma sessao com plano; agora sem direito.
+      window.localStorage.setItem('mirrormind.review.provider.v1', 'managed')
+      cached = { plan: 'gratis', status: 'active', periodEndUnixMs: null, checkedAtUnixMs: Date.now() }
+      renderSettings()
+
+      expect(await screen.findByRole('option', { name: /exige plano/ })).toBeDisabled()
+      await waitFor(() => {
+        expect(screen.getByRole('combobox', { name: 'Provedor da revisão' })).toHaveValue('ollama')
+      })
+    })
+  })
+})

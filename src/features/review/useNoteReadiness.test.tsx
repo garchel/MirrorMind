@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { useNoteReadiness } from './useNoteReadiness'
 import type { NoteReviewState, ReadinessAttempt } from './ai'
 import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
+import { EntitlementProvider } from '../../lib/entitlement'
 
 const { getNoteReviewStateMock, assessNoteReadinessMock } = vi.hoisted(() => ({
   getNoteReviewStateMock: vi.fn(),
@@ -24,7 +25,11 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
 }))
 
 function wrapper({ children }: { children: ReactNode }) {
-  return <ReviewAiSettingsProvider>{children}</ReviewAiSettingsProvider>
+  return (
+    <EntitlementProvider>
+      <ReviewAiSettingsProvider>{children}</ReviewAiSettingsProvider>
+    </EntitlementProvider>
+  )
 }
 
 const BASE = {

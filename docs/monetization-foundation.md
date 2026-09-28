@@ -45,6 +45,20 @@ Estimativa: **7–10 semanas**, 1 dev focado. Risco nº 1: Pix recorrente (se F0
 - [x] F1a (sem backend): esquema deep-link `mirrormind://`, cofre de sessão no keyring, catálogo/flag `billing_enabled=false`, tipos de direitos
 - [x] F1a (porta de sessão): `SessionClient` + `useSession` testáveis, sem provedor (Supabase entra na F1b)
 - [x] F1a (Conta): `AccountSettings` com login/saída/exclusão + comandos Tauri `account_*` (cofre) atrás da flag desligada
+- [x] F2 (direitos): `EntitlementProvider`/`useEntitlement` com cache local validado, graça de 30 dias e revisão via `resolveEntitlement`
+- [x] F2 (gate único): `managedAiGate` decide execução e rótulo; Ollama/BYOK fora do gate
+- [x] F2 (ponto de uso 1): opção `managed` habilitada só com plano pago, `selectProvider` bloqueia e devolve a Ollama quando o plano se perde
+- [x] F2 (plano manual): painel de plano em `AccountSettings` concede/revoga direitos sem cobrança (o servidor assume na F3)
 - [ ] F0 (humano): verificações de mercado acima
 - [ ] F1b (com Supabase): PKCE real, tela Conta, refresh, excluir conta
-- [ ] F2–F5: conforme tabela
+- [ ] F2 (ponto de uso 2): gate nos comandos de backup — o backup/sync pago ainda não existe; entra junto da F3
+- [ ] F3–F5: conforme tabela
+
+### Onde a F2 encosta no código
+
+- `src/lib/billing.ts`: catálogo, flag e `resolveEntitlement` (devolve o fim do ciclo).
+- `src/lib/entitlement.tsx`: cache dos direitos (`EntitlementStore`, injetável) e o plano manual.
+- `src/features/review/managedProvider.ts`: `managedAiGate` — a única função que autoriza a chamada gerenciada.
+- `src/features/review/ReviewAiSettingsContext.tsx`: consome o gate; nada de plano fora daqui.
+- `src/features/settings/AccountSettings.tsx`: painel de plano (só com a flag ligada).
+- `src/main.tsx`: `EntitlementProvider` envolve o app; core (notas, editor, grafo) não sabe que plano existe.
