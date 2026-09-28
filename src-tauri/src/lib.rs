@@ -206,7 +206,7 @@ struct BrokenLink {
     source_relative_path: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 struct TagSummary {
     tag: String,
@@ -456,6 +456,9 @@ fn scan_vault_inventory(
         truncate_attachment_inventory(&mut scan.attachments, MAX_ATTACHMENT_INVENTORY_FILES);
     // Base do inventario incremental para eventos do watcher nesta sessao.
     inventory_state.store(&root, scan.clone());
+    // Indice de tags sobre a MESMA passada (elimina a segunda varredura +
+    // leitura integral do refresh; mesmos limites de seguranca).
+    let tags = build_tag_index_for_note_paths(&root, &scan.notes).map_err(|error| error.to_string())?;
     Ok(VaultInventory {
         notes: build_note_previews(&root, &scan.notes),
         folders: scan
@@ -473,6 +476,7 @@ fn scan_vault_inventory(
             truncated: scan.special_files_truncated,
         },
         sync_conflict_copies: scan.sync_conflict_copies.clone(),
+        tags,
         diagnostics: scan.diagnostics,
     })
 }
@@ -540,6 +544,10 @@ fn apply_vault_inventory_changes(
             truncated: scan.special_files_truncated,
         },
         sync_conflict_copies: scan.sync_conflict_copies.clone(),
+        // Caminho incremental (watcher, sem notas envolvidas): tags nao sao
+        // mantidas aqui; mudancas em notas passam pelo rescan completo, que
+        // entrega `tags` junto. O frontend nao le `tags` desta resposta.
+        tags: Vec::new(),
         diagnostics: scan.diagnostics.clone(),
     })
 }
@@ -1420,8 +1428,17 @@ fn get_tag_index(
 }
 
 fn get_tag_index_in_root(root: &Path) -> Result<Vec<TagSummary>> {
-    let mut tags: HashMap<String, Vec<String>> = HashMap::new();
     let note_paths = collect_markdown_files(root)?;
+    build_tag_index_for_note_paths(root, &note_paths)
+}
+
+/// Monta o indice de tags sobre caminhos ja varridos (reaproveita a passada
+/// do inventario em vez de re-varrer o Vault). Mesmos limites de seguranca.
+fn build_tag_index_for_note_paths(
+    root: &Path,
+    note_paths: &[PathBuf],
+) -> Result<Vec<TagSummary>> {
+    let mut tags: HashMap<String, Vec<String>> = HashMap::new();
     if note_paths.len() > MAX_TAG_INDEX_NOTES {
         bail!("O Vault excede o limite seguro de notas para indexacao de tags.");
     }
@@ -4744,6 +4761,9 @@ struct VaultInventory {
     special_files: SpecialVaultInventory,
     /// Copias de conflito de sincronizacao (fora do inventario de notas).
     sync_conflict_copies: Vec<SyncConflictCopy>,
+    /// Indice de tags montado sobre a mesma passada (elimina a segunda
+    /// varredura + leitura integral do `get_tag_index` no refresh).
+    tags: Vec<TagSummary>,
     diagnostics: ScanDiagnostics,
 }
 
@@ -6416,7 +6436,7 @@ mod tests {
         attachment_directory_for_note, classify_vault_file_system_change, collect_attachment_files,
         collect_folders, collect_markdown_files, collect_special_vault_files, copy_file_synced,
         delete_vault_item_in_root, diagnose_unreadable_notes, ensure_metadata_layout, extract_tags,
-        extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root, get_note_broken_links_in_root, get_tag_index_in_root,
+        extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root, build_tag_index_for_note_paths, get_note_broken_links_in_root, get_tag_index_in_root,
         hard_link_or_copy, import_attachment_in_root, inspect_metadata, inspect_vault_path,
         list_trash_in_root, move_vault_item_in_root, move_vault_path_without_overwrite,
         obsidian_attachment_directory, permanently_delete_trash_item_in_root,
@@ -7330,6 +7350,30 @@ mod tests {
                 ),
             ]
         );
+    }
+
+    #[test]
+    fn tag_index_from_unified_scan_matches_dedicated_walk() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::create_dir_all(root.join("curso")).expect("create folder");
+        fs::write(root.join("curso/aula.md"), "# Aula\n\n#fisica #revisao\n").expect("write note");
+        fs::write(root.join("notas.md"), "---\ntags: [fisica]\n---\n").expect("write frontmatter note");
+        fs::write(root.join("sem-tag.md"), "so texto").expect("write plain note");
+
+        // A fusao no inventario precisa enxergar exatamente o que a passada
+        // dedicada enxerga (mesmos limites, mesma extracao).
+        let scan = scan_vault_unified(&root).expect("unified scan");
+        let fused =
+            build_tag_index_for_note_paths(&root, &scan.notes).expect("fused tag index");
+        let dedicated = get_tag_index_in_root(&root).expect("dedicated tag index");
+        assert_eq!(fused, dedicated);
+        assert_eq!(fused.len(), 2);
+        assert_eq!(fused[0].tag, "fisica");
+        assert_eq!(fused[1].tag, "revisao");
     }
 
     #[test]

@@ -6,11 +6,7 @@ import {
   type TagReviewPolicyRule,
   type VaultReviewPolicyConfig,
 } from '../review/vaultReviewPolicy'
-
-export const tagSummarySchema = z.object({
-  tag: z.string().min(1),
-  notePaths: z.array(z.string()),
-}).strict()
+import { tagSummarySchema, type TagSummary } from '../../lib/vault'
 
 export const tagManagementChangeSchema = z.object({
   currentTag: z.string().min(1).nullable(),
@@ -29,7 +25,6 @@ const tagManagementResultSchema = z.object({
   markdownNotePaths: z.array(z.string()),
 }).strict()
 
-export type TagSummary = z.infer<typeof tagSummarySchema>
 export type TagManagementChange = z.infer<typeof tagManagementChangeSchema>
 export type TagManagementPreview = z.infer<typeof tagManagementPreviewSchema>
 

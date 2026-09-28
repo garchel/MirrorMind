@@ -5,6 +5,7 @@
 
 use crate::review::credentials::CredentialStore;
 use anyhow::{bail, Result};
+use serde::Serialize;
 
 const SESSION_ACCESS_ACCOUNT: &str = "session-access-token";
 const SESSION_REFRESH_ACCOUNT: &str = "session-refresh-token";
@@ -12,7 +13,7 @@ const MIN_TOKEN_LENGTH: usize = 16;
 const MAX_TOKEN_LENGTH: usize = 8_192;
 
 /// Par de tokens da sessao (Supabase Auth: JWT de acesso + refresh opaco).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Session {
     pub access_token: String,
     pub refresh_token: String,

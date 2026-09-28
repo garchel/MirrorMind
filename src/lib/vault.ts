@@ -70,11 +70,14 @@ export type RecentVaultPreference = {
 
 export type HistoryStatus = { canUndo: boolean; canRedo: boolean }
 
-/** Entrada do índice de tags do vault (`get_tag_index`): tag + notas que a usam. */
-export type TagSummary = {
-  tag: string
-  notePaths: string[]
-}
+/** Entrada do índice de tags do vault (`get_tag_index` e inventario):
+ * tag + notas que a usam. */
+export const tagSummarySchema = z.object({
+  tag: z.string().min(1),
+  notePaths: z.array(z.string()),
+}).strict()
+
+export type TagSummary = z.infer<typeof tagSummarySchema>
 
 export type NoteTreeNode = {
   id: string
@@ -251,6 +254,7 @@ const vaultInventorySchema = z.object({
   attachments: z.array(z.string()),
   specialFiles: specialVaultInventorySchema,
   syncConflictCopies: z.array(syncConflictCopySchema).default([]),
+  tags: z.array(tagSummarySchema).default([]),
   diagnostics: scanDiagnosticsSchema.default(EMPTY_SCAN_DIAGNOSTICS),
 })
 
