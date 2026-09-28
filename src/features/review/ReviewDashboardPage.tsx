@@ -8,6 +8,7 @@ import { setNoteReviewPriority } from './reviewPolicy'
 import { getVaultReviewDashboard, type CalibrationNoteItem, type ExpiredDeadlineItem, type ReadinessAttentionItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
 import { Modal } from '../../components/Modal'
 import './review-dashboard.css'
+import { errorMessage } from '../../lib/tauri'
 
 type Props = {
   vaultPath: string
@@ -122,7 +123,7 @@ function DeadlineChangeDialog({ vaultPath, item, onClose, onApplied }: {
       setPreview(result.affectedNoteCount)
     } catch (cause) {
       setPreview(null)
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(errorMessage(cause, String(cause)))
     } finally {
       setBusy(false)
     }
@@ -142,7 +143,7 @@ function DeadlineChangeDialog({ vaultPath, item, onClose, onApplied }: {
       })
       onApplied()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(errorMessage(cause, String(cause)))
       setApplying(false)
     }
   }
@@ -247,7 +248,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
       await setNoteReviewPriority({ vaultPath, relativePath: item.relativePath, priorityWeight: next })
       setReloadRequest((request) => request + 1)
     } catch (cause) {
-      setPriorityError(cause instanceof Error ? cause.message : String(cause))
+      setPriorityError(errorMessage(cause, String(cause)))
     } finally {
       setPriorityBusy(null)
     }

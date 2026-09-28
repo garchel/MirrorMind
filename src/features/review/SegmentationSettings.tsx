@@ -11,6 +11,7 @@ import type {
 } from './vaultReviewPolicy'
 import { SettingsSection } from '../../components/SettingsSection'
 import './segmentation-settings.css'
+import { errorMessage } from '../../lib/tauri'
 
 type Props = {
   vaultPath: string
@@ -52,7 +53,7 @@ export function SegmentationSettings({ vaultPath }: Props) {
       })
       .catch((cause) => {
         if (generationRef.current === generation) {
-          setError(cause instanceof Error ? cause.message : String(cause))
+          setError(errorMessage(cause, String(cause)))
         }
       })
       .finally(() => {
@@ -127,7 +128,7 @@ export function SegmentationSettings({ vaultPath }: Props) {
       })
     } catch (cause) {
       if (generationRef.current !== generation) return
-      const message = cause instanceof Error ? cause.message : String(cause)
+      const message = errorMessage(cause, String(cause))
       setError(message)
       showTransient({ kind: 'error', message }, 8_000)
       // Revisão obsoleta (outra operação salvou o config): recarrega para sincronizar.

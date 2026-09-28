@@ -9,6 +9,7 @@ import {
   type ReviewNotificationSettings,
 } from './reviewNotifications'
 import './review-notification-settings.css'
+import { errorMessage } from '../../lib/tauri'
 
 type Props = {
   /** Resultado da ultima checagem periodica, exibido como status. */
@@ -46,7 +47,7 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
       })
       .catch((cause) => {
         if (generationRef.current === generation) {
-          setError(cause instanceof Error ? cause.message : String(cause))
+          setError(errorMessage(cause, String(cause)))
         }
       })
     return () => { generationRef.current += 1 }
@@ -65,7 +66,7 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
       if (patch.enabled !== undefined || patch.muted !== undefined) onRequestCheck()
     } catch (cause) {
       if (generationRef.current === generation) {
-        setError(cause instanceof Error ? cause.message : String(cause))
+        setError(errorMessage(cause, String(cause)))
       }
     } finally {
       if (generationRef.current === generation) setBusy(false)
@@ -81,7 +82,7 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
       await sendReviewTestNotification()
       setTestStatus('Notificação de teste enviada.')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(errorMessage(cause, String(cause)))
     } finally {
       setBusy(false)
     }

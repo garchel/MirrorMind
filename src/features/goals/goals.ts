@@ -1,4 +1,4 @@
-import { invoke } from '../../lib/tauri'
+import { errorMessage, invoke } from '../../lib/tauri'
 import { displayWikilinkTargetName } from '../../lib/markdown'
 import { z } from 'zod'
 import type { ReviewAiProvider } from '../review/ai'
@@ -268,7 +268,7 @@ export async function createStepNote(input: {
       relativePath: input.relativePath,
     })
   } catch (cause) {
-    const message = cause instanceof Error ? cause.message : String(cause)
+    const message = errorMessage(cause, String(cause))
     if (!/ja existe/i.test(message)) throw cause
   }
   await invoke('save_note', {
@@ -289,7 +289,7 @@ export async function ensureGoalIndexNote(vaultPath: string, goal: Goal): Promis
   try {
     await invoke('create_note', { path: vaultPath, relativePath: indexPath })
   } catch (cause) {
-    const message = cause instanceof Error ? cause.message : String(cause)
+    const message = errorMessage(cause, String(cause))
     if (!/ja existe/i.test(message)) throw cause
   }
   await invoke('save_note', { path: vaultPath, relativePath: indexPath, content })
@@ -332,7 +332,7 @@ export async function createGoalStepNote(input: {
         usedAiDraft = true
       } catch (cause) {
         draft = null
-        draftError = cause instanceof Error ? cause.message : String(cause)
+        draftError = errorMessage(cause, String(cause))
       }
     } else if (mode === 'ai' && !input.provider) {
       draftError = 'Nenhum provedor de IA configurado: a nota foi criada em branco.'
@@ -360,7 +360,5 @@ export async function createGoalStepNote(input: {
 }
 
 export function goalErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return error.message
-  if (typeof error === 'string' && error.trim()) return error
-  return 'Não foi possível concluir a operação da meta.'
+  return errorMessage(error, 'Não foi possível concluir a operação da meta.')
 }

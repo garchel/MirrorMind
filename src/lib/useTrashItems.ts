@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { errorMessage } from './tauri'
 
 /** Item da lixeira; morava no `App.tsx` (só ele usava). */
 export type TrashItem = {
@@ -41,7 +42,7 @@ export function useTrashItems(deps: {
       setTrashItems(items)
       goToTrashPage()
     } catch (caughtError) {
-      reportError(caughtError instanceof Error ? caughtError.message : 'Não foi possível abrir a lixeira.')
+      reportError(errorMessage(caughtError, 'Não foi possível abrir a lixeira.'))
     } finally {
       setBusy(false)
     }
@@ -57,7 +58,7 @@ export function useTrashItems(deps: {
       reportStatus('Item restaurado no local original.')
       await refreshNotes(vaultPath)
     } catch (caughtError) {
-      reportError(caughtError instanceof Error ? caughtError.message : 'Não foi possível restaurar o item.')
+      reportError(errorMessage(caughtError, 'Não foi possível restaurar o item.'))
     } finally {
       setBusy(false)
     }
@@ -74,7 +75,7 @@ export function useTrashItems(deps: {
       setPermanentDeleteTarget(null)
       reportStatus('Item excluído permanentemente da lixeira.')
     } catch (caughtError) {
-      reportError(caughtError instanceof Error ? caughtError.message : 'Não foi possível excluir o item permanentemente.')
+      reportError(errorMessage(caughtError, 'Não foi possível excluir o item permanentemente.'))
     } finally {
       setBusy(false)
     }

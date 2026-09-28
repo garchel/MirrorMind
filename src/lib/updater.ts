@@ -1,5 +1,5 @@
 import { check, type Update } from '@tauri-apps/plugin-updater'
-import { isTauriRuntime } from './tauri'
+import { errorMessage, isTauriRuntime } from './tauri'
 
 /** Estado de uma verificacao de atualizacoes devolvida à UI. */
 export type UpdateCheckStatus =
@@ -87,7 +87,7 @@ export function toAvailableUpdate(update: Update): AvailableUpdate {
 /** Mensagem amigavel: falhas de rede (endpoint fora do ar, sem internet) nao
  * devem soar como bug do app. */
 export function toUpdateErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = errorMessage(error, String(error))
   if (/(os error|failed to lookup|timed out|timed? ?out|network|dns|connection refused|unreachable)/i.test(message)) {
     return 'Não foi possível verificar atualizações agora (sem conexão ou endpoint indisponível). Tente mais tarde.'
   }

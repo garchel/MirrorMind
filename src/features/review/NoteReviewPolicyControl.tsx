@@ -9,6 +9,7 @@ import type { NoteReviewPolicy, NoteReviewPolicyInput } from './reviewPolicy'
 import { PolicyWorkloadEstimate } from './PolicyWorkloadEstimate'
 import { Modal } from '../../components/Modal'
 import './review-policy.css'
+import { errorMessage } from '../../lib/tauri'
 
 type Props = {
   vaultPath: string
@@ -196,7 +197,7 @@ export function NoteReviewPolicyControl({
       })
       .catch((reason) => {
         if (generationRef.current === generation) {
-          setError(reason instanceof Error ? reason.message : String(reason))
+          setError(errorMessage(reason, String(reason)))
           setLoadFailed(true)
         }
       })
@@ -302,7 +303,7 @@ export function NoteReviewPolicyControl({
       setSaved(true)
     } catch (reason) {
       if (generationRef.current === generation) {
-        setError(reason instanceof Error ? reason.message : String(reason))
+        setError(errorMessage(reason, String(reason)))
       }
     } finally {
       if (generationRef.current === generation) setSaving(false)

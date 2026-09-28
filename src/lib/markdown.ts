@@ -1,5 +1,6 @@
 import { isCollection, isMap, isNode, isScalar, parseDocument, stringify } from 'yaml'
 import type { Node, Pair } from 'yaml'
+import { errorMessage } from './tauri'
 
 export function splitMarkdownBlocks(content: string) {
   return getMarkdownBlockRanges(content).map((block) => block.content)
@@ -58,7 +59,7 @@ function parseFrontmatterDocument(input: string) {
     parsed = document.toJS()
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : 'Frontmatter YAML invalido.',
+      error: errorMessage(error, 'Frontmatter YAML invalido.'),
       properties: null,
     }
   }
@@ -173,7 +174,7 @@ function validateFrontmatterSource(source: string) {
     document.toJS()
     return null
   } catch (error) {
-    return error instanceof Error ? error.message : 'Frontmatter YAML invalido.'
+    return errorMessage(error, 'Frontmatter YAML invalido.')
   }
 }
 

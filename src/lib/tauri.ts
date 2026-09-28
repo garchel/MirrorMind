@@ -7,23 +7,34 @@ export function isTauriRuntime(): boolean {
 }
 
 /**
+ * Mensagem legivel de qualquer valor lancado, com fallback.
+ *
+ * Centraliza os ~50 `X instanceof Error ? X.message : ...` espalhados pelo
+ * app: preserva a causa real (string do IPC, Error, objeto com `message`) e
+ * so usa o fallback quando nao ha nada legivel. Substitui os ternarios
+ * manuais e os ajudantes por-feature (`reviewAiErrorMessage`,
+ * `goalErrorMessage`), que viraram wrappers finos com seu fallback.
+ */
+export function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) return error.message
+  if (typeof error === 'string' && error.trim()) return error
+  if (error && typeof error === 'object') {
+    const candidate = (error as { message?: unknown }).message
+    if (typeof candidate === 'string' && candidate.trim()) return candidate
+  }
+  return fallback
+}
+
+/**
  * Normaliza a rejeicao do IPC do Tauri para um `Error` com mensagem legivel.
  *
  * No runtime Tauri v2, um comando que retorna `Err(...)` rejeita a Promise do
  * `invoke` com o VALOR serializado (geralmente uma string), nao com uma
- * instancia de `Error`. Sem essa normalizacao, os `catch` da aplicacao que
- * fazem `caughtError instanceof Error ? caughtError.message : fallback`
- * descartariam a causa real (ex.: "Acesso negado" em arquivo bloqueado) e
- * mostrariam apenas a mensagem generica de fallback.
+ * instancia de `Error`.
  */
 function normalizeRejection(value: unknown): Error {
   if (value instanceof Error && value.message.trim()) return value
-  if (typeof value === 'string' && value.trim()) return new Error(value)
-  if (value && typeof value === 'object') {
-    const candidate = (value as { message?: unknown }).message
-    if (typeof candidate === 'string' && candidate.trim()) return new Error(candidate)
-  }
-  return new Error(String(value))
+  return new Error(errorMessage(value, String(value)))
 }
 
 export function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {

@@ -30,6 +30,7 @@ import { SegmentationSettings } from '../review/SegmentationSettings'
 import { VaultReviewPolicySettings } from '../review/VaultReviewPolicySettings'
 import { AccountSettings } from './AccountSettings'
 import type { SessionClient } from '../../lib/session'
+import { errorMessage } from '../../lib/tauri'
 
 /** Como destacar os trechos esquecidos/confundidos no editor (resultado mais
  * recente). Movido do `App.tsx` sem mudança — o App importa este tipo. */
@@ -720,7 +721,7 @@ export function SettingsPage({
                     localStorage.clear()
                     alert('Dados locais apagados. Reinicie o app.')
                   } catch (e) {
-                    alert(e instanceof Error ? e.message : String(e))
+                    alert(errorMessage(e, String(e)))
                   }
                 }}
               >

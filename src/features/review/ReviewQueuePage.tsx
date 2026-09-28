@@ -7,6 +7,7 @@ import { setNoteReviewPriority } from './reviewPolicy'
 import { listUpcomingReviewQueue, getDueReviewQueue, UPCOMING_PAGE_SIZE, type DueReviewItem } from './reviewQueue'
 import { formatOverdueDate, formatUpcomingDate } from './reviewQueueDate'
 import './review-queue.css'
+import { errorMessage } from '../../lib/tauri'
 
 type ReviewQueuePageProps = {
   vaultPath: string
@@ -140,7 +141,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
       await setNoteReviewPriority({ vaultPath, relativePath: item.relativePath, priorityWeight: next })
       setReloadRequest((request) => request + 1)
     } catch (cause) {
-      setPriorityError(cause instanceof Error ? cause.message : String(cause))
+      setPriorityError(errorMessage(cause, String(cause)))
     } finally {
       setPriorityBusy(null)
     }

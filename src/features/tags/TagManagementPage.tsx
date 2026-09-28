@@ -19,6 +19,7 @@ import { Modal, ModalHeader } from '../../components/Modal'
 import { PageHeader } from '../../components/PageHeader'
 import { TagsSkeleton } from '../../components/PageSkeleton'
 import './tag-management.css'
+import { errorMessage } from '../../lib/tauri'
 
 type Props = {
   vaultPath: string
@@ -309,7 +310,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
       })
       .catch((cause) => {
         if (generationRef.current === generation) {
-          setError(cause instanceof Error ? cause.message : String(cause))
+          setError(errorMessage(cause, String(cause)))
         }
       })
       .finally(() => {
@@ -434,7 +435,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
         tagRules: nextRulesForSave(rule),
       })
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(errorMessage(cause, String(cause)))
     } finally {
       setBusy(false)
     }
@@ -460,7 +461,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
         tagRules: config.tagRules.filter((rule) => rule.tag !== selected.tag),
       })
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(errorMessage(cause, String(cause)))
     } finally {
       setBusy(false)
     }
@@ -503,7 +504,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
     } catch (cause) {
       setPending(null)
       setPendingDelete(null)
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(errorMessage(cause, String(cause)))
     } finally {
       if (generationRef.current === generation) setBusy(false)
     }

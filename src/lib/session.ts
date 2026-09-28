@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { errorMessage } from './tauri'
 
 /** Sessao da conta (fundacao F1a): porta desacoplada do provedor.
  *
@@ -49,10 +50,6 @@ export interface SessionClient {
   onChange(listener: (snapshot: SessionSnapshot) => void): () => void
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Não foi possível concluir a operação.'
-}
-
 export function useSession(client: SessionClient) {
   const [snapshot, setSnapshot] = useState<SessionSnapshot>(ANON_SESSION)
   const [error, setError] = useState<string | null>(null)
@@ -80,7 +77,7 @@ export function useSession(client: SessionClient) {
         if (result !== undefined) setSnapshot(result)
         else setSnapshot({ ...ANON_SESSION })
       } catch (cause) {
-        setError(errorMessage(cause))
+        setError(errorMessage(cause, 'Não foi possível concluir a operação.'))
       }
     },
     [],

@@ -13,6 +13,7 @@ import type {
 import { PolicyWorkloadEstimate } from './PolicyWorkloadEstimate'
 import { SettingsSection } from '../../components/SettingsSection'
 import './vault-review-policy.css'
+import { errorMessage } from '../../lib/tauri'
 
 type Props = {
   vaultPath: string
@@ -86,7 +87,7 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
       })
       .catch((cause) => {
         if (generationRef.current === generation) {
-          setError(cause instanceof Error ? cause.message : String(cause))
+          setError(errorMessage(cause, String(cause)))
         }
       })
       .finally(() => {
@@ -132,7 +133,7 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
       }
     } catch (cause) {
       if (generationRef.current === generation) {
-        setError(cause instanceof Error ? cause.message : String(cause))
+        setError(errorMessage(cause, String(cause)))
       }
     } finally {
       if (generationRef.current === generation) setBusy(false)
@@ -158,7 +159,7 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
         : `Padrão do Vault salvo. ${updated.affectedNoteCount} nota(s) recalculada(s).`)
     } catch (cause) {
       if (generationRef.current === generation) {
-        setError(cause instanceof Error ? cause.message : String(cause))
+        setError(errorMessage(cause, String(cause)))
       }
     } finally {
       if (generationRef.current === generation) setBusy(false)

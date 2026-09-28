@@ -1,4 +1,4 @@
-import { invoke } from '../../lib/tauri'
+import { errorMessage, invoke } from '../../lib/tauri'
 import { z } from 'zod'
 
 export type ReviewAiProvider = 'gemini' | 'ollama' | 'openAiCompatible' | 'managed'
@@ -415,9 +415,7 @@ export async function appendKnowledgeSuggestionToNote(input: {
 }
 
 export function reviewAiErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message
-  if (typeof error === 'string' && error.trim()) return error
-  return 'Nao foi possivel concluir a operacao de IA.'
+  return errorMessage(error, 'Nao foi possivel concluir a operacao de IA.')
 }
 
 /** Resultado de UM provedor na comparabilidade real (mesma nota/perguntas/respostas). */

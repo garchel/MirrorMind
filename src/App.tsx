@@ -4,7 +4,7 @@ import type { CSSProperties, DragEvent, MouseEvent, PointerEvent as ReactPointer
 import type { EditorState } from '@codemirror/state'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { getVersion } from '@tauri-apps/api/app'
-import { invoke, isTauriRuntime } from './lib/tauri'
+import { errorMessage, invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -1558,7 +1558,7 @@ function App() {
       setStatus(`Vault carregado: ${parsedVault.name}`)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Não foi possível abrir o vault.'
+        errorMessage(caughtError, 'Não foi possível abrir o vault.')
       setVault(null)
       setError(message)
       setStatus('Falha ao abrir o vault.')
@@ -1584,7 +1584,7 @@ function App() {
       setStatus(`Vault reaberto: ${parsedVault.name}`)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Não foi possível reabrir o último vault.'
+        errorMessage(caughtError, 'Não foi possível reabrir o último vault.')
       setError(message)
       setStatus('Escolha um vault existente ou crie um do zero.')
     } finally {
@@ -1607,7 +1607,7 @@ function App() {
       setShowRecentVaultModal(false)
       await reopenRecentVault()
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível salvar a preferencia.')
+      setError(errorMessage(caughtError, 'Não foi possível salvar a preferencia.'))
     }
   }
 
@@ -1618,7 +1618,7 @@ function App() {
       }
       setShowRecentVaultModal(false)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível salvar a preferencia.')
+      setError(errorMessage(caughtError, 'Não foi possível salvar a preferencia.'))
     }
   }
 
@@ -1664,7 +1664,7 @@ function App() {
       setStatus(`Vault criado em ${parsedVault.path}`)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Não foi possível criar o vault.'
+        errorMessage(caughtError, 'Não foi possível criar o vault.')
       setVault(null)
       setError(message)
       setStatus('Falha ao criar o vault.')
@@ -1796,7 +1796,7 @@ function App() {
       void refreshHistoryStatus(vaultPath)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Não foi possível carregar as notas.'
+        errorMessage(caughtError, 'Não foi possível carregar as notas.')
       setError(message)
       setStatus('Falha ao carregar a lista de notas do vault.')
     } finally {
@@ -1817,7 +1817,7 @@ function App() {
       const bytes = payload instanceof Array ? payload : Array.from(payload as ArrayLike<number>)
       setSpecialFileViewerContent(new TextDecoder().decode(Uint8Array.from(bytes)))
     } catch (cause) {
-      setSpecialFileViewerError(cause instanceof Error ? cause.message : 'Não foi possível ler o arquivo especial.')
+      setSpecialFileViewerError(errorMessage(cause, 'Não foi possível ler o arquivo especial.'))
     }
   }
 
@@ -1836,7 +1836,7 @@ function App() {
       }
       setWorkspacePage('tags')
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível abrir a página de tags.')
+      setError(errorMessage(caughtError, 'Não foi possível abrir a página de tags.'))
     } finally {
       setLoading(false)
     }
@@ -1933,7 +1933,7 @@ function App() {
       })
       setStructuralAudit(result)
     } catch (error) {
-      setStructuralAuditError(error instanceof Error ? error.message : String(error))
+      setStructuralAuditError(errorMessage(error, String(error)))
     } finally {
       setStructuralAuditLoading(false)
     }
@@ -1955,7 +1955,7 @@ function App() {
       })
       setFactCheck(result)
     } catch (error) {
-      setFactCheckError(error instanceof Error ? error.message : String(error))
+      setFactCheckError(errorMessage(error, String(error)))
     } finally {
       setFactCheckLoading(false)
     }
@@ -2824,7 +2824,7 @@ function App() {
       setStatus('Pasta criada.')
       await refreshNotes(vault.path)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível criar a pasta.')
+      setError(errorMessage(caughtError, 'Não foi possível criar a pasta.'))
     } finally {
       setLoading(false)
     }
@@ -2903,7 +2903,7 @@ function App() {
         void loadBrokenLinks(destinationPath, vault.path)
       }
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível renomear o item.')
+      setError(errorMessage(caughtError, 'Não foi possível renomear o item.'))
     } finally {
       setLoading(false)
       setWikilinkIndexProgress(null)
@@ -2963,7 +2963,7 @@ function App() {
           void loadBrokenLinks(destinationPath, vaultPath)
           void refreshHistoryStatus(vaultPath)
         } catch (caughtError) {
-          setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível renomear a nota.')
+          setError(errorMessage(caughtError, 'Não foi possível renomear a nota.'))
         }
       })
   }
@@ -3010,7 +3010,7 @@ function App() {
         void loadBrokenLinks(destinationPath, vault.path)
       }
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível mover o item.')
+      setError(errorMessage(caughtError, 'Não foi possível mover o item.'))
     } finally {
       setLoading(false)
       setWikilinkIndexProgress(null)
@@ -3038,7 +3038,7 @@ function App() {
         void loadBrokenLinks(destinationPath, vault.path)
       }
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível mover a nota.')
+      setError(errorMessage(caughtError, 'Não foi possível mover a nota.'))
     } finally {
       setLoading(false)
       setDraggedNotePath(null)
@@ -3117,7 +3117,7 @@ function App() {
       // cache de conteudos, reconstruido na proxima leitura unificada.
       await refreshNotes(vault.path, '')
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível excluir o item.')
+      setError(errorMessage(caughtError, 'Não foi possível excluir o item.'))
     } finally {
       setLoading(false)
     }
@@ -3148,7 +3148,7 @@ function App() {
       })
       return null
     } catch (caughtError) {
-      return caughtError instanceof Error ? caughtError.message : 'Não foi possível substituir pelo conteúdo da cópia.'
+      return errorMessage(caughtError, 'Não foi possível substituir pelo conteúdo da cópia.')
     } finally {
       setLoading(false)
     }
@@ -3227,7 +3227,7 @@ function App() {
       setStatus(`Editando ${parsedNote.relativePath}`)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Não foi possível abrir a nota.'
+        errorMessage(caughtError, 'Não foi possível abrir a nota.')
       setError(message)
       setStatus('Falha ao abrir a nota selecionada.')
     } finally {
@@ -3441,7 +3441,7 @@ function App() {
       return true
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Não foi possível salvar a nota.'
+        errorMessage(caughtError, 'Não foi possível salvar a nota.')
       setError(message)
       setStatus('Falha ao salvar a nota atual.')
       return false
@@ -3610,7 +3610,7 @@ function App() {
       applyRecoveredExternalNote(recoveredNote)
       setStatus(`Nota restaurada: ${recoveredNote.relativePath}`)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível restaurar a nota.')
+      setError(errorMessage(caughtError, 'Não foi possível restaurar a nota.'))
     } finally {
       setLoading(false)
     }
@@ -3634,7 +3634,7 @@ function App() {
       applyRecoveredExternalNote(recoveredNote)
       setStatus(`Rascunho recuperado como ${recoveredNote.relativePath}.`)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível recuperar a nota.')
+      setError(errorMessage(caughtError, 'Não foi possível recuperar a nota.'))
     } finally {
       setLoading(false)
     }
@@ -4075,7 +4075,7 @@ function App() {
         : [...currentAttachments, attachment.relativePath].sort())
       setStatus(`Anexo inserido: ${attachment.name}`)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível anexar o arquivo.')
+      setError(errorMessage(caughtError, 'Não foi possível anexar o arquivo.'))
     } finally {
       setLoading(false)
     }
@@ -4163,7 +4163,7 @@ function App() {
         await invoke('create_note', { path: vault.path, relativePath: targetPath })
         await refreshNotes(vault.path)
       } catch (caughtError) {
-        setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível criar a nota vinculada.')
+        setError(errorMessage(caughtError, 'Não foi possível criar a nota vinculada.'))
         return
       } finally {
         openingWikiLinkPathsRef.current.delete(pendingPath)
@@ -4230,7 +4230,7 @@ function App() {
       setStatus(`Conexao criada: ${sourceLabel} -> ${targetPath}`)
     } catch (caughtError) {
       const message =
-        caughtError instanceof Error ? caughtError.message : 'Não foi possível criar a conexao.'
+        errorMessage(caughtError, 'Não foi possível criar a conexao.')
       setError(message)
       setStatus('Falha ao criar a conexao.')
     }
