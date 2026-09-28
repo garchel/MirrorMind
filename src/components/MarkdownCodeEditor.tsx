@@ -267,6 +267,9 @@ const findQueryField = StateField.define<string>({
 const findMatchMark = Decoration.mark({ class: 'cm-find-match' })
 const findSelectedMatchMark = Decoration.mark({ class: 'cm-find-match cm-find-match-selected' })
 
+/** Matches por (doc, query): mover o cursor reaproveita sem revarrer o texto. */
+const findMatchesCache = new WeakMap<object, { query: string; matches: ReturnType<typeof findTextMatches> }>()
+
 const findHighlighter = StateField.define<DecorationSet>({
   create() {
     return Decoration.none
@@ -279,8 +282,16 @@ const findHighlighter = StateField.define<DecorationSet>({
       return decorations
     }
     if (!query) return Decoration.none
-    const text = transaction.state.doc.toString()
-    const matches = findTextMatches(text, query)
+    const doc = transaction.state.doc
+    let matches: ReturnType<typeof findTextMatches> | null = null
+    if (!queryChanged && !transaction.docChanged) {
+      const cached = findMatchesCache.get(doc)
+      if (cached && cached.query === query) matches = cached.matches
+    }
+    if (!matches) {
+      matches = findTextMatches(doc.toString(), query)
+      findMatchesCache.set(doc, { query, matches })
+    }
     if (matches.length === 0) return Decoration.none
     const { from: selectedFrom, to: selectedTo } = transaction.state.selection.main
     const builder = new RangeSetBuilder<Decoration>()

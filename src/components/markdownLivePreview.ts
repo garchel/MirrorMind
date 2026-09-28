@@ -1,4 +1,3 @@
-import katex from 'katex'
 import { createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
@@ -19,6 +18,26 @@ import { unitOutcomeLabel } from '../features/review/reportMarkdown'
 import { POSTIT_COLOR_HEX, type NotePostit } from '../lib/postits'
 import { ObsidianPdfEmbed } from './ObsidianPdfEmbed'
 import { ObsidianPluginBlock } from './ObsidianPluginBlock'
+
+import katex from 'katex'
+
+/** HTML de formulas memoizado por fonte+modo (o widget recria a instancia a
+ * cada passada, mas `eq()` reaproveita o DOM das inalteradas). */
+const mathHtmlCache = new Map<string, string>()
+const MATH_HTML_CACHE_LIMIT = 200
+function renderMathHtml(source: string, displayMode: boolean): string {
+  const key = `${displayMode ? '1' : '0'}:${source}`
+  const cached = mathHtmlCache.get(key)
+  if (cached !== undefined) return cached
+  const html = katex.renderToString(source, {
+    displayMode,
+    output: 'html',
+    throwOnError: false,
+  })
+  if (mathHtmlCache.size >= MATH_HTML_CACHE_LIMIT) mathHtmlCache.clear()
+  mathHtmlCache.set(key, html)
+  return html
+}
 
 // Live preview (modo Misto): a sintaxe Markdown e mascarada como formatacao
 // (negrito, italico, codigo, titulos, tabelas, matematica KaTeX, divisores...),
@@ -618,6 +637,20 @@ export function findTreeMaskTokens(tree: Tree, doc: { toString: () => string; li
   return mask
 }
 
+/** Máscara memoizada por (doc, árvore): `findTreeMaskTokens` é pura nesses
+ * dois argumentos, e o `Text` do CodeMirror é imutável — seleções/viewport
+ * sem mudança de doc reaproveitam (o caso quente a cada cursor). WeakMap:
+ * morre com o doc, sem vazamento. */
+type MaskCacheEntry = { tree: Tree; mask: TreeMask }
+const treeMaskCache = new WeakMap<object, MaskCacheEntry>()
+function cachedTreeMaskTokens(tree: Tree, doc: Text): TreeMask {
+  const cached = treeMaskCache.get(doc)
+  if (cached && cached.tree === tree) return cached.mask
+  const mask = findTreeMaskTokens(tree, doc)
+  treeMaskCache.set(doc, { tree, mask })
+  return mask
+}
+
 export function isTokenAdjacentToCaret(token: MaskToken, caret: number) {
   return caret >= token.revealFrom - 1 && caret <= token.revealTo + 1
 }
@@ -660,7 +693,7 @@ export function findMathTokenForDeletion(state: EditorState, head: number, direc
   }
   const tree = ensureSyntaxTree(state, doc.length, 100) ?? syntaxTree(state)
   if (!tree) return null
-  const mask = findTreeMaskTokens(tree, doc)
+  const mask = cachedTreeMaskTokens(tree, doc)
   for (const token of mask.tokens) {
     if (token.kind !== 'math') continue
     if (direction === 'backward' && token.to === head) return { from: token.from, to: token.to }
@@ -928,6 +961,19 @@ function sanitizeHtml(source: string): string {
   return parsed.body.innerHTML
 }
 
+/** sanitizeHtml memoizado por fonte (DOMParser + walk por widget a cada
+ * passada e caro; fontes repetidas reaproveitam). Limite simples anti-vazamento. */
+const sanitizeHtmlCache = new Map<string, string>()
+const SANITIZE_HTML_CACHE_LIMIT = 200
+function sanitizeHtmlCached(source: string): string {
+  const cached = sanitizeHtmlCache.get(source)
+  if (cached !== undefined) return cached
+  const html = sanitizeHtml(source)
+  if (sanitizeHtmlCache.size >= SANITIZE_HTML_CACHE_LIMIT) sanitizeHtmlCache.clear()
+  sanitizeHtmlCache.set(source, html)
+  return html
+}
+
 /** Widget do HTML inline sanitizado: substitui `<tag>...</tag>` pelo conteudo
  * limpo, com o cursor perto revelando o HTML cru (edicao). */
 class HtmlWidget extends WidgetType {
@@ -943,7 +989,7 @@ class HtmlWidget extends WidgetType {
   toDOM() {
     const span = document.createElement('span')
     span.className = 'cm-live-html'
-    span.innerHTML = sanitizeHtml(this.source)
+    span.innerHTML = sanitizeHtmlCached(this.source)
     return span
   }
 
@@ -1034,11 +1080,7 @@ class MathWidget extends WidgetType {
   toDOM() {
     const span = document.createElement('span')
     span.className = `cm-live-math${this.displayMode ? ' cm-live-math-display' : ''}`
-    span.innerHTML = katex.renderToString(this.source, {
-      displayMode: this.displayMode,
-      output: 'html',
-      throwOnError: false,
-    })
+    span.innerHTML = renderMathHtml(this.source, this.displayMode)
     return span
   }
 
@@ -1472,7 +1514,7 @@ function renderCellHtml(text: string) {
     html += escapeHtml(text.slice(last, index))
     const [, math, code, boldStars, boldUnders, strike, italicStar, italicUnders] = match
     if (math !== undefined) {
-      html += katex.renderToString(math.slice(1, -1), { displayMode: false, output: 'html', throwOnError: false })
+      html += renderMathHtml(math.slice(1, -1), false)
     } else if (code !== undefined) {
       html += `<code>${escapeHtml(code)}</code>`
     } else if (boldStars !== undefined || boldUnders !== undefined) {
@@ -1633,7 +1675,7 @@ class TableWidget extends WidgetType {
     span.dataset.cellSource = token.source
     span.contentEditable = 'false'
     span.innerHTML = token.kind === 'math'
-      ? katex.renderToString(token.inner, { displayMode: false, output: 'html', throwOnError: false })
+      ? renderMathHtml(token.inner, false)
       : escapeHtml(token.inner)
     return span
   }
@@ -3300,7 +3342,7 @@ function buildAtomicRanges(state: EditorState): RangeSet<AtomicRangeValue> {
   const doc = state.doc
   const tree = ensureSyntaxTree(state, doc.length, 100) ?? syntaxTree(state)
   if (!tree) return RangeSet.empty
-  const ranges = collectAtomicRanges(findTreeMaskTokens(tree, doc))
+  const ranges = collectAtomicRanges(cachedTreeMaskTokens(tree, doc))
   return RangeSet.of(ranges.map((range) => atomicRangeValue.range(range.from, range.to)), true)
 }
 
@@ -3324,7 +3366,7 @@ function buildDecorations(view: EditorView, focused: boolean, options: LivePrevi
 
   // GFM e mais pesado que CommonMark: timeout generoso para evitar arvore parcial.
   const tree = ensureSyntaxTree(view.state, viewport.to, 200) ?? syntaxTree(view.state)
-  const mask = findTreeMaskTokens(tree, doc)
+  const mask = cachedTreeMaskTokens(tree, doc)
 
   const lineTokens = new Map<number, MaskToken[]>()
   for (const token of mask.tokens) {

@@ -1328,6 +1328,82 @@ fn get_broken_links_in_root(root: &Path) -> Result<Vec<BrokenLink>> {
     Ok(broken_links)
 }
 
+/// Links quebrados de UMA nota (abertura/salvamento/renomeacao): mesma
+/// semantica do levantamento completo, mas com uma unica passada de caminhos
+/// (sem ler o conteudo das demais notas) + leitura da nota-alvo e dos alvos
+/// com fragmento. Troca O(vault) leituras por O(1) no caminho quente.
+fn get_note_broken_links_in_root(root: &Path, relative_path: &str) -> Result<Vec<BrokenLink>> {
+    let note_path = resolve_note_path(root, relative_path)?;
+    let source_relative_path = to_relative_display(root, &note_path);
+    let note_paths = collect_markdown_files(root)?;
+    let available_paths = note_paths
+        .iter()
+        .map(|path| to_relative_display(root, path))
+        .collect::<Vec<_>>();
+    let content = fs::read_to_string(&note_path)
+        .with_context(|| format!("Nao foi possivel ler '{}'.", note_path.display()))?;
+    let mut broken_links = Vec::new();
+    let mut seen = HashSet::new();
+    for raw_target in extract_wiki_link_targets(&content) {
+        let resolved_target =
+            resolve_wiki_link_target(&raw_target.path, &source_relative_path, &available_paths);
+        let fragment_exists = if let (Some(target_path), Some(fragment)) =
+            (resolved_target.as_ref(), raw_target.fragment.as_ref())
+        {
+            let target_content =
+                fs::read_to_string(root.join(target_path)).with_context(|| {
+                    format!("Nao foi possivel ler o destino '{}'.", target_path)
+                })?;
+            markdown_fragment_exists(&target_content, fragment)
+        } else {
+            true
+        };
+        if resolved_target.is_none() || !fragment_exists {
+            let normalized_path = if raw_target.path.is_empty() {
+                source_relative_path.clone()
+            } else {
+                let Some(target) = normalize_wiki_link_target(&raw_target.path) else {
+                    continue;
+                };
+                target
+            };
+            let target = raw_target
+                .fragment
+                .as_ref()
+                .map_or(normalized_path.clone(), |fragment| {
+                    format!("{normalized_path}#{fragment}")
+                });
+            if !seen.insert(target.clone()) {
+                continue;
+            }
+            broken_links.push(BrokenLink {
+                target,
+                source_name: note_path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                source_relative_path: source_relative_path.clone(),
+            });
+        }
+    }
+    broken_links.sort_by(|left, right| left.target.cmp(&right.target));
+    Ok(broken_links)
+}
+
+#[tauri::command]
+fn get_note_broken_links(
+    path: String,
+    relative_path: String,
+    authorized_paths: State<AuthorizedPaths>,
+) -> Result<Vec<BrokenLink>, String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    get_note_broken_links_in_root(&root, &relative_path).map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 fn get_tag_index(
     path: String,
@@ -6216,6 +6292,7 @@ pub fn run() {
             import_attachment,
             get_backlinks,
             get_broken_links,
+            get_note_broken_links,
             get_tag_index,
             tag_management::preview_tag_management_change,
             tag_management::apply_tag_management_change,
@@ -6309,7 +6386,7 @@ mod tests {
         attachment_directory_for_note, classify_vault_file_system_change, collect_attachment_files,
         collect_folders, collect_markdown_files, collect_special_vault_files, copy_file_synced,
         delete_vault_item_in_root, diagnose_unreadable_notes, ensure_metadata_layout, extract_tags,
-        extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root, get_tag_index_in_root,
+        extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root, get_note_broken_links_in_root, get_tag_index_in_root,
         hard_link_or_copy, import_attachment_in_root, inspect_metadata, inspect_vault_path,
         list_trash_in_root, move_vault_item_in_root, move_vault_path_without_overwrite,
         obsidian_attachment_directory, permanently_delete_trash_item_in_root,
@@ -10389,6 +10466,33 @@ mod tests {
         assert_eq!(broken_links.len(), 2);
         assert_eq!(broken_links[0].target, "Árvore.md#Ausente");
         assert_eq!(broken_links[1].target, "Árvore.md#^falso");
+    }
+
+    #[test]
+    fn note_broken_links_match_full_scan_for_single_note() {
+        let temporary_directory = tempdir().expect("temp dir");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
+        fs::write(root.join("alvo.md"), "# Alvo\n\n## Secao\n").expect("write target");
+        fs::write(
+            root.join("referencias.md"),
+            "[[alvo]]\n[[alvo#Secao]]\n[[alvo#Ausente]]\n[[nota-ausente]]",
+        )
+        .expect("write references");
+        fs::write(root.join("outra.md"), "[[tambem-ausente]]").expect("write other");
+
+        let scoped = get_note_broken_links_in_root(&root, "referencias.md").expect("scoped links");
+        let full = get_broken_links_in_root(&root).expect("full scan");
+        let expected_targets: Vec<String> = full
+            .into_iter()
+            .filter(|link| link.source_relative_path == "referencias.md")
+            .map(|link| link.target)
+            .collect();
+        let scoped_targets: Vec<String> = scoped.into_iter().map(|link| link.target).collect();
+        assert_eq!(scoped_targets.len(), 2);
+        assert_eq!(scoped_targets, expected_targets);
     }
 
     #[test]

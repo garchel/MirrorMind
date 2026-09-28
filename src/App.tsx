@@ -253,6 +253,28 @@ function App() {
   const [editorMode, setEditorMode] = useState<'mixed' | 'edit' | 'read'>('mixed')
   const [markdownHistoryStatus, setMarkdownHistoryStatus] = useState<MarkdownEditorHistoryStatus>({ canUndo: false, canRedo: false })
   const [editorSessionsByPath, setEditorSessionsByPath] = useState<Record<string, MarkdownEditorSession>>({})
+  // Teto dos caches por nota (sessoes de cursor/scroll + EditorStates com
+  // syntax tree): sem despejo, vaults grandes fixam um por nota visitada.
+  // Rascunhos (draftsByPath) NAO entram aqui — guardam trabalho nao salvo.
+  useEffect(() => {
+    setEditorSessionsByPath((current) => {
+      const keys = Object.keys(current)
+      if (keys.length <= 30) return current
+      const trimmed: Record<string, MarkdownEditorSession> = {}
+      for (const key of keys.slice(-30)) trimmed[key] = current[key]
+      return trimmed
+    })
+    const cache = markdownEditorStateCacheRef.current
+    if (cache.size > 90) {
+      const kept = [...cache.keys()].slice(-90)
+      const trimmed = new Map<string, EditorState>()
+      for (const key of kept) {
+        const state = cache.get(key)
+        if (state !== undefined) trimmed.set(key, state)
+      }
+      markdownEditorStateCacheRef.current = trimmed
+    }
+  }, [activeNote?.relativePath])
   // Toolbar de formatacao: ver features/format/useFormatToolbar + FormatToolbar
   // (estado, submenu de cores, tracking da selecao e aplicacao).
   // Post-its: ver usePostitPopover (hook chamado mais abaixo, apos noteBody)
@@ -3230,8 +3252,10 @@ function App() {
 
   async function loadBrokenLinks(relativePath: string, vaultPath: string) {
     try {
-      const items = await invoke<BrokenLink[]>('get_broken_links', { path: vaultPath })
-      setBrokenLinks(items.filter((link) => link.sourceRelativePath === relativePath))
+      // Comando por-nota (sem varrer o vault): mesma semantica do levantamento
+      // completo, já filtrado pela nota.
+      const items = await invoke<BrokenLink[]>('get_note_broken_links', { path: vaultPath, relativePath })
+      setBrokenLinks(items)
     } catch {
       setBrokenLinks([])
     }
@@ -3770,7 +3794,10 @@ function App() {
   // Popover de formatacao: aparece nos modos com editor quando ha uma selecao
   // nao-colapsada (logica no hook); o blur e tratado abaixo (onBlur).
 
-  const noteFindMatches = useMemo(() => findTextMatches(draftContent, noteFindQuery), [noteFindQuery, draftContent])
+  const noteFindMatches = useMemo(
+    () => (noteFindOpen ? findTextMatches(draftContent, noteFindQuery) : []),
+    [noteFindOpen, noteFindQuery, draftContent],
+  )
   // No modo Leitura as correspondencias vêm do DOM renderizado (readFindTotal);
   // nos modos com editor, do texto-fonte (noteFindMatches).
   const findTotal = editorMode === 'read' ? readFindTotal : noteFindMatches.length
