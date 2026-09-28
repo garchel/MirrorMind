@@ -383,6 +383,7 @@ export function EditorHeader({
             aria-expanded={frontmatterPanelOpen}
             aria-controls="frontmatter-menu-panel"
             title={frontmatterPanelOpen ? 'Recolher propriedades da nota' : 'Expandir propriedades da nota'}
+            aria-label={frontmatterPanelOpen ? 'Recolher propriedades da nota' : 'Expandir propriedades da nota'}
           >
             <ChevronDown size={16} strokeWidth={1.5} aria-hidden="true" />
           </button>

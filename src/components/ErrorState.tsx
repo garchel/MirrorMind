@@ -14,13 +14,6 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   )
 }
 
-/** Estado de carregamento padrao das paginas do workspace. */
-export function LoadingState({ message }: { message: string }) {
-  return (
-    <div className="workspace-error-status" role="status">{message}</div>
-  )
-}
-
 /** Estado vazio padrao das paginas do workspace (Metas, Revisar, ...):
  * selo com icone, titulo, descricao, mini-guia numerado opcional e acao
  * opcional — o vazio vira orientação em vez de beco sem saída. */

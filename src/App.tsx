@@ -670,8 +670,8 @@ function App() {
     setAutoUpdateEnabled(enabled)
     setAutoUpdateEnabledState(enabled)
   }
-  /** Abre nota a partir do grafo (4 fluxos: 3D, nó 2D, drawer, órfãos). */
-  function handleOpenNoteFromGraph(relativePath: string) {
+  /** Abre nota a partir das paginas (metas, revisao, grafo): vai para `notes` e abre. */
+  function openNoteInWorkspace(relativePath: string) {
     setWorkspacePage('notes')
     void openNote(relativePath)
   }
@@ -1751,18 +1751,18 @@ function App() {
 
     try {
       // Varredura unificada: uma unica passagem no backend produz notas,
-      // pastas, anexos e arquivos especiais. As consultas independentes
-      // (tags, favoritos, templates) rodam em paralelo com o scan em vez
-      // de em serie — o tempo total vira o maximo, nao a soma.
-      const [inventoryPayload, nextTagIndex, nextFavorites, nextTemplates] = await Promise.all([
+      // pastas, anexos, arquivos especiais E o indice de tags (sem a segunda
+      // varredura do `get_tag_index`). Favoritos e templates, independentes,
+      // rodam em paralelo com o scan.
+      const [inventoryPayload, nextFavorites, nextTemplates] = await Promise.all([
         invoke<unknown>('scan_vault_inventory', { path: vaultPath }),
-        invoke<TagSummary[]>('get_tag_index', { path: vaultPath }),
         invoke<string[]>('list_favorites', { path: vaultPath }),
         invoke<NoteTemplate[]>('list_templates', { path: vaultPath }),
       ])
       const inventory = parseVaultInventory(inventoryPayload)
       const nextNotes = inventory.notes
       const nextFolders = inventory.folders
+      const nextTagIndex = inventory.tags
       const nextAttachments = inventory.attachments
       const nextSpecialInventory = inventory.specialFiles
       const nextSpecialFiles = nextSpecialInventory.files
@@ -5152,10 +5152,7 @@ function App() {
                 {workspacePage === 'goals' ? (
                   <GoalsPage
                     vaultPath={vault.path}
-                    onOpenNote={(relativePath) => {
-                      setWorkspacePage('notes')
-                      void openNote(relativePath)
-                    }}
+                    onOpenNote={openNoteInWorkspace}
                   />
                 ) : workspacePage === 'review' ? (
                   activeReviewItem ? (
@@ -5169,38 +5166,26 @@ function App() {
                     <ReviewQueuePage
                       vaultPath={vault.path}
                       onStartReview={setActiveReviewItem}
-                      onOpenNote={(relativePath) => {
-                        setWorkspacePage('notes')
-                        void openNote(relativePath)
-                      }}
+                      onOpenNote={openNoteInWorkspace}
                       onBrowseNotes={() => setWorkspacePage('notes')}
                     />
                   )
                 ) : workspacePage === 'dashboard' ? (
                   <ReviewDashboardPage
                     vaultPath={vault.path}
-                    onOpenNote={(relativePath) => {
-                      setWorkspacePage('notes')
-                      void openNote(relativePath)
-                    }}
+                    onOpenNote={openNoteInWorkspace}
                     onStartReview={(item) => void handleStartReviewFromDeadline(item)}
                   />
                 ) : workspacePage === 'reports' ? (
                   <ReviewReportsPage
                     vaultPath={vault.path}
-                    onOpenNote={(relativePath) => {
-                      setWorkspacePage('notes')
-                      void openNote(relativePath)
-                    }}
+                    onOpenNote={openNoteInWorkspace}
                   />
                 ) : workspacePage === 'bases' ? (
                   <BasesPage
                     vaultPath={vault.path}
                     notePreviews={notes}
-                    onOpenNote={(relativePath) => {
-                      setWorkspacePage('notes')
-                      void openNote(relativePath)
-                    }}
+                    onOpenNote={openNoteInWorkspace}
                   />
                 ) : (
                   <TagManagementPage
@@ -5305,7 +5290,7 @@ function App() {
                 kickGraph2dPhysics={kickGraph2dPhysics}
                 revealNoteInExplorer={revealNoteInExplorer}
                 copyGraphWikiLink={copyGraphWikiLink}
-                onOpenNote={handleOpenNoteFromGraph}
+                onOpenNote={openNoteInWorkspace}
                 setGraphConnectQuery={setGraphConnectQuery}
                 setGraphConnectSource={setGraphConnectSource}
               />

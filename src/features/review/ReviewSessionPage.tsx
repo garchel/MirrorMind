@@ -586,9 +586,9 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
               (() => {
                 const evaluatedCount = report.units.filter((unit) => unit.evaluated).length
                 const remainingCount = report.units.length - evaluatedCount
-                const kinds = report.units.map((unit) => unit.kind)
-                const noun = unitNoun(dominantUnitKind(kinds))
-                const plural = unitPluralNoun(dominantUnitKind(kinds))
+                const kind = dominantUnitKind(report.units.map((unit) => unit.kind))
+                const noun = unitNoun(kind)
+                const plural = unitPluralNoun(kind)
                 return (
                   <>
                     <p className="review-coverage-note">

@@ -12,8 +12,8 @@ import {
   previewTagManagementChange,
   type TagManagementChange,
   type TagManagementPreview,
-  type TagSummary,
 } from './tagManagement'
+import type { TagSummary } from '../../lib/vault'
 import { PolicyWorkloadEstimate } from '../review/PolicyWorkloadEstimate'
 import { Modal, ModalHeader } from '../../components/Modal'
 import { PageHeader } from '../../components/PageHeader'
