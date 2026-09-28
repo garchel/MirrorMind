@@ -119,6 +119,8 @@ import { ExplorerItemMenu, ExplorerSidebar, type ExplorerContextMenu } from './f
 import { EditorHeader, HEADER_ACTION_KEYS, type HeaderActionKey, type NoteTemplate } from './features/editor/EditorHeader'
 import { EditorContent } from './features/editor/EditorContent'
 import { VaultSelection } from './features/vault/VaultSelection'
+import { disabledSessionClient } from './lib/session'
+import { isBillingEnabled } from './lib/billing'
 import { TabStrip, WorkspaceRail, WorkspaceTopbar, type WorkspacePage } from './features/shell/WorkspaceChrome'
 import { TrashPage } from './features/trash/TrashPage'
 import { useSettingsNav, type SettingsSectionId } from './features/settings/useSettingsNav'
@@ -5332,6 +5334,7 @@ function App() {
                 activeSettingsSection={activeSettingsSection}
                 onNavigateSettingsSection={scrollToSettingsSection}
                 settingsScrollRef={settingsScrollRef}
+                accountClient={isBillingEnabled() ? disabledSessionClient : null}
               />
             )}
           </section>

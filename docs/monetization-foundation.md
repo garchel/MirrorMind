@@ -44,6 +44,7 @@ Estimativa: **7–10 semanas**, 1 dev focado. Risco nº 1: Pix recorrente (se F0
 
 - [x] F1a (sem backend): esquema deep-link `mirrormind://`, cofre de sessão no keyring, catálogo/flag `billing_enabled=false`, tipos de direitos
 - [x] F1a (porta de sessão): `SessionClient` + `useSession` testáveis, sem provedor (Supabase entra na F1b)
+- [x] F1a (Conta): `AccountSettings` com login/saída/exclusão + comandos Tauri `account_*` (cofre) atrás da flag desligada
 - [ ] F0 (humano): verificações de mercado acima
 - [ ] F1b (com Supabase): PKCE real, tela Conta, refresh, excluir conta
 - [ ] F2–F5: conforme tabela

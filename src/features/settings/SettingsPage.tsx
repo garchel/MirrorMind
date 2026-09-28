@@ -28,6 +28,8 @@ import { ReviewNotificationSettings } from '../review/ReviewNotificationSettings
 import type { ReviewNotificationCheck } from '../review/reviewNotifications'
 import { SegmentationSettings } from '../review/SegmentationSettings'
 import { VaultReviewPolicySettings } from '../review/VaultReviewPolicySettings'
+import { AccountSettings } from './AccountSettings'
+import type { SessionClient } from '../../lib/session'
 
 /** Como destacar os trechos esquecidos/confundidos no editor (resultado mais
  * recente). Movido do `App.tsx` sem mudança — o App importa este tipo. */
@@ -54,6 +56,8 @@ export type SettingsPageProps = {
   activeSettingsSection: SettingsSectionId
   onNavigateSettingsSection: (sectionId: SettingsSectionId) => void
   settingsScrollRef: RefObject<HTMLElement | null>
+  /** Cliente de conta (null = seção oculta; App injeta quando a cobrança liga). */
+  accountClient: SessionClient | null
 }
 
 export function SettingsPage({
@@ -73,6 +77,7 @@ export function SettingsPage({
   activeSettingsSection,
   onNavigateSettingsSection,
   settingsScrollRef,
+  accountClient,
 }: SettingsPageProps) {
   const {
     shortcuts,
@@ -662,6 +667,7 @@ export function SettingsPage({
           </div>
           <div className="settings-section" id="settings-aplicativo" aria-labelledby="app-preferences-title">
             <p className="card-kicker" id="app-preferences-title">Aplicativo</p>
+            {accountClient ? <AccountSettings client={accountClient} /> : null}
             <div className="settings-toggle">
               <span>
                 <strong>Versão do MirrorMind</strong>

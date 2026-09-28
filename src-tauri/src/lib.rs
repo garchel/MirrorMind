@@ -4530,11 +4530,34 @@ fn clear_local_app_data(app: AppHandle) -> Result<(), String> {
     review::notifications::delete_settings(&app);
     // Remove chaves do cofre (ignora NoEntry — já limpo é sucesso).
     let store = review::credentials::NativeCredentialStore::new();
+    // Sessao da conta tambem e dado local: wipe derruba o login.
+    let _ = session::clear_session(&store);
     let _ = review::credentials::delete_gemini_api_key(&store);
     let _ = review::credentials::delete_openai_compatible_provider(&store);
     let _ = review::credentials::set_gemini_consent(&store, false);
     let _ = review::credentials::set_openai_compatible_consent(&store, false);
     Ok(())
+}
+
+/// Conta (fundacao de monetizacao, F1a): a sessao mora no OS keyring e o
+/// frontend nunca ve refresh token em disco. Os fluxos PKCE (login, refresh)
+/// chegam na F1b com o backend.
+#[tauri::command]
+fn account_save_session(access_token: String, refresh_token: String) -> Result<(), String> {
+    let store = review::credentials::NativeCredentialStore::new();
+    session::save_session(&store, &access_token, &refresh_token).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn account_load_session() -> Result<Option<session::Session>, String> {
+    let store = review::credentials::NativeCredentialStore::new();
+    session::load_session(&store).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn account_clear_session() -> Result<(), String> {
+    let store = review::credentials::NativeCredentialStore::new();
+    session::clear_session(&store).map_err(|e| e.to_string())
 }
 
 fn inspect_vault_path(root: &Path) -> Result<VaultSummary> {
@@ -6265,6 +6288,9 @@ pub fn run() {
             reopen_recent_vault,
             set_recent_vault_prompt_preference,
             clear_local_app_data,
+            account_save_session,
+            account_load_session,
+            account_clear_session,
             select_vault_parent,
             initialize_vault_metadata,
             create_vault,

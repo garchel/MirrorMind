@@ -21,6 +21,24 @@ export const ANON_SESSION: SessionSnapshot = {
   expiresAtUnixMs: null,
 }
 
+/** Cliente desabilitado (pré-F1b): conta sempre anonima, acoes explicam.
+ * Usado atras da flag com backend ausente; some quando o Supabase entrar. */
+const DISABLED_MESSAGE = 'Conta indisponível: backend em construção.'
+export const disabledSessionClient: SessionClient = {
+  getSession: async () => ({ ...ANON_SESSION }),
+  signIn: async () => {
+    throw new Error(DISABLED_MESSAGE)
+  },
+  signUp: async () => {
+    throw new Error(DISABLED_MESSAGE)
+  },
+  signInWithGoogle: async () => {
+    throw new Error(DISABLED_MESSAGE)
+  },
+  signOut: async () => {},
+  onChange: () => () => {},
+}
+
 export interface SessionClient {
   getSession(): Promise<SessionSnapshot>
   signIn(email: string, password: string): Promise<SessionSnapshot>
