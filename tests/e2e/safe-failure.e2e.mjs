@@ -28,7 +28,7 @@ if (phase === 'safe-failure') describe('Falha segura', () => {
     await $('[aria-label="Título da nova nota"]').setValue('Bloqueada')
     await expect($('[aria-label^="Editor Markdown"]')).toBeDisplayed()
     const editorMode = await $('[aria-label="Modo de visualização da nota"]')
-    const editButton = editorMode.$('.//button[normalize-space()="Edicao"]')
+    const editButton = editorMode.$('.//button[normalize-space()="Edição"]')
     await expect(editButton).toBeDisplayed()
     await editButton.click()
     await expect(editButton).toHaveAttribute('aria-checked', 'true')

@@ -198,7 +198,7 @@ export function ExplorerSidebar({
                 {selectedTags.length > 0 ? <ListFilter size={15} strokeWidth={1.5} aria-hidden="true" /> : <Filter size={15} strokeWidth={1.5} aria-hidden="true" />}
               </button>
               {showTagFilterDropdown ? (
-                <div className="tag-filter-dropdown" role="dialog" aria-label="Filtro rapido de tags">
+                <div className="tag-filter-dropdown" role="dialog" aria-label="Filtro rápido de tags">
                   <div className="tag-filter-selection">
                     {selectedTags.map((tag) => (
                       <button key={tag} type="button" className="tag-filter-chip" onClick={() => setSelectedTags((tags) => tags.filter((item) => item !== tag))}>#{tag} <X size={11} aria-hidden="true" /></button>
@@ -217,7 +217,7 @@ export function ExplorerSidebar({
                 type="button"
                 className="secondary-button special-files-button"
                 onClick={() => setShowSpecialFilesDialog(true)}
-                title={`${specialFiles.length}${specialFilesTruncated ? '+' : ''} arquivo${specialFiles.length === 1 ? '' : 's'} preservado${specialFiles.length === 1 ? '' : 's'} sem edicao`}
+                title={`${specialFiles.length}${specialFilesTruncated ? '+' : ''} arquivo${specialFiles.length === 1 ? '' : 's'} preservado${specialFiles.length === 1 ? '' : 's'} sem edição`}
                 aria-label={`Ver ${specialFiles.length}${specialFilesTruncated ? ' ou mais' : ''} arquivo${specialFiles.length === 1 ? '' : 's'} com compatibilidade limitada`}
               >
                 <FileWarning size={15} strokeWidth={1.5} aria-hidden="true" />

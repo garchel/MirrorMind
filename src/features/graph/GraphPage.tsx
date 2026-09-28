@@ -333,7 +333,7 @@ export function GraphPage({
           }
         />
       ) : graphDocuments.length === 0 ? (
-        <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota disponivel para montar o grafo.</p>
+        <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota disponível para montar o grafo.</p>
       ) : (
         <>
           <GraphToolbar
@@ -487,7 +487,7 @@ export function GraphPage({
               const isCurrent = document.relativePath === activeNotePath
               const isHovered = graphHoverPath === document.relativePath
               // O nome aparece de acordo com o zoom: com o zoom bem
-              // afastado nos de poucas conexoes ocultam o nome, e
+              // afastado nos de poucas conexões ocultam o nome, e
               // "Ocultar nomes" esconde todos. No hover o nome
               // sempre aparece abaixo da bolinha.
               const hideNameByZoom = graphHideAllNames || (graphViewport.scale < 0.65 && degree < 2)
@@ -547,9 +547,9 @@ export function GraphPage({
                   onFocus={() => setFocusedGraphPath(document.relativePath)}
                   onClick={() => { if (graphSkipNodeClickRef.current) { graphSkipNodeClickRef.current = false; return }; onOpenNote(document.relativePath) }}
                   aria-label={`Abrir nota ${document.name.replace(/\.md$/i, '')} no grafo`}
-                  title={`${document.name.replace(/\.md$/i, '')}${degree ? `, ${degree} conexao(oes)` : ''}`}
+                  title={`${document.name.replace(/\.md$/i, '')}${degree ? `, ${degree} conexão(ões)` : ''}`}
                 >
-                  {/* Bolinha sempre circular; cresce com as conexoes. Com
+                  {/* Bolinha sempre circular; cresce com as conexões. Com
                      agrupamento por pasta, a cor vem do grupo. */}
                   <span className="note-graph-node-dot" style={{ '--graph-scale': 1 + Math.min(degree, 8) * 0.13, ...(graphGroupingKind && graphGroupMaps ? { '--node-folder-color': graphGroupMaps.groupColorByPath[graphGroupMaps.groupByPath[document.relativePath] ?? ''] } : {}) } as CSSProperties} />
                   <span className={`note-graph-node-label${showLabel ? '' : ' is-hidden'}`}>{document.name.replace(/\.md$/i, '')}</span>
@@ -576,7 +576,7 @@ export function GraphPage({
             ) : (
               <span>{visibleGraphDocuments.length} {visibleGraphDocuments.length === 1 ? 'nota' : 'notas'}</span>
             )}
-            <span>{graphLinks.length} {graphLinks.length === 1 ? 'conexao' : 'conexoes'}</span>
+            <span>{graphLinks.length} {graphLinks.length === 1 ? 'conexão' : 'conexões'}</span>
           </div>
           {graphIsSummarized ? (
             <p className="graph-culling-note" role="status">Grafo resumido: exibindo {renderedGraphDocuments.length} de {visibleGraphDocuments.length} nos no viewport (limite de {graphRenderLimit}). Aproxime ou reduza o limite nas configuracoes para ver os demais.</p>
@@ -598,10 +598,10 @@ export function GraphPage({
                       <X size={16} strokeWidth={1.75} aria-hidden="true" />
                     </button>
                   </DrawerHeader>
-                  <div className="graph-detail-stats" aria-label="Metricas da nota no grafo">
+                  <div className="graph-detail-stats" aria-label="Métricas da nota no grafo">
                     <div className="graph-detail-stat"><strong>{focusedIncomingLinks.length}</strong><span>entradas</span></div>
-                    <div className="graph-detail-stat"><strong>{focusedOutgoingLinks.length}</strong><span>saidas</span></div>
-                    <div className="graph-detail-stat"><strong>{graphDegreeByPath[focusedGraphDocument.relativePath] ?? 0}</strong><span>conexoes</span></div>
+                    <div className="graph-detail-stat"><strong>{focusedOutgoingLinks.length}</strong><span>saídas</span></div>
+                    <div className="graph-detail-stat"><strong>{graphDegreeByPath[focusedGraphDocument.relativePath] ?? 0}</strong><span>conexões</span></div>
                   </div>
                   <div className="graph-note-drawer-section">
                     <p className="graph-note-drawer-section-title">Conteudo</p>
@@ -631,7 +631,7 @@ export function GraphPage({
                     </button>
                     <div className="graph-note-drawer-actions-grid">
                       <button type="button" className="secondary-button" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(focusedGraphDocument) }} title={`Criar uma conexao de ${focusedGraphDocument.name.replace(/\.md$/i, '')} para outra nota`}>
-                        <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Criar conexao
+                        <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Criar conexão
                       </button>
                       <button type="button" className="secondary-button" onClick={() => void revealNoteInExplorer(focusedGraphDocument.relativePath)} title="Revelar no explorador de notas">
                         <PanelLeft size={14} strokeWidth={1.75} aria-hidden="true" /> Revelar no explorador
@@ -651,10 +651,10 @@ export function GraphPage({
           {showOnlyGraphOrphans ? (
             <section className="graph-orphan-panel" aria-label="Notas não conectadas">
               <div><p className="card-kicker">Limpeza do vault</p><h3>{orphanGraphDocuments.length} notas não conectadas</h3></div>
-              {orphanGraphDocuments.length > 0 ? <div className="graph-orphan-list">{orphanGraphDocuments.map((document) => <div key={document.relativePath}><span>{document.name.replace(/\.md$/i, '')}</span><div className="graph-orphan-actions"><button type="button" className="secondary-button" onClick={() => void revealNoteInExplorer(document.relativePath)} title="Revelar no explorador de notas">Revelar</button><button type="button" className="secondary-button" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(document) }} title={`Criar uma conexao de ${document.name.replace(/\.md$/i, '')} para outra nota`}>Conectar</button><button type="button" className="secondary-button" onClick={() => onOpenNote(document.relativePath)}>Abrir</button></div></div>)}</div> : <p>Nenhuma nota isolada com os filtros atuais.</p>}
+              {orphanGraphDocuments.length > 0 ? <div className="graph-orphan-list">{orphanGraphDocuments.map((document) => <div key={document.relativePath}><span>{document.name.replace(/\.md$/i, '')}</span><div className="graph-orphan-actions"><button type="button" className="secondary-button" onClick={() => void revealNoteInExplorer(document.relativePath)} title="Revelar no explorador de notas">Revelar</button><button type="button" className="secondary-button" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(document) }} title={`Criar uma conexão de ${document.name.replace(/\.md$/i, '')} para outra nota`}>Conectar</button><button type="button" className="secondary-button" onClick={() => onOpenNote(document.relativePath)}>Abrir</button></div></div>)}</div> : <p>Nenhuma nota isolada com os filtros atuais.</p>}
             </section>
           ) : null}
-          {visibleGraphDocuments.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota corresponde aos filtros atuais.</p> : graphLinks.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Ainda nao ha links internos entre estas notas. Use <code>[[Nome da nota]]</code> para criar conexoes.</p> : null}
+          {visibleGraphDocuments.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota corresponde aos filtros atuais.</p> : graphLinks.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Ainda não há links internos entre estas notas. Use <code>[[Nome da nota]]</code> para criar conexões.</p> : null}
         </>
       )}
     </section>

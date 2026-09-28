@@ -480,7 +480,7 @@ describe('Regressao do editor no workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Aplicar no rascunho' }))
     expect(screen.getByText('Aplicado no rascunho')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
     expect(screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })).toHaveTextContent('## Introducao')
   })
 
@@ -600,7 +600,7 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
     await user.click(document.querySelector('.cm-content')!)
     await user.type(document.querySelector('.cm-content')!, ' alterado')
     await user.keyboard('{Control>}s{/Control}')
@@ -625,7 +625,7 @@ describe('Regressao do editor no workspace', () => {
     await user.click(editor as HTMLElement)
 
     await user.keyboard('{Control>}m{/Control}')
-    expect(screen.getByRole('radio', { name: 'Edicao' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Edição' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('[atalhos] aplica o atalho personalizado configurado na página de atalhos', async () => {
@@ -642,7 +642,7 @@ describe('Regressao do editor no workspace', () => {
 
     await user.click(screen.getByRole('button', { name: 'Voltar para notas' }))
     await user.keyboard('{Control>}{Alt>}v{/Alt}{/Control}')
-    expect(screen.getByRole('radio', { name: 'Edicao' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Edição' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('[modo] alterna entre Edicao, Misto e Leitura pelos botoes segmentados sem perder o painel', async () => {
@@ -651,8 +651,8 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
 
     expect(screen.getByRole('radio', { name: 'Misto' })).toHaveAttribute('aria-checked', 'true')
-    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
-    expect(screen.getByRole('radio', { name: 'Edicao' })).toHaveAttribute('aria-checked', 'true')
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
+    expect(screen.getByRole('radio', { name: 'Edição' })).toHaveAttribute('aria-checked', 'true')
     expect(document.querySelector('.editor-content .codemirror-markdown-editor')).not.toBeNull()
 
     await user.click(screen.getByRole('radio', { name: 'Leitura' }))
@@ -784,7 +784,7 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
 
     await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
-    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
     await user.click(screen.getByRole('button', { name: 'Ferramentas de Markdown' }))
     await user.click(await screen.findByTitle('Inserir tag'))
     const dialog = await screen.findByRole('dialog', { name: 'Inserir tag' })
@@ -1005,16 +1005,16 @@ describe('Regressao do editor no workspace', () => {
     // callback de foco para abri-lo no teste.
     await user.click(screen.getByRole('radio', { name: '3D' }))
     await user.click(await screen.findByRole('button', { name: 'Focar alvo no 3D' }))
-    await user.click(screen.getByRole('button', { name: 'Criar conexao' }))
+    await user.click(screen.getByRole('button', { name: 'Criar conexão' }))
 
-    const dialog = screen.getByRole('dialog', { name: 'Criar conexao no grafo' })
+    const dialog = screen.getByRole('dialog', { name: 'Criar conexão no grafo' })
     // inicial.md ja e alvo de alvo.md (embed ![[inicial]]): nao aparece.
     expect(within(dialog).queryByRole('button', { name: 'inicial' })).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'terceira' }))
 
     await waitFor(() => expect(notes.get('alvo.md')?.content).toContain('[[terceira]]'))
     expect(notes.get('alvo.md')?.content).toMatch(/^# Alvo[\s\S]*\n\n\[\[terceira\]\]\n$/)
-    expect(screen.queryByRole('dialog', { name: 'Criar conexao no grafo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Criar conexão no grafo' })).not.toBeInTheDocument()
   })
 
   it('[grafo] conectar a nota ativa preserva o rascunho não salvo junto com o link', async () => {
@@ -1039,9 +1039,9 @@ describe('Regressao do editor no workspace', () => {
     expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
     await user.click(screen.getByRole('radio', { name: '3D' }))
     await user.click(await screen.findByRole('button', { name: 'Focar inicial no 3D' }))
-    await user.click(screen.getByRole('button', { name: 'Criar conexao' }))
+    await user.click(screen.getByRole('button', { name: 'Criar conexão' }))
 
-    const dialog = screen.getByRole('dialog', { name: 'Criar conexao no grafo' })
+    const dialog = screen.getByRole('dialog', { name: 'Criar conexão no grafo' })
     await user.click(within(dialog).getByRole('button', { name: 'terceira' }))
 
     await waitFor(() => {
@@ -1089,7 +1089,7 @@ describe('Regressao do editor no workspace', () => {
 
     const orphanPanel = screen.getByRole('region', { name: 'Notas não conectadas' })
     await user.click(within(orphanPanel).getByRole('button', { name: 'Conectar' }))
-    const dialog = screen.getByRole('dialog', { name: 'Criar conexao no grafo' })
+    const dialog = screen.getByRole('dialog', { name: 'Criar conexão no grafo' })
     await user.click(within(dialog).getByRole('button', { name: 'alvo' }))
 
     await waitFor(() => expect(notes.get('terceira.md')?.content).toContain('[[alvo]]'))
@@ -1696,7 +1696,7 @@ describe('Regressao do editor no workspace', () => {
     localStorage.setItem('mirrormind.auto-save', 'true')
     await openTestVault(user)
 
-    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
     const editor = screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })
     await user.click(editor)
     await user.keyboard('{Control>}{End}{/Control}')
@@ -1724,7 +1724,7 @@ describe('Regressao do editor no workspace', () => {
     })
     localStorage.setItem('mirrormind.auto-save', 'true')
     await openTestVault(user)
-    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
 
     const editor = screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })
     await user.click(editor)
@@ -1746,7 +1746,7 @@ describe('Regressao do editor no workspace', () => {
     cleanup()
     invokeMock.mockClear()
     await openTestVault(user)
-    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
 
     expect(screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })).toHaveTextContent(marker)
     expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'inicial.md' }))
@@ -2008,7 +2008,7 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
     await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
-    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
 
     // O foco esta dentro do editor (.cm-content): o CodeMirror intercepta o
     // atalho e chama o callback do app em vez do painel nativo de busca.
@@ -2025,7 +2025,7 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
     await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
-    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
 
     // Sem selecao nao ha popover.
     expect(screen.queryByRole('toolbar', { name: 'Formatar seleção' })).not.toBeInTheDocument()
@@ -2060,7 +2060,7 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
     await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
-    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
 
     const content = document.querySelector('.cm-content')
     fireEvent.keyDown(content!, { key: 'f', ctrlKey: true })
@@ -2080,7 +2080,7 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
     await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
-    await user.click(screen.getByRole('radio', { name: 'Edicao' }))
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
 
     const content = document.querySelector('.cm-content')
     fireEvent.keyDown(content!, { key: 'f', ctrlKey: true })

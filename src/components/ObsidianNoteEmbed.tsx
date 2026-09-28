@@ -64,7 +64,7 @@ export function ObsidianNoteEmbed({ fragment, relativePath, renderContent, vault
   }, [fragment, relativePath, vaultPath])
 
   if (content === null) return <section className="obsidian-note-embed is-loading">Carregando nota incorporada...</section>
-  if (!content) return <section className="obsidian-note-embed is-missing">A nota incorporada nao foi encontrada.</section>
+  if (!content) return <section className="obsidian-note-embed is-missing">A nota incorporada não foi encontrada.</section>
 
   return <section className="obsidian-note-embed">{renderContent(content)}</section>
 }

@@ -22,7 +22,7 @@ export function TrashPage({
   return (
     <section className="workspace-page trash-page" data-builder-name="trash-page">
       <p className="card-kicker">Lixeira</p>
-      <h2>Arquivos excluidos</h2>
+      <h2>Arquivos excluídos</h2>
       <p>Arquivos na lixeira sao excluidos permanentemente apos 30 dias. O conteúdo também pode permanecer no histórico de desfazer (até 100 ações) dentro da pasta .mirmind do vault.</p>
       <div className="trash-table-wrap" data-builder-name="trash-files">
         <table>
@@ -30,7 +30,7 @@ export function TrashPage({
             <tr><th>Arquivo</th><th>Tipo</th><th>Excluído em</th><th>Ações</th></tr>
           </thead>
           <tbody>
-            {trashItems.length === 0 ? <tr><td colSpan={4}>A lixeira esta vazia.</td></tr> : trashItems.map((item) => (
+            {trashItems.length === 0 ? <tr><td colSpan={4}>A lixeira está vazia.</td></tr> : trashItems.map((item) => (
               <tr key={item.id}>
                 <td title={item.originalRelativePath}>{item.originalRelativePath.replace(/\.md$/i, '')}</td>
                 <td>{item.itemType === 'folder' ? 'Pasta' : 'Nota'}</td>

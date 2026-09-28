@@ -418,14 +418,14 @@ export function EditorContent({
         <button type="button" className="markdown-tools-orientation" onClick={toggleMarkdownToolsOrientation} title={markdownToolsOrientation === 'horizontal' ? 'Usar barra vertical' : 'Usar barra horizontal'} aria-label={markdownToolsOrientation === 'horizontal' ? 'Usar barra vertical' : 'Usar barra horizontal'}>
           {markdownToolsOrientation === 'horizontal' ? <PanelLeft size={15} strokeWidth={1.5} aria-hidden="true" /> : <PanelTop size={15} strokeWidth={1.5} aria-hidden="true" />}
         </button>
-        <div className="markdown-toolbar-group" aria-label="Titulos">
-          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('heading1')} title="Titulo 1" aria-label="Titulo 1"><Heading1 size={16} /></button>
-          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('heading2')} title="Titulo 2" aria-label="Titulo 2"><Heading2 size={16} /></button>
-          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('heading3')} title="Titulo 3" aria-label="Titulo 3"><Heading3 size={16} /></button>
+        <div className="markdown-toolbar-group" aria-label="Títulos">
+          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('heading1')} title="Título 1" aria-label="Título 1"><Heading1 size={16} /></button>
+          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('heading2')} title="Título 2" aria-label="Título 2"><Heading2 size={16} /></button>
+          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('heading3')} title="Título 3" aria-label="Título 3"><Heading3 size={16} /></button>
         </div>
         <div className="markdown-toolbar-group" aria-label="Texto">
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('bold')} title="Negrito (Ctrl+B)" aria-label="Negrito (Ctrl+B)"><Bold size={16} /></button>
-          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('italic')} title="Italico (Ctrl+I)" aria-label="Italico (Ctrl+I)"><Italic size={16} /></button>
+          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('italic')} title="Itálico (Ctrl+I)" aria-label="Itálico (Ctrl+I)"><Italic size={16} /></button>
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('link')} title="Link" aria-label="Link"><Link size={16} /></button>
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('quote')} title="Citação" aria-label="Citação"><TextQuote size={16} /></button>
         </div>
@@ -436,17 +436,17 @@ export function EditorContent({
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('table')} title="Inserir tabela" aria-label="Inserir tabela"><Table2 size={16} /></button>
         </div>
         <div className="markdown-toolbar-group" aria-label="Tabela">
-          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('addRow')} title="Adicionar linha a tabela" aria-label="Adicionar linha a tabela"><Plus size={16} /></button>
+          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('addRow')} title="Adicionar linha à tabela" aria-label="Adicionar linha à tabela"><Plus size={16} /></button>
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('removeRow')} title="Remover linha da tabela" aria-label="Remover linha da tabela"><Minus size={16} /></button>
-          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('addColumn')} title="Adicionar coluna a tabela" aria-label="Adicionar coluna a tabela"><Plus size={14} /><Table2 size={13} /></button>
+          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('addColumn')} title="Adicionar coluna à tabela" aria-label="Adicionar coluna à tabela"><Plus size={14} /><Table2 size={13} /></button>
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => applyMarkdownTableAction('removeColumn')} title="Remover coluna da tabela" aria-label="Remover coluna da tabela"><Minus size={14} /><Table2 size={13} /></button>
         </div>
         <div className="markdown-toolbar-group" aria-label="Blocos">
-          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('code')} title="Codigo inline" aria-label="Codigo inline"><Code2 size={16} /></button>
-          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('codeBlock')} title="Bloco de codigo" aria-label="Bloco de codigo"><Quote size={16} /></button>
+          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('code')} title="Código inline" aria-label="Código inline"><Code2 size={16} /></button>
+          <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('codeBlock')} title="Bloco de código" aria-label="Bloco de código"><Quote size={16} /></button>
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('divider')} title="Divisor" aria-label="Divisor"><Minus size={16} /></button>
         </div>
-        <div className="markdown-toolbar-group" aria-label="Insercao">
+        <div className="markdown-toolbar-group" aria-label="Inserção">
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => void insertAttachment()} title="Anexar arquivo" aria-label="Anexar arquivo"><Paperclip size={16} /></button>
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => setShowNoteLinkDialog(true)} title="Inserir link para nota" aria-label="Inserir link para nota"><Link size={16} /></button>
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => setShowTagDialog(true)} title="Inserir tag" aria-label="Inserir tag"><Hash size={16} /></button>

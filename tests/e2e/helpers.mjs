@@ -102,9 +102,9 @@ export async function openContextMenu(element) {
 }
 
 export async function selectEditorMode(modeElement, mode) {
-  // O controle de modo e um grupo de radios (Edicao/Misto/Leitura): clica
+  // O controle de modo e um grupo de radios (Edição/Misto/Leitura): clica
   // no radio correspondente.
-  const labels = { edit: 'Edicao', mixed: 'Misto', read: 'Leitura' }
+  const labels = { edit: 'Edição', mixed: 'Misto', read: 'Leitura' }
   const radio = modeElement.$(`.//button[normalize-space()="${labels[mode]}"]`)
   await expect(radio).toBeDisplayed()
   await radio.click()

@@ -97,7 +97,7 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
         onClick={() => setOpen((current) => !current)}
         aria-expanded={isOpen}
         aria-haspopup="menu"
-        aria-label="Tags associadas a nota"
+        aria-label="Tags associadas à nota"
         title="Adicionar ou remover tags"
       >
         <span>tags:</span>

@@ -137,7 +137,7 @@ export function VaultSelection({
           dismissable={false}
         >
             <p className="card-kicker">Continuar de onde parou</p>
-            <h2 id="recent-vault-title">Usar o ultimo vault?</h2>
+            <h2 id="recent-vault-title">Usar o último vault?</h2>
             <p>
               O MirrorMind encontrou o vault usado anteriormente em{' '}
               <code>{recentVaultPreference.lastVaultPath}</code>.

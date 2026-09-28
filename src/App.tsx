@@ -433,7 +433,7 @@ function App() {
   const [structuralAuditLoading, setStructuralAuditLoading] = useState(false)
   const [structuralAuditError, setStructuralAuditError] = useState<string | null>(null)
   const [structuralAuditAppliedIndex, setStructuralAuditAppliedIndex] = useState<number | null>(null)
-  // Verificacao factual opcional: operacao separada da avaliacao de memoria,
+  // Verificação factual opcional: operacao separada da avaliacao de memoria,
   // informativa, sem alterar a nota nem as pontuacoes.
   const [factCheckOpen, setFactCheckOpen] = useState(false)
   const [factCheck, setFactCheck] = useState<FactCheckAttempt | null>(null)
@@ -1939,7 +1939,7 @@ function App() {
     }
   }
 
-  /** Verificacao factual opcional (separada da avaliacao de memoria): compara
+  /** Verificação factual opcional (separada da avaliacao de memoria): compara
    *  as afirmacoes da nota com o conhecimento do modelo, distingue fatos
    *  confirmados/divergentes/incertos e NUNCA altera a nota nem as pontuacoes. */
   async function runFactCheck() {
@@ -2099,7 +2099,7 @@ function App() {
     } catch {
       if (requestId !== graphLoadRequestRef.current) return
       setGraphDocuments([])
-      setError('Não foi possível carregar as conexoes entre as notas.')
+        setError('Não foi possível carregar as conexões entre as notas.')
     } finally {
       if (requestId === graphLoadRequestRef.current) {
         setGraphLoading(false)
@@ -4215,7 +4215,7 @@ function App() {
           await saveGraphNoteInBackground(source.relativePath, updated, true)
         }
         setGraphDocuments((current) => current.map((document) => document.relativePath === source.relativePath ? { ...document, content: updated } : document))
-        setStatus(`Conexao criada: ${sourceLabel} -> ${targetPath}`)
+        setStatus(`Conexão criada: ${sourceLabel} -> ${targetPath}`)
         return
       }
       const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath: source.relativePath })
@@ -4227,12 +4227,12 @@ function App() {
       }
       await saveGraphNoteInBackground(source.relativePath, updated, false)
       setGraphDocuments((current) => current.map((document) => document.relativePath === source.relativePath ? { ...document, content: updated } : document))
-      setStatus(`Conexao criada: ${sourceLabel} -> ${targetPath}`)
+      setStatus(`Conexão criada: ${sourceLabel} -> ${targetPath}`)
     } catch (caughtError) {
       const message =
-        errorMessage(caughtError, 'Não foi possível criar a conexao.')
+        errorMessage(caughtError, 'Não foi possível criar a conexão.')
       setError(message)
-      setStatus('Falha ao criar a conexao.')
+        setStatus('Falha ao criar a conexão.')
     }
   }
 
@@ -4898,8 +4898,8 @@ function App() {
               </PopoverTrigger>
               <PopoverContent align="end" sideOffset={6} className="structural-audit-scope fact-check-panel">
                 <header className="structural-audit-header">
-                  <strong>Verificacao factual</strong>
-                  <small>Compara as afirmacoes da nota com conhecimento externo — nao altera a nota nem as revisoes.</small>
+                  <strong>Verificação factual</strong>
+                  <small>Compara as afirmações da nota com conhecimento externo — não altera a nota nem as revisões.</small>
                 </header>
                 {factCheckLoading ? (
                   <div className="structural-audit-state">Verificando os fatos…</div>
@@ -4973,7 +4973,7 @@ function App() {
             />
           ) : null}
         </TitleBar>
-        <a className="skip-link" href="#workspace-content">Pular para o conteudo da nota</a>
+        <a className="skip-link" href="#workspace-content">Pular para o conteúdo da nota</a>
         <WorkspaceRail
           isSidebarExpanded={isSidebarExpanded}
           setSidebarExpanded={setSidebarExpanded}
@@ -5020,7 +5020,7 @@ function App() {
             actions={{ startNewNote, openNote, retryVaultDiagnostics, setShowFolderDialog, setStatus }}
           />
 
-          <section id="workspace-content" className="editor-surface" role="region" aria-label="Conteudo do workspace" tabIndex={-1} data-builder-name="workspace-content-panel">
+          <section id="workspace-content" className="editor-surface" role="region" aria-label="Conteúdo do workspace" tabIndex={-1} data-builder-name="workspace-content-panel">
             {workspacePage === 'notes' ? (
               <>
             {activeNote ? (
@@ -5152,7 +5152,7 @@ function App() {
                 <p className="card-kicker">Workspace pronto</p>
                 <h2>Escolha uma nota ou crie a primeira.</h2>
                 <p>
-                  Assim que uma nota for aberta, esta area vira o editor principal do vault com
+                  Assim que uma nota for aberta, esta área vira o editor principal do vault com
                   salvamento direto em <code>.md</code>.
                 </p>
               </div>
@@ -5383,10 +5383,10 @@ function App() {
             label="Alteração externa detectada"
             className="note-search-modal external-change-modal"
           >            <div className="move-item-heading">
-                <strong>Alteracao externa detectada</strong>
-                <span>A nota <b>{externalNoteConflict.externalNote.name.replace(/\.md$/i, '')}</b> foi modificada fora do MirrorMind enquanto voce tinha um rascunho local.</span>
+                <strong>Alteração externa detectada</strong>
+                <span>A nota <b>{externalNoteConflict.externalNote.name.replace(/\.md$/i, '')}</b> foi modificada fora do MirrorMind enquanto você tinha um rascunho local.</span>
               </div>
-              <p>Escolha qual versao deve permanecer no editor. Nenhuma versao será sobrescrita automaticamente.</p>
+              <p>Escolha qual versão deve permanecer no editor. Nenhuma versão será sobrescrita automaticamente.</p>
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={loadExternalNoteVersion}>Carregar arquivo externo</button>
                 <button type="button" onClick={keepLocalNoteVersion}>Manter meu rascunho</button>
@@ -5488,7 +5488,7 @@ function App() {
             >
                 <div className="move-item-heading">
                   <strong>{specialFileViewer.name}</strong>
-                  <span>Não foi possível ler o arquivo para visualizacao.</span>
+                  <span>Não foi possível ler o arquivo para visualização.</span>
                   <button autoFocus type="button" className="modal-close-button" onClick={() => setSpecialFileViewer(null)} aria-label="Fechar erro de visualização"><X size={15} aria-hidden="true" /></button>
                 </div>
                 <p className="field-error" role="alert">{specialFileViewerError}</p>
@@ -5501,7 +5501,7 @@ function App() {
               className="note-search-modal"
               dismissable={false}
             >
-              <p className="special-files-limit-notice" role="status">Lendo o arquivo para visualizacao...</p>
+              <p className="special-files-limit-notice" role="status">Lendo o arquivo para visualização...</p>
             </Modal>
           )
         ) : null}
@@ -5599,7 +5599,7 @@ function App() {
           <Modal
             open
             onClose={() => setGraphConnectSource(null)}
-            label="Criar conexao no grafo"
+            label="Criar conexão no grafo"
             className="note-search-modal"
           >
               <input autoFocus value={graphConnectQuery} onChange={(event) => setGraphConnectQuery(event.target.value)} placeholder="Buscar nota para conectar" aria-label="Buscar nota para conectar" />
@@ -5607,7 +5607,7 @@ function App() {
                 {graphConnectNotes.map((note) => (
                   <button key={note.relativePath} type="button" onClick={() => void createGraphConnection(graphConnectSource, note)}>{note.relativePath.replace(/\.md$/i, '')}</button>
                 ))}
-                {graphConnectNotes.length === 0 ? <p>Nenhuma outra nota disponivel para conectar.</p> : null}
+                {graphConnectNotes.length === 0 ? <p>Nenhuma outra nota disponível para conectar.</p> : null}
               </div>
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={() => setGraphConnectSource(null)}>Cancelar</button>
@@ -5717,7 +5717,7 @@ function App() {
               </div>
               <label className="delete-confirmation-preference">
                 <input type="checkbox" checked={skipSoftDeleteConfirmation} onChange={(event) => setSkipSoftDeleteConfirmation(event.target.checked)} />
-                Não mostrar esta confirmacao novamente
+                Não mostrar esta confirmação novamente
               </label>
               <div className="folder-dialog-actions">
                 <button type="button" className="secondary-button" onClick={() => setDeleteTarget(null)}>Cancelar</button>

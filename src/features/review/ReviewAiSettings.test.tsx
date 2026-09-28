@@ -156,7 +156,7 @@ describe('ReviewAiSettings', () => {
     renderSettings()
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'openAiCompatible')
-    await user.type(screen.getByLabelText(/Endereco do servidor/), 'https://api.openai.com/v1')
+    await user.type(screen.getByLabelText(/Endereço do servidor/), 'https://api.openai.com/v1')
     await user.type(screen.getByLabelText(/^Modelo$/), 'gpt-4o-mini')
     await user.type(screen.getByLabelText(/Chave da API/), 'sk-secret-key-123')
     await user.click(screen.getByRole('button', { name: 'Salvar servidor' }))

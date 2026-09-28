@@ -848,7 +848,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             <p>O texto será adicionado como citação ao final da nota. Nada é alterado sem sua confirmação.</p>
             <div className="review-abandon-actions">
               <button type="button" className="secondary-button" onClick={() => setKnowledgeSuggestion(null)} disabled={knowledgeBusy} autoFocus>Cancelar</button>
-              <button type="button" className="primary-button" aria-label="Confirmar adicao do conhecimento a nota" onClick={() => void confirmAddKnowledge(knowledgeSuggestion)} disabled={knowledgeBusy}>{knowledgeBusy ? 'Adicionando…' : 'Adicionar'}</button>
+              <button type="button" className="primary-button" aria-label="Confirmação de adição do conhecimento à nota" onClick={() => void confirmAddKnowledge(knowledgeSuggestion)} disabled={knowledgeBusy}>{knowledgeBusy ? 'Adicionando…' : 'Adicionar'}</button>
             </div>
           </section>
         </div>

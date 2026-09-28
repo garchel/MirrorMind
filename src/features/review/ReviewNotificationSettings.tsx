@@ -131,7 +131,7 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
           <label className="settings-toggle">
             <span>
               <strong>Hora do resumo</strong>
-              <small>O resumo e enviado a partir deste horario, enquanto o aplicativo estiver aberto.</small>
+              <small>O resumo é enviado a partir deste horário, enquanto o aplicativo estiver aberto.</small>
             </span>
             <input
               className="review-notification-time"

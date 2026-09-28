@@ -122,7 +122,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
     await expect($('.editor-title-button')).toHaveText('resumo')
     const editorMode = await $('[aria-label="Modo de visualização da nota"]')
     await selectEditorMode(editorMode, 'edit')
-    await expect(editorMode.$('.//button[normalize-space()="Edicao"]')).toHaveAttribute('aria-checked', 'true')
+    await expect(editorMode.$('.//button[normalize-space()="Edição"]')).toHaveAttribute('aria-checked', 'true')
     await waitForEditorText(targetContent)
     await saveEditorText(join(noteDestination, 'resumo.md'), movedTabContent)
 
@@ -160,7 +160,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
     // nao propaga a entrada programatica do WebdriverIO como sujeira).
     const nestedEditorMode = await $('[aria-label="Modo de visualização da nota"]')
     await selectEditorMode(nestedEditorMode, 'edit')
-    await expect(nestedEditorMode.$('.//button[normalize-space()="Edicao"]')).toHaveAttribute('aria-checked', 'true')
+    await expect(nestedEditorMode.$('.//button[normalize-space()="Edição"]')).toHaveAttribute('aria-checked', 'true')
     await waitForEditorText(nestedContent)
     await saveEditorText(finalNestedPath, movedNestedTabContent)
 
@@ -201,7 +201,7 @@ if (phase === 'verify-rename-and-move') describe('Reabrir rename e move', () => 
     await $('[aria-label="Abrir nota resumo"]').click()
     const editorMode = await $('[aria-label="Modo de visualização da nota"]')
     await selectEditorMode(editorMode, 'edit')
-    await expect(editorMode.$('.//button[normalize-space()="Edicao"]')).toHaveAttribute('aria-checked', 'true')
+    await expect(editorMode.$('.//button[normalize-space()="Edição"]')).toHaveAttribute('aria-checked', 'true')
     await waitForEditorText(targetContent)
 
     await $('[aria-label="Pasta arquivo"]').click()

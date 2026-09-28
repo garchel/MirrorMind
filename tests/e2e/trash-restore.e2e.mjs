@@ -73,7 +73,7 @@ if (phase === 'trash-and-restore') describe('Lixeira e restauracao', () => {
     // 3. Restaurar devolve o arquivo ao local original com os mesmos bytes.
     await $('[aria-label="Restaurar item"]').click()
     await waitForFile(noteAPath, (content) => content === contentA, 'A restauracao nao devolveu os bytes originais.')
-    await expect($('.trash-page')).toHaveText(expect.stringContaining('A lixeira esta vazia.'))
+    await expect($('.trash-page')).toHaveText(expect.stringContaining('A lixeira está vazia.'))
 
     // 4. Excluir nota B e criar um novo arquivo no mesmo caminho: a
     // restauracao nao pode sobrescrever o item existente.

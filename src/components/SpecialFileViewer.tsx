@@ -37,7 +37,7 @@ export function SpecialFileViewer({ file, content, onClose }: Props) {
           <button autoFocus type="button" className="modal-close-button" onClick={onClose} aria-label="Fechar visualização do arquivo especial"><span aria-hidden="true">×</span></button>
         </div>
         {summary === null ? (
-          <p className="special-file-viewer-unknown" role="status">Não ha visualização estruturada para este tipo de arquivo.</p>
+          <p className="special-file-viewer-unknown" role="status">Não há visualização estruturada para este tipo de arquivo.</p>
         ) : summary.raw !== null ? (
           <>
             <p className="special-file-viewer-note" role="status">
@@ -60,7 +60,7 @@ export function SpecialFileViewer({ file, content, onClose }: Props) {
               ))}
             </div>
             {summary.canvasNodes.length > 0 ? (
-              <ul className="special-file-viewer-nodes" aria-label="Nos de texto do Canvas">
+              <ul className="special-file-viewer-nodes" aria-label="Nós de texto do Canvas">
                 {summary.canvasNodes.map((node) => (
                   <li key={node.id}>
                     <span className="special-file-viewer-node-type">{node.type}</span>

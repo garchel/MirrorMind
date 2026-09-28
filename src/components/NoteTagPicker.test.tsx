@@ -65,7 +65,7 @@ describe('NoteTagPicker', () => {
     const onApply = vi.fn()
     render(<NoteTagPicker availableTags={[]} onApply={onApply} relativePath="nota.md" tags={[]} vaultPath="C:\\Vault" />)
 
-    await user.click(screen.getByRole('button', { name: 'Tags associadas a nota' }))
+    await user.click(screen.getByRole('button', { name: 'Tags associadas à nota' }))
     await user.click(await screen.findByRole('menuitem', { name: '#estudo' }))
 
     expect(await screen.findByRole('dialog', { name: 'Aplicar #estudo' })).toHaveTextContent('Faça a avaliação da nota antes de aplicar esta tag')
@@ -78,7 +78,7 @@ describe('NoteTagPicker', () => {
     const user = userEvent.setup()
     render(<NoteTagPicker availableTags={['existente']} onApply={vi.fn()} relativePath="nota.md" tags={[]} vaultPath="C:\\Vault" />)
 
-    await user.click(screen.getByRole('button', { name: 'Tags associadas a nota' }))
+    await user.click(screen.getByRole('button', { name: 'Tags associadas à nota' }))
     expect(await screen.findByRole('menu', { name: 'Tags existentes' })).toBeInTheDocument()
 
     await user.click(document.body)
@@ -91,7 +91,7 @@ describe('NoteTagPicker', () => {
 
     render(<NoteTagPicker availableTags={['existente']} onApply={vi.fn()} relativePath="nota.md" tags={[]} vaultPath="C:\\Vault" />)
 
-    await user.click(screen.getByRole('button', { name: 'Tags associadas a nota' }))
+    await user.click(screen.getByRole('button', { name: 'Tags associadas à nota' }))
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: '#existente' })).not.toBeInTheDocument()

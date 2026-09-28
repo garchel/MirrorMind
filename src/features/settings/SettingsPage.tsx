@@ -223,9 +223,9 @@ export function SettingsPage({
             <label className="settings-toggle">
               <span>
                 <strong>Fonte do editor e da leitura</strong>
-                <small>Familia aplicada aos modos Edicao, Misto e Leitura.</small>
+                <small>Família aplicada aos modos Edição, Misto e Leitura.</small>
               </span>
-              <select className="settings-select" value={editorFontFamily} onChange={(event) => setEditorFontFamily(event.target.value as EditorFontFamily)} aria-label="Familia da fonte do editor e da leitura">
+              <select className="settings-select" value={editorFontFamily} onChange={(event) => setEditorFontFamily(event.target.value as EditorFontFamily)} aria-label="Família da fonte do editor e da leitura">
                 {FONT_FAMILIES.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
@@ -258,7 +258,7 @@ export function SettingsPage({
             ) : null}
             <label className="settings-toggle">
               <span>
-                <strong>Limite do historico</strong>
+                <strong>Limite do histórico</strong>
                 <small>Acoes de desfazer/refazer mantidas por nota no editor ({DEFAULT_HISTORY_LIMIT} por padrao).</small>
               </span>
               <input
@@ -283,7 +283,7 @@ export function SettingsPage({
             <label className="settings-toggle">
               <span>
                 <strong>Auto Save</strong>
-              <small>Salva apos uma breve pausa na digitacao, sem interromper a edicao.</small>
+              <small>Salva após uma breve pausa na digitação, sem interromper a edição.</small>
             </span>
             <input
               type="checkbox"
@@ -318,7 +318,7 @@ export function SettingsPage({
           <label className="settings-toggle">
             <span>
               <strong>Cor do texto no hover das abas</strong>
-              <small>Define a cor do título e do icone de fechar enquanto uma aba esta em hover.</small>
+              <small>Define a cor do título e do ícone de fechar enquanto uma aba está em hover.</small>
             </span>
             <input
               type="color"
@@ -333,7 +333,7 @@ export function SettingsPage({
             <label className="settings-toggle">
               <span>
                 <strong>Fonte de leitura</strong>
-                <small>Aplica a familia tipografica escolhida no modo Leitura.</small>
+                <small>Aplica a família tipográfica escolhida no modo Leitura.</small>
               </span>
               <select className="settings-select" value={readingFont} onChange={(event) => setReadingFont(event.target.value as ReadingFont)} aria-label="Fonte de leitura">
                 <option value="sans">Sans serif</option>
@@ -344,7 +344,7 @@ export function SettingsPage({
             <label className="settings-toggle">
               <span>
                 <strong>Largura da leitura</strong>
-                <small>Controla a medida da coluna de conteudo no modo Leitura.</small>
+                <small>Controla a medida da coluna de conteúdo no modo Leitura.</small>
               </span>
               <select className="settings-select" value={readingWidth} onChange={(event) => setReadingWidth(event.target.value as ReadingWidth)} aria-label="Largura da leitura">
                 <option value="compact">Compacta</option>
@@ -355,21 +355,21 @@ export function SettingsPage({
             <label className="settings-toggle">
               <span>
                 <strong>Quebra de linha</strong>
-                <small>Desative para manter linhas longas em uma unica linha no modo Leitura.</small>
+                <small>Desative para manter linhas longas em uma única linha no modo Leitura.</small>
               </span>
               <input type="checkbox" checked={isReadingLineWrapEnabled} onChange={(event) => setReadingLineWrapEnabled(event.target.checked)} />
             </label>
             <label className="settings-toggle">
               <span>
-                <strong>Corretor ortografico</strong>
-                <small>Usa o corretor nativo do sistema nos modos Edicao e Misto.</small>
+                <strong>Corretor ortográfico</strong>
+                <small>Usa o corretor nativo do sistema nos modos Edição e Misto.</small>
               </span>
               <input type="checkbox" checked={isSpellCheckEnabled} onChange={(event) => setSpellCheckEnabled(event.target.checked)} />
             </label>
           </div>
           <div className="settings-section" id="settings-atalhos" aria-labelledby="shortcuts-preferences-title">
             <p className="card-kicker" id="shortcuts-preferences-title">Atalhos</p>
-            <p className="settings-section-description">Selecione um campo e pressione a nova combinacao de teclas.</p>
+            <p className="settings-section-description">Selecione um campo e pressione a nova combinação de teclas.</p>
             <div className="shortcut-settings">
               <label>
                 <span>
@@ -389,7 +389,7 @@ export function SettingsPage({
               <label>
                 <span>
                   <strong>Salvar nota</strong>
-                  <small>Salva as alteracoes da nota aberta.</small>
+                  <small>Salva as alterações da nota aberta.</small>
                 </span>
                 <input
                   value={shortcuts.saveNote}
@@ -403,8 +403,8 @@ export function SettingsPage({
               </label>
               <label>
                 <span>
-                  <strong>Alternar modo de visualizacao</strong>
-                  <small>Alterna entre os modos Misto, Edicao e Leitura.</small>
+                  <strong>Alternar modo de visualização</strong>
+                  <small>Alterna entre os modos Misto, Edição e Leitura.</small>
                 </span>
                 <input
                   value={shortcuts.cycleNoteViewMode}
@@ -419,7 +419,7 @@ export function SettingsPage({
               <label>
                 <span>
                   <strong>Abrir nota existente</strong>
-                  <small>Abre a busca rapida de notas do vault.</small>
+                  <small>Abre a busca rápida de notas do vault.</small>
                 </span>
                 <input
                   value={shortcuts.openNote}
@@ -472,7 +472,7 @@ export function SettingsPage({
             <p className="card-kicker" id="graph3d-preferences-title">Grafo 3D</p>
             <label className="settings-toggle">
               <span>
-                <strong>Tamanho dos nos</strong>
+                <strong>Tamanho dos nós</strong>
                 <small>Raio base dos orbes 3D no grafo.</small>
               </span>
               <input
@@ -483,13 +483,13 @@ export function SettingsPage({
                 step={0.05}
                 value={graph3dNodeSize}
                 onChange={(event) => setGraph3dNodeSize(updateNumberSetting(event.target.value, graph3dNodeSize, 0.2, 3))}
-                aria-label="Tamanho dos nos no grafo 3D"
+                aria-label="Tamanho dos nós no grafo 3D"
               />
             </label>
             <label className="settings-toggle">
               <span>
-                <strong>Distancia entre nos</strong>
-                <small>Raio das orbitas dos eletrons ao redor do elemento com mais conexoes.</small>
+                <strong>Distância entre nós</strong>
+                <small>Raio das órbitas dos elétrons ao redor do elemento com mais conexões.</small>
               </span>
               <input
                 className="settings-number"
@@ -499,13 +499,13 @@ export function SettingsPage({
                 step={0.5}
                 value={graph3dNodeSpacing}
                 onChange={(event) => setGraph3dNodeSpacing(updateNumberSetting(event.target.value, graph3dNodeSpacing, 2, 20))}
-                aria-label="Distancia entre nos no grafo 3D"
+                aria-label="Distância entre nós no grafo 3D"
               />
             </label>
             <label className="settings-toggle">
               <span>
-                <strong>Velocidade de orbitacao</strong>
-                <small>Multiplicador da velocidade com que os eletrons orbitam o nucleo.</small>
+                <strong>Velocidade de orbitação</strong>
+                <small>Multiplicador da velocidade com que os elétrons orbitam o núcleo.</small>
               </span>
               <input
                 className="settings-number"
@@ -520,8 +520,8 @@ export function SettingsPage({
             </label>
             <label className="settings-toggle">
               <span>
-                <strong>Tamanho maximo das arestas</strong>
-                <small>Distancia maxima entre nos conectados; alem dela, a aresta puxa os extremos de volta.</small>
+                <strong>Tamanho máximo das arestas</strong>
+                <small>Distância máxima entre nós conectados; além dela, a aresta puxa os extremos de volta.</small>
               </span>
               <input
                 className="settings-number"
@@ -531,13 +531,13 @@ export function SettingsPage({
                 step={1}
                 value={graph3dMaxEdgeLength}
                 onChange={(event) => setGraph3dMaxEdgeLength(updateNumberSetting(event.target.value, graph3dMaxEdgeLength, 4, 40))}
-                aria-label="Tamanho maximo das arestas no grafo 3D"
+                aria-label="Tamanho máximo das arestas no grafo 3D"
               />
             </label>
             <label className="settings-toggle">
               <span>
-                <strong>Tamanho minimo das arestas</strong>
-                <small>Distancia minima entre nos conectados; abaixo dela, a aresta empurra os extremos para longe.</small>
+                <strong>Tamanho mínimo das arestas</strong>
+                <small>Distância mínima entre nós conectados; abaixo dela, a aresta empurra os extremos para longe.</small>
               </span>
               <input
                 className="settings-number"
@@ -547,13 +547,13 @@ export function SettingsPage({
                 step={0.5}
                 value={graph3dMinEdgeLength}
                 onChange={(event) => setGraph3dMinEdgeLength(updateNumberSetting(event.target.value, graph3dMinEdgeLength, 0, 30))}
-                aria-label="Tamanho minimo das arestas no grafo 3D"
+                aria-label="Tamanho mínimo das arestas no grafo 3D"
               />
             </label>
             <label className="settings-toggle">
               <span>
-                <strong>Fator de aumento por conexao</strong>
-                <small>Quanto cada conexao adicional aumenta o raio do no.</small>
+                <strong>Fator de aumento por conexão</strong>
+                <small>Quanto cada conexão adicional aumenta o raio do nó.</small>
               </span>
               <input
                 className="settings-number"
@@ -563,17 +563,17 @@ export function SettingsPage({
                 step={0.01}
                 value={graph3dDegreeGrowth}
                 onChange={(event) => setGraph3dDegreeGrowth(updateNumberSetting(event.target.value, graph3dDegreeGrowth, 0, 1))}
-                aria-label="Fator de aumento por conexao no grafo 3D"
+                aria-label="Fator de aumento por conexão no grafo 3D"
               />
             </label>
           </div>
           <div className="settings-section" id="settings-grafo2d" aria-labelledby="graph2d-preferences-title">
             <p className="card-kicker" id="graph2d-preferences-title">Grafo 2D</p>
-            <p className="settings-section-description">Forcas da simulacao do grafo 2D, no modelo do Obsidian: repulsao 1/distancia² entre nos, molas das arestas (rigidez e descanso), amortecimento da velocidade e atracao ao anel central.</p>
+            <p className="settings-section-description">Forças da simulação do grafo 2D, no modelo do Obsidian: repulsão 1/distância² entre nós, molas das arestas (rigidez e descanso), amortecimento da velocidade e atração ao anel central.</p>
             <label className="settings-toggle">
               <span>
-                <strong>Repulsao</strong>
-                <small>Forca com que os nos se repelem entre si (inversa ao quadrado da distancia).</small>
+                <strong>Repulsão</strong>
+                <small>Força com que os nós se repelem entre si (inversa ao quadrado da distância).</small>
               </span>
               <input
                 className="settings-number"
@@ -581,13 +581,13 @@ export function SettingsPage({
                 step={50}
                 value={graph2dRepulsionStrength}
                 onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, -Infinity, Infinity))}
-                aria-label="Forca de repulsao dos nos no grafo 2D"
+                aria-label="Força de repulsão dos nós no grafo 2D"
               />
             </label>
             <label className="settings-toggle">
               <span>
                 <strong>Rigidez da mola</strong>
-                <small>Forca das arestas por unidade de distancia alem do descanso.</small>
+                <small>Força das arestas por unidade de distância além do descanso.</small>
               </span>
               <input
                 className="settings-number"
@@ -614,8 +614,8 @@ export function SettingsPage({
             </label>
             <label className="settings-toggle">
               <span>
-                <strong>Distancia do link</strong>
-                <small>Comprimento de descanso das molas entre nos conectados.</small>
+                <strong>Distância do link</strong>
+                <small>Comprimento de descanso das molas entre nós conectados.</small>
               </span>
               <input
                 className="settings-number"
@@ -623,13 +623,13 @@ export function SettingsPage({
                 step={0.5}
                 value={graph2dLinkDistance}
                 onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, -Infinity, Infinity))}
-                aria-label="Distancia do link no grafo 2D"
+                aria-label="Distância do link no grafo 2D"
               />
             </label>
             <label className="settings-toggle">
               <span>
-                <strong>Forca central</strong>
-                <small>Atracao ao anel no meio do grafo; nos dentro do anel ficam soltos.</small>
+                <strong>Força central</strong>
+                <small>Atração ao anel no meio do grafo; nós dentro do anel ficam soltos.</small>
               </span>
               <input
                 className="settings-number"
@@ -637,7 +637,7 @@ export function SettingsPage({
                 step={5}
                 value={graph2dCenterForce}
                 onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))}
-                aria-label="Forca central do grafo 2D"
+                aria-label="Força central do grafo 2D"
               />
             </label>
           </div>
@@ -645,8 +645,8 @@ export function SettingsPage({
             <p className="card-kicker" id="review-gap-preferences-title">Revisão</p>
             <label className="settings-toggle">
               <span>
-                <strong>Lacunas da ultima revisao no editor</strong>
-                <small>Como destacar os trechos esquecidos ou confundidos na nota, usando o resultado mais recente. O Markdown nunca e modificado.</small>
+                <strong>Lacunas da última revisão no editor</strong>
+                <small>Como destacar os trechos esquecidos ou confundidos na nota, usando o resultado mais recente. O Markdown nunca é modificado.</small>
               </span>
               <select
                 className="settings-select"

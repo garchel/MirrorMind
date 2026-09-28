@@ -193,7 +193,7 @@ export function EditorHeader({
                 void saveActiveNote()
               }
             }}
-            placeholder="Titulo da nota"
+            placeholder="Título da nota"
             aria-label="Título da nova nota"
             autoComplete="off"
             spellCheck={false}
@@ -268,7 +268,7 @@ export function EditorHeader({
         />
       </div>
       <div className="editor-actions" ref={headerActionsRef}>
-        <div className="history-actions" aria-label="Histórico de edicao">
+        <div className="history-actions" aria-label="Histórico de edição">
           <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void undoLastCommand()} disabled={!canUndoActiveEditor || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
           <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void redoLastCommand()} disabled={!canRedoActiveEditor || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
         </div>
@@ -319,8 +319,8 @@ export function EditorHeader({
             className={`editor-mode-button${editorMode === 'edit' ? ' is-active' : ''}`}
             onClick={() => changeEditorMode('edit')}
             aria-checked={editorMode === 'edit'}
-            title="Edicao: mostra o Markdown puro"
-          >Edicao</button>
+            title="Edição: mostra o Markdown puro"
+          >Edição</button>
           <button
             type="button"
             role="radio"

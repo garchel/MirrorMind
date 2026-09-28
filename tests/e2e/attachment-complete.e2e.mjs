@@ -114,7 +114,7 @@ if (phase === 'attachment-complete') describe('Anexo completo', () => {
     // onde o embed inserido pelo drop vai parar). O modo Edicao propaga a
     // digitacao programatica como sujeira (o Misto nao).
     const editorMode = await $('[aria-label="Modo de visualização da nota"]')
-    const editButton = editorMode.$('.//button[normalize-space()="Edicao"]')
+    const editButton = editorMode.$('.//button[normalize-space()="Edição"]')
     await expect(editButton).toBeDisplayed()
     await editButton.click()
     await expect(editButton).toHaveAttribute('aria-checked', 'true')

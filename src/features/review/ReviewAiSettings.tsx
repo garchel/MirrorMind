@@ -275,7 +275,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
             </dl>
           ) : null}
           <label className="review-ai-key-field" htmlFor="openai-compatible-base-url">
-            <span>Endereco do servidor</span>
+            <span>Endereço do servidor</span>
             <input
               id="openai-compatible-base-url"
               type="text"
@@ -356,7 +356,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
         </div>
         {comparisonError ? <p className="field-error" role="alert">{comparisonError}</p> : null}
         {comparison ? (
-          <div className="review-ai-comparison-report" role="region" aria-label="Relatorio de divergencia">
+          <div className="review-ai-comparison-report" role="region" aria-label="Relatório de divergência">
             <dl>
               <div><dt>Cenario</dt><dd>{comparison.noteWords} palavras · {comparison.questionCount} perguntas · respostas fixas</dd></div>
               {comparison.scoreDelta !== null ? (
@@ -395,9 +395,9 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
       {usage ? (
         <dl className="review-ai-usage">
           <div><dt>Chamadas de IA hoje</dt><dd>{usage.totalCalls} de {usage.maxCallsPerDay}{usage.exceeded ? ' (orçamento atingido)' : ''}</dd></div>
-          <div><dt>Nos ultimos 60s</dt><dd>{usage.callsInMinute} de {usage.maxCallsPerMinute}</dd></div>
+          <div><dt>Nos últimos 60s</dt><dd>{usage.callsInMinute} de {usage.maxCallsPerMinute}</dd></div>
           <div><dt>Custo estimado hoje</dt><dd>US$ {usage.estimatedCostUsd.toFixed(2)}</dd></div>
-          <div><dt>Descricoes de imagem hoje</dt><dd>{usage.visionCalls} (visao — contadas no orcamento antes do envio)</dd></div>
+          <div><dt>Descrições de imagem hoje</dt><dd>{usage.visionCalls} (visao — contadas no orcamento antes do envio)</dd></div>
           <div><dt>Custo estimado no mês</dt><dd>US$ {usage.estimatedCostUsdMonth.toFixed(2)} de US$ {usage.maxCostPerMonthUsd.toFixed(2)}{usage.monthlyExceeded ? ' (orçamento mensal atingido)' : ''}</dd></div>
           {usage.providerCalls.map((entry) => (
             <div key={entry.provider}><dt>Provedor {entry.provider}</dt><dd>{entry.calls}</dd></div>
