@@ -781,6 +781,17 @@ function App() {
   useEscapeToClose(Boolean(specialFileViewer), () => setSpecialFileViewer(null))
 
   const isDirty = activeNote !== null && draftContent !== activeNote.content
+  // Parse único do rascunho por mudança de conteúdo: corpo, tags e
+  // propriedades saem de um só useMemo (antes eram 3-5 parses por render,
+  // incluindo renders sem digitação — hover, timers, popovers).
+  const parsedDraft = useMemo(() => ({
+    body: getMarkdownBody(draftContent),
+    tags: extractMarkdownTags(draftContent),
+    properties: getMarkdownFrontmatterProperties(draftContent),
+  }), [draftContent])
+  const noteBody = parsedDraft.body
+  const noteTags = parsedDraft.tags
+  const frontmatterProperties = parsedDraft.properties
   // Lacunas da ultima revisao para o motor unico (modo Leitura = Misto
   // read-only): mesma condicao do classico — desliga com o modo 'off' ou com
   // a nota editada (offsets ficam obsoletos). `bodyOffset` desloca os offsets
@@ -790,12 +801,9 @@ function App() {
       gaps: reviewGaps,
       units: reviewUnits,
       enabled: true,
-      bodyOffset: draftContent.length - getMarkdownBody(draftContent).length,
+      bodyOffset: draftContent.length - noteBody.length,
     }
     : null
-  const noteTags = extractMarkdownTags(draftContent)
-  const frontmatterProperties = getMarkdownFrontmatterProperties(draftContent)
-  const noteBody = getMarkdownBody(draftContent)
   // Post-its: estado e logica moram em features/postits/usePostitPopover (a
   // chamada fica aqui porque as deps — draft, corpo, modo, refs do editor —
   // sao deste componente). A desestruturacao mantem os nomes, entao o JSX e
@@ -1719,16 +1727,21 @@ function App() {
 
     try {
       // Varredura unificada: uma unica passagem no backend produz notas,
-      // pastas, anexos e arquivos especiais.
-      const inventory = parseVaultInventory(await invoke<unknown>('scan_vault_inventory', { path: vaultPath }))
+      // pastas, anexos e arquivos especiais. As consultas independentes
+      // (tags, favoritos, templates) rodam em paralelo com o scan em vez
+      // de em serie — o tempo total vira o maximo, nao a soma.
+      const [inventoryPayload, nextTagIndex, nextFavorites, nextTemplates] = await Promise.all([
+        invoke<unknown>('scan_vault_inventory', { path: vaultPath }),
+        invoke<TagSummary[]>('get_tag_index', { path: vaultPath }),
+        invoke<string[]>('list_favorites', { path: vaultPath }),
+        invoke<NoteTemplate[]>('list_templates', { path: vaultPath }),
+      ])
+      const inventory = parseVaultInventory(inventoryPayload)
       const nextNotes = inventory.notes
       const nextFolders = inventory.folders
-      const nextTagIndex = await invoke<TagSummary[]>('get_tag_index', { path: vaultPath })
       const nextAttachments = inventory.attachments
       const nextSpecialInventory = inventory.specialFiles
       const nextSpecialFiles = nextSpecialInventory.files
-      const nextFavorites = await invoke<string[]>('list_favorites', { path: vaultPath })
-      const nextTemplates = await invoke<NoteTemplate[]>('list_templates', { path: vaultPath })
       setNotes(nextNotes)
       setFolders(nextFolders)
       setTagIndex(nextTagIndex)
@@ -4377,7 +4390,6 @@ function App() {
     const query = noteLinkQuery.trim().toLowerCase()
     return notes.filter((note) => note.relativePath !== activePath && note.relativePath.toLowerCase().includes(query))
   }, [vault, notes, activeNote, noteLinkQuery])
-  const activeTags = useMemo(() => extractMarkdownTags(draftContent), [draftContent])
   const compatibilityNotes = useMemo(
     () => detectUnsupportedMarkdownFeatures(draftContent).map((feature) => COMPATIBILITY_NOTES[feature] ?? feature),
     [draftContent],
@@ -4422,6 +4434,28 @@ function App() {
     if (!vault) return []
     return graphDocuments.filter((document) => (allGraphDegreeByPath[document.relativePath] ?? 0) === 0)
   }, [vault, graphDocuments, allGraphDegreeByPath])
+  // Adjacência (ida e volta) e índice por caminho: BFS, vizinhos do hover e
+  // chips do drawer saem de O(1) em vez de varrer todos os links/notas.
+  const graphAdjacency = useMemo(() => {
+    const adjacency = new Map<string, Set<string>>()
+    const link = (from: string, to: string) => {
+      let neighbors = adjacency.get(from)
+      if (!neighbors) {
+        neighbors = new Set<string>()
+        adjacency.set(from, neighbors)
+      }
+      neighbors.add(to)
+    }
+    for (const { source, target } of allGraphLinks) {
+      link(source, target)
+      link(target, source)
+    }
+    return adjacency
+  }, [allGraphLinks])
+  const graphDocByPath = useMemo(
+    () => new Map(graphDocuments.map((document) => [document.relativePath, document] as const)),
+    [graphDocuments],
+  )
   const localGraphCenterPath = focusedGraphPath ?? activeNote?.relativePath ?? null
   // Grafo local por profundidade: BFS a partir do centro ate `graphLocalDepth`
   // saltos; `localGraphBeyond` sao as notas alcancaveis alem dessa profundidade
@@ -4435,22 +4469,20 @@ function App() {
     for (let hop = 1; hop <= graphLocalDepth; hop += 1) {
       const nextLevel = new Set<string>()
       for (const node of frontier) {
-        for (const link of allGraphLinks) {
-          if (link.source === node && !reached.has(link.target)) nextLevel.add(link.target)
-          else if (link.target === node && !reached.has(link.source)) nextLevel.add(link.source)
+        for (const neighbor of graphAdjacency.get(node) ?? []) {
+          if (!reached.has(neighbor)) nextLevel.add(neighbor)
         }
       }
       for (const path of nextLevel) reached.add(path)
       frontier = [...nextLevel]
     }
     for (const node of frontier) {
-      for (const link of allGraphLinks) {
-        if (link.source === node && !reached.has(link.target)) beyond.add(link.target)
-        else if (link.target === node && !reached.has(link.source)) beyond.add(link.source)
+      for (const neighbor of graphAdjacency.get(node) ?? []) {
+        if (!reached.has(neighbor)) beyond.add(neighbor)
       }
     }
     return { localGraphReached: reached, localGraphBeyond: beyond }
-  }, [vault, localGraphCenterPath, graphLocalDepth, allGraphLinks])
+  }, [vault, localGraphCenterPath, graphLocalDepth, allGraphLinks, graphAdjacency])
   const localGraphPaths = localGraphReached
   const graphFolders = useMemo(() => {
     if (!vault) return []
@@ -4484,10 +4516,10 @@ function App() {
   )
   // Notas que referenciam a selecionada (para os chips clicaveis no drawer).
   const focusedIncomingNotes = useMemo(() => focusedIncomingLinks
-    .map((link) => graphDocuments.find((document) => document.relativePath === link.source))
+    .map((link) => graphDocByPath.get(link.source))
     .filter((document): document is GraphDocument => document !== undefined)
     .sort((left, right) => left.relativePath.localeCompare(right.relativePath)),
-  [focusedIncomingLinks, graphDocuments])
+  [focusedIncomingLinks, graphDocByPath])
   const visibleGraphDocuments = useMemo(() => {
     if (!vault) return []
     return graphDocuments.filter((document) => {
@@ -4503,6 +4535,65 @@ function App() {
     () => new Set(visibleGraphDocuments.map((document) => document.relativePath)),
     [visibleGraphDocuments],
   )
+  // Derivação pesada do grafo memoizada FORA do `if (vault)` (hooks não
+  // podem viver no ramo condicional): só recalcula quando docs, links ou
+  // filtros mudam — nunca por tecla digitada. Posições/culling/centros
+  // ficam no render porque leem refs vivas da física a cada frame.
+  // (Adjacência e índice por caminho moram junto aos memos acima, antes
+  // do BFS que os consome.)
+  const graphFilterActive = graphFolder !== '' || graphTag !== ''
+  const graphFilterMatchPaths: Set<string> | null = useMemo(() => {
+    if (!vault || !graphFilterActive) return null
+    return new Set(
+      graphDocuments
+        .filter((document) => (!graphFolder || document.relativePath.startsWith(`${graphFolder}/`))
+          && (!graphTag || graphTagIndex.tagsOf(document.relativePath).includes(graphTag)))
+        .map((document) => document.relativePath),
+    )
+  }, [vault, graphFilterActive, graphDocuments, graphFolder, graphTag])
+  const graphDimmedPaths: Set<string> | null = useMemo(() => {
+    if (!vault || graphFilterMatchPaths === null) return null
+    return new Set(
+      graphDocuments
+        .map((document) => document.relativePath)
+        .filter((path) => !graphFilterMatchPaths.has(path)),
+    )
+  }, [vault, graphFilterMatchPaths, graphDocuments])
+  const graphLinks = useMemo(
+    () => allGraphLinks.filter((link) => visibleGraphPaths.has(link.source) && visibleGraphPaths.has(link.target)),
+    [allGraphLinks, visibleGraphPaths],
+  )
+  const graphDegreeByPath = useMemo(() => graphLinks.reduce<Record<string, number>>((degrees, link) => {
+    degrees[link.source] = (degrees[link.source] ?? 0) + 1
+    degrees[link.target] = (degrees[link.target] ?? 0) + 1
+    return degrees
+  }, {}), [graphLinks])
+  const graphHoverNeighbors = useMemo(() => {
+    if (graphHoverPath === null) return null
+    const neighbors = new Set([graphHoverPath])
+    for (const neighbor of graphAdjacency.get(graphHoverPath) ?? []) neighbors.add(neighbor)
+    return neighbors
+  }, [graphHoverPath, graphAdjacency])
+  // Tipo de agrupamento ativo: pasta tem prioridade sobre tag.
+  const graphGroupingKind: 'folder' | 'tag' | null = graphGroupByFolder
+    ? 'folder'
+    : graphGroupByTag
+      ? 'tag'
+      : null
+  // Mapas de grupos (pasta ou tag) para legenda, cores e exportacao
+  // (somente com o agrupamento ativo; null economiza o calculo no uso diario).
+  const graphGroupMaps = useMemo(() => {
+    if (!vault || !graphGroupingKind) return null
+    return buildGroupMaps(graphDocuments, {
+      kind: graphGroupingKind,
+      tagsOfPath: (path) => graphTagIndexRef.current.tagsOf(path),
+      primaryTag: graphPrimaryTag || undefined,
+      colorOverrides: graphColorOverrides,
+    })
+  }, [vault, graphGroupingKind, graphDocuments, graphPrimaryTag, graphColorOverrides])
+  const graphExportLegend = useMemo(() => graphGroupMaps
+    ? graphGroupMaps.groups.map((group) => ({ label: group.label, color: group.color }))
+    : [], [graphGroupMaps])
 
   if (vault) {
     const graphTags = graphTagIndex.allTags()
@@ -4511,33 +4602,7 @@ function App() {
     // simulação nunca mudam por causa dele. Sem useMemo aqui: este bloco
     // roda num ramo condicional da página do grafo (hooks quebrariam).
     // A estabilidade para o 3D é garantida por chave de conteúdo lá dentro.
-    const graphFilterActive = graphFolder !== '' || graphTag !== ''
-    const graphFilterMatchPaths: Set<string> | null = !graphFilterActive ? null : new Set(
-      graphDocuments
-        .filter((document) => (!graphFolder || document.relativePath.startsWith(`${graphFolder}/`))
-          && (!graphTag || graphTagIndex.tagsOf(document.relativePath).includes(graphTag)))
-        .map((document) => document.relativePath),
-    )
-    const graphDimmedPaths: Set<string> | null = graphFilterMatchPaths === null ? null : new Set(
-      graphDocuments
-        .map((document) => document.relativePath)
-        .filter((path) => !graphFilterMatchPaths.has(path)),
-    )
-    const graphLinks = allGraphLinks.filter((link) => visibleGraphPaths.has(link.source) && visibleGraphPaths.has(link.target))
-    const graphDegreeByPath = graphLinks.reduce<Record<string, number>>((degrees, link) => {
-      degrees[link.source] = (degrees[link.source] ?? 0) + 1
-      degrees[link.target] = (degrees[link.target] ?? 0) + 1
-      return degrees
-    }, {})
-    // Vizinhança direta do no em hover: destacar as arestas e esmaecer os
-    // nos sem conexao direta com ele.
-    const graphHoverNeighbors = graphHoverPath
-      ? new Set([
-          graphHoverPath,
-          ...graphLinks.filter((link) => link.source === graphHoverPath).map((link) => link.target),
-          ...graphLinks.filter((link) => link.target === graphHoverPath).map((link) => link.source),
-        ])
-      : null
+    // (Filtros, links, graus e vizinhos vêm dos memos acima do `if`.)
     const graphNodePositions = graphDocuments.reduce<Record<string, GraphPosition>>((positions, document, index) => {
       // Posicoes da simulacao ativa (lidas do mapa vivo em graphPhysicsRef,
       // ou do worker de layout quando o ambiente roda fora da thread) tem
@@ -4572,15 +4637,9 @@ function App() {
     })
     const graphRenderedPaths = new Set(renderedGraphDocuments.map((document) => document.relativePath))
     const graphIsSummarized = renderedGraphDocuments.length < visibleGraphDocuments.length
-    // Tipo de agrupamento ativo: pasta tem prioridade sobre tag.
-    const graphGroupingKind: 'folder' | 'tag' | null = graphGroupByFolder
-      ? 'folder'
-      : graphGroupByTag
-        ? 'tag'
-        : null
     // Centros dos grupos (pasta ou tag) para a mola da fisica 2D: atualizado
     // no render com o conjunto visivel atual; a fisica le em
-    // graphGroupCentersRef.
+    // graphGroupCentersRef. (Tipo, mapas e legenda vêm dos memos acima.)
     graphGroupCentersRef.current = graphGroupingKind && !graphMode3d
       ? buildGraph2dGroupCentersForGroups(buildGraphGroups(visibleGraphDocuments, {
           kind: graphGroupingKind,
@@ -4588,20 +4647,6 @@ function App() {
           primaryTag: graphPrimaryTag || undefined,
         }))
       : null
-    // Mapas de grupos (pasta ou tag) para legenda, cores e exportacao
-    // (somente com o agrupamento ativo; null economiza o calculo no uso diario).
-    const graphGroupMaps = graphGroupingKind
-      ? buildGroupMaps(graphDocuments, {
-          kind: graphGroupingKind,
-          tagsOfPath: (path) => graphTagIndexRef.current.tagsOf(path),
-          primaryTag: graphPrimaryTag || undefined,
-          colorOverrides: graphColorOverrides,
-        })
-      : null
-
-    const graphExportLegend = graphGroupMaps
-      ? graphGroupMaps.groups.map((group) => ({ label: group.label, color: group.color }))
-      : []
 
     /** Monta o SVG do grafo 2D atual (posicoes percentuais -> pixels). */
     function buildGraph2dSvg(): string | null {
@@ -4776,7 +4821,7 @@ function App() {
                   sourceRevision={activeNote.content}
                   isDirty={isDirty}
                   disabled={loading || saving}
-                  noteTags={activeTags}
+                  noteTags={noteTags}
                   onApplyTag={applyReviewProfileTag}
                   onStatusChange={setNoteReadiness}
                   onStartReview={(info) => void handleStartReviewNow(info)}
