@@ -28,6 +28,9 @@
     }
   },
   "plugins": {
+    "deep-link": {
+      "desktop": { "schemes": ["mirrormind"] }
+    },
     "updater": {
       "endpoints": [
         "https://github.com/garchel/MirrorMind/releases/latest/download/latest.json"

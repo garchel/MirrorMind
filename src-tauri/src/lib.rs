@@ -23,6 +23,7 @@ use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
 pub(crate) mod goals;
 pub mod review;
+pub(crate) mod session;
 mod tag_management;
 mod vault_metadata;
 
@@ -6243,6 +6244,9 @@ pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        // Deep-link `mirrormind://` (fundacao de monetizacao, F1): callback do
+        // login PKCE. O roteamento das URLs chega na F1b com o backend.
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build());
 
     #[cfg(feature = "e2e")]
