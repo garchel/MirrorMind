@@ -1,0 +1,2219 @@
+/* Vault workspace: a full-window desktop writing surface. */
+.workspace-shell {
+  --workspace-bg: #0f0e14;
+  --workspace-raised: #15141d;
+  --workspace-sidebar: #191823;
+  --workspace-line: #292735;
+  --workspace-text: #d9d7e2;
+  --workspace-muted: #898695;
+  --workspace-accent: #79a8ff;
+  display: grid;
+  grid-template-columns: 40px 248px minmax(0, 1fr);
+  gap: 0;
+  width: 100%;
+  /* A barra de titulo customizada ocupa a linha do topo (padding de #root):
+   * o shell desconta a altura dela para caber sem rolagem. */
+  min-height: calc(100svh - var(--titlebar-h, 40px));
+  padding: 0;
+  color: var(--workspace-text);
+  background: var(--workspace-bg);
+  transition: grid-template-columns 220ms ease;
+  transition: grid-template-columns 220ms ease;
+}
+
+.workspace-topbar {
+  display: none;
+}
+
+.workspace-shell .notes-sidebar,
+.workspace-shell .editor-surface {
+  box-shadow: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.workspace-shell::before {
+  content: 'MM';
+  display: grid;
+  place-items: center;
+  grid-column: 1;
+  grid-row: 1;
+  width: 40px;
+  min-height: calc(100svh - var(--titlebar-h, 40px));
+  padding-bottom: calc(100svh - var(--titlebar-h, 40px) - 52px);
+  border-right: 1px solid var(--workspace-line);
+  color: var(--workspace-muted);
+  font: 600 10px/1 var(--mono);
+  letter-spacing: -0.1em;
+}
+
+.workspace-grid {
+  grid-column: 2 / -1;
+  grid-row: 1;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 0;
+  min-height: calc(100svh - var(--titlebar-h, 40px));
+}
+
+.workspace-shell .notes-sidebar {
+  gap: 0;
+  padding: 10px 0 0;
+  border-right: 1px solid var(--workspace-line);
+  background: var(--workspace-sidebar);
+}
+
+.workspace-shell .sidebar-block {
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.workspace-shell .sidebar-block:first-child {
+  display: none;
+}
+
+.workspace-shell .sidebar-block--stretch {
+  min-height: 0;
+  padding-top: 16px;
+}
+
+.workspace-shell .sidebar-section-header {
+  align-items: center;
+}
+
+.workspace-shell .sidebar-section-header h2 {
+  font: 500 12px/1 var(--sans);
+  color: var(--workspace-muted);
+}
+
+.workspace-shell .field {
+  gap: 6px;
+}
+
+.workspace-shell .field span {
+  font-size: 11px;
+  color: var(--workspace-muted);
+}
+
+.workspace-shell .field input {
+  min-height: 34px;
+  border: 1px solid var(--workspace-line);
+  border-radius: var(--radius-xs);
+  background: #22212c;
+  color: var(--workspace-text);
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+/* Base de botoes da sidebar: `:where` zera a especificidade para (0,0,1) —
+   botoes nus mantem o visual escuro, mas QUALQUER regra de componente vence
+   sem precisar de escalacao (fim da classe de bugs "hover/chapa escura"
+   vencendo o componente por ordem). */
+:where(.workspace-shell) button {
+  min-height: 30px;
+  border-radius: var(--radius-xs);
+  background: #25232f;
+  color: var(--workspace-text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+:where(.workspace-shell) button:hover:not(:disabled) {
+  transform: none;
+  background: #302e3c;
+}
+
+.workspace-shell .secondary-button {
+  min-height: 26px;
+  padding: 0 8px;
+  color: var(--workspace-muted);
+  background: transparent;
+}
+
+.workspace-shell .workspace-tree {
+  max-height: calc(100svh - var(--titlebar-h, 40px) - 242px);
+  padding: 0 5px;
+}
+
+.workspace-shell .tree-list {
+  gap: 1px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace-shell .tree-list > li {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace-shell .tree-list[data-depth='1'],
+.workspace-shell .tree-list[data-depth='2'],
+.workspace-shell .tree-list[data-depth='3'] {
+  margin-left: 12px;
+  padding-left: 0;
+  border-left: 0;
+}
+
+.workspace-shell .tree-folder summary {
+  min-height: 28px;
+  padding: 0 7px;
+  color: #b9b6c3;
+  font-size: 12px;
+}
+
+.workspace-shell .tree-folder summary::before {
+  margin-right: 6px;
+  color: #737080;
+}
+
+.workspace-shell .tree-note {
+  min-height: 28px;
+  padding: 0 9px 0 20px;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #bbb8c5;
+  font-size: 12px;
+}
+
+.workspace-shell .tree-note.is-active {
+  background: #32303e;
+  color: #f0eff5;
+}
+
+.workspace-shell .empty-sidebar-state {
+  color: var(--workspace-muted);
+  font-size: 12px;
+}
+
+.workspace-shell .editor-surface {
+  display: grid;
+  /* A barra de abas saiu da superficie: ela mora na barra de titulo. A
+   * superficie comeca abaixo da linha do titulo (row 2). */
+  grid-column: 2;
+  grid-row: 2 / -1;
+  grid-template-rows: auto 0 minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  min-height: 0;
+  background: var(--workspace-bg);
+}
+
+.workspace-shell .tab-strip {
+  grid-row: 1;
+  gap: 0;
+  min-height: 38px;
+  padding: 0;
+  border-bottom: 1px solid var(--workspace-line);
+  background: #121119;
+}
+
+.workspace-shell .tab-chip {
+  height: 38px;
+  border: 0;
+  border-right: 1px solid var(--workspace-line);
+  border-radius: 0;
+  background: #16151e;
+}
+
+.workspace-shell .tab-chip.is-active {
+  border-top: 1px solid var(--workspace-accent);
+  background: var(--workspace-bg);
+}
+
+.workspace-shell .tab-select,
+.workspace-shell .tab-close {
+  min-height: 37px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--workspace-muted);
+}
+
+.workspace-shell .tab-select {
+  min-width: 120px;
+  padding: 0 12px;
+}
+
+.workspace-shell .tab-chip.is-active .tab-select,
+.workspace-shell .tab-chip.is-active .tab-close {
+  color: var(--workspace-text);
+}
+
+.workspace-shell .tab-close {
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+}
+
+.workspace-shell .empty-tabs {
+  padding-left: 14px;
+  color: var(--workspace-muted);
+  font-size: 12px;
+}
+
+.workspace-shell .editor-header {
+  grid-row: 1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 22px max(40px, 7vw) 12px;
+  border-bottom: 1px solid rgba(41, 39, 53, 0.55);
+}
+
+.workspace-shell .editor-header h2 {
+  font-family: var(--sans);
+  font-size: 24px;
+  font-weight: 560;
+  color: #e7e5ec;
+}
+
+.workspace-shell .editor-path {
+  margin-top: 4px;
+  color: #777382;
+  font: 11px/1.4 var(--mono);
+}
+
+.workspace-shell .editor-grid {
+  grid-row: 2;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  min-height: 0;
+}
+
+.workspace-shell .editor-panel {
+  padding: 0 max(40px, 7vw) 36px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.workspace-shell .editor-panel > span {
+  display: none;
+}
+
+.workspace-shell .editor-preview {
+  display: none;
+}
+
+.workspace-shell .editor-panel textarea {
+  height: 100%;
+  min-height: 0;
+  padding: 20px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #d8d6df;
+  font: 15px/1.75 var(--mono);
+  outline: none;
+  resize: none;
+}
+
+.workspace-shell .editor-empty-state {
+  min-height: 0;
+  color: var(--workspace-muted);
+  font-family: var(--sans);
+}
+
+.workspace-shell .editor-empty-state h2,
+.workspace-shell .editor-empty-state p {
+  color: inherit;
+}
+
+.workspace-shell .error-banner {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2;
+  border-radius: var(--radius-sm);
+  background: #3c2025;
+  color: #ffc4c7;
+}
+
+@media (max-width: 720px) {
+  .workspace-shell {
+    grid-template-columns: 0 180px minmax(0, 1fr);
+  }
+
+  .workspace-shell::before {
+    display: none;
+  }
+
+  .workspace-grid {
+    grid-column: 2 / -1;
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+
+  .workspace-shell .notes-sidebar {
+    padding-top: 6px;
+  }
+
+  .workspace-shell .editor-header,
+  .workspace-shell .editor-panel {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+
+.builder-mode-control {
+  position: fixed;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid #aa514b;
+  border-radius: var(--radius-sm);
+  background: #f9e9e7;
+  box-shadow: 0 8px 24px rgba(32, 32, 30, 0.16);
+  color: #8d3029;
+  cursor: grab;
+  font-size: 12px;
+  user-select: none;
+  touch-action: none;
+}
+
+.builder-mode-control.is-enabled {
+  border-color: #738979;
+  background: #dce6dc;
+  color: #1d2a20;
+}
+
+.builder-mode-control:not(.is-enabled) {
+  border-color: #aa514b;
+  background: #f9e9e7;
+  color: #8d3029;
+}
+
+.builder-mode-control.is-dragging {
+  cursor: grabbing;
+  box-shadow: 0 12px 32px rgba(32, 32, 30, 0.22);
+}
+
+.builder-mode-control span {
+  font: 700 11px/1 var(--mono);
+  letter-spacing: 0.01em;
+}
+
+.builder-mode-tooltip {
+  position: fixed;
+  z-index: 31;
+  max-width: min(260px, calc(100vw - 28px));
+  padding: 6px 8px;
+  border: 1px solid #77766f;
+  border-radius: var(--radius-sm);
+  background: #292926;
+  color: #fbfaf6;
+  font: 12px/1.25 var(--mono);
+  pointer-events: none;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: min(720px, 100%);
+  padding: 16px 18px;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-lg);
+  background: #fbfaf6;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.settings-toggle:hover {
+  border-color: #c8c6be;
+}
+
+.settings-toggle:focus-within {
+  border-color: #738979;
+  box-shadow: 0 0 0 1px #738979;
+}
+
+label.settings-toggle {
+  cursor: pointer;
+}
+
+.settings-toggle span {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-toggle small {
+  color: #73736d;
+  font-size: 12px;
+}
+
+.settings-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #738979;
+}
+
+/* Controle segmentado das Configuracoes (ex.: tema claro/escuro). */
+.settings-segmented {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-sm);
+  background: #fffef9;
+  overflow: hidden;
+}
+
+.settings-segmented button {
+  padding: 8px 14px;
+  border: none;
+  border-right: 1px solid #d9d7d0;
+  background: transparent;
+  color: #62615b;
+  font: 12.5px var(--sans);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.settings-segmented button:last-child {
+  border-right: none;
+}
+
+.settings-segmented button.is-active {
+  background: #2e6b4f;
+  color: #fbfaf6;
+}
+
+.settings-segmented button.is-active:hover:not(:disabled) {
+  background: #2e6b4f;
+  color: #fbfaf6;
+}
+
+.settings-segmented button:focus-visible {
+  outline: 2px solid rgb(46 107 79 / 45%);
+  outline-offset: -2px;
+}
+
+.settings-note {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid rgb(196 106 43 / 25%);
+  border-radius: var(--radius-md);
+  background: rgb(196 106 43 / 8%);
+  color: #8a5a2a;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* Layout da pagina de Configuracoes: menu lateral (sticky) + conteudo. */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+  width: 100%;
+  max-width: 1120px;
+}
+
+.settings-nav {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  /* Menu com rolagem propria em janelas baixas: nunca empurra o conteudo. */
+  max-height: calc(100dvh - var(--titlebar-h, 40px) - 112px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 4px;
+}
+
+.settings-nav-group {
+  display: grid;
+  gap: 3px;
+  align-content: start;
+}
+
+.settings-nav-group-label {
+  margin: 0;
+  padding: 0 11px 3px;
+  color: #a3a097;
+  font: 600 10px/1.4 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Qualificado ao tema claro: no escuro o bloco [data-theme='dark'] manda.
+   Especificidade (0,4,0+) vence a chapa escura global
+   `.workspace-shell button` (0,1,1), que empatava e vencia por ordem. */
+:root:not([data-theme='dark']) .workspace-shell .settings-nav button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: #4f4f49;
+  font: 500 13px var(--sans);
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+:root:not([data-theme='dark']) .workspace-shell .settings-nav button:hover {
+  background: #f2efe7;
+}
+
+:root:not([data-theme='dark']) .workspace-shell .settings-nav button.is-active {
+  background: #e7e3d8;
+  box-shadow: inset 3px 0 0 #2e6b4f;
+  color: #1c2427;
+  font-weight: 600;
+}
+
+.settings-nav button svg {
+  flex: none;
+  opacity: 0.85;
+}
+
+.settings-nav button.is-active svg {
+  opacity: 1;
+}
+
+.settings-content {
+  display: grid;
+  gap: 24px;
+  align-content: start;
+  min-width: 0;
+}
+
+.settings-section {
+  display: grid;
+  gap: 16px;
+  width: min(720px, 100%);
+  margin-top: 12px;
+  scroll-margin-top: 8px;
+}
+
+.settings-section-description {
+  margin: -4px 0 0;
+  color: #73736d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-section > .card-kicker {
+  margin: 10px 0 -2px;
+}
+
+.settings-select {
+  min-width: 140px;
+  min-height: 36px;
+  padding: 0 30px 0 12px;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-md);
+  background: #fffef9;
+  color: #3d3d38;
+  font: 12.5px var(--sans);
+  cursor: pointer;
+}
+
+.settings-select:focus-visible {
+  outline: 2px solid #738979;
+  outline-offset: 1px;
+  border-color: #738979;
+}
+
+/* Input numerico das configuracoes (ex.: Grafo 3D) — sobrescreve a largura
+ * compacta que o .settings-toggle input aplica aos checkboxes. */
+.settings-toggle input.settings-number {
+  width: 96px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-md);
+  background: #fffef9;
+  color: #3d3d38;
+  font: 12.5px var(--mono);
+}
+
+.settings-toggle input.settings-number:focus-visible,
+.settings-toggle input[type='checkbox']:focus-visible {
+  outline: 2px solid #738979;
+  outline-offset: 2px;
+}
+
+.workspace-page {
+  display: grid;
+  grid-row: 1 / -1;
+  align-content: start;
+  gap: 18px;
+  min-height: 0;
+  overflow: auto;
+  padding: 56px max(40px, 7vw);
+  color: #4f4f49;
+}
+
+.workspace-page h2 {
+  margin: 0;
+  color: #20201e;
+  font: 600 28px/1.1 var(--sans);
+}
+
+.workspace-page-loading {
+  grid-row: 1 / -1;
+  align-self: start;
+  margin: 56px max(40px, 7vw);
+  color: #8a8a82;
+  font: 14px/1.4 var(--sans);
+}
+
+/* Largura total das paginas (Configuracoes > Aparencia): compacta o respiro
+ * de TODAS as paginas por igual via `data-pages-width` no workspace-shell.
+ * Especificidade (0,3,0) vence a base sem `!important`. */
+.workspace-shell[data-pages-width='full'] .workspace-page {
+  padding: 22px 26px;
+}
+
+.shortcut-settings {
+  display: grid;
+  gap: 1px;
+  max-width: 720px;
+  overflow: hidden;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-md);
+  background: #d9d7d0;
+}
+
+/* Allow the filter menu to float over the explorer and editor without changing the sidebar's normal clipping. */
+.workspace-shell .notes-sidebar:has(.tag-filter-dropdown) {
+  position: relative;
+  z-index: 30;
+  overflow: visible;
+}
+
+.shortcut-settings label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  background: #fbfaf6;
+  color: #353531;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.shortcut-settings label:hover {
+  background: #f6f5f0;
+}
+
+.shortcut-settings label > span {
+  display: grid;
+  gap: 4px;
+}
+
+.shortcut-settings strong {
+  font-weight: 600;
+}
+
+.shortcut-settings small {
+  color: #73736d;
+  font-size: 12px;
+}
+
+.shortcut-settings input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #c8c6be;
+  border-radius: var(--radius-md);
+  background: #f2f1ec;
+  color: #20201e;
+  font: 13px/1 var(--mono);
+  text-align: center;
+  cursor: pointer;
+}
+
+.shortcut-settings input:focus {
+  outline: 2px solid #738979;
+  outline-offset: 0;
+  border-color: #738979;
+  background: #fffef9;
+}
+
+.note-search-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  justify-items: center;
+  align-items: start;
+  padding-top: 72px;
+  background: rgba(32, 32, 30, 0.12);
+  /* Sobrepõe o pointer-events: none que o drawer (Radix) aplica no body
+     enquanto aberto, permitindo interagir com modais portados por cima. */
+  pointer-events: auto;
+}
+
+.note-search-modal {
+  width: min(520px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid #c8c6be;
+  border-radius: var(--radius-md);
+  background: #fbfaf6;
+  box-shadow: 0 18px 50px rgba(32, 32, 30, 0.18);
+}
+
+/* Ponte <Modal> x .note-search-modal (modais do App migrados para o
+ * <dialog> nativo): repete largura/borda/fundo/sombra com especificidade
+ * (0,2,0) para não depender da ordem de import dos CSS, ancora no topo
+ * (o backdrop próprio usava grid + padding-top:72px; o dialog nativo
+ * centraliza sozinho) e replica os tons de backdrop por tema. */
+.modal.note-search-modal {
+  width: min(520px, calc(100vw - 32px));
+  margin-top: 72px;
+  border: 1px solid #c8c6be;
+  border-radius: var(--radius-md);
+  background: #fbfaf6;
+  box-shadow: 0 18px 50px rgba(32, 32, 30, 0.18);
+}
+
+.modal.note-search-modal::backdrop {
+  background: rgba(32, 32, 30, 0.12);
+}
+
+[data-theme='dark'] .modal.note-search-modal {
+  border-color: #3a3640;
+  background: #1e1b21;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .modal.note-search-modal::backdrop {
+  background: rgba(8, 7, 10, 0.55);
+}
+
+.note-search-modal > input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 1px solid #d9d7d0;
+  outline: none;
+  background: transparent;
+  color: #20201e;
+  font: 14px/1 var(--sans);
+}
+
+.note-search-results {
+  display: grid;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.note-search-results button {
+  display: grid;
+  gap: 3px;
+  min-height: 0;
+  padding: 11px 14px;
+  border-radius: 0;
+  background: transparent;
+  color: #30302c;
+  text-align: left;
+}
+
+.note-search-results button:hover:not(:disabled) {
+  background: #e9eee8;
+}
+
+.note-search-results small,
+.note-search-results p {
+  color: #73736d;
+  font: 11px/1.25 var(--mono);
+}
+
+.note-search-results p {
+  padding: 16px;
+}
+
+.workspace-shell .special-files-button {
+  position: relative;
+}
+
+.workspace-shell .special-files-button > span {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  place-items: center;
+  border: 1px solid #d4c8a8;
+  border-radius: 999px;
+  background: #fbf3db;
+  color: #72541c;
+  font: 9px/1 var(--mono);
+}
+
+.workspace-shell .special-files-modal {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.workspace-shell .special-files-list {
+  display: grid;
+  max-height: min(440px, calc(100vh - 210px));
+  overflow: auto;
+  border-top: 1px solid #e3e1d9;
+}
+
+.workspace-shell .special-files-limit-notice {
+  margin: 0;
+  padding: 10px 14px;
+  border-top: 1px solid #e3d5b3;
+  background: #fbf3db;
+  color: #72541c;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workspace-shell .special-file-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 14px;
+  padding: 13px 14px;
+  border-bottom: 1px solid #e3e1d9;
+}
+
+.workspace-shell .special-file-row > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.workspace-shell .special-file-row strong,
+.workspace-shell .special-file-row code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .special-file-row strong {
+  color: #282824;
+  font: 600 13px/1.3 var(--sans);
+}
+
+.workspace-shell .special-file-open-button {
+  justify-self: start;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #2e6b4f;
+  font: 600 13px/1.3 var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.workspace-shell .special-file-open-button:hover {
+  text-decoration: underline;
+}
+
+.workspace-shell .special-file-row code {
+  color: #77766f;
+  font: 10px/1.35 var(--mono);
+}
+
+.workspace-shell .special-file-row p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #62615b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workspace-shell .special-file-kind {
+  align-self: start;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f0efea;
+  color: #55544e;
+  font: 9px/1 var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workspace-shell .special-file-kind.is-canvas {
+  background: #e1f3fe;
+  color: #1f6c9f;
+}
+
+.workspace-shell .special-file-kind.is-excalidraw {
+  background: #edf3ec;
+  color: #346538;
+}
+
+/* Vault selection shares the notebook workspace language. A titlebar segue
+ * fixa no topo (position:fixed do `.app-titlebar`, fora do fluxo) e este shell
+ * ocupa exatamente a viewport restante sendo ELE o scroller: a trilha da
+ * barra de rolagem nasce abaixo dos botoes de janela e nunca passa por cima
+ * ou por fora deles. O body nunca rola, entao nao ha scrollbar da viewport. */
+.vault-selection-shell {
+  --selection-paper: #fbfaf6;
+  --selection-raised: #f2f1ec;
+  --selection-rail: #e5e4de;
+  --selection-line: #d9d7d0;
+  --selection-ink: #20201e;
+  --selection-muted: #73736d;
+  display: grid;
+  grid-template-columns: 156px minmax(0, 1fr);
+  align-content: start;
+  gap: 0;
+  height: calc(100dvh - var(--titlebar-h, 40px));
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 0;
+  background: var(--selection-paper);
+  color: var(--selection-ink);
+}
+
+.vault-selection-rail {
+  display: flex;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: calc(100dvh - var(--titlebar-h, 40px));
+  padding: 18px 16px;
+  border-right: 1px solid var(--selection-line);
+  background: var(--selection-rail);
+  color: #3d3d38;
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+
+.vault-selection-mark {
+  font: 700 15px/1 var(--mono);
+  letter-spacing: -0.12em;
+}
+
+.vault-selection-rail-label {
+  color: var(--selection-muted);
+  font-size: 12px;
+}
+
+.vault-selection-shell > .hero-panel,
+.vault-selection-shell > .vault-grid,
+.vault-selection-shell > .error-banner,
+.vault-selection-shell > .vault-panel {
+  grid-column: 2;
+  grid-row: auto;
+  width: min(980px, calc(100% - 48px));
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.vault-selection-shell .hero-panel,
+.vault-selection-shell .vault-panel,
+.vault-selection-shell .action-card {
+  box-shadow: none;
+}
+
+.vault-selection-shell .hero-panel {
+  padding: 64px 0 32px;
+  border: 0;
+  border-bottom: 1px solid var(--selection-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.vault-selection-shell .hero-panel::after {
+  display: none;
+}
+
+.vault-selection-shell .hero-panel h1,
+.vault-selection-shell h2,
+.vault-selection-shell h3 {
+  font-family: var(--sans);
+  color: var(--selection-ink);
+}
+
+.vault-selection-shell .hero-panel h1 {
+  max-width: 18ch;
+  font-size: clamp(2.5rem, 5vw, 4.2rem);
+  line-height: 0.98;
+}
+
+.vault-selection-shell .eyebrow,
+.vault-selection-shell .card-kicker,
+.vault-selection-shell .field small {
+  color: var(--selection-muted);
+}
+
+.vault-selection-shell .status-strip {
+  margin-top: 22px;
+  padding: 8px 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.vault-selection-shell .status-dot {
+  width: 8px;
+  height: 8px;
+  box-shadow: none;
+}
+
+.vault-selection-shell .vault-grid {
+  gap: 0;
+  margin-top: 28px;
+  border: 1px solid var(--selection-line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.vault-selection-shell .action-card {
+  min-height: 270px;
+  padding: 28px;
+  border: 0;
+  border-radius: 0;
+  background: var(--selection-paper);
+}
+
+.vault-selection-shell .action-card + .action-card {
+  border-left: 1px solid var(--selection-line);
+}
+
+.vault-selection-shell .action-card--accent {
+  background: var(--selection-raised);
+}
+
+.vault-selection-shell .field input {
+  border-color: var(--selection-line);
+  border-radius: var(--radius-sm);
+  background: #fffefa;
+  color: var(--selection-ink);
+}
+
+.vault-selection-shell button {
+  border-radius: var(--radius-sm);
+  background: #292926;
+  color: #fbfaf6;
+}
+
+.vault-selection-shell .secondary-button {
+  border: 1px solid var(--selection-line);
+  background: transparent;
+  color: #41413c;
+}
+
+.vault-selection-shell .vault-panel {
+  padding: 24px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.recent-vault-modal {
+  display: grid;
+  gap: 18px;
+  width: min(460px, 100%);
+  padding: 28px;
+  border: 1px solid var(--selection-line);
+  border-radius: var(--radius-lg);
+  background: #fbfaf6;
+  box-shadow: 0 20px 60px rgba(32, 32, 30, 0.18);
+  color: var(--selection-ink);
+}
+
+/* Ponte do `<Modal>` nativo: o backdrop próprio saiu do JSX; o ::backdrop
+ * replica o véu + blur para paridade pixel (claro e escuro idênticos ao
+ * original, que não tinha variante dark). */
+.modal.recent-vault-modal::backdrop {
+  background: rgba(32, 32, 30, 0.22);
+  backdrop-filter: blur(2px);
+}
+
+.recent-vault-modal h2 {
+  margin: 0;
+  font: 600 1.6rem/1.1 var(--sans);
+}
+
+.recent-vault-modal code {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  background: #efeee8;
+}
+
+.recent-vault-checkbox {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: #4f4f49;
+  font-size: 14px;
+}
+
+.recent-vault-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: #738979;
+}
+
+.recent-vault-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .vault-selection-shell {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .vault-selection-rail {
+    align-items: center;
+    padding: 18px 8px;
+  }
+
+  .vault-selection-rail-label {
+    display: none;
+  }
+
+  .vault-selection-shell > .hero-panel,
+  .vault-selection-shell > .vault-grid,
+  .vault-selection-shell > .error-banner,
+  .vault-selection-shell > .vault-panel {
+    width: min(100% - 32px, 980px);
+  }
+
+  .vault-selection-shell .vault-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-selection-shell .action-card + .action-card {
+    border-top: 1px solid var(--selection-line);
+    border-left: 0;
+  }
+}
+
+/* Notebook workspace: permanent controls, paper surfaces and hidden explorer scrollbar. */
+.workspace-shell {
+  --workspace-bg: #fbfaf6;
+  --workspace-raised: #f2f1ec;
+  --workspace-sidebar: #efeee8;
+  --workspace-line: #d9d7d0;
+  --workspace-text: #20201e;
+  --workspace-muted: #73736d;
+  --workspace-accent: #9cafa0;
+  --rail-width: 156px;
+  --explorer-width: 272px;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  /* A barra de titulo customizada e a linha do topo: o workspace ocupa a
+   * janela INTEIRA (o margin negativo cancela o padding-top de #root). */
+  grid-template-rows: var(--titlebar-h, 40px) minmax(0, 1fr);
+  height: 100svh;
+  min-height: 0;
+  margin-top: calc(-1 * var(--titlebar-h, 40px));
+  overflow: hidden;
+  color: var(--workspace-text);
+  background: var(--workspace-bg);
+}
+
+.workspace-shell .skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 10px;
+  left: 10px;
+  padding: 8px 12px;
+  transform: translateY(-160%);
+  border-radius: var(--radius-xs);
+  background: #252521;
+  color: #fffef9;
+  font: 12px var(--sans);
+  transition: transform 140ms ease;
+}
+
+.workspace-shell .skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid #9cafa0;
+  outline-offset: 2px;
+}
+
+.workspace-shell :is(button, input, select, textarea, summary, [role='tab']):focus-visible {
+  outline: 2px solid #738979;
+  outline-offset: 2px;
+}
+
+.workspace-shell.is-sidebar-collapsed {
+  --rail-width: 52px;
+}
+
+.workspace-shell.is-explorer-collapsed {
+  --explorer-width: 0px;
+}
+
+.workspace-shell::before {
+  display: none;
+}
+
+.workspace-rail {
+  display: flex;
+  position: relative;
+  z-index: 1;
+  grid-column: 1;
+  /* Altura total (usa o espaco da barra de titulo). */
+  grid-row: 1 / -1;
+  flex-direction: column;
+  gap: 4px;
+  height: 100%;
+  padding: 12px 8px;
+  border-right: 1px solid var(--workspace-line);
+  background: #e5e4de;
+  overflow: hidden;
+  transition: width 220ms ease;
+}
+
+.workspace-shell .rail-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #33332f;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.workspace-shell .rail-button > svg {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  flex: 0 0 18px;
+}
+
+.workspace-shell .rail-button:hover:not(:disabled) {
+  border-color: #d3d1c8;
+  background: #f8f7f2;
+}
+
+.workspace-shell .rail-button.is-active {
+  border-color: #c4d0c4;
+  background: #dce6dc;
+  color: #1d2a20;
+}
+
+.workspace-shell .rail-button--bottom {
+  margin-top: auto;
+}
+
+.rail-icon {
+  display: grid;
+  width: 18px;
+  place-items: center;
+  flex: 0 0 18px;
+  font: 17px/1 var(--sans);
+}
+
+.rail-label {
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.rail-label--menu {
+  color: var(--workspace-muted);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.workspace-shell.is-sidebar-collapsed .workspace-rail {
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
+.workspace-shell.is-sidebar-collapsed .rail-label {
+  display: none;
+}
+
+.workspace-grid {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  grid-template-columns: var(--explorer-width) minmax(0, 1fr);
+  /* Mesma linha do topo do shell: o explorador (col 1) vai ate o topo e a
+   * barra de titulo customizada (col 2) ocupa a linha do titulo. */
+  grid-template-rows: var(--titlebar-h, 40px) minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  transition: grid-template-columns 180ms ease;
+}
+
+.workspace-shell .notes-sidebar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-width: 0;
+  /* Altura total: o explorador de arquivos usa o espaco da barra de titulo. */
+  grid-row: 1 / -1;
+  height: 100%;
+  padding: 10px 0 0;
+  border-right: 1px solid var(--workspace-line);
+  background: var(--workspace-sidebar);
+  overflow: hidden;
+  transition: opacity 180ms ease, transform 220ms ease;
+}
+
+.workspace-shell .notes-sidebar {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.workspace-shell .sidebar-block {
+  padding: 10px 12px;
+  background: transparent;
+}
+
+.workspace-shell .sidebar-block:first-child {
+  display: none;
+}
+
+.workspace-shell .sidebar-block--stretch {
+  grid-row: 1 / 3;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  padding-bottom: 14px;
+}
+
+.workspace-shell .explorer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.workspace-shell .sidebar-section-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+}
+
+.workspace-shell .explorer-title-row,
+.workspace-shell .explorer-navigation-row {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  justify-self: stretch;
+  min-width: 0;
+  width: 100%;
+}
+
+.workspace-shell .explorer-title-row .card-kicker {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.workspace-shell .explorer-navigation-row h2 {
+  margin: 0;
+}
+
+.workspace-shell .explorer-actions {
+  justify-self: end;
+  flex-shrink: 0;
+}
+
+.workspace-shell .explorer-filter-control {
+  position: relative;
+}
+
+.workspace-shell .tag-filter-dropdown {
+  position: absolute;
+  z-index: 40;
+  top: 33px;
+  left: 0;
+  display: grid;
+  width: 230px;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-sm);
+  background: #fbfaf6;
+  box-shadow: 0 10px 26px rgba(32, 32, 30, 0.14);
+}
+
+.workspace-shell .explorer-actions .secondary-button {
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  font-size: 14px;
+}
+
+.workspace-shell.is-explorer-collapsed .notes-sidebar {
+  grid-template-rows: minmax(0, 1fr) auto;
+  /* Reduz por completo ao sair da pagina de notas: some (opacidade) enquanto
+   * a coluna encolhe ate 0, sem sobrar borda nem area clicavel. */
+  opacity: 0;
+  border-right-color: transparent;
+  pointer-events: none;
+}
+
+.workspace-shell.is-explorer-collapsed .sidebar-block--stretch {
+  grid-row: 1;
+  padding: 10px 6px;
+}
+
+.workspace-shell .explorer-navigation-row,
+.workspace-shell .explorer-title-row .card-kicker,
+.workspace-shell .workspace-tree,
+.workspace-shell .vault-switch-button > span {
+  transition: opacity 100ms ease 180ms, visibility 0s linear 180ms;
+}
+
+.workspace-shell.is-explorer-collapsed .explorer-navigation-row,
+.workspace-shell.is-explorer-collapsed .explorer-title-row .card-kicker,
+.workspace-shell.is-explorer-collapsed .workspace-tree,
+.workspace-shell.is-explorer-collapsed .vault-switch-button > span {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  /* Hide tree content before the column narrows to avoid transient text wrapping. */
+  transition: opacity 80ms ease, visibility 0s linear;
+}
+
+.workspace-shell.is-explorer-collapsed .explorer-title-row .card-kicker {
+  display: none;
+}
+
+.workspace-shell.is-explorer-collapsed .explorer-actions {
+  justify-self: end;
+}
+
+.workspace-shell.is-explorer-collapsed .vault-indicator {
+  justify-content: center;
+  padding: 0;
+}
+
+.workspace-shell.is-explorer-collapsed .vault-switch-button {
+  flex: 0 0 auto;
+  padding: 0;
+  pointer-events: none;
+}
+
+.workspace-shell .sidebar-section-header h2,
+.workspace-shell .card-kicker,
+.workspace-shell .field span {
+  color: var(--workspace-muted);
+}
+
+.workspace-shell .field input {
+  border-color: var(--workspace-line);
+  border-radius: var(--radius-sm);
+  background: #fbfaf6;
+  color: var(--workspace-text);
+}
+
+/* Base de botoes do workspace: `:where` zera a especificidade para (0,0,1) /
+ * (0,2,1) no hover — mesmo contrato da base da sidebar acima. */
+:where(.workspace-shell) button {
+  background: #292926;
+  color: #fbfaf6;
+}
+
+:where(.workspace-shell) button:hover:not(:disabled) {
+  background: #11110f;
+}
+
+.workspace-shell .secondary-button {
+  color: #4d4d47;
+  background: transparent;
+}
+
+.workspace-shell .secondary-button:hover:not(:disabled) {
+  background: #e2e1da;
+}
+
+.workspace-shell .workspace-tree {
+  height: 100%;
+  max-height: none;
+  padding: 0 7px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.workspace-shell .workspace-tree::-webkit-scrollbar {
+  display: none;
+}
+
+.vault-diagnostics-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 4px 7px 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(176, 122, 22, 0.45);
+  border-radius: var(--radius-md);
+  background: rgba(255, 244, 214, 0.55);
+  color: #6b4e10;
+}
+
+.vault-diagnostics-icon {
+  padding-top: 2px;
+  color: #a4710f;
+}
+
+.vault-diagnostics-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.vault-diagnostics-title {
+  margin: 0 0 2px;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.vault-diagnostics-detail {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.vault-diagnostics-paths {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 0.76rem;
+  opacity: 0.85;
+}
+
+.vault-diagnostics-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vault-diagnostics-actions .secondary-button {
+  padding: 3px 8px;
+  font-size: 0.76rem;
+}
+
+.vault-diagnostics-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.vault-diagnostics-dismiss:hover {
+  background: rgba(176, 122, 22, 0.18);
+}
+
+.workspace-shell .explorer-tree-footer {
+  display: grid;
+  margin-top: 22px;
+  padding: 14px 2px 4px;
+  border-top: 1px solid #e6e4de;
+}
+
+.workspace-shell .trash-tree-summary {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 28px;
+  gap: 7px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #4f4f49;
+  font-size: 12px;
+  text-align: left;
+}
+
+.workspace-shell .trash-tree-summary:hover:not(:disabled) {
+  background: #e2e1da;
+}
+
+.workspace-shell .trash-tree-content {
+  display: grid;
+  gap: 1px;
+  margin: 4px 0 2px 12px;
+  padding-left: 6px;
+  border-left: 1px solid #e6e4de;
+}
+
+.workspace-shell .trash-tree-content > p {
+  margin: 6px 0;
+  color: #73736d;
+  font-size: 11px;
+}
+
+.workspace-shell .trash-tree-item {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 28px;
+  gap: 6px;
+  padding-left: 6px;
+  color: #5d5d57;
+  font-size: 12px;
+}
+
+.workspace-shell .trash-tree-item > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .trash-tree-item:hover .tree-item-actions,
+.workspace-shell .trash-tree-item .tree-item-actions:focus-within {
+  opacity: 1;
+}
+
+.workspace-shell .tag-filter {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+}
+
+.workspace-shell .tag-filter-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 4px;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-xs);
+  background: #fbfaf6;
+}
+
+.workspace-shell .tag-filter-selection input {
+  flex: 1 1 88px;
+  width: 88px;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #353531;
+  font: 11px var(--sans);
+}
+
+.workspace-shell .tag-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 20px;
+  padding: 1px 6px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: #ecebe5;
+  color: #686861;
+  font: 11px var(--sans);
+}
+
+.workspace-shell .tag-filter-chip:hover {
+  background: #d8e1d8;
+  color: #1d2a20;
+}
+
+.workspace-shell .tag-filter-suggestions {
+  display: grid;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.workspace-shell .tag-filter-suggestions button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 25px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #5d5d57;
+  font: 11px var(--sans);
+  text-align: left;
+}
+
+.workspace-shell .tag-filter-suggestions button:hover {
+  background: #e5eee5;
+  color: #1d2a20;
+}
+
+.workspace-shell .tag-filter-suggestions small,
+.workspace-shell .tag-filter-suggestions p {
+  margin: 0;
+  color: #898981;
+  font-size: 10px;
+}
+
+.workspace-shell .note-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.workspace-shell .explorer-tree-footer .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 0 8px;
+  color: #5f5f58;
+  font-size: 12px;
+}
+
+.workspace-shell .tree-folder summary {
+  color: #44443f;
+}
+
+.workspace-shell .tree-item-row {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 28px;
+  min-width: 0;
+}
+
+.workspace-shell .tree-item-row > .tree-folder {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.workspace-shell .tree-item-row > .tree-note {
+  display: flex;
+  align-items: center;
+  padding-right: 9px;
+  overflow: hidden;
+}
+
+.workspace-shell .tree-item-row > .tree-folder > summary {
+  min-width: 0;
+  padding-right: 7px;
+  overflow: hidden;
+}
+
+.workspace-shell .tree-item-action {
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #73736d;
+}
+
+.workspace-shell .tree-item-action:hover:not(:disabled) {
+  background: #e2e1da;
+}
+
+.workspace-shell .tree-item-action.is-favorite {
+  color: #9a7432;
+}
+
+.workspace-shell .tree-note:hover:not(:disabled) {
+  background: var(--note-hover-color, #171716);
+  color: #fbfaf6;
+}
+
+.workspace-shell .tree-folder > summary:hover {
+  background: var(--note-hover-color, #171716);
+  color: #fbfaf6;
+}
+
+.workspace-shell .tree-folder > summary:hover .tree-icon,
+.workspace-shell .tree-folder > summary:hover svg.tree-icon--folder-closed,
+.workspace-shell .tree-folder > summary:hover svg.tree-icon--folder-open {
+  color: #fbfaf6;
+}
+
+.workspace-shell .tree-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .tree-folder summary .tree-item-label {
+  display: block;
+}
+
+.workspace-shell .explorer-context-menu-layer {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+}
+
+.workspace-shell .explorer-context-menu {
+  position: absolute;
+  display: grid;
+  min-width: 188px;
+  padding: 5px;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-sm);
+  background: #fbfaf6;
+  box-shadow: 0 10px 24px rgba(32, 32, 30, 0.14);
+}
+
+.workspace-shell .explorer-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #3c3c37;
+  font-size: 12px;
+  text-align: left;
+}
+
+.workspace-shell .explorer-context-menu button:hover:not(:disabled) {
+  background: #e9e8e1;
+}
+
+.workspace-shell .explorer-context-menu button.is-danger {
+  color: #9a4038;
+}
+
+.move-item-heading {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 14px 14px 10px;
+  color: #252521;
+  font-size: 13px;
+}
+
+.modal-close-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #676760;
+}
+
+.modal-close-button:hover {
+  background: #e2e1da;
+}
+
+.move-item-heading span {
+  color: #73736d;
+  font-size: 12px;
+}
+
+.move-destination-list {
+  max-height: 210px;
+  overflow: auto;
+  padding: 6px;
+}
+
+.move-destination-list button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 32px;
+  gap: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #4f4f49;
+  font-size: 12px;
+  text-align: left;
+}
+
+.move-destination-list button:hover,
+.move-destination-list button.is-selected {
+  background: #dce6dc;
+  color: #1d2a20;
+}
+
+.workspace-shell .danger-button {
+  background: #9b3c34;
+  color: #fffaf7;
+}
+
+.workspace-shell .danger-button:hover:not(:disabled) {
+  background: #7e3029;
+}
+
+.delete-confirmation-preference {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 14px 12px;
+  color: #595952;
+  font-size: 12px;
+}
+
+.delete-confirmation-preference input {
+  width: 15px;
+  height: 15px;
+  accent-color: #738979;
+}
+
+.trash-item-list {
+  display: grid;
+  max-height: 280px;
+  overflow: auto;
+  padding: 6px 12px 12px;
+}
+
+.trash-item-list > p {
+  margin: 12px 0;
+  color: #73736d;
+  font-size: 12px;
+}
+
+.trash-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 42px;
+  border-bottom: 1px solid #e6e4de;
+  color: #4f4f49;
+  font-size: 12px;
+}
+
+.trash-item:last-child {
+  border-bottom: 0;
+}
+
+.trash-item > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .tree-icon {
+  display: inline-grid;
+  width: 16px;
+  margin-right: 6px;
+  place-items: center;
+  color: #73736d;
+  font-size: 12px;
+}
+
+.workspace-shell .tree-icon--folder-open {
+  display: none;
+}
+
+.workspace-shell .tree-folder > summary .tree-icon--folder-open {
+  display: none;
+}
+
+.workspace-shell .tree-icon--folder-closed,
+.workspace-shell .tree-icon--folder-open {
+  position: relative;
+  width: 14px;
+  height: 10px;
+  margin-top: 2px;
+  border: 1px solid #20201e;
+  border-radius: 1px;
+  background: #fbfaf6;
+  color: transparent;
+  font-size: 0;
+}
+
+.workspace-shell .tree-icon--folder-closed::before,
+.workspace-shell .tree-icon--folder-open::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 1px;
+  width: 6px;
+  height: 3px;
+  border: 1px solid #20201e;
+  border-bottom: 0;
+  border-radius: 1px 1px 0 0;
+  background: #fbfaf6;
+}
+
+.workspace-shell .tree-icon--folder-open {
+  transform: skewX(-10deg);
+  background: #20201e;
+}
+
+.workspace-shell .tree-icon--folder-open::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: #fbfaf6;
+}
+
+.workspace-shell .tree-folder[open] > summary .tree-icon--folder-closed {
+  display: none;
+}
+
+.workspace-shell .tree-folder[open] > summary .tree-icon--folder-open {
+  display: inline-grid;
+}
+
+.workspace-shell svg.tree-icon--folder-closed,
+.workspace-shell svg.tree-icon--folder-open {
+  width: 14px;
+  height: 14px;
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #20201e;
+  font-size: inherit;
+  transform: none;
+}
+
+.workspace-shell svg.tree-icon--folder-closed::before,
+.workspace-shell svg.tree-icon--folder-open::before,
+.workspace-shell svg.tree-icon--folder-open::after {
+  display: none;
+}
+
+.workspace-shell .tree-note {
+  padding-left: 9px;
+}
+
+.workspace-shell .explorer-refresh-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.workspace-shell .vault-indicator {
+  grid-row: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 61px;
+  padding: 12px 10px 12px 14px;
+  border-top: 1px solid #d9d7d0;
+  color: #4f4f49;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.workspace-shell .vault-switch-button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.workspace-shell .vault-switch-button:hover:not(:disabled) {
+  background: #e6e5de;
+  color: #2b2b27;
+}
+
+.workspace-shell .vault-switch-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.workspace-shell .vault-switch-button > span:nth-child(2) {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .vault-indicator-icon {
+  color: #738979;
+  font-size: 10px;
+}
+
+.workspace-shell .vault-refresh-button {
+  display: grid;
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  place-items: center;
+}
+
+.workspace-shell .tree-folder summary::before {
+  content: '' !important;
+  display: none;
+}
+
+.workspace-shell .tree-folder:not([open]) summary::before {
+  content: '' !important;
+}
+
+.workspace-shell .tree-note {
+  color: #4f4f49;
+}
+
+.workspace-shell .tree-note.is-active {
+  background: #d8e1d8;
+  color: #1d2a20;
+}
+
+.workspace-shell .tree-note[draggable='true'] { cursor: grab; }
+.workspace-shell .tree-note.is-dragging { opacity: .45; cursor: grabbing; }
+.workspace-shell .tree-folder.is-drop-target > summary { background: #dce6dc; outline: 1px dashed #738979; outline-offset: -2px; }
+.workspace-shell.is-note-dragging .tree-note { cursor: grabbing; }
+.workspace-shell.is-note-released .tree-note { cursor: grab; }
+.workspace-shell .workspace-tree { padding: 8px 6px; }
+.workspace-shell .vault-file-tree {
+  min-width: 0;
+  padding: 14px 10px;
+}
+
+.workspace-shell .vault-file-tree.is-root-drop-target {
+  outline: 1px dashed #738979;
+  outline-offset: -6px;
+  box-shadow: inset 0 0 0 7px #edf3eb;
+}
+
+.workspace-shell .trash-page {
+  gap: 14px;
+}
+

@@ -1,0 +1,339 @@
+/* Reiniciar aprendizado: acao discreta de risco, largura toda no menu, na
+   linha abaixo da grade de acoes. */
+.ui-popover-content.note-review-menu .note-review-reset-trigger {
+  grid-column: 1 / -1;
+  grid-row: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #9a5b52;
+  font-size: 11.5px;
+}
+
+.ui-popover-content.note-review-menu .note-review-reset-trigger:not(:disabled):hover {
+  background: color-mix(in srgb, #b3261e 8%, transparent);
+  color: var(--danger, #b3261e);
+}
+
+/* Adocao de perfil (nota pronta sem tag de revisao): bloco em largura toda,
+   abaixo do reset, sem colidir com a grade de acoes. */
+.ui-popover-content.note-review-menu .note-profile-onboarding {
+  grid-column: 1 / -1;
+  grid-row: 6;
+}
+
+.ui-popover-content.note-review-menu .note-review-reset-trigger:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Botao do header da nota que abre a auditoria estrutural deterministica. */
+.workspace-shell .editor-actions > .structural-audit-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+/* Painel de auditoria estrutural e verificacao factual (portados para
+   document.body pelo Radix). Lista vertical de achados, cada um com
+   severidade, mensagem, sugestao, citacao do trecho e acao "Aplicar no
+   rascunho" quando ha edicao determinista. */
+.ui-popover-content.fact-check-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 120px));
+  padding: 10px 11px 11px;
+  font-size: 12px;
+  overflow-y: auto;
+}
+
+.structural-audit-scope > .structural-audit-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 2px 7px;
+  border-bottom: 1px solid #e8e5dd;
+}
+
+.structural-audit-scope .structural-audit-header strong {
+  color: var(--text-h, #1c2427);
+  font: 600 13px var(--sans);
+}
+
+.structural-audit-scope .structural-audit-header small {
+  color: var(--muted, #7e7466);
+  font-size: 11px;
+}
+
+.structural-audit-scope .structural-audit-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background: #f6f3ec;
+  color: var(--muted, #7e7466);
+}
+
+.structural-audit-scope .structural-audit-state.is-error {
+  flex-direction: column;
+  align-items: flex-start;
+  color: var(--danger, #b3261e);
+}
+
+.structural-audit-scope .structural-audit-state.is-clean {
+  background: #eef4ee;
+  color: #2e6b4f;
+}
+
+.structural-audit-scope .structural-audit-findings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.structural-audit-scope .structural-audit-finding {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px solid #e8e5dd;
+  border-radius: var(--radius-md);
+  background: #fbfaf6;
+}
+
+.structural-audit-scope .structural-audit-finding.is-warning {
+  border-left: 3px solid #d99a2b;
+}
+
+.structural-audit-scope .structural-audit-finding.is-info {
+  border-left: 3px solid #7c93c4;
+}
+
+.structural-audit-scope .structural-audit-finding-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.structural-audit-scope .structural-audit-severity {
+  flex: none;
+  margin-top: 1px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #f5ead6;
+  color: #8a5a14;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.structural-audit-scope .structural-audit-finding.is-info .structural-audit-severity {
+  background: #e7ecf6;
+  color: #4a5f93;
+}
+
+.structural-audit-scope .structural-audit-finding-head p {
+  margin: 0;
+  color: var(--text-h, #1c2427);
+  line-height: 1.45;
+}
+
+.structural-audit-scope .structural-audit-suggestion {
+  margin: 0;
+  color: var(--muted, #7e7466);
+  line-height: 1.45;
+}
+
+.structural-audit-scope .structural-audit-quote {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: #f2efe7;
+  color: #57534e;
+  font: 11px/1.5 var(--mono, monospace);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 96px;
+  overflow-y: auto;
+}
+
+.structural-audit-scope .structural-audit-apply-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding-top: 2px;
+}
+
+.structural-audit-scope .structural-audit-apply {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--text-h, #1c2427);
+  color: #fbfaf6;
+  font-size: 11.5px;
+}
+
+.structural-audit-scope .structural-audit-apply:not(:disabled):hover {
+  background: #2f3a3e;
+}
+
+.structural-audit-scope .structural-audit-apply:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.structural-audit-scope .structural-audit-hint {
+  color: var(--muted, #7e7466);
+  font-size: 10.5px;
+}
+
+.structural-audit-scope .structural-audit-footer {
+  display: flex;
+  flex-direction: column;
+  padding-top: 2px;
+}
+
+/* "Re-executar auditoria" com o mesmo visual dos botoes do menu de
+   Avaliacao & revisao: celula clara (borda e fundo identicos), icone + texto
+   alinhados a esquerda, altura uniforme e largura total do painel. */
+.structural-audit-scope .structural-audit-rerun {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #e0ddd4;
+  border-radius: var(--radius-md);
+  background: #f5f2ea;
+  color: var(--text-h, #1c2427);
+  font: 500 12px var(--sans);
+  white-space: nowrap;
+}
+
+.structural-audit-scope .structural-audit-rerun:not(:disabled):hover {
+  background: #ece8dd;
+}
+
+.structural-audit-scope .structural-audit-rerun:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ */
+/* Verificacao factual opcional: painel separado da avaliacao de memoria,
+ * usa a base .structural-audit-scope com blocos de achado proprio. */
+.ui-popover-content.fact-check-panel {
+  min-width: min(420px, calc(100vw - 32px));
+}
+
+.structural-audit-scope .fact-check-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: min(420px, 55vh);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.structural-audit-scope .fact-check-summary {
+  color: var(--text-secondary, #6b6358);
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.structural-audit-scope .fact-check-finding {
+  border: 1px solid var(--border, #e2dccf);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  background: var(--surface-raised, #fffdf8);
+}
+
+.structural-audit-scope .fact-check-finding.is-confirmed {
+  border-left-color: #4f9d5f;
+}
+
+.structural-audit-scope .fact-check-finding.is-divergent {
+  border-left-color: #c4573a;
+}
+
+.structural-audit-scope .fact-check-finding.is-uncertain {
+  border-left-color: #c08a2d;
+}
+
+.structural-audit-scope .fact-check-finding-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.structural-audit-scope .fact-check-finding-head p {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  flex: 1;
+}
+
+.structural-audit-scope .fact-check-status {
+  flex: none;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #ece8dd;
+  color: #6b6358;
+}
+
+.structural-audit-scope .fact-check-finding.is-confirmed .fact-check-status {
+  background: #e3efe4;
+  color: #2e6e3c;
+}
+
+.structural-audit-scope .fact-check-finding.is-divergent .fact-check-status {
+  background: #f6e4dd;
+  color: #a03a20;
+}
+
+.structural-audit-scope .fact-check-finding.is-uncertain .fact-check-status {
+  background: #f5ead2;
+  color: #8a621a;
+}
+
+.structural-audit-scope .fact-check-reason {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary, #6b6358);
+}
+
+.structural-audit-scope .fact-check-source {
+  margin: 4px 0 0;
+  font-size: 10.5px;
+  font-style: italic;
+  color: var(--muted, #7e7466);
+}
+

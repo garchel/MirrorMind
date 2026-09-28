@@ -1,0 +1,1453 @@
+/* Pagina do grafo imersiva: o grafo ocupa a area inteira e a interface
+ * flutua por cima (header com opacidade variavel, paineis como overlay). */
+.workspace-shell .graph-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.workspace-shell .graph-immersive-header {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  max-width: min(94%, 1080px);
+  padding: 8px 10px;
+  border: 1px solid rgb(28 36 39 / 14%);
+  border-radius: var(--radius-lg);
+  background: rgb(251 250 246 / 88%);
+  box-shadow: 0 10px 30px rgb(44 54 45 / 18%);
+  backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.workspace-shell .graph-immersive-header.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-10px);
+}
+
+.workspace-shell .graph-header-title {
+  margin: 0 4px 0 0;
+  color: #303f33;
+  font: 600 13px/1 var(--sans);
+  white-space: nowrap;
+}
+
+.workspace-shell .graph-header-sep {
+  align-self: stretch;
+  width: 1px;
+  margin: 2px 3px;
+  background: rgb(28 36 39 / 14%);
+}
+
+/* Contador de notas/conexoes: componente flutuante no canto inferior direito
+ * da pagina de grafo (separado do header imersivo, sempre visivel). */
+.workspace-shell .graph-summary-counter {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 30;
+  display: flex;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid rgb(28 36 39 / 14%);
+  border-radius: 999px;
+  background: rgb(251 250 246 / 85%);
+  box-shadow: 0 6px 18px rgb(44 54 45 / 14%);
+  backdrop-filter: blur(10px);
+  color: #5f5f58;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.workspace-shell .graph-summary-counter span {
+  padding: 2px 7px;
+  border: 1px solid rgb(28 36 39 / 10%);
+  border-radius: 999px;
+  background: rgb(255 254 249 / 70%);
+}
+
+/* Legenda do agrupamento por pasta: componente flutuante no canto inferior
+ * esquerdo (visivel nos modos 2D e 3D), com a cor estavel de cada grupo. */
+.workspace-shell .graph-group-legend {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(300px, calc(100% - 28px));
+  max-height: 40%;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid rgb(28 36 39 / 14%);
+  border-radius: var(--radius-lg);
+  background: rgb(251 250 246 / 88%);
+  box-shadow: 0 6px 18px rgb(44 54 45 / 14%);
+  backdrop-filter: blur(10px);
+}
+
+.workspace-shell .graph-group-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workspace-shell .graph-group-legend-swatch {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 14%);
+}
+
+.workspace-shell .graph-group-legend-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #3d3d38;
+  font: 500 11px/1.3 var(--sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .graph-group-legend-count {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #8a8a80;
+  font: 500 10px/1 var(--sans);
+}
+
+.workspace-shell .graph-immersive-header input[type='text'],
+.workspace-shell .graph-immersive-header > input,
+.workspace-shell .graph-immersive-header select {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-sm);
+  background: #fffef9;
+  color: #3d3d38;
+  font: 12px var(--sans);
+}
+
+.workspace-shell .graph-immersive-header > input { min-width: 150px; }
+.workspace-shell .graph-header-check { display: inline-flex; align-items: center; gap: 5px; color: #5f5f58; font-size: 12px; white-space: nowrap; }
+.workspace-shell .graph-immersive-header .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  min-width: 30px;
+  padding: 0 9px;
+}
+
+.workspace-shell .graph-immersive-header .secondary-button svg {
+  flex: none;
+}
+
+/* Botoes so-icone (Atualizar/Exportar/Configurar): quadrados 30x30 exatos,
+ * ícone sempre centrado. */
+.workspace-shell .graph-immersive-header .graph-icon-button {
+  width: 30px;
+  padding: 0;
+}
+.workspace-shell .graph-immersive-header .graph-dimension-toggle button { min-height: 26px; }
+
+.workspace-shell .graph-settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+/* Grupo de filtro (pasta + tag): pílula única com ícone, selects sem borda
+ * própria, limpar e contagem de destacadas. O filtro NÃO remove nós — só
+ * esmaece quem não casa (highlight), sem resetar o layout. */
+.workspace-shell .graph-immersive-header .graph-filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 30px;
+  padding: 0 6px 0 9px;
+  border: 1px solid #d8d6cf;
+  border-radius: 999px;
+  background: #fffef9;
+  color: #5f5f58;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-group > svg {
+  flex: none;
+  color: #8d9b88;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-group select {
+  min-height: 0;
+  max-width: 130px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 12px;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-group select:focus-visible {
+  outline: 1px solid #8d9b88;
+  outline-offset: 1px;
+}
+
+.workspace-shell .graph-filter-clear {
+  display: grid;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a4b39;
+  cursor: pointer;
+}
+
+.workspace-shell .graph-filter-clear:hover:not(:disabled) {
+  background: #f1ded8;
+}
+
+.workspace-shell .graph-filter-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #e5eee5;
+  color: #31533a;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ui-popover-content.graph-settings-popover {
+  width: min(340px, 92vw);
+  padding: 14px 14px 10px;
+}
+
+.graph-settings-popover .graph-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgb(28 36 39 / 10%);
+}
+
+.graph-settings-popover .graph-settings-header-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #303f33;
+}
+
+.graph-settings-popover .graph-settings-header-title svg {
+  color: #2e6b4f;
+}
+
+.graph-settings-popover .graph-settings-header strong {
+  font: 600 13px/1 var(--sans);
+}
+
+.graph-settings-popover .graph-settings-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid rgb(28 36 39 / 14%);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #6b6b64;
+  font: 11px var(--sans);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.graph-settings-popover .graph-settings-reset:hover {
+  background: #eceae2;
+  color: #20201e;
+}
+
+.graph-settings-popover .graph-settings-group {
+  display: grid;
+  gap: 0;
+  margin-top: 18px;
+}
+
+.graph-settings-popover .graph-settings-group:first-of-type {
+  margin-top: 12px;
+}
+
+.graph-settings-popover .graph-settings-group-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 7px;
+  color: #8a8a82;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.graph-settings-popover .graph-settings-group-title svg {
+  color: #a3a39b;
+}
+
+.graph-settings-popover .graph-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  color: #4f4f49;
+  font-size: 12px;
+}
+
+.graph-settings-popover .graph-settings-row > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.graph-settings-popover .graph-settings-row small {
+  color: #9a9a92;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.graph-settings-popover .graph-settings-row input {
+  flex-shrink: 0;
+  width: 68px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-sm);
+  background: #fffef9;
+  color: #3d3d38;
+  font: 12px var(--mono);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.graph-settings-popover .graph-settings-row input:hover {
+  border-color: #b9b7ae;
+}
+
+.graph-settings-popover .graph-settings-row input:focus {
+  border-color: #2e6b4f;
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(46 107 79 / 16%);
+}
+
+
+/* Interruptor (toggle switch) das opcoes de exibicao. */
+.graph-settings-popover .graph-settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  color: #4f4f49;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.graph-settings-popover .graph-settings-toggle > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.graph-settings-popover .graph-settings-toggle small {
+  color: #9a9a92;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.graph-settings-popover .graph-settings-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.graph-settings-popover .graph-settings-toggle-track {
+  position: relative;
+  flex-shrink: 0;
+  width: 34px;
+  height: 19px;
+  border-radius: 999px;
+  background: #d9d7d0;
+  transition: background 160ms ease;
+}
+
+.graph-settings-popover .graph-settings-toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2.5px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fffef9;
+  box-shadow: 0 1px 3px rgb(28 36 39 / 30%);
+  transition: transform 160ms ease;
+}
+
+.graph-settings-popover .graph-settings-toggle input:checked + .graph-settings-toggle-track {
+  background: #2e6b4f;
+}
+
+.graph-settings-popover .graph-settings-toggle input:checked + .graph-settings-toggle-track::after {
+  transform: translateX(14px);
+}
+
+.graph-settings-popover .graph-settings-toggle input:focus-visible + .graph-settings-toggle-track {
+  outline: 2px solid rgb(46 107 79 / 45%);
+  outline-offset: 2px;
+}
+
+/* Cores dos grupos (pasta ou tag) com override por Vault. */
+.graph-settings-popover .graph-settings-row select {
+  flex-shrink: 0;
+  max-width: 130px;
+  height: 26px;
+  padding: 0 4px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-sm);
+  background: #fffef9;
+  color: #3d3d38;
+  font: 12px var(--sans);
+}
+
+.graph-settings-popover .graph-settings-colors {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(28 36 39 / 8%);
+}
+
+.graph-settings-popover .graph-settings-colors-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 6px;
+  color: #8a8a82;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.graph-settings-popover .graph-settings-colors-title svg {
+  color: #a3a39b;
+}
+
+.graph-settings-popover .graph-settings-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  color: #4f4f49;
+}
+
+.graph-settings-popover .graph-settings-color-row input[type='color'] {
+  flex-shrink: 0;
+  width: 26px;
+  height: 22px;
+  padding: 1px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-xs);
+  background: #fffef9;
+  cursor: pointer;
+}
+
+.graph-settings-popover .graph-settings-color-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-settings-popover .graph-settings-color-reset {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-xs);
+  background: #fffef9;
+  color: #6a6a62;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.graph-settings-popover .graph-settings-color-reset:hover {
+  border-color: #b9b7ae;
+  color: #3d3d38;
+}
+
+.graph-settings-popover .graph-settings-color-reset-all {
+  margin-top: 6px;
+  padding: 3px 8px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #6a6a62;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.graph-settings-popover .graph-settings-color-reset-all:hover {
+  border-color: #b9b7ae;
+  color: #3d3d38;
+}
+
+.graph-settings-popover .graph-settings-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 18px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgb(28 36 39 / 8%);
+  color: #9a9a92;
+  font-size: 11px;
+}
+
+/* Menu de exportacao (SVG/PNG) do header do grafo. */
+.ui-popover-content.graph-export-popover {
+  width: min(280px, 92vw);
+  padding: 14px 14px 10px;
+}
+
+.graph-export-popover .graph-settings-header-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 10px;
+  color: #303f33;
+  font: 600 13px/1 var(--sans);
+}
+
+.graph-export-popover .graph-settings-header-title svg {
+  color: #2e6b4f;
+}
+
+.graph-export-popover .graph-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  color: #3d3d38;
+  font-size: 12px;
+}
+
+.graph-export-popover .graph-settings-row small {
+  display: block;
+  color: #8a8a80;
+  font-size: 10px;
+}
+
+.graph-export-popover .graph-settings-row select {
+  min-height: 28px;
+  padding: 0 6px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-sm);
+  background: #fffef9;
+  color: #3d3d38;
+  font: 12px var(--sans);
+}
+
+.graph-export-popover .graph-export-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgb(28 36 39 / 8%);
+}
+
+.graph-export-popover .graph-export-actions .secondary-button {
+  flex: 1;
+  min-height: 30px;
+}
+
+/* Drawer lateral da nota selecionada (coluna a direita). */
+.workspace-shell .graph-note-drawer .ui-drawer-header {
+  gap: 2px;
+}
+
+.workspace-shell .graph-note-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgb(28 36 39 / 10%);
+}
+
+.workspace-shell .graph-note-drawer-heading {
+  min-width: 0;
+}
+
+.workspace-shell .graph-note-drawer-eyebrow {
+  margin: 0 0 4px;
+  color: #2e6b4f;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Grade de metricas: numero grande + rotulo por coluna. */
+.workspace-shell .graph-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.workspace-shell .graph-detail-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border: 1px solid rgb(28 36 39 / 8%);
+  border-radius: var(--radius-lg);
+  background: #f4f6f2;
+}
+
+.workspace-shell .graph-detail-stat strong {
+  color: #2c3d30;
+  font: 600 17px/1 var(--sans);
+}
+
+.workspace-shell .graph-detail-stat span {
+  color: #73736d;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Secoes do drawer (conteudo e referencias). */
+.workspace-shell .graph-note-drawer-section {
+  margin-top: 16px;
+}
+
+.workspace-shell .graph-note-drawer-section-title {
+  margin: 0 0 6px;
+  color: #8a8a82;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-shell .graph-note-drawer-preview {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgb(28 36 39 / 8%);
+  border-radius: var(--radius-lg);
+  background: #fffef9;
+  color: #5a5a53;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.workspace-shell .graph-note-drawer-references {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workspace-shell .graph-note-drawer-ref {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid rgb(28 36 39 / 12%);
+  border-radius: 999px;
+  background: #f0f4ef;
+  color: #2e6b4f;
+  font-size: 11px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.workspace-shell .graph-note-drawer-ref:hover {
+  border-color: rgb(46 107 79 / 35%);
+  background: #e2efe4;
+}
+
+.workspace-shell .graph-note-drawer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(28 36 39 / 10%);
+}
+
+.workspace-shell .graph-note-drawer-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.workspace-shell .graph-note-drawer-actions .secondary-button {
+  min-height: 34px;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid rgb(28 36 39 / 12%);
+  background: transparent;
+}
+
+.workspace-shell .graph-note-drawer-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: #20201e;
+  color: #fbfaf6;
+  font: 600 13px/1 var(--sans);
+  cursor: pointer;
+  transition: background 140ms ease, opacity 140ms ease;
+}
+
+.workspace-shell .graph-note-drawer-primary:hover {
+  background: #353530;
+}
+
+.workspace-shell .graph-note-drawer-close {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgb(28 36 39 / 12%);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: #6b6b64;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.workspace-shell .graph-note-drawer-close:hover {
+  background: #eceae2;
+  color: #20201e;
+}
+
+.workspace-shell .graph-note-drawer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.workspace-shell .graph-note-drawer-actions .secondary-button {
+  min-height: 34px;
+  justify-content: flex-start;
+  padding: 0 12px;
+  border: 1px solid rgb(28 36 39 / 12%);
+  background: transparent;
+}
+
+.workspace-shell .graph-note-drawer-primary {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: #20201e;
+  color: #fbfaf6;
+  font: 600 13px/1 var(--sans);
+  cursor: pointer;
+  transition: background 140ms ease, opacity 140ms ease;
+}
+
+.workspace-shell .graph-note-drawer-primary:hover {
+  background: #353530;
+}
+
+
+
+/* Cluster de zoom no header: grupo visualmente fechado. */
+.workspace-shell .graph-zoom-cluster {
+  display: inline-flex;
+  gap: 1px;
+  padding: 2px;
+  border: 1px solid rgb(28 36 39 / 12%);
+  border-radius: var(--radius-sm);
+  background: rgb(255 254 249 / 60%);
+}
+
+.workspace-shell .graph-zoom-cluster .secondary-button {
+  min-height: 24px;
+  padding: 0 8px;
+  border: 0;
+}
+
+.workspace-shell .graph-zoom-cluster .secondary-button + .secondary-button {
+  border-left: 1px solid rgb(28 36 39 / 10%);
+}
+
+/* Painel de orfaos e estados vazios: overlays sobre o grafo imersivo. */
+.workspace-shell .graph-empty-state-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 10;
+  transform: translate(-50%, -50%);
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  background: rgb(251 250 246 / 90%);
+  box-shadow: 0 8px 24px rgb(44 54 45 / 14%);
+}
+
+.workspace-shell .graph-orphan-panel {
+  position: absolute;
+  top: 66px;
+  left: 14px;
+  z-index: 20;
+  display: grid;
+  gap: 10px;
+  width: 340px;
+  max-height: calc(100% - 96px);
+  padding: 13px 14px;
+  overflow: auto;
+  border: 1px solid #e0d8c9;
+  border-left: 3px solid #a9844a;
+  border-radius: var(--radius-md);
+  background: rgb(255 253 247 / 94%);
+  box-shadow: 0 10px 28px rgb(44 54 45 / 16%);
+}
+
+.workspace-shell .graph-orphan-panel h3, .workspace-shell .graph-orphan-panel p { margin: 0; }
+.workspace-shell .graph-orphan-list { display: grid; gap: 4px; }
+.workspace-shell .graph-orphan-list > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; padding-left: 8px; border-bottom: 1px solid #eee8dc; color: #514b40; font-size: 12px; }
+.workspace-shell .graph-orphan-list > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-shell .graph-orphan-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.workspace-shell .graph-orphan-actions .secondary-button { padding: 3px 8px; font-size: 11px; }
+
+.workspace-shell .graph-local-limit-note {
+  position: absolute;
+  right: 14px;
+  bottom: 48px;
+  z-index: 30;
+  max-width: min(420px, calc(100% - 28px));
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid rgb(169 132 74 / 45%);
+  border-radius: var(--radius-md);
+  background: rgb(255 251 240 / 92%);
+  box-shadow: 0 6px 18px rgb(44 54 45 / 12%);
+  color: #7a5a22;
+  font-size: 11px;
+}
+
+.workspace-shell .graph-culling-note {
+  position: absolute;
+  left: 14px;
+  bottom: 48px;
+  z-index: 30;
+  max-width: min(460px, calc(100% - 28px));
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid rgb(112 137 170 / 45%);
+  border-radius: var(--radius-md);
+  background: rgb(245 248 253 / 94%);
+  box-shadow: 0 6px 18px rgb(44 54 45 / 12%);
+  color: #40597c;
+  font-size: 11px;
+}
+
+.workspace-shell .note-graph {
+  position: relative;
+  isolation: isolate;
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background-color: #faf9f4;
+  background-image: radial-gradient(#d9d7ce 0.75px, transparent 0.75px);
+  background-size: 16px 16px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.workspace-shell .note-graph:active { cursor: grabbing; }
+
+/* Alternador 2D/3D do grafo (segmentado, como o controle de modo do editor). */
+.workspace-shell .graph-dimension-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-sm);
+  background: #efece4;
+}
+
+.workspace-shell .graph-dimension-toggle button {
+  min-height: 28px;
+  padding: 0 11px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #6b6a63;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workspace-shell .graph-dimension-toggle button:hover:not(:disabled) {
+  transform: none;
+  background: #e5e1d7;
+}
+
+.workspace-shell .graph-dimension-toggle button.is-active {
+  background: #fffef9;
+  color: #303f33;
+  box-shadow: 0 1px 3px rgb(48 63 51 / 18%);
+}
+
+/* Painel 3D do grafo: fundo escuro para os pulsos eletricos brilharem. */
+.workspace-shell .note-graph-3d {
+  position: relative;
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 42%, #141a24 0%, #0d1117 62%, #0a0d12 100%);
+  cursor: grab;
+  touch-action: none;
+}
+
+.workspace-shell .note-graph-3d-fallback {
+  display: grid;
+  place-items: center;
+  color: #8a8a82;
+  font-size: 13px;
+}
+
+/* Rotulos CSS2D sobre os nos do grafo 3D (o renderer centraliza com translate). */
+.graph3d-label {
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  background: rgb(10 13 18 / 68%);
+  color: #c9d4e2;
+  font: 500 11px/1.35 var(--sans);
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.graph3d-label.is-focused {
+  color: #9fe8ff;
+  font-weight: 700;
+}
+
+.graph3d-label.is-current {
+  color: #f2b95c;
+}
+
+.graph3d-label.is-dimmed {
+  opacity: 0.35;
+}
+
+.workspace-shell .note-graph-world {
+  position: absolute;
+  inset: 0;
+  transform-origin: top left;
+  will-change: transform;
+}
+
+.workspace-shell .note-graph-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.workspace-shell .note-graph-links line {
+  stroke: #9bac9d;
+  stroke-width: 0.35;
+  vector-effect: non-scaling-stroke;
+}
+
+.workspace-shell .note-graph-links line.is-focused { stroke: #52715a; stroke-width: 0.7; }
+
+/* Nos do grafo 2D: sempre uma bolinha circular centrada no ponto do no. O
+ * button e apenas a ancora de posicionamento (caixa 0x0); a bolinha visivel
+ * cresce com o numero de conexoes (--graph-scale) e o nome fica abaixo.
+ * min-height/min-width: 0 anulam o `button { min-height: 46px }` global — sem
+ * isso a caixa fica 0x46px e o loop da fisica, que posiciona por transform
+ * translate(px, px) SEM o translate(-50%, -50%) do CSS, deixa a bolinha 23px
+ * abaixo da ponta da aresta (arestas "no topo" do no durante o movimento). */
+.workspace-shell .note-graph-node {
+  position: absolute;
+  z-index: 1;
+  width: 0;
+  height: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  transform: translate(-50%, -50%);
+  /* Promove cada no a camada propria de composicao: durante o arrasto o loop
+     da fisica reescreve o transform a 60fps e o Chromium so compoem por GPU,
+     sem re-rasterizar na thread principal (drop de FPS ao mover os nos). */
+  will-change: transform;
+  transition: opacity 150ms ease;
+}
+
+/* Hitbox ampliada: bolinha + area do nome abaixo (o nome fica a ~20-35px do
+ * centro, entao a hitbox desce ate ~30px) — sem alterar o visual. */
+.workspace-shell .note-graph-node::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 36px;
+  height: 62px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+/* A bolinha: circular, cresce com as conexoes. */
+.workspace-shell .note-graph-node-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 1.5px solid #5d7664;
+  border-radius: 50%;
+  background: var(--node-folder-color, #fffef9);
+  box-shadow: 0 2px 6px rgb(44 54 45 / 14%);
+  transform: scale(var(--graph-scale, 1));
+}
+
+/* Nome da nota: aparece abaixo da bolinha conforme o zoom; sem borda nem
+ * fundo. No hover (ou com zoom suficiente) fica visivel. */
+.workspace-shell .note-graph-node-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: 170px;
+  margin-top: 20px;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: #36513b;
+  font: 600 11px/1.3 var(--sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 120ms ease;
+  opacity: 1;
+}
+
+.workspace-shell .note-graph-node-label.is-hidden {
+  opacity: 0;
+}
+
+/* Hover dos nos: anula as regras globais de button (que aplicariam fundo
+ * escuro e transform, deslocando a bolinha do centro) e sobe o no na pilha
+ * para o nome abaixo nao ser coberto. */
+.workspace-shell .note-graph .note-graph-node:hover,
+.workspace-shell .note-graph .note-graph-node:focus-visible {
+  z-index: 2;
+  outline: none;
+  transform: translate(-50%, -50%);
+  background: none;
+  border: none;
+}
+
+.workspace-shell .note-graph-node.is-focused .note-graph-node-dot {
+  border-color: #52715a;
+  background: #e5eee5;
+}
+
+.workspace-shell .note-graph-node.is-current .note-graph-node-dot {
+  border-color: #5d7664;
+  box-shadow: 0 0 0 3px #dce6dc;
+}
+
+/* No hover, nos sem conexao direta com o no sob o mouse perdem opacidade. */
+.workspace-shell .note-graph-node.is-dimmed {
+  opacity: 0.3;
+}
+
+/* Arestas do no em hover ganham destaque. */
+.workspace-shell .note-graph-links line.is-hovered {
+  stroke: #5d7664;
+  stroke-width: 0.75;
+}
+
+.workspace-shell .graph-empty-state {
+  max-width: 640px;
+  margin: 4px 0;
+  color: #73736d;
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .workspace-shell .graph-page-header {
+    display: grid;
+  }
+
+  .workspace-shell .note-graph {
+    min-height: 460px;
+  }
+
+  .workspace-shell .graph-controls > input,
+  .workspace-shell .graph-controls select { flex: 1 1 140px; min-width: 0; }
+}
+
+.workspace-shell .trash-table-wrap {
+  width: min(100%, 920px);
+  overflow-x: auto;
+  border: 1px solid #e1dfd8;
+  border-radius: var(--radius-sm);
+  background: #fbfaf6;
+}
+
+.workspace-shell .trash-table-wrap table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  color: #4f4f49;
+  font-size: 12px;
+  text-align: left;
+}
+
+.workspace-shell .trash-table-wrap th,
+.workspace-shell .trash-table-wrap td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #e8e6df;
+  vertical-align: middle;
+}
+
+.workspace-shell .trash-table-wrap th {
+  color: #73736d;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.workspace-shell .trash-table-wrap tr:last-child td {
+  border-bottom: 0;
+}
+
+.workspace-shell .trash-table-wrap td:first-child {
+  max-width: 390px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .trash-table-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.workspace-shell .trash-table-actions .secondary-button {
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+}
+
+.workspace-shell .editor-surface {
+  grid-template-rows: auto 0 minmax(0, 1fr);
+  height: 100%;
+  background: var(--workspace-bg);
+  position: relative;
+  transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.workspace-shell .note-find-bar {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: min(420px, calc(100% - 24px));
+  padding: 4px 5px 4px 9px;
+  border: 1px solid var(--workspace-line);
+  border-radius: var(--radius-md);
+  background: var(--workspace-raised);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.workspace-shell .note-find-bar > svg {
+  flex: 0 0 auto;
+  color: var(--workspace-muted);
+}
+
+.workspace-shell .note-find-bar input {
+  flex: 1;
+  min-width: 0;
+  width: 150px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--workspace-text);
+  font: 400 13px/1.4 var(--sans);
+}
+
+.workspace-shell .note-find-bar input::placeholder {
+  color: var(--workspace-muted);
+}
+
+.workspace-shell .note-find-count {
+  flex: 0 0 auto;
+  min-width: 34px;
+  padding: 0 6px;
+  color: var(--workspace-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.workspace-shell .note-find-nav-button,
+.workspace-shell .note-find-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--workspace-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.workspace-shell .note-find-nav-button:hover:not(:disabled),
+.workspace-shell .note-find-close:hover:not(:disabled) {
+  background: var(--workspace-line);
+  color: var(--workspace-text);
+}
+
+.workspace-shell .note-find-nav-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Escudo: sem hover próprio, esses botões herdavam a chapa escura global no
+   tema claro — wash claro aqui (mesmo do secondary), sem `!important`. */
+.workspace-shell .note-find-nav-button.note-find-nav-button:hover:not(:disabled),
+.workspace-shell .note-find-close.note-find-close:hover:not(:disabled) {
+  background: #e2e1da;
+}
+
+.workspace-shell.is-markdown-tools-open .editor-surface {
+  grid-template-rows: auto 68px minmax(0, 1fr);
+}
+
+.workspace-shell .tab-strip {
+  background: #f1f0eb;
+  border-color: var(--workspace-line);
+}
+
+.workspace-shell .tab-chip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  padding-right: 6px;
+  background: #ebeae5;
+  border-right-color: var(--workspace-line);
+  transition: background-color 180ms ease;
+}
+
+.workspace-shell .tab-chip.is-active {
+  border-top-color: #738979;
+  background: #fbfaf6;
+}
+
+.workspace-shell .tab-select,
+.workspace-shell .tab-close,
+.workspace-shell .tab-chip.is-active .tab-select,
+.workspace-shell .tab-chip.is-active .tab-close {
+  color: #45453f;
+  transition: color 180ms ease;
+}
+
+.workspace-shell .tab-chip .tab-select:hover:not(:disabled),
+.workspace-shell .tab-chip .tab-close:hover:not(:disabled) {
+  background: transparent;
+  color: var(--tab-hover-text-color, #fff);
+}
+
+/* Hover da aba: wash quente no claro (o fallback #171716 pintava chapa
+   escura) e carvão elevado no escuro; texto acompanha o tema. */
+.workspace-shell .tab-chip:hover {
+  background: var(--tab-hover-color, #dcdad2);
+}
+
+.workspace-shell .tab-chip:hover .tab-select,
+.workspace-shell .tab-chip:hover .tab-close {
+  color: #45453f;
+}
+
+[data-theme='dark'] .workspace-shell .tab-chip:hover {
+  background: var(--tab-hover-color, #232230);
+}
+
+[data-theme='dark'] .workspace-shell .tab-chip:hover .tab-select,
+[data-theme='dark'] .workspace-shell .tab-chip:hover .tab-close {
+  color: var(--tab-hover-text-color, #fbfaf6);
+}
+
+.workspace-shell .tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  min-height: 37px;
+  font-size: 0;
+  line-height: 0;
+  padding: 0;
+}
+
+.workspace-shell .tab-close::before {
+  content: none;
+}
+
+.workspace-shell .tab-close > svg {
+  box-sizing: border-box;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  transition: flex-basis 180ms ease, width 180ms ease, height 180ms ease, padding 180ms ease, background-color 180ms ease;
+}
+
+.workspace-shell .tab-chip:hover .tab-close > svg {
+  background: transparent;
+}
+
+.workspace-shell .tab-chip .tab-close:hover:not(:disabled) > svg {
+  flex-basis: 22px;
+  width: 22px;
+  height: 22px;
+  padding: 4px;
+  border-radius: var(--radius-xs);
+  background: #d3d2ca;
+}
+
+.workspace-shell .new-tab-button {
+  position: relative;
+  display: grid;
+  width: 38px;
+  min-width: 38px;
+  min-height: 37px;
+  margin-left: 2px;
+  padding: 0;
+  place-items: center;
+  background: transparent;
+  color: #45453f;
+}
+
+.workspace-shell .new-tab-button::before {
+  content: '';
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-xs);
+}
+
+.workspace-shell .new-tab-button > svg {
+  position: relative;
+}
+
+.workspace-shell .new-tab-button:hover:not(:disabled) {
+  background: transparent;
+}
+
+.workspace-shell .new-tab-button:hover:not(:disabled)::before {
+  background: #d3d2ca;
+}
+
+.workspace-shell .editor-title-input {
+  width: min(100%, 620px);
+  border: 0;
+  border-bottom: 1px solid #c8c6be;
+  outline: none;
+  padding: 0;
+  background: transparent;
+  color: #20201e;
+  font: 600 24px/1.2 var(--sans);
+}
+
+.workspace-shell .editor-title-input:focus-visible {
+  border-bottom-color: #738979;
+}
+
+.workspace-shell .editor-title-button {
+  display: block;
+  max-width: min(100%, 620px);
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  padding: 0;
+  background: transparent;
+  color: #20201e;
+  cursor: text;
+  font: 600 24px/1.2 var(--sans);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .editor-title-button:focus-visible {
+  border-bottom-color: #738979;
+  background: transparent;
+}
+

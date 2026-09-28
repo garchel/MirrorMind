@@ -1,0 +1,2988 @@
+/* Linha de tags sempre visivel abaixo do titulo (reaproveita badges,
+   remove e popover da antiga secao de Tags do painel). */
+.workspace-shell .note-header-tags {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+  max-width: min(100%, 620px);
+}
+
+/* Sem transicao em TODA a zona de tags (toggle, resumo, chevron, badges, X
+   e "+"): a transicao global de `button` (background 180ms + opacity/X
+   140ms) promove camadas no compositor a cada hover; a zona cola no editor
+   (viagem de <100ms), entao entrar no editor ainda com a transicao de saida
+   rodando prende o I-beam em branco no WebView2 — e nenhum pulso posterior
+   cobre a janela com folga. O hover continua com o mesmo estado final
+   (cinza + icone escuro), so sem o fade. */
+.workspace-shell .note-header-tags .note-tags-toggle,
+.workspace-shell .note-header-tags .note-tags-summary,
+.workspace-shell .note-header-tags .note-tags-chevron,
+.workspace-shell .note-header-tags .frontmatter-panel-tag-badge,
+.workspace-shell .note-header-tags .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove,
+.workspace-shell .note-header-tags .frontmatter-panel-add {
+  transition: none;
+}
+
+/* Resumo colapsado de uma linha: some no conteudo, aparece no hover. */
+.workspace-shell .note-header-tags .note-tags-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  justify-self: start;
+  max-width: 100%;
+  padding: 2px 6px 2px 4px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #73736d;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.workspace-shell .note-header-tags .note-tags-toggle:hover {
+  background: #efede4;
+  color: #343532;
+}
+
+.workspace-shell .note-header-tags .note-tags-toggle.is-empty {
+  opacity: 0.6;
+}
+
+.workspace-shell .note-header-tags .note-tags-toggle.is-empty:hover {
+  opacity: 1;
+}
+
+.workspace-shell .note-header-tags .note-tags-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .note-header-tags .note-tags-toggle .note-tags-chevron {
+  flex: none;
+  transition: transform 140ms ease;
+}
+
+.workspace-shell .note-header-tags .note-tags-toggle[aria-expanded="false"] .note-tags-chevron {
+  transform: rotate(-90deg);
+}
+
+.workspace-shell .editor-title-button:hover:not(:disabled) {
+  border-bottom-color: transparent;
+  background: transparent;
+}
+
+.workspace-shell .note-description-field {
+  display: grid;
+  gap: 3px;
+  max-width: min(100%, 620px);
+  margin-top: 8px;
+  color: #6f6e67;
+  font: 11px/1.2 var(--sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workspace-shell .note-description-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  outline: none;
+  padding: 2px 0 4px;
+  background: transparent;
+  color: #56564f;
+  font: 400 14px/1.45 var(--sans);
+}
+
+.workspace-shell .note-description-field input:focus-visible {
+  border-bottom-color: #738979;
+}
+
+.workspace-shell .note-description-field input::placeholder {
+  color: transparent;
+  opacity: 0;
+  transition: color 160ms ease, opacity 160ms ease;
+}
+
+.workspace-shell .note-description-field:hover input::placeholder {
+  color: #929188;
+  opacity: 1;
+}
+
+.workspace-shell .editor-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  align-self: start;
+  min-height: 30px;
+  margin-top: 0;
+  overflow: hidden;
+}
+
+/* Os botoes nunca espremem: sem espaco, mudam para o menu "Mais acoes"
+   (medido via ResizeObserver) em vez de encolher. */
+.workspace-shell .editor-actions > * {
+  flex-shrink: 0;
+}
+
+/* Centraliza o glifo dos botoes do header (busca, desfazer, ...): sem isso o
+ * SVG inline ancora na baseline e o icone sobe ~2.5px. Mesmo padrao dos
+ * botoes com icone+texto abaixo (inline-flex centralizado). */
+.workspace-shell .editor-actions > .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.workspace-shell .editor-header {
+  align-items: start;
+  position: relative;
+}
+
+.workspace-shell .history-actions {
+  display: flex;
+  gap: 2px;
+  padding-right: 8px;
+  border-right: 1px solid #d9d7d0;
+}
+
+.workspace-shell .history-actions .secondary-button {
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+}
+
+.workspace-shell .history-actions .secondary-button:disabled {
+  cursor: default;
+}
+
+.workspace-shell .history-actions .secondary-button:not(:disabled) {
+  cursor: pointer;
+}
+
+.workspace-shell .editor-actions > .favorite-button {
+  display: grid;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  place-items: center;
+  line-height: 0;
+}
+
+.workspace-shell .editor-actions > .note-review-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 8px;
+}
+
+.workspace-shell .editor-actions > .indexadora-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 8px;
+}
+
+/* Gatilho icon-only da verificacao factual (sem regra propria de tamanho). */
+.workspace-shell .editor-actions > .structural-audit-trigger {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 8px;
+}
+
+.workspace-shell .editor-actions > .indexadora-button.is-active {
+  color: #2e6b4f;
+  background: #e2efe4;
+}
+
+.workspace-shell .editor-actions > .indexadora-button.is-active:hover {
+  background: #d5e8d8;
+}
+
+/* Cabecalho: titulo a esquerda, status a direita, na mesma linha. */
+.ui-popover-content.note-review-menu > .note-review-menu-header-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ui-popover-content.note-review-menu > .note-review-menu-header-row > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.ui-popover-content.note-review-menu > .note-review-menu-header-row .note-readiness-status-card {
+  justify-content: flex-end;
+  max-width: 58%;
+  min-height: 0;
+}
+
+/* Pagina de estrutura (espelho da pagina de avaliacao): cabecalho com voltar
+   + conteudo no escopo .structural-audit-scope. */
+.ui-popover-content.note-review-menu .note-audit-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ui-popover-content.note-review-menu .note-audit-report-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ui-popover-content.note-review-menu .note-audit-report-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-popover-content.note-review-menu .note-audit-report-header strong {
+  color: var(--text-h, #1c2427);
+  font: 600 13px var(--sans);
+}
+
+.ui-popover-content.note-review-menu .note-audit-report-header small {
+  color: var(--muted, #7e7466);
+  font-size: 11px;
+}
+
+/* Botao "Mais acoes" (overflow do header): quadrado como os demais. */
+.workspace-shell .editor-actions > .header-overflow-trigger {
+  display: grid;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  place-items: center;
+  line-height: 0;
+}
+
+/* Menu do overflow: acoes empilhadas em largura toda; o rotulo vem do
+   aria-label do botao (os gatilhos sao icon-only no header). */
+.ui-popover-content.header-overflow-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  padding: 6px;
+}
+
+.ui-popover-content.header-overflow-menu > .secondary-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 10px;
+  text-align: left;
+}
+
+.ui-popover-content.header-overflow-menu > .secondary-button::after {
+  content: attr(aria-label);
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Menu (Popover do shadcn) que agrupa as acoes de avaliacao/revisao da nota.
+   Layout do mockup: cabecalho -> faixa de status (badge unificado + proxima
+   revisao) -> divisor -> grade de acoes com "Fazer revisao agora" e, logo
+   abaixo dele, "Politica de revisao" (Ver relatorio | Fazer revisao agora /
+   Reavaliar nota | Politica de revisao), depois o reset em largura toda.
+   Células em alturas uniformes. ATENCAO: o conteudo do Popover e renderizado
+   num PORTAL do
+   Radix em document.body — fora do .workspace-shell — entao o escopo usa o
+   seletor do proprio conteudo (.ui-popover-content). */
+.ui-popover-content.note-review-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 344px;
+  max-width: min(400px, calc(100vw - 32px));
+  padding: 10px 11px 11px;
+  font-size: 12px;
+}
+
+/* Dica sob o CTA desabilitado: diz o proximo passo em vez de so apagar. */
+.ui-popover-content.note-review-menu .note-review-hint {
+  margin: 0;
+  padding: 0 2px;
+  color: var(--muted, #7e7466);
+  font-size: 11px;
+}
+
+/* Zona de atencao (reiniciar aprendizado): separada por divisor, no fim. */
+.ui-popover-content.note-review-menu .note-review-danger-zone {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid #e8e5dd;
+}
+
+/* Resumo do ritmo dentro do gatilho da politica ("Equilibrada · 80%"). */
+.ui-popover-content.note-review-menu .note-review-policy-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  line-height: 1.35;
+}
+
+.ui-popover-content.note-review-menu .note-review-policy-label > small {
+  color: var(--muted, #7e7466);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* Cabecalho: ocupa a largura toda (o divisor fica abaixo da faixa de status). */
+.ui-popover-content.note-review-menu > .note-review-menu-header {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 2px 6px;
+}
+
+.ui-popover-content.note-review-menu .note-review-menu-header strong {
+  color: var(--text-h, #1c2427);
+  font: 600 13px var(--sans);
+}
+
+.ui-popover-content.note-review-menu .note-review-menu-header small {
+  color: var(--muted, #7e7466);
+  font-size: 11px;
+}
+
+/* Faixa de status: pill grande + proxima revisao (sem divisor proprio — as
+   secoes ja separam os blocos). */
+.ui-popover-content.note-review-menu .note-readiness-status-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-height: 34px;
+  padding: 0 2px;
+}
+
+/* Pill de status unificada: maior e mais visivel, circulo branco de check. */
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  padding: 0 12px 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: #eceae3;
+  color: #6b6b64;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state-check {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #2f4a35;
+}
+
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state.is-ready { background: #a9bda5; color: #2f4a35; }
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state.is-ambiguous,
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state.is-modified { background: #e6d8ad; color: #6b5319; }
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-readiness-state.is-insufficient { background: #e6c4bb; color: #7c3f36; }
+
+.ui-popover-content.note-review-menu .note-readiness-status-card .note-review-next-date {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  color: var(--muted, #7e7466);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Anti-pilula: a base global `button` e uma pilula de 46px; dentro do menu,
+   todo secondary/primary sem medida propria herda 34px e raio-md (8px), a
+   linguagem do app. `:where` zera a especificidade do filtro para empatar
+   (0,3,0) com as regras especificas abaixo, que vencem por virem depois.
+   Excecoes com medida propria (aplicar, confirmar e cards de perfil) ficam
+   de fora. */
+.ui-popover-content.note-review-menu .secondary-button:where(:not(.structural-audit-apply):not(.review-reset-confirm):not(.note-profile-onboarding-options *)),
+.ui-popover-content.note-review-menu .primary-button:where(:not(.structural-audit-apply):not(.review-reset-confirm):not(.note-profile-onboarding-options *)) {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+}
+
+/* Botoes de acao: alturas uniformes e compactas. */
+.ui-popover-content.note-review-menu .note-review-start-trigger,
+.ui-popover-content.note-review-menu .note-readiness-report-trigger,
+.ui-popover-content.note-review-menu .note-readiness-trigger,
+.ui-popover-content.note-review-menu .note-structure-trigger,
+.ui-popover-content.note-review-menu .note-review-policy-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* CTA primaria (Fazer revisao agora): fundo escuro, largura toda da secao. */
+.ui-popover-content.note-review-menu .note-review-start-trigger {
+  border: 0;
+  background: var(--button-bg, #1c2427);
+  color: var(--button-text, #f7f2e7);
+  font-weight: 600;
+}
+
+.ui-popover-content.note-review-menu .note-review-start-trigger:not(:disabled):hover {
+  background: #2c3538;
+}
+
+.ui-popover-content.note-review-menu .note-review-start-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Celulas leves: relatorio, avaliar, estrutura e politica. */
+.ui-popover-content.note-review-menu .note-readiness-report-trigger,
+.ui-popover-content.note-review-menu .note-readiness-trigger,
+.ui-popover-content.note-review-menu .note-structure-trigger,
+.ui-popover-content.note-review-menu .note-review-policy-trigger {
+  border: 1px solid #e0ddd4;
+  background: #f5f2ea;
+}
+
+.ui-popover-content.note-review-menu .note-readiness-report-trigger:not(:disabled):hover,
+.ui-popover-content.note-review-menu .note-readiness-trigger:not(:disabled):hover,
+.ui-popover-content.note-review-menu .note-structure-trigger:not(:disabled):hover,
+.ui-popover-content.note-review-menu .note-review-policy-trigger:not(:disabled):hover {
+  background: #ece8dd;
+}
+
+/* Icone HugeIcons dentro do botao: o svg e inline e ancora na baseline do
+   span (empurra o glifo para cima); os lucides vao diretos como flex items.
+   Grade centralizada iguala os dois. */
+.ui-popover-content.note-review-menu .note-structure-trigger > span[aria-hidden="true"] {
+  display: inline-grid;
+  place-items: center;
+  line-height: 0;
+}
+
+.ui-popover-content.note-review-menu .note-structure-trigger svg {
+  display: block;
+}
+
+/* Icones empilhados (grafico+lupa, caderno+reciclar, engrenagem+chave):
+   um icone base com um icone-corner pequeno sobreposto. */
+.ui-popover-content.note-review-menu .note-review-icon-stack {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.ui-popover-content.note-review-menu .note-review-icon-stack .note-review-icon-corner {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 11px;
+  height: 11px;
+  padding: 1px;
+  border-radius: 50%;
+  background: #f5f2ea;
+  box-shadow: 0 0 0 1px rgb(28 36 39 / 8%);
+}
+
+/* Erros ocupam a largura toda. */
+.ui-popover-content.note-review-menu .review-ai-toolbar-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+/* Dot de status no trigger do popover (fora do portal, dentro do workspace). */
+.workspace-shell .note-review-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: #b9b6ac;
+  box-shadow: inset 0 0 0 1px rgb(28 36 39 / 0.14);
+}
+
+.workspace-shell .note-review-status-dot.is-ready { background: var(--success, #40916c); }
+.workspace-shell .note-review-status-dot.is-ambiguous,
+.workspace-shell .note-review-status-dot.is-modified { background: #c9a227; }
+.workspace-shell .note-review-status-dot.is-insufficient { background: var(--danger, #9a3b23); }
+
+
+.workspace-shell .favorite-button.is-active { color: #9a7432; background: #f1e8cf; }
+.workspace-shell .favorite-notes { display: grid; gap: 2px; margin: 0 2px 8px; padding: 6px; border-bottom: 1px solid #e6e4de; }
+.workspace-shell .favorite-notes > span { color: #73736d; font-size: 10px; text-transform: uppercase; }
+.workspace-shell .favorite-notes button { display: flex; align-items: center; gap: 6px; min-height: 27px; border: 0; border-radius: var(--radius-xs); background: transparent; color: #4f4f49; font-size: 12px; text-align: left; }
+.workspace-shell .favorite-notes button:hover { background: #f1e8cf; }
+
+.workspace-shell .editor-mode-control {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  gap: 6px;
+  padding: 0 6px;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-sm);
+  background: #fbfaf6;
+  color: #55554f;
+}
+
+.workspace-shell .editor-mode-control > svg {
+  flex: 0 0 auto;
+  margin-right: 1px;
+}
+
+.workspace-shell .editor-mode-button {
+  min-height: 22px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #6b6a63;
+  font: 600 11.5px var(--sans);
+  cursor: pointer;
+  transition: background 130ms ease, color 130ms ease;
+}
+
+.workspace-shell .editor-mode-button:hover:not(:disabled) {
+  background: #efede6;
+  color: #353531;
+}
+
+.workspace-shell .editor-mode-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent, #5b6f52) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.workspace-shell .editor-mode-button.is-active {
+  background: #dce6dc;
+  color: #1d2a20;
+}
+
+.workspace-shell .markdown-tools-disclosure {
+  grid-row: 2;
+  position: relative;
+  z-index: 3;
+  height: 100%;
+  min-height: 0;
+}
+
+.workspace-shell .markdown-tools-trigger {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  display: grid;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 1px solid #e6e4de;
+  border-radius: 50%;
+  background: #fbfaf6;
+  color: #595950;
+  transition: top 260ms cubic-bezier(0.22, 1, 0.36, 1), background-color 180ms ease, color 180ms ease;
+}
+
+.workspace-shell .markdown-tools-trigger:hover:not(:disabled),
+.workspace-shell .markdown-tools-trigger.is-open {
+  background: #dce6dc;
+  color: #252521;
+  transform: translate(-50%, -50%);
+}
+
+.workspace-shell .markdown-tools-trigger.is-open {
+  top: 54px;
+}
+
+.workspace-shell .markdown-tools-icon {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  transition: opacity 150ms ease;
+}
+
+.workspace-shell .markdown-tools-icon--up {
+  opacity: 0;
+}
+
+.workspace-shell .markdown-tools-trigger.is-open .markdown-tools-icon--down {
+  opacity: 0;
+}
+
+.workspace-shell .markdown-tools-trigger.is-open .markdown-tools-icon--up {
+  opacity: 1;
+}
+
+.workspace-shell .markdown-tools-menu {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  max-width: min(94vw, 620px);
+  gap: 8px;
+  padding: 8px;
+  transform: translateX(-50%);
+  flex-wrap: wrap;
+  justify-content: center;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-sm);
+  background: #fbfaf6;
+  box-shadow: none;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -18px);
+  transition: opacity 150ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.workspace-shell.is-markdown-tools-open .markdown-tools-menu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+.workspace-shell .markdown-tools-menu .markdown-toolbar-group {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  padding-right: 8px;
+  border-right: 1px solid #d9d7d0;
+}
+
+.workspace-shell .markdown-tools-menu .markdown-toolbar-group:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+.workspace-shell .markdown-tools-menu button {
+  display: grid;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-xs);
+  background: #fbfaf6;
+  color: #353531;
+}
+
+.workspace-shell .markdown-tools-menu button:hover:not(:disabled) {
+  background: #dce6dc;
+}
+
+/* The floating Markdown tools remain bounded by the note content, never the header controls. */
+.workspace-shell .editor-surface {
+  grid-template-rows: auto minmax(0, 1fr);
+  transition: none;
+}
+
+.workspace-shell .editor-content {
+  position: relative;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace-shell .editor-content > .editor-panel--edit,
+.workspace-shell .editor-content > .markdown-mixed,
+.workspace-shell .editor-content > .codemirror-markdown-editor {
+  grid-row: auto;
+  height: 100%;
+}
+
+/* Contador de palavras da nota: canto inferior direito do editor, discreto e
+   sem interagir com o conteudo (pointer-events none). */
+.workspace-shell .note-word-count {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  z-index: 1;
+  padding: 2px 9px;
+  border: 1px solid rgba(28, 36, 39, 0.14);
+  border-radius: 999px;
+  background: rgba(251, 250, 246, 0.86);
+  color: var(--workspace-muted, #73736d);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.workspace-shell .codemirror-markdown-editor {
+  min-height: 0;
+}
+
+.workspace-shell .codemirror-markdown-editor .cm-editor {
+  height: 100%;
+}
+
+.workspace-shell .markdown-tools-toggle {
+  display: grid;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  place-items: center;
+}
+
+.workspace-shell .markdown-tools-toggle.is-active {
+  background: #dce6dc;
+  color: #1d2a20;
+}
+
+.workspace-shell .floating-markdown-toolbar {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  gap: 6px;
+  max-width: calc(100% - 12px);
+  max-height: calc(100% - 12px);
+  padding: 6px;
+  overflow: auto;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-sm);
+  background: #fbfaf6;
+  box-shadow: 0 8px 18px rgba(45, 44, 39, 0.08);
+}
+
+.workspace-shell .floating-markdown-toolbar.is-horizontal {
+  flex-direction: row;
+  align-items: center;
+  width: max-content;
+}
+
+.workspace-shell .floating-markdown-toolbar.is-vertical {
+  flex-direction: column;
+  align-items: stretch;
+  width: 42px;
+}
+
+.workspace-shell .floating-markdown-toolbar .markdown-toolbar-group {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  padding-right: 6px;
+  border-right: 1px solid #d9d7d0;
+}
+
+.workspace-shell .floating-markdown-toolbar.is-vertical .markdown-toolbar-group {
+  flex-direction: column;
+  padding: 6px 0 0;
+  border-top: 1px solid #d9d7d0;
+  border-right: 0;
+}
+
+.workspace-shell .floating-markdown-toolbar .markdown-toolbar-group:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+.workspace-shell .floating-markdown-toolbar button {
+  display: grid;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-xs);
+  background: #fbfaf6;
+  color: #353531;
+}
+
+.workspace-shell .floating-markdown-toolbar button:hover:not(:disabled) {
+  background: #dce6dc;
+}
+
+.workspace-shell .floating-markdown-toolbar .markdown-tools-drag-handle {
+  cursor: grab;
+}
+
+.workspace-shell .floating-markdown-toolbar .markdown-tools-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Popover de formatacao da selecao: aparece junto ao texto selecionado nos
+   modos Edicao/Misto com as acoes mais comuns de marcacao inline. */
+.workspace-shell .selection-format-popover {
+  position: absolute;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  max-width: calc(100% - 12px);
+  padding: 4px;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-md);
+  background: #fbfaf6;
+  box-shadow: 0 8px 18px rgba(45, 44, 39, 0.18);
+}
+
+.workspace-shell .selection-format-popover.is-above {
+  transform: translateX(-50%) translateY(-100%);
+}
+
+.workspace-shell .selection-format-popover.is-below {
+  transform: translateX(-50%);
+}
+
+.workspace-shell .selection-format-popover button {
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-sm);
+  background: #fbfaf6;
+  color: #353531;
+  /* Sem transicao em toda a toolbar (botoes + submenu de cores): hovers
+     sucessivos manteriam o compositor sempre em churn e prenderiam o
+     I-beam em branco ao entrar no editor — mesma licao da zona de tags.
+     Os estados finais de hover sao identicos, so sem o fade. */
+  transition: none;
+}
+
+.workspace-shell .selection-format-popover button:hover:not(:disabled) {
+  background: #dce6dc;
+}
+
+/* Marca-texto: separador + pastilhas de cor fixa no popover de selecao. */
+.workspace-shell .selection-format-popover .hl-separator {
+  align-self: stretch;
+  width: 1px;
+  margin: 4px 2px;
+  background: #d9d7d0;
+}
+
+/* Submenu de cores para cima (marca-texto e post-it): abre por clique ou
+   hover no botao pai; os dots reaproveitam o estilo das pastilhas. */
+.workspace-shell .selection-format-popover .format-submenu-wrap {
+  position: relative;
+  display: flex;
+}
+
+.workspace-shell .selection-format-popover .format-submenu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-sm);
+  background: #fbfaf6;
+  box-shadow: 0 8px 18px rgba(45, 44, 39, 0.18);
+}
+
+/* Ponte invisivel sobre o vao entre botao e menu: atravessar continua
+   "dentro" do wrap (sem ela, o hit-test cai no fundo e o mouseleave fecha).
+   Somada ao fechamento com atraso, a travessia so por hover funciona. */
+.workspace-shell .selection-format-popover .format-submenu::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: -4px;
+  right: -4px;
+  height: 10px;
+}
+
+.workspace-shell .selection-format-popover .hl-swatches {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.workspace-shell .selection-format-popover .hl-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 44, 39, 0.35);
+}
+
+.workspace-shell .selection-format-popover .hl-dot.hl-yellow { background: #ffe45e; }
+.workspace-shell .selection-format-popover .hl-dot.hl-green { background: #8ce99a; }
+.workspace-shell .selection-format-popover .hl-dot.hl-blue { background: #99c9ff; }
+.workspace-shell .selection-format-popover .hl-dot.hl-pink { background: #ffb3d1; }
+.workspace-shell .selection-format-popover .hl-dot.hl-orange { background: #ffb066; }
+.workspace-shell .selection-format-popover .hl-dot.hl-purple { background: #c7a3f2; }
+.workspace-shell .selection-format-popover .hl-dot.hl-red { background: #f19191; }
+
+/* Pastilha branca: remover a coloração do trecho selecionado. */
+.workspace-shell .selection-format-popover .hl-dot.hl-none {
+  background: #fffdf7;
+  border: 1px dashed rgba(45, 44, 39, 0.45);
+}
+
+/* Post-its: pino colorido na margem esquerda (inicio do paragrafo ancorado).
+   Point widget side -1 no comeco da linha. O containing block do widget e o
+   `.cm-scroller` (position: relative do baseTheme do CodeMirror), que clipa
+   (overflowX: auto) tudo que sai da borda esquerda — por isso o left e
+   POSITIVO: 12px dentro do scroller, na coluna do padding do cm-content
+   (`28px max(40px, 7vw)`). top: auto mantem o pino na linha do paragrafo. */
+.workspace-shell .postit-anchor-widget {
+  position: absolute;
+  left: 12px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(45, 44, 39, 0.28);
+  border-radius: 999px;
+  background: var(--postit-color, #ffe45e);
+  color: #353531;
+  cursor: pointer;
+  z-index: 6;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.workspace-shell .postit-anchor-widget:hover {
+  transform: scale(1.12);
+  box-shadow: 0 1px 6px rgba(45, 44, 39, 0.25);
+}
+
+.workspace-shell .postit-anchor-widget:focus-visible {
+  outline: 2px solid #9cafa0;
+  outline-offset: 1px;
+}
+
+/* Popover do post-it: PAPEL de post-it colorido — fundo na cor do post-it,
+   textarea transparente (o papel e o campo), cantos como bloco de notas e
+   sombra mais alta de um papel levantado. A cor vem da classe `is-<color>`. */
+.workspace-shell .postit-popover {
+  position: absolute;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(272px, calc(100% - 24px));
+  padding: 10px 10px 8px;
+  border: 1px solid rgba(45, 44, 39, 0.22);
+  border-radius: 2px 14px 2px 10px;
+  background: var(--postit-paper, #ffe45e);
+  box-shadow:
+    0 10px 22px rgba(45, 44, 39, 0.22),
+    0 2px 6px rgba(45, 44, 39, 0.12);
+  /* Dobradica sutil no topo: papel levemente colado na parede. */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 14px);
+  color: #2d2c26;
+}
+
+/* Cores do papel — as mesmas do marca-texto do app. */
+.workspace-shell .postit-popover.postit-paper.is-yellow { --postit-paper: #ffe45e; }
+.workspace-shell .postit-popover.postit-paper.is-green { --postit-paper: #8ce99a; }
+.workspace-shell .postit-popover.postit-paper.is-blue { --postit-paper: #99c9ff; }
+.workspace-shell .postit-popover.postit-paper.is-pink { --postit-paper: #ffb3d1; }
+.workspace-shell .postit-popover.postit-paper.is-orange { --postit-paper: #ffb066; }
+.workspace-shell .postit-popover.postit-paper.is-purple { --postit-paper: #c7a3f2; }
+.workspace-shell .postit-popover.postit-paper.is-red { --postit-paper: #f19191; }
+
+.workspace-shell .postit-popover.is-above {
+  transform: translateX(-50%) translateY(-100%);
+}
+
+.workspace-shell .postit-popover.is-below {
+  transform: translateX(-50%);
+}
+
+.workspace-shell .postit-popover-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px -4px 0 0;
+  justify-content: flex-end;
+}
+
+.workspace-shell .postit-popover-pin {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 44, 39, 0.35);
+  background: #fffef9;
+  flex: none;
+}
+
+.workspace-shell .postit-popover-delete,
+.workspace-shell .postit-popover-close {
+  display: grid;
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  height: 24px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  /* Mesmo tom do papel, um pouco mais claro (mix com branco). */
+  background: color-mix(in srgb, var(--postit-paper, #ffe45e) 82%, #fffef9);
+  color: rgba(45, 44, 39, 0.8);
+}
+
+.workspace-shell .postit-popover-delete:hover:not(:disabled),
+.workspace-shell .postit-popover-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--postit-paper, #ffe45e) 62%, #fffef9);
+}
+
+.workspace-shell .postit-popover-delete {
+  color: #a33d2f;
+}
+
+/* Campo de texto: o PROPRIO PAPEL e o campo — sem caixa, linhas de pauta
+   como bloco de notas, cursor escuro. */
+.workspace-shell .postit-popover-input {
+  width: 100%;
+  min-height: 72px;
+  padding: 4px 4px 6px;
+  border: none;
+  border-bottom: 1px dashed rgba(45, 44, 39, 0.28);
+  background: transparent;
+  color: #2d2c26;
+  font: 500 13.5px/1.6 var(--sans);
+  resize: vertical;
+  scrollbar-width: none;
+}
+
+.workspace-shell .postit-popover-input::-webkit-scrollbar {
+  display: none;
+}
+
+.workspace-shell .postit-popover-input::placeholder {
+  color: rgba(45, 44, 39, 0.5);
+}
+
+.workspace-shell .postit-popover-input:focus-visible {
+  outline: none;
+  border-bottom-color: rgba(45, 44, 39, 0.55);
+}
+
+/* Faixa da frase ancorada ao post-it: SOMENTE borda (como a borda de um
+   botao) — sem fundo, para nao confundir com marca-texto. Apagada em
+   repouso, cheia no hover. Sem transicao: a zona do editor nao promove
+   camadas — licao do cursor branco. A bolinha antes da frase abre o
+   post-it; o clique no texto posiciona o cursor. */
+.markdown-mixed .cm-live-postit-range {
+  border-radius: 4px;
+  outline: 1.5px solid color-mix(in srgb, var(--postit-color, #ffe45e) 45%, transparent);
+  outline-offset: 1px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  color: inherit;
+}
+
+.markdown-mixed .cm-live-postit-range:hover,
+.markdown-mixed .cm-live-postit-range.is-dot-hover {
+  outline: 2px solid var(--postit-color, #ffe45e);
+  outline-offset: 1px;
+}
+
+.markdown-mixed button.postit-range-dot {
+  display: inline-grid;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0 4px 0 0;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(45, 44, 39, 0.28);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--postit-color, #ffe45e) 78%, transparent);
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+/* Especificidade vence a chapa escura global `.workspace-shell
+   button:hover` (que pintava a bolinha de preto): o hover mantem a cor
+   base, cheia. */
+.markdown-mixed button.postit-range-dot:hover:not(:disabled) {
+  background: var(--postit-color, #ffe45e);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--postit-color, #ffe45e) 55%, transparent);
+}
+
+.markdown-mixed button.postit-range-dot:focus-visible {
+  outline: 2px solid #2d2c26;
+  outline-offset: 1px;
+}
+
+.workspace-shell .postit-popover-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Linha de post-its do header (menu + chip de orfaos). */
+.workspace-shell .note-header-postits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+  max-width: min(100%, 620px);
+}
+
+/* Botao do menu de post-its: chip neutro como o toggle de tags. */
+.workspace-shell .postit-menu-trigger {
+  padding: 3px 10px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #6b6b64;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.workspace-shell .postit-menu-trigger:hover {
+  border-color: #b9b6ab;
+  background: rgb(28 36 39 / 4%);
+}
+
+/* Popover do menu: portalado fora do shell (mesmo escopo do popover de tags). */
+.ui-popover-content.postit-menu-popover {
+  width: 264px;
+  min-width: 0;
+  padding: 6px;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-list {
+  display: grid;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #343532;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-item:hover {
+  background: #efede4;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 44, 39, 0.3);
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-detail {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8a877e;
+  font-size: 11px;
+}
+
+/* Chip de post-its sem ancora (abaixo das tags): aviso discreto em ambar. */
+.workspace-shell .postit-orphans-chip {
+  padding: 3px 10px;
+  border: 1px solid rgba(138, 90, 42, 0.4);
+  border-radius: var(--radius-xs);
+  background: rgb(196 106 43 / 8%);
+  color: #8a5a2a;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.workspace-shell .postit-orphans-chip:hover {
+  background: rgb(196 106 43 / 16%);
+}
+
+/* Dialogo de orfaos: lista com dot da cor, texto e acoes. */
+.postit-orphans-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.postit-orphans-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.postit-orphans-dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 44, 39, 0.3);
+}
+
+.postit-orphans-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.postit-orphans-error {
+  color: #8a4b39;
+  font-size: 12px;
+}
+
+/* Dialogo de copias de conflito: item com nome + origem e grade de acoes. */
+.sync-conflicts-lead {
+  margin: 0 0 4px;
+  color: #6b6b64;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.sync-conflicts-error {
+  color: #8a4b39;
+  font-size: 12px;
+}
+
+.sync-conflicts-list {
+  display: grid;
+  gap: 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sync-conflicts-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-sm);
+  background: #fffdf8;
+}
+
+.sync-conflicts-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.sync-conflicts-copy small {
+  color: #8a877e;
+  font-size: 11px;
+}
+
+.sync-conflicts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Linha da troca de area: botao em dois tempos (Alterar area -> Selecione o
+   texto… (desabilitado) -> Confirmar area). */
+.workspace-shell .postit-popover-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  color: rgba(45, 44, 39, 0.75);
+}
+
+.workspace-shell .postit-popover-range .secondary-button {
+  flex: none;
+  min-height: 26px;
+  font-size: 11.5px;
+}
+
+/* Hover na cor do papel (mesma mistura dos icones do popover), em vez do
+   cinza frio do secondary global. */
+.workspace-shell .postit-popover-range .secondary-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--postit-paper, #ffe45e) 62%, #fffef9);
+  color: rgba(45, 44, 39, 0.9);
+}
+
+/* Seletor de cores: pastilhas de PAPEL — o dot selecionado sobe (papel
+   escolhido na pilha), com check branco. */
+.workspace-shell .postit-popover-colors {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  flex: 1;
+}
+
+.workspace-shell .postit-color-dot {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px 5px 3px 4px;
+  border: 1px solid rgba(45, 44, 39, 0.28);
+  cursor: pointer;
+  padding: 0;
+  color: #fffef9;
+  transition: transform 110ms ease, box-shadow 110ms ease;
+}
+
+.workspace-shell .postit-color-dot:hover {
+  transform: translateY(-2px) rotate(-4deg);
+}
+
+.workspace-shell .postit-color-dot:focus-visible {
+  outline: 2px solid rgba(45, 44, 39, 0.65);
+  outline-offset: 2px;
+}
+
+.workspace-shell .postit-color-dot.is-selected {
+  transform: translateY(-3px) rotate(-3deg) scale(1.08);
+  box-shadow: 0 3px 7px rgba(45, 44, 39, 0.3);
+  border-color: rgba(45, 44, 39, 0.55);
+}
+
+.workspace-shell .postit-color-dot.is-yellow { background: #ffe45e; }
+.workspace-shell .postit-color-dot.is-green { background: #8ce99a; }
+.workspace-shell .postit-color-dot.is-blue { background: #99c9ff; }
+.workspace-shell .postit-color-dot.is-pink { background: #ffb3d1; }
+.workspace-shell .postit-color-dot.is-orange { background: #ffb066; }
+
+.workspace-shell .postit-popover-count {
+  font: 600 10.5px/1 var(--mono);
+  color: rgba(45, 44, 39, 0.55);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.workspace-shell .postit-popover-count.is-warning {
+  color: #a33d2f;
+  font-weight: 700;
+}
+
+/* Confirmacao de exclusao armada: botao vermelho com rotulo. */
+.workspace-shell .postit-popover-delete.is-armed {
+  width: auto;
+  padding: 0 8px;
+  font: 700 11px/1 var(--mono);
+  background: #f9e3e0;
+  border-color: #a33d2f;
+  color: #a33d2f;
+}
+
+/* Espacador flexivel do header (pin a esquerda, acoes a direita). */
+.workspace-shell .postit-popover-spacer {
+  flex: 1;
+}
+
+/* Handle de redimensionamento: canto inferior direito do papel, tres
+   traços diagonais no tom do papel (sem componente visual pesado). */
+.workspace-shell .postit-popover-resize {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.workspace-shell .postit-popover-resize::before,
+.workspace-shell .postit-popover-resize::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 11px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(45, 44, 39, 0.4);
+}
+
+.workspace-shell .postit-popover-resize::before {
+  transform: rotate(-45deg);
+  transform-origin: right bottom;
+  right: 3px;
+  bottom: 6px;
+}
+
+.workspace-shell .postit-popover-resize::after {
+  width: 6px;
+  transform: rotate(-45deg);
+  transform-origin: right bottom;
+  right: 3px;
+  bottom: 2px;
+}
+
+/* Animacao de entrada (respeita reduced-motion do app). */
+@keyframes postit-popover-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px) rotate(-1.2deg) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) rotate(-0.6deg);
+  }
+}
+
+.workspace-shell .postit-popover.is-below {
+  animation: postit-popover-in 160ms ease-out;
+  transform: translateX(-50%) rotate(-0.6deg);
+}
+
+@keyframes postit-popover-in-above {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-100%) translateY(-6px) rotate(-1.2deg) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-100%) rotate(-0.6deg);
+  }
+}
+
+.workspace-shell .postit-popover.is-above {
+  animation: postit-popover-in-above 160ms ease-out;
+  transform: translateX(-50%) translateY(-100%) rotate(-0.6deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell .postit-popover.is-above,
+  .workspace-shell .postit-popover.is-below {
+    animation: none;
+  }
+}
+
+/* Tema escuro: papel escurece (post-it de folha fosforada), mantendo as
+   cores reconheciveis — texto claro sobre papel saturado. */
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-yellow { --postit-paper: #8a7326; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-green { --postit-paper: #3e6848; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-blue { --postit-paper: #3f6191; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-pink { --postit-paper: #8f5470; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-orange { --postit-paper: #8f5c2e; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-purple { --postit-paper: #5f4b85; }
+[data-theme='dark'] .workspace-shell .postit-popover.postit-paper.is-red { --postit-paper: #8f4a4a; }
+
+[data-theme='dark'] .workspace-shell .postit-popover {
+  border-color: rgba(0, 0, 0, 0.4);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 14px);
+  color: #f4f2ea;
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-input {
+  color: #f4f2ea;
+  border-bottom-color: rgba(244, 242, 234, 0.4);
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-input::placeholder {
+  color: rgba(244, 242, 234, 0.6);
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-input:focus-visible {
+  border-bottom-color: rgba(244, 242, 234, 0.75);
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-delete.is-armed {
+  background: #3c2025;
+  border-color: #e08579;
+  color: #ffb4ab;
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-count {
+  color: rgba(244, 242, 234, 0.6);
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-count.is-warning {
+  color: #ffb4ab;
+}
+
+[data-theme='dark'] .workspace-shell .postit-color-dot {
+  border-color: rgba(0, 0, 0, 0.4);
+  color: #17151a;
+}
+
+/* Handle de resize no dark: traços claros sobre o papel escurecido. */
+[data-theme='dark'] .workspace-shell .postit-popover-resize::before,
+[data-theme='dark'] .workspace-shell .postit-popover-resize::after {
+  background: rgba(244, 242, 234, 0.45);
+}
+
+/* Botao X/excluir no dark: mesmo mix claro sobre o papel escuro. */
+[data-theme='dark'] .workspace-shell .postit-popover-delete,
+[data-theme='dark'] .workspace-shell .postit-popover-close {
+  background: color-mix(in srgb, var(--postit-paper, #8a7326) 78%, #fffef9);
+  color: rgba(244, 242, 234, 0.85);
+}
+
+[data-theme='dark'] .workspace-shell .postit-popover-delete:hover:not(:disabled),
+[data-theme='dark'] .workspace-shell .postit-popover-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--postit-paper, #8a7326) 60%, #fffef9);
+}
+
+[data-theme='dark'] .workspace-shell .postit-anchor-widget {
+  border-color: rgba(226, 224, 218, 0.4);
+  color: #17151a;
+}
+
+.workspace-shell .editor-panel--edit,
+.workspace-shell .markdown-mixed {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 28px max(40px, 7vw);
+}
+
+/* A troca entre Edicao, Misto e Leitura entra suavemente, sem refluir a tela. */
+@keyframes editor-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.workspace-shell .editor-content > .markdown-mixed,
+.workspace-shell .editor-content > .markdown-mixed > .codemirror-markdown-editor {
+  animation: editor-panel-in 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell .editor-content > .markdown-mixed,
+  .workspace-shell .editor-content > .markdown-mixed > .codemirror-markdown-editor {
+    animation: none;
+  }
+}
+
+/* Blocos largos (codigo e tabelas) rolam dentro do proprio painel. */
+.workspace-shell .markdown-mixed pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.workspace-shell .markdown-mixed table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Lacunas da revisao no motor unico (modo Misto / Leitura read-only): as
+   marcas sao decoracoes do CodeMirror (span `.cm-live-gap`), com o mesmo
+   visual do classico (`mark[data-gap]`). Os badges `review-unit-score` usam
+   os estilos base globais de review-session.css. */
+.workspace-shell .markdown-mixed .cm-live-gap {
+  padding: 1px 3px;
+  border-radius: var(--radius-sm);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.workspace-shell .markdown-mixed .cm-live-gap.is-forgotten {
+  background: #ffc9c2;
+  color: inherit;
+}
+
+.workspace-shell .markdown-mixed .cm-live-gap.is-confused {
+  background: #ffe5a5;
+  color: inherit;
+}
+
+/* Modo 'somente no hover' no motor unico: os marca-textos so ganham fundo
+   quando a secao do editor recebe hover/foco (mesmo comportamento do
+   classico). */
+.workspace-shell .markdown-mixed.is-gap-hover-only .cm-live-gap {
+  background: transparent;
+  transition: background 140ms ease;
+}
+
+.workspace-shell .markdown-mixed.is-gap-hover-only:hover .cm-live-gap,
+.workspace-shell .markdown-mixed.is-gap-hover-only:focus-within .cm-live-gap {
+  background: #ffc9c2;
+}
+
+.workspace-shell .markdown-mixed.is-gap-hover-only:hover .cm-live-gap.is-confused,
+.workspace-shell .markdown-mixed.is-gap-hover-only:focus-within .cm-live-gap.is-confused {
+  background: #ffe5a5;
+}
+
+.workspace-shell .markdown-mixed.is-gap-hover-only .review-unit-score {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.workspace-shell .markdown-mixed.is-gap-hover-only:hover .review-unit-score,
+.workspace-shell .markdown-mixed.is-gap-hover-only:focus-within .review-unit-score {
+  opacity: 1;
+}
+
+.workspace-shell .review-gap-mode-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--ink-soft, #3f5239) 8%, transparent);
+}
+
+.workspace-shell .review-gap-mode-control button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-soft, #4c5a46);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.workspace-shell .review-gap-mode-control button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent, #5b6f52) 12%, transparent);
+}
+
+.workspace-shell .review-gap-mode-control button.is-active {
+  color: var(--accent-strong, #3f5239);
+  border-color: color-mix(in srgb, var(--accent, #5b6f52) 45%, transparent);
+  background: color-mix(in srgb, var(--accent, #5b6f52) 10%, transparent);
+}
+
+/* Controle por nome (Minhas cores | Revisão | Misto): botoes de texto. */
+.workspace-shell .review-gap-mode-control button[role="radio"] {
+  width: auto;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.workspace-shell .editor-panel--edit {
+  display: block;
+}
+
+.workspace-shell .editor-panel--edit textarea,
+.workspace-shell .markdown-mixed textarea {
+  width: 100%;
+  min-height: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #252521;
+  font: 15px/1.75 var(--mono);
+  resize: none;
+}
+
+/* Modo Misto (live preview): um unico editor continuo que mascara a sintaxe
+   Markdown como formatacao. O cursor nativo do CodeMirror aparece em qualquer
+   clique, e apenas o token adjacente ao cursor e exibido em Markdown cru. */
+.workspace-shell .editor-content > .markdown-mixed {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.markdown-mixed .cm-editor.cm-focused {
+  outline: none;
+}
+
+/* Cursor de texto explicito na area editavel do Misto: o CodeMirror expoe o
+   I-beam nativo por ser contenteditable, mas o WebView2/Chromium as vezes
+   perde o rastreio do cursor apos mudancas de composicao (painel de
+   frontmatter) e renderiza o I-beam branco/invisivel. Declarar o cursor
+   explicitamente mantem o estado do cursor deterministico na zona logo
+   abaixo do header, onde o arrow down fica. */
+.markdown-mixed .cm-content {
+  cursor: text;
+}
+
+.markdown-mixed .cm-live-strong {
+  font-weight: 700;
+}
+
+.markdown-mixed .cm-live-em {
+  font-style: italic;
+}
+
+.markdown-mixed .cm-live-strike {
+  text-decoration: line-through;
+}
+
+/* Marca-texto (cores fixas): o widget HTML sanitizado preserva
+   `<mark class="hl-*">` aninhado em outro HTML; o destaque do usuário vira
+   marca interna `.cm-live-hl` (tags `<mark>` sempre ocultas, nunca revela —
+   nem com o cursor em cima). */
+.markdown-mixed .cm-live-html mark {
+  padding: 1px 0;
+  border-radius: 3px;
+  background: #ffe45e;
+  color: inherit;
+}
+
+.markdown-mixed .cm-live-html mark.hl-yellow { background: #ffe45e; }
+.markdown-mixed .cm-live-html mark.hl-green { background: rgba(140, 233, 154, 0.7); }
+.markdown-mixed .cm-live-html mark.hl-blue { background: rgba(153, 201, 255, 0.7); }
+.markdown-mixed .cm-live-html mark.hl-pink { background: rgba(255, 179, 209, 0.7); }
+.markdown-mixed .cm-live-html mark.hl-orange { background: rgba(255, 176, 102, 0.7); }
+.markdown-mixed .cm-live-html mark.hl-purple { background: rgba(199, 163, 242, 0.7); }
+.markdown-mixed .cm-live-html mark.hl-red { background: rgba(241, 145, 145, 0.7); }
+
+.markdown-mixed .cm-live-hl {
+  padding: 1px 0;
+  border-radius: 3px;
+  background: #ffe45e;
+  color: inherit;
+}
+
+.markdown-mixed .cm-live-hl.hl-yellow { background: #ffe45e; }
+.markdown-mixed .cm-live-hl.hl-green { background: rgba(140, 233, 154, 0.7); }
+.markdown-mixed .cm-live-hl.hl-blue { background: rgba(153, 201, 255, 0.7); }
+.markdown-mixed .cm-live-hl.hl-pink { background: rgba(255, 179, 209, 0.7); }
+.markdown-mixed .cm-live-hl.hl-orange { background: rgba(255, 176, 102, 0.7); }
+.markdown-mixed .cm-live-hl.hl-purple { background: rgba(199, 163, 242, 0.7); }
+.markdown-mixed .cm-live-hl.hl-red { background: rgba(241, 145, 145, 0.7); }
+
+.markdown-mixed .cm-live-code {
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  background: #efede6;
+  color: #4a5560;
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+.markdown-mixed .cm-live-link {
+  color: #1e4fa3;
+  text-decoration: underline;
+}
+
+/* Wikilink sem nota correspondente: vinho puxado ao marrom. */
+.markdown-mixed .cm-live-link.is-broken {
+  color: #74352a;
+}
+
+[data-theme='dark'] .markdown-mixed .cm-live-link {
+  color: #8fb0ec;
+}
+
+[data-theme='dark'] .markdown-mixed .cm-live-link.is-broken {
+  color: #d08d7b;
+}
+
+.markdown-mixed .cm-live-heading {
+  font-weight: 700;
+}
+
+.markdown-mixed .cm-live-h1 { font-size: 1.55em; line-height: 1.3; }
+.markdown-mixed .cm-live-h2 { font-size: 1.35em; line-height: 1.35; }
+.markdown-mixed .cm-live-h3 { font-size: 1.18em; line-height: 1.4; }
+.markdown-mixed .cm-live-h4,
+.markdown-mixed .cm-live-h5,
+.markdown-mixed .cm-live-h6 { font-size: 1.05em; }
+
+.markdown-mixed .cm-live-quote {
+  display: inline-block;
+  border-left: 3px solid #c9c6bd;
+  padding-left: 10px;
+  color: #6b6a63;
+}
+
+.markdown-mixed .cm-live-bullet {
+  display: inline-block;
+  min-width: 18px;
+  text-align: center;
+  color: #5b6f52;
+  font-weight: 700;
+}
+
+/* Matematica (KaTeX) renderizada como no modo Leitura: o editor usa fonte de
+   15px, entao ~1.2em aproxima o tamanho do corpo de leitura (18px). */
+.markdown-mixed .cm-live-math {
+  font-size: 1.2em;
+}
+
+.markdown-mixed .cm-live-math-display {
+  display: block;
+  padding: 2px 0;
+  text-align: center;
+}
+
+.markdown-mixed .cm-live-math-display .katex-display {
+  margin: 4px 0;
+}
+
+/* Linhas intermediarias de uma formula multilinha: colapsadas a zero altura. */
+.markdown-mixed .cm-live-math-collapsed {
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Divisor horizontal (---): uma linha grafica como <hr> do modo Leitura. */
+.markdown-mixed .cm-live-hr {
+  width: 100%;
+  height: 2px;
+  margin: 9px 0;
+  border-radius: 2px;
+  background: #d9d7d0;
+}
+
+/* Imagem do modo Misto: mesmo visual do modo Leitura. */
+.markdown-mixed .cm-live-image {
+  display: block;
+  max-width: min(100%, 860px);
+  max-height: 580px;
+  margin: 18px 0;
+  border: 1px solid #d9d7d0;
+  border-radius: var(--radius-sm);
+  background: #fbfaf6;
+  object-fit: contain;
+}
+
+/* Embed de nota/PDF do modo Misto: bloco real com o conteudo da nota
+   incorporada (editor aninhado somente leitura com o mesmo motor) ou o
+   ObsidianPdfEmbed do Leitura. Mesmo visual do `.obsidian-note-embed`. */
+.markdown-mixed .cm-live-embed {
+  box-sizing: border-box;
+  /* O embed ocupa a largura total disponivel (como o `.obsidian-note-embed`
+     do Leitura): sem limite de 820px, para o conteudo da nota incorporada
+     nao ser cortado a direita. */
+  width: 100%;
+  margin-block: 12px;
+  padding: 12px 14px;
+  border: 1px solid #d9d6ce;
+  border-left: 3px solid #8d9b88;
+  border-radius: var(--radius-sm);
+  background: #faf9f3;
+  color: #343532;
+}
+
+.markdown-mixed .cm-live-embed .cm-live-embed-status {
+  color: #73736d;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.markdown-mixed .cm-live-embed .cm-live-embed-status.is-missing,
+.markdown-mixed .cm-live-embed-limited {
+  color: #73736d;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Editor aninhado do embed: somente leitura, sem bordas nem scroll proprio
+   (cresce com o conteudo e a altura e medida pelo widget de bloco). */
+.markdown-mixed .cm-live-embed .cm-editor {
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.markdown-mixed .cm-live-embed .cm-editor .cm-scroller {
+  /* Conteudo mais largo que o embed (formulas longas, tabelas) rola
+     horizontalmente em vez de ser cortado a direita. */
+  overflow-x: auto;
+}
+
+.markdown-mixed .cm-live-embed .cm-live-embed-body > .cm-editor {
+  margin: -12px -14px;
+  padding: 12px 14px;
+}
+
+/* Callout do modo Misto: bloco real com o MESMO visual do Leitura (o
+   `.obsidian-callout` renderizado pelo widget reaproveita as regras
+   `.workspace-shell .obsidian-callout`). O conteudo vira um editor aninhado
+   somente leitura com o mesmo motor; o fold nativo usa <details>/<summary>. */
+.markdown-mixed .cm-live-callout .cm-editor {
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.markdown-mixed .cm-live-callout .cm-editor .cm-scroller {
+  overflow-x: auto;
+}
+
+.markdown-mixed .cm-live-callout .obsidian-callout-content > .cm-live-callout-body {
+  min-width: 0;
+}
+
+/* Bloco de plugin (Dataview/Tasks) do modo Misto: o ObsidianPluginBlock do
+   Leitura renderizado dentro do widget (o CSS proprio do componente ja vem
+   com o import dele). Largura total, sem limites de coluna. */
+.markdown-mixed .cm-live-plugin-block {
+  width: 100%;
+  margin-block: 12px;
+}
+
+/* Bloco oculto do frontmatter no documento: substitui o YAML inicial por um
+   espaco de zero altura (o resumo e a edicao estruturada ficam na barra
+   inferior do cabecalho do App). */
+.markdown-mixed .cm-live-frontmatter-hidden {
+  height: 0;
+  overflow: hidden;
+}
+
+/* Painel integrado de propriedades (design do usuario): substitui o YAML cru
+   por um formulario estruturado (chave + valor) com a lista de backlinks
+   ("Referenciada por"). O bloco `---`...`---` nunca e exibido. */
+/* Painel integrado de propriedades (modo Misto): sem borda, titulo nem
+   botoes de Aplicar/Cancelar — parece fazer parte do header. As mudancas
+   gravam ao vivo (debounce) no rascunho. */
+/* Painel em 2 colunas (Tags | Propriedades) para ocupar melhor a largura do
+   header; os backlinks ficam na linha de baixo, na largura toda. */
+.workspace-shell .frontmatter-panel {
+  box-sizing: border-box;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(190px, 0.9fr) minmax(0, 1.5fr);
+  /* Dense: secoes com coluna definida (ex.: Referenciada por na 1)
+     preenchem a linha atual em vez de cairem para a proxima. */
+  grid-auto-flow: dense;
+  column-gap: 26px;
+  color: #343532;
+}
+
+.workspace-shell .frontmatter-panel-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.workspace-shell .frontmatter-panel-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(140px, 2fr) auto;
+  align-items: start;
+  gap: 6px;
+}
+
+.workspace-shell .frontmatter-panel-key,
+.workspace-shell .frontmatter-panel-value {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-xs);
+  background: #fffefa;
+  color: #343532;
+  font: inherit;
+  font-size: 12px;
+}
+
+.workspace-shell .frontmatter-panel-key {
+  font-family: var(--mono);
+  /* Mesma altura do campo de valor (1 linha): mesmo line-height do textarea
+     (1.45), entao a caixa do nome e do valor tem exatamente a mesma altura. */
+  line-height: 1.45;
+}
+
+.workspace-shell .frontmatter-panel-value {
+  min-height: 30px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.workspace-shell .frontmatter-panel-key:focus,
+.workspace-shell .frontmatter-panel-value:focus {
+  outline: 1px solid #8d9b88;
+  border-color: #8d9b88;
+}
+
+.workspace-shell .frontmatter-panel-remove {
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #8a4b39;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.workspace-shell .frontmatter-panel-remove:hover {
+  background: #f1ded8;
+}
+
+.workspace-shell .frontmatter-panel .field-error {
+  margin: 8px 0 0;
+  color: #8a4b39;
+  font-size: 11px;
+}
+
+/* Cabecalho das secoes (Tags e Propriedades): o botao "+" fica logo APOS a
+   palavra, sem borda. */
+.workspace-shell .frontmatter-panel-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workspace-shell .frontmatter-panel-add {
+  display: inline-grid;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #7a786f;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.workspace-shell .frontmatter-panel-add svg {
+  display: block;
+  flex: none;
+}
+
+/* O `:not(:disabled)` eleva a especificidade a (0,4,0), vencendo a chapa
+   escura global `.workspace-shell button:hover` (0,3,1): o hover do "+"
+   (tags e Propriedades) e o mesmo cinza, com o icone escuro legivel. */
+.workspace-shell .frontmatter-panel-add:hover:not(:disabled) {
+  color: #252521;
+  background: #efede4;
+}
+
+/* Popover de propriedades comuns: apenas os icones (grid), com tooltip de
+   rotulo/chave (ex.: telefone → phone). O conteudo e portalado FORA do
+   .workspace-shell, entao os seletores partem de .ui-popover-content. */
+.ui-popover-content.frontmatter-property-popover {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  width: 170px;
+  min-width: 0;
+  padding: 6px;
+}
+
+.ui-popover-content.frontmatter-property-popover .frontmatter-property-item {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #343532;
+  cursor: pointer;
+}
+
+.ui-popover-content.frontmatter-property-popover .frontmatter-property-item:hover {
+  background: #efede4;
+}
+
+/* Popover de tags: campo de digitacao na primeira linha (autofoco; Enter
+   cria a tag) e as tags existentes filtradas em 1 coluna (maximo de 5
+   visiveis, scrollavel; permanece aberto com o mouse dentro). */
+.ui-popover-content.frontmatter-tag-popover {
+  width: 232px;
+  min-width: 0;
+  padding: 6px;
+}
+
+.ui-popover-content.frontmatter-tag-popover input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-sm);
+  background: #fffefa;
+  color: #343532;
+  font: inherit;
+  font-size: 12px;
+}
+
+.ui-popover-content.frontmatter-tag-popover input:focus {
+  outline: 1px solid #8d9b88;
+  border-color: #8d9b88;
+}
+
+.ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list {
+  display: grid;
+  gap: 2px;
+  max-height: 158px; /* ~5 itens visiveis */
+  margin-top: 6px;
+  overflow-y: auto;
+  overflow-x: hidden; /* sem rolagem lateral */
+}
+
+.ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list button {
+  min-width: 0;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #343532;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list button:hover {
+  background: #efede4;
+}
+
+.ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-hint {
+  margin: 6px 4px 2px;
+  color: #7a786f;
+  font-size: 11px;
+}
+
+.workspace-shell .frontmatter-panel-empty {
+  color: #a5a299;
+  font-size: 11px;
+}
+
+/* Observacoes sobre a nota (exibicao limitada): texto corrido discreto. */
+.workspace-shell .frontmatter-panel-note {
+  margin: 0;
+  color: #7a786f;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+/* Linha da chave: icone da propriedade + input da chave. */
+.workspace-shell .frontmatter-panel-key-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workspace-shell .frontmatter-panel-row-icon {
+  flex: none;
+  display: grid;
+  color: #8d9b88;
+  place-items: center;
+}
+
+/* Secoes do painel (Tags, Propriedades, Referenciada por): sem separadores
+   (bordas) — apenas o rotulo, para o menu parecer parte do header. No grid
+   de 2 colunas, Tags fica na coluna 1 e Propriedades na coluna 2;
+   Referenciada por ocupa a linha inteira. */
+.workspace-shell .frontmatter-panel-section {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding-top: 6px;
+}
+
+.workspace-shell .frontmatter-panel-props {
+  grid-column: 2;
+}
+
+.workspace-shell .frontmatter-panel-backlinks {
+  grid-column: 1;
+}
+
+.workspace-shell .frontmatter-panel-section-title {
+  color: #73736d;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Acordeon das secoes de links: titulo clicavel com chevron que gira.
+   O botao abraca so o conteudo (justify-self): sem esticar na largura da
+   secao e com respiro a esquerda. */
+.workspace-shell .frontmatter-panel-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  max-width: 100%;
+  padding: 4px 10px 4px 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+/* Especificidade (0,4,0) vence a chapa escura global
+   `.workspace-shell button:hover` (0,3,1): o hover e o mesmo cinza do
+   botao "+" de Propriedades. */
+.workspace-shell .frontmatter-panel-section .frontmatter-panel-section-toggle:hover {
+  background: #efede4;
+}
+
+.workspace-shell .frontmatter-panel-section-toggle .frontmatter-panel-section-chevron {
+  color: #73736d;
+  transition: transform 140ms ease;
+}
+
+.workspace-shell .frontmatter-panel-section-toggle[aria-expanded="true"] .frontmatter-panel-section-chevron {
+  transform: rotate(180deg);
+}
+
+/* Linha de tags: MESMA implementacao das tags abaixo do titulo da nota
+   (NoteTagRow + badges), com a mesma espacamento do `.note-tag-list`. */
+.workspace-shell .frontmatter-panel-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Badge de tag minimalista: contorno fino + cantos do app (radius-xs),
+   sem o fundo chapado da pílula shadcn. O X ocupa SEMPRE o espaco dele na
+   badge (width 16px fixo; apenas a opacidade muda no hover), entao a badge
+   nunca muda de tamanho ao expandir — evita que uma badge na borda da linha
+   estoure a largura maxima e quebre o wrap. */
+.workspace-shell .frontmatter-panel-tag-badge {
+  max-width: 100%;
+  padding: 2px 4px 2px 7px;
+  border: 1px solid #d8d6cf;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: #6b6b64;
+  font-size: 11px;
+  opacity: 1;
+}
+
+.workspace-shell .frontmatter-panel-tag-badge:hover {
+  border-color: #b9b6ab;
+  background: rgb(28 36 39 / 4%);
+}
+
+.workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove {
+  display: inline-grid;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 140ms ease, background-color 140ms ease;
+}
+
+.workspace-shell .frontmatter-panel-tag-badge:hover .frontmatter-panel-tag-remove,
+.workspace-shell .frontmatter-panel-tag-badge:focus-within .frontmatter-panel-tag-remove {
+  opacity: 1;
+}
+
+.workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove:hover,
+.workspace-shell .frontmatter-panel-tag-badge .frontmatter-panel-tag-remove:focus-visible {
+  background: rgb(28 36 39 / 12%);
+  color: #8a4b39;
+}
+
+.workspace-shell .frontmatter-panel-backlink-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.workspace-shell .frontmatter-panel-backlink {
+  min-height: auto;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: #e5eee5;
+  color: #31533a;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.workspace-shell .frontmatter-panel-backlink:hover {
+  background: #cfdccc;
+}
+
+/* Escudos de especificidade: o hover global `.workspace-shell
+   button:hover:not(:disabled)` (0,3,1, mais abaixo no arquivo) vence esses
+   hovers (0,3,0) e pintava chapa escura no tema claro. O ancestral extra +
+   `:not(:disabled)` (0,5,0) restaura o hover próprio nos dois temas, sem
+   `!important` (o dark global tem 0,4,1). */
+.workspace-shell .frontmatter-panel-backlink-list .frontmatter-panel-backlink:hover:not(:disabled) {
+  background: #cfdccc;
+}
+
+/* Chip de link quebrado: mesmo formato dos backlinks, mas em tom de alerta e
+   sem interacao (span, nao abre nada). O `title` mostra o alvo completo. */
+.workspace-shell .frontmatter-panel-broken {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 8px;
+  border: 1px dashed #c08a6d;
+  border-radius: var(--radius-xs);
+  background: #f6e9df;
+  color: #8a4b39;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-shell .frontmatter-panel-rows .frontmatter-panel-remove:hover:not(:disabled) {
+  background: #f1ded8;
+}
+
+.workspace-shell .frontmatter-panel-section-head .frontmatter-panel-add:hover:not(:disabled) {
+  color: #252521;
+  background: #efede4;
+}
+
+/* Tabela do modo Misto: um <table> real, com a MESMA aparencia do modo
+   Leitura (a regra compartilhada `.markdown-mixed table` abaixo cuida da
+   grade, do cabecalho e do alinhamento). O widget e largura de leitura
+   centralizada; as celulas sao editaveis inline e nunca revelam o Markdown
+   cru (nem com o cursor dentro da tabela). */
+.markdown-mixed .cm-live-table-wrap {
+  box-sizing: border-box;
+  position: relative;
+  width: min(100%, var(--reading-max-width, 820px));
+  margin-inline: auto;
+  padding: 2px 0;
+}
+
+.markdown-mixed .cm-live-table-wrap table {
+  width: 100%;
+}
+
+/* Matematica na celula em edicao: no renderizado nao-editavel (duplo clique
+   revela o fonte). Inline-block para o caret navegar ao redor. */
+.markdown-mixed .cm-live-table-math {
+  display: inline-block;
+  vertical-align: baseline;
+  cursor: default;
+}
+
+/* Bordas redimensionaveis: a inferior altera as linhas, a direita altera as
+   colunas e o canto altera ambas. O cursor muda no hover para indicar que a
+   borda e clicavel/arrastavel. */
+.markdown-mixed .cm-live-table-grip {
+  position: absolute;
+  z-index: 2;
+  touch-action: none;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+.markdown-mixed .cm-live-table-grip[data-grip='row'] {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 9px;
+  cursor: ns-resize;
+}
+
+.markdown-mixed .cm-live-table-grip[data-grip='col'] {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 9px;
+  cursor: ew-resize;
+}
+
+.markdown-mixed .cm-live-table-grip[data-grip='corner'] {
+  right: 0;
+  bottom: 0;
+  width: 17px;
+  height: 17px;
+  cursor: nwse-resize;
+}
+
+.markdown-mixed .cm-live-table-grip:hover,
+.markdown-mixed .cm-live-table-wrap.resizing .cm-live-table-grip {
+  background: rgba(93, 118, 100, 0.16);
+}
+
+.markdown-mixed .cm-live-table-wrap.resizing {
+  user-select: none;
+}
+
+/* Mantem o cursor de redimensionamento enquanto o mouse esta fora da alca
+   (a tabela cresce/encolhe e a alca se reposiciona durante o arrasto). */
+.markdown-mixed .cm-live-table-wrap[data-dragging='row'] {
+  cursor: ns-resize;
+}
+
+.markdown-mixed .cm-live-table-wrap[data-dragging='col'] {
+  cursor: ew-resize;
+}
+
+.markdown-mixed .cm-live-table-wrap[data-dragging='corner'] {
+  cursor: nwse-resize;
+}
+
+/* Celula em edicao: o conteudo cru recebe o foco para digitar. */
+.markdown-mixed .cm-live-table-cell.is-editing {
+  outline: 1px dashed #a89f8d;
+  outline-offset: -1px;
+  border-radius: 2px;
+  background: #fffdf7;
+  cursor: text;
+}
+
+.markdown-mixed .cm-live-fence-content {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: #efede6;
+  color: #4a5560;
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+
+.markdown-mixed .cm-live-checkbox {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-right: 7px;
+  border: 1.5px solid #5b6f52;
+  border-radius: var(--radius-xs);
+  vertical-align: -2px;
+  background: #fff;
+}
+
+.markdown-mixed .cm-live-checkbox.is-checked {
+  background: #5b6f52;
+  box-shadow: inset 0 0 0 2px #fff;
+}
+
+.workspace-shell .editor-header {
+  border-bottom-color: #e6e4de;
+}
+
+.workspace-shell .editor-header h2 {
+  color: #20201e;
+}
+
+/* Menu integrado de propriedades (modo Misto): linha propria do grid do
+   header (grid-column 1/-1). O arrow down fica EM CIMA da borda inferior do
+   header (metade para dentro, metade para fora) e, ao clicar, desce junto
+   com a borda — o painel abre dentro do proprio header (abaixo das acoes),
+   sem borda nem fundo proprio, parecendo parte dele. O painel usa um grid
+   de 2 colunas (Tags | Propriedades) para ocupar melhor a largura do
+   header, com os backlinks embaixo, na largura toda. */
+/* O menu estica na largura toda do conteudo do header (o header ja tem o
+   padding horizontal `max(40px, 7vw)`, entao o painel respeita as mesmas
+   margens do eixo x). Sem `justify-items: center`: o collapse e o painel
+   usam width 100% para ocupar de ponta a ponta. */
+.workspace-shell .frontmatter-menu {
+  grid-column: 1 / -1;
+  display: grid;
+}
+
+.workspace-shell .frontmatter-menu-collapse {
+  width: 100%;
+}
+
+.workspace-shell .frontmatter-menu-panel {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 12px;
+  /* O arrow down sobrepoe a borda inferior (metade para dentro): o conteudo
+     do painel nao pode encostar nele. */
+  padding-bottom: 18px;
+}
+
+/* Arrow down da barra inferior do header: posicionado SOBRE a borda inferior
+   (bottom negativo = metade para fora), abre/fecha o menu integrado (tags +
+   propriedades + backlinks). O chevron gira quando aberto. */
+.workspace-shell .editor-disclosure-button {
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  transform: translateX(-50%);
+  border: 1px solid #e6e4de;
+  border-radius: 50%;
+  background: #fbfaf6;
+  color: #595950;
+  cursor: pointer;
+}
+
+/* O hover NAO movimenta o arrow (a regra global button:hover aplica
+   translateY(-1px), que sobrescreveria o translateX(-50%) do centramento e
+   deslocaria o botao para a direita): mantemos o centramento explicito.
+   O unico efeito de transform e o giro de 180° quando aberto (is-open). */
+.workspace-shell .editor-disclosure-button:hover:not(:disabled) {
+  transform: translateX(-50%);
+  border-color: #aaa79e;
+  background: #f1efe7;
+  color: #252521;
+}
+
+.workspace-shell .editor-disclosure-button.is-open svg {
+  transform: rotate(180deg);
+}
+
+.workspace-shell .editor-disclosure-button svg {
+  transition: transform 280ms cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+/* O painel abre com animacao de slide down: a altura da linha cresce de 0
+   ate o conteudo, fazendo a borda inferior do header (e o arrow sobre ela)
+   descer junto. Easing suave (cubic-bezier com saida lenta) para a barra
+   descer de forma natural.
+   IMPORTANTE (bug do cursor): a animacao anima APENAS `max-height` (propriedade
+   de layout puro). Nada de `transform`/`opacity` aqui: essas propriedades
+   promovem o painel a uma camada de composicao propria, e criar/remover essa
+   camada a cada expandir/recolher dispara o bug conhecido do WebView2/Chromium
+   em que o cursor do sistema (I-beam) sobre a area de texto do editor logo
+   abaixo fica branco/invisivel (bug de composicao MPO do Windows). */
+.workspace-shell .frontmatter-menu-collapse {
+  overflow: hidden;
+  animation: frontmatter-menu-slide-down 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes frontmatter-menu-slide-down {
+  from {
+    max-height: 0;
+  }
+  to {
+    max-height: 1600px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell .editor-disclosure-button svg {
+    transition: none;
+  }
+
+  .workspace-shell .frontmatter-menu-collapse {
+    animation: none;
+  }
+}
+
+.workspace-shell .obsidian-note-embed {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid #d9d6ce;
+  border-left: 3px solid #8d9b88;
+  border-radius: var(--radius-sm);
+  background: #faf9f3;
+}
+
+.workspace-shell .obsidian-note-embed > :first-child {
+  margin-top: 0;
+}
+
+.workspace-shell .obsidian-note-embed > :last-child {
+  margin-bottom: 0;
+}
+
+.workspace-shell .obsidian-note-embed.is-loading,
+.workspace-shell .obsidian-note-embed.is-missing {
+  color: #73736d;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.workspace-shell .obsidian-pdf-embed {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid #d9d6ce;
+  border-radius: var(--radius-sm);
+  background: #f4f2eb;
+  color: #343532;
+}
+
+.workspace-shell .obsidian-pdf-embed > header,
+.workspace-shell .obsidian-pdf-embed > nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-shell .obsidian-pdf-embed > header strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.workspace-shell .obsidian-pdf-embed > header span {
+  flex: none;
+  color: #66675f;
+  font-size: 11px;
+}
+
+.workspace-shell .obsidian-pdf-canvas-frame {
+  min-height: 180px;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid #d3d0c7;
+  background: #dedbd2;
+  text-align: center;
+}
+
+.workspace-shell .obsidian-pdf-canvas-frame[aria-busy="true"] {
+  background: #e7e4db;
+}
+
+.workspace-shell .obsidian-pdf-canvas-frame[aria-busy="true"] canvas {
+  visibility: hidden;
+}
+
+.workspace-shell .obsidian-pdf-canvas-frame canvas {
+  display: block;
+  max-width: none;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 6px 20px rgba(54, 55, 50, 0.16);
+}
+
+.workspace-shell .obsidian-pdf-embed > nav {
+  justify-content: flex-end;
+}
+
+.workspace-shell .obsidian-pdf-embed > nav button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #cbc8bf;
+  border-radius: var(--radius-sm);
+  background: #ebe9e1;
+  color: #3e403b;
+  font-size: 11px;
+}
+
+.workspace-shell .obsidian-pdf-embed.is-loading,
+.workspace-shell .obsidian-pdf-embed.is-error,
+.workspace-shell .obsidian-pdf-embed.is-limited {
+  color: #686962;
+  font-size: 12px;
+}
+
+.workspace-shell .obsidian-pdf-embed.is-error {
+  border-color: #d3b7ae;
+  background: #f5eae6;
+  color: #7d3f30;
+}
+
+.workspace-shell .obsidian-callout {
+  --callout-accent: #455f75;
+  --callout-surface: #edf2f4;
+  display: block;
+  margin: 14px 0;
+  border: 1px solid color-mix(in srgb, var(--callout-accent) 35%, #dedbd2);
+  border-left: 4px solid var(--callout-accent);
+  border-radius: var(--radius-xs);
+  background: var(--callout-surface);
+  color: #2d3031;
+  overflow: hidden;
+}
+
+.workspace-shell .obsidian-callout[data-callout="tip"],
+.workspace-shell .obsidian-callout[data-callout="hint"],
+.workspace-shell .obsidian-callout[data-callout="important"] {
+  --callout-accent: #685820;
+  --callout-surface: #f5f0df;
+}
+
+.workspace-shell .obsidian-callout[data-callout="success"],
+.workspace-shell .obsidian-callout[data-callout="check"],
+.workspace-shell .obsidian-callout[data-callout="done"] {
+  --callout-accent: #3f6748;
+  --callout-surface: #eaf2e9;
+}
+
+.workspace-shell .obsidian-callout[data-callout="warning"],
+.workspace-shell .obsidian-callout[data-callout="caution"],
+.workspace-shell .obsidian-callout[data-callout="attention"] {
+  --callout-accent: #7a4e26;
+  --callout-surface: #f6ede2;
+}
+
+.workspace-shell .obsidian-callout[data-callout="danger"],
+.workspace-shell .obsidian-callout[data-callout="error"],
+.workspace-shell .obsidian-callout[data-callout="bug"] {
+  --callout-accent: #743b36;
+  --callout-surface: #f6e9e7;
+}
+
+.workspace-shell .obsidian-callout[data-callout="quote"],
+.workspace-shell .obsidian-callout[data-callout="cite"] {
+  --callout-accent: #57544f;
+  --callout-surface: #efede8;
+}
+
+.workspace-shell .obsidian-callout summary,
+.workspace-shell .obsidian-callout-header {
+  padding: 9px 11px;
+  color: var(--callout-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.workspace-shell .obsidian-callout summary {
+  cursor: pointer;
+}
+
+.workspace-shell .obsidian-callout-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.workspace-shell .obsidian-callout-content {
+  padding: 0 12px 11px;
+}
+
+.workspace-shell .obsidian-callout-content > :first-child {
+  margin-top: 0;
+}
+
+.workspace-shell .obsidian-callout-content > :last-child {
+  margin-bottom: 0;
+}
+
+.workspace-shell .markdown-preserved-raw {
+  max-width: 100%;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.workspace-shell .external-change-modal {
+  width: min(430px, calc(100vw - 32px));
+}
+
+.workspace-shell .external-change-modal > p {
+  margin: 14px 0 0;
+  color: #65655f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.recovered-note-path-field {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+  color: #65655f;
+  font-size: 11px;
+}
+
+.recovered-note-path-field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.external-removed-note-actions {
+  margin: 0 -16px -16px;
+  flex-wrap: wrap;
+}
+
+.folder-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid #d9d7d0;
+}
+
+.wikilink-index-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 12px;
+  background: #eef2ee;
+  border-top: 1px solid #d9d7d0;
+  color: #4d5a50;
+  font-size: 12px;
+}
+
+.wikilink-index-progress button { margin-left: auto; padding: 3px 10px; font-size: 11px; }
+.wikilink-index-cancelled { color: #8a6d3b; font-size: 11px; }
+
+.command-palette-results { display: grid; max-height: 360px; overflow: auto; padding: 6px; }
+.command-palette-results button { display: grid; gap: 3px; width: 100%; padding: 10px; border: 0; border-radius: var(--radius-xs); background: transparent; color: #353531; text-align: left; }
+.command-palette-results button:hover:not(:disabled) { background: #e5eee5; }
+.command-palette-results button:disabled { opacity: .45; }
+.command-palette-results small, .command-palette-results p, .command-palette-hint { color: #73736d; font-size: 11px; }
+.command-palette-hint { margin-right: auto; }
+
+.workspace-shell .editor-path,
+.workspace-shell .empty-tabs,
+.workspace-shell .empty-sidebar-state,
+.workspace-shell .editor-empty-state {
+  color: var(--workspace-muted);
+}
+
+.workspace-shell .editor-panel textarea {
+  color: #252521;
+  caret-color: #5d7664;
+}
+
+.workspace-shell .editor-panel textarea::selection {
+  background: #dce6dc;
+}
+
+.workspace-shell .editor-panel textarea:focus-visible {
+  outline: 2px solid #9cafa0;
+  outline-offset: -2px;
+}
+
+.workspace-shell .autosave-indicator {
+  color: #74746d;
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.workspace-shell .autosave-indicator.is-pending {
+  color: #8b6a3b;
+}
+
+.workspace-shell .autosave-indicator.is-saving {
+  color: #8b6a3b;
+}
+
+.workspace-shell .autosave-indicator.is-saved {
+  color: #5d7664;
+}
+
+.workspace-shell .markdown-mixed table {
+  width: 100%;
+  margin: 1.1em 0;
+  border-collapse: collapse;
+  font-size: 0.94em;
+}
+
+.workspace-shell .markdown-mixed th,
+.workspace-shell .markdown-mixed td {
+  padding: 0.55em 0.7em;
+  border: 1px solid #d8d6cf;
+  text-align: left;
+}
+
+.workspace-shell .markdown-mixed th {
+  background: #f0efe9;
+  font-weight: 600;
+}
+
+.workspace-shell .markdown-mixed input[type='checkbox'] {
+  margin: 0 0.45em 0 0;
+  accent-color: #5d7664;
+}
+
+@media (max-width: 720px) {
+  .workspace-shell {
+    --rail-width: 52px;
+  }
+
+  .workspace-shell.is-sidebar-expanded {
+    --explorer-width: 200px;
+  }
+
+  .workspace-shell.is-sidebar-expanded .rail-label {
+    display: none;
+  }
+
+  .workspace-shell.is-sidebar-expanded .workspace-rail {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+
+  .workspace-shell.is-sidebar-expanded .rail-button {
+    justify-content: center;
+    padding: 0;
+  }
+}
+
