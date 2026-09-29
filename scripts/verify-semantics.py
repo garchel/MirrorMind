@@ -11,19 +11,18 @@ import re
 import os
 import sys
 import argparse
-import subprocess
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from token_baseline import git_show, BASELINE  # noqa: E402
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DECL = re.compile(r'^\s*(--[a-z][a-z0-9-]*):\s*([^;]+);', re.M)
 
 
 def head_index(path='src/index.css'):
-    """index.css no HEAD: os tokens antigos, antes de virarem semantic.css."""
-    p = subprocess.run(['git', 'show', f'HEAD:{path}'],
-                       cwd=ROOT, capture_output=True)
-    if p.returncode != 0:
-        return None
-    return p.stdout.decode('utf-8', 'replace')
+    """index.css no baseline: os tokens antigos, antes de virarem
+    semantic.css. Nao HEAD -- ver scripts/token-baseline.py."""
+    return git_show(path)
 
 
 def blocks(css):
@@ -73,7 +72,7 @@ def primitives():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--index', default='src/index.css',
-                    help="index.css no HEAD (tokens antigos)")
+                    help='index.css no baseline (tokens antigos)')
     args = ap.parse_args()
 
     idx_src = head_index(args.index)
@@ -152,6 +151,7 @@ def main():
                 if len(problems) < 24:
                     problems.append(f'{sc}: alias {tok} -> {val} ({b}) != {a}')
 
+    print(f'baseline: {BASELINE}')
     print(f'verificacoes: {checked}   divergencias: {bad}')
     for p in problems[:24]:
         print('  !', p)

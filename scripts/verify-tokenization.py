@@ -1,5 +1,9 @@
 """Verifica que a tokenizacao nao moveu nenhum pixel.
 
+Compara o worktree contra scripts/token-baseline.py::BASELINE (o estado
+com hex literais), nao contra HEAD: depois do commit da tokenizacao,
+HEAD ja e o estado novo e o gate viraria falso verde.
+
 Para cada regra CSS em src/**, resolve o hex original que a regra usava
 antes da migracao (via git show HEAD:<arquivo>) e confere que o
 var(--mm-*) substituto aponta para o MESMO valor.
@@ -14,7 +18,9 @@ import sys
 import json
 import glob
 import argparse
-import subprocess
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from token_baseline import git_show, BASELINE  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HEX_RE = re.compile(r'#[0-9a-fA-F]{3,8}\b')
@@ -30,15 +36,15 @@ def norm(h):
     return h
 
 
-def git_show(rel):
-    """Texto do arquivo em HEAD, ou None se nao existia."""
-    args = ['git', 'show', f'HEAD:{rel}']
+def git_show_at(rel):
+    """Texto do arquivo no baseline (estado com hex literais)."""
     if '--staged' in sys.argv:
-        args = ['git', 'show', f':{rel}']
-    p = subprocess.run(args, cwd=ROOT, capture_output=True)
-    if p.returncode != 0:
-        return None
-    return p.stdout.decode('utf-8', 'replace')
+        import subprocess
+        p = subprocess.run(['git', 'show', f':{rel}'], cwd=ROOT,
+                           capture_output=True)
+        return (p.stdout.decode('utf-8', 'replace')
+                if p.returncode == 0 else None)
+    return git_show(rel)
 
 
 def load_primitives():
@@ -70,7 +76,7 @@ def main():
         if rel.endswith('tokens/primitive.css'):
             continue
         cur = open(f, encoding='utf-8').read()
-        old = git_show(rel)
+        old = git_show_at(rel)
         if old is None:
             continue
 

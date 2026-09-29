@@ -11,7 +11,9 @@ import re
 import os
 import sys
 import argparse
-import subprocess
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from token_baseline import git_show, BASELINE  # noqa: E402
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCES = {
@@ -26,10 +28,9 @@ PRIM_RE = re.compile(r'(--mm-[a-z]+-\d+(?:-\d+)?):\s*(#[0-9a-fA-F]{3,8})\s*;')
 
 
 def read(path, head=False):
+    """head=True le no baseline (estado com hex), nao em HEAD."""
     if head:
-        p = subprocess.run(['git', 'show', f'HEAD:{path}'],
-                           cwd=ROOT, capture_output=True)
-        return p.stdout.decode('utf-8', 'replace') if p.returncode == 0 else None
+        return git_show(path)
     return open(os.path.join(ROOT, path), encoding='utf-8').read()
 
 
@@ -79,7 +80,7 @@ def _hex_to_rgb(h):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--head', default='HEAD')
+
     args = ap.parse_args()
 
     prim = primitives()
@@ -140,6 +141,7 @@ def main():
                                 f'{path} [{"dark" if is_dark else "claro"}] {tok}: '
                                 f'{oval} -> {nval} = {b} (antes {a})')
 
+    print(f'baseline: {BASELINE}')
     print(f'verificacoes: {checked}   divergencias: {bad}')
     for p in problems[:24]:
         print('  !', p)
