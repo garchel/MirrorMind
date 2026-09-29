@@ -326,7 +326,7 @@
   border: 1px solid var(--review-bad-strong);
   border-radius: var(--radius-sm);
   background: var(--review-bad-strong);
-  color: var(--mm-clay-100);
+  color: var(--mm-clay-50);
   font: 600 12px var(--sans);
   cursor: pointer;
   transition: background 140ms ease, border-color 140ms ease;

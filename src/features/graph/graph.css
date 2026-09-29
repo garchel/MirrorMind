@@ -854,7 +854,7 @@
 
 .workspace-shell .graph-orphan-panel h3, .workspace-shell .graph-orphan-panel p { margin: 0; }
 .workspace-shell .graph-orphan-list { display: grid; gap: 4px; }
-.workspace-shell .graph-orphan-list > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; padding-left: 8px; border-bottom: 1px solid var(--mm-clay-200-4); color: var(--mm-ink-900-33); font-size: 12px; }
+.workspace-shell .graph-orphan-list > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; padding-left: 8px; border-bottom: 1px solid var(--mm-clay-200); color: var(--mm-ink-900-33); font-size: 12px; }
 .workspace-shell .graph-orphan-list > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-shell .graph-orphan-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .workspace-shell .graph-orphan-actions .secondary-button { padding: 3px 8px; font-size: 11px; }
@@ -928,7 +928,7 @@
 
 .workspace-shell .graph-dimension-toggle button:hover:not(:disabled) {
   transform: none;
-  background: var(--mm-clay-250);
+  background: var(--mm-clay-250-3);
 }
 
 .workspace-shell .graph-dimension-toggle button.is-active {

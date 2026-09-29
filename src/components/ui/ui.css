@@ -24,7 +24,7 @@
 
 .ui-badge-default {
   background: var(--button-bg, var(--mm-azure-950-4));
-  color: var(--button-text, var(--mm-clay-150-6));
+  color: var(--button-text, var(--mm-clay-150-3));
 }
 
 .ui-badge-secondary {
@@ -41,7 +41,7 @@
 
 .ui-badge-destructive {
   background: var(--danger, var(--mm-brick-850-4));
-  color: var(--mm-clay-100);
+  color: var(--mm-clay-50);
 }
 
 /* --- Popover ------------------------------------------------------------- */
@@ -53,7 +53,7 @@
   padding: 10px;
   border: 1px solid rgba(28, 36, 39, 0.2);
   border-radius: var(--radius-lg);
-  background: var(--mm-clay-100);
+  background: var(--mm-clay-50);
   box-shadow: 0 12px 32px rgba(56, 44, 18, 0.18);
   outline: none;
   animation: ui-popover-in 130ms ease-out;

@@ -461,7 +461,7 @@
 .ui-popover-content.note-review-menu .note-review-start-trigger {
   border: 0;
   background: var(--button-bg, var(--mm-azure-950-4));
-  color: var(--button-text, var(--mm-clay-150-6));
+  color: var(--button-text, var(--mm-clay-150-3));
   font-weight: 600;
 }
 
@@ -1256,7 +1256,7 @@
   border: 1px solid rgba(138, 90, 42, 0.4);
   border-radius: var(--radius-xs);
   background: rgb(196 106 43 / 8%);
-  color: var(--mm-clay-850-10);
+  color: var(--mm-clay-850-12);
   font-size: 11px;
   cursor: pointer;
 }
@@ -2708,7 +2708,7 @@
   overflow: auto;
   padding: 16px;
   border: 1px solid var(--mm-ink-400-4);
-  background: var(--mm-clay-300);
+  background: var(--mm-clay-300-2);
   text-align: center;
 }
 
@@ -2760,7 +2760,7 @@
   --callout-surface: var(--mm-azure-150-3);
   display: block;
   margin: 14px 0;
-  border: 1px solid color-mix(in srgb, var(--callout-accent) 35%, var(--mm-clay-300));
+  border: 1px solid color-mix(in srgb, var(--callout-accent) 35%, var(--mm-clay-300-2));
   border-left: 4px solid var(--callout-accent);
   border-radius: var(--radius-xs);
   background: var(--callout-surface);
@@ -2786,7 +2786,7 @@
 .workspace-shell .obsidian-callout[data-callout="caution"],
 .workspace-shell .obsidian-callout[data-callout="attention"] {
   --callout-accent: var(--mm-clay-850-6);
-  --callout-surface: var(--mm-clay-200-14);
+  --callout-surface: var(--mm-clay-150-4);
 }
 
 .workspace-shell .obsidian-callout[data-callout="danger"],
@@ -2799,7 +2799,7 @@
 .workspace-shell .obsidian-callout[data-callout="quote"],
 .workspace-shell .obsidian-callout[data-callout="cite"] {
   --callout-accent: var(--mm-ink-850-8);
-  --callout-surface: var(--mm-clay-200-6);
+  --callout-surface: var(--mm-clay-200-5);
 }
 
 .workspace-shell .obsidian-callout summary,

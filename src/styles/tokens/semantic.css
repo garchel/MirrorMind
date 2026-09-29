@@ -30,13 +30,13 @@
   --text-soft: var(--mm-ink-900-17);
   --text-muted: var(--mm-ink-800-4);
   --text-subtle: var(--mm-ink-600-5);
-  --text-inverse: var(--mm-clay-150-6);
+  --text-inverse: var(--mm-clay-150-3);
   --faint: var(--mm-ink-800-7);
 
   /* --- 2. Superficies ----------------------------------------
    * Quatro profundidades: canvas < painel < campo. raised/sunk sao lavagens de 6-16% sobre o painel, nao cores soltas.
    */
-  --bg: var(--mm-clay-250-4);
+  --bg: var(--mm-clay-200-7);
   --hero-bg: var(--mm-clay-150-4);
   --panel: rgba(251, 248, 241, 0.86);
   --surface: var(--mm-gold-100);
@@ -62,8 +62,8 @@
   --accent-strong: var(--mm-clay-800-6);
   --accent-soft: var(--mm-clay-850-11);
   --button-bg: var(--mm-azure-950-4);
-  --button-text: var(--mm-clay-150-6);
-  --button-secondary: var(--mm-clay-250-5);
+  --button-text: var(--mm-clay-150-3);
+  --button-secondary: var(--mm-clay-200-11);
   --code-bg: rgba(39, 47, 51, 0.08);
   --panel-shadow: 0 18px 50px rgba(56, 44, 18, 0.1);
 
@@ -83,7 +83,7 @@
   --status-warn: var(--mm-clay-850-8);
   --status-warn-strong: var(--mm-clay-900-2);
   --status-warn-bg: var(--mm-clay-250-7);
-  --status-warn-bg-soft: var(--mm-clay-150-9);
+  --status-warn-bg-soft: var(--mm-clay-150-8);
 
   /* bad: erro, acao destrutiva */
   --status-bad: var(--mm-brick-850-11);

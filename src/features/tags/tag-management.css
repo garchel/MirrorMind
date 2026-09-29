@@ -14,7 +14,7 @@
   --tag-warn-bg: var(--mm-clay-150-8);
   --tag-warn-line: var(--mm-clay-350-4);
   --tag-warn-ink: var(--mm-clay-850-8);
-  --tag-warn-strong: var(--mm-clay-850-3);
+  --tag-warn-strong: var(--mm-clay-850-4);
   --tag-warn-soft: var(--mm-clay-800-4);
   /* Botões secundários dentro desta página. */
   --tag-btn-ink: var(--mm-ink-900-32);
@@ -394,7 +394,7 @@
 .tag-policy-summary > div {
   min-width: 0;
   padding: 15px;
-  border-right: 1px solid var(--mm-clay-200-2);
+  border-right: 1px solid var(--mm-clay-200);
 }
 
 .tag-policy-summary > div:last-child {
@@ -576,7 +576,7 @@
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  border: 1px solid var(--mm-clay-450);
+  border: 1px solid var(--mm-clay-400);
   border-radius: var(--radius-md);
   background: var(--tag-surface);
 }
@@ -664,7 +664,7 @@
 
 .tag-mode-options label:has(input:checked) {
   border-color: var(--mm-ink-700-9);
-  background: var(--mm-clay-200-8);
+  background: var(--mm-clay-150-4);
 }
 
 .tag-mode-options label:hover {
@@ -898,12 +898,12 @@
   overflow: auto;
   border: 1px solid var(--mm-clay-300-2);
   border-radius: var(--radius-lg);
-  background: var(--mm-clay-150-7);
+  background: var(--mm-clay-150-3);
 }
 
 .tag-impact-notes li {
   padding: 9px 12px;
-  border-bottom: 1px solid var(--mm-clay-300-5);
+  border-bottom: 1px solid var(--mm-clay-300-2);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 12px;
 }
@@ -964,7 +964,7 @@
 
 .tag-management-page.tag-management-page .danger-button {
   background: var(--tag-danger);
-  color: var(--mm-clay-100-3);
+  color: var(--mm-clay-50);
 }
 
 .tag-management-page.tag-management-page .danger-button:hover:not(:disabled) {
@@ -1028,7 +1028,7 @@
   }
 
   .tag-policy-summary > div {
-    border-bottom: 1px solid var(--mm-clay-200-2);
+    border-bottom: 1px solid var(--mm-clay-200);
   }
 
   .tag-policy-summary > div:nth-child(3n) {
@@ -1070,6 +1070,6 @@
 
   .tag-policy-summary > div {
     border-right: 0;
-    border-bottom: 1px solid var(--mm-clay-200-2);
+    border-bottom: 1px solid var(--mm-clay-200);
   }
 }

@@ -494,7 +494,7 @@ label.settings-toggle {
   border: 1px solid rgb(196 106 43 / 25%);
   border-radius: var(--radius-md);
   background: rgb(196 106 43 / 8%);
-  color: var(--mm-clay-850-10);
+  color: var(--mm-clay-850-12);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -558,11 +558,11 @@ label.settings-toggle {
 }
 
 :root:not([data-theme='dark']) .workspace-shell .settings-nav button:hover {
-  background: var(--mm-clay-150);
+  background: var(--mm-clay-150-3);
 }
 
 :root:not([data-theme='dark']) .workspace-shell .settings-nav button.is-active {
-  background: var(--mm-clay-250-2);
+  background: var(--mm-clay-200);
   box-shadow: inset 3px 0 0 var(--mm-sage-850);
   color: var(--mm-azure-950-4);
   font-weight: 600;
@@ -1968,7 +1968,7 @@ label.settings-toggle {
 
 .workspace-shell .danger-button {
   background: var(--mm-brick-850-6);
-  color: var(--mm-clay-100-3);
+  color: var(--mm-clay-50);
 }
 
 .workspace-shell .danger-button:hover:not(:disabled) {

@@ -10,7 +10,7 @@
   --goals-line-soft: var(--mm-gold-250-3);
   --goals-field-line: var(--mm-ink-450-2);
   --goals-track: var(--mm-gold-250-3);
-  --goals-sunk: var(--mm-clay-150-2);
+  --goals-sunk: var(--mm-clay-150-3);
   --goals-done: var(--mm-sage-850-2);
   --goals-success: var(--mm-sage-850-2);
   --goals-on-accent: var(--mm-ink-50);
@@ -60,7 +60,7 @@
 
 /* Botão "Nova meta": cores explícitas nos tokens canônicos do app
  * (nunca herda nem depende da ordem do CSS global). Claro: fundo
- * var(--mm-azure-950-4) + texto var(--mm-clay-150-6). Escuro: fundo var(--mm-gold-200-2) + texto var(--mm-ink-950-11).
+ * var(--mm-azure-950-4) + texto var(--mm-clay-150-3). Escuro: fundo var(--mm-gold-200-2) + texto var(--mm-ink-950-11).
  * Raio md (8px): o mesmo dos botões das páginas Revisar/Tags — a pílula
  * 999px destoava do restante do app. */
 .goals-page .goals-new-button,

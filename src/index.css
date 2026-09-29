@@ -24,7 +24,7 @@
   --text: var(--mm-ink-900-32);
   --text-h: var(--mm-azure-950-4);
   --muted: var(--mm-ink-800-17);
-  --bg: var(--mm-clay-250-4);
+  --bg: var(--mm-clay-200-7);
   --panel: rgba(251, 248, 241, 0.86);
   --hero-bg: var(--mm-clay-150-4);
   --border: rgba(28, 36, 39, 0.12);
@@ -34,8 +34,8 @@
   --accent-strong: var(--mm-clay-800-6);
   --surface: var(--mm-gold-100);
   --button-bg: var(--mm-azure-950-4);
-  --button-secondary: var(--mm-clay-250-5);
-  --button-text: var(--mm-clay-150-6);
+  --button-secondary: var(--mm-clay-200-11);
+  --button-text: var(--mm-clay-150-3);
   --success: var(--mm-sage-750);
   --danger: var(--mm-brick-850-4);
   --panel-shadow: 0 18px 50px rgba(56, 44, 18, 0.1);
@@ -80,7 +80,7 @@
   --review-warn: var(--mm-clay-850-8);
   --review-warn-strong: var(--mm-clay-900-2);
   --review-warn-bg: var(--mm-clay-250-7);
-  --review-warn-bg-soft: var(--mm-clay-150-9);
+  --review-warn-bg-soft: var(--mm-clay-150-8);
   --review-ok: var(--mm-moss-800);
   --review-ok-soft: var(--mm-moss-900);
   --review-ok-bg: var(--mm-moss-300);
@@ -134,7 +134,7 @@ body {
 :root[data-theme='dark'] body {
   background:
     radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 32%),
-    linear-gradient(180deg, var(--mm-clay-950-2) 0%, var(--mm-ink-950-5) 100%);
+    linear-gradient(180deg, var(--mm-clay-950-3) 0%, var(--mm-ink-950-5) 100%);
 }
 
 :root[data-theme='dark'] body::before {
