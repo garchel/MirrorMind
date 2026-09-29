@@ -16,14 +16,18 @@
   /* --- Botao ------------------------------------------------------------
    * O app tem um botao generico global (base.css) e tres variacoes
    * nomeadas: primaria (tinta cheia), secundaria (contorno) e perigo.
-   * As medidas sao o contrato do alvo de toque: 46px de altura e o
-   * minimo do projeto, 32px o piso para acoes densas. */
-  --button-height: 46px;
-  --button-height-sm: 32px;
-  --button-padding-x: var(--space-4);
-  --button-padding-x-sm: var(--space-3);
+   *
+   * A geometria NAO mora aqui: esta em --button-size-xs/sm/md-*,
+   * que sao as densidades medidas do app. Este bloco guarda so o que
+   * nao muda com a densidade — raio, transicao, cores por variante.
+   *
+   * Antes havia --button-height: 46px, --button-height-sm: 32px,
+   * --button-padding-x(-sm) e --button-font aqui. Nenhum era lido, e
+   * os dois valores de altura (46 e 32) nao existem em lugar nenhum do
+   * CSS do app, cujas alturas reais sao 14, 30, 34, 36 e 40px. Eram
+   * resto de um esquema anterior, superado pelas densidades. Foram
+   * removidos em vez de corrigidos: nao ha valor de 46px para alinhar. */
   --button-radius: var(--radius-md);
-  --button-font: 600 1rem / 1.2 var(--sans);
   --button-transition: transform 0.18s ease, opacity 0.18s ease,
     background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 
@@ -88,9 +92,11 @@
 
   /* --- Painel / cartao --------------------------------------------------
    * Um painel e uma superficie elevada com contorno. Card usa o mesmo
-   * vocabulario com menos sombra. */
-  --panel-border-radius: var(--radius-2xl);
-  --panel-inset-radius: var(--radius-xl);
+   * vocabulario com menos sombra.
+   *
+   * --panel-border-radius e --panel-inset-radius sairam daqui: nao havia
+   * primitivo de painel. O Drawer e o Popover do app usam --panel-shadow
+   * (que continua em uso) e tokens de dialogo, nao um raio de painel. */
   --card-bg: var(--surface);
   --card-fg: var(--text-normal);
   --card-border: var(--line);
@@ -110,24 +116,17 @@
   --chip-bg: var(--surface-field);
 
   /* --- Aviso / erro ----------------------------------------------------
-   * Uma mensagem que precisa de atencao usa o slot bg-soft do status: a
-   * unica variante que aceita texto por cima. */
-  --notice-padding: 14px 16px;
-  --notice-radius: var(--radius-xl);
-  --notice-fg: var(--status-bad);
-  --notice-bg: var(--status-bad-bg-soft);
-  --notice-border: var(--status-bad-bg);
+   * Havia --notice-padding/radius/fg/bg/border aqui. Foram removidos:
+   * nenhum elemento do app os lia, e o que existe nao e o que eles
+   * descreviam. O aviso real e o .error-banner, um toast fixo no canto
+   * da tela, com tokens proprios (--mm-rose-950 de fundo). Ele nao
+   * compartilha a forma com um aviso inline, entao nao ha um unico
+   * token de aviso a criar aqui. Se um aviso inline aparecer, o token
+   * nasce com o componente. */
 
   /* --- Aba / navegacao --------------------------------------------------
    * Uma aba carrega um estado ativo que NAO e cor: e a superficie do
    * editor aparecendo atras dela. Por isso ativo = fundo, nao tinta. */
-  --tab-height: 40px;
-  --tab-radius: var(--radius-xl);
-  --tab-bg: var(--surface-sunk);
-  --tab-bg-active: var(--bg);
-  --tab-fg: var(--text-muted);
-  --tab-fg-active: var(--text-h);
-  --tab-border: var(--line-soft);
 
   /* --- Medidas de shell ------------------------------------------------- */
   --titlebar-height: 40px;
