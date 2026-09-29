@@ -42,35 +42,30 @@ tamanhos token a token contra o baseline.
 
 ## Pendencias conhecidas
 
-1. **Camada 3 sem uso — e nao e um find-and-replace.** `--button-*` esta
-   definido em `styles/tokens/component.css`, mas 184 botoes continuam
-   com `className="secondary-button"` inline. A distribuicao real:
+1. **Camada 3: ondas 1 e 2 feitas, ondas 3+ sao opcionais.**
+   `<Button>` existe em `src/components/ui/Button.tsx`, com
+   `variant` (primary/secondary/danger), `size` (xs/sm/md) e
+   `className` aberto para ajuste de contexto. **150 botoes em 31
+   arquivos** migrados, aparencia inalterada por construcao: as
+   classes antigas continuam no `className`, e as regras `.ui-button--*`
+   tem especificidade (0,1,0) — abaixo das 42 regras de 2-3 classes que
+   ajustam o contexto.
 
-   | composicao | ocorrencias |
-   |---|---|
-   | `secondary-button` | 97 |
-   | `secondary-button danger-button` | 8 |
-   | `primary-button` | 6 |
-   | `primary-button review-start` | 3 |
-   | `danger-button` isolado | 3 |
-   | variantes com 3o token de contexto | o resto |
-
-   E o CSS tem **38 regras de `.secondary-button`** e 5 de
-   `.primary-button`, das quais **26 sao ajuste de contexto** (min-height
-   19x, padding 19x, font-size 13x) por seletor de 3 classes. O proprio
-   codigo admite: *"o seletor em 3 classes vence o `.secondary-button` do
-   workspace"*. Um `<Button variant="secondary">` generico perde esses
-   ajustes, porque eles sao o que diferencia o botao de 40px do header do
-   botao de 28px do rail.
-
-   O caminho e criar `<Button size="sm|md">` e deixar `className` aberto
-   para o ajuste de contexto, em vez de tentar absorber tudo num enum.
-   Isso toca muitos `.tsx` com E2E que fixam nome de botao; por isso fica
-   para uma onda dedicada, com verificacao a cada passo.
+   O que falta, se algo for necessario: `<Input>`, `<Card>` e `<Chip>`
+   tem token em `component.css` mas nenhum primitivo os usa. Os 150
+   botoes restantes (que nao eram `secondary/primary/danger-button`)
+   sao de outros padroes e continuam inline.
 2. **`--serif` criado (`b7a8354`).** 4 usos na Revisao. Agora existe de
    proposito e o acento serifado acontece.
 3. **`.gitattributes` aplicado.** Resolve a falha de fixture em worktree
    novo: era 0/5, agora 991/991 com o arquivo em 377 bytes e zero CRLF.
+4. **Rust/coverage na CI falha em `main` tambem** (verificado em
+   `bca78d8` e `1cb754b`, ambos anteriores ao design system):
+   `Missing coverage report: coverage/rust/lcov.info` e falha em
+   `cargo test`. Nao e regressao deste trabalho — e toolchain, nao
+   codigo. Os gates de token passam:
+   `Design system gates: success` nos jobs `validate` e
+   `windows-validation`.
 
 ## Concluido nesta rodada
 
@@ -161,12 +156,11 @@ antes/depois.
    vira 2–3 de razao de contraste.
 4. **`clay`, `azure`** — baixa economia (30% e 3,7%), ganho pequeno
    para o risco em cor de acao. Ultimo.
-5. **Tipografia** — hoje existem **zero** tokens de `font-size`. O app
-   usa 12px (138x), 11px (69x), 13px (51x), 12.5px (41x), 10px (21x):
-   14 tamanhos com decimais, todos literais. E a lacuna de sistema
-   mais obvia que sobrou, e a unica que **nao** mexe em cor.
-6. **Camada 3** — `--button-*` esta definido mas nenhum `.tsx` usa.
-   117 botoes ainda com `className="secondary-button"` inline.
+5. **Tipografia — feita.** 29 literais viraram 10 papeis
+   (`404f35c`), com `small = 13px` e `caption = 12px` decididos.
+6. **Camada 3 — ondas 1 e 2 feitas.** `<Button>` criado e 150 botoes
+   migrados. Faltam `<Input>`, `<Card>` e `<Chip>`, que tem token mas
+   nenhum primitivo os usa.
 
 ## Regra de decisao
 
