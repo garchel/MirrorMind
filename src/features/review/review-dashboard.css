@@ -17,7 +17,7 @@
 
 .review-dashboard-page .workspace-page-header p:not(.card-kicker) {
   margin: 0;
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-body-sm);
   max-width: 54ch;
 }
@@ -25,7 +25,7 @@
 .review-dashboard-status {
   padding: 28px 20px;
   text-align: center;
-  color: var(--review-muted);
+  color: var(--text-muted);
   border: 1px dashed var(--border, var(--mm-gold-300-2));
   border-radius: var(--radius-lg);
   font-size: var(--font-size-body-sm);
@@ -36,7 +36,7 @@
   flex-direction: column;
   gap: 12px;
   align-items: center;
-  color: var(--danger, var(--review-bad));
+  color: var(--danger, var(--status-bad));
 }
 
 .review-dashboard-grid {
@@ -52,14 +52,14 @@
   display: grid;
   gap: 3px;
   padding: 14px 16px;
-  background: var(--review-surface);
-  border: 1px solid var(--review-line-soft);
+  background: var(--surface-canvas);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
 .review-dashboard-card:hover {
-  border-color: var(--review-line-strong);
+  border-color: var(--line-strong);
   transform: translateY(-1px);
 }
 
@@ -71,8 +71,8 @@
   height: 30px;
   margin-bottom: 6px;
   border-radius: var(--radius-md);
-  color: var(--review-muted);
-  background: color-mix(in srgb, var(--review-muted) 10%, transparent);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 10%, transparent);
 }
 
 .review-dashboard-card strong {
@@ -81,25 +81,25 @@
   font-size: 26px;
   line-height: 1.2;
   letter-spacing: -0.02em;
-  color: var(--review-ink);
+  color: var(--text-strong);
 }
 
 .review-dashboard-card span {
   font: 600 var(--font-size-micro)/1.3 var(--sans);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--review-faint);
+  color: var(--faint);
 }
 
 .review-dashboard-card small {
-  color: var(--review-faint);
+  color: var(--faint);
   font: 400 var(--font-size-caption)/1.4 var(--sans);
 }
 
 .review-dashboard-readiness {
   padding: 16px 18px 18px;
-  background: var(--review-surface);
-  border: 1px solid var(--review-line-soft);
+  background: var(--surface-canvas);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-xl);
 }
 
@@ -116,8 +116,8 @@
   gap: 8px;
   padding: 10px 12px;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--review-line-soft);
-  background: var(--review-sunk);
+  border: 1px solid var(--line-soft);
+  background: var(--surface-sunk);
 }
 
 .review-dashboard-readiness-total strong {
@@ -127,7 +127,7 @@
 }
 
 .review-dashboard-readiness-total span {
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -137,11 +137,11 @@
 
 .review-dashboard-readiness-total.is-ambiguous strong,
 .review-dashboard-readiness-total.is-modified strong {
-  color: var(--review-muted);
+  color: var(--text-muted);
 }
 
 .review-dashboard-readiness-total.is-insufficient strong {
-  color: var(--review-bad-strong);
+  color: var(--status-bad-strong);
 }
 
 .review-dashboard-readiness-empty {
@@ -149,7 +149,7 @@
   padding: 14px;
   border: 1px dashed var(--border, var(--mm-gold-300-2));
   border-radius: var(--radius-lg);
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: 13px;
   text-align: center;
 }
@@ -181,8 +181,8 @@
   font-size: var(--font-size-caption);
   font-weight: 600;
   white-space: nowrap;
-  background: var(--border, var(--review-line-soft));
-  color: var(--review-muted);
+  background: var(--border, var(--line-soft));
+  color: var(--text-muted);
 }
 
 .review-dashboard-readiness-badge.is-ready {
@@ -196,8 +196,8 @@
 }
 
 .review-dashboard-readiness-badge.is-unassessed {
-  background: var(--border, var(--review-line-soft));
-  color: var(--review-muted);
+  background: var(--border, var(--line-soft));
+  color: var(--text-muted);
 }
 
 .review-dashboard-readiness-copy {
@@ -214,7 +214,7 @@
 }
 
 .review-dashboard-readiness-copy small {
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-caption);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -223,7 +223,7 @@
 
 .review-dashboard-readiness-explanation {
   margin: 4px 0 0;
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-small);
   line-height: 1.45;
   display: -webkit-box;
@@ -234,7 +234,7 @@
 
 .review-dashboard-readiness-meta {
   margin-top: 4px;
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-caption);
 }
 
@@ -251,8 +251,8 @@
 
 .review-dashboard-calibration {
   padding: 16px 18px 18px;
-  background: var(--review-surface);
-  border: 1px solid var(--review-line-soft);
+  background: var(--surface-canvas);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-xl);
 }
 
@@ -261,7 +261,7 @@
   padding: 14px;
   border: 1px dashed var(--border, var(--mm-gold-300-2));
   border-radius: var(--radius-lg);
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: 13px;
   text-align: center;
 }
@@ -301,7 +301,7 @@
 }
 
 .review-dashboard-calibration-copy small {
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-caption);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -311,7 +311,7 @@
 .review-dashboard-calibration-progress {
   height: 8px;
   border-radius: 999px;
-  background: var(--border, var(--review-line-soft));
+  background: var(--border, var(--line-soft));
   overflow: hidden;
 }
 
@@ -324,7 +324,7 @@
 }
 
 .review-dashboard-calibration-count {
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -335,8 +335,8 @@
 
 .review-dashboard-deadlines {
   padding: 16px 18px 18px;
-  background: var(--review-surface);
-  border: 1px solid var(--review-line-soft);
+  background: var(--surface-canvas);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-xl);
 }
 
@@ -354,7 +354,7 @@
 }
 
 .review-dashboard-section-heading > span {
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -363,7 +363,7 @@
   padding: 14px;
   border: 1px dashed var(--border, var(--mm-gold-300-2));
   border-radius: var(--radius-lg);
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: 13px;
   text-align: center;
 }
@@ -401,8 +401,8 @@
 }
 
 .review-dashboard-deadline-date.is-urgent {
-  background: color-mix(in srgb, var(--danger, var(--review-bad)) 12%, transparent);
-  color: var(--danger, var(--review-bad));
+  background: color-mix(in srgb, var(--danger, var(--status-bad)) 12%, transparent);
+  color: var(--danger, var(--status-bad));
 }
 
 .review-dashboard-deadline-copy {
@@ -421,7 +421,7 @@
 }
 
 .review-dashboard-deadline-copy small {
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-caption);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -434,8 +434,8 @@
   margin-top: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--review-warn-bg);
-  color: var(--review-warn);
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
   font: 600 var(--font-size-micro)/1.4 var(--sans);
 }
 
@@ -464,7 +464,7 @@
   gap: 4px;
   margin-top: 4px;
   width: max-content;
-  color: var(--review-text);
+  color: var(--text-normal);
   font-size: var(--font-size-caption);
   font-weight: 600;
 }
@@ -476,25 +476,25 @@
   width: 24px;
   height: 24px;
   padding: 0;
-  border: 1px solid var(--review-line-strong);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  background: var(--review-sunk);
-  color: var(--review-text);
+  background: var(--surface-sunk);
+  color: var(--text-normal);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .review-dashboard-deadline-priority-step:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 14%, var(--review-sunk));
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--review-line-strong));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-sunk));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong));
   color: var(--accent-strong);
 }
 
 /* Escudo: o hover global do workspace vence este hover e pintava chapa
    escura no tema claro — ancestral + classe duplicada restauram o wash. */
 .review-dashboard-page .review-dashboard-deadline-priority-step.review-dashboard-deadline-priority-step:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 14%, var(--review-sunk));
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--review-line-strong));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-sunk));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong));
   color: var(--accent-strong);
 }
 
@@ -505,7 +505,7 @@
 
 .review-dashboard-deadline-priority-error {
   margin: 10px 0 0;
-  color: var(--danger, var(--review-bad));
+  color: var(--danger, var(--status-bad));
   font-size: var(--font-size-small);
 }
 
@@ -547,7 +547,7 @@
 
 .review-dashboard-dialog-copy {
   margin: 12px 0 14px;
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-small);
   line-height: 1.5;
 }
@@ -574,10 +574,10 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid var(--border, var(--review-line-soft));
+  border: 1px solid var(--border, var(--line-soft));
   border-radius: var(--radius-lg);
-  background: var(--review-field, var(--mm-gold-50));
-  color: var(--review-muted);
+  background: var(--surface-field, var(--mm-gold-50));
+  color: var(--text-muted);
 }
 
 .review-dashboard-dialog-field input {
@@ -591,7 +591,7 @@
 }
 
 .review-dashboard-dialog-field small {
-  color: var(--review-faint);
+  color: var(--faint);
   font-size: var(--font-size-caption);
 }
 
@@ -617,7 +617,7 @@
 
 .review-dashboard-dialog-hint {
   margin-top: 12px;
-  color: var(--review-faint);
+  color: var(--faint);
   font-size: 12px;
 }
 
@@ -628,8 +628,8 @@
   margin-top: 12px;
   padding: 9px 11px;
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--danger, var(--review-bad)) 10%, transparent);
-  color: var(--danger, var(--review-bad));
+  background: color-mix(in srgb, var(--danger, var(--status-bad)) 10%, transparent);
+  color: var(--danger, var(--status-bad));
   font-size: 12px;
   line-height: 1.45;
 }
@@ -658,9 +658,9 @@
    borda esquerda e nos chips internos, sem manchar o card inteiro. */
 .review-dashboard-expired {
   padding: 16px 18px 18px;
-  background: var(--review-surface);
-  border: 1px solid var(--review-line-soft);
-  border-left: 3px solid color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 45%, var(--review-line-strong));
+  background: var(--surface-canvas);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 45%, var(--line-strong));
   border-radius: var(--radius-xl);
 }
 

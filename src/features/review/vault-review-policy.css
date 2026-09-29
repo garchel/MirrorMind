@@ -63,7 +63,7 @@
   align-items: flex-start;
   gap: 9px;
   padding: 10px 12px;
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface) 88%, var(--workspace, var(--mm-gold-150)));
   cursor: pointer;
@@ -92,8 +92,8 @@
 }
 
 .vault-review-policy-advanced {
-  border-top: 1px solid var(--border, var(--review-line));
-  border-bottom: 1px solid var(--border, var(--review-line));
+  border-top: 1px solid var(--border, var(--line));
+  border-bottom: 1px solid var(--border, var(--line));
   padding: 11px 0;
 }
 
@@ -119,7 +119,7 @@
 .vault-review-policy-advanced input {
   min-height: 34px;
   box-sizing: border-box;
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-sm);
   padding: 6px 8px;
   background: var(--surface);
@@ -157,7 +157,7 @@
 .vault-tag-policy-settings {
   display: grid;
   gap: 12px;
-  border-top: 1px solid var(--border, var(--review-line));
+  border-top: 1px solid var(--border, var(--line));
   padding-top: 14px;
 }
 
@@ -171,7 +171,7 @@
   gap: 10px;
   min-width: 0;
   margin: 0;
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-md);
   padding: 11px;
 }
@@ -194,7 +194,7 @@
 .vault-tag-policy-rule input:not([type='checkbox']) {
   min-height: 34px;
   box-sizing: border-box;
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-sm);
   padding: 6px 8px;
   background: var(--surface);

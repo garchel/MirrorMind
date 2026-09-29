@@ -5,8 +5,8 @@
   margin: 10px 0 4px;
   padding: 10px 12px;
   border-radius: var(--radius-lg);
-  background: var(--review-sunk);
-  border: 1px solid var(--review-line-soft);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line-soft);
 }
 
 /* Tres numeros lado a lado: cada um com valor em destaque e rotulo curto. */
@@ -20,13 +20,13 @@
   display: grid;
   gap: 1px;
   padding: 8px 10px;
-  border: 1px solid var(--review-line-soft);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
-  background: var(--review-field);
+  background: var(--surface-field);
 }
 
 .policy-workload-stat > strong {
-  color: var(--review-ink);
+  color: var(--text-strong);
   font-size: var(--font-size-body-md);
   font-variant-numeric: tabular-nums;
   line-height: 1.3;
@@ -34,7 +34,7 @@
 }
 
 .policy-workload-stat > span {
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-caption);
   line-height: 1.35;
 }
@@ -46,25 +46,25 @@
   gap: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--review-ink);
+  color: var(--text-strong);
 }
 
 .policy-workload-estimate-sep {
-  color: var(--review-faint);
+  color: var(--faint);
   font-weight: 400;
 }
 
 .policy-workload-estimate-note {
   font-size: var(--font-size-caption);
   line-height: 1.45;
-  color: var(--review-muted);
+  color: var(--text-muted);
 }
 
 .policy-workload-estimate-loading {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-weight: 500;
 }
 

@@ -6,7 +6,7 @@
  * (components/PageHeader.css); o cabecalho destas paginas apenas alinha o
  * espaçamento do header compartilhado ao ritmo antigo. */
 .review-queue-page .workspace-page-header {
-  border-bottom: 1px solid var(--review-line);
+  border-bottom: 1px solid var(--line);
   padding-bottom: 20px;
 }
 
@@ -22,7 +22,7 @@
   max-width: 820px;
   margin: 0;
   padding: 0;
-  border-top: 1px solid var(--review-line);
+  border-top: 1px solid var(--line);
   list-style: none;
 }
 
@@ -32,7 +32,7 @@
   gap: 16px;
   align-items: center;
   min-height: 94px;
-  border-bottom: 1px solid var(--review-line);
+  border-bottom: 1px solid var(--line);
   padding: 16px 4px 16px 0;
 }
 
@@ -62,14 +62,14 @@
   width: 68px;
   height: 68px;
   border-radius: 50%;
-  background: var(--review-ok-bg-soft);
-  box-shadow: 0 0 0 8px color-mix(in srgb, var(--review-ok) 8%, transparent);
-  color: var(--review-ok);
+  background: var(--status-ok-bg-soft);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--status-ok) 8%, transparent);
+  color: var(--status-ok);
 }
 
 .review-queue-empty h3 {
   margin: 0;
-  color: var(--review-text);
+  color: var(--text-normal);
   font: 600 22px/1.25 var(--sans);
   letter-spacing: -0.01em;
 }
@@ -77,7 +77,7 @@
 .review-queue-empty > p {
   margin: 0;
   max-width: 44ch;
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-body-sm);
   line-height: 1.65;
 }
@@ -97,7 +97,7 @@
   display: grid;
   gap: 6px;
   justify-items: center;
-  color: var(--review-text);
+  color: var(--text-normal);
   font-size: var(--font-size-small);
   line-height: 1.5;
 }
@@ -146,8 +146,8 @@
   border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 999px;
   padding: 3px 7px;
-  color: var(--review-accent-soft);
-  background: color-mix(in srgb, var(--accent) 9%, var(--review-surface));
+  color: var(--accent-soft);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-canvas));
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -155,21 +155,21 @@
 
 .review-queue-path {
   overflow: hidden;
-  color: var(--review-muted);
+  color: var(--text-muted);
   font: var(--font-size-caption)/1.4 var(--mono);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .review-queue-meta {
-  color: var(--review-faint);
+  color: var(--faint);
   font-size: var(--font-size-caption);
 }
 
 .review-queue-meta span + span::before {
   content: '\00b7';
   margin-right: 12px;
-  color: var(--review-muted-2);
+  color: var(--text-subtle);
 }
 
 @media (max-width: 720px) {
@@ -205,18 +205,18 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--review-line);
+  border-bottom: 1px solid var(--line);
   padding-bottom: 10px;
 }
 
 .review-queue-subhead h3 {
   margin: 0;
-  color: var(--review-text);
+  color: var(--text-normal);
   font-size: 16px;
 }
 
 .review-queue-subhead > span {
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
@@ -245,21 +245,21 @@
 }
 
 .review-queue-upcoming-empty strong {
-  color: var(--review-text);
+  color: var(--text-normal);
   font-size: var(--font-size-body-md);
 }
 
 .review-queue-upcoming-empty p {
   margin: 0;
   max-width: 40ch;
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-small);
   line-height: 1.6;
 }
 
 .review-queue-upcoming-loading {
   margin: 0;
-  color: var(--review-muted);
+  color: var(--text-muted);
   font-size: 13px;
 }
 
@@ -272,7 +272,7 @@
 .review-queue-upcoming-error p,
 p.review-queue-upcoming-error {
   margin: 0;
-  color: var(--danger, var(--review-bad));
+  color: var(--danger, var(--status-bad));
   font-size: var(--font-size-small);
 }
 
@@ -287,7 +287,7 @@ p.review-queue-upcoming-error {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--review-text);
+  color: var(--text-normal);
   font-weight: 600;
 }
 
@@ -298,25 +298,25 @@ p.review-queue-upcoming-error {
   width: 24px;
   height: 24px;
   padding: 0;
-  border: 1px solid var(--review-line-strong);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  background: var(--review-sunk);
-  color: var(--review-text);
+  background: var(--surface-sunk);
+  color: var(--text-normal);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .review-queue-priority-step:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 14%, var(--review-sunk));
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--review-line-strong));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-sunk));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong));
   color: var(--accent-strong);
 }
 
 /* Escudo: o hover global do workspace vence este hover e pintava chapa
    escura no tema claro — ancestral + classe duplicada restauram o wash. */
 .review-queue-page .review-queue-priority-step.review-queue-priority-step:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 14%, var(--review-sunk));
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--review-line-strong));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-sunk));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong));
   color: var(--accent-strong);
 }
 
@@ -328,7 +328,7 @@ p.review-queue-upcoming-error {
 .review-queue-priority-error {
   max-width: 820px;
   margin: 0;
-  color: var(--danger, var(--review-bad));
+  color: var(--danger, var(--status-bad));
   font-size: var(--font-size-small);
 }
 

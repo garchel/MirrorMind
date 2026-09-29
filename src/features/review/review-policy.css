@@ -29,7 +29,7 @@
 
 .review-policy-dialog footer {
   justify-content: flex-end;
-  border-top: 1px solid var(--border, var(--review-line));
+  border-top: 1px solid var(--border, var(--line));
 }
 
 /* Corpo em grade unica (padrao dos modais do app): as secoes empilham com
@@ -49,7 +49,7 @@
 }
 
 .review-policy-origins {
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   background: color-mix(in srgb, var(--surface) 92%, var(--workspace, var(--mm-gold-150)));
@@ -75,7 +75,7 @@
   display: grid;
   gap: 1px;
   padding-bottom: 8px;
-  border-bottom: 1px dashed var(--border, var(--review-line));
+  border-bottom: 1px dashed var(--border, var(--line));
 }
 
 .review-policy-origins dt {
@@ -120,7 +120,7 @@
 .review-policy-presets button,
 .review-policy-modes label {
   min-width: 0;
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface) 88%, var(--workspace, var(--mm-gold-150)));
   color: inherit;
@@ -197,7 +197,7 @@
   align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface) 92%, var(--workspace, var(--mm-gold-150)));
 }

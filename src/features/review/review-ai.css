@@ -6,7 +6,7 @@
   display: grid;
   gap: 12px;
   padding: 14px;
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface) 86%, white);
 }
@@ -51,7 +51,7 @@
 .review-ai-diagnostic textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: inherit;
@@ -86,7 +86,7 @@
 
 .note-readiness-state {
   padding: 0 8px;
-  border: 1px solid color-mix(in srgb, var(--border, var(--review-line)) 72%, currentColor);
+  border: 1px solid color-mix(in srgb, var(--border, var(--line)) 72%, currentColor);
   border-radius: var(--radius-sm);
   color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
@@ -95,18 +95,18 @@
 }
 
 .note-readiness-state.is-ready {
-  color: var(--review-ok);
+  color: var(--status-ok);
   background: rgb(72 106 82 / 9%);
 }
 
 .note-readiness-state.is-ambiguous,
 .note-readiness-state.is-modified {
-  color: var(--review-warn);
+  color: var(--status-warn);
   background: rgb(130 97 38 / 9%);
 }
 
 .note-readiness-state.is-insufficient {
-  color: var(--review-bad);
+  color: var(--status-bad);
   background: rgb(139 73 66 / 9%);
 }
 
@@ -126,7 +126,7 @@
   padding: 2px 9px;
   border-radius: 999px;
   background: rgb(130 97 38 / 12%);
-  color: var(--review-warn);
+  color: var(--status-warn);
   font: 600 var(--font-size-micro)/1.4 var(--sans);
   white-space: nowrap;
 }
@@ -136,8 +136,8 @@
   width: max-content;
   padding: 2px 9px;
   border-radius: 999px;
-  background: var(--review-warn-bg);
-  color: var(--review-warn);
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
   font: 600 var(--font-size-micro)/1.4 var(--sans);
 }
 
@@ -146,8 +146,8 @@
   width: max-content;
   padding: 2px 9px;
   border-radius: 999px;
-  background: var(--review-info-bg);
-  color: var(--review-info);
+  background: var(--status-info-bg);
+  color: var(--status-info);
   font: 600 var(--font-size-micro)/1.4 var(--sans);
 }
 
@@ -155,7 +155,7 @@
   display: grid;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px dashed color-mix(in srgb, var(--border, var(--review-line)) 85%, currentColor);
+  border: 1px dashed color-mix(in srgb, var(--border, var(--line)) 85%, currentColor);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
 }
@@ -219,9 +219,9 @@
   align-items: flex-start;
   gap: 10px;
   padding: 12px;
-  border: 1px solid var(--review-warn-bg);
+  border: 1px solid var(--status-warn-bg);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--review-warn-bg-soft) 55%, var(--surface));
+  background: color-mix(in srgb, var(--status-warn-bg-soft) 55%, var(--surface));
 }
 
 .note-recovery-banner-icon {
@@ -231,7 +231,7 @@
   height: 26px;
   flex: none;
   border-radius: var(--radius-md);
-  color: var(--review-warn);
+  color: var(--status-warn);
   background: var(--mm-clay-300-6);
 }
 
@@ -278,7 +278,7 @@
 .review-ai-toolbar-error {
   max-width: 240px;
   margin: 0;
-  color: var(--review-bad);
+  color: var(--status-bad);
   font-size: 12px;
 }
 
@@ -299,7 +299,7 @@
   justify-content: space-between;
   gap: 20px;
   padding: 20px 22px 16px;
-  border-bottom: 1px solid var(--border, var(--review-line));
+  border-bottom: 1px solid var(--border, var(--line));
   background: inherit;
 }
 
@@ -402,7 +402,7 @@
   display: grid;
   gap: 9px;
   padding: 12px 13px;
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface) 96%, white);
 }
@@ -427,18 +427,18 @@
 }
 
 .review-readiness-summary.is-ready .review-readiness-status {
-  background: var(--review-ok-bg);
-  color: var(--review-ok-soft);
+  background: var(--status-ok-bg);
+  color: var(--status-ok-soft);
 }
 
 .review-readiness-summary.is-ambiguous .review-readiness-status {
-  background: var(--review-warn-bg);
-  color: var(--review-warn);
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
 }
 
 .review-readiness-summary.is-insufficient .review-readiness-status {
-  background: var(--review-bad-bg);
-  color: var(--review-bad-strong);
+  background: var(--status-bad-bg);
+  color: var(--status-bad-strong);
 }
 
 .review-readiness-explanation {
@@ -515,7 +515,7 @@
   align-items: flex-start;
   gap: 9px;
   padding: 8px 11px;
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface) 94%, white);
 }
@@ -569,7 +569,7 @@
   display: grid;
   gap: 6px;
   padding: 10px 12px;
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   border-left: 3px solid var(--muted, var(--mm-ink-800-4));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface) 95%, white);
@@ -604,7 +604,7 @@
 }
 
 .review-readiness-issue.is-insufficient {
-  border-left-color: var(--review-bad);
+  border-left-color: var(--status-bad);
 }
 
 .review-readiness-issue.is-missingContext {
@@ -763,7 +763,7 @@
 }
 
 .note-review-report-view .review-ai-markdown :is(th, td) {
-  border: 1px solid var(--border, var(--review-line));
+  border: 1px solid var(--border, var(--line));
   padding: 5px 9px;
   text-align: left;
   vertical-align: top;
@@ -837,7 +837,7 @@
   flex: none;
   border-radius: 50%;
   background: rgb(179 38 30 / 10%);
-  color: var(--danger, var(--review-bad));
+  color: var(--danger, var(--status-bad));
   line-height: 0;
 }
 
@@ -864,7 +864,7 @@
   height: 5px;
   flex: none;
   border-radius: 50%;
-  background: var(--danger, var(--review-bad));
+  background: var(--danger, var(--status-bad));
 }
 
 .review-reset-consequences li.is-keep::before {
@@ -891,7 +891,7 @@
    isso os botoes ficavam colados na borda inferior do dialogo. */
 .review-reset-dialog .review-ai-dialog-actions {
   padding: 14px 22px 18px;
-  border-top: 1px solid var(--border, var(--review-line));
+  border-top: 1px solid var(--border, var(--line));
 }
 
 .review-reset-hint {
@@ -901,7 +901,7 @@
 
 .review-reset-error {
   margin: 0;
-  color: var(--danger, var(--review-bad));
+  color: var(--danger, var(--status-bad));
   font-size: var(--font-size-small);
 }
 
@@ -910,8 +910,8 @@
   padding: 0 16px;
   border: 1px solid rgb(179 38 30 / 32%);
   border-radius: var(--radius-md);
-  background: var(--danger, var(--review-bad));
-  color: var(--review-field);
+  background: var(--danger, var(--status-bad));
+  color: var(--surface-field);
   font: 600 var(--font-size-small) var(--sans);
   cursor: pointer;
 }
