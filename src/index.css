@@ -46,6 +46,14 @@
 
   --sans: 'Segoe UI', 'Inter', sans-serif;
   --mono: 'Cascadia Code', Consolas, monospace;
+  /* Serif de leitura: so para o relatorio de sintese da Revisao (titulo,
+   * nota citada e o placar de 84px). A app inteira e sem-serif de proposito
+   * -- serif aqui e um acento de "isto e um texto", nao o padrao. As tres
+   * primeiras sao serifes do sistema (disponiveis sem download); Georgia
+   * cai para serif generica se faltar. Antes de existir este token, os 5
+   * usos resolviam para var(--sans) por fallback -- ou seja, o acento nunca
+   * aconteceu. */
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
 
   /* Escala de raios: 6 valores cobrem os ~15 raios avulsos do app
    * (normalização de no máx. 2px — 28px isolado vai para 2xl). Pílulas
