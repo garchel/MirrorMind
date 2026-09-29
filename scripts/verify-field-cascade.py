@@ -114,7 +114,35 @@ def verifica():
                 f'primitivo {spec_prim}. A regra de contexto perderia.'
             )
 
-    # --- 3. no bundle compilado, a ordem confirma a regra ------------
+    # --- 3. a ordem de declaracao: primitivo antes do contexto ------
+    # O bundle e gerado na ordem em que o CSS e importado. Onde a
+    # especificidade e igual, vence a regra declarada depois. Como o
+    # component.css e importado por src/index.css e as regras de
+    # contexto vivem nos CSS de feature (importados pelos .tsx), o
+    # primitivo vem antes — que e o que precisamos.
+    #
+    # A verificacao e feita no CSS fonte, e nao no bundle, porque o
+    # gate roda ANTES do build na CI. O bundle, quando existe, e
+    # verificado em (4) como segunda opiniao.
+    index = ROOT / 'src/index.css'
+    if index.exists():
+        ordem = {}
+        for i, linha in enumerate(index.read_text(encoding='utf-8').splitlines()):
+            m = re.search(r"@import\s+['\"]([^'\"]+)['\"]", linha)
+            if m:
+                ordem[m.group(1)] = i
+        prim = [k for k in ordem if 'tokens/component.css' in k]
+        if not prim:
+            falhas.append('src/index.css nao importa tokens/component.css')
+        else:
+            # os CSS de feature nao sao importados pelo index: sao
+            # carregados por `import './x.css'` no .tsx, que o Vite
+            # emite depois do entry. Basta o primitivo estar no entry.
+            print(f"component.css importado na linha {ordem[prim[0]]+1} de index.css")
+    else:
+        falhas.append('src/index.css nao encontrado')
+
+    # --- 4. no bundle compilado, a ordem confirma a regra ------------
     bundles = sorted((ROOT / 'dist/assets').glob('index-*.css'),
                      key=lambda p: p.stat().st_mtime)
     if bundles:
@@ -124,7 +152,7 @@ def verifica():
             pos = [m.start() for m in re.finditer(r'[^{},]*\b' + cls + r'\b[^{},]*\{', b)]
             if not pos:
                 continue
-            # .settings-select tem especificidade igual: precisa vir depois
+            # so importa quando a especificidade e igual
             if especificidade(f'.{cls}') == especificidade('.ui-field--xs'):
                 if i_prim >= 0 and min(pos) < i_prim:
                     falhas.append(

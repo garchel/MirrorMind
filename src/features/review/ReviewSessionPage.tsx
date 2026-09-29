@@ -520,12 +520,21 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
               />
             </label>
             {synthesisAttempt?.outcome === 'invalid' ? (
-              <p className="review-synthesis-error" role="alert">
+              /*
+               * <div role="alert">, nao <p>: o aviso pode conter uma
+               * <ul> com os erros de validacao, e <ul> dentro de <p> e
+               * HTML invalido. O React avisava em stderr, e no job
+               * Windows do CI o PowerShell transforma stderr em erro
+               * e mata o build — a falha aparecia como "Frontend
+               * tests" sem relacao com o design system. O papel
+               * "alert" e o mesmo, entao a acessibilidade nao muda.
+               */
+              <div className="review-synthesis-error" role="alert">
                 {synthesisAttempt.message}
                 {synthesisAttempt.validationErrors.length > 0 ? (
                   <ul>{synthesisAttempt.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul>
                 ) : null}
-              </p>
+              </div>
             ) : null}
             {!canUseProvider ? <p role="alert" className="review-consent-warning">Autorize o envio ao Gemini nas configurações antes de avaliar.</p> : null}
             <Button
