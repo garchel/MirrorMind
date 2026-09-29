@@ -23,7 +23,7 @@
   margin-bottom: 4px;
   /* Tamanho herdado do Painel (era override local): kicker das paginas
    * maior que o de dialogs/marcadores, igual em todas as paginas. */
-  font-size: 13.5px;
+  font-size: var(--font-size-body-sm);
 }
 
 .workspace-error-status {
@@ -118,7 +118,7 @@
   margin: 0;
   max-width: 44ch;
   color: var(--muted);
-  font-size: 13.5px;
+  font-size: var(--font-size-body-sm);
   line-height: 1.65;
 }
 
@@ -139,7 +139,7 @@
   padding: 10px 4px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
-  font-size: 13.5px;
+  font-size: var(--font-size-body-sm);
   line-height: 1.55;
   text-align: left;
 }

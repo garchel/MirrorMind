@@ -80,7 +80,7 @@
 
 .review-policy-origins dt {
   color: var(--muted, var(--mm-ink-800-4));
-  font-size: 11px;
+  font-size: var(--font-size-caption);
 }
 
 .review-policy-origins dd {
@@ -95,7 +95,7 @@
 
 .review-policy-origins dd small {
   color: var(--muted, var(--mm-ink-800-4));
-  font-size: 11px;
+  font-size: var(--font-size-caption);
 }
 
 .review-policy-presets,
@@ -222,7 +222,7 @@
 
 .review-policy-schedule-copy > span {
   color: var(--muted, var(--mm-ink-800-4));
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-weight: 600;
@@ -241,7 +241,7 @@
   border-radius: 999px;
   background: rgb(112 109 102 / 12%);
   color: var(--muted, var(--mm-ink-800-4));
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   white-space: nowrap;
 }

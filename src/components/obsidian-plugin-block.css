@@ -59,7 +59,7 @@
 .obsidian-plugin-block-warning {
   margin: 0;
   padding: 8px 12px;
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   line-height: 1.45;
 }
 

@@ -18,7 +18,7 @@
 .review-dashboard-page .workspace-page-header p:not(.card-kicker) {
   margin: 0;
   color: var(--review-muted);
-  font-size: 13.5px;
+  font-size: var(--font-size-body-sm);
   max-width: 54ch;
 }
 
@@ -28,7 +28,7 @@
   color: var(--review-muted);
   border: 1px dashed var(--border, var(--mm-gold-300-2));
   border-radius: var(--radius-lg);
-  font-size: 13.5px;
+  font-size: var(--font-size-body-sm);
 }
 
 .review-dashboard-status.is-error {
@@ -85,7 +85,7 @@
 }
 
 .review-dashboard-card span {
-  font: 600 10.5px/1.3 var(--sans);
+  font: 600 var(--font-size-micro)/1.3 var(--sans);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--review-faint);
@@ -93,7 +93,7 @@
 
 .review-dashboard-card small {
   color: var(--review-faint);
-  font: 400 11.5px/1.4 var(--sans);
+  font: 400 var(--font-size-caption)/1.4 var(--sans);
 }
 
 .review-dashboard-readiness {
@@ -178,7 +178,7 @@
 .review-dashboard-readiness-badge {
   padding: 3px 9px;
   border-radius: 999px;
-  font-size: 11.5px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   white-space: nowrap;
   background: var(--border, var(--review-line-soft));
@@ -207,7 +207,7 @@
 }
 
 .review-dashboard-readiness-copy strong {
-  font-size: 13.5px;
+  font-size: var(--font-size-body-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -215,7 +215,7 @@
 
 .review-dashboard-readiness-copy small {
   color: var(--review-muted);
-  font-size: 11.5px;
+  font-size: var(--font-size-caption);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -224,7 +224,7 @@
 .review-dashboard-readiness-explanation {
   margin: 4px 0 0;
   color: var(--review-muted);
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -235,7 +235,7 @@
 .review-dashboard-readiness-meta {
   margin-top: 4px;
   color: var(--review-muted);
-  font-size: 11.5px;
+  font-size: var(--font-size-caption);
 }
 
 .review-dashboard-readiness-open {
@@ -294,7 +294,7 @@
 }
 
 .review-dashboard-calibration-copy strong {
-  font-size: 13.5px;
+  font-size: var(--font-size-body-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -302,7 +302,7 @@
 
 .review-dashboard-calibration-copy small {
   color: var(--review-muted);
-  font-size: 11.5px;
+  font-size: var(--font-size-caption);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -350,7 +350,7 @@
 
 .review-dashboard-section-heading h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-size-body-md);
 }
 
 .review-dashboard-section-heading > span {
@@ -393,7 +393,7 @@
   min-width: 92px;
   padding: 6px 10px;
   text-align: center;
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   font-weight: 600;
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
@@ -414,7 +414,7 @@
 }
 
 .review-dashboard-deadline-copy strong {
-  font-size: 13.5px;
+  font-size: var(--font-size-body-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -422,7 +422,7 @@
 
 .review-dashboard-deadline-copy small {
   color: var(--review-muted);
-  font-size: 11.5px;
+  font-size: var(--font-size-caption);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -436,7 +436,7 @@
   border-radius: 999px;
   background: var(--review-warn-bg);
   color: var(--review-warn);
-  font: 600 10.5px/1.4 var(--sans);
+  font: 600 var(--font-size-micro)/1.4 var(--sans);
 }
 
 .review-dashboard-deadline-open,
@@ -465,7 +465,7 @@
   margin-top: 4px;
   width: max-content;
   color: var(--review-text);
-  font-size: 11.5px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
 }
 
@@ -506,7 +506,7 @@
 .review-dashboard-deadline-priority-error {
   margin: 10px 0 0;
   color: var(--danger, var(--review-bad));
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
 }
 
 .review-dashboard-deadline-edit {
@@ -533,7 +533,7 @@
 
 .review-dashboard-dialog-heading h3 {
   margin: 2px 0 0;
-  font-size: 17px;
+  font-size: var(--font-size-body-lg);
 }
 
 .review-dashboard-dialog-close {
@@ -548,7 +548,7 @@
 .review-dashboard-dialog-copy {
   margin: 12px 0 14px;
   color: var(--review-muted);
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 1.5;
 }
 
@@ -586,13 +586,13 @@
   border: none;
   outline: none;
   background: transparent;
-  font: 400 13.5px/1.4 var(--sans);
+  font: 400 var(--font-size-body-sm)/1.4 var(--sans);
   color: var(--ink, var(--mm-ink-950-22));
 }
 
 .review-dashboard-dialog-field small {
   color: var(--review-faint);
-  font-size: 11px;
+  font-size: var(--font-size-caption);
 }
 
 .review-dashboard-dialog-preview {
@@ -644,13 +644,13 @@
 .review-dashboard-dialog-actions .secondary-button {
   min-height: 34px;
   padding: 0 12px;
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
 }
 
 .review-dashboard-dialog-actions button:last-child {
   min-height: 34px;
   padding: 0 14px;
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
 }
 
 /* Prazos encerrados: a data-limite da tag ja passou, mas a nota continua em
@@ -670,7 +670,7 @@
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 8%, transparent);
   color: var(--accent-strong, var(--mm-clay-800-6));
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 1.5;
 }
 
@@ -699,7 +699,7 @@
   min-width: 92px;
   padding: 6px 10px;
   text-align: center;
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   font-weight: 600;
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 16%, transparent);
@@ -714,7 +714,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 14%, transparent);
   color: var(--accent-strong, var(--mm-clay-800-6));
-  font: 600 10.5px/1.4 var(--sans);
+  font: 600 var(--font-size-micro)/1.4 var(--sans);
 }
 
 /* Verde fixo H152 no claro; no escuro usa o verde-claro da familia do app

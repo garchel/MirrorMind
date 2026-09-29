@@ -36,7 +36,7 @@
   border: 1px solid var(--mm-ink-350-3);
   border-radius: 999px;
   color: var(--mm-ink-850-14);
-  font: 11px var(--mono);
+  font: var(--font-size-caption) var(--mono);
 }
 
 .special-file-viewer-type small {
@@ -90,7 +90,7 @@
   border: 1px solid var(--mm-gold-250-3);
   border-radius: var(--radius-md);
   background: var(--mm-gold-50);
-  font: 11px/1.5 var(--mono);
+  font: var(--font-size-caption)/1.5 var(--mono);
   color: var(--mm-ink-900-23);
   white-space: pre-wrap;
 }
@@ -104,7 +104,7 @@
   margin: 12px 16px 0;
   padding: 9px 12px;
   border-radius: var(--radius-sm);
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   line-height: 1.5;
 }
 

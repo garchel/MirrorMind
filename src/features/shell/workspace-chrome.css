@@ -93,7 +93,7 @@
 }
 
 .workspace-shell .field span {
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   color: var(--workspace-muted);
 }
 
@@ -269,7 +269,7 @@
 .workspace-shell .editor-path {
   margin-top: 4px;
   color: var(--mm-ink-800-13);
-  font: 11px/1.4 var(--mono);
+  font: var(--font-size-caption)/1.4 var(--mono);
 }
 
 .workspace-shell .editor-grid {
@@ -301,7 +301,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--mm-ink-350-4);
-  font: 15px/1.75 var(--mono);
+  font: var(--font-size-body-md)/1.75 var(--mono);
   outline: none;
   resize: none;
 }
@@ -389,7 +389,7 @@
 }
 
 .builder-mode-control span {
-  font: 700 11px/1 var(--mono);
+  font: 700 var(--font-size-caption)/1 var(--mono);
   letter-spacing: 0.01em;
 }
 
@@ -464,7 +464,7 @@ label.settings-toggle {
   border-right: 1px solid var(--mm-ink-350-3);
   background: transparent;
   color: var(--mm-ink-850-14);
-  font: 12.5px var(--sans);
+  font: var(--font-size-small) var(--sans);
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
 }
@@ -611,7 +611,7 @@ label.settings-toggle {
   border-radius: var(--radius-md);
   background: var(--mm-gold-50);
   color: var(--mm-ink-900-23);
-  font: 12.5px var(--sans);
+  font: var(--font-size-small) var(--sans);
   cursor: pointer;
 }
 
@@ -631,7 +631,7 @@ label.settings-toggle {
   border-radius: var(--radius-md);
   background: var(--mm-gold-50);
   color: var(--mm-ink-900-23);
-  font: 12.5px var(--mono);
+  font: var(--font-size-small) var(--mono);
 }
 
 .settings-toggle input.settings-number:focus-visible,
@@ -826,7 +826,7 @@ label.settings-toggle {
 .note-search-results small,
 .note-search-results p {
   color: var(--mm-ink-800-7);
-  font: 11px/1.25 var(--mono);
+  font: var(--font-size-caption)/1.25 var(--mono);
 }
 
 .note-search-results p {
@@ -850,7 +850,7 @@ label.settings-toggle {
   border-radius: 999px;
   background: var(--mm-gold-150-13);
   color: var(--mm-clay-850-5);
-  font: 9px/1 var(--mono);
+  font: var(--font-size-micro)/1 var(--mono);
 }
 
 .workspace-shell .special-files-modal {
@@ -934,7 +934,7 @@ label.settings-toggle {
   border-radius: 999px;
   background: var(--mm-gold-150);
   color: var(--mm-ink-850-8);
-  font: 9px/1 var(--mono);
+  font: var(--font-size-micro)/1 var(--mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -992,7 +992,7 @@ label.settings-toggle {
 }
 
 .vault-selection-mark {
-  font: 700 15px/1 var(--mono);
+  font: 700 var(--font-size-body-md)/1 var(--mono);
   letter-spacing: -0.12em;
 }
 
@@ -1134,7 +1134,7 @@ label.settings-toggle {
 
 .recent-vault-modal h2 {
   margin: 0;
-  font: 600 1.6rem/1.1 var(--sans);
+  font: 600 var(--font-size-title-sm)/1.1 var(--sans);
 }
 
 .recent-vault-modal code {
@@ -1315,7 +1315,7 @@ label.settings-toggle {
   width: 18px;
   place-items: center;
   flex: 0 0 18px;
-  font: 17px/1 var(--sans);
+  font: var(--font-size-body-lg)/1 var(--sans);
 }
 
 .rail-label {
@@ -1578,19 +1578,19 @@ label.settings-toggle {
 .vault-diagnostics-title {
   margin: 0 0 2px;
   font-weight: 700;
-  font-size: 0.82rem;
+  font-size: var(--font-size-body-sm);
 }
 
 .vault-diagnostics-detail {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: var(--font-size-small);
   line-height: 1.4;
 }
 
 .vault-diagnostics-paths {
   margin: 6px 0 0;
   padding-left: 16px;
-  font-size: 0.76rem;
+  font-size: var(--font-size-small);
   opacity: 0.85;
 }
 
@@ -1602,7 +1602,7 @@ label.settings-toggle {
 
 .vault-diagnostics-actions .secondary-button {
   padding: 3px 8px;
-  font-size: 0.76rem;
+  font-size: var(--font-size-small);
 }
 
 .vault-diagnostics-dismiss {
@@ -1660,7 +1660,7 @@ label.settings-toggle {
 .workspace-shell .trash-tree-content > p {
   margin: 6px 0;
   color: var(--mm-ink-800-7);
-  font-size: 11px;
+  font-size: var(--font-size-caption);
 }
 
 .workspace-shell .trash-tree-item {
@@ -1713,7 +1713,7 @@ label.settings-toggle {
   outline: 0;
   background: transparent;
   color: var(--mm-ink-900-17);
-  font: 11px var(--sans);
+  font: var(--font-size-caption) var(--sans);
 }
 
 .workspace-shell .tag-filter-chip {
@@ -1726,7 +1726,7 @@ label.settings-toggle {
   border-radius: var(--radius-xs);
   background: var(--mm-gold-200-2);
   color: var(--mm-ink-850-19);
-  font: 11px var(--sans);
+  font: var(--font-size-caption) var(--sans);
 }
 
 .workspace-shell .tag-filter-chip:hover {
@@ -1751,7 +1751,7 @@ label.settings-toggle {
   border-radius: var(--radius-xs);
   background: transparent;
   color: var(--mm-ink-850-14);
-  font: 11px var(--sans);
+  font: var(--font-size-caption) var(--sans);
   text-align: left;
 }
 
@@ -2112,7 +2112,7 @@ label.settings-toggle {
 }
 
 .workspace-shell .explorer-refresh-icon {
-  font-size: 15px;
+  font-size: var(--font-size-body-md);
   line-height: 1;
 }
 
@@ -2216,4 +2216,4 @@ label.settings-toggle {
 .workspace-shell .trash-page {
   gap: 14px;
 }
-
+

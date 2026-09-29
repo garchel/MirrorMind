@@ -13,7 +13,7 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--mm-brick-800);
-  font-size: 11.5px;
+  font-size: var(--font-size-caption);
 }
 
 .ui-popover-content.note-review-menu .note-review-reset-trigger:not(:disabled):hover {
@@ -72,7 +72,7 @@
 
 .structural-audit-scope .structural-audit-header small {
   color: var(--muted, var(--mm-ink-800-17));
-  font-size: 11px;
+  font-size: var(--font-size-caption);
 }
 
 .structural-audit-scope .structural-audit-state {
@@ -134,7 +134,7 @@
   border-radius: 999px;
   background: var(--mm-clay-200-11);
   color: var(--mm-clay-850-9);
-  font-size: 10.5px;
+  font-size: var(--font-size-micro);
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -163,7 +163,7 @@
   border-radius: var(--radius-sm);
   background: var(--mm-clay-150-3);
   color: var(--mm-ink-850-8);
-  font: 11px/1.5 var(--mono, monospace);
+  font: var(--font-size-caption)/1.5 var(--mono, monospace);
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 96px;
@@ -188,7 +188,7 @@
   border-radius: var(--radius-sm);
   background: var(--text-h, var(--mm-azure-950-4));
   color: var(--mm-gold-50);
-  font-size: 11.5px;
+  font-size: var(--font-size-caption);
 }
 
 .structural-audit-scope .structural-audit-apply:not(:disabled):hover {
@@ -202,7 +202,7 @@
 
 .structural-audit-scope .structural-audit-hint {
   color: var(--muted, var(--mm-ink-800-17));
-  font-size: 10.5px;
+  font-size: var(--font-size-micro);
 }
 
 .structural-audit-scope .structural-audit-footer {
@@ -257,7 +257,7 @@
 
 .structural-audit-scope .fact-check-summary {
   color: var(--text-secondary, var(--mm-ink-850-21));
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 1.5;
   margin: 0;
 }
@@ -290,7 +290,7 @@
 
 .structural-audit-scope .fact-check-finding-head p {
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   font-weight: 600;
   line-height: 1.45;
   flex: 1;
@@ -298,7 +298,7 @@
 
 .structural-audit-scope .fact-check-status {
   flex: none;
-  font-size: 9.5px;
+  font-size: var(--font-size-micro);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -332,8 +332,8 @@
 
 .structural-audit-scope .fact-check-source {
   margin: 4px 0 0;
-  font-size: 10.5px;
+  font-size: var(--font-size-micro);
   font-style: italic;
   color: var(--muted, var(--mm-ink-800-17));
 }
-
+

@@ -15,7 +15,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--text-h, var(--mm-azure-950-4));
-  font: 11px/1.2 var(--sans);
+  font: var(--font-size-caption)/1.2 var(--sans);
   letter-spacing: 0.02em;
   cursor: pointer;
   opacity: 0.62;
@@ -125,7 +125,7 @@
 
 .note-tag-impact-summary dt {
   color: var(--mm-ink-800-15);
-  font-size: 11px;
+  font-size: var(--font-size-caption);
 }
 
 .note-tag-impact-summary dd {

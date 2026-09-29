@@ -271,7 +271,7 @@
   min-height: 88px;
   resize: vertical;
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
 }
 
 .goals-dialog-form small {
@@ -411,7 +411,7 @@
 }
 
 .goal-step-copy strong {
-  font-size: 13.5px;
+  font-size: var(--font-size-body-sm);
 }
 
 /* Botoes da pagina de Metas seguem o padrao do workspace
@@ -454,12 +454,12 @@
 .goal-step-copy p {
   margin: 0;
   color: var(--goals-faint);
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 1.5;
 }
 
 .goal-step-copy code {
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   overflow-wrap: anywhere;
 }
 
@@ -525,12 +525,12 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--goals-ink);
-  font-size: 13.5px;
+  font-size: var(--font-size-body-sm);
 }
 
 .goal-detail-progress-head > span {
   color: var(--goals-muted);
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   white-space: nowrap;
 }
 
@@ -671,7 +671,7 @@
   border-radius: var(--radius-sm);
   background: var(--goals-field);
   color: var(--goals-ink);
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   cursor: pointer;
 }
 
@@ -711,7 +711,7 @@
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   color: var(--goals-ink-soft);
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   cursor: pointer;
 }
 

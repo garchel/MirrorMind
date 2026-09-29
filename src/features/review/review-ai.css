@@ -112,7 +112,7 @@
 
 .note-review-next-date {
   color: var(--muted, var(--mm-ink-800-4));
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -127,7 +127,7 @@
   border-radius: 999px;
   background: rgb(130 97 38 / 12%);
   color: var(--review-warn);
-  font: 600 10.5px/1.4 var(--sans);
+  font: 600 var(--font-size-micro)/1.4 var(--sans);
   white-space: nowrap;
 }
 
@@ -138,7 +138,7 @@
   border-radius: 999px;
   background: var(--review-warn-bg);
   color: var(--review-warn);
-  font: 600 10.5px/1.4 var(--sans);
+  font: 600 var(--font-size-micro)/1.4 var(--sans);
 }
 
 .note-recovery-badge {
@@ -148,7 +148,7 @@
   border-radius: 999px;
   background: var(--review-info-bg);
   color: var(--review-info);
-  font: 600 10.5px/1.4 var(--sans);
+  font: 600 var(--font-size-micro)/1.4 var(--sans);
 }
 
 .note-profile-onboarding {
@@ -167,12 +167,12 @@
 
 .note-profile-onboarding-heading strong {
   color: var(--text, var(--mm-ink-950-19));
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
 }
 
 .note-profile-onboarding-heading small {
   color: var(--muted, var(--mm-ink-800-4));
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   line-height: 1.45;
 }
 
@@ -196,21 +196,21 @@
 
 .note-profile-onboarding-options .secondary-button small {
   color: var(--muted, var(--mm-ink-800-4));
-  font-size: 10.5px;
+  font-size: var(--font-size-micro);
   line-height: 1.4;
 }
 
 .note-profile-why summary {
   cursor: pointer;
   color: var(--muted, var(--mm-ink-800-4));
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
 }
 
 .note-profile-why p {
   margin: 6px 0 0;
   color: var(--muted, var(--mm-ink-800-4));
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   line-height: 1.5;
 }
 
@@ -243,7 +243,7 @@
 }
 
 .note-recovery-banner-copy strong {
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
 }
 
 .note-recovery-banner-copy p {
@@ -255,7 +255,7 @@
 
 .note-recovery-banner-copy small {
   color: var(--muted, var(--mm-ink-800-4));
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   font-family: var(--mono);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -272,7 +272,7 @@
 .note-recovery-banner-actions .secondary-button {
   justify-content: center;
   padding: 6px 10px;
-  font-size: 11.5px;
+  font-size: var(--font-size-caption);
 }
 
 .review-ai-toolbar-error {
@@ -443,7 +443,7 @@
 
 .review-readiness-explanation {
   color: var(--text-h, var(--mm-ink-950-19));
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 1.55;
 }
 
@@ -459,7 +459,7 @@
   gap: 6px;
   margin: 0;
   color: var(--muted, var(--mm-ink-800-4));
-  font: 600 11px var(--sans);
+  font: 600 var(--font-size-caption) var(--sans);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -493,7 +493,7 @@
   border-left: 3px solid var(--accent);
   border-radius: var(--radius-md);
   background: rgb(115 137 121 / 7%);
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 1.5;
 }
 
@@ -530,12 +530,12 @@
   border-radius: var(--radius-sm);
   background: rgb(115 137 121 / 14%);
   color: var(--mm-sage-850-8);
-  font: 600 10.5px var(--sans);
+  font: 600 var(--font-size-micro) var(--sans);
 }
 
 .review-readiness-point-list .review-ai-markdown {
   min-width: 0;
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 1.5;
 }
 
@@ -552,7 +552,7 @@
 }
 
 .review-structure-finding-body > strong {
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 1.45;
 }
 
@@ -576,7 +576,7 @@
 }
 
 .review-readiness-issue > strong {
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 1.45;
 }
 
@@ -697,7 +697,7 @@
 .note-review-report-title {
   margin: 0 0 4px;
   padding: 0 2px;
-  font-size: 19px;
+  font-size: var(--font-size-lead);
 }
 
 /* ---- Markdown do relatorio com aparência correta: negrito, italico,
@@ -854,7 +854,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 1.45;
 }
 
@@ -884,7 +884,7 @@
   min-height: 34px;
   padding: 0 14px;
   border-radius: var(--radius-md);
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
 }
 
 /* Rodape no padrao dos modais do app (acoes a direita, com divisor): sem
@@ -896,13 +896,13 @@
 
 .review-reset-hint {
   color: var(--muted, var(--mm-ink-800-4));
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
 }
 
 .review-reset-error {
   margin: 0;
   color: var(--danger, var(--review-bad));
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
 }
 
 .review-reset-confirm {
@@ -912,7 +912,7 @@
   border-radius: var(--radius-md);
   background: var(--danger, var(--review-bad));
   color: var(--review-field);
-  font: 600 12.5px var(--sans);
+  font: 600 var(--font-size-small) var(--sans);
   cursor: pointer;
 }
 
@@ -947,7 +947,7 @@
 
 .review-ai-usage dd {
   margin: 0;
-  font: 600 12.5px var(--sans);
+  font: 600 var(--font-size-small) var(--sans);
 }
 
 .review-ai-comparability {
@@ -995,7 +995,7 @@
 
 .review-ai-comparison-report > dl dd {
   margin: 0;
-  font: 600 12.5px var(--sans);
+  font: 600 var(--font-size-small) var(--sans);
 }
 
 .review-ai-comparison-provider {
@@ -1023,7 +1023,7 @@
 }
 
 .review-ai-comparison-provider > dl dt {
-  font-size: 11.5px;
+  font-size: var(--font-size-caption);
   color: var(--muted, var(--mm-ink-800-4));
 }
 
@@ -1041,7 +1041,7 @@
 }
 
 .review-ai-comparison-quotes li {
-  font-size: 11.5px;
+  font-size: var(--font-size-caption);
   color: var(--muted, var(--mm-ink-800-4));
   list-style: disc;
 }

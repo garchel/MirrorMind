@@ -66,7 +66,7 @@
   box-shadow: 0 6px 18px rgb(44 54 45 / 14%);
   backdrop-filter: blur(10px);
   color: var(--mm-ink-850-14);
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
@@ -119,7 +119,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--mm-ink-900-23);
-  font: 500 11px/1.3 var(--sans);
+  font: 500 var(--font-size-caption)/1.3 var(--sans);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -233,7 +233,7 @@
   border-radius: 999px;
   background: var(--mm-moss-200);
   color: var(--mm-sage-900-9);
-  font-size: 10.5px;
+  font-size: var(--font-size-micro);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -276,7 +276,7 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--mm-ink-800-4);
-  font: 11px var(--sans);
+  font: var(--font-size-caption) var(--sans);
   cursor: pointer;
   transition: background 140ms ease, color 140ms ease;
 }
@@ -531,7 +531,7 @@
   padding-top: 10px;
   border-top: 1px solid rgb(28 36 39 / 8%);
   color: var(--mm-ink-650-4);
-  font-size: 11px;
+  font-size: var(--font-size-caption);
 }
 
 /* Menu de exportacao (SVG/PNG) do header do grafo. */
@@ -640,7 +640,7 @@
 
 .workspace-shell .graph-detail-stat strong {
   color: var(--mm-sage-900-3);
-  font: 600 17px/1 var(--sans);
+  font: 600 var(--font-size-body-lg)/1 var(--sans);
 }
 
 .workspace-shell .graph-detail-stat span {
@@ -690,7 +690,7 @@
   border-radius: 999px;
   background: var(--mm-moss-150-5);
   color: var(--mm-sage-850);
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -857,7 +857,7 @@
 .workspace-shell .graph-orphan-list > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; padding-left: 8px; border-bottom: 1px solid var(--mm-clay-200); color: var(--mm-ink-900-33); font-size: 12px; }
 .workspace-shell .graph-orphan-list > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-shell .graph-orphan-actions { display: flex; gap: 4px; flex-shrink: 0; }
-.workspace-shell .graph-orphan-actions .secondary-button { padding: 3px 8px; font-size: 11px; }
+.workspace-shell .graph-orphan-actions .secondary-button { padding: 3px 8px; font-size: var(--font-size-caption); }
 
 .workspace-shell .graph-local-limit-note {
   position: absolute;
@@ -872,7 +872,7 @@
   background: rgb(255 251 240 / 92%);
   box-shadow: 0 6px 18px rgb(44 54 45 / 12%);
   color: var(--mm-clay-850-7);
-  font-size: 11px;
+  font-size: var(--font-size-caption);
 }
 
 .workspace-shell .graph-culling-note {
@@ -888,7 +888,7 @@
   background: rgb(245 248 253 / 94%);
   box-shadow: 0 6px 18px rgb(44 54 45 / 12%);
   color: var(--mm-azure-850-5);
-  font-size: 11px;
+  font-size: var(--font-size-caption);
 }
 
 .workspace-shell .note-graph {
@@ -962,7 +962,7 @@
   border-radius: var(--radius-sm);
   background: rgb(10 13 18 / 68%);
   color: var(--mm-azure-350-2);
-  font: 500 11px/1.35 var(--sans);
+  font: 500 var(--font-size-caption)/1.35 var(--sans);
   white-space: nowrap;
   user-select: none;
   pointer-events: none;
@@ -1071,7 +1071,7 @@
   border: none;
   background: transparent;
   color: var(--mm-sage-900-10);
-  font: 600 11px/1.3 var(--sans);
+  font: 600 var(--font-size-caption)/1.3 var(--sans);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1245,7 +1245,7 @@
   min-width: 34px;
   padding: 0 6px;
   color: var(--workspace-muted);
-  font-size: 11px;
+  font-size: var(--font-size-caption);
   font-variant-numeric: tabular-nums;
   text-align: center;
   white-space: nowrap;
@@ -1450,4 +1450,4 @@
   border-bottom-color: var(--mm-ink-750);
   background: transparent;
 }
-
+

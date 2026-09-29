@@ -182,7 +182,7 @@ h2 {
 }
 
 h3 {
-  font-size: 1.2rem;
+  font-size: var(--font-size-lead);
   margin: 0;
 }
 

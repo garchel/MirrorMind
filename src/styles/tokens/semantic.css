@@ -100,6 +100,25 @@
   --status-alt-bg: var(--mm-lilac-250);
   --status-alt-bg-soft: var(--mm-lilac-150-2);
   --status-alt-line: var(--mm-lilac-500);
+
+  /* --- 6. Tipografia ------------------------------------------------
+   * Medida, nao cor: por isso fica na camada semantica e nao na
+   * primitiva. O editor NAO usa --font-size-body-lg: ele tem
+   * --editor-font-size, porque o usuario escolhe a fonte da nota.
+   * Derivado de scripts/type-scale.py; aplicado por
+   * scripts/apply-type-scale.py. Decisoes de valor: small=13px,
+   * caption=12px. 14px e 15px sao degraus separados (body-sm e
+   * body-md) -- contratos diferentes, um nao deve arrastar o outro. */
+  --font-size-micro: 10px;
+  --font-size-caption: 12px;
+  --font-size-small: 13px;
+  --font-size-body-sm: 14px;
+  --font-size-body-md: 16px;
+  --font-size-body-lg: 18px;
+  --font-size-lead: 20px;
+  --font-size-title-sm: 24px;
+  --font-size-title-md: 32px;
+  --font-size-display: 84px;
 }
 
 /* --- Tema escuro (caderno noturno) ------------------------------------

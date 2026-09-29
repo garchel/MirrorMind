@@ -488,7 +488,7 @@ button:disabled {
   border-radius: var(--radius-xl);
   background: rgba(255, 255, 255, 0.78);
   color: var(--text-h);
-  font: 15px/1.6 var(--mono);
+  font: var(--font-size-body-md)/1.6 var(--mono);
   padding: 18px;
 }
 
@@ -554,4 +554,4 @@ button:disabled {
     min-height: 32svh;
   }
 }
-
+
