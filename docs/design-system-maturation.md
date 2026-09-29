@@ -3,7 +3,51 @@
 Estado: branch `design-system-maturation`, apos `93a8a75` (as 3 camadas
 + os 4 gates). A estrutura esta pronta; o que falta e **maturidade**.
 
-## O defeito
+## Progresso
+
+**456 → 278 primitivas (-39%).** Seis familias consolidadas, cada uma em
+commit proprio, com os gates medindo o drift em vez de eu afirmar que
+nao houve:
+
+| familia | antes | depois | commit |
+|---|---|---|---|
+| `gold` | 53 | 15 | `6feb547` |
+| `lilac` | 23 | 14 | `696499b` |
+| `sage` | 40 | 31 | `b155a42` |
+| `moss` | 17 | 12 | `b155a42` |
+| `brick` | 39 | 35 | `b155a42` |
+| `ink` | 161 | 75 | `d272497` |
+| `clay` | 90 | 63 | `8f6fd78` |
+
+Restam 17 tokens de ganho possivel (6,1%) — abaixo do limiar que vale a
+risco de mover pixel. `sage`, `lilac` e `teal` estao esgotados.
+
+**Drift acumulado:** 569 referencias, DeltaE max **2,29** — todas abaixo
+do piso perceptual de 2,3. Os gates estritos continuam **falhando**, como
+devem: a consolidacao move pixel, e isso precisa ficar visivel.
+
+**Auditoria de contraste:** os 185 pares cor/fundo reais do app foram
+medidos antes e depois de cada familia. Zero quebras de AA. Um par
+melhorou (4,46 → 4,51). Maior variacao: 0,577 de razao.
+
+## Pendencias conhecidas
+
+1. **`--text-subtle` sobre `--surface-canvas` no tema claro: 2,40:1**
+   (abaixo de AA). Pre-existente — era 2,30:1 antes da tokenizacao, ou
+   seja a consolidacao melhorou marginalmente, mas o token segue
+   inacessivel para texto pequeno. Precisa escurecer para ~`#8f8a80`
+   (3,6:1) ou ~`#6b6a63` (5,3:1). Mudanca de cor visivel: decisao sua.
+2. **Camada 3 sem uso.** `--button-*` esta definido, mas 117 botoes
+   ainda com `className="secondary-button"` inline.
+3. **Zero tokens de `font-size`.** 29 literais, 532 ocorrencias, sem
+   escala. Proposta em `docs/type-scale-proposal.md` — 10 papeis, deriva
+   de `scripts/type-scale.py`. Nao aplicada: o risco e layout, e nenhum
+   gate mede layout.
+4. **`--serif` nao existe.** 3 titulos da Revisao usam `var(--serif,
+   var(--sans))`; se a intencao era uma serif de verdade para o relatorio
+   de sintese, o token precisa ser criado de proposito.
+
+## O defeito original (para referencia)
 
 A camada 1 tem **456 primitivas**, geradas 1:1 dos hex em uso. Isso
 funciona e nao move pixel nenhum, mas nao e uma rampa — e um dump do
