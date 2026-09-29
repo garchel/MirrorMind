@@ -5,12 +5,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { Field } from './Field'
 
 describe('Field', () => {
-  it('renderiza input por padrao, com densidade md', () => {
+  it('renderiza input por padrao, com densidade xs', () => {
     render(<Field placeholder="Buscar" />)
     const el = screen.getByPlaceholderText('Buscar')
     expect(el.tagName).toBe('INPUT')
     expect(el.className).toContain('ui-field')
-    expect(el.className).toContain('ui-field--md')
+    expect(el.className).toContain('ui-field--xs')
   })
 
   it('as="select" renderiza select e repassa as opcoes', () => {
@@ -30,7 +30,7 @@ describe('Field', () => {
     const el = screen.getByLabelText('Nota') as HTMLTextAreaElement
     expect(el.tagName).toBe('TEXTAREA')
     expect(el.className).toContain('ui-field--textarea')
-    expect(el.className).toContain('ui-field--md')
+    expect(el.className).toContain('ui-field--xs')
   })
 
   it('size="sm" troca a densidade', () => {
@@ -41,8 +41,8 @@ describe('Field', () => {
   it('className do contexto vem depois das classes do componente', () => {
     render(<Field label="Base" className="settings-select" />)
     const cls = screen.getByLabelText('Base').className
-    expect(cls).toBe('ui-field ui-field--md settings-select')
-    expect(cls.indexOf('ui-field--md')).toBeLessThan(cls.indexOf('settings-select'))
+    expect(cls).toBe('ui-field ui-field--xs settings-select')
+    expect(cls.indexOf('ui-field--xs')).toBeLessThan(cls.indexOf('settings-select'))
   })
 
   it('label vira aria-label e nao sobrescreve um aria-label existente', () => {

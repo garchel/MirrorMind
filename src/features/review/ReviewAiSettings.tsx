@@ -183,8 +183,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           <small>A sessão usa somente o provedor escolhido. Não existe troca automática.</small>
         </span>
         <Field as="select"
-          size="sm"
-            className="settings-select"
+          className="settings-select"
           value={provider}
           onChange={(event) => selectProvider(event.target.value as ReviewAiProvider)}
           aria-label="Provedor da revisão"

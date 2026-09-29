@@ -111,6 +111,21 @@ def strip_comments(text):
     return ''.join(out)
 
 
+def legacy_sets_height(cls):
+    """A regra .<cls> no CSS do app ja fixa a altura?
+
+    Sim  -> o Field nao deve emitir size, senao o min-height generico
+            (34/36/48px) muda um campo que o app mediu em outro valor.
+    Nao  -> emite size="xs" (34px, a altura mais comum do app).
+    """
+    for css in (ROOT / 'src').rglob('*.css'):
+        text = css.read_text(encoding='utf-8')
+        m = re.search(r'\.' + re.escape(cls) + r'\s*\{([^}]*)\}', text)
+        if m:
+            return bool(re.search(r'(?:^|;)\s*(?:min-)?height\s*:', m.group(1)))
+    return False
+
+
 def find_fields(text):
     """(ini, fim_de_abertura, fim_do_elemento) de cada campo."""
     out = []
@@ -155,7 +170,15 @@ def migrate_file(path, dry):
         if not cls or cls in SKIP_CLASSES:
             continue
 
-        size = 'sm' if 'settings' in cls else 'md'
+        # A densidade nao pode ser inventada. Quando a classe legada
+        # ja declara height/min-height explicito — .settings-number tem
+        # `height: 34px` — emitir size="sm" (min-height: 36px) mudaria
+        # o campo em 2px. Nesses casos o migrador NAO emite size: a
+        # regra antiga manda, que e o comportamento original.
+        #
+        # A verificacao e feita contra o CSS do app, nao contra uma
+        # lista escrita a mao. Se a classe nao definir altura, o Field
+        # usa o proprio xs=34px, que e a altura mais comum.
         self_closing = head.rstrip().endswith('/>')
 
         # reconstroi a abertura: troca a tag e acrescenta o `as`/size
@@ -167,8 +190,10 @@ def migrate_file(path, dry):
             # nome: sem isso o `size="sm"` colide com o `size?: number`
             # nativo do HTML e o typecheck acusa.
             new_head = new_head.replace('<input', '<Field', 1)
-        if size == 'sm':
-            new_head = new_head.replace('className=', 'size="sm"\n            className=', 1)
+        if not legacy_sets_height(cls):
+            # so quando a regra antiga nao fixa a altura
+            new_head = new_head.replace(
+                'className=', 'size="xs"\n            className=', 1)
 
         replacement = new_head
         if not self_closing:

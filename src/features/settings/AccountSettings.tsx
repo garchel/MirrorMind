@@ -32,7 +32,6 @@ export function AccountSettings({ client }: { client: SessionClient }) {
         </span>
         <div className="settings-account-actions">
           <Field as="select"
-            size="sm"
             className="settings-select"
             value={resolved.plan}
             aria-label="Plano de teste"

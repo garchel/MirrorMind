@@ -227,8 +227,7 @@ export function SettingsPage({
                 <strong>Fonte do editor e da leitura</strong>
                 <small>Família aplicada aos modos Edição, Misto e Leitura.</small>
               </span>
-              <Field as="select" size="sm"
-            className="settings-select" value={editorFontFamily} onChange={(event) => setEditorFontFamily(event.target.value as EditorFontFamily)} aria-label="Família da fonte do editor e da leitura">
+              <Field as="select" className="settings-select" value={editorFontFamily} onChange={(event) => setEditorFontFamily(event.target.value as EditorFontFamily)} aria-label="Família da fonte do editor e da leitura">
                 {FONT_FAMILIES.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
@@ -240,8 +239,7 @@ export function SettingsPage({
                 <small>Medida base do texto do editor e da leitura em pixels.</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 min={MIN_FONT_SIZE}
                 max={MAX_FONT_SIZE}
@@ -266,8 +264,7 @@ export function SettingsPage({
                 <small>Acoes de desfazer/refazer mantidas por nota no editor ({DEFAULT_HISTORY_LIMIT} por padrao).</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 min={MIN_HISTORY_LIMIT}
                 max={MAX_HISTORY_LIMIT}
@@ -340,8 +337,7 @@ export function SettingsPage({
                 <strong>Fonte de leitura</strong>
                 <small>Aplica a família tipográfica escolhida no modo Leitura.</small>
               </span>
-              <Field as="select" size="sm"
-            className="settings-select" value={readingFont} onChange={(event) => setReadingFont(event.target.value as ReadingFont)} aria-label="Fonte de leitura">
+              <Field as="select" className="settings-select" value={readingFont} onChange={(event) => setReadingFont(event.target.value as ReadingFont)} aria-label="Fonte de leitura">
                 <option value="sans">Sans serif</option>
                 <option value="serif">Serif</option>
                 <option value="mono">Monoespacada</option>
@@ -352,8 +348,7 @@ export function SettingsPage({
                 <strong>Largura da leitura</strong>
                 <small>Controla a medida da coluna de conteúdo no modo Leitura.</small>
               </span>
-              <Field as="select" size="sm"
-            className="settings-select" value={readingWidth} onChange={(event) => setReadingWidth(event.target.value as ReadingWidth)} aria-label="Largura da leitura">
+              <Field as="select" className="settings-select" value={readingWidth} onChange={(event) => setReadingWidth(event.target.value as ReadingWidth)} aria-label="Largura da leitura">
                 <option value="compact">Compacta</option>
                 <option value="comfortable">Confortavel</option>
                 <option value="wide">Ampla</option>
@@ -483,8 +478,7 @@ export function SettingsPage({
                 <small>Raio base dos orbes 3D no grafo.</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 min={0.2}
                 max={3}
@@ -500,8 +494,7 @@ export function SettingsPage({
                 <small>Raio das órbitas dos elétrons ao redor do elemento com mais conexões.</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 min={2}
                 max={20}
@@ -517,8 +510,7 @@ export function SettingsPage({
                 <small>Multiplicador da velocidade com que os elétrons orbitam o núcleo.</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 min={0.1}
                 max={5}
@@ -534,8 +526,7 @@ export function SettingsPage({
                 <small>Distância máxima entre nós conectados; além dela, a aresta puxa os extremos de volta.</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 min={4}
                 max={40}
@@ -551,8 +542,7 @@ export function SettingsPage({
                 <small>Distância mínima entre nós conectados; abaixo dela, a aresta empurra os extremos para longe.</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 min={0}
                 max={30}
@@ -568,8 +558,7 @@ export function SettingsPage({
                 <small>Quanto cada conexão adicional aumenta o raio do nó.</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 min={0}
                 max={1}
@@ -589,8 +578,7 @@ export function SettingsPage({
                 <small>Força com que os nós se repelem entre si (inversa ao quadrado da distância).</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 step={50}
                 value={graph2dRepulsionStrength}
@@ -604,8 +592,7 @@ export function SettingsPage({
                 <small>Força das arestas por unidade de distância além do descanso.</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 step={0.1}
                 value={graph2dLinkStiffness}
@@ -619,8 +606,7 @@ export function SettingsPage({
                 <small>Decaimento da velocidade por segundo; mais alto = movimento mais "gredoso".</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 step={0.05}
                 value={graph2dVelocityDecay}
@@ -634,8 +620,7 @@ export function SettingsPage({
                 <small>Comprimento de descanso das molas entre nós conectados.</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 step={0.5}
                 value={graph2dLinkDistance}
@@ -649,8 +634,7 @@ export function SettingsPage({
                 <small>Atração ao anel no meio do grafo; nós dentro do anel ficam soltos.</small>
               </span>
               <Field
-                size="sm"
-            className="settings-number"
+                className="settings-number"
                 type="number"
                 step={5}
                 value={graph2dCenterForce}
@@ -667,8 +651,7 @@ export function SettingsPage({
                 <small>Como destacar os trechos esquecidos ou confundidos na nota, usando o resultado mais recente. O Markdown nunca é modificado.</small>
               </span>
               <Field as="select"
-                size="sm"
-            className="settings-select"
+                className="settings-select"
                 value={reviewGapMode}
                 onChange={(event) => setReviewGapMode(event.target.value as ReviewGapMode)}
                 aria-label="Exibição das lacunas da última revisão"

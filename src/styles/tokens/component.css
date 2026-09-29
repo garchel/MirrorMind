@@ -309,6 +309,36 @@
 
 /* Densidades medidas do app: .settings-select/.settings-number = 36px,
    .field input = 48px. Nenhum outro valor existe em uso. */
+/* Densidades medidas do CSS fonte do app, nao da minha suposicao:
+
+     xs = 34px  .settings-number e o .field input do workspace-chrome
+     sm = 36px  .settings-select
+     md = 48px  .field input do base.css (o campo do vault)
+
+   O comentario anterior dizia sm=36px / md=48px e omitia os 34px —
+   que e a altura mais comum do app. A primeira versao deste arquivo
+   usava min-height: 36px no sm, e como .settings-number define
+   `height: 34px` (fixo, nao min-height), o min-height novo vencia por
+   ser a unica propriedade aplicavel: o campo ficava 2px mais alto.
+
+   Por isso o campo usa `min-height` (nunca `height`) nas densidades
+   genericas: assim uma regra de contexto que declara height explicito
+   continua mandando, que e como o app ja funcionava.
+
+   Quem vence, em cada caso medido no bundle:
+     .settings-toggle input.settings-number  spec (2,1) -> a legada
+       ganha por especificidade, sem depender de ordem.
+     .settings-select                        spec (1,0) -> empate com
+       .ui-field--xs. Vence a que vem depois no bundle, e o
+       component.css e importado antes de workspace-chrome.css.
+     [data-theme=dark] .settings-number       spec (1,2) -> a legada.
+ */
+.ui-field--xs {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+}
+
 .ui-field--sm {
   min-height: 36px;
   padding: 0 12px;

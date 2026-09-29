@@ -15,6 +15,8 @@
     "tokens:generate": "python scripts/tokenize-mirror.py",
     "tokens:verify": "python scripts/verify-tokenization.py && python scripts/verify-semantics.py && python scripts/verify-domain-tokens.py && python scripts/verify-tokens.py",
     "tokens:verify:drift": "python scripts/verify-tokenization.py --allow-drift 2.3 && python scripts/verify-semantics.py --allow-drift 2.3 && python scripts/verify-domain-tokens.py --allow-drift 2.3 && python scripts/verify-tokens.py",
+    "tokens:verify:cascade": "python scripts/verify-field-cascade.py",
+    "tokens:verify:all": "npm run tokens:verify:drift && npm run tokens:verify:type && npm run tokens:verify:cascade",
     "tokens:verify:type": "python scripts/verify-type-scale.py",
     "tokens:cluster": "python scripts/cluster-primitives.py",
     "tokens:type-scale": "python scripts/type-scale.py",

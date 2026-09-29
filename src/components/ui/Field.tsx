@@ -31,8 +31,18 @@ import type {
  */
 
 type Density = {
-  /** Densidade. sm=36px, md=48px — os dois valores que o app usa. */
-  size?: 'sm' | 'md'
+  /**
+   * Densidade, medida do CSS fonte do app:
+   *   xs = 34px  (.settings-number, .field input do workspace-chrome)
+   *   sm = 36px  (.settings-select)
+   *   md = 48px  (.field input do base.css, o campo do vault)
+   *
+   * O padrao e xs, nao md: 34px e a altura mais comum do app, e o
+   * `.field input` de 48px e uma excecao do vault. Errar para o lado
+   * menor mantem a migracao visualmente neutra — a regra de contexto
+   * continua mandando.
+   */
+  size?: 'xs' | 'sm' | 'md'
   /** Rotulo acessivel quando nao ha <label> visual associado. */
   label?: string
   /** Ajuste de contexto. Entra depois das classes do componente. */
@@ -75,7 +85,7 @@ function cx(...parts: Array<string | false | undefined>) {
   return parts.filter(Boolean).join(' ')
 }
 
-function classes(size: 'sm' | 'md', className?: string, extra?: string) {
+function classes(size: 'xs' | 'sm' | 'md', className?: string, extra?: string) {
   return cx('ui-field', extra, `ui-field--${size}`, className)
 }
 
@@ -83,7 +93,7 @@ type Props = FieldProps
 type Element = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
 
 function FieldImpl(props: Props, ref: Ref<Element>) {
-  const { as, size = 'md', label, className, ...rest } = props
+  const { as, size = 'xs', label, className, ...rest } = props
 
   const aria = label ? { 'aria-label': label } : {}
 
