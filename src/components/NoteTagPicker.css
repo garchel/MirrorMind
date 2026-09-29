@@ -43,7 +43,7 @@
   transform: rotate(180deg);
 }
 
-/* Menu dropdown: mesma cor de fundo do workspace (var(--mm-gold-100-6)) para nao deixar
+/* Menu dropdown: mesma cor de fundo do workspace (var(--mm-gold-50)) para nao deixar
    o conteudo da nota aparecer por tras; itens com a fonte no tom preto das
    fontes (sobrepoe o escuro de `.workspace-shell button`). */
 .note-tag-picker-menu {
@@ -58,7 +58,7 @@
   padding: 5px;
   border: 1px solid rgba(28, 36, 39, 0.22);
   border-radius: var(--radius-sm);
-  background: var(--workspace-bg, var(--mm-gold-100-6));
+  background: var(--workspace-bg, var(--mm-gold-50));
   box-shadow: 0 12px 26px rgb(52 51 46 / 0.14);
 }
 
@@ -118,7 +118,7 @@
 
 .note-tag-impact-summary > div {
   padding: 9px;
-  border: 1px solid var(--mm-gold-300-3);
+  border: 1px solid var(--mm-gold-300-4);
   border-radius: var(--radius-sm);
   background: var(--mm-clay-150-2);
 }

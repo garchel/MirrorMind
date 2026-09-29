@@ -26,7 +26,7 @@
   padding: 28px 20px;
   text-align: center;
   color: var(--review-muted);
-  border: 1px dashed var(--border, var(--mm-gold-300));
+  border: 1px dashed var(--border, var(--mm-gold-300-2));
   border-radius: var(--radius-lg);
   font-size: 13.5px;
 }
@@ -147,7 +147,7 @@
 .review-dashboard-readiness-empty {
   margin: 0;
   padding: 14px;
-  border: 1px dashed var(--border, var(--mm-gold-300));
+  border: 1px dashed var(--border, var(--mm-gold-300-2));
   border-radius: var(--radius-lg);
   color: var(--review-muted);
   font-size: 13px;
@@ -168,7 +168,7 @@
   align-items: center;
   gap: 14px;
   padding: 12px 4px;
-  border-bottom: 1px solid var(--border, var(--mm-gold-200-8));
+  border-bottom: 1px solid var(--border, var(--mm-gold-150));
 }
 
 .review-dashboard-readiness-list li:last-child {
@@ -259,7 +259,7 @@
 .review-dashboard-calibration-empty {
   margin: 0;
   padding: 14px;
-  border: 1px dashed var(--border, var(--mm-gold-300));
+  border: 1px dashed var(--border, var(--mm-gold-300-2));
   border-radius: var(--radius-lg);
   color: var(--review-muted);
   font-size: 13px;
@@ -280,7 +280,7 @@
   align-items: center;
   gap: 14px;
   padding: 10px 4px;
-  border-bottom: 1px solid var(--border, var(--mm-gold-200-8));
+  border-bottom: 1px solid var(--border, var(--mm-gold-150));
 }
 
 .review-dashboard-calibration-list li:last-child {
@@ -361,7 +361,7 @@
 .review-dashboard-deadlines-empty {
   margin: 0;
   padding: 14px;
-  border: 1px dashed var(--border, var(--mm-gold-300));
+  border: 1px dashed var(--border, var(--mm-gold-300-2));
   border-radius: var(--radius-lg);
   color: var(--review-muted);
   font-size: 13px;
@@ -381,7 +381,7 @@
   align-items: center;
   gap: 14px;
   padding: 10px 4px;
-  border-bottom: 1px solid var(--border, var(--mm-gold-200-8));
+  border-bottom: 1px solid var(--border, var(--mm-gold-150));
 }
 
 .review-dashboard-deadline-list li:last-child {
@@ -576,7 +576,7 @@
   padding: 8px 10px;
   border: 1px solid var(--border, var(--review-line-soft));
   border-radius: var(--radius-lg);
-  background: var(--review-field, var(--mm-gold-50-5));
+  background: var(--review-field, var(--mm-gold-50));
   color: var(--review-muted);
 }
 
@@ -687,7 +687,7 @@
   align-items: center;
   gap: 14px;
   padding: 10px 4px;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 14%, var(--mm-gold-200-8));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 14%, var(--mm-gold-150));
 }
 
 .review-dashboard-expired-list li:last-child {

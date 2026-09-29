@@ -11,6 +11,7 @@ import re
 import os
 import sys
 import argparse
+import math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from token_baseline import git_show, BASELINE  # noqa: E402
 
@@ -23,6 +24,50 @@ def head_index(path='src/index.css'):
     """index.css no baseline: os tokens antigos, antes de virarem
     semantic.css. Nao HEAD -- ver scripts/token-baseline.py."""
     return git_show(path)
+
+
+def srgb(c):
+    c /= 255.0
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def rgb_to_lab(hexv):
+    r, g, b = (int(hexv[i:i + 2], 16) for i in (1, 3, 5))
+    rl, gl, bl = (srgb(c) for c in (r, g, b))
+    x = 0.4124564 * rl + 0.3575761 * gl + 0.1804375 * bl
+    y = 0.2126729 * rl + 0.7151522 * gl + 0.0721750 * bl
+    z = 0.0193339 * rl + 0.1191920 * gl + 0.9503041 * bl
+
+    def f(t):
+        return t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+    fx, fy, fz = f(x / 0.95047), f(y / 1.0), f(z / 1.08883)
+    return (116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz))
+
+
+def to_hex(v):
+    """hex, rgb() ou rgba() (com ou sem barra) -> #rrggbb, ou None."""
+    v = v.strip().lower()
+    if re.fullmatch(r'#[0-9a-f]{3}', v):
+        v = '#' + ''.join(c * 2 for c in v[1:])
+    if re.fullmatch(r'#[0-9a-f]{6}', v):
+        return v
+    nums = re.findall(r'[\d.]+', v)
+    if v.startswith('rgb') and len(nums) >= 3:
+        try:
+            r, g, b = (max(0, min(255, int(float(x)))) for x in nums[:3])
+            return '#%02x%02x%02x' % (r, g, b)
+        except ValueError:
+            return None
+    return None
+
+
+def delta_e(a, b):
+    """DeltaE perceptual; converte as pontas de hex ou rgb() antes."""
+    ha, hb = to_hex(a), to_hex(b)
+    if not ha or not hb:
+        return None
+    la, lb = rgb_to_lab(ha), rgb_to_lab(hb)
+    return math.sqrt(sum((x - y) ** 2 for x, y in zip(la, lb)))
 
 
 def blocks(css):
@@ -73,6 +118,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--index', default='src/index.css',
                     help='index.css no baseline (tokens antigos)')
+    ap.add_argument('--allow-drift', type=float, default=None,
+                    help='aceita drift perceptual ate este DeltaE, para '
+                         'comparar contra o baseline apos consolidacao')
     args = ap.parse_args()
 
     idx_src = head_index(args.index)
@@ -120,7 +168,7 @@ def main():
             ORIGIN[f'--status-{st}-{k}' if k != st else f'--status-{st}'] = \
                 f'--review-{st}' + ('' if k == st else '-' + k)
 
-    checked = bad = 0
+    checked = bad = drift_ok = 0
     problems = []
     for sc in scopes:
         old, new = idx.get(sc, {}), sem.get(sc, {})
@@ -132,10 +180,15 @@ def main():
             a = resolve(old.get(src, '<AUSENTE>'), old)
             b = resolve(new[tok], new)
             checked += 1
-            if a != b:
-                bad += 1
-                if len(problems) < 24:
-                    problems.append(f'{sc}: {tok} = {b} mas {src} = {a}')
+            if a == b:
+                continue
+            de = delta_e(a, b) if args.allow_drift is not None else None
+            if de is not None and de <= args.allow_drift:
+                drift_ok += 1
+                continue
+            bad += 1
+            if len(problems) < 24:
+                problems.append(f'{sc}: {tok} = {b} mas {src} = {a}')
 
     # aliases de compatibilidade tambem tem de bater
     for sc in scopes:
@@ -146,12 +199,19 @@ def main():
             checked += 1
             a = resolve(old.get(tok, '<AUSENTE>'), old)
             b = resolve(val, new)
-            if a != b:
-                bad += 1
-                if len(problems) < 24:
-                    problems.append(f'{sc}: alias {tok} -> {val} ({b}) != {a}')
+            if a == b:
+                continue
+            de = delta_e(a, b) if args.allow_drift is not None else None
+            if de is not None and de <= args.allow_drift:
+                drift_ok += 1
+                continue
+            bad += 1
+            if len(problems) < 24:
+                problems.append(f'{sc}: alias {tok} -> {val} ({b}) != {a}')
 
     print(f'baseline: {BASELINE}')
+    if drift_ok:
+        print(f'drift autorizado: {drift_ok} tokens (DeltaE <= {args.allow_drift})')
     print(f'verificacoes: {checked}   divergencias: {bad}')
     for p in problems[:24]:
         print('  !', p)

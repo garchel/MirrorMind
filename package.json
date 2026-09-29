@@ -14,6 +14,8 @@
     "lint": "oxlint .",
     "tokens:generate": "python scripts/tokenize-mirror.py",
     "tokens:verify": "python scripts/verify-tokenization.py && python scripts/verify-semantics.py && python scripts/verify-domain-tokens.py && python scripts/verify-tokens.py",
+    "tokens:verify:drift": "python scripts/verify-tokenization.py --allow-drift 2.3 && python scripts/verify-semantics.py --allow-drift 2.3 && python scripts/verify-domain-tokens.py --allow-drift 2.3 && python scripts/verify-tokens.py",
+    "tokens:cluster": "python scripts/cluster-primitives.py",
     "fmt:check": "cargo fmt --manifest-path src-tauri/Cargo.toml --check",
     "preview": "vite preview",
     "test": "vitest run",

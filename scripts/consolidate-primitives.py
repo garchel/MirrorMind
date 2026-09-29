@@ -1,31 +1,33 @@
 """Aplica a consolidacao de uma familia de primitivas.
 
-Ponto de partida: scripts/cluster-primitives.py agrupa, este aplica. Ele
-so roda para as familias listadas em --family e exige que o agrupamento
-passe no criterio de DeltaE de --tolerance (default 2.3, o piso de
-"mesma cor"). Acima do piso o script RECUSA: consolidar passa a ser uma
-mudanca visual e isso e decisao humana, nao do script.
+Ponto de partida: scripts/cluster-primitives.py agrupa, este aplica.
 
-O que ele faz, por token consolidation:
-  --mm-gold-850-3: #e8e6dd    ->  --mm-gold-700: #e8e6dd
-O nome e o valor mudam; o pixel renderizado NAO. A cor de destino e a
-hex representante do cluster, entao a equivalencia visual e o criterio de
-agrupamento -- e o verificador que confirma.
+O que ele faz: os hex de um cluster passam a compartilhar UM token. O
+representante do cluster mantem o nome; os demais sao removidos e todas
+as referencias `var(--mm-*)` passam a apontar para o representante.
 
-Idempotente: rodar de novo nao muda nada (nao ha mais hex duplicado a
-trocar). --dry-run mostra o plano sem escrever.
+O bug da primeira versao (que gerou 8 hex com DeltaE 16,43): ela
+remapeava cada token para um step derivado da luminancia. Isso mudava
+o NOME de cores que nao deviam mudar de nome e, quando dois clusters
+caiam no mesmo step, um deles ficava sem representacao -- o hex sumia
+sem destino. Aqui o nome do representante e preservado e nenhum hex e
+descartado: o gate `verify-tokenization` compara token a token com o
+baseline e acusa qualquer perda.
 
-    python scripts/consolidate-primitives.py --family gold
+Por que o agrupamento e seguro: o criterio e DeltaE76 <= 2.3 em CIELAB
+(o piso de "mesma cor" da literatura de identidade de cor). Acima do
+piso o script RECUSA -- ai ja seria uma mudanca visual, e isso e
+decisao humana.
+
     python scripts/consolidate-primitives.py --family gold --dry-run
+    python scripts/consolidate-primitives.py --family gold
 """
 import re
 import os
 import sys
-import json
 import math
 import argparse
 import collections
-import subprocess
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOK_RE = re.compile(r'(--mm-([a-z]+)-(\d+)(?:-(\d+))?):\s*(#[0-9a-fA-F]{6})')
@@ -60,8 +62,8 @@ def rel_lum(hexv):
 
 
 def read_tokens(family):
-    path = os.path.join(ROOT, 'src/styles/tokens/primitive.css')
-    txt = open(path, encoding='utf-8').read()
+    txt = open(os.path.join(ROOT, 'src/styles/tokens/primitive.css'),
+               encoding='utf-8').read()
     out = []
     for m in TOK_RE.finditer(txt):
         if m.group(2) != family:
@@ -80,55 +82,31 @@ def cluster(items, tolerance):
                 c['members'].append(it)
                 break
         else:
-            clusters.append({'rep': it['hex'], 'rep_token': it['token'],
-                             'rep_step': it['step'], 'members': [it]})
+            clusters.append({'rep': it['hex'], 'members': [it]})
     return clusters
 
 
-def step_for(hexv, steps):
-    """Step da rampa mais proximo da luminancia deste hex."""
-    target = round((1 - rel_lum(hexv)) * 900 + 50)
-    return min(steps, key=lambda s: abs(s - target))
-
-
-def allocate_steps(clusters, density=2):
-    """Sorteia um step NOVO para cada cluster, nao reaproveita o legado.
-
-    Reaproveitar os steps antigos nao funciona: a familia tem 11 steps
-    para 15 clusters, entao 3 clusters caem todos em --mm-gold-250 e o
-    nome continua ambiguo -- exatamente o defeito que estamos
-    consertando. Aqui cada cluster recebe um step da grade cheia
-    (50..950, passo 50) mais proximo da propria luminancia; se dois
-    clusters disputarem o mesmo step, o segundo avanca 50. O resultado e
-    uma rampa onde 1 step = 1 cor, que e a garantia que o nome promete.
-    """
-    grid = list(range(50, 1000, 50))
-    used = {}
-    out = {}
-    for c in sorted(clusters, key=lambda c: -rel_lum(c['rep'])):
-        target = round((1 - rel_lum(c['rep'])) * 900 + 50)
-        st = min(grid, key=lambda s: abs(s - target))
-        while st in used.values():
-            nxt = st + 50
-            if nxt > 950:
-                st = st - 50
-                while st in used.values():
-                    st -= 50
-                break
-            st = nxt
-        used[c['rep']] = st
-        out[id(c)] = st
-    return out
+def pick_representative(members):
+    """O membro mais CENTRAL do cluster (menor DeltaE medio), nao o mais
+    claro. Escolher o extremo puxaria a rampa para um lado e criaria um
+    salto visivel entre steps vizinhos."""
+    if len(members) == 1:
+        return members[0]
+    best, best_d = None, None
+    for cand in members:
+        avg = sum(delta_e(cand['hex'], m['hex'])
+                  for m in members if m is not cand) / (len(members) - 1)
+        if best_d is None or avg < best_d:
+            best, best_d = cand, avg
+    return best
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--family', required=True,
-                    help='familia a consolidar (ex: gold, ink, lilac)')
+    ap.add_argument('--family', required=True)
     ap.add_argument('--tolerance', type=float, default=2.3)
     ap.add_argument('--dry-run', action='store_true')
-    ap.add_argument('--min-group', type=int, default=2,
-                    help='so colapsa grupos com pelo menos N cores')
+    ap.add_argument('--min-group', type=int, default=2)
     args = ap.parse_args()
 
     items = read_tokens(args.family)
@@ -136,84 +114,75 @@ def main():
         print(f'familia sem tokens: {args.family}')
         return 1
     clusters = cluster(items, args.tolerance)
-    big = [c for c in clusters if len(c['members']) >= args.min_group]
-    if not big:
-        print(f'{args.family}: nada a consolidar '
-              f'(todos os grupos tem 1 cor)')
-        return 0
+    by_token = {it['token']: it for it in items}
 
-    # recusa explicita se o agrupamento passou do piso perceptual
     worst = max(delta_e(c['rep'], m['hex'])
                 for c in clusters for m in c['members'])
     if worst > args.tolerance:
-        print(f'RECUSA: pior DeltaE do agrupamento = {worst:.2f} '
-              f'> tolerancia {args.tolerance}. Isso ja e mudanca visual; '
-              f'consolide por partes ou chame com --tolerance maior.')
+        print(f'RECUSA: pior DeltaE = {worst:.2f} > {args.tolerance}. '
+              f'Acima do piso isso ja e mudanca visual; consolide em partes.')
         return 1
 
-    steps = sorted({it['step'] for it in items})
-    # Cada cluster recebe um step NOVO. Reaproveitar os steps legados
-    # nao resolve: a familia tem menos steps que clusters, entao varios
-    # caem no mesmo --mm-gold-250 e o nome continua ambiguo.
-    allocated = allocate_steps(clusters)
-    # dois clusters de mesma cor representante viram o mesmo token
     rename = {}
     for c in clusters:
-        new_token = f'--mm-{args.family}-{allocated[id(c)]}'
+        if len(c['members']) < args.min_group:
+            continue
+        rep = pick_representative(c['members'])
         for m in c['members']:
-            if m['token'] != new_token:
-                rename[m['token']] = new_token
+            if m['token'] != rep['token']:
+                rename[m['token']] = rep['token']
 
-    print(f'{args.family}: {len(items)} -> {len(clusters)} tokens '
-          f'({len(items) - len(clusters)} a menos)')
+    kept = len(items) - len(rename)
+    print(f'{args.family}: {len(items)} -> {kept} tokens '
+          f'({len(rename)} consolidados)')
     print(f'pior DeltaE do agrupamento: {worst:.2f} (tolerancia '
           f'{args.tolerance})')
-    print(f'grade de steps: {steps} -> {sorted(set(allocated.values()))}')
-    print(f'renomeacoes: {len(rename)}')
     for old, new in sorted(rename.items()):
-        print(f'    {old:22s} -> {new}')
+        print(f'    {old:22s} ({by_token[old]["hex"]}) -> {new} '
+              f'({by_token[new]["hex"]})')
 
     if args.dry_run:
         print('\n(dry-run: nada escrito)')
         return 0
 
-    # reescreve primitive.css e todas as referencias em src/
-    prim_path = os.path.join(ROOT, 'src/styles/tokens/primitive.css')
-    txt = open(prim_path, 'rb').read().decode('utf-8')
-    for old, new in rename.items():
-        txt = re.sub(r'^(\s*)' + re.escape(old) + r':',
-                     lambda m: m.group(1) + new + ':', txt, flags=re.M)
-    # remove as linhas duplicadas (varias cores viraram o mesmo token)
-    seen, lines, dropped = set(), [], 0
+    # 1) primitive.css: remove as linhas dos tokens consolidados
+    prim = os.path.join(ROOT, 'src/styles/tokens/primitive.css')
+    txt = open(prim, 'rb').read().decode('utf-8')
+    drop = set(rename)
+    kept_lines, removed = [], 0
     for line in txt.split('\n'):
         m = re.match(r'\s*(--mm-[\w-]+):', line)
-        if m:
-            if m.group(1) in seen:
-                dropped += 1
-                continue
-            seen.add(m.group(1))
-        lines.append(line)
-    open(prim_path, 'wb').write(('\n'.join(lines)).encode('utf-8'))
-    print(f'primitive.css: {dropped} linhas duplicadas removidas')
+        if m and m.group(1) in drop:
+            removed += 1
+            continue
+        kept_lines.append(line)
+    open(prim, 'wb').write('\n'.join(kept_lines).encode('utf-8'))
+    print(f'primitive.css: {removed} tokens removidos')
 
+    # 2) todas as referencias em src/
+    #    reescreve em ordem de comprimento para --mm-x-10 nao casar com
+    #    --mm-x-1 quando uma regra cita o primeiro
     touched = 0
+    order = sorted(rename, key=len, reverse=True)
     for root, _, files in os.walk(os.path.join(ROOT, 'src')):
         for fn in files:
             if not fn.endswith('.css') or fn == 'primitive.css':
                 continue
             p = os.path.join(root, fn)
-            raw = open(p, 'rb').read()
-            body = raw.decode('utf-8')
+            body = open(p, 'rb').read().decode('utf-8')
             n = 0
-            for old, new in rename.items():
-                body, k = re.subn(r'var\(\s*' + re.escape(old) + r'\s*([,)])',
-                                  lambda m: f'var({new}' + m.group(1), body)
+            for old in order:
+                new = rename[old]
+                body, k = re.subn(
+                    r'var\(\s*' + re.escape(old) + r'\s*([,)])',
+                    lambda m: f'var({new}' + m.group(1), body)
                 n += k
             if n:
                 open(p, 'wb').write(body.encode('utf-8'))
                 touched += n
-    print(f'{touched} referencias var(--mm-*) atualizadas em src/')
-    print('\nRode `npm run tokens:verify` e confira o diff antes de commitar.')
+    print(f'{touched} referencias var(--mm-*) atualizadas')
+    print('\nRode `npm run tokens:verify` -- verify-tokenization e o que '
+          'garante que nenhum hex se perdeu.')
     return 0
 
 

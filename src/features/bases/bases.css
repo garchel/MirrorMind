@@ -4,10 +4,10 @@
    demais paginas (ex.: Tags). Assim os cabecalhos/superficies nunca herdam a
    cor do tema errado, independente do contexto onde a pagina renderiza. */
 .bases-page {
-  --bases-surface: var(--mm-gold-150-6);
-  --bases-surface-raised: var(--mm-gold-50-3);
-  --bases-header-bg: var(--mm-gold-150-12);
-  --bases-line: var(--mm-gold-300-5);
+  --bases-surface: var(--mm-gold-150);
+  --bases-surface-raised: var(--mm-gold-50);
+  --bases-header-bg: var(--mm-gold-100);
+  --bases-line: var(--mm-gold-250-3);
   --bases-line-soft: rgb(28 36 39 / 6%);
   --bases-text: var(--mm-ink-900-23);
   --bases-muted: var(--mm-ink-800-11);
@@ -108,7 +108,7 @@
 
 /* Botao "Colunas": abre o popover que escolhe quais propriedades aparecem.
    IMPORTANTE (bug do cabecalho escuro): o App tem regras globais
-   `.workspace-shell button { background: var(--mm-ink-950-17); color: var(--mm-gold-100-6) }` com
+   `.workspace-shell button { background: var(--mm-ink-950-17); color: var(--mm-gold-50) }` com
    especificidade (0,2,1) — maior que a de um simples `.bases-columns-button`
    (0,1,0). Sem o escopo `.workspace-shell`, esses botoes (e os de ordenacao
    do cabecalho) ficavam ESCUROS com texto claro, mesmo com o restante da
@@ -124,7 +124,7 @@
   padding: 0 12px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-sm);
-  background: var(--mm-gold-150-6);
+  background: var(--mm-gold-150);
   color: var(--mm-ink-900-23);
   font: 600 12px var(--sans);
   cursor: pointer;
@@ -230,8 +230,8 @@
   top: 0;
   z-index: 1;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--mm-gold-300-5);
-  background: var(--mm-gold-150-12);
+  border-bottom: 1px solid var(--mm-gold-250-3);
+  background: var(--mm-gold-100);
   color: var(--mm-ink-800-3);
   text-align: left;
   white-space: nowrap;
@@ -340,9 +340,9 @@
   width: min(300px, 92vw);
   padding: 0;
   overflow: hidden;
-  border: 1px solid var(--mm-gold-300-5);
+  border: 1px solid var(--mm-gold-250-3);
   border-radius: var(--radius-lg);
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   color: var(--mm-ink-900-23);
   box-shadow: 0 10px 30px rgb(28 36 39 / 14%);
 }
@@ -407,7 +407,7 @@
   height: 15px;
   border: 1.5px solid var(--mm-ink-500-6);
   border-radius: var(--radius-xs);
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   color: transparent;
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }

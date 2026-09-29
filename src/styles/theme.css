@@ -64,7 +64,7 @@
 [data-theme='dark'] .workspace-shell .editor-disclosure-button:hover:not(:disabled) {
   border-color: var(--mm-ink-900-29);
   background: var(--mm-ink-950-13);
-  color: var(--mm-gold-200-11);
+  color: var(--mm-gold-150);
 }
 
 /* Editor (CodeMirror) e leitura sobre o canvas escuro. */
@@ -96,7 +96,7 @@
 }
 
 [data-theme='dark'] .workspace-page h2 {
-  color: var(--mm-gold-200-11);
+  color: var(--mm-gold-150);
 }
 
 [data-theme='dark'] .workspace-page .card-kicker {
@@ -126,7 +126,7 @@
 
 [data-theme='dark'] .settings-nav button.is-active {
   background: var(--mm-ink-950-18);
-  color: var(--mm-gold-200-11);
+  color: var(--mm-gold-150);
 }
 
 [data-theme='dark'] .settings-segmented button {
@@ -183,7 +183,7 @@
 }
 
 [data-theme='dark'] .special-file-row strong {
-  color: var(--mm-gold-250-4);
+  color: var(--mm-gold-200-2);
 }
 
 [data-theme='dark'] .special-file-row code {
@@ -233,7 +233,7 @@
 }
 
 [data-theme='dark'] .graph-settings-popover .graph-settings-toggle-track::after {
-  background: var(--mm-gold-250-4);
+  background: var(--mm-gold-200-2);
 }
 
 [data-theme='dark'] .graph-settings-popover .graph-settings-color-label,
@@ -268,7 +268,7 @@
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel-add:hover {
   background: transparent;
-  color: var(--mm-gold-200-11);
+  color: var(--mm-gold-150);
 }
 
 /* O conteudo dos popovers e portalado FORA do .workspace-shell, entao os
@@ -328,7 +328,7 @@
 }
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel-section-head .frontmatter-panel-add:hover:not(:disabled) {
-  color: var(--mm-gold-200-4);
+  color: var(--mm-gold-200-2);
   background: rgb(236 235 229 / 12%);
 }
 

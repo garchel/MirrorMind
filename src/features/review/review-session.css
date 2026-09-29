@@ -149,12 +149,12 @@
 .review-assertions-unit li > .review-assertion-status { font-weight:700; }
 .review-assertions-unit li > .review-assertion-centrality { grid-column: 2; justify-self:start; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; }
 .review-assertion-centrality.is-central { color:var(--review-warn-strong); background:var(--review-warn-bg); }
-.review-assertion-centrality.is-secondary { color:var(--review-muted); background:var(--mm-gold-200-7); }
+.review-assertion-centrality.is-secondary { color:var(--review-muted); background:var(--mm-gold-200-2); }
 .review-knowledge { display:grid; gap:10px; }
 .review-knowledge h3 { font-size:13px; margin:0; }
 .review-knowledge-hint { display:flex; gap:8px; align-items:flex-start; margin:0; font-size:12px; color:var(--review-muted); }
 .review-knowledge ul { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
-.review-knowledge li { display:grid; gap:8px; padding:10px; border:1px solid var(--review-line-soft); border-radius: var(--radius-lg); background:var(--mm-gold-100-3); }
+.review-knowledge li { display:grid; gap:8px; padding:10px; border:1px solid var(--review-line-soft); border-radius: var(--radius-lg); background:var(--mm-gold-100); }
 .review-knowledge-text { font-size:12px; line-height:1.5; }
 .review-knowledge-add { justify-self:start; }
 .review-knowledge-added { display:flex; gap:6px; align-items:center; margin:0; font-size:12px; color:var(--review-ok); font-weight:600; }

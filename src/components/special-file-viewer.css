@@ -50,7 +50,7 @@
   padding: 0;
   overflow: auto;
   list-style: none;
-  border: 1px solid var(--mm-gold-300-5);
+  border: 1px solid var(--mm-gold-250-3);
   border-radius: var(--radius-md);
 }
 
@@ -87,9 +87,9 @@
   margin: 10px 16px 0;
   padding: 12px;
   overflow: auto;
-  border: 1px solid var(--mm-gold-300-5);
+  border: 1px solid var(--mm-gold-250-3);
   border-radius: var(--radius-md);
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   font: 11px/1.5 var(--mono);
   color: var(--mm-ink-900-23);
   white-space: pre-wrap;

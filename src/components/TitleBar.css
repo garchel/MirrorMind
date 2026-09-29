@@ -14,7 +14,7 @@
   align-items: stretch;
   justify-content: space-between;
   border-bottom: 1px solid var(--selection-line, var(--mm-ink-350-7));
-  background: var(--selection-paper, var(--mm-gold-100-6));
+  background: var(--selection-paper, var(--mm-gold-50));
   color: var(--selection-muted, var(--mm-ink-800-11));
   user-select: none;
   -webkit-user-select: none;

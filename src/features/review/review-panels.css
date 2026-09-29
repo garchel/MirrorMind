@@ -110,7 +110,7 @@
   padding: 9px 10px;
   border: 1px solid var(--mm-clay-250-3);
   border-radius: var(--radius-md);
-  background: var(--mm-gold-100-6);
+  background: var(--mm-gold-50);
 }
 
 .structural-audit-scope .structural-audit-finding.is-warning {
@@ -187,7 +187,7 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: var(--text-h, var(--mm-azure-950-4));
-  color: var(--mm-gold-100-6);
+  color: var(--mm-gold-50);
   font-size: 11.5px;
 }
 

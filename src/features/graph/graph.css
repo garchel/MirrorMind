@@ -138,7 +138,7 @@
   padding: 0 8px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-sm);
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   color: var(--mm-ink-900-23);
   font: 12px var(--sans);
 }
@@ -185,7 +185,7 @@
   padding: 0 6px 0 9px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: 999px;
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   color: var(--mm-ink-850-14);
 }
 
@@ -342,7 +342,7 @@
   padding: 0 6px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-sm);
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   color: var(--mm-ink-900-23);
   font: 12px var(--mono);
   transition: border-color 140ms ease, box-shadow 140ms ease;
@@ -410,7 +410,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   box-shadow: 0 1px 3px rgb(28 36 39 / 30%);
   transition: transform 160ms ease;
 }
@@ -436,7 +436,7 @@
   padding: 0 4px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-sm);
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   color: var(--mm-ink-900-23);
   font: 12px var(--sans);
 }
@@ -479,7 +479,7 @@
   padding: 1px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-xs);
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   cursor: pointer;
 }
 
@@ -496,7 +496,7 @@
   padding: 2px 6px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-xs);
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   color: var(--mm-ink-800-3);
   font-size: 10px;
   cursor: pointer;
@@ -574,7 +574,7 @@
   padding: 0 6px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-sm);
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   color: var(--mm-ink-900-23);
   font: 12px var(--sans);
 }
@@ -669,7 +669,7 @@
   padding: 10px 12px;
   border: 1px solid rgb(28 36 39 / 8%);
   border-radius: var(--radius-lg);
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   color: var(--mm-ink-850-11);
   font-size: 12px;
   line-height: 1.55;
@@ -737,7 +737,7 @@
   border: 0;
   border-radius: var(--radius-md);
   background: var(--mm-ink-950-8);
-  color: var(--mm-gold-100-6);
+  color: var(--mm-gold-50);
   font: 600 13px/1 var(--sans);
   cursor: pointer;
   transition: background 140ms ease, opacity 140ms ease;
@@ -789,7 +789,7 @@
   border: 0;
   border-radius: var(--radius-md);
   background: var(--mm-ink-950-8);
-  color: var(--mm-gold-100-6);
+  color: var(--mm-gold-50);
   font: 600 13px/1 var(--sans);
   cursor: pointer;
   transition: background 140ms ease, opacity 140ms ease;
@@ -898,7 +898,7 @@
   width: 100%;
   min-height: 0;
   overflow: hidden;
-  background-color: var(--mm-gold-100-5);
+  background-color: var(--mm-gold-50);
   background-image: radial-gradient(var(--mm-ink-350-6) 0.75px, transparent 0.75px);
   background-size: 16px 16px;
   cursor: grab;
@@ -932,7 +932,7 @@
 }
 
 .workspace-shell .graph-dimension-toggle button.is-active {
-  background: var(--mm-gold-50-3);
+  background: var(--mm-gold-50);
   color: var(--mm-ink-900-6);
   box-shadow: 0 1px 3px rgb(48 63 51 / 18%);
 }
@@ -1054,7 +1054,7 @@
   margin: -9px 0 0 -9px;
   border: 1.5px solid var(--mm-ink-800);
   border-radius: 50%;
-  background: var(--node-folder-color, var(--mm-gold-50-3));
+  background: var(--node-folder-color, var(--mm-gold-50));
   box-shadow: 0 2px 6px rgb(44 54 45 / 14%);
   transform: scale(var(--graph-scale, 1));
 }
@@ -1143,7 +1143,7 @@
   overflow-x: auto;
   border: 1px solid var(--mm-ink-300-3);
   border-radius: var(--radius-sm);
-  background: var(--mm-gold-100-6);
+  background: var(--mm-gold-50);
 }
 
 .workspace-shell .trash-table-wrap table {
@@ -1158,7 +1158,7 @@
 .workspace-shell .trash-table-wrap th,
 .workspace-shell .trash-table-wrap td {
   padding: 11px 12px;
-  border-bottom: 1px solid var(--mm-gold-250-6);
+  border-bottom: 1px solid var(--mm-gold-250-3);
   vertical-align: middle;
 }
 
@@ -1291,7 +1291,7 @@
 }
 
 .workspace-shell .tab-strip {
-  background: var(--mm-gold-150-4);
+  background: var(--mm-gold-150);
   border-color: var(--workspace-line);
 }
 
@@ -1306,7 +1306,7 @@
 
 .workspace-shell .tab-chip.is-active {
   border-top-color: var(--mm-ink-750);
-  background: var(--mm-gold-100-6);
+  background: var(--mm-gold-50);
 }
 
 .workspace-shell .tab-select,
@@ -1340,7 +1340,7 @@
 
 [data-theme='dark'] .workspace-shell .tab-chip:hover .tab-select,
 [data-theme='dark'] .workspace-shell .tab-chip:hover .tab-close {
-  color: var(--tab-hover-text-color, var(--mm-gold-100-6));
+  color: var(--tab-hover-text-color, var(--mm-gold-50));
 }
 
 .workspace-shell .tab-close {

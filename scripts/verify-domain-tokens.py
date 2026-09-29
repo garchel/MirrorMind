@@ -11,6 +11,7 @@ import re
 import os
 import sys
 import argparse
+import math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from token_baseline import git_show, BASELINE  # noqa: E402
 
@@ -37,6 +38,56 @@ def read(path, head=False):
 def primitives():
     return {m.group(1): m.group(2).lower()
             for m in PRIM_RE.finditer(read('src/styles/tokens/primitive.css'))}
+
+
+def delta_e(a, b):
+    """DeltaE76 em CIELAB — a metrica perceptual (o mesmo piso de 2.3
+    que cluster-primitives.py usa para consolidar)."""
+    def lin(c):
+        c /= 255.0
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    def lab(h):
+        h = h.lstrip('#')
+        r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+        rl, gl, bl = lin(r), lin(g), lin(b)
+        x = 0.4124564 * rl + 0.3575761 * gl + 0.1804375 * bl
+        y = 0.2126729 * rl + 0.7151522 * gl + 0.0721750 * bl
+        z = 0.0193339 * rl + 0.1191920 * gl + 0.9503041 * bl
+        def f(t):
+            return t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+        fx, fy, fz = f(x / 0.95047), f(y / 1.0), f(z / 1.08883)
+        return (116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz))
+    la, lb = lab(a), lab(b)
+    return math.sqrt(sum((x - y) ** 2 for x, y in zip(la, lb)))
+
+
+def to_hex(v):
+    """hex, rgb() ou rgba() (com ou sem barra de alfa) -> #rrggbb.
+    Retorna None se nao der para converter (ex: uma sombra)."""
+    v = v.strip().lower()
+    if re.fullmatch(r'#[0-9a-f]{3}', v):
+        v = '#' + ''.join(c * 2 for c in v[1:])
+    if re.fullmatch(r'#[0-9a-f]{6}', v):
+        return v
+    # rgb(a) com virgulas OU com espaco e barra de alfa
+    nums = re.findall(r'[\d.]+', v)
+    if v.startswith('rgb') and len(nums) >= 3:
+        try:
+            r, g, b = (max(0, min(255, int(float(x)))) for x in nums[:3])
+            return '#%02x%02x%02x' % (r, g, b)
+        except ValueError:
+            return None
+    return None
+
+
+def perceptual_drift(a, b):
+    """DeltaE entre dois valores, em qualquer notacao. None se nao
+    der para converter (ex: uma sombra) -- nesse caso o chamador trata
+    como divergencia dura."""
+    ha, hb = to_hex(a), to_hex(b)
+    if not ha or not hb:
+        return None
+    return delta_e(ha, hb)
 
 
 def scopes_with(css, fam):
@@ -81,6 +132,8 @@ def _hex_to_rgb(h):
 def main():
     ap = argparse.ArgumentParser()
 
+    ap.add_argument('--allow-drift', type=float, default=None,
+                    help='aceita drift perceptual ate este DeltaE')
     args = ap.parse_args()
 
     prim = primitives()
@@ -91,7 +144,7 @@ def main():
     sem_light.update(prim)
     sem_dark.update(prim)
 
-    checked = bad = 0
+    checked = bad = drift_ok = 0
     problems = []
     for fam, path in SOURCES.items():
         old_css = read(path, head=True)
@@ -134,7 +187,14 @@ def main():
                     a = resolve(oval, table)
                     b = resolve(nval, table)
                     checked += 1
-                    if a != b:
+                    if a == b:
+                        continue
+                    de = perceptual_drift(a, b)
+                    if args.allow_drift is not None and de is not None \
+                            and de <= args.allow_drift:
+                        drift_ok += 1
+                        continue
+                    if True:
                         bad += 1
                         if len(problems) < 24:
                             problems.append(
@@ -142,6 +202,8 @@ def main():
                                 f'{oval} -> {nval} = {b} (antes {a})')
 
     print(f'baseline: {BASELINE}')
+    if drift_ok:
+        print(f'drift autorizado: {drift_ok} tokens (DeltaE <= {args.allow_drift})')
     print(f'verificacoes: {checked}   divergencias: {bad}')
     for p in problems[:24]:
         print('  !', p)

@@ -40,11 +40,11 @@
   --hero-bg: var(--mm-clay-150-4);
   --panel: rgba(251, 248, 241, 0.86);
   --surface: var(--mm-gold-100);
-  --surface-canvas: var(--mm-gold-100-6);
-  --surface-raised: var(--mm-gold-150-6);
-  --surface-sunk: var(--mm-gold-150-10);
+  --surface-canvas: var(--mm-gold-50);
+  --surface-raised: var(--mm-gold-150);
+  --surface-sunk: var(--mm-gold-100);
   --surface-field: var(--mm-clay-50);
-  --surface-header: var(--mm-gold-150-12);
+  --surface-header: var(--mm-gold-100);
 
   /* --- 3. Contornos ------------------------------------------
    * --border e a borda de componente; --line-* e a divisoria dentro de um painel (tabela, lista, cabecalho de secao).
@@ -52,7 +52,7 @@
   --border: rgba(28, 36, 39, 0.12);
   --border-strong: rgba(28, 36, 39, 0.22);
   --line: var(--mm-clay-350);
-  --line-soft: var(--mm-gold-250-2);
+  --line-soft: var(--mm-gold-300-4);
   --line-strong: var(--mm-ink-400-2);
 
   /* --- 4. Interacao ------------------------------------------
@@ -109,9 +109,9 @@
   /* --- 1. Texto ----------------------------------------------
    * -h = tinta de titulo e valor de campo. O app mantem uma escala de 7 degraus porque a Revisao (fundo de pagina) e o workspace (fundo de painel) tem densidades de tinta diferentes; antes isso virava uma segunda familia de tokens (--review-ink / --review-text / --review-muted).
    */
-  --text-h: var(--mm-gold-250-4);
+  --text-h: var(--mm-gold-200-2);
   --text: var(--mm-ink-500-2);
-  --text-strong: var(--mm-gold-250-4);
+  --text-strong: var(--mm-gold-200-2);
   --text-normal: var(--mm-ink-450-5);
   --text-soft: var(--mm-ink-350-2);
   --text-muted: var(--mm-ink-700-6);
@@ -147,7 +147,7 @@
   --accent: var(--mm-clay-650);
   --accent-strong: var(--mm-clay-550-3);
   --accent-soft: var(--mm-clay-550-3);
-  --button-bg: var(--mm-gold-250-4);
+  --button-bg: var(--mm-gold-200-2);
   --button-text: var(--mm-ink-950-9);
   --button-secondary: var(--mm-ink-900-15);
   --code-bg: rgba(232, 230, 221, 0.08);

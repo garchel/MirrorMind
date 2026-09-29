@@ -61,13 +61,13 @@
    * arquivo, unificados; o bloco escuro abaixo os reescopa. Substitui os
    * blocos DARK AUTO gerados por script (scripts/gen-review-dark.py,
    * aposentado agora). */
-  --review-surface: var(--mm-gold-100-6);
-  --review-raised: var(--mm-gold-150-6);
-  --review-sunk: var(--mm-gold-150-10);
-  --review-header: var(--mm-gold-150-12);
+  --review-surface: var(--mm-gold-50);
+  --review-raised: var(--mm-gold-150);
+  --review-sunk: var(--mm-gold-100);
+  --review-header: var(--mm-gold-100);
   --review-field: var(--mm-clay-50);
   --review-line: var(--mm-clay-350);
-  --review-line-soft: var(--mm-gold-250-2);
+  --review-line-soft: var(--mm-gold-300-4);
   --review-line-strong: var(--mm-ink-400-2);
   --review-ink: var(--mm-ink-950-22);
   --review-ink-soft: var(--mm-ink-900-18);

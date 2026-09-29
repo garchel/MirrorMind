@@ -17,6 +17,7 @@ import os
 import sys
 import json
 import glob
+import math
 import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -47,6 +48,29 @@ def git_show_at(rel):
     return git_show(rel)
 
 
+def srgb(c):
+    c /= 255.0
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def rgb_to_lab(hexv):
+    r, g, b = (int(hexv[i:i + 2], 16) for i in (1, 3, 5))
+    rl, gl, bl = (srgb(c) for c in (r, g, b))
+    x = 0.4124564 * rl + 0.3575761 * gl + 0.1804375 * bl
+    y = 0.2126729 * rl + 0.7151522 * gl + 0.0721750 * bl
+    z = 0.0193339 * rl + 0.1191920 * gl + 0.9503041 * bl
+
+    def f(t):
+        return t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+    fx, fy, fz = f(x / 0.95047), f(y / 1.0), f(z / 1.08883)
+    return (116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz))
+
+
+def delta_e(a, b):
+    la, lb = rgb_to_lab(a), rgb_to_lab(b)
+    return math.sqrt(sum((x - y) ** 2 for x, y in zip(la, lb)))
+
+
 def load_primitives():
     """--mm-* -> hex, lendo o token gerado."""
     path = os.path.join(ROOT, 'src/styles/tokens/primitive.css')
@@ -60,6 +84,10 @@ def load_primitives():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--staged', action='store_true')
+    ap.add_argument('--allow-drift', type=float, default=None,
+                    help='aceita drift perceptual ate este DeltaE (ex: 2.3 '
+                         'apos uma consolidacao aprovada). Sem este flag, '
+                         'qualquer hex diferente de HEAD e FALHA.')
     args = ap.parse_args()
 
     prim = load_primitives()
@@ -68,7 +96,8 @@ def main():
         return 1
 
     files = sorted(set(glob.glob(os.path.join(ROOT, 'src/**/*.css'), recursive=True)))
-    checked = mismatches = unresolved = 0
+    checked = mismatches = unresolved = drift_ok = 0
+    drift_max = 0.0
     problems = []
 
     for f in files:
@@ -101,14 +130,27 @@ def main():
             continue
         for i, (h, tok) in enumerate(zip(old_hex, new_vars)):
             checked += 1
-            if prim.get(tok) != h:
-                mismatches += 1
-                if len(problems) < 20:
-                    problems.append(
-                        f'{rel}[{i}]: {h} -> var({tok}) = {prim.get(tok)} (DIVERGE)')
+            got = prim.get(tok)
+            if got == h:
+                continue
+            # drift so e aceitavel se explicitamente autorizado E dentro
+            # da tolerancia perceptual declarada.
+            if args.allow_drift is not None and got and \
+                    delta_e(h, got) <= args.allow_drift:
+                drift_ok += 1
+                drift_max = max(drift_max, delta_e(h, got))
+                continue
+            mismatches += 1
+            if len(problems) < 20:
+                problems.append(
+                    f'{rel}[{i}]: {h} -> var({tok}) = {got} (DIVERGE)')
 
     print(f'verificacoes: {checked}   divergencias: {mismatches}   '
           f'nao resolvidos: {unresolved}')
+    if drift_ok:
+        print(f'drift autorizado: {drift_ok} referencias, '
+              f'DeltaE max {drift_max:.2f} (tolerancia '
+              f'{args.allow_drift})')
     for p in problems[:20]:
         print('  !', p)
     if mismatches or unresolved:

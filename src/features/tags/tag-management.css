@@ -1,7 +1,7 @@
 .tag-management-page {
   width: 100%;
   --tag-surface: var(--mm-gold-50);
-  --tag-border: var(--mm-gold-250-2);
+  --tag-border: var(--mm-gold-300-4);
   --tag-line: var(--mm-ink-350-7);
   --tag-ink: var(--mm-ink-950-8);
   --tag-muted: var(--mm-ink-800-11);
@@ -26,7 +26,7 @@
   --tag-surface: var(--mm-ink-950-6);
   --tag-border: var(--mm-ink-900-20);
   --tag-line: var(--mm-ink-900-20);
-  --tag-ink: var(--mm-gold-250-4);
+  --tag-ink: var(--mm-gold-200-2);
   --tag-muted: var(--mm-ink-600-5);
   --tag-accent: var(--mm-sage-500);
   --tag-accent-soft: var(--mm-sage-900-5);
@@ -112,7 +112,7 @@
   padding: 0 11px;
   border: 1px solid var(--tag-line);
   border-radius: var(--radius-md);
-  background: var(--mm-gold-100-6);
+  background: var(--mm-gold-50);
   color: var(--mm-ink-800-4);
 }
 
@@ -458,7 +458,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 10px 2px;
-  border-bottom: 1px solid var(--mm-gold-200-9);
+  border-bottom: 1px solid var(--mm-gold-150);
 }
 
 .tag-note-list li:last-child {
@@ -499,7 +499,7 @@
 }
 
 .tag-note-flat li:hover {
-  background: var(--mm-gold-150-5);
+  background: var(--mm-gold-150);
 }
 
 .tag-note-flat-icon {
@@ -778,7 +778,7 @@
 .tag-empty-state {
   min-height: 160px;
   padding: 20px;
-  border: 1px dashed var(--mm-gold-300);
+  border: 1px dashed var(--mm-gold-300-2);
   border-radius: var(--radius-lg);
 }
 
@@ -931,7 +931,7 @@
   min-height: 34px;
   border-radius: var(--radius-md);
   background: var(--mm-ink-950-17);
-  color: var(--mm-gold-100-6);
+  color: var(--mm-gold-50);
   font-size: 13px;
   font-weight: 600;
 }

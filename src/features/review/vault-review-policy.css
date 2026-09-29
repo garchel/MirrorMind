@@ -65,7 +65,7 @@
   padding: 10px 12px;
   border: 1px solid var(--border, var(--review-line));
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, var(--mm-gold-200-6)));
+  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, var(--mm-gold-150)));
   cursor: pointer;
 }
 
