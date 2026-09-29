@@ -26,6 +26,13 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+          # fetch-depth: 0 e obrigatorio. Os gates de design system
+          # comparam o worktree contra o commit de baseline (o estado
+          # pre-tokenizacao, em scripts/token_baseline.py). Num clone
+          # raso esse commit nao vem, e o gate falha com "baseline nao
+          # existe" -- ou, pior, passaria sem comparar nada. O erro e
+          # explicito justamente para isso nao passar despercebido.
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -137,6 +144,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # fetch-depth: 0: os gates de design system comparam contra o
+          # commit de baseline (scripts/token_baseline.py), que num
+          # clone raso nao vem. Ver o job windows-validation.
+          fetch-depth: 0
 
       - name: Install Linux system dependencies for Tauri
         run: |
@@ -224,6 +236,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # fetch-depth: 0: os gates de design system comparam contra o
+          # commit de baseline (scripts/token_baseline.py), que num
+          # clone raso nao vem. Ver o job windows-validation.
+          fetch-depth: 0
 
       - name: Install Linux system dependencies for Tauri
         run: |
@@ -288,6 +305,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # fetch-depth: 0: os gates de design system comparam contra o
+          # commit de baseline (scripts/token_baseline.py), que num
+          # clone raso nao vem. Ver o job windows-validation.
+          fetch-depth: 0
 
       - name: Install Linux system dependencies for Tauri
         run: |
