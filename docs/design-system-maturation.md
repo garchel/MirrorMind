@@ -42,20 +42,47 @@ tamanhos token a token contra o baseline.
 
 ## Pendencias conhecidas
 
-1. **`--text-subtle` sobre `--surface-canvas` no tema claro: 2,40:1**
-   (abaixo de AA). Pre-existente — era 2,30:1 antes da tokenizacao, ou
-   seja a consolidacao melhorou marginalmente, mas o token segue
-   inacessivel para texto pequeno. Precisa escurecer para ~`#8f8a80`
-   (3,6:1) ou ~`#6b6a63` (5,3:1). Mudanca de cor visivel: decisao sua.
-2. **Camada 3 sem uso.** `--button-*` esta definido, mas 117 botoes
-   ainda com `className="secondary-button"` inline.
-3. **`--serif` nao existe.** 3 titulos da Revisao usam `var(--serif,
-   var(--sans))`; se a intencao era uma serif de verdade para o relatorio
-   de sintese, o token precisa ser criado de proposito.
-4. **`.gitattributes` ausente com `core.autocrlf=true`.** Faz um teste
-   de fixture falhar 10/10 em worktree novo. Ver
-   `docs/testing-flakiness.md`. Nao apliquei: mexe em todo o checkout
-   do repo.
+1. **Camada 3 sem uso — e nao e um find-and-replace.** `--button-*` esta
+   definido em `styles/tokens/component.css`, mas 184 botoes continuam
+   com `className="secondary-button"` inline. A distribuicao real:
+
+   | composicao | ocorrencias |
+   |---|---|
+   | `secondary-button` | 97 |
+   | `secondary-button danger-button` | 8 |
+   | `primary-button` | 6 |
+   | `primary-button review-start` | 3 |
+   | `danger-button` isolado | 3 |
+   | variantes com 3o token de contexto | o resto |
+
+   E o CSS tem **38 regras de `.secondary-button`** e 5 de
+   `.primary-button`, das quais **26 sao ajuste de contexto** (min-height
+   19x, padding 19x, font-size 13x) por seletor de 3 classes. O proprio
+   codigo admite: *"o seletor em 3 classes vence o `.secondary-button` do
+   workspace"*. Um `<Button variant="secondary">` generico perde esses
+   ajustes, porque eles sao o que diferencia o botao de 40px do header do
+   botao de 28px do rail.
+
+   O caminho e criar `<Button size="sm|md">` e deixar `className` aberto
+   para o ajuste de contexto, em vez de tentar absorber tudo num enum.
+   Isso toca muitos `.tsx` com E2E que fixam nome de botao; por isso fica
+   para uma onda dedicada, com verificacao a cada passo.
+2. **`--serif` criado (`b7a8354`).** 4 usos na Revisao. Agora existe de
+   proposito e o acento serifado acontece.
+3. **`.gitattributes` aplicado.** Resolve a falha de fixture em worktree
+   novo: era 0/5, agora 991/991 com o arquivo em 377 bytes e zero CRLF.
+
+## Concluido nesta rodada
+
+- **Contraste AA** (`b44001e`): `--text-muted`, `--faint` e
+  `--text-subtle` passam 4,5:1 no claro (6,43 / 6,05 / 5,59; eram
+  4,43 / 4,17 / 2,01). Tokens novos `--mm-ink-aa-*` em vez de
+  sobrescrever `--mm-ink-850`, que e cor de borda em 15 regras do editor.
+- **380 referencias migradas** (`437e04c`): os alias `--review-*` sairam
+  do app, e a camada 2 finalmente e consumida em vez de existir sem uso.
+- **`verify-tokenization` reescrito**: casava por posicao (falso positivo
+  em 3 pontos) e depois por similaridade gulosa (DeltaE 14 inexistente).
+  Agora compara o hex de cada token contra o conjunto de hex do baseline.
 
 ## O defeito original (para referencia)
 
