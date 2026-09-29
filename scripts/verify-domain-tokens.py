@@ -25,7 +25,7 @@ SOURCES = {
     'selection': 'src/features/shell/workspace-chrome.css',
 }
 DECL = re.compile(r'(--[a-z][a-z0-9-]+)\s*:\s*([^;]+);')
-PRIM_RE = re.compile(r'(--mm-[a-z]+-\d+(?:-\d+)?):\s*(#[0-9a-fA-F]{3,8})\s*;')
+PRIM_RE = re.compile(r'(--mm-[a-z]+-[a-z0-9]+(?:-[a-z0-9]+)*):\s*(#[0-9a-fA-F]{3,8})\s*;')
 
 
 def read(path, head=False):

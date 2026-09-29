@@ -51,7 +51,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from token_baseline import git_show, BASELINE  # noqa: E402
 
 HEX_RE = re.compile(r'#[0-9a-fA-F]{3,8}\b')
-TOKEN_RE = re.compile(r'--mm-[a-z]+-\d+(?:-\d+)?')
+TOKEN_RE = re.compile(r'--mm-[a-z]+-[a-z0-9]+(?:-[a-z0-9]+)*')
 TOLERANCE = 2.3   # piso de "mesma cor" (DeltaE76 CIELAB)
 
 
@@ -95,7 +95,7 @@ def delta_e(a, b):
 def load_primitives():
     path = os.path.join(ROOT, 'src/styles/tokens/primitive.css')
     out = {}
-    for m in re.finditer(r'(--mm-[a-z]+-\d+(?:-\d+)?):\s*(#[0-9a-fA-F]{3,8})',
+    for m in re.finditer(r'(--mm-[a-z]+-[a-z0-9]+(?:-[a-z0-9]+)*):\s*(#[0-9a-fA-F]{3,8})',
                          open(path, encoding='utf-8').read()):
         out[m.group(1)] = norm(m.group(2))
     return out
@@ -167,7 +167,7 @@ def main():
                               recursive=True)):
         if f.endswith('primitive.css'):
             continue
-        for m in re.finditer(r'var\(\s*(--mm-[a-z]+-\d+(?:-\d+)?)\s*[,)]',
+        for m in re.finditer(r'var\(\s*(--mm-[a-z]+-[a-z0-9]+(?:-[a-z0-9]+)*)\s*[,)]',
                              open(f, encoding='utf-8').read()):
             used += 1
             if m.group(1) not in prim:

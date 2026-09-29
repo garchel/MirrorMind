@@ -288,4 +288,20 @@
   --mm-rose-450: #ffb3d1;
   --mm-rose-850: #8f5470;
   --mm-rose-950: #3c2025;
+  /* --- Acessibilidade: degraus de texto com AA -------------------
+   * Estes tres NAO sobrescrevem --mm-ink-850/850-1/850-2: aquele
+   * --mm-ink-850 e usado como cor de borda e de botao em 15 regras
+   * do editor (controle de modo, ferramentas, callout), nao como texto.
+   * Trocar o valor dele mexeria na UI do editor sem querer.
+   *
+   * Antes, no tema claro: muted 4,43 / faint 4,17 / subtle 2,01 --
+   * os tres abaixo de 4,5. Aqui: 6,43 / 6,05 / 5,59. A ordem de peso
+   * se mantem (muted > faint > subtle).
+   *
+   * O uso real de --text-subtle e' NAO textual (separador · e icone
+   * svg), onde WCAG exige 3:1 -- mas como o token pode ser usado como
+   * texto, ele tambem passa 4,5. */
+  --mm-ink-aa-text: #5e5d57;    /* --text-muted claro */
+  --mm-ink-aa-faint: #62615b;   /* --faint claro */
+  --mm-ink-aa-subtle: #686661;  /* --text-subtle claro */
 }

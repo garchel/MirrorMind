@@ -28,10 +28,14 @@
   --text-strong: var(--mm-ink-950-22);
   --text-normal: var(--mm-ink-900-32);
   --text-soft: var(--mm-ink-900-17);
-  --text-muted: var(--mm-ink-800-4);
-  --text-subtle: var(--mm-ink-600-5);
+  --text-muted: var(--mm-ink-aa-text);
+  /* faint e subtle: o trio estava 4,43 / 4,17 / 2,01 no claro, os tres
+   * abaixo de 4,5. muted e faint agora passam 4,5 (sao texto); subtle
+   * passa 4,67, e o uso real dele e' NAO-textual (separador · e icone
+   * svg), onde WCAG exige 3:1. A ordem de peso se mantem. */
+  --faint: var(--mm-ink-aa-faint);
+  --text-subtle: var(--mm-ink-aa-subtle);
   --text-inverse: var(--mm-clay-150-3);
-  --faint: var(--mm-ink-800-7);
 
   /* --- 2. Superficies ----------------------------------------
    * Quatro profundidades: canvas < painel < campo. raised/sunk sao lavagens de 6-16% sobre o painel, nao cores soltas.
@@ -205,87 +209,4 @@
   --status-alt-bg: rgb(180 170 230 / 18%);
   --status-alt-bg-soft: rgb(180 170 230 / 12%);
   --status-alt-line: rgb(180 170 230 / 30%);
-}
-
-/* ==================================================================
- * COMPATIBILIDADE — nomes antigos
- * Cada --review-* aponta para o token que carrega EXACTAMENTE o mesmo
- * valor nos dois temas (verificado por scripts/verify-semantics.py).
- * Estaticos, nao var(): um alias que chamasse var() casaria com o tema
- * errado sob :root[data-theme='dark'].
- * ================================================================== */
-
-
-:root {
-  --review-ink: var(--text-strong);
-  --review-ink-soft: var(--text-soft);
-  --review-text: var(--text-normal);
-  --review-muted: var(--text-muted);
-  --review-muted-2: var(--text-subtle);
-  --review-faint: var(--faint);
-  --review-surface: var(--surface-canvas);
-  --review-raised: var(--surface-raised);
-  --review-sunk: var(--surface-sunk);
-  --review-field: var(--surface-field);
-  --review-header: var(--surface-header);
-  --review-line: var(--line);
-  --review-line-soft: var(--line-soft);
-  --review-line-strong: var(--line-strong);
-  --review-accent-soft: var(--accent-soft);
-  --review-ok: var(--status-ok);
-  --review-ok-soft: var(--status-ok-soft);
-  --review-ok-bg: var(--status-ok-bg);
-  --review-ok-bg-strong: var(--status-ok-bg-strong);
-  --review-ok-bg-soft: var(--status-ok-bg-soft);
-  --review-warn: var(--status-warn);
-  --review-warn-strong: var(--status-warn-strong);
-  --review-warn-bg: var(--status-warn-bg);
-  --review-warn-bg-soft: var(--status-warn-bg-soft);
-  --review-bad: var(--status-bad);
-  --review-bad-strong: var(--status-bad-strong);
-  --review-bad-bg: var(--status-bad-bg);
-  --review-bad-bg-soft: var(--status-bad-bg-soft);
-  --review-info: var(--status-info);
-  --review-info-bg: var(--status-info-bg);
-  --review-alt: var(--status-alt);
-  --review-alt-bg: var(--status-alt-bg);
-  --review-alt-bg-soft: var(--status-alt-bg-soft);
-  --review-alt-line: var(--status-alt-line);
-}
-
-:root[data-theme='dark'] {
-  --review-ink: var(--text-strong);
-  --review-ink-soft: var(--text-soft);
-  --review-text: var(--text-normal);
-  --review-muted: var(--text-muted);
-  --review-muted-2: var(--text-subtle);
-  --review-faint: var(--faint);
-  --review-surface: var(--surface-canvas);
-  --review-raised: var(--surface-raised);
-  --review-sunk: var(--surface-sunk);
-  --review-field: var(--surface-field);
-  --review-header: var(--surface-header);
-  --review-line: var(--line);
-  --review-line-soft: var(--line-soft);
-  --review-line-strong: var(--line-strong);
-  --review-accent-soft: var(--accent-soft);
-  --review-ok: var(--status-ok);
-  --review-ok-soft: var(--status-ok-soft);
-  --review-ok-bg: var(--status-ok-bg);
-  --review-ok-bg-strong: var(--status-ok-bg-strong);
-  --review-ok-bg-soft: var(--status-ok-bg-soft);
-  --review-warn: var(--status-warn);
-  --review-warn-strong: var(--status-warn-strong);
-  --review-warn-bg: var(--status-warn-bg);
-  --review-warn-bg-soft: var(--status-warn-bg-soft);
-  --review-bad: var(--status-bad);
-  --review-bad-strong: var(--status-bad-strong);
-  --review-bad-bg: var(--status-bad-bg);
-  --review-bad-bg-soft: var(--status-bad-bg-soft);
-  --review-info: var(--status-info);
-  --review-info-bg: var(--status-info-bg);
-  --review-alt: var(--status-alt);
-  --review-alt-bg: var(--status-alt-bg);
-  --review-alt-bg-soft: var(--status-alt-bg-soft);
-  --review-alt-line: var(--status-alt-line);
 }

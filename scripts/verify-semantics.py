@@ -70,6 +70,28 @@ def delta_e(a, b):
     return math.sqrt(sum((x - y) ** 2 for x, y in zip(la, lb)))
 
 
+def rel_lum_of(hexv):
+    def lin(c):
+        c /= 255.0
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (int(hexv[i:i + 2], 16) for i in (1, 3, 5))
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+
+
+def contrast(a, b):
+    la, lb = rel_lum_of(a), rel_lum_of(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def surface_of(sem_tables):
+    """Fundo da superficie clara, para medir contraste. `sem_tables` e o
+    mapa {escopo: {token: valor}} que ja tem as primitivas somadas."""
+    table = sem_tables.get(':root', {})
+    v = resolve(table.get('--surface-canvas', '#ffffff'), table)
+    return to_hex(v) or '#ffffff'
+
+
 def blocks(css):
     """{nome_escopo: {token: valor}} por bloco :root / :root[data-theme=...]."""
     out = {}
@@ -108,7 +130,7 @@ def primitives():
     """--mm-* -> hex, lido de src/styles/tokens/primitive.css."""
     p = os.path.join(ROOT, 'src/styles/tokens/primitive.css')
     out = {}
-    for m in re.finditer(r'(--mm-[a-z]+-\d+(?:-\d+)?):\s*(#[0-9a-fA-F]{3,8})\s*;',
+    for m in re.finditer(r'(--mm-[a-z]+-[a-z0-9]+(?:-[a-z0-9]+)*):\s*(#[0-9a-fA-F]{3,8})\s*;',
                          open(p, encoding='utf-8').read()):
         out[m.group(1)] = m.group(2).lower()
     return out
@@ -136,7 +158,9 @@ def main():
         print('FALHA: nenhuma primitiva em primitive.css')
         return 1
     # As primitivas entram nos dois mapas: o hex do "antes" e o var() do
-    # "depois" precisam resolver para a mesma coisa.
+    # "depois" precisam resolver para a mesma coisa. Sem isso, um token
+    # de texto que aponta para uma primitiva nova (--mm-ink-aa-text)
+    # resolve para a propria string "var(...)" e a comparacao falha.
     for sc in (':root', ":root[data-theme='dark']"):
         idx.setdefault(sc, {}).update(prim)
         sem.setdefault(sc, {}).update(prim)
@@ -168,7 +192,13 @@ def main():
             ORIGIN[f'--status-{st}-{k}' if k != st else f'--status-{st}'] = \
                 f'--review-{st}' + ('' if k == st else '-' + k)
 
-    checked = bad = drift_ok = 0
+    # Ajustes APROVADOS de contraste: nao sao alias, sao correcao de
+    # acessibilidade. O token novo tem que (a) estar no piso de 4,5:1
+    # sobre a superficie clara e (b) escurecer (nunca clarear) o valor
+    # antigo -- clarear pioraria o contraste, nao resolveria.
+    AA_FIXES = {'--text-muted', '--faint', '--text-subtle'}
+
+    checked = bad = drift_ok = aa_ok = 0
     problems = []
     for sc in scopes:
         old, new = idx.get(sc, {}), sem.get(sc, {})
@@ -186,30 +216,27 @@ def main():
             if de is not None and de <= args.allow_drift:
                 drift_ok += 1
                 continue
+            if tok in AA_FIXES and a.startswith('#') and b.startswith('#'):
+                ratio = contrast(b, surface_of(sem))
+                darkens = to_hex(b) and to_hex(a) and \
+                    rel_lum_of(to_hex(b)) < rel_lum_of(to_hex(a))
+                if ratio >= 4.5 and darkens:
+                    aa_ok += 1
+                    continue
+                problems.append(
+                    f'{sc}: {tok} escureceu para {b} mas o contraste deu '
+                    f'{ratio:.2f} (precisa 4,5) ou clareou em vez de '
+                    f'escurecer')
+                bad += 1
+                continue
             bad += 1
             if len(problems) < 24:
                 problems.append(f'{sc}: {tok} = {b} mas {src} = {a}')
 
-    # aliases de compatibilidade tambem tem de bater
-    for sc in scopes:
-        old, new = idx.get(sc, {}), sem.get(sc, {})
-        for tok, val in new.items():
-            if not tok.startswith('--review-'):
-                continue
-            checked += 1
-            a = resolve(old.get(tok, '<AUSENTE>'), old)
-            b = resolve(val, new)
-            if a == b:
-                continue
-            de = delta_e(a, b) if args.allow_drift is not None else None
-            if de is not None and de <= args.allow_drift:
-                drift_ok += 1
-                continue
-            bad += 1
-            if len(problems) < 24:
-                problems.append(f'{sc}: alias {tok} -> {val} ({b}) != {a}')
-
     print(f'baseline: {BASELINE}')
+    if aa_ok:
+        print(f'correcoes de contraste aprovadas: {aa_ok} tokens '
+              f'(todas escurecem e passam 4,5:1)')
     if drift_ok:
         print(f'drift autorizado: {drift_ok} tokens (DeltaE <= {args.allow_drift})')
     print(f'verificacoes: {checked}   divergencias: {bad}')
