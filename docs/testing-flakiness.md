@@ -31,11 +31,16 @@ Taxa medida (2026-09-29, ao investigar uma falha de suite):
 | onde | execucoes | resultado |
 |---|---|---|
 | worktree novo em `93a8a75^` | 10 | **10 falharam**, sempre o mesmo teste, sempre 1 unica falha |
+| worktree novo, com `.gitattributes` | 3 | **3 passaram** (991/991) |
 | diretorio principal | 5 | 5 passaram (991/991) |
 
 10/10 com exatamente uma falha e um unico nome de teste nao e flakiness:
 e determinismo. Flakiness seria "as vezes passa, as vezes nao" e com
 testes diferentes a cada vez.
+
+O fix e o `.gitattributes` com `* text=auto eol=lf` (`a1f7a93`). Depois
+dele o fixture sai do checkout com 377 bytes e zero CRLF, igual ao
+diretorio principal, e a suíte passa no worktree novo.
 
 Antes de classificar qualquer falha como flakiness, compare:
 
