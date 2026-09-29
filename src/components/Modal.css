@@ -89,7 +89,7 @@
 /* Tema escuro: borda e ícone acompanham a superfície do modal. */
 [data-theme='dark'] .modal .modal-close {
   border-color: rgb(232 230 221 / 18%);
-  color: #e8e6dd;
+  color: var(--mm-gold-250-4);
 }
 
 .modal-close:hover:not(:disabled) {

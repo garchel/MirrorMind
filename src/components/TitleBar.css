@@ -13,9 +13,9 @@
   display: flex;
   align-items: stretch;
   justify-content: space-between;
-  border-bottom: 1px solid var(--selection-line, #d9d7d0);
-  background: var(--selection-paper, #fbfaf6);
-  color: var(--selection-muted, #73736d);
+  border-bottom: 1px solid var(--selection-line, var(--mm-ink-350-7));
+  background: var(--selection-paper, var(--mm-gold-100-6));
+  color: var(--selection-muted, var(--mm-ink-800-11));
   user-select: none;
   -webkit-user-select: none;
 }
@@ -33,9 +33,9 @@
   grid-row: 1;
   z-index: 10;
   margin-left: var(--explorer-width, 272px);
-  border-bottom-color: var(--workspace-line, #292735);
-  background: var(--workspace-bg, #0f0e14);
-  color: var(--workspace-muted, #898695);
+  border-bottom-color: var(--workspace-line, var(--mm-lilac-950-12));
+  background: var(--workspace-bg, var(--mm-lilac-950));
+  color: var(--workspace-muted, var(--mm-ink-750-2));
   transition: margin-left 180ms ease;
 }
 
@@ -57,7 +57,7 @@
   height: var(--titlebar-h, 40px);
   margin: -12px -8px 0;
   padding: 0 17px;
-  border-bottom: 1px solid var(--workspace-line, #d9d7d0);
+  border-bottom: 1px solid var(--workspace-line, var(--mm-ink-350-7));
   background: transparent;
 }
 
@@ -108,7 +108,7 @@
 }
 
 [data-theme='dark'] .workspace-shell .app-titlebar-logo {
-  /* A logo e escura (#4a4636): clareia para ficar visivel na barra escura. */
+  /* A logo e escura (var(--mm-gold-900)): clareia para ficar visivel na barra escura. */
   filter: invert(0.82);
 }
 
@@ -154,19 +154,19 @@
 .app-titlebar .app-titlebar-control:hover:not(:disabled) {
   transform: none;
   background: rgba(28, 36, 39, 0.08);
-  color: var(--text-h, #1c2427);
+  color: var(--text-h, var(--mm-azure-950-4));
 }
 
 .workspace-shell .app-titlebar .app-titlebar-control:hover:not(:disabled) {
   /* Tint neutro que acompanha o tema do workspace (--workspace-line). */
-  background: color-mix(in srgb, var(--workspace-line, #d9d7d0) 45%, transparent);
-  color: var(--workspace-text, #d9d7e2);
+  background: color-mix(in srgb, var(--workspace-line, var(--mm-ink-350-7)) 45%, transparent);
+  color: var(--workspace-text, var(--mm-lilac-350));
 }
 
 .app-titlebar .app-titlebar-control--close:hover:not(:disabled),
 .workspace-shell .app-titlebar .app-titlebar-control--close:hover:not(:disabled) {
-  background: #b3261e;
-  color: #fff;
+  background: var(--mm-brick-850-11);
+  color: var(--mm-ink-50);
 }
 
 /* Nenhum SVG da barra pode ser o alvo do pointer: se fosse, o mousedown nele
@@ -177,6 +177,6 @@
 }
 
 .app-titlebar .app-titlebar-control:focus-visible {
-  outline: 2px solid var(--accent, #c46a2b);
+  outline: 2px solid var(--accent, var(--mm-clay-750-3));
   outline-offset: -2px;
 }

@@ -115,7 +115,7 @@
   background: var(--review-ok-bg-strong);
   transition: width .3s ease;
 }
-.retention-bar.is-fragile { background: #f0b0a6; }
+.retention-bar.is-fragile { background: var(--mm-brick-500-2); }
 .retention-bar-value { margin-left: 8px; font: 600 11.5px/1.4 var(--mono); color: var(--review-text); }
 
 .retention-evolution { min-width: 0; }

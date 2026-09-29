@@ -1,3 +1,19 @@
+/* ==================================================================
+ * index.css — reset global + ponto de entrada do design system
+ *
+ * As tres camadas de token vivem em styles/tokens/ e entram AQUI, antes
+ * de qualquer regra que as use. A ordem importa: main.tsx importa este
+ * arquivo e App.tsx importa App.css, entao este e o primeiro do bundle.
+ * ================================================================== */
+@import './styles/tokens/primitive.css';
+@import './styles/tokens/semantic.css';
+@import './styles/tokens/component.css';
+
+/* --- Reset e tipografia base -------------------------------------------
+ * O que NAO e token: color-scheme (para o I-beam nativo do Windows), a
+ * fonte raiz e o rhythm. Tudo que tem significado visual esta nas
+ * camadas de token.
+ */
 :root {
   /* Superficie clara declarada: sem isso o valor inicial `normal` faz o
    * Chromium herdar a preferencia do SO — com Windows em modo escuro, ele
@@ -5,23 +21,23 @@
    * (invisivel), e nenhum `cursor:` muda isso (forma, nao cor). O bloco
    * escuro abaixo reescopa para `dark`. */
   color-scheme: light;
-  --text: #4d5048;
-  --text-h: #1c2427;
-  --muted: #7e7466;
-  --bg: #ebe3d2;
+  --text: var(--mm-ink-900-31);
+  --text-h: var(--mm-azure-950-4);
+  --muted: var(--mm-ink-800-17);
+  --bg: var(--mm-clay-250-4);
   --panel: rgba(251, 248, 241, 0.86);
-  --hero-bg: #f6f0e4;
+  --hero-bg: var(--mm-clay-150-4);
   --border: rgba(28, 36, 39, 0.12);
   --border-strong: rgba(28, 36, 39, 0.22);
   --code-bg: rgba(39, 47, 51, 0.08);
-  --accent: #c46a2b;
-  --accent-strong: #a3541d;
-  --surface: #f8f6f0;
-  --button-bg: #1c2427;
-  --button-secondary: #efe5d2;
-  --button-text: #f7f2e7;
-  --success: #40916c;
-  --danger: #9a3b23;
+  --accent: var(--mm-clay-750-3);
+  --accent-strong: var(--mm-clay-800-6);
+  --surface: var(--mm-gold-100);
+  --button-bg: var(--mm-azure-950-4);
+  --button-secondary: var(--mm-clay-250-5);
+  --button-text: var(--mm-clay-150-6);
+  --success: var(--mm-sage-750);
+  --danger: var(--mm-brick-850-4);
   --panel-shadow: 0 18px 50px rgba(56, 44, 18, 0.1);
 
   /* Altura da barra de titulo customizada (janela sem decoracoes nativas): os
@@ -45,41 +61,41 @@
    * arquivo, unificados; o bloco escuro abaixo os reescopa. Substitui os
    * blocos DARK AUTO gerados por script (scripts/gen-review-dark.py,
    * aposentado agora). */
-  --review-surface: #fbfaf6;
-  --review-raised: #f2f1ec;
-  --review-sunk: #f6f4ee;
-  --review-header: #f7f5ee;
-  --review-field: #fffdf8;
-  --review-line: #d8d4ca;
-  --review-line-soft: #e6e3d8;
-  --review-line-strong: #cfccc2;
-  --review-ink: #2b2b26;
-  --review-ink-soft: #353531;
-  --review-text: #4f4f49;
-  /* Escurecido de #8a8a82 (3.22:1, abaixo do AA) para AA (>= 4.5). */
-  --review-faint: #716f67;
-  --review-muted: #6b6a63;
-  --review-muted-2: #aaa79e;
-  --review-accent-soft: #8b4a20;
-  --review-warn: #7a5c10;
-  --review-warn-strong: #5d4b25;
-  --review-warn-bg: #ffe5a5;
-  --review-warn-bg-soft: #fdf3e3;
-  --review-ok: #4f7d48;
-  --review-ok-soft: #3f5239;
-  --review-ok-bg: #cfe3c4;
-  --review-ok-bg-strong: #8fc98a;
-  --review-ok-bg-soft: #e6f4ea;
-  --review-bad: #b3261e;
-  --review-bad-strong: #7c3f36;
-  --review-bad-bg: #ffc9c2;
-  --review-bad-bg-soft: #fdeceb;
-  --review-info: #1a5f8a;
-  --review-info-bg: #e8f1f8;
-  --review-alt: #5c5490;
-  --review-alt-bg: #e3e0f2;
-  --review-alt-bg-soft: #f4f2fb;
-  --review-alt-line: #b9b3dd;
+  --review-surface: var(--mm-gold-100-6);
+  --review-raised: var(--mm-gold-150-6);
+  --review-sunk: var(--mm-gold-150-10);
+  --review-header: var(--mm-gold-150-12);
+  --review-field: var(--mm-clay-50);
+  --review-line: var(--mm-clay-350);
+  --review-line-soft: var(--mm-gold-250-2);
+  --review-line-strong: var(--mm-ink-400-2);
+  --review-ink: var(--mm-ink-950-22);
+  --review-ink-soft: var(--mm-ink-900-18);
+  --review-text: var(--mm-ink-900-32);
+  /* Escurecido de var(--mm-ink-700-2) (3.22:1, abaixo do AA) para AA (>= 4.5). */
+  --review-faint: var(--mm-ink-800-9);
+  --review-muted: var(--mm-ink-800-4);
+  --review-muted-2: var(--mm-ink-600-6);
+  --review-accent-soft: var(--mm-clay-850-11);
+  --review-warn: var(--mm-clay-850-8);
+  --review-warn-strong: var(--mm-clay-900-2);
+  --review-warn-bg: var(--mm-clay-250-7);
+  --review-warn-bg-soft: var(--mm-clay-150-9);
+  --review-ok: var(--mm-moss-800);
+  --review-ok-soft: var(--mm-moss-900);
+  --review-ok-bg: var(--mm-moss-300);
+  --review-ok-bg-strong: var(--mm-moss-500);
+  --review-ok-bg-soft: var(--mm-sage-150);
+  --review-bad: var(--mm-brick-850-11);
+  --review-bad-strong: var(--mm-brick-900-3);
+  --review-bad-bg: var(--mm-brick-350);
+  --review-bad-bg-soft: var(--mm-brick-150);
+  --review-info: var(--mm-azure-850);
+  --review-info-bg: var(--mm-azure-150-2);
+  --review-alt: var(--mm-lilac-850);
+  --review-alt-bg: var(--mm-lilac-250);
+  --review-alt-bg-soft: var(--mm-lilac-150-2);
+  --review-alt-line: var(--mm-lilac-500);
 
   font: 18px/150% var(--sans);
   letter-spacing: 0.01em;
@@ -90,70 +106,8 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
 /* Tema escuro (caderno noturno): redefine as variaveis nucleares; o App.css
  * aplica as superficies do workspace na secao [data-theme='dark']. */
-:root[data-theme='dark'] {
-  --text: #b8b8ae;
-  --text-h: #e8e6dd;
-  --muted: #8f8f85;
-  --bg: #23201b;
-  --panel: rgba(41, 37, 31, 0.92);
-  --hero-bg: #2a261f;
-  --border: rgba(232, 230, 221, 0.12);
-  --border-strong: rgba(232, 230, 221, 0.24);
-  --code-bg: rgba(232, 230, 221, 0.08);
-  --accent: #d98a4a;
-  --accent-strong: #e8a06b;
-  --surface: #2a261f;
-  --button-bg: #e8e6dd;
-  --button-secondary: #35312a;
-  --button-text: #23201b;
-  --success: #5aa07f;
-  --danger: #c96a4e;
-  --panel-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
-
-  /* Tokens da Revisão no tema escuro: mesma paleta noturna dos blocos DARK
-   * AUTO anteriores (goals/tags/bases). Com a tokenização, este bloco é a
-   * ÚNICA fonte do dark de features/review — os arquivos de página só
-   * referenciam var(--review-*). */
-  --review-surface: #2b2721;
-  --review-raised: rgb(232 230 221 / 6%);
-  --review-sunk: rgb(232 230 221 / 6%);
-  --review-header: #232027;
-  --review-field: #211d18;
-  --review-line: rgb(232 230 221 / 16%);
-  --review-line-soft: rgb(232 230 221 / 9%);
-  --review-line-strong: rgb(232 230 221 / 24%);
-  --review-ink: #e8e6dd;
-  --review-ink-soft: #d6d4cd;
-  --review-text: #c9c7c0;
-  --review-faint: #a09c90;
-  --review-muted: #8f8f85;
-  --review-muted-2: #8f8f85;
-  --review-accent-soft: #e8a06b;
-  --review-warn: #d9b56a;
-  --review-warn-strong: #d9b56a;
-  --review-warn-bg: rgb(233 180 87 / 22%);
-  --review-warn-bg-soft: rgb(233 180 87 / 14%);
-  --review-ok: #5aa07f;
-  --review-ok-soft: #7fb894;
-  --review-ok-bg: rgb(90 160 127 / 24%);
-  --review-ok-bg-strong: rgb(90 160 127 / 32%);
-  --review-ok-bg-soft: rgb(90 160 127 / 16%);
-  --review-bad: #d98a6a;
-  --review-bad-strong: #c96a4e;
-  --review-bad-bg: rgb(217 106 78 / 22%);
-  --review-bad-bg-soft: rgb(217 106 78 / 14%);
-  --review-info: #79a8ff;
-  --review-info-bg: rgb(121 168 255 / 14%);
-  --review-alt: #b3abd9;
-  --review-alt-bg: rgb(180 170 230 / 18%);
-  --review-alt-bg-soft: rgb(180 170 230 / 12%);
-  --review-alt-line: rgb(180 170 230 / 30%);
-  color-scheme: dark;
-}
-
 #root {
   width: 100%;
   margin: 0 auto;
@@ -174,13 +128,13 @@ body {
   margin: 0;
   background:
     radial-gradient(circle at top, rgba(255, 255, 255, 0.46), transparent 32%),
-    linear-gradient(180deg, #f0e7d7 0%, #e5dcc8 100%);
+    linear-gradient(180deg, var(--mm-clay-200-7) 0%, var(--mm-clay-300-4) 100%);
 }
 
 :root[data-theme='dark'] body {
   background:
     radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 32%),
-    linear-gradient(180deg, #26221c 0%, #1d1a16 100%);
+    linear-gradient(180deg, var(--mm-clay-950-2) 0%, var(--mm-ink-950-5) 100%);
 }
 
 :root[data-theme='dark'] body::before {

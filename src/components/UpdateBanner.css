@@ -14,15 +14,15 @@
   padding: 14px 16px;
   border-radius: var(--radius-xl);
   border: 1px solid rgba(94, 128, 255, 0.35);
-  background: var(--selection-paper, #fbfaf6);
+  background: var(--selection-paper, var(--mm-gold-100-6));
   box-shadow: 0 12px 32px rgba(15, 14, 20, 0.24);
-  color: var(--selection-ink, #232027);
+  color: var(--selection-ink, var(--mm-ink-950-10));
 }
 
 .workspace-shell .update-banner {
-  background: var(--workspace-raised, #171520);
+  background: var(--workspace-raised, var(--mm-lilac-950-6));
   border-color: rgba(94, 128, 255, 0.45);
-  color: var(--workspace-text, #e6e4ee);
+  color: var(--workspace-text, var(--mm-lilac-250-2));
 }
 
 .update-banner-icon {
@@ -33,7 +33,7 @@
   flex-shrink: 0;
   border-radius: var(--radius-lg);
   background: rgba(94, 128, 255, 0.16);
-  color: var(--accent, #5e80ff);
+  color: var(--accent, var(--mm-azure-700));
 }
 
 .update-banner-icon .is-spinning {
@@ -77,8 +77,8 @@
   padding: 7px 12px;
   border: 1px solid transparent;
   border-radius: var(--radius-lg);
-  background: var(--accent, #5e80ff);
-  color: #ffffff;
+  background: var(--accent, var(--mm-azure-700));
+  color: var(--mm-ink-50);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
@@ -101,7 +101,7 @@
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: inherit;
-  background: var(--accent, #5e80ff);
+  background: var(--accent, var(--mm-azure-700));
   transition: width 220ms ease;
 }
 

@@ -26,7 +26,7 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: #3d3d38;
+  color: var(--mm-ink-900-23);
   font: 12px var(--sans);
   cursor: pointer;
 }
@@ -36,18 +36,18 @@
 }
 
 .workspace-shell .graph-immersive-header .graph-filter-select:focus-visible {
-  outline: 1px solid #8d9b88;
+  outline: 1px solid var(--mm-ink-650);
   outline-offset: 1px;
 }
 
 .graph-filter-select-icon {
   display: inline-flex;
   flex: none;
-  color: #8d9b88;
+  color: var(--mm-ink-650);
 }
 
 .graph-filter-select.is-active .graph-filter-select-icon {
-  color: #3f6b4c;
+  color: var(--mm-sage-850-7);
 }
 
 .graph-filter-select-value {
@@ -59,13 +59,13 @@
 }
 
 .graph-filter-select.is-active .graph-filter-select-value {
-  color: #2c4632;
+  color: var(--mm-sage-900-4);
   font-weight: 600;
 }
 
 .workspace-shell .graph-immersive-header .graph-filter-select > svg:last-child {
   flex: none;
-  color: #8a8a80;
+  color: var(--mm-ink-700);
 }
 
 /* --- Menu do filtro (mesma lingua dos popovers Exportar/Configurar) --- */
@@ -82,10 +82,10 @@
   gap: 7px;
   margin-bottom: 6px;
   padding: 0 8px;
-  border: 1px solid #d8d6cf;
+  border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-sm);
-  background: #fffef9;
-  color: #8a8a80;
+  background: var(--mm-gold-50-3);
+  color: var(--mm-ink-700);
 }
 
 .graph-filter-select-search input {
@@ -95,7 +95,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #3d3d38;
+  color: var(--mm-ink-900-23);
   font: 12px var(--sans);
 }
 
@@ -104,7 +104,7 @@
 }
 
 .graph-filter-select-search:focus-within {
-  border-color: #8d9b88;
+  border-color: var(--mm-ink-650);
 }
 
 .graph-filter-select-list {
@@ -124,7 +124,7 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: #3d3d38;
+  color: var(--mm-ink-900-23);
   font: 12px var(--sans);
   cursor: pointer;
   text-align: left;
@@ -135,8 +135,8 @@
 }
 
 .graph-filter-select-option[aria-selected='true'] {
-  background: #e5eee5;
-  color: #2c4632;
+  background: var(--mm-moss-200);
+  color: var(--mm-sage-900-4);
   font-weight: 600;
 }
 
@@ -145,7 +145,7 @@
   flex: none;
   width: 15px;
   justify-content: center;
-  color: #3f6b4c;
+  color: var(--mm-sage-850-7);
 }
 
 .graph-filter-select-option-label {
@@ -159,7 +159,7 @@
 .graph-filter-select-empty {
   margin: 0;
   padding: 10px 8px;
-  color: #8a8a80;
+  color: var(--mm-ink-700);
   font-size: 12px;
 }
 
@@ -215,16 +215,16 @@
 }
 
 .workspace-shell .note-graph-node.is-match .note-graph-node-dot {
-  border-color: #3f6b4c;
+  border-color: var(--mm-sage-850-7);
   box-shadow: 0 0 0 3px rgb(63 107 76 / 26%), 0 2px 6px rgb(44 54 45 / 14%);
 }
 
 .workspace-shell .note-graph-node.is-match .note-graph-node-label {
-  color: #2c4632;
+  color: var(--mm-sage-900-4);
 }
 
 .workspace-shell .note-graph-links line.is-matched {
-  stroke: #52715a;
+  stroke: var(--mm-sage-800-4);
   stroke-width: 0.9;
   opacity: 1;
 }
@@ -237,7 +237,7 @@
 
 .graph3d-label.is-highlighted {
   opacity: 1;
-  color: #eef8ff;
+  color: var(--mm-azure-100);
   font-weight: 700;
   text-shadow: 0 0 8px rgb(143 227 255 / 65%);
 }

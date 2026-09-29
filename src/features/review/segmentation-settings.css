@@ -25,7 +25,7 @@
 }
 
 .segmentation-field small {
-  color: var(--muted, #706d66);
+  color: var(--muted, var(--mm-ink-800-8));
   font-size: 12px;
   line-height: 1.4;
 }
@@ -38,18 +38,18 @@
   border-radius: var(--radius-sm);
   padding: 6px 8px;
   background: var(--surface);
-  color: var(--text, #24231f);
+  color: var(--text, var(--mm-ink-950-11));
   font: inherit;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
 .segmentation-field input[aria-invalid='true'] {
-  border-color: var(--danger, #a03e33);
+  border-color: var(--danger, var(--mm-brick-850-8));
 }
 
 .segmentation-hint {
-  color: var(--muted, #706d66);
+  color: var(--muted, var(--mm-ink-800-8));
   font-size: 12px;
   line-height: 1.4;
 }
@@ -88,11 +88,11 @@
 }
 
 .segmentation-toast.is-success {
-  border-left-color: var(--success, #3e7550);
+  border-left-color: var(--success, var(--mm-sage-800));
 }
 
 .segmentation-toast.is-error {
-  border-left-color: var(--danger, #a03e33);
+  border-left-color: var(--danger, var(--mm-brick-850-8));
 }
 
 .segmentation-toast-heading {
@@ -104,7 +104,7 @@
 
 .segmentation-toast-heading span,
 .segmentation-toast small {
-  color: var(--muted, #706d66);
+  color: var(--muted, var(--mm-ink-800-8));
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }

@@ -26,7 +26,7 @@
   padding: 28px 20px;
   text-align: center;
   color: var(--review-muted);
-  border: 1px dashed var(--border, #dedbd1);
+  border: 1px dashed var(--border, var(--mm-gold-300));
   border-radius: var(--radius-lg);
   font-size: 13.5px;
 }
@@ -132,7 +132,7 @@
 }
 
 .review-dashboard-readiness-total.is-ready strong {
-  color: #2e6b4f;
+  color: var(--mm-sage-850);
 }
 
 .review-dashboard-readiness-total.is-ambiguous strong,
@@ -147,7 +147,7 @@
 .review-dashboard-readiness-empty {
   margin: 0;
   padding: 14px;
-  border: 1px dashed var(--border, #dedbd1);
+  border: 1px dashed var(--border, var(--mm-gold-300));
   border-radius: var(--radius-lg);
   color: var(--review-muted);
   font-size: 13px;
@@ -168,7 +168,7 @@
   align-items: center;
   gap: 14px;
   padding: 12px 4px;
-  border-bottom: 1px solid var(--border, #efede4);
+  border-bottom: 1px solid var(--border, var(--mm-gold-200-8));
 }
 
 .review-dashboard-readiness-list li:last-child {
@@ -186,13 +186,13 @@
 }
 
 .review-dashboard-readiness-badge.is-ready {
-  background: color-mix(in srgb, #2e6b4f 12%, transparent);
-  color: #2e6b4f;
+  background: color-mix(in srgb, var(--mm-sage-850) 12%, transparent);
+  color: var(--mm-sage-850);
 }
 
 .review-dashboard-readiness-badge.is-insufficient {
-  background: color-mix(in srgb, var(--danger, #9a3b23) 10%, transparent);
-  color: var(--danger, #9a3b23);
+  background: color-mix(in srgb, var(--danger, var(--mm-brick-850-4)) 10%, transparent);
+  color: var(--danger, var(--mm-brick-850-4));
 }
 
 .review-dashboard-readiness-badge.is-unassessed {
@@ -259,7 +259,7 @@
 .review-dashboard-calibration-empty {
   margin: 0;
   padding: 14px;
-  border: 1px dashed var(--border, #dedbd1);
+  border: 1px dashed var(--border, var(--mm-gold-300));
   border-radius: var(--radius-lg);
   color: var(--review-muted);
   font-size: 13px;
@@ -280,7 +280,7 @@
   align-items: center;
   gap: 14px;
   padding: 10px 4px;
-  border-bottom: 1px solid var(--border, #efede4);
+  border-bottom: 1px solid var(--border, var(--mm-gold-200-8));
 }
 
 .review-dashboard-calibration-list li:last-child {
@@ -361,7 +361,7 @@
 .review-dashboard-deadlines-empty {
   margin: 0;
   padding: 14px;
-  border: 1px dashed var(--border, #dedbd1);
+  border: 1px dashed var(--border, var(--mm-gold-300));
   border-radius: var(--radius-lg);
   color: var(--review-muted);
   font-size: 13px;
@@ -381,7 +381,7 @@
   align-items: center;
   gap: 14px;
   padding: 10px 4px;
-  border-bottom: 1px solid var(--border, #efede4);
+  border-bottom: 1px solid var(--border, var(--mm-gold-200-8));
 }
 
 .review-dashboard-deadline-list li:last-child {
@@ -553,7 +553,7 @@
 }
 
 .review-dashboard-dialog-copy strong {
-  color: var(--ink, #2b2a26);
+  color: var(--ink, var(--mm-ink-950-21));
   font-weight: 600;
 }
 
@@ -566,7 +566,7 @@
 .review-dashboard-dialog-field > span {
   font-size: 12px;
   font-weight: 600;
-  color: var(--ink, #2b2a26);
+  color: var(--ink, var(--mm-ink-950-21));
 }
 
 .review-dashboard-dialog-field > div {
@@ -576,7 +576,7 @@
   padding: 8px 10px;
   border: 1px solid var(--border, var(--review-line-soft));
   border-radius: var(--radius-lg);
-  background: var(--review-field, #fffefb);
+  background: var(--review-field, var(--mm-gold-50-5));
   color: var(--review-muted);
 }
 
@@ -587,7 +587,7 @@
   outline: none;
   background: transparent;
   font: 400 13.5px/1.4 var(--sans);
-  color: var(--ink, #2b2a26);
+  color: var(--ink, var(--mm-ink-950-21));
 }
 
 .review-dashboard-dialog-field small {
@@ -660,7 +660,7 @@
   padding: 16px 18px 18px;
   background: var(--review-surface);
   border: 1px solid var(--review-line-soft);
-  border-left: 3px solid color-mix(in srgb, var(--accent, #c46a2b) 45%, var(--review-line-strong));
+  border-left: 3px solid color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 45%, var(--review-line-strong));
   border-radius: var(--radius-xl);
 }
 
@@ -668,8 +668,8 @@
   margin: 0 0 12px;
   padding: 10px 12px;
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--accent, #c46a2b) 8%, transparent);
-  color: var(--accent-strong, #a3541d);
+  background: color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 8%, transparent);
+  color: var(--accent-strong, var(--mm-clay-800-6));
   font-size: 12.5px;
   line-height: 1.5;
 }
@@ -687,7 +687,7 @@
   align-items: center;
   gap: 14px;
   padding: 10px 4px;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent, #c46a2b) 14%, #efede4);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 14%, var(--mm-gold-200-8));
 }
 
 .review-dashboard-expired-list li:last-child {
@@ -702,8 +702,8 @@
   font-size: 12.5px;
   font-weight: 600;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--accent, #c46a2b) 16%, transparent);
-  color: var(--accent-strong, #a3541d);
+  background: color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 16%, transparent);
+  color: var(--accent-strong, var(--mm-clay-800-6));
 }
 
 .review-dashboard-expired-tag {
@@ -712,8 +712,8 @@
   margin-top: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent, #c46a2b) 14%, transparent);
-  color: var(--accent-strong, #a3541d);
+  background: color-mix(in srgb, var(--accent, var(--mm-clay-750-3)) 14%, transparent);
+  color: var(--accent-strong, var(--mm-clay-800-6));
   font: 600 10.5px/1.4 var(--sans);
 }
 
@@ -721,6 +721,6 @@
  * (mesmo de Bases/Tags) para manter contraste e matiz. */
 [data-theme='dark'] .review-dashboard-readiness-total.is-ready strong,
 [data-theme='dark'] .review-dashboard-readiness-badge.is-ready {
-  color: #8fc4b0;
+  color: var(--mm-sage-500);
 }
 

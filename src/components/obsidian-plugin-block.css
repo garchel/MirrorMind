@@ -3,7 +3,7 @@
   margin: 14px 0;
   border: 1px solid var(--border, rgba(28, 36, 39, 0.14));
   border-radius: var(--radius-lg);
-  background: var(--panel, #fffef9);
+  background: var(--panel, var(--mm-gold-50-3));
   overflow: hidden;
 }
 
@@ -13,7 +13,7 @@
   gap: 7px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border, rgba(28, 36, 39, 0.1));
-  color: var(--muted, #7e7466);
+  color: var(--muted, var(--mm-ink-800-17));
 }
 
 .obsidian-plugin-block-title {
@@ -26,7 +26,7 @@
   padding: 1px 7px;
   border-radius: 999px;
   background: var(--code-bg, rgba(39, 47, 51, 0.08));
-  color: var(--muted, #7e7466);
+  color: var(--muted, var(--mm-ink-800-17));
   font: 10px var(--mono);
 }
 
@@ -46,13 +46,13 @@
 }
 
 .obsidian-plugin-block-tasks li.is-checked {
-  color: var(--muted, #7e7466);
+  color: var(--muted, var(--mm-ink-800-17));
   text-decoration: line-through;
 }
 
 .obsidian-plugin-block-check {
   flex-shrink: 0;
-  color: var(--accent, #c46a2b);
+  color: var(--accent, var(--mm-clay-750-3));
 }
 
 .obsidian-plugin-block-note,
@@ -64,7 +64,7 @@
 }
 
 .obsidian-plugin-block-note {
-  color: var(--muted, #7e7466);
+  color: var(--muted, var(--mm-ink-800-17));
 }
 
 .obsidian-plugin-block-warning {
@@ -73,7 +73,7 @@
   gap: 6px;
   border-top: 1px solid var(--border, rgba(28, 36, 39, 0.1));
   background: var(--code-bg, rgba(39, 47, 51, 0.06));
-  color: var(--muted, #7e7466);
+  color: var(--muted, var(--mm-ink-800-17));
 }
 
 .obsidian-plugin-block-warning svg {
@@ -86,6 +86,6 @@
   padding: 10px 14px;
   overflow: auto;
   font: 12px/1.5 var(--mono);
-  color: var(--text-h, #1c2427);
+  color: var(--text-h, var(--mm-azure-950-4));
   white-space: pre-wrap;
 }

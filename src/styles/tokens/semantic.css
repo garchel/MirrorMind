@@ -1,0 +1,272 @@
+/* ==================================================================
+ * CAMADA 2 — SEMANTICA
+ * Responde "para que serve este valor?", nao "de que cor ele e?". E a
+ * unica camada que o tema escuro reescopa: trocar de tema nao altera
+ * nenhuma primitiva, so os ponteiros daqui.
+ *
+ * REGRA DA CASA: hex literal nao entra neste arquivo. So primitivas
+ * (--mm-*, camada 1) ou rgba derivado delas.
+ *
+ * Historico: absorveu os 34 tokens --review-*, que eram uma segunda
+ * familia semantica paralela ao nucleo. Onde os valores eram identicos o
+ * slot foi fundido; onde divergiam (tinta, superficie, muted) o slot
+ * ganhou nome proprio em vez de sobrescrever o nucleo -- fundir ali
+ * teria movido pixels sem ninguem pedir.
+ *
+ * Os tokens de pagina (--goals-*, --bases-*, --tag-*, --workspace-*,
+ * --selection-*) NAO vivem aqui: sao escopados ao seletor da pagina
+ * (.goals-page etc.) e ficam no CSS da feature. Um escopo de pagina
+ * promovido a :root vaza cor para fora da pagina -- ver
+ * scripts/verify-domain-tokens.py, que existe por causa dessa armadilha.
+ * ================================================================== */
+:root {
+  /* --- 1. Texto ----------------------------------------------
+   * -h = tinta de titulo e valor de campo. O app mantem uma escala de 7 degraus porque a Revisao (fundo de pagina) e o workspace (fundo de painel) tem densidades de tinta diferentes; antes isso virava uma segunda familia de tokens (--review-ink / --review-text / --review-muted).
+   */
+  --text-h: var(--mm-azure-950-4);
+  --text: var(--mm-ink-900-31);
+  --text-strong: var(--mm-ink-950-22);
+  --text-normal: var(--mm-ink-900-32);
+  --text-soft: var(--mm-ink-900-18);
+  --text-muted: var(--mm-ink-800-4);
+  --text-subtle: var(--mm-ink-600-6);
+  --text-inverse: var(--mm-clay-150-6);
+  --faint: var(--mm-ink-800-9);
+
+  /* --- 2. Superficies ----------------------------------------
+   * Quatro profundidades: canvas < painel < campo. raised/sunk sao lavagens de 6-16% sobre o painel, nao cores soltas.
+   */
+  --bg: var(--mm-clay-250-4);
+  --hero-bg: var(--mm-clay-150-4);
+  --panel: rgba(251, 248, 241, 0.86);
+  --surface: var(--mm-gold-100);
+  --surface-canvas: var(--mm-gold-100-6);
+  --surface-raised: var(--mm-gold-150-6);
+  --surface-sunk: var(--mm-gold-150-10);
+  --surface-field: var(--mm-clay-50);
+  --surface-header: var(--mm-gold-150-12);
+
+  /* --- 3. Contornos ------------------------------------------
+   * --border e a borda de componente; --line-* e a divisoria dentro de um painel (tabela, lista, cabecalho de secao).
+   */
+  --border: rgba(28, 36, 39, 0.12);
+  --border-strong: rgba(28, 36, 39, 0.22);
+  --line: var(--mm-clay-350);
+  --line-soft: var(--mm-gold-250-2);
+  --line-strong: var(--mm-ink-400-2);
+
+  /* --- 4. Interacao ------------------------------------------
+   * --button-* e o unico lugar do app que significa acao primaria: tinta cheia. Todo o resto usa --button-secondary ou --surface.
+   */
+  --accent: var(--mm-clay-750-3);
+  --accent-strong: var(--mm-clay-800-6);
+  --accent-soft: var(--mm-clay-850-11);
+  --button-bg: var(--mm-azure-950-4);
+  --button-text: var(--mm-clay-150-6);
+  --button-secondary: var(--mm-clay-250-5);
+  --code-bg: rgba(39, 47, 51, 0.08);
+  --panel-shadow: 0 18px 50px rgba(56, 44, 18, 0.1);
+
+  /* --- 5. Status -----------------------------------------------
+   * Quatro slots por status: ink (texto/icone), ink-soft (secundario),
+   * bg (realce preenchido) e bg-soft (lavagem de fondo, a unica que
+   * aceita texto por cima -- por isso e clara de proposito).
+
+  /* ok: certo, dominado */
+  --status-ok: var(--mm-moss-800);
+  --status-ok-soft: var(--mm-moss-900);
+  --status-ok-bg: var(--mm-moss-300);
+  --status-ok-bg-strong: var(--mm-moss-500);
+  --status-ok-bg-soft: var(--mm-sage-150);
+
+  /* warn: atencao, prazo, pendencia */
+  --status-warn: var(--mm-clay-850-8);
+  --status-warn-strong: var(--mm-clay-900-2);
+  --status-warn-bg: var(--mm-clay-250-7);
+  --status-warn-bg-soft: var(--mm-clay-150-9);
+
+  /* bad: erro, acao destrutiva */
+  --status-bad: var(--mm-brick-850-11);
+  --status-bad-strong: var(--mm-brick-900-3);
+  --status-bad-bg: var(--mm-brick-350);
+  --status-bad-bg-soft: var(--mm-brick-150);
+
+  /* info: neutro informativo */
+  --status-info: var(--mm-azure-850);
+  --status-info-bg: var(--mm-azure-150-2);
+
+  /* alt: categoria alternativa */
+  --status-alt: var(--mm-lilac-850);
+  --status-alt-bg: var(--mm-lilac-250);
+  --status-alt-bg-soft: var(--mm-lilac-150-2);
+  --status-alt-line: var(--mm-lilac-500);
+}
+
+/* --- Tema escuro (caderno noturno) ------------------------------------
+ * Mesmos nomes, outros ponteiros. Nenhuma primitiva e redefinida aqui:
+ * e este bloco que faz a virada. */
+:root[data-theme='dark'] {
+  /* --- 1. Texto ----------------------------------------------
+   * -h = tinta de titulo e valor de campo. O app mantem uma escala de 7 degraus porque a Revisao (fundo de pagina) e o workspace (fundo de painel) tem densidades de tinta diferentes; antes isso virava uma segunda familia de tokens (--review-ink / --review-text / --review-muted).
+   */
+  --text-h: var(--mm-gold-250-4);
+  --text: var(--mm-ink-500-2);
+  --text-strong: var(--mm-gold-250-4);
+  --text-normal: var(--mm-ink-450-5);
+  --text-soft: var(--mm-ink-350-2);
+  --text-muted: var(--mm-ink-700-6);
+  --text-subtle: var(--mm-ink-700-6);
+  --text-inverse: var(--mm-ink-950-9);
+  --faint: var(--mm-ink-650-5);
+
+  /* --- 2. Superficies ----------------------------------------
+   * Quatro profundidades: canvas < painel < campo. raised/sunk sao lavagens de 6-16% sobre o painel, nao cores soltas.
+   */
+  --bg: var(--mm-ink-950-9);
+  --hero-bg: var(--mm-clay-950-3);
+  --panel: rgba(41, 37, 31, 0.92);
+  --surface: var(--mm-clay-950-3);
+  --surface-canvas: var(--mm-ink-950-19);
+  --surface-raised: rgb(232 230 221 / 6%);
+  --surface-sunk: rgb(232 230 221 / 6%);
+  --surface-field: var(--mm-clay-950);
+  --surface-header: var(--mm-ink-950-10);
+
+  /* --- 3. Contornos ------------------------------------------
+   * --border e a borda de componente; --line-* e a divisoria dentro de um painel (tabela, lista, cabecalho de secao).
+   */
+  --border: rgba(232, 230, 221, 0.12);
+  --border-strong: rgba(232, 230, 221, 0.24);
+  --line: rgb(232 230 221 / 16%);
+  --line-soft: rgb(232 230 221 / 9%);
+  --line-strong: rgb(232 230 221 / 24%);
+
+  /* --- 4. Interacao ------------------------------------------
+   * --button-* e o unico lugar do app que significa acao primaria: tinta cheia. Todo o resto usa --button-secondary ou --surface.
+   */
+  --accent: var(--mm-clay-650);
+  --accent-strong: var(--mm-clay-550-3);
+  --accent-soft: var(--mm-clay-550-3);
+  --button-bg: var(--mm-gold-250-4);
+  --button-text: var(--mm-ink-950-9);
+  --button-secondary: var(--mm-ink-900-15);
+  --code-bg: rgba(232, 230, 221, 0.08);
+  --panel-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+
+  /* --- 5. Status -----------------------------------------------
+   * Quatro slots por status: ink (texto/icone), ink-soft (secundario),
+   * bg (realce preenchido) e bg-soft (lavagem de fondo, a unica que
+   * aceita texto por cima -- por isso e clara de proposito).
+
+  /* ok: certo, dominado */
+  --status-ok: var(--mm-sage-700-2);
+  --status-ok-soft: var(--mm-sage-600);
+  --status-ok-bg: rgb(90 160 127 / 24%);
+  --status-ok-bg-strong: rgb(90 160 127 / 32%);
+  --status-ok-bg-soft: rgb(90 160 127 / 16%);
+
+  /* warn: atencao, prazo, pendencia */
+  --status-warn: var(--mm-clay-500);
+  --status-warn-strong: var(--mm-clay-500);
+  --status-warn-bg: rgb(233 180 87 / 22%);
+  --status-warn-bg-soft: rgb(233 180 87 / 14%);
+
+  /* bad: erro, acao destrutiva */
+  --status-bad: var(--mm-clay-650-2);
+  --status-bad-strong: var(--mm-brick-750);
+  --status-bad-bg: rgb(217 106 78 / 22%);
+  --status-bad-bg-soft: rgb(217 106 78 / 14%);
+
+  /* info: neutro informativo */
+  --status-info: var(--mm-azure-600);
+  --status-info-bg: rgb(121 168 255 / 14%);
+
+  /* alt: categoria alternativa */
+  --status-alt: var(--mm-lilac-550);
+  --status-alt-bg: rgb(180 170 230 / 18%);
+  --status-alt-bg-soft: rgb(180 170 230 / 12%);
+  --status-alt-line: rgb(180 170 230 / 30%);
+}
+
+/* ==================================================================
+ * COMPATIBILIDADE — nomes antigos
+ * Cada --review-* aponta para o token que carrega EXACTAMENTE o mesmo
+ * valor nos dois temas (verificado por scripts/verify-semantics.py).
+ * Estaticos, nao var(): um alias que chamasse var() casaria com o tema
+ * errado sob :root[data-theme='dark'].
+ * ================================================================== */
+
+
+:root {
+  --review-ink: var(--text-strong);
+  --review-ink-soft: var(--text-soft);
+  --review-text: var(--text-normal);
+  --review-muted: var(--text-muted);
+  --review-muted-2: var(--text-subtle);
+  --review-faint: var(--faint);
+  --review-surface: var(--surface-canvas);
+  --review-raised: var(--surface-raised);
+  --review-sunk: var(--surface-sunk);
+  --review-field: var(--surface-field);
+  --review-header: var(--surface-header);
+  --review-line: var(--line);
+  --review-line-soft: var(--line-soft);
+  --review-line-strong: var(--line-strong);
+  --review-accent-soft: var(--accent-soft);
+  --review-ok: var(--status-ok);
+  --review-ok-soft: var(--status-ok-soft);
+  --review-ok-bg: var(--status-ok-bg);
+  --review-ok-bg-strong: var(--status-ok-bg-strong);
+  --review-ok-bg-soft: var(--status-ok-bg-soft);
+  --review-warn: var(--status-warn);
+  --review-warn-strong: var(--status-warn-strong);
+  --review-warn-bg: var(--status-warn-bg);
+  --review-warn-bg-soft: var(--status-warn-bg-soft);
+  --review-bad: var(--status-bad);
+  --review-bad-strong: var(--status-bad-strong);
+  --review-bad-bg: var(--status-bad-bg);
+  --review-bad-bg-soft: var(--status-bad-bg-soft);
+  --review-info: var(--status-info);
+  --review-info-bg: var(--status-info-bg);
+  --review-alt: var(--status-alt);
+  --review-alt-bg: var(--status-alt-bg);
+  --review-alt-bg-soft: var(--status-alt-bg-soft);
+  --review-alt-line: var(--status-alt-line);
+}
+
+:root[data-theme='dark'] {
+  --review-ink: var(--text-strong);
+  --review-ink-soft: var(--text-soft);
+  --review-text: var(--text-normal);
+  --review-muted: var(--text-muted);
+  --review-muted-2: var(--text-subtle);
+  --review-faint: var(--faint);
+  --review-surface: var(--surface-canvas);
+  --review-raised: var(--surface-raised);
+  --review-sunk: var(--surface-sunk);
+  --review-field: var(--surface-field);
+  --review-header: var(--surface-header);
+  --review-line: var(--line);
+  --review-line-soft: var(--line-soft);
+  --review-line-strong: var(--line-strong);
+  --review-accent-soft: var(--accent-soft);
+  --review-ok: var(--status-ok);
+  --review-ok-soft: var(--status-ok-soft);
+  --review-ok-bg: var(--status-ok-bg);
+  --review-ok-bg-strong: var(--status-ok-bg-strong);
+  --review-ok-bg-soft: var(--status-ok-bg-soft);
+  --review-warn: var(--status-warn);
+  --review-warn-strong: var(--status-warn-strong);
+  --review-warn-bg: var(--status-warn-bg);
+  --review-warn-bg-soft: var(--status-warn-bg-soft);
+  --review-bad: var(--status-bad);
+  --review-bad-strong: var(--status-bad-strong);
+  --review-bad-bg: var(--status-bad-bg);
+  --review-bad-bg-soft: var(--status-bad-bg-soft);
+  --review-info: var(--status-info);
+  --review-info-bg: var(--status-info-bg);
+  --review-alt: var(--status-alt);
+  --review-alt-bg: var(--status-alt-bg);
+  --review-alt-bg-soft: var(--status-alt-bg-soft);
+  --review-alt-line: var(--status-alt-line);
+}

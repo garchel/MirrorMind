@@ -5,7 +5,7 @@
 }
 
 .note-review-policy-trigger-error {
-  color: var(--danger, #a33b31);
+  color: var(--danger, var(--mm-brick-850-9));
 }
 
 /* Overlay removido: o diálogo usa o `<Modal>` compartilhado
@@ -52,12 +52,12 @@
   border: 1px solid var(--border, var(--review-line));
   border-radius: var(--radius-sm);
   padding: 12px 14px;
-  background: color-mix(in srgb, var(--surface) 92%, var(--workspace, #eeece6));
+  background: color-mix(in srgb, var(--surface) 92%, var(--workspace, var(--mm-gold-200-6)));
 }
 
 .review-policy-origins h3 {
   margin: 0 0 10px;
-  color: var(--muted, #706d66);
+  color: var(--muted, var(--mm-ink-800-8));
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -79,7 +79,7 @@
 }
 
 .review-policy-origins dt {
-  color: var(--muted, #706d66);
+  color: var(--muted, var(--mm-ink-800-8));
   font-size: 11px;
 }
 
@@ -94,7 +94,7 @@
 }
 
 .review-policy-origins dd small {
-  color: var(--muted, #706d66);
+  color: var(--muted, var(--mm-ink-800-8));
   font-size: 11px;
 }
 
@@ -113,7 +113,7 @@
 .review-policy-presets legend,
 .review-policy-modes legend {
   margin-bottom: 8px;
-  color: var(--muted, #706d66);
+  color: var(--muted, var(--mm-ink-800-8));
   font-size: 12px;
 }
 
@@ -122,7 +122,7 @@
   min-width: 0;
   border: 1px solid var(--border, var(--review-line));
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, #eeece6));
+  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, var(--mm-gold-200-6)));
   color: inherit;
 }
 
@@ -140,7 +140,7 @@
 
 .review-policy-mode-inherited {
   margin: 0;
-  color: var(--muted, #706d66);
+  color: var(--muted, var(--mm-ink-800-8));
   font-size: 12px;
   line-height: 1.45;
 }
@@ -153,19 +153,19 @@
 
 .review-policy-modes label:has(input:checked) {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, #eeece6));
+  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, var(--mm-gold-200-6)));
 }
 
 /* Ritmo vigente em destaque (mesmo idioma do modo marcado). */
 .review-policy-presets button.is-active {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, #eeece6));
+  background: color-mix(in srgb, var(--surface) 88%, var(--workspace, var(--mm-gold-200-6)));
 }
 
 .review-policy-presets span,
 .review-policy-modes small,
 .review-policy-schedule small {
-  color: var(--muted, #706d66);
+  color: var(--muted, var(--mm-ink-800-8));
   font-size: 12px;
   line-height: 1.35;
 }
@@ -188,7 +188,7 @@
 
 .review-policy-error {
   margin-top: 9px !important;
-  color: var(--danger, #a33b31);
+  color: var(--danger, var(--mm-brick-850-9));
   font-size: 13px;
 }
 
@@ -199,7 +199,7 @@
   padding: 10px 12px;
   border: 1px solid var(--border, var(--review-line));
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--surface) 92%, var(--workspace, #eeece6));
+  background: color-mix(in srgb, var(--surface) 92%, var(--workspace, var(--mm-gold-200-6)));
 }
 
 .review-policy-schedule-icon {
@@ -210,7 +210,7 @@
   flex: none;
   border-radius: 50%;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent-strong, #a3541d);
+  color: var(--accent-strong, var(--mm-clay-800-6));
   line-height: 0;
 }
 
@@ -221,7 +221,7 @@
 }
 
 .review-policy-schedule-copy > span {
-  color: var(--muted, #706d66);
+  color: var(--muted, var(--mm-ink-800-8));
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -229,7 +229,7 @@
 }
 
 .review-policy-schedule-copy > strong {
-  color: var(--text-h, #1c2427);
+  color: var(--text-h, var(--mm-azure-950-4));
   font-size: 14px;
 }
 
@@ -240,14 +240,14 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: rgb(112 109 102 / 12%);
-  color: var(--muted, #706d66);
+  color: var(--muted, var(--mm-ink-800-8));
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .review-policy-success {
-  color: var(--success, #3e7550);
+  color: var(--success, var(--mm-sage-800));
   font-size: 13px;
 }
 

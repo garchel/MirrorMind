@@ -23,12 +23,12 @@
 .review-notification-mute-icon {
   display: inline-flex;
   align-items: center;
-  color: var(--workspace-muted, #8a8f98);
+  color: var(--workspace-muted, var(--mm-ink-700-3));
 }
 
 .review-notification-status {
   margin: 0;
-  color: var(--workspace-muted, #8a8f98);
+  color: var(--workspace-muted, var(--mm-ink-700-3));
   font-size: 0.85em;
   line-height: 1.5;
 }

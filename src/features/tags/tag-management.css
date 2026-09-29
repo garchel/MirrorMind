@@ -1,42 +1,42 @@
 .tag-management-page {
   width: 100%;
-  --tag-surface: #fdfcf8;
-  --tag-border: #e6e3d8;
-  --tag-line: #d9d7d0;
-  --tag-ink: #20201e;
-  --tag-muted: #73736d;
+  --tag-surface: var(--mm-gold-50);
+  --tag-border: var(--mm-gold-250-2);
+  --tag-line: var(--mm-ink-350-7);
+  --tag-ink: var(--mm-ink-950-8);
+  --tag-muted: var(--mm-ink-800-11);
   /* Verde da família do core (H≈152, mesmo matiz de --success e Bases);
    * antes era oliva H≈101 — destoava das outras páginas. */
-  --tag-accent: #2e6b4f;
-  --tag-accent-soft: #cfe3c4;
-  --tag-danger: #9b3c34;
+  --tag-accent: var(--mm-sage-850);
+  --tag-accent-soft: var(--mm-moss-300);
+  --tag-danger: var(--mm-brick-850-6);
   /* Aviso (modal de exclusão): âmbar quente sobre creme. */
-  --tag-warn-bg: #fdf3e0;
-  --tag-warn-line: #ecd5a8;
-  --tag-warn-ink: #7a5c10;
-  --tag-warn-strong: #6b5214;
-  --tag-warn-soft: #8a6f26;
+  --tag-warn-bg: var(--mm-clay-150-8);
+  --tag-warn-line: var(--mm-clay-350-4);
+  --tag-warn-ink: var(--mm-clay-850-8);
+  --tag-warn-strong: var(--mm-clay-850-3);
+  --tag-warn-soft: var(--mm-clay-800-4);
   /* Botões secundários dentro desta página. */
-  --tag-btn-ink: #4d4d47;
-  --tag-btn-hover: #e2e1da;
+  --tag-btn-ink: var(--mm-ink-900-30);
+  --tag-btn-hover: var(--mm-ink-250);
 }
 
 /* Tema escuro: paleta noturna da pagina de tags. */
 [data-theme='dark'] .tag-management-page {
-  --tag-surface: #1e1b21;
-  --tag-border: #3a3640;
-  --tag-line: #3a3640;
-  --tag-ink: #e8e6dd;
-  --tag-muted: #a8a59d;
-  --tag-accent: #8fc4b0;
-  --tag-accent-soft: #2e3f36;
-  --tag-danger: #d98a6a;
+  --tag-surface: var(--mm-ink-950-6);
+  --tag-border: var(--mm-ink-900-20);
+  --tag-line: var(--mm-ink-900-20);
+  --tag-ink: var(--mm-gold-250-4);
+  --tag-muted: var(--mm-ink-600-5);
+  --tag-accent: var(--mm-sage-500);
+  --tag-accent-soft: var(--mm-sage-900-5);
+  --tag-danger: var(--mm-clay-650-2);
   --tag-warn-bg: rgb(233 180 87 / 14%);
   --tag-warn-line: rgb(233 180 87 / 34%);
-  --tag-warn-ink: #d9b56a;
-  --tag-warn-strong: #e8c77e;
-  --tag-warn-soft: #bfa463;
-  --tag-btn-ink: #b8b5ad;
+  --tag-warn-ink: var(--mm-clay-500);
+  --tag-warn-strong: var(--mm-clay-400-3);
+  --tag-warn-soft: var(--mm-clay-600);
+  --tag-btn-ink: var(--mm-ink-550);
   --tag-btn-hover: rgb(232 230 221 / 10%);
 }
 
@@ -102,7 +102,7 @@
   gap: 10px;
   min-height: 0;
   padding: 4px 18px 20px 0;
-  border-right: 1px solid #e6e4de;
+  border-right: 1px solid var(--mm-ink-250-4);
 }
 
 .tag-search {
@@ -112,8 +112,8 @@
   padding: 0 11px;
   border: 1px solid var(--tag-line);
   border-radius: var(--radius-md);
-  background: #fbfaf6;
-  color: #6b6a63;
+  background: var(--mm-gold-100-6);
+  color: var(--mm-ink-800-4);
 }
 
 /* Texto apenas para leitores de tela: sem isso, o rotulo "Buscar tags" fica
@@ -131,7 +131,7 @@
 }
 
 .tag-search:focus-within {
-  border-color: #b3c1b3;
+  border-color: var(--mm-ink-500);
   box-shadow: 0 0 0 3px rgb(115 137 121 / 14%);
 }
 
@@ -147,7 +147,7 @@
 }
 
 .tag-search input::placeholder {
-  color: #9c9b94;
+  color: var(--mm-ink-650-4);
 }
 
 .tag-tree-summary {
@@ -215,7 +215,7 @@
 .tag-tree-list .tag-tree-list {
   margin-left: 12px;
   padding-left: 12px;
-  border-left: 1px solid #e2dfd6;
+  border-left: 1px solid var(--mm-gold-300-4);
 }
 
 .tag-tree-row {
@@ -228,7 +228,7 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: #3f3f3a;
+  color: var(--mm-ink-900-25);
   font-size: 13px;
   text-align: left;
   white-space: nowrap;
@@ -242,7 +242,7 @@
 }
 
 .tag-tree-row .tag-tree-chevron {
-  color: #a3a097;
+  color: var(--mm-ink-650-6);
   transition: transform 140ms ease;
 }
 
@@ -251,7 +251,7 @@
 }
 
 .tag-tree-hash {
-  color: #9a97a0;
+  color: var(--mm-ink-650-2);
   flex: 0 0 auto;
 }
 
@@ -264,7 +264,7 @@
 
 .tag-tree-count {
   padding-left: 8px;
-  color: #8d8c85;
+  color: var(--mm-ink-700-4);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -274,11 +274,11 @@
   height: 6px;
   min-width: 6px;
   border-radius: 50%;
-  background: #c6c4bc;
+  background: var(--mm-ink-450);
 }
 
 .tag-tree-dot.is-review-on {
-  background: #3f7a5a;
+  background: var(--mm-sage-800-2);
   box-shadow: 0 0 0 3px rgb(63 122 90 / 12%);
 }
 
@@ -299,7 +299,7 @@
 }
 
 .tag-detail-heading h3 svg {
-  color: #8a877e;
+  color: var(--mm-ink-750-4);
 }
 
 .tag-detail-actions {
@@ -352,8 +352,8 @@
   padding: 6px;
   box-sizing: border-box;
   border-radius: 50%;
-  background: #8d877e;
-  color: #fff;
+  background: var(--mm-ink-750-5);
+  color: var(--mm-ink-50);
 }
 
 .tag-review-status > span {
@@ -363,17 +363,17 @@
   flex: 0 0 28px;
   place-items: center;
   border-radius: 50%;
-  color: #fff;
-  background: #8d877e;
+  color: var(--mm-ink-50);
+  background: var(--mm-ink-750-5);
 }
 
 .tag-review-status.is-active > span {
-  background: #3f7a5a;
+  background: var(--mm-sage-800-2);
 }
 
 .tag-review-status strong,
 .tag-unconfigured strong {
-  color: #35342f;
+  color: var(--mm-ink-900-16);
   font-size: 13.5px;
 }
 
@@ -394,7 +394,7 @@
 .tag-policy-summary > div {
   min-width: 0;
   padding: 15px;
-  border-right: 1px solid #ece8de;
+  border-right: 1px solid var(--mm-clay-200-2);
 }
 
 .tag-policy-summary > div:last-child {
@@ -411,7 +411,7 @@
 
 .tag-policy-summary dd {
   margin: 7px 0 0;
-  color: #33322d;
+  color: var(--mm-ink-900-10);
   font-size: 16px;
   font-weight: 700;
 }
@@ -432,7 +432,7 @@
 .tag-note-list h4,
 .tag-folder-children-heading h4 {
   margin: 0;
-  color: #33322d;
+  color: var(--mm-ink-900-10);
   font-size: 14px;
 }
 
@@ -440,8 +440,8 @@
 .tag-folder-children-heading span {
   padding: 3px 9px;
   border-radius: 999px;
-  background: #f0efe9;
-  color: #6f6e67;
+  background: var(--mm-gold-150);
+  color: var(--mm-ink-800-7);
   font-size: 11.5px;
 }
 
@@ -458,7 +458,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 10px 2px;
-  border-bottom: 1px solid #efede6;
+  border-bottom: 1px solid var(--mm-gold-200-9);
 }
 
 .tag-note-list li:last-child {
@@ -467,7 +467,7 @@
 
 .tag-note-list li small {
   overflow: hidden;
-  color: #8d8c85;
+  color: var(--mm-ink-700-4);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -499,14 +499,14 @@
 }
 
 .tag-note-flat li:hover {
-  background: #f2f0e9;
+  background: var(--mm-gold-150-5);
 }
 
 .tag-note-flat-icon {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  color: #9a97a0;
+  color: var(--mm-ink-650-2);
 }
 
 .tag-note-flat-text {
@@ -521,7 +521,7 @@
 .tag-note-flat-name {
   overflow: hidden;
   min-width: 0;
-  color: #3f3f3a;
+  color: var(--mm-ink-900-25);
   font-size: 13.5px;
   font-weight: 500;
   text-overflow: ellipsis;
@@ -533,7 +533,7 @@
   margin-left: auto;
   padding-left: 10px;
   overflow: hidden;
-  color: #8d8c85;
+  color: var(--mm-ink-700-4);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 11.5px;
   text-overflow: ellipsis;
@@ -566,7 +566,7 @@
 .tag-presets legend,
 .tag-policy-fields legend,
 .tag-mode-field legend {
-  color: #3c3b36;
+  color: var(--mm-ink-900-21);
   font-size: 13px;
   font-weight: 700;
 }
@@ -576,7 +576,7 @@
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  border: 1px solid #cec6b8;
+  border: 1px solid var(--mm-clay-450);
   border-radius: var(--radius-md);
   background: var(--tag-surface);
 }
@@ -619,7 +619,7 @@
 
 .tag-review-switch strong,
 .tag-delete-option strong {
-  color: #35342f;
+  color: var(--mm-ink-900-16);
   font-size: 13.5px;
 }
 
@@ -655,7 +655,7 @@
   align-items: flex-start;
   gap: 9px;
   padding: 11px 12px;
-  border: 1px solid #d3cbbd;
+  border: 1px solid var(--mm-clay-400);
   border-radius: var(--radius-lg);
   background: var(--tag-surface);
   cursor: pointer;
@@ -663,12 +663,12 @@
 }
 
 .tag-mode-options label:has(input:checked) {
-  border-color: #9a8f7d;
-  background: #f0ece2;
+  border-color: var(--mm-ink-700-9);
+  background: var(--mm-clay-200-8);
 }
 
 .tag-mode-options label:hover {
-  border-color: #b9ae9e;
+  border-color: var(--mm-clay-550);
 }
 
 .tag-mode-options input {
@@ -682,7 +682,7 @@
 }
 
 .tag-mode-options strong {
-  color: #35342f;
+  color: var(--mm-ink-900-16);
   font-size: 13px;
 }
 
@@ -716,7 +716,7 @@
 .tag-policy-fields label > div {
   display: flex;
   align-items: center;
-  border: 1px solid #d3cbbd;
+  border: 1px solid var(--mm-clay-400);
   border-radius: var(--radius-md);
   background: var(--tag-surface);
   overflow: hidden;
@@ -766,7 +766,7 @@
 .tag-detail-empty h3,
 .tag-empty-state strong {
   margin: 12px 0 3px;
-  color: #393630;
+  color: var(--mm-ink-900-19);
 }
 
 .tag-detail-empty p,
@@ -778,7 +778,7 @@
 .tag-empty-state {
   min-height: 160px;
   padding: 20px;
-  border: 1px dashed #dedbd1;
+  border: 1px dashed var(--mm-gold-300);
   border-radius: var(--radius-lg);
 }
 
@@ -800,8 +800,8 @@
 }
 
 .tag-page-error {
-  color: #7d2e2a;
-  background: #f7e7e3;
+  color: var(--mm-brick-900-4);
+  background: var(--mm-brick-200-2);
 }
 
 .tag-page-error button {
@@ -809,13 +809,13 @@
 }
 
 .tag-page-success {
-  color: #315f46;
-  background: #e7f1e9;
+  color: var(--mm-sage-850-4);
+  background: var(--mm-sage-200-3);
 }
 
 .field-error {
   margin: 0;
-  color: #9b3c34;
+  color: var(--mm-brick-850-6);
   font-size: 12.5px;
 }
 
@@ -896,14 +896,14 @@
   max-height: 250px;
   margin: 15px 0 22px;
   overflow: auto;
-  border: 1px solid #e0d9ce;
+  border: 1px solid var(--mm-clay-300-2);
   border-radius: var(--radius-lg);
-  background: #f7f3ec;
+  background: var(--mm-clay-150-7);
 }
 
 .tag-impact-notes li {
   padding: 9px 12px;
-  border-bottom: 1px solid #e5ded3;
+  border-bottom: 1px solid var(--mm-clay-300-5);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 12px;
 }
@@ -930,15 +930,15 @@
 .tag-management-page.tag-management-page button:not(.modal-close):not(.tag-tree-row):not(.tag-tree-create) {
   min-height: 34px;
   border-radius: var(--radius-md);
-  background: #292926;
-  color: #fbfaf6;
+  background: var(--mm-ink-950-17);
+  color: var(--mm-gold-100-6);
   font-size: 13px;
   font-weight: 600;
 }
 
 .tag-management-page.tag-management-page button:hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create) {
   transform: none;
-  background: #11110f;
+  background: var(--mm-ink-950);
 }
 
 .tag-management-page.tag-management-page .secondary-button:not(.danger-button) {
@@ -964,11 +964,11 @@
 
 .tag-management-page.tag-management-page .danger-button {
   background: var(--tag-danger);
-  color: #fffaf7;
+  color: var(--mm-clay-100-3);
 }
 
 .tag-management-page.tag-management-page .danger-button:hover:not(:disabled) {
-  background: #7e3029;
+  background: var(--mm-brick-900-6);
 }
 
 /* Linhas da arvore de tags nunca devem parecer botao primario (o
@@ -979,20 +979,20 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: #3f3f3a;
+  color: var(--mm-ink-900-25);
   font-size: 13px;
   font-weight: 500;
 }
 
 .tag-management-page.tag-management-page .tag-tree-row:hover:not(:disabled) {
-  background: #e9eee8;
-  color: #1d2a20;
+  background: var(--mm-moss-200-2);
+  color: var(--mm-sage-950);
   transform: none;
 }
 
 .tag-management-page.tag-management-page .tag-tree-row.is-selected {
   background: var(--tag-accent-soft);
-  color: #1d2a20;
+  color: var(--mm-sage-950);
   box-shadow: none;
 }
 
@@ -1000,17 +1000,17 @@
    do menu de Configuracoes) — leem-se como chips discretos, nao como
    blocos escuros; e o hover claro hardcoded acima viraria flash branco. */
 [data-theme='dark'] .tag-management-page.tag-management-page .tag-tree-row {
-  background: #2a2730;
+  background: var(--mm-ink-950-18);
 }
 
 [data-theme='dark'] .tag-management-page.tag-management-page .tag-tree-row:hover:not(:disabled) {
-  background: #34303b;
+  background: var(--mm-ink-900-13);
   color: var(--tag-ink);
 }
 
 [data-theme='dark'] .tag-management-page.tag-management-page .tag-tree-row.is-selected {
   background: var(--tag-accent-soft);
-  color: #eaf3ec;
+  color: var(--mm-sage-150-3);
 }
 
 @media (max-width: 980px) {
@@ -1028,7 +1028,7 @@
   }
 
   .tag-policy-summary > div {
-    border-bottom: 1px solid #ece8de;
+    border-bottom: 1px solid var(--mm-clay-200-2);
   }
 
   .tag-policy-summary > div:nth-child(3n) {
@@ -1050,7 +1050,7 @@
   .tag-tree-pane {
     padding: 0 0 18px;
     border-right: 0;
-    border-bottom: 1px solid #e6e4de;
+    border-bottom: 1px solid var(--mm-ink-250-4);
   }
 
   .tag-tree-scroll {
@@ -1070,6 +1070,6 @@
 
   .tag-policy-summary > div {
     border-right: 0;
-    border-bottom: 1px solid #ece8de;
+    border-bottom: 1px solid var(--mm-clay-200-2);
   }
 }

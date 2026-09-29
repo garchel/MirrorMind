@@ -1,40 +1,40 @@
 .goals-page {
-  --goals-surface: #fbfaf6;
-  --goals-field: #fffefa;
-  --goals-ink: #20201e;
-  --goals-ink-soft: #353531;
-  --goals-text: #4f4f49;
-  --goals-faint: #62615b;
-  --goals-muted: #73736d;
-  --goals-line: #d9d7d0;
-  --goals-line-soft: #e3e1d9;
-  --goals-field-line: #c8c6be;
-  --goals-track: #e8e6de;
-  --goals-sunk: #f4f2ec;
-  --goals-done: #2f6b3a;
-  --goals-success: #2f6b3a;
-  --goals-on-accent: #fff;
+  --goals-surface: var(--mm-gold-100-6);
+  --goals-field: var(--mm-gold-50-4);
+  --goals-ink: var(--mm-ink-950-8);
+  --goals-ink-soft: var(--mm-ink-900-18);
+  --goals-text: var(--mm-ink-900-32);
+  --goals-faint: var(--mm-ink-850-16);
+  --goals-muted: var(--mm-ink-800-11);
+  --goals-line: var(--mm-ink-350-7);
+  --goals-line-soft: var(--mm-gold-250);
+  --goals-field-line: var(--mm-ink-450-2);
+  --goals-track: var(--mm-gold-250-5);
+  --goals-sunk: var(--mm-clay-150-2);
+  --goals-done: var(--mm-sage-850-3);
+  --goals-success: var(--mm-sage-850-3);
+  --goals-on-accent: var(--mm-ink-50);
   gap: 24px;
 }
 
 /* Tema escuro (caderno noturno): reescopo dos tokens acima, mesmo padrão
  * do `bases.css` (`--bases-*`). O layout claro permanece pixel-idêntico. */
 :root[data-theme='dark'] .goals-page {
-  --goals-surface: #2b2721;
-  --goals-field: #211d18;
-  --goals-ink: #e8e6dd;
-  --goals-ink-soft: #cfccc2;
-  --goals-text: #b8b8ae;
-  --goals-faint: #a09c90;
-  --goals-muted: #8f8f85;
+  --goals-surface: var(--mm-ink-950-19);
+  --goals-field: var(--mm-clay-950);
+  --goals-ink: var(--mm-gold-250-4);
+  --goals-ink-soft: var(--mm-ink-400-2);
+  --goals-text: var(--mm-ink-500-2);
+  --goals-faint: var(--mm-ink-650-5);
+  --goals-muted: var(--mm-ink-700-6);
   --goals-line: rgb(232 230 221 / 16%);
   --goals-line-soft: rgb(232 230 221 / 9%);
   --goals-field-line: rgb(232 230 221 / 24%);
   --goals-track: rgb(232 230 221 / 12%);
   --goals-sunk: rgb(232 230 221 / 6%);
-  --goals-done: #5aa07f;
-  --goals-success: #7fb894;
-  --goals-on-accent: #23201b;
+  --goals-done: var(--mm-sage-700-2);
+  --goals-success: var(--mm-sage-600);
+  --goals-on-accent: var(--mm-ink-950-9);
 }
 
 .goals-page .workspace-page-header {
@@ -60,7 +60,7 @@
 
 /* Botão "Nova meta": cores explícitas nos tokens canônicos do app
  * (nunca herda nem depende da ordem do CSS global). Claro: fundo
- * #1c2427 + texto #f7f2e7. Escuro: fundo #e8e6dd + texto #23201b.
+ * var(--mm-azure-950-4) + texto var(--mm-clay-150-6). Escuro: fundo var(--mm-gold-250-4) + texto var(--mm-ink-950-9).
  * Raio md (8px): o mesmo dos botões das páginas Revisar/Tags — a pílula
  * 999px destoava do restante do app. */
 .goals-page .goals-new-button,

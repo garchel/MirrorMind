@@ -4,14 +4,14 @@
    demais paginas (ex.: Tags). Assim os cabecalhos/superficies nunca herdam a
    cor do tema errado, independente do contexto onde a pagina renderiza. */
 .bases-page {
-  --bases-surface: #f2f1ec;
-  --bases-surface-raised: #fffef9;
-  --bases-header-bg: #f7f5ee;
-  --bases-line: #e2e0d8;
+  --bases-surface: var(--mm-gold-150-6);
+  --bases-surface-raised: var(--mm-gold-50-3);
+  --bases-header-bg: var(--mm-gold-150-12);
+  --bases-line: var(--mm-gold-300-5);
   --bases-line-soft: rgb(28 36 39 / 6%);
-  --bases-text: #3d3d38;
-  --bases-muted: #73736d;
-  --bases-accent: #2e6b4f;
+  --bases-text: var(--mm-ink-900-23);
+  --bases-muted: var(--mm-ink-800-11);
+  --bases-accent: var(--mm-sage-850);
   --bases-accent-soft: rgb(46 107 79 / 7%);
   display: flex;
   flex-direction: column;
@@ -24,14 +24,14 @@
 }
 
 [data-theme='dark'] .bases-page {
-  --bases-surface: #1e1b21;
-  --bases-surface-raised: #201d24;
-  --bases-header-bg: #232027;
-  --bases-line: #3a3640;
+  --bases-surface: var(--mm-ink-950-6);
+  --bases-surface-raised: var(--mm-ink-950-7);
+  --bases-header-bg: var(--mm-ink-950-10);
+  --bases-line: var(--mm-ink-900-20);
   --bases-line-soft: rgb(232 230 221 / 8%);
-  --bases-text: #e2e0da;
-  --bases-muted: #a8a59d;
-  --bases-accent: #8fc4b0;
+  --bases-text: var(--mm-ink-300-4);
+  --bases-muted: var(--mm-ink-600-5);
+  --bases-accent: var(--mm-sage-500);
   --bases-accent-soft: rgb(143 196 176 / 10%);
 }
 
@@ -108,7 +108,7 @@
 
 /* Botao "Colunas": abre o popover que escolhe quais propriedades aparecem.
    IMPORTANTE (bug do cabecalho escuro): o App tem regras globais
-   `.workspace-shell button { background: #292926; color: #fbfaf6 }` com
+   `.workspace-shell button { background: var(--mm-ink-950-17); color: var(--mm-gold-100-6) }` com
    especificidade (0,2,1) — maior que a de um simples `.bases-columns-button`
    (0,1,0). Sem o escopo `.workspace-shell`, esses botoes (e os de ordenacao
    do cabecalho) ficavam ESCUROS com texto claro, mesmo com o restante da
@@ -122,18 +122,18 @@
   min-height: 0; /* vence o min-height do `.workspace-shell button` */
   box-sizing: border-box;
   padding: 0 12px;
-  border: 1px solid #d8d6cf;
+  border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-sm);
-  background: #f2f1ec;
-  color: #3d3d38;
+  background: var(--mm-gold-150-6);
+  color: var(--mm-ink-900-23);
   font: 600 12px var(--sans);
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
 .workspace-shell .bases-columns-button:hover:not(:disabled) {
-  border-color: #2e6b4f;
-  color: #2e6b4f;
+  border-color: var(--mm-sage-850);
+  color: var(--mm-sage-850);
   background: rgb(46 107 79 / 7%);
 }
 
@@ -144,37 +144,37 @@
   height: 16px;
   padding: 0 4px;
   border-radius: 999px;
-  background: #2e6b4f;
-  color: #fff;
+  background: var(--mm-sage-850);
+  color: var(--mm-ink-50);
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
 }
 
 [data-theme='dark'] .workspace-shell .bases-columns-button {
-  border-color: #3a3640;
-  background: #1e1b21;
-  color: #e2e0da;
+  border-color: var(--mm-ink-900-20);
+  background: var(--mm-ink-950-6);
+  color: var(--mm-ink-300-4);
 }
 
 [data-theme='dark'] .workspace-shell .bases-columns-button:hover:not(:disabled) {
-  border-color: #8fc4b0;
-  color: #8fc4b0;
+  border-color: var(--mm-sage-500);
+  color: var(--mm-sage-500);
   background: rgb(143 196 176 / 10%);
 }
 
 [data-theme='dark'] .bases-columns-badge {
-  background: #8fc4b0;
-  color: #17151a;
+  background: var(--mm-sage-500);
+  color: var(--mm-ink-950-3);
 }
 
 .bases-error {
   margin: 0;
   padding: 8px 10px;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, #be4c3a 9%, transparent);
-  border: 1px solid color-mix(in srgb, #be4c3a 28%, transparent);
-  color: #8a3b2c;
+  background: color-mix(in srgb, var(--mm-brick-800-3) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mm-brick-800-3) 28%, transparent);
+  color: var(--mm-brick-850);
   font-size: 12px;
 }
 
@@ -230,9 +230,9 @@
   top: 0;
   z-index: 1;
   padding: 8px 10px;
-  border-bottom: 1px solid #e2e0d8;
-  background: #f7f5ee;
-  color: #6a6a62;
+  border-bottom: 1px solid var(--mm-gold-300-5);
+  background: var(--mm-gold-150-12);
+  color: var(--mm-ink-800-3);
   text-align: left;
   white-space: nowrap;
 }
@@ -256,26 +256,26 @@
 
 .workspace-shell .bases-th-button:hover:not(:disabled) {
   background: transparent;
-  color: #2e6b4f;
+  color: var(--mm-sage-850);
 }
 
 .workspace-shell .bases-th-button svg {
-  color: #2e6b4f;
+  color: var(--mm-sage-850);
 }
 
 [data-theme='dark'] .bases-table thead th {
-  border-bottom-color: #3a3640;
-  background: #232027;
-  color: #c9c6c0;
+  border-bottom-color: var(--mm-ink-900-20);
+  background: var(--mm-ink-950-10);
+  color: var(--mm-ink-450-4);
 }
 
 [data-theme='dark'] .workspace-shell .bases-th-button:hover:not(:disabled) {
   background: transparent;
-  color: #8fc4b0;
+  color: var(--mm-sage-500);
 }
 
 [data-theme='dark'] .workspace-shell .bases-th-button svg {
-  color: #8fc4b0;
+  color: var(--mm-sage-500);
 }
 
 .bases-table tbody td {
@@ -340,10 +340,10 @@
   width: min(300px, 92vw);
   padding: 0;
   overflow: hidden;
-  border: 1px solid #e2e0d8;
+  border: 1px solid var(--mm-gold-300-5);
   border-radius: var(--radius-lg);
-  background: #fffef9;
-  color: #3d3d38;
+  background: var(--mm-gold-50-3);
+  color: var(--mm-ink-900-23);
   box-shadow: 0 10px 30px rgb(28 36 39 / 14%);
 }
 
@@ -353,8 +353,8 @@
   justify-content: space-between;
   gap: 8px;
   padding: 9px 12px;
-  border-bottom: 1px solid #ece9e1;
-  color: #6a6a62;
+  border-bottom: 1px solid var(--mm-clay-200-3);
+  color: var(--mm-ink-800-3);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -362,7 +362,7 @@
 }
 
 .bases-column-picker-count {
-  color: #a3a39b;
+  color: var(--mm-ink-600-3);
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -384,7 +384,7 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: #3d3d38;
+  color: var(--mm-ink-900-23);
   font: 500 13px var(--sans);
   text-align: left;
   cursor: pointer;
@@ -405,22 +405,22 @@
   flex: none;
   width: 15px;
   height: 15px;
-  border: 1.5px solid #c2c0b6;
+  border: 1.5px solid var(--mm-ink-500-6);
   border-radius: var(--radius-xs);
-  background: #fffef9;
+  background: var(--mm-gold-50-3);
   color: transparent;
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
 .bases-column-row.is-checked .bases-column-check {
-  border-color: #2e6b4f;
-  background: #2e6b4f;
-  color: #fff;
+  border-color: var(--mm-sage-850);
+  background: var(--mm-sage-850);
+  color: var(--mm-ink-50);
 }
 
 .bases-column-row-icon {
   flex: none;
-  color: #8a8a82;
+  color: var(--mm-ink-700-2);
 }
 
 .bases-column-label {
@@ -432,19 +432,19 @@
 .bases-column-key {
   margin-left: auto;
   flex: none;
-  color: #a3a39b;
+  color: var(--mm-ink-600-3);
   font-size: 11px;
 }
 
 .bases-column-lock {
   margin-left: auto;
   flex: none;
-  color: #a3a39b;
+  color: var(--mm-ink-600-3);
 }
 
 .bases-column-picker-foot {
   padding: 8px;
-  border-top: 1px solid #ece9e1;
+  border-top: 1px solid var(--mm-clay-200-3);
 }
 
 .bases-columns-reset {
@@ -456,35 +456,35 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: #8a8a82;
+  color: var(--mm-ink-700-2);
   font: 500 12px var(--sans);
   cursor: pointer;
 }
 
 .bases-columns-reset:hover:not(:disabled) {
   background: rgb(46 107 79 / 7%);
-  color: #2e6b4f;
+  color: var(--mm-sage-850);
 }
 
 /* Tema escuro do popover (portalado: o escopo parte do proprio conteudo). */
 [data-theme='dark'] .ui-popover-content.bases-column-picker {
-  border-color: #3a3640;
-  background: #1e1b21;
-  color: #e2e0da;
+  border-color: var(--mm-ink-900-20);
+  background: var(--mm-ink-950-6);
+  color: var(--mm-ink-300-4);
   box-shadow: 0 10px 30px rgb(0 0 0 / 45%);
 }
 
 [data-theme='dark'] .bases-column-picker-head {
-  border-bottom-color: #312d36;
-  color: #a8a59d;
+  border-bottom-color: var(--mm-ink-900-7);
+  color: var(--mm-ink-600-5);
 }
 
 [data-theme='dark'] .bases-column-picker-count {
-  color: #8f8c86;
+  color: var(--mm-ink-700-5);
 }
 
 [data-theme='dark'] .bases-column-row {
-  color: #e2e0da;
+  color: var(--mm-ink-300-4);
 }
 
 [data-theme='dark'] .bases-column-row:hover:not(:disabled) {
@@ -492,37 +492,37 @@
 }
 
 [data-theme='dark'] .bases-column-check {
-  border-color: #4a4552;
-  background: #26232a;
+  border-color: var(--mm-ink-900-29);
+  background: var(--mm-ink-950-13);
 }
 
 [data-theme='dark'] .bases-column-row.is-checked .bases-column-check {
-  border-color: #8fc4b0;
-  background: #8fc4b0;
-  color: #17151a;
+  border-color: var(--mm-sage-500);
+  background: var(--mm-sage-500);
+  color: var(--mm-ink-950-3);
 }
 
 [data-theme='dark'] .bases-column-row-icon {
-  color: #a8a59d;
+  color: var(--mm-ink-600-5);
 }
 
 [data-theme='dark'] .bases-column-key {
-  color: #8f8c86;
+  color: var(--mm-ink-700-5);
 }
 
 [data-theme='dark'] .bases-column-lock {
-  color: #8f8c86;
+  color: var(--mm-ink-700-5);
 }
 
 [data-theme='dark'] .bases-column-picker-foot {
-  border-top-color: #312d36;
+  border-top-color: var(--mm-ink-900-7);
 }
 
 [data-theme='dark'] .bases-columns-reset {
-  color: #a8a59d;
+  color: var(--mm-ink-600-5);
 }
 
 [data-theme='dark'] .bases-columns-reset:hover:not(:disabled) {
   background: rgb(143 196 176 / 9%);
-  color: #8fc4b0;
+  color: var(--mm-sage-500);
 }

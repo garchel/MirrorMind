@@ -12,6 +12,8 @@
     "build:e2e:windows": "tauri build --debug --no-bundle --features e2e --config src-tauri/tauri.e2e.conf.json",
     "build:e2e:linux": "tauri build --debug --no-bundle --features e2e --config src-tauri/tauri.e2e.conf.json",
     "lint": "oxlint .",
+    "tokens:generate": "python scripts/tokenize-mirror.py",
+    "tokens:verify": "python scripts/verify-tokenization.py && python scripts/verify-semantics.py && python scripts/verify-domain-tokens.py && python scripts/verify-tokens.py",
     "fmt:check": "cargo fmt --manifest-path src-tauri/Cargo.toml --check",
     "preview": "vite preview",
     "test": "vitest run",

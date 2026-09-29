@@ -26,21 +26,21 @@
   padding: 5px 10px;
   border-radius: 999px;
   background: rgb(46 107 79 / 9%);
-  color: #2e6b4f;
+  color: var(--mm-sage-850);
   font-size: 12px;
   font-weight: 600;
 }
 
 .special-file-viewer-type {
   padding: 4px 9px;
-  border: 1px solid #d8d6cf;
+  border: 1px solid var(--mm-ink-350-3);
   border-radius: 999px;
-  color: #5f5f57;
+  color: var(--mm-ink-850-13);
   font: 11px var(--mono);
 }
 
 .special-file-viewer-type small {
-  color: #9a9a92;
+  color: var(--mm-ink-650-3);
 }
 
 .special-file-viewer-nodes {
@@ -50,7 +50,7 @@
   padding: 0;
   overflow: auto;
   list-style: none;
-  border: 1px solid #e2e0d8;
+  border: 1px solid var(--mm-gold-300-5);
   border-radius: var(--radius-md);
 }
 
@@ -72,12 +72,12 @@
   padding: 1px 7px;
   border-radius: 999px;
   background: var(--code-bg, rgba(39, 47, 51, 0.08));
-  color: #6a6a62;
+  color: var(--mm-ink-800-3);
   font: 10px var(--mono);
 }
 
 .special-file-viewer-node-text {
-  color: #3d3d38;
+  color: var(--mm-ink-900-23);
   white-space: pre-wrap;
 }
 
@@ -87,11 +87,11 @@
   margin: 10px 16px 0;
   padding: 12px;
   overflow: auto;
-  border: 1px solid #e2e0d8;
+  border: 1px solid var(--mm-gold-300-5);
   border-radius: var(--radius-md);
-  background: #fffef9;
+  background: var(--mm-gold-50-3);
   font: 11px/1.5 var(--mono);
-  color: #3d3d38;
+  color: var(--mm-ink-900-23);
   white-space: pre-wrap;
 }
 
@@ -111,15 +111,15 @@
 .special-file-viewer-note {
   background: rgb(190 76 58 / 9%);
   border: 1px solid rgb(190 76 58 / 25%);
-  color: #8a3b2c;
+  color: var(--mm-brick-850);
 }
 
 .special-file-viewer-unknown {
-  color: #8a8a82;
+  color: var(--mm-ink-700-2);
 }
 
 .special-file-viewer-files-note {
   margin-top: 10px;
   background: var(--code-bg, rgba(39, 47, 51, 0.06));
-  color: #6a6a62;
+  color: var(--mm-ink-800-3);
 }

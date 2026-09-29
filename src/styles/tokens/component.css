@@ -1,0 +1,141 @@
+/* ==================================================================
+ * CAMADA 3 — COMPONENTE
+ * O lugar onde um componente pode se ajustar sem sair do sistema.
+ * Regra de ouro: um componente so declara aqui o que E dele. Qualquer
+ * valor que outro componente tambem usa sobe para a camada 2.
+ *
+ * Esta camada ainda esta em construcao: os tokens abaixo cobrem o que o
+ * app ja repete em mais de um lugar (botao, campo, painel, chip, nota).
+ * Nenhum .tsx foi migrado para ainda; o objetivo e que a proxima tela
+ * nova nasca daqui em vez de copiar cor de outra feature.
+ *
+ * NENHUM hex literal entra neste arquivo -- so camada 1 e camada 2.
+ * ================================================================== */
+
+:root {
+  /* --- Botao ------------------------------------------------------------
+   * O app tem um botao generico global (base.css) e tres variacoes
+   * nomeadas: primaria (tinta cheia), secundaria (contorno) e perigo.
+   * As medidas sao o contrato do alvo de toque: 46px de altura e o
+   * minimo do projeto, 32px o piso para acoes densas. */
+  --button-height: 46px;
+  --button-height-sm: 32px;
+  --button-padding-x: var(--space-4);
+  --button-padding-x-sm: var(--space-3);
+  --button-radius: var(--radius-md);
+  --button-font: 600 1rem / 1.2 var(--sans);
+  --button-transition: transform 0.18s ease, opacity 0.18s ease,
+    background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+
+  /* primaria: a unica com tinta cheia. Uma por tela. */
+  --button-primary-bg: var(--button-bg);
+  --button-primary-fg: var(--button-text);
+  --button-primary-bg-hover: var(--text-inverse);
+  --button-primary-border: transparent;
+
+  /* secundaria: contorno sobre a superficie. O padrao do app. */
+  --button-secondary-bg: var(--button-secondary);
+  --button-secondary-fg: var(--text-h);
+  --button-secondary-bg-hover: var(--surface-raised);
+  --button-secondary-border: var(--border);
+
+  /* perigo: acao destrutiva. Nunca a unica acao da tela. */
+  --button-danger-bg: var(--status-bad);
+  --button-danger-fg: var(--surface-field);
+  --button-danger-bg-hover: var(--status-bad-strong);
+
+  /* desabilitado: opaco, sem feedback de hover -- um botao inerte nao
+   * deve parecer clicavel. */
+  --button-disabled-opacity: 0.6;
+  --button-disabled-cursor: not-allowed;
+
+  /* --- Campo (input / select / textarea) -------------------------------- */
+  --field-height: 48px;
+  --field-padding-x: 14px;
+  --field-radius: var(--radius-xl);
+  --field-bg: var(--surface-field);
+  --field-fg: var(--text-h);
+  --field-border: var(--border);
+  --field-border-hover: var(--border-strong);
+  --field-placeholder: var(--text-muted);
+  --field-focus-ring: var(--accent);
+  --field-font: 400 1rem / 1.5 var(--sans);
+
+  /* --- Painel / cartao --------------------------------------------------
+   * Um painel e uma superficie elevada com contorno. Card usa o mesmo
+   * vocabulario com menos sombra. */
+  --panel-border-radius: var(--radius-2xl);
+  --panel-inset-radius: var(--radius-xl);
+  --card-bg: var(--surface);
+  --card-fg: var(--text-normal);
+  --card-border: var(--line);
+  --card-radius: var(--radius-xl);
+  --card-padding: 18px;
+
+  /* --- Chip / badge -----------------------------------------------------
+   * Chip e um rotulo inline (tag, status, contagem). Nao e botao: nao
+   * tem hover proprio, so muda de opacidade para nao roubar atencao. */
+  --chip-padding: 3px 9px;
+  --chip-radius: 999px;
+  --chip-font: 11px / 1.2 var(--sans);
+  --chip-opacity: 0.62;
+  --chip-opacity-hover: 1;
+  --chip-fg: var(--text-muted);
+  --chip-border: var(--line-soft);
+
+  /* --- Aviso / erro ----------------------------------------------------
+   * Uma mensagem que precisa de atencao usa o slot bg-soft do status: a
+   * unica variante que aceita texto por cima. */
+  --notice-padding: 14px 16px;
+  --notice-radius: var(--radius-xl);
+  --notice-fg: var(--status-bad);
+  --notice-bg: var(--status-bad-bg-soft);
+  --notice-border: var(--status-bad-bg);
+
+  /* --- Aba / navegacao --------------------------------------------------
+   * Uma aba carrega um estado ativo que NAO e cor: e a superficie do
+   * editor aparecendo atras dela. Por isso ativo = fundo, nao tinta. */
+  --tab-height: 40px;
+  --tab-radius: var(--radius-xl);
+  --tab-bg: var(--surface-sunk);
+  --tab-bg-active: var(--bg);
+  --tab-fg: var(--text-muted);
+  --tab-fg-active: var(--text-h);
+  --tab-border: var(--line-soft);
+
+  /* --- Medidas de shell ------------------------------------------------- */
+  --titlebar-height: 40px;
+  --rail-width: 52px;
+
+  /* --- Espacamento -------------------------------------------------------
+   * Escala 4pt. Derivada da medicao real do app: 34 valores de px
+   * distintos em padding/margin/gap, dos quais 59,4% dos usos caem
+   * FORA da grade (2, 3, 6, 7, 9, 10, 11, 14, 18px...). Os degraus de
+   * 2 e 6 existem porque concentram uso -- mas o resto da escala e a
+   * correcao, nao a descricao do que ja estava ali.
+   *
+   * Regra: espacamento se escolhe desta escala ou de um multiplo dela.
+   * Um px avulso em padding e sempre um typo esperando acontecer. */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  /* Micro-ajustes que a grade nao cobre mas que aparecem muito: o anel
+   * de 2px de um badge, o respiro de 6px dentro de um controle. */
+  --space-hair: 2px;
+  --space-tight: 6px;
+  --space-loose: 14px;
+
+  /* --- Movimento --------------------------------------------------------
+   * Uma escala so, e prefers-reduced-motion zera tudo (ver theme.css). */
+  --duration-fast: 130ms;
+  --duration-base: 180ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}

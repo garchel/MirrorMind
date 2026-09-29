@@ -14,7 +14,7 @@
   border: 1px solid rgba(28, 36, 39, 0.22);
   border-radius: 999px;
   background: transparent;
-  color: var(--text-h, #1c2427);
+  color: var(--text-h, var(--mm-azure-950-4));
   font: 11px/1.2 var(--sans);
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -30,9 +30,9 @@
 .note-tag-picker-trigger:focus-visible,
 .note-tag-picker-trigger[aria-expanded='true'] {
   opacity: 1;
-  background: var(--button-bg, #1c2427);
+  background: var(--button-bg, var(--mm-azure-950-4));
   border-color: transparent;
-  color: var(--button-text, #f7f2e7);
+  color: var(--button-text, var(--mm-clay-150-6));
 }
 
 .note-tag-picker-chevron {
@@ -43,7 +43,7 @@
   transform: rotate(180deg);
 }
 
-/* Menu dropdown: mesma cor de fundo do workspace (#fbfaf6) para nao deixar
+/* Menu dropdown: mesma cor de fundo do workspace (var(--mm-gold-100-6)) para nao deixar
    o conteudo da nota aparecer por tras; itens com a fonte no tom preto das
    fontes (sobrepoe o escuro de `.workspace-shell button`). */
 .note-tag-picker-menu {
@@ -58,7 +58,7 @@
   padding: 5px;
   border: 1px solid rgba(28, 36, 39, 0.22);
   border-radius: var(--radius-sm);
-  background: var(--workspace-bg, #fbfaf6);
+  background: var(--workspace-bg, var(--mm-gold-100-6));
   box-shadow: 0 12px 26px rgb(52 51 46 / 0.14);
 }
 
@@ -68,7 +68,7 @@
   padding: 7px 8px;
   border-radius: var(--radius-xs);
   background: transparent;
-  color: var(--text-h, #1c2427);
+  color: var(--text-h, var(--mm-azure-950-4));
   text-align: left;
   font: 13px var(--sans);
   cursor: pointer;
@@ -84,7 +84,7 @@
 
 .note-tag-picker-menu p {
   margin: 5px 7px;
-  color: var(--muted, #7e7466);
+  color: var(--muted, var(--mm-ink-800-17));
   font: 12px/1.4 var(--sans);
 }
 
@@ -105,7 +105,7 @@
 
 .note-tag-impact-heading h3 {
   margin: 2px 0 0;
-  color: #292924;
+  color: var(--mm-ink-950-16);
   font-size: 18px;
 }
 
@@ -118,19 +118,19 @@
 
 .note-tag-impact-summary > div {
   padding: 9px;
-  border: 1px solid #e1dfd7;
+  border: 1px solid var(--mm-gold-300-3);
   border-radius: var(--radius-sm);
-  background: #f4f2ec;
+  background: var(--mm-clay-150-2);
 }
 
 .note-tag-impact-summary dt {
-  color: #77756e;
+  color: var(--mm-ink-800-14);
   font-size: 11px;
 }
 
 .note-tag-impact-summary dd {
   margin: 3px 0 0;
-  color: #32322d;
+  color: var(--mm-ink-900-9);
   font-size: 18px;
   font-weight: 600;
 }
@@ -140,10 +140,10 @@
   gap: 9px;
   margin: 16px 0;
   padding: 10px;
-  border: 1px solid #dbc995;
+  border: 1px solid var(--mm-clay-400-2);
   border-radius: var(--radius-sm);
-  background: #fff8e6;
-  color: #66562d;
+  background: var(--mm-clay-100-2);
+  color: var(--mm-clay-850);
 }
 
 .note-tag-review-warning p {

@@ -1,5 +1,5 @@
 /* Loader do grafo 3D: cena em SVG que espelha o visual real (fundo escuro,
- * nucleo ciano #8fe3ff, arestas #50688a, satelite verde #5fe6b4). Coreografia:
+ * nucleo ciano var(--mm-azure-350), arestas var(--mm-azure-850-8), satelite verde var(--mm-sage-400)). Coreografia:
  * orbita externa 14s, interna 22s em sentido contrario, pulso eletrico 1.8s e
  * respiracao do halo 2.4s — tudo em transform/opacity. Rotacoes e o dash do
  * pulso sao loops de progresso (linear permitido); o resto usa ease-in-out. */
@@ -20,7 +20,7 @@
 
 .graph3d-loader-ring {
   fill: none;
-  stroke: #50688a;
+  stroke: var(--mm-azure-850-8);
   stroke-opacity: 0.35;
   stroke-width: 1;
 }
@@ -30,28 +30,28 @@
 }
 
 .graph3d-loader-spoke {
-  stroke: #8fd4f2;
+  stroke: var(--mm-azure-400);
   stroke-opacity: 0.45;
   stroke-width: 1;
 }
 
 .graph3d-loader-sat {
-  stroke: #0d1117;
+  stroke: var(--mm-azure-950-2);
   stroke-width: 1.5;
 }
 
 .graph3d-loader-sat.is-cyan {
-  fill: #8fe3ff;
+  fill: var(--mm-azure-350);
   filter: drop-shadow(0 0 5px rgb(143 227 255 / 80%));
 }
 
 .graph3d-loader-sat.is-green {
-  fill: #5fe6b4;
+  fill: var(--mm-sage-400);
   filter: drop-shadow(0 0 5px rgb(95 230 180 / 80%));
 }
 
 .graph3d-loader-core {
-  fill: #d9f7ff;
+  fill: var(--mm-teal-150);
   filter: drop-shadow(0 0 8px rgb(143 227 255 / 90%));
 }
 
@@ -112,7 +112,7 @@
 
 .graph3d-loader-text {
   margin: 0;
-  color: #9fb4c8;
+  color: var(--mm-azure-550-2);
   font: 500 13px/1.5 var(--sans, system-ui, sans-serif);
   letter-spacing: 0.02em;
 }
