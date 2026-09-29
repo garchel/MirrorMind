@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from './ui/Button'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { BUILDER_FRIENDLY_NAMES } from '../lib/ui-structure'
 
@@ -89,7 +90,7 @@ export function BuilderModeControl({ enabled, onEnabledChange }: BuilderModeCont
 
   return (
     <>
-      <button
+      <Button
         type="button"
         className={`builder-mode-control${enabled ? ' is-enabled' : ''}${isDragging ? ' is-dragging' : ''}`}
         style={{ left: position.x, top: position.y }}
@@ -100,7 +101,7 @@ export function BuilderModeControl({ enabled, onEnabledChange }: BuilderModeCont
         aria-label={`Friendly Names - ${enabled ? 'ON' : 'OFF'}`}
       >
         <span>Friendly Names - {enabled ? 'ON' : 'OFF'}</span>
-      </button>
+      </Button>
 
       {tooltip?.name ? (
         <output className="builder-mode-tooltip" style={{ left: tooltip.x, top: tooltip.y }}>

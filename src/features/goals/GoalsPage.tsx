@@ -95,10 +95,10 @@ function ContentModeSelect({ labelledBy, value, onChange, disabled }: {
         }
       }}
     >
-      <button
+      <Button
         ref={triggerRef}
         type="button"
-        className="goals-combobox-trigger"
+        className="ui-button goals-combobox-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-labelledby={labelledBy}
@@ -107,7 +107,7 @@ function ContentModeSelect({ labelledBy, value, onChange, disabled }: {
       >
         <span>{selectedLabel}</span>
         <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
-      </button>
+      </Button>
       {open ? (
         <ul ref={menuRef} className="goals-combobox-menu" role="listbox" aria-labelledby={labelledBy}>
           {CONTENT_MODE_OPTIONS.map((option) => (
@@ -140,9 +140,9 @@ function ContentModeSelect({ labelledBy, value, onChange, disabled }: {
 function ContentModeTip({ tipId }: { tipId: string }) {
   return (
     <span className="goals-tip">
-      <button type="button" className="goals-tip-button" aria-label="Como funcionam as opções" aria-describedby={tipId}>
+      <Button type="button" className="ui-button goals-tip-button" aria-label="Como funcionam as opções" aria-describedby={tipId}>
         <Info size={13} strokeWidth={2} aria-hidden="true" />
-      </button>
+      </Button>
       <span className="goals-tip-text" role="tooltip" id={tipId}>
         <strong>Em branco:</strong> a nota nasce só com título, resumo do plano e seções vazias para preencher.{' '}
         <strong>Esqueleto com IA:</strong> a IA monta estrutura, perguntas-guia e tags a partir do objetivo e do texto da meta, sem inventar fatos; usa o provedor atual e consome orçamento — se falhar, a nota nasce em branco.
@@ -363,9 +363,9 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
         description="Defina o que quer aprender ou cole um texto — o app monta o card da meta com as notas em ordem lógica de estudo."
       >
         <div className="goals-header-actions">
-          <button type="button" className="goals-new-button" onClick={openModal}>
+          <Button type="button" className="ui-button goals-new-button" onClick={openModal}>
             <Plus size={15} strokeWidth={2.4} aria-hidden="true" /> Nova meta
-          </button>
+          </Button>
           <PageRefreshButton onRefresh={() => setReloadRequest((request) => request + 1)} disabled={loading} />
         </div>
       </PageHeader>
@@ -395,9 +395,9 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
             'Crie cada nota com o + e veja o progresso andar',
           ]}
           action={(
-            <button type="button" className="goals-new-button" onClick={openModal}>
+            <Button type="button" className="ui-button goals-new-button" onClick={openModal}>
               <Plus size={15} strokeWidth={2.4} aria-hidden="true" /> Criar primeira meta
-            </button>
+            </Button>
           )}
         />
       ) : (
@@ -406,9 +406,9 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
             const progress = goalProgress(goal)
             return (
               <li key={goal.id} className="goal-card">
-                <button
+                <Button
                   type="button"
-                  className="goal-card-hit"
+                  className="ui-button goal-card-hit"
                   onClick={() => setDetailId(goal.id)}
                   aria-label={`Abrir detalhes da meta ${goal.title}`}
                 />
@@ -504,9 +504,9 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
                       <code>{step.noteRelativePath ?? step.suggestedRelativePath}</code>
                     </div>
                     <div className="goal-step-side">
-                      <button
+                      <Button
                         type="button"
-                        className="goal-step-add"
+                        className="ui-button goal-step-add"
                         onClick={() => void handleCreateAndOpenNote(detailGoal, step.order)}
                         disabled={busy}
                         aria-busy={busy}
@@ -518,7 +518,7 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
                         ) : (
                           <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
                         )}
-                      </button>
+                      </Button>
                     </div>
                   </li>
                 )
@@ -559,14 +559,14 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
               <div className="goals-toast-stack">
                 <div className="goals-toast is-error" role="alert">
                   <span>{actionError}</span>
-                  <button
+                  <Button
                     type="button"
-                    className="goals-toast-close"
+                    className="ui-button goals-toast-close"
                     onClick={() => setActionError(null)}
                     aria-label="Fechar aviso de erro"
                   >
                     <X size={14} strokeWidth={2.2} aria-hidden="true" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : null}
@@ -653,15 +653,15 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
             <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setModalOpen(false)}>
               Cancelar
             </Button>
-            <button
+            <Button
               type="submit"
-              className="goals-submit-button"
+              className="ui-button goals-submit-button"
               disabled={!canSubmit}
               aria-busy={creating}
               title={!canSubmit && !creating ? 'Preencha o título e o objetivo para criar a meta' : undefined}
             >
               <Plus size={14} strokeWidth={2} aria-hidden="true" /> {creating ? 'Gerando plano…' : 'Criar meta e gerar plano'}
-            </button>
+            </Button>
           </div>
           {createError ? (
             <p role="alert" className="goals-error">

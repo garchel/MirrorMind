@@ -141,5 +141,47 @@ def verifica():
     return 0
 
 
+
+def verifica_classname_dinamico():
+    """Nenhuma interpolacao ${...} pode estar dentro de className="...".
+
+    O bug
+    -----
+    scripts/migrate-buttons.py reescrevia o className de um template
+    literal como se fosse string. Em tres botoes do App e do
+    EditorHeader, a expressao virou texto:
+
+        className="ui-button ... favorite-button${ativo ? ' is-active' : ''}"
+
+    Isso COMPILA. O typecheck passa, o build passa, o teste passa. E a
+    classe `is-active` nunca mais existe: o favorito ativo, o botao do
+    indexador e o toggle de ferramentas markdown pararam de acender.
+    Um bug de estado que so a inspecao visual pegaria — e que durou
+    tres commits antes de ser encontrado.
+
+    A forma correta e o template literal:
+
+        className={`ui-button ... favorite-button${ativo ? ' is-active' : ''}`}
+
+    Este gate e a forma barata de impedir que o migrador (ou um
+    find-and-replace) faca isso de novo.
+    """
+    ruins = []
+    for arq in sorted(
+            [p for p in (ROOT / 'src').rglob('*.tsx')]):
+        texto = arq.read_text(encoding='utf-8')
+        for m in re.finditer(r'className="([^"]*)"', texto):
+            if '${' in m.group(1):
+                lin = texto[:m.start()].count('\n') + 1
+                ruins.append((arq, lin, m.group(0)[:90]))
+    for arq, lin, txt in ruins:
+        print(f'  FALHA: {arq.relative_to(ROOT).as_posix()}:{lin}  {txt}')
+    if ruins:
+        print(f'\nFALHOU: {len(ruins)} className com ${{}} dentro de string '
+              'literal. Use template literal com crase, nao aspas.')
+        return 1
+    return 0
+
+
 if __name__ == '__main__':
-    sys.exit(verifica())
+    sys.exit(verifica() or verifica_classname_dinamico())

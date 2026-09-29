@@ -1,6 +1,7 @@
 import { RefreshCw, ShieldCheck, X } from 'lucide-react'
 import type { AppUpdaterController } from '../lib/useAppUpdater'
 import './UpdateBanner.css'
+import { Button } from './ui/Button'
 
 /** Banner de atualizacao disponivel do app. Fixo no canto inferior direito do
  * shell ativo (workspace ou selecao de vault), acima dos overlays comuns.
@@ -55,9 +56,9 @@ export function UpdateBanner({
           <small>
             Baixa a atualização assinada e instala sobre a versão atual.
           </small>
-          <button
+          <Button
             type="button"
-            className="update-banner-install"
+            className="ui-button update-banner-install"
             onClick={() => void (async () => {
               if (onBeforeInstall) await onBeforeInstall()
               await install()
@@ -65,19 +66,19 @@ export function UpdateBanner({
           >
             <ShieldCheck size={14} strokeWidth={1.8} aria-hidden="true" />
             Baixar e instalar
-          </button>
+          </Button>
         </div>
       )}
       {isDownloading ? null : (
-        <button
+        <Button
           type="button"
-          className="update-banner-close"
+          className="ui-button update-banner-close"
           onClick={dismiss}
           aria-label="Dispensar aviso de atualização"
           title="Dispensar"
         >
           <X size={14} strokeWidth={1.7} aria-hidden="true" />
-        </button>
+        </Button>
       )}
     </aside>
   )

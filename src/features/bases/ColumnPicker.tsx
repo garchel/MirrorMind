@@ -2,6 +2,7 @@ import { Check, Columns3, Hash, Lock, RotateCcw, type LucideIcon } from 'lucide-
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 import { COMMON_PROPERTIES } from '../../lib/commonProperties'
 import type { BaseColumn } from './bases'
+import { Button } from '../../components/ui/Button'
 
 type Props = {
   /** Todas as colunas disponiveis (nome + propriedades comuns e customizadas). */
@@ -29,9 +30,9 @@ export function ColumnPicker({ columns, visibleKeys, onToggle, onReset }: Props)
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
+        <Button
           type="button"
-          className="bases-columns-button"
+          className="ui-button bases-columns-button"
           aria-label="Escolher colunas da tabela"
           title="Escolher colunas"
         >
@@ -40,7 +41,7 @@ export function ColumnPicker({ columns, visibleKeys, onToggle, onReset }: Props)
           {visibleCount < propertyColumns.length ? (
             <span className="bases-columns-badge">{visibleCount}</span>
           ) : null}
-        </button>
+        </Button>
       </PopoverTrigger>
       <PopoverContent className="bases-column-picker" align="end" sideOffset={6}>
         <div className="bases-column-picker-head">
@@ -60,7 +61,7 @@ export function ColumnPicker({ columns, visibleKeys, onToggle, onReset }: Props)
             const Icon: LucideIcon = common?.icon ?? Hash
             const checked = visibleKeys.has(column.key)
             return (
-              <button
+              <Button
                 key={column.key}
                 type="button"
                 className={`bases-column-row${checked ? ' is-checked' : ''}`}
@@ -75,20 +76,20 @@ export function ColumnPicker({ columns, visibleKeys, onToggle, onReset }: Props)
                 <Icon size={14} strokeWidth={1.8} aria-hidden="true" className="bases-column-row-icon" />
                 <span className="bases-column-label">{common?.label ?? column.key}</span>
                 {common ? <span className="bases-column-key">{column.key}</span> : null}
-              </button>
+              </Button>
             )
           })}
         </div>
         <div className="bases-column-picker-foot">
-          <button
+          <Button
             type="button"
-            className="bases-columns-reset"
+            className="ui-button bases-columns-reset"
             onClick={onReset}
             title="Voltar a mostrar todas as propriedades"
           >
             <RotateCcw size={12} strokeWidth={1.75} aria-hidden="true" />
             <span>Restaurar padrão</span>
-          </button>
+          </Button>
         </div>
       </PopoverContent>
     </Popover>

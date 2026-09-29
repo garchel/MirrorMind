@@ -59,9 +59,9 @@ export function TabStrip({
               key={tabPath}
               className={`tab-chip${tabPath === activeNotePath ? ' is-active' : ''}`}
             >
-              <button
+              <Button
                 type="button"
-                className="tab-select"
+                className="ui-button tab-select"
                 onClick={() => void openNote(tabPath)}
                 disabled={loading || saving}
                 role="tab"
@@ -69,26 +69,26 @@ export function TabStrip({
                 aria-controls="note-editor"
               >
                 {tabName}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="tab-close"
+                className="ui-button tab-close"
                 onClick={() => closeTab(tabPath)}
                 disabled={loading || saving}
                 aria-label={`Fechar ${tabName}`}
               >
                 <X size={14} strokeWidth={1.7} aria-hidden="true" />
                 ×
-              </button>
+              </Button>
             </div>
           )
         })
       ) : (
         <p className="empty-tabs">As notas abertas aparecerão aqui em abas.</p>
       )}
-      <button type="button" className="new-tab-button" onClick={startNewNote} disabled={loading || saving} title="Nova nota na raiz do vault" aria-label="Nova nota na raiz do vault">
+      <Button type="button" className="ui-button new-tab-button" onClick={startNewNote} disabled={loading || saving} title="Nova nota na raiz do vault" aria-label="Nova nota na raiz do vault">
         <Plus size={16} strokeWidth={1.7} aria-hidden="true" />
-      </button>
+      </Button>
     </div>
   )
 }
@@ -114,9 +114,9 @@ export function WorkspaceRail({
   return (
     <aside className="workspace-rail" aria-label="Ferramentas do workspace" data-builder-name="workspace-rail">
       <TitleBarBrand />
-      <button
+      <Button
         type="button"
-        className="rail-button"
+        className="ui-button rail-button"
         onClick={() => setSidebarExpanded((isExpanded) => !isExpanded)}
         aria-label={isSidebarExpanded ? 'Recolher barra lateral' : 'Expandir barra lateral'}
         aria-expanded={isSidebarExpanded}
@@ -124,8 +124,8 @@ export function WorkspaceRail({
       >
         {isSidebarExpanded ? <BsLayoutSidebarInsetReverse size={17} aria-hidden="true" /> : <BsLayoutSidebarInset size={17} aria-hidden="true" />}
         <span className="rail-label rail-label--menu">Menu</span>
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         className={`rail-button${workspacePage === 'notes' ? ' is-active' : ''}`}
         onClick={() => setWorkspacePage('notes')}
@@ -134,8 +134,8 @@ export function WorkspaceRail({
       >
         <span className="rail-icon" aria-hidden="true">&#9998;</span>
         <span className="rail-label">Notas</span>
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         className={`rail-button${workspacePage === 'review' ? ' is-active' : ''}`}
         onClick={() => setWorkspacePage('review')}
@@ -144,8 +144,8 @@ export function WorkspaceRail({
       >
         <BookOpenCheck size={17} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Revisar</span>
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         className={`rail-button${workspacePage === 'goals' ? ' is-active' : ''}`}
         onClick={() => setWorkspacePage('goals')}
@@ -154,8 +154,8 @@ export function WorkspaceRail({
       >
         <Target size={17} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Metas</span>
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         className={`rail-button${workspacePage === 'dashboard' ? ' is-active' : ''}`}
         onClick={() => setWorkspacePage('dashboard')}
@@ -164,8 +164,8 @@ export function WorkspaceRail({
       >
         <LayoutDashboard size={17} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Painel</span>
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         className={`rail-button${workspacePage === 'reports' ? ' is-active' : ''}`}
         onClick={() => setWorkspacePage('reports')}
@@ -174,8 +174,8 @@ export function WorkspaceRail({
       >
         <ClipboardList size={17} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Relatórios</span>
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         className={`rail-button${workspacePage === 'tags' ? ' is-active' : ''}`}
         onClick={() => void openTagManagementPage()}
@@ -184,8 +184,8 @@ export function WorkspaceRail({
       >
         <Hash size={17} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Tags</span>
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         className={`rail-button${workspacePage === 'bases' ? ' is-active' : ''}`}
         onClick={() => setWorkspacePage('bases')}
@@ -194,8 +194,8 @@ export function WorkspaceRail({
       >
         <Table2 size={17} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Tabela</span>
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         className={`rail-button${workspacePage === 'graph' ? ' is-active' : ''}`}
         onClick={() => void openGraphPage()}
@@ -204,8 +204,8 @@ export function WorkspaceRail({
       >
         <Network size={17} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Grafo</span>
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         className={`rail-button${workspacePage === 'trash' ? ' is-active' : ''}`}
         onClick={() => void openTrashPage()}
@@ -214,17 +214,17 @@ export function WorkspaceRail({
       >
         <Trash2 size={16} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Lixeira</span>
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className="rail-button rail-button--bottom"
+        className="ui-button rail-button rail-button--bottom"
         onClick={() => setWorkspacePage('settings')}
         aria-label="Configurações"
         title="Configurações"
       >
         <span className="rail-icon" aria-hidden="true">&#9881;</span>
         <span className="rail-label">Configurações</span>
-      </button>
+      </Button>
     </aside>
   )
 }

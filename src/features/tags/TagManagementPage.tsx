@@ -240,7 +240,7 @@ function TagTreeBranch({ nodes, selected, expanded, querying, onSelect }: TagTre
         const isSelected = node.fullPath === selected
         return (
           <li key={node.fullPath} role="treeitem" aria-expanded={hasChildren ? isExpanded : undefined} aria-selected={isSelected}>
-            <button
+            <Button
               type="button"
               className={`tag-tree-row${isSelected ? ' is-selected' : ''}`}
               onClick={() => onSelect(node)}
@@ -256,7 +256,7 @@ function TagTreeBranch({ nodes, selected, expanded, querying, onSelect }: TagTre
               <span className="tag-tree-name">{node.name}</span>
               {node.entry?.rule?.autoEnroll ? <i className="tag-tree-dot is-review-on" aria-label="Revisão automática ativa" /> : null}
               <span className="tag-tree-count">{node.aggregateCount}</span>
-            </button>
+            </Button>
             {hasChildren && isExpanded ? (
               <TagTreeBranch nodes={node.children} selected={selected} expanded={expanded} querying={querying} onSelect={onSelect} />
             ) : null}
@@ -547,16 +547,16 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               placeholder="Buscar tag"
             />
           </label>
-          <button
+          <Button
             type="button"
-            className="tag-tree-create"
+            className="ui-button tag-tree-create"
             onClick={() => startCreate()}
             disabled={busy || loading || atRuleLimit}
             title={atRuleLimit ? 'Limite de 100 regras de tag atingido' : undefined}
           >
             <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
             Criar tag
-          </button>
+          </Button>
           {loading ? <TagsSkeleton /> : null}
           {!loading && filteredTree.length === 0 ? (
             <div className="tag-empty-state">

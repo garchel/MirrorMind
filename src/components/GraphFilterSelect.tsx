@@ -1,4 +1,5 @@
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Button } from './ui/Button'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 
@@ -77,7 +78,7 @@ export function GraphFilterSelect({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <button
+        <Button
           type="button"
           className={`graph-filter-select${value !== '' ? ' is-active' : ''}`}
           style={{ width }}
@@ -91,7 +92,7 @@ export function GraphFilterSelect({
           </span>
           <span className="graph-filter-select-value">{selected?.label ?? allLabel}</span>
           <ChevronDown size={13} strokeWidth={2} aria-hidden="true" />
-        </button>
+        </Button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
@@ -110,25 +111,25 @@ export function GraphFilterSelect({
           />
         </label>
         <div className="graph-filter-select-list" role="listbox" aria-label={label}>
-          <button
+          <Button
             type="button"
             role="option"
             aria-selected={value === ''}
-            className="graph-filter-select-option"
+            className="ui-button graph-filter-select-option"
             onClick={() => choose('')}
           >
             <span className="graph-filter-select-check" aria-hidden="true">
               {value === '' ? <Check size={13} strokeWidth={2.5} /> : null}
             </span>
             <span className="graph-filter-select-option-label">{allLabel}</span>
-          </button>
+          </Button>
           {visible.map((option) => (
-            <button
+            <Button
               key={option.value}
               type="button"
               role="option"
               aria-selected={option.value === value}
-              className="graph-filter-select-option"
+              className="ui-button graph-filter-select-option"
               title={option.label}
               onClick={() => choose(option.value)}
             >
@@ -136,7 +137,7 @@ export function GraphFilterSelect({
                 {option.value === value ? <Check size={13} strokeWidth={2.5} /> : null}
               </span>
               <span className="graph-filter-select-option-label">{option.label}</span>
-            </button>
+            </Button>
           ))}
           {visible.length === 0 ? (
             <p className="graph-filter-select-empty">Nenhum resultado para “{query.trim()}”.</p>

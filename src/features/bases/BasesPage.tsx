@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { ArrowDown, ArrowUp, Database, Search, Table2 } from 'lucide-react'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '../../lib/tauri'
@@ -233,9 +234,9 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
                   <th key={column.key} scope="col" aria-sort={
                     column.key === sortKey ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined
                   }>
-                    <button
+                    <Button
                       type="button"
-                      className="bases-th-button"
+                      className="ui-button bases-th-button"
                       onClick={() => toggleSort(column)}
                       aria-label={`Ordenar por ${column.label}${column.key === sortKey ? ` (${sortDirection === 'asc' ? 'crescente' : 'decrescente'})` : ''}`}
                     >
@@ -243,7 +244,7 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
                       {column.key === sortKey ? (
                         sortDirection === 'asc' ? <ArrowUp size={12} strokeWidth={2} aria-hidden="true" /> : <ArrowDown size={12} strokeWidth={2} aria-hidden="true" />
                       ) : null}
-                    </button>
+                    </Button>
                   </th>
                 ))}
               </tr>

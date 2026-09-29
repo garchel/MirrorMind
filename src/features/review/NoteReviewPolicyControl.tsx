@@ -363,9 +363,9 @@ export function NoteReviewPolicyControl({
                 <p className="card-kicker">{sourceLabel(policy)}</p>
                 <h3 id="review-policy-title">Política de revisão</h3>
               </div>
-              <button type="button" className="modal-close" aria-label="Fechar política de revisão" disabled={saving} onClick={closeDialog}>
+              <Button type="button" className="ui-button modal-close" aria-label="Fechar política de revisão" disabled={saving} onClick={closeDialog}>
                 <X size={16} strokeWidth={2.2} aria-hidden="true" />
-              </button>
+              </Button>
             </div>
 
             <div className="review-policy-body">

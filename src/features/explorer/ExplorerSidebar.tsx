@@ -202,7 +202,7 @@ export function ExplorerSidebar({
                 <div className="tag-filter-dropdown" role="dialog" aria-label="Filtro rápido de tags">
                   <div className="tag-filter-selection">
                     {selectedTags.map((tag) => (
-                      <button key={tag} type="button" className="tag-filter-chip" onClick={() => setSelectedTags((tags) => tags.filter((item) => item !== tag))}>#{tag} <X size={11} aria-hidden="true" /></button>
+                      <Button key={tag} type="button" className="ui-button tag-filter-chip" onClick={() => setSelectedTags((tags) => tags.filter((item) => item !== tag))}>#{tag} <X size={11} aria-hidden="true" /></Button>
                     ))}
                     <input autoFocus value={tagFilterQuery} onChange={(event) => setTagFilterQuery(event.target.value)} placeholder="Buscar tag" aria-label="Buscar tags" />
                   </div>
@@ -261,16 +261,16 @@ export function ExplorerSidebar({
         </div>
       </div>
       <footer className="vault-indicator">
-        <button
+        <Button
           type="button"
-          className="vault-switch-button"
+          className="ui-button vault-switch-button"
           onClick={() => void chooseExistingVault()}
           disabled={loading || saving}
           title={`${vault.path} — clique para trocar de vault`}
         >
           <span className="vault-indicator-icon" aria-hidden="true">&#9670;</span>
           <span>{vault.name}</span>
-        </button>
+        </Button>
         <Button type="button" className="ui-button ui-button--secondary ui-button--sm vault-refresh-button" onClick={() => void refreshNotes(vault.path)} disabled={loading || saving} title="Atualizar explorador" aria-label="Atualizar explorador de arquivos">
           <RefreshCw size={14} strokeWidth={1.5} aria-hidden="true" />
         </Button>
@@ -315,10 +315,10 @@ export function ExplorerItemMenu({
           <Pencil size={14} strokeWidth={1.5} aria-hidden="true" />
           Renomear
         </button>
-        <button type="button" role="menuitem" className="is-danger" onClick={() => { onDelete(menu.target); onClose() }}>
+        <Button type="button" role="menuitem" className="ui-button is-danger" onClick={() => { onDelete(menu.target); onClose() }}>
           <Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
           Enviar para lixeira
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -355,14 +355,14 @@ function VaultDiagnosticsBanner({
         <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onRetry}>
           Tentar novamente
         </Button>
-        <button
+        <Button
           type="button"
-          className="vault-diagnostics-dismiss"
+          className="ui-button vault-diagnostics-dismiss"
           onClick={onDismiss}
           aria-label="Fechar aviso de leitura parcial"
         >
           <span aria-hidden="true">&#10005;</span>
-        </button>
+        </Button>
       </div>
     </div>
   )

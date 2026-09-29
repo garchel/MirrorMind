@@ -58,10 +58,10 @@ tokens de componente definidos, **49 tem consumidor e 19 sao orfaos**.
 
 ### O que falta, em ordem de tamanho
 
-1. **183 `<button>` crus** em 39 arquivos. A migracao parou nos que
-   usavam `secondary/primary/danger-button` (150 de 184). Os 183
-   restantes sao de outros padroes: `.tab-close`, `.sk-chip-row`,
-   `.goal-card-hit` (auto-fechado, e um overlay), controles de toolbar.
+1. **83 `<button>` crus sem className** (de 183). As 100 que tinham
+   classe de contexto foram migradas em `d2a` — agora 252 `<Button>`.
+   As 83 restantes dependem do seletor de tag; ver a secao "Por que os
+   183 `<button>` restantes nao foram migrados" abaixo.
 
 2. **112 campos crus** (93 `<input>`, 10 `<select>`, 9 `<textarea>`).
    A migracao pegou os 25 que tinham classe; o resto herdava o reset
@@ -207,3 +207,55 @@ cada familia so e aplicada depois de:
 
 Se um passo falhar o terceiro ponto, o hex volta. O ganho de 39% nao
 vale um pixel de texto pior.
+
+### Por que os 183 `<button>` restantes nao foram migrados (medido)
+
+A camada 3 fechou em **49 tokens de componente, zero orfaos**. O que
+falta e adocao, e a barreira e concreta:
+
+**As 100 classes contextuais** (`.modal-close`, `.tab-close`,
+`.tree-note`, `.tag-filter-chip`...) nao usam seletor de tag, entao
+foram migradas: nenhuma variante nem densidade foi inventada, o
+`<Button>` entra so com `ui-button` + a classe original, e a
+especificidade do CSS permanece a mesma.
+
+**As 83 sem className** nao sao caso. A auditoria achou **58 regras CSS
+cujo seletor contem a tag `button`** e que declaram `min-height`. As
+principais:
+
+```text
+31x  .workspace-shell ... button
+ 4x  .tag-management-page ... button
+ 2x  .ui-popover-content ... button
+ 2x  .goals-page ... button
+ 1x  .modal ... button
+ 1x  .graph-export-popover ... button
+```
+
+Exemplo real, em `editor.css`:
+
+```css
+.workspace-shell .selection-format-popover button {
+  display: grid; width: 28px; min-height: 28px; padding: 0; ...
+}
+```
+
+Se `<button>` virar `<Button>`, o elemento deixa de casar com o
+seletor de tag e herda o `button { }` global de `base.css`
+(`min-height: 46px`, `border-radius: 999px`). Os 83 botões de toolbar
+do editor ficariam com 46px de altura em vez de 28px.
+
+Migrar isso exige reescrever as 58 regras de `button` para
+`.ui-button` (ou equivalente) — o que toca o shell inteiro, 20 arquivos de
+TSX e toda a cascata de workspace. E o que os tokens
+`--button-size-xs-*` (28px) foram feitos para expressar, mas a
+aplicacao e umaonda por si so, com E2E.
+
+Restam as 83, e o caminho e em dois passos:
+
+1. reescrever as 58 regras de seletor-de-tag para seletor-de-classe,
+   em um commit so, **sem migrar nenhum .tsx** — isso prepara o terreno
+   e nao muda nada visualmente, porque a especificidade se mantem;
+2. so entao os 83 sem classe, que passariam a poder usar `<Button>`.
+
+O passo 1 e o que destrava o resto, e ainda e seguro.

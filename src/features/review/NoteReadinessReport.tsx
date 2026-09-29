@@ -83,16 +83,16 @@ export function NoteReadinessReport({ attempt, isStaleReport, error, busy, onClo
       onKeyDown={handleDialogKeyDown}
     >
       <div className="note-review-report-topbar">
-        <button
+        <Button
           ref={closeButtonRef}
           type="button"
-          className="note-review-report-back"
+          className="ui-button note-review-report-back"
           onClick={onClose}
           aria-label="Voltar ao menu de avaliação e revisão"
         >
           <ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" />
           <span>Voltar</span>
-        </button>
+        </Button>
         <p className="card-kicker">Avaliação da nota</p>
       </div>
       <h2 id="readiness-report-title" className="note-review-report-title">

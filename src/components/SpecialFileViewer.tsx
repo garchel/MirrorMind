@@ -2,6 +2,7 @@ import { AlertTriangle, FileJson2, Shapes } from 'lucide-react'
 import { summarizeSpecialFile } from '../lib/specialFileView'
 import type { SpecialVaultFile } from '../lib/vault'
 import './special-file-viewer.css'
+import { Button } from './ui/Button'
 
 type Props = {
   file: SpecialVaultFile
@@ -34,7 +35,7 @@ export function SpecialFileViewer({ file, content, onClose }: Props) {
         <div className="move-item-heading">
           <strong>{KIND_LABELS[file.kind]}: {file.name}</strong>
           <span>Visualização somente leitura — o arquivo não é alterado e o código de plugin nunca é executado.</span>
-          <button autoFocus type="button" className="modal-close-button" onClick={onClose} aria-label="Fechar visualização do arquivo especial"><span aria-hidden="true">×</span></button>
+          <Button autoFocus type="button" className="ui-button modal-close-button" onClick={onClose} aria-label="Fechar visualização do arquivo especial"><span aria-hidden="true">×</span></Button>
         </div>
         {summary === null ? (
           <p className="special-file-viewer-unknown" role="status">Não há visualização estruturada para este tipo de arquivo.</p>

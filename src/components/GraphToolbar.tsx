@@ -228,9 +228,9 @@ export function GraphToolbar(props: GraphToolbarProps) {
           {graphFilterActive ? (
             <>
               <span className="graph-filter-count" role="status">{graphFilterMatchPaths?.size ?? 0} {(graphFilterMatchPaths?.size ?? 0) === 1 ? 'nota' : 'notas'}</span>
-              <button type="button" className="graph-filter-clear" onClick={() => { setGraphFolder(''); setGraphTag('') }} aria-label="Limpar filtro do grafo" title="Limpar filtro">
+              <Button type="button" className="ui-button graph-filter-clear" onClick={() => { setGraphFolder(''); setGraphTag('') }} aria-label="Limpar filtro do grafo" title="Limpar filtro">
                 <X size={12} strokeWidth={2} aria-hidden="true" />
-              </button>
+              </Button>
             </>
           ) : null}
         </span>
@@ -282,10 +282,10 @@ export function GraphToolbar(props: GraphToolbarProps) {
               <SlidersHorizontal size={14} strokeWidth={1.75} aria-hidden="true" />
               <strong>Configurações do grafo</strong>
             </span>
-            <button type="button" className="graph-settings-reset" onClick={resetGraph3dSettings} title="Restaurar os valores padrão" aria-label="Restaurar os valores padrão">
+            <Button type="button" className="ui-button graph-settings-reset" onClick={resetGraph3dSettings} title="Restaurar os valores padrão" aria-label="Restaurar os valores padrão">
               <RotateCcw size={12} strokeWidth={1.75} aria-hidden="true" />
               <span>Padroes</span>
-            </button>
+            </Button>
           </header>
           <section className="graph-settings-group" aria-label="Visual dos nós">
             <p className="graph-settings-group-title"><Palette size={12} strokeWidth={1.75} aria-hidden="true" /> Visual</p>
@@ -400,26 +400,26 @@ export function GraphToolbar(props: GraphToolbarProps) {
                       />
                       <span className="graph-settings-color-label" title={group.label}>{group.label}</span>
                       {override ? (
-                        <button
+                        <Button
                           type="button"
-                          className="graph-settings-color-reset"
+                          className="ui-button graph-settings-color-reset"
                           onClick={() => setGraphColorOverrides((current) => {
                             const next = { ...current }
                             delete next[group.key]
                             return next
                           })}
                           aria-label={`Restaurar cor padrao do grupo ${group.label}`}
-                        >Restaurar</button>
+                        >Restaurar</Button>
                       ) : null}
                     </label>
                   )
                 })}
                 {Object.keys(graphColorOverrides).length > 0 ? (
-                  <button
+                  <Button
                     type="button"
-                    className="graph-settings-color-reset-all"
+                    className="ui-button graph-settings-color-reset-all"
                     onClick={() => setGraphColorOverrides({})}
-                  >Restaurar todas as cores</button>
+                  >Restaurar todas as cores</Button>
                 ) : null}
               </section>
             ) : null}
