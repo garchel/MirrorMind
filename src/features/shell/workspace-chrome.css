@@ -820,7 +820,7 @@ label.settings-toggle {
 }
 
 .note-search-results button:hover:not(:disabled) {
-  background: var(--mm-moss-200-2);
+  background: var(--mm-moss-150-2);
 }
 
 .note-search-results small,
@@ -945,7 +945,7 @@ label.settings-toggle {
 }
 
 .workspace-shell .special-file-kind.is-excalidraw {
-  background: var(--mm-moss-150-3);
+  background: var(--mm-moss-150-2);
   color: var(--mm-moss-850);
 }
 

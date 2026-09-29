@@ -85,11 +85,11 @@
   --review-ok-soft: var(--mm-moss-900);
   --review-ok-bg: var(--mm-moss-300);
   --review-ok-bg-strong: var(--mm-moss-500);
-  --review-ok-bg-soft: var(--mm-sage-150);
+  --review-ok-bg-soft: var(--mm-sage-150-2);
   --review-bad: var(--mm-brick-850-11);
   --review-bad-strong: var(--mm-brick-900-3);
   --review-bad-bg: var(--mm-brick-350);
-  --review-bad-bg-soft: var(--mm-brick-150);
+  --review-bad-bg-soft: var(--mm-brick-200-3);
   --review-info: var(--mm-azure-850);
   --review-info-bg: var(--mm-azure-150-2);
   --review-alt: var(--mm-lilac-850);

@@ -5,7 +5,7 @@
 }
 
 .note-review-policy-trigger-error {
-  color: var(--danger, var(--mm-brick-850-9));
+  color: var(--danger, var(--mm-brick-850-10));
 }
 
 /* Overlay removido: o diálogo usa o `<Modal>` compartilhado
@@ -188,7 +188,7 @@
 
 .review-policy-error {
   margin-top: 9px !important;
-  color: var(--danger, var(--mm-brick-850-9));
+  color: var(--danger, var(--mm-brick-850-10));
   font-size: 13px;
 }
 

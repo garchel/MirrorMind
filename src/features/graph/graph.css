@@ -635,7 +635,7 @@
   padding: 10px 6px;
   border: 1px solid rgb(28 36 39 / 8%);
   border-radius: var(--radius-lg);
-  background: var(--mm-moss-150-6);
+  background: var(--mm-moss-150-5);
 }
 
 .workspace-shell .graph-detail-stat strong {
@@ -700,7 +700,7 @@
 
 .workspace-shell .graph-note-drawer-ref:hover {
   border-color: rgb(46 107 79 / 35%);
-  background: var(--mm-sage-200);
+  background: var(--mm-sage-200-2);
 }
 
 .workspace-shell .graph-note-drawer-actions {

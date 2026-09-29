@@ -47,7 +47,7 @@
 }
 
 .graph-filter-select.is-active .graph-filter-select-icon {
-  color: var(--mm-sage-850-7);
+  color: var(--mm-sage-850-5);
 }
 
 .graph-filter-select-value {
@@ -59,7 +59,7 @@
 }
 
 .graph-filter-select.is-active .graph-filter-select-value {
-  color: var(--mm-sage-900-4);
+  color: var(--mm-sage-900-8);
   font-weight: 600;
 }
 
@@ -136,7 +136,7 @@
 
 .graph-filter-select-option[aria-selected='true'] {
   background: var(--mm-moss-200);
-  color: var(--mm-sage-900-4);
+  color: var(--mm-sage-900-8);
   font-weight: 600;
 }
 
@@ -145,7 +145,7 @@
   flex: none;
   width: 15px;
   justify-content: center;
-  color: var(--mm-sage-850-7);
+  color: var(--mm-sage-850-5);
 }
 
 .graph-filter-select-option-label {
@@ -215,12 +215,12 @@
 }
 
 .workspace-shell .note-graph-node.is-match .note-graph-node-dot {
-  border-color: var(--mm-sage-850-7);
+  border-color: var(--mm-sage-850-5);
   box-shadow: 0 0 0 3px rgb(63 107 76 / 26%), 0 2px 6px rgb(44 54 45 / 14%);
 }
 
 .workspace-shell .note-graph-node.is-match .note-graph-node-label {
-  color: var(--mm-sage-900-4);
+  color: var(--mm-sage-900-8);
 }
 
 .workspace-shell .note-graph-links line.is-matched {

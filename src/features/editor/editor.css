@@ -205,11 +205,11 @@
 
 .workspace-shell .editor-actions > .indexadora-button.is-active {
   color: var(--mm-sage-850);
-  background: var(--mm-sage-200);
+  background: var(--mm-sage-200-2);
 }
 
 .workspace-shell .editor-actions > .indexadora-button.is-active:hover {
-  background: var(--mm-sage-250);
+  background: var(--mm-sage-250-2);
 }
 
 /* Cabecalho: titulo a esquerda, status a direita, na mesma linha. */
@@ -2778,8 +2778,8 @@
 .workspace-shell .obsidian-callout[data-callout="success"],
 .workspace-shell .obsidian-callout[data-callout="check"],
 .workspace-shell .obsidian-callout[data-callout="done"] {
-  --callout-accent: var(--mm-sage-850-6);
-  --callout-surface: var(--mm-moss-150);
+  --callout-accent: var(--mm-sage-850-5);
+  --callout-surface: var(--mm-moss-150-2);
 }
 
 .workspace-shell .obsidian-callout[data-callout="warning"],
@@ -2793,7 +2793,7 @@
 .workspace-shell .obsidian-callout[data-callout="error"],
 .workspace-shell .obsidian-callout[data-callout="bug"] {
   --callout-accent: var(--mm-brick-900-2);
-  --callout-surface: var(--mm-brick-200);
+  --callout-surface: var(--mm-brick-200-3);
 }
 
 .workspace-shell .obsidian-callout[data-callout="quote"],

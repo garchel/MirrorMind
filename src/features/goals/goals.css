@@ -11,8 +11,8 @@
   --goals-field-line: var(--mm-ink-450-2);
   --goals-track: var(--mm-gold-250-3);
   --goals-sunk: var(--mm-clay-150-2);
-  --goals-done: var(--mm-sage-850-3);
-  --goals-success: var(--mm-sage-850-3);
+  --goals-done: var(--mm-sage-850-2);
+  --goals-success: var(--mm-sage-850-2);
   --goals-on-accent: var(--mm-ink-50);
   gap: 24px;
 }
