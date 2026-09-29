@@ -26,6 +26,17 @@ Como reconhecer: o mesmo commit passa no diretorio principal e falha em
 toda execucao no worktree, **sempre no mesmo teste**. Flakiness real
 alterna entre testes; esta falha e sempre a mesma.
 
+Taxa medida (2026-09-29, ao investigar uma falha de suite):
+
+| onde | execucoes | resultado |
+|---|---|---|
+| worktree novo em `93a8a75^` | 10 | **10 falharam**, sempre o mesmo teste, sempre 1 unica falha |
+| diretorio principal | 5 | 5 passaram (991/991) |
+
+10/10 com exatamente uma falha e um unico nome de teste nao e flakiness:
+e determinismo. Flakiness seria "as vezes passa, as vezes nao" e com
+testes diferentes a cada vez.
+
 Antes de classificar qualquer falha como flakiness, compare:
 
 ```bash
