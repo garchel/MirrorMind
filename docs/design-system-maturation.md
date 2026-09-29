@@ -42,30 +42,63 @@ tamanhos token a token contra o baseline.
 
 ## Pendencias conhecidas
 
-1. **Camada 3: ondas 1 e 2 feitas, ondas 3+ sao opcionais.**
-   `<Button>` existe em `src/components/ui/Button.tsx`, com
-   `variant` (primary/secondary/danger), `size` (xs/sm/md) e
-   `className` aberto para ajuste de contexto. **150 botoes em 31
-   arquivos** migrados, aparencia inalterada por construcao: as
-   classes antigas continuam no `className`, e as regras `.ui-button--*`
-   tem especificidade (0,1,0) — abaixo das 42 regras de 2-3 classes que
-   ajustam o contexto.
+Medido em `camada3-primitivos` (2026-09-29), nao estimado.
 
-   O que falta, se algo for necessario: `<Input>`, `<Card>` e `<Chip>`
-   tem token em `component.css` mas nenhum primitivo os usa. Os 150
-   botoes restantes (que nao eram `secondary/primary/danger-button`)
-   sao de outros padroes e continuam inline.
-2. **`--serif` criado (`b7a8354`).** 4 usos na Revisao. Agora existe de
-   proposito e o acento serifado acontece.
-3. **`.gitattributes` aplicado.** Resolve a falha de fixture em worktree
-   novo: era 0/5, agora 991/991 com o arquivo em 377 bytes e zero CRLF.
-4. **Rust/coverage na CI falha em `main` tambem** (verificado em
-   `bca78d8` e `1cb754b`, ambos anteriores ao design system):
+### A camada 3 esta pela metade, e isso e um numero
+
+| primitivo | uso real | tokens que le |
+|---|---:|---|
+| `<Button>` | 152 | `--button-*` |
+| `<Field>` | 22 | `--field-*` |
+| `<Card>` | 2 | `--card-*` |
+| `<Badge>` | 1 | `--chip-*` |
+
+Tokens de componente consumidos: **19 -> 77 referencias**. Dos 68
+tokens de componente definidos, **49 tem consumidor e 19 sao orfaos**.
+
+### O que falta, em ordem de tamanho
+
+1. **183 `<button>` crus** em 39 arquivos. A migracao parou nos que
+   usavam `secondary/primary/danger-button` (150 de 184). Os 183
+   restantes sao de outros padroes: `.tab-close`, `.sk-chip-row`,
+   `.goal-card-hit` (auto-fechado, e um overlay), controles de toolbar.
+
+2. **112 campos crus** (93 `<input>`, 10 `<select>`, 9 `<textarea>`).
+   A migracao pegou os 25 que tinham classe; o resto herdava o reset
+   global de `base.css`. Migrar exigiria decidir o visual de cada um —
+   hoje nao ha um "campo" no app, ha tres tags com aparencia que
+   depende de onde aparecem.
+
+3. **15 alturas de botao distintas** no CSS do app (14, 18, 20, 22,
+   24, 26, 28, 30, 34, 36, 37, 40px), e o `size` do `<Button>` cobre
+   3 (`xs`/`sm`/`md`). A escala foi medida para os 3 grupos mais
+   frequentes (glifo/compacto/padrao); o resto e ajuste de contexto
+   que fica no `className`. Reduzir isso exige decisao de design sobre
+   quantas densidades o app deve ter — nao e refatoracao.
+
+4. **19 tokens orfaos** em tres grupos:
+   - botao (5): `--button-height`, `--button-height-sm`,
+     `--button-padding-x`, `--button-padding-x-sm`, `--button-font`.
+     Declarados como 46px e 32px, que **nao batem com nenhuma altura
+     real** do app. Estao orfaos porque o `.ui-button` hardcodes a
+     geometria em `--button-size-{xs,sm,md}-*`. Sao tokens que
+     contradizem a medicao: devem ser removidos ou corrigidos.
+   - aviso (5): `--notice-*`. O app tem `.error-banner` e
+     `.special-files-limit-notice`, que nao leem nenhum token.
+   - tab (9): `--tab-*`. O app tem `.tab-strip`, `.tab-chip`,
+     `.tab-select`, `.tab-close`, todos com CSS proprio.
+   - panel (2): `--panel-border-radius`, `--panel-inset-radius`.
+
+### Fora do escopo (pre-existente)
+
+5. **Rust/coverage na CI falha na `main` tambem** (verificado em
+   `bca78d8` e `1cb754b`, anteriores ao design system):
    `Missing coverage report: coverage/rust/lcov.info` e falha em
-   `cargo test`. Nao e regressao deste trabalho — e toolchain, nao
-   codigo. Os gates de token passam:
-   `Design system gates: success` nos jobs `validate` e
-   `windows-validation`.
+   `cargo test`. Nao e regressao. No job Windows, `Frontend tests`
+   estava falhando por outra causa — stderr tratado como erro pelo
+   PowerShell — e isso **foi corrigido** (`d061c61`): agora o JUnit e
+   a autoridade. `Windows required` passa em `Frontend tests`,
+   `Design system gates`, `Lint`, `Typecheck` e `Frontend build`.
 
 ## Concluido nesta rodada
 
