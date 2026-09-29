@@ -2,6 +2,42 @@
 
 Esta politica preserva a confianca nos gates do MirrorMind. Um teste e considerado suspeito de flakiness quando o mesmo codigo e ambiente produzem falha e sucesso sem uma mudanca relevante que explique o resultado.
 
+## Armadilha de ambiente: `core.autocrlf` sem `.gitattributes`
+
+**Esta nao e flakiness: e uma falha deterministica que so aparece em
+worktree novo, e ela ja custou uma investigacao errada.**
+
+O repositorio tem `core.autocrlf=true` e **nao tem `.gitattributes`**. Num
+checkout novo, o git converte arquivos de texto para CRLF. Os testes que
+parseiam markdown com regex ancorada em `\n` quebram silenciosamente:
+
+```
+src/fixtures/obsidian-vault/compatibility.test.ts
+  match(/^---\n([\s\S]*?)\n---/m)
+```
+
+Com CRLF o `\n` nao casa, o grupo opcional cai em `''` e a assercao
+`setMarkdownFrontmatterSource(...)` falha. No diretorio de trabalho
+principal o arquivo ja estava em LF (nunca foi re-checkout), entao passa.
+Da a impressao de que o teste e "intermitente", quando na verdade e
+determinista e so depende de **onde** o codigo foi escrito.
+
+Como reconhecer: o mesmo commit passa no diretorio principal e falha em
+toda execucao no worktree, **sempre no mesmo teste**. Flakiness real
+alterna entre testes; esta falha e sempre a mesma.
+
+Antes de classificar qualquer falha como flakiness, compare:
+
+```bash
+git config --get core.autocrlf
+ls .gitattributes 2>/dev/null || echo "sem .gitattributes (risco)"
+git show HEAD:<fixture.md> | head -c 20 | xxd | head -1   # LF = 0a
+```
+
+Fix provavel (nao aplicado aqui: mexe em todo o checkout do repo e nao foi
+pedido): adicionar `.gitattributes` com `* text=auto eol=lf` para os
+fixtures, ou tornar as regex tolerantes a CRLF.
+
 ## Regra do gate
 
 - A primeira falha reprova o gate. Aprovacao em uma nova execucao nao apaga a falha original.
