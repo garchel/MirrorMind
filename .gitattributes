@@ -1,0 +1,34 @@
+# Normaliza fim de linha no repositorio inteiro.
+#
+# Sem isto, core.autocrlf=true no Windows reescreve TODO arquivo de texto
+# para CRLF num checkout novo, e os testes que parseiam markdown com regex
+# ancorada em \n passam a falhar. Foi medido: 10 de 10 execucoes no
+# worktree novo falhavam em src/fixtures/obsidian-vault/compatibility.test.ts
+# (que extrai frontmatter com /^---\n([\s\S]*?)\n---/m), enquanto o
+# diretorio principal passava porque o arquivo ja estava em LF.
+#
+# `text=auto` deixa o git detectar texto; `eol=lf` fixa LF no repositorio
+# (o blob) e CRLF apenas na saida em Windows se `eol=crlf` fosse pedido.
+# LF e a escolha: e o que o index ja usa, e o que o regex espera.
+* text=auto eol=lf
+
+# Fixtures de teste: conteudo de vault, nunca deve ser reescrito.
+src/fixtures/** text eol=lf
+
+# Binarios: nunca tocar.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.mp3 binary
+*.mp4 binary
+*.zip binary
+*.exe binary
+*.dll binary
+*.node binary
