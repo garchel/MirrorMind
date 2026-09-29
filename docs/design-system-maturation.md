@@ -5,9 +5,10 @@ Estado: branch `design-system-maturation`, apos `93a8a75` (as 3 camadas
 
 ## Progresso
 
-**456 → 278 primitivas (-39%).** Seis familias consolidadas, cada uma em
-commit proprio, com os gates medindo o drift em vez de eu afirmar que
-nao houve:
+**456 → 278 primitivas (-39%)** e **29 → 10 papeis tipograficos**.
+Sete familias de cor consolidadas e a escala tipografica aplicada, cada
+uma em commit proprio, com os gates medindo o drift em vez de eu
+afirmar que nao houve:
 
 | familia | antes | depois | commit |
 |---|---|---|---|
@@ -18,9 +19,10 @@ nao houve:
 | `brick` | 39 | 35 | `b155a42` |
 | `ink` | 161 | 75 | `d272497` |
 | `clay` | 90 | 63 | `8f6fd78` |
+| tipografia | 29 literais | 10 papeis | `404f35c` |
 
-Restam 17 tokens de ganho possivel (6,1%) — abaixo do limiar que vale a
-risco de mover pixel. `sage`, `lilac` e `teal` estao esgotados.
+Restam 17 tokens de ganho possivel em cor (6,1%) — abaixo do limiar que
+vale a risco de mover pixel. `sage`, `lilac` e `teal` estao esgotados.
 
 **Drift acumulado:** 569 referencias, DeltaE max **2,29** — todas abaixo
 do piso perceptual de 2,3. Os gates estritos continuam **falhando**, como
@@ -29,6 +31,14 @@ devem: a consolidacao move pixel, e isso precisa ficar visivel.
 **Auditoria de contraste:** os 185 pares cor/fundo reais do app foram
 medidos antes e depois de cada familia. Zero quebras de AA. Um par
 melhorou (4,46 → 4,51). Maior variacao: 0,577 de razao.
+
+**Escala tipografica:** 224 tamanhos convertidos em 33 arquivos, com
+`small = 13px` e `caption = 12px` decididos pelo usuario. 22px e 28px
+ficaram literais de proposito (+2/+4px em titulo de largura variavel
+aperta a linha, e nenhum gate mede layout). Verificacao visual via
+Playwright: os tokens resolvem no valor decidido e nao ha overflow nem
+texto cortado. Gate: `npm run tokens:verify:type`, que casa 536
+tamanhos token a token contra o baseline.
 
 ## Pendencias conhecidas
 
@@ -39,13 +49,13 @@ melhorou (4,46 → 4,51). Maior variacao: 0,577 de razao.
    (3,6:1) ou ~`#6b6a63` (5,3:1). Mudanca de cor visivel: decisao sua.
 2. **Camada 3 sem uso.** `--button-*` esta definido, mas 117 botoes
    ainda com `className="secondary-button"` inline.
-3. **Zero tokens de `font-size`.** 29 literais, 532 ocorrencias, sem
-   escala. Proposta em `docs/type-scale-proposal.md` — 10 papeis, deriva
-   de `scripts/type-scale.py`. Nao aplicada: o risco e layout, e nenhum
-   gate mede layout.
-4. **`--serif` nao existe.** 3 titulos da Revisao usam `var(--serif,
+3. **`--serif` nao existe.** 3 titulos da Revisao usam `var(--serif,
    var(--sans))`; se a intencao era uma serif de verdade para o relatorio
    de sintese, o token precisa ser criado de proposito.
+4. **`.gitattributes` ausente com `core.autocrlf=true`.** Faz um teste
+   de fixture falhar 10/10 em worktree novo. Ver
+   `docs/testing-flakiness.md`. Nao apliquei: mexe em todo o checkout
+   do repo.
 
 ## O defeito original (para referencia)
 
