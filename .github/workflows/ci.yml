@@ -46,6 +46,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Design system gates
+        run: npm run tokens:verify:drift && npm run tokens:verify:type
+
       - name: Lint
         run: npm run lint
 
@@ -163,6 +171,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Design system gates
+        run: npm run tokens:verify:drift && npm run tokens:verify:type
 
       - name: Lint
         run: npm run lint

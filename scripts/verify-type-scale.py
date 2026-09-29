@@ -30,6 +30,7 @@ import sys
 import glob
 import argparse
 import subprocess
+from token_baseline import require_baseline
 import collections
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -113,6 +114,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--verbose', action='store_true')
     args = ap.parse_args()
+
+    if not require_baseline():
+        return 1
 
     tokens = load_tokens()
     if not tokens:

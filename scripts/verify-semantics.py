@@ -13,7 +13,8 @@ import sys
 import argparse
 import math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from token_baseline import git_show, BASELINE  # noqa: E402
+from token_baseline import (git_show, require_baseline,  # noqa: E402
+                                BASELINE)
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -144,6 +145,9 @@ def main():
                     help='aceita drift perceptual ate este DeltaE, para '
                          'comparar contra o baseline apos consolidacao')
     args = ap.parse_args()
+
+    if not require_baseline():
+        return 1
 
     idx_src = head_index(args.index)
     if idx_src is None:

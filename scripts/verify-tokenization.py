@@ -48,7 +48,8 @@ import subprocess
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from token_baseline import git_show, BASELINE  # noqa: E402
+from token_baseline import (git_show, require_baseline,  # noqa: E402
+                                BASELINE)
 
 HEX_RE = re.compile(r'#[0-9a-fA-F]{3,8}\b')
 TOKEN_RE = re.compile(r'--mm-[a-z]+-[a-z0-9]+(?:-[a-z0-9]+)*')
@@ -124,6 +125,9 @@ def main():
                          f'{TOLERANCE}). Sem o flag, so hex identico passa')
     ap.add_argument('--tolerance', type=float, default=TOLERANCE)
     args = ap.parse_args()
+
+    if not require_baseline():
+        return 1
 
     prim = load_primitives()
     if not prim:

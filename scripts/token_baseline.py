@@ -32,6 +32,25 @@ def git_show(rel, ref=None):
     return p.stdout.decode('utf-8', 'replace')
 
 
+def require_baseline():
+    """Falha com explicacao em vez de devolver hex vazio.
+
+    Os gates comparam o worktree contra este commit. Num clone raso
+    (fetch-depth: 1) o commit nao existe e a comparacao vira lista
+    vazia -- que produz o pior resultado possivel: o gate acusa
+    divergencia em TUDO, ou (pior) passa sem comparar nada. Verificar
+    a existencia aqui transforma isso em erro legivel.
+    """
+    p = subprocess.run(['git', 'rev-parse', '--verify', f'{BASELINE}^{{commit}}'],
+                       cwd=ROOT, capture_output=True)
+    if p.returncode != 0:
+        print(f'FALHA: o baseline {BASELINE} nao existe neste clone.')
+        print('  Os gates de token comparam o worktree contra esse commit.')
+        print('  Em CI, garanta checkout completo (sem fetch-depth: 1).')
+        return False
+    return True
+
+
 def resolve_ref(ref=None):
     """SHA do baseline, para relatar nos gates."""
     r = ref or BASELINE
