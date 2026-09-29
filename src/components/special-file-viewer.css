@@ -35,12 +35,12 @@
   padding: 4px 9px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: 999px;
-  color: var(--mm-ink-850-13);
+  color: var(--mm-ink-850-14);
   font: 11px var(--mono);
 }
 
 .special-file-viewer-type small {
-  color: var(--mm-ink-650-3);
+  color: var(--mm-ink-650-4);
 }
 
 .special-file-viewer-nodes {
@@ -72,7 +72,7 @@
   padding: 1px 7px;
   border-radius: 999px;
   background: var(--code-bg, rgba(39, 47, 51, 0.08));
-  color: var(--mm-ink-800-3);
+  color: var(--mm-ink-800-4);
   font: 10px var(--mono);
 }
 
@@ -121,5 +121,5 @@
 .special-file-viewer-files-note {
   margin-top: 10px;
   background: var(--code-bg, rgba(39, 47, 51, 0.06));
-  color: var(--mm-ink-800-3);
+  color: var(--mm-ink-800-4);
 }

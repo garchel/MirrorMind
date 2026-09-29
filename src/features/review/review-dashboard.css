@@ -553,7 +553,7 @@
 }
 
 .review-dashboard-dialog-copy strong {
-  color: var(--ink, var(--mm-ink-950-21));
+  color: var(--ink, var(--mm-ink-950-22));
   font-weight: 600;
 }
 
@@ -566,7 +566,7 @@
 .review-dashboard-dialog-field > span {
   font-size: 12px;
   font-weight: 600;
-  color: var(--ink, var(--mm-ink-950-21));
+  color: var(--ink, var(--mm-ink-950-22));
 }
 
 .review-dashboard-dialog-field > div {
@@ -587,7 +587,7 @@
   outline: none;
   background: transparent;
   font: 400 13.5px/1.4 var(--sans);
-  color: var(--ink, var(--mm-ink-950-21));
+  color: var(--ink, var(--mm-ink-950-22));
 }
 
 .review-dashboard-dialog-field small {

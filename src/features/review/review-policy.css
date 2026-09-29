@@ -57,7 +57,7 @@
 
 .review-policy-origins h3 {
   margin: 0 0 10px;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -79,7 +79,7 @@
 }
 
 .review-policy-origins dt {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 11px;
 }
 
@@ -94,7 +94,7 @@
 }
 
 .review-policy-origins dd small {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 11px;
 }
 
@@ -113,7 +113,7 @@
 .review-policy-presets legend,
 .review-policy-modes legend {
   margin-bottom: 8px;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
 }
 
@@ -140,7 +140,7 @@
 
 .review-policy-mode-inherited {
   margin: 0;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
   line-height: 1.45;
 }
@@ -165,7 +165,7 @@
 .review-policy-presets span,
 .review-policy-modes small,
 .review-policy-schedule small {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
   line-height: 1.35;
 }
@@ -221,7 +221,7 @@
 }
 
 .review-policy-schedule-copy > span {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -240,7 +240,7 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: rgb(112 109 102 / 12%);
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;

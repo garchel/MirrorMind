@@ -13,9 +13,9 @@
   display: flex;
   align-items: stretch;
   justify-content: space-between;
-  border-bottom: 1px solid var(--selection-line, var(--mm-ink-350-7));
+  border-bottom: 1px solid var(--selection-line, var(--mm-ink-350-3));
   background: var(--selection-paper, var(--mm-gold-50));
-  color: var(--selection-muted, var(--mm-ink-800-11));
+  color: var(--selection-muted, var(--mm-ink-800-7));
   user-select: none;
   -webkit-user-select: none;
 }
@@ -57,7 +57,7 @@
   height: var(--titlebar-h, 40px);
   margin: -12px -8px 0;
   padding: 0 17px;
-  border-bottom: 1px solid var(--workspace-line, var(--mm-ink-350-7));
+  border-bottom: 1px solid var(--workspace-line, var(--mm-ink-350-3));
   background: transparent;
 }
 
@@ -159,7 +159,7 @@
 
 .workspace-shell .app-titlebar .app-titlebar-control:hover:not(:disabled) {
   /* Tint neutro que acompanha o tema do workspace (--workspace-line). */
-  background: color-mix(in srgb, var(--workspace-line, var(--mm-ink-350-7)) 45%, transparent);
+  background: color-mix(in srgb, var(--workspace-line, var(--mm-ink-350-3)) 45%, transparent);
   color: var(--workspace-text, var(--mm-lilac-350));
 }
 

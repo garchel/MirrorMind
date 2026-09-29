@@ -1,12 +1,12 @@
 .goals-page {
   --goals-surface: var(--mm-gold-50);
   --goals-field: var(--mm-gold-50);
-  --goals-ink: var(--mm-ink-950-8);
-  --goals-ink-soft: var(--mm-ink-900-18);
+  --goals-ink: var(--mm-ink-950-11);
+  --goals-ink-soft: var(--mm-ink-900-17);
   --goals-text: var(--mm-ink-900-32);
-  --goals-faint: var(--mm-ink-850-16);
-  --goals-muted: var(--mm-ink-800-11);
-  --goals-line: var(--mm-ink-350-7);
+  --goals-faint: var(--mm-ink-850-14);
+  --goals-muted: var(--mm-ink-800-7);
+  --goals-line: var(--mm-ink-350-3);
   --goals-line-soft: var(--mm-gold-250-3);
   --goals-field-line: var(--mm-ink-450-2);
   --goals-track: var(--mm-gold-250-3);
@@ -23,10 +23,10 @@
   --goals-surface: var(--mm-ink-950-19);
   --goals-field: var(--mm-clay-950);
   --goals-ink: var(--mm-gold-200-2);
-  --goals-ink-soft: var(--mm-ink-400-2);
-  --goals-text: var(--mm-ink-500-2);
-  --goals-faint: var(--mm-ink-650-5);
-  --goals-muted: var(--mm-ink-700-6);
+  --goals-ink-soft: var(--mm-ink-450-6);
+  --goals-text: var(--mm-ink-550-3);
+  --goals-faint: var(--mm-ink-650-6);
+  --goals-muted: var(--mm-ink-700-7);
   --goals-line: rgb(232 230 221 / 16%);
   --goals-line-soft: rgb(232 230 221 / 9%);
   --goals-field-line: rgb(232 230 221 / 24%);
@@ -34,7 +34,7 @@
   --goals-sunk: rgb(232 230 221 / 6%);
   --goals-done: var(--mm-sage-700-2);
   --goals-success: var(--mm-sage-600);
-  --goals-on-accent: var(--mm-ink-950-9);
+  --goals-on-accent: var(--mm-ink-950-11);
 }
 
 .goals-page .workspace-page-header {
@@ -60,7 +60,7 @@
 
 /* Botão "Nova meta": cores explícitas nos tokens canônicos do app
  * (nunca herda nem depende da ordem do CSS global). Claro: fundo
- * var(--mm-azure-950-4) + texto var(--mm-clay-150-6). Escuro: fundo var(--mm-gold-200-2) + texto var(--mm-ink-950-9).
+ * var(--mm-azure-950-4) + texto var(--mm-clay-150-6). Escuro: fundo var(--mm-gold-200-2) + texto var(--mm-ink-950-11).
  * Raio md (8px): o mesmo dos botões das páginas Revisar/Tags — a pílula
  * 999px destoava do restante do app. */
 .goals-page .goals-new-button,

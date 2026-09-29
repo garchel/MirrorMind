@@ -21,7 +21,7 @@
    * (invisivel), e nenhum `cursor:` muda isso (forma, nao cor). O bloco
    * escuro abaixo reescopa para `dark`. */
   color-scheme: light;
-  --text: var(--mm-ink-900-31);
+  --text: var(--mm-ink-900-32);
   --text-h: var(--mm-azure-950-4);
   --muted: var(--mm-ink-800-17);
   --bg: var(--mm-clay-250-4);
@@ -68,14 +68,14 @@
   --review-field: var(--mm-clay-50);
   --review-line: var(--mm-clay-350);
   --review-line-soft: var(--mm-gold-300-4);
-  --review-line-strong: var(--mm-ink-400-2);
+  --review-line-strong: var(--mm-ink-450-6);
   --review-ink: var(--mm-ink-950-22);
-  --review-ink-soft: var(--mm-ink-900-18);
+  --review-ink-soft: var(--mm-ink-900-17);
   --review-text: var(--mm-ink-900-32);
   /* Escurecido de var(--mm-ink-700-2) (3.22:1, abaixo do AA) para AA (>= 4.5). */
-  --review-faint: var(--mm-ink-800-9);
+  --review-faint: var(--mm-ink-800-7);
   --review-muted: var(--mm-ink-800-4);
-  --review-muted-2: var(--mm-ink-600-6);
+  --review-muted-2: var(--mm-ink-600-5);
   --review-accent-soft: var(--mm-clay-850-11);
   --review-warn: var(--mm-clay-850-8);
   --review-warn-strong: var(--mm-clay-900-2);

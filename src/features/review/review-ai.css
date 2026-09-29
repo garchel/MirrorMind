@@ -27,7 +27,7 @@
 }
 
 .review-ai-provider-panel dt {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
 }
 
 .review-ai-provider-panel dd {
@@ -88,7 +88,7 @@
   padding: 0 8px;
   border: 1px solid color-mix(in srgb, var(--border, var(--review-line)) 72%, currentColor);
   border-radius: var(--radius-sm);
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
@@ -111,7 +111,7 @@
 }
 
 .note-review-next-date {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -166,12 +166,12 @@
 }
 
 .note-profile-onboarding-heading strong {
-  color: var(--text, var(--mm-ink-950-15));
+  color: var(--text, var(--mm-ink-950-19));
   font-size: 12.5px;
 }
 
 .note-profile-onboarding-heading small {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 11px;
   line-height: 1.45;
 }
@@ -195,21 +195,21 @@
 }
 
 .note-profile-onboarding-options .secondary-button small {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 10.5px;
   line-height: 1.4;
 }
 
 .note-profile-why summary {
   cursor: pointer;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 11px;
   font-weight: 600;
 }
 
 .note-profile-why p {
   margin: 6px 0 0;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 11px;
   line-height: 1.5;
 }
@@ -248,13 +248,13 @@
 
 .note-recovery-banner-copy p {
   margin: 0;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
   line-height: 1.45;
 }
 
 .note-recovery-banner-copy small {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 11px;
   font-family: var(--mono);
   overflow: hidden;
@@ -442,7 +442,7 @@
 }
 
 .review-readiness-explanation {
-  color: var(--text-h, var(--mm-ink-950-15));
+  color: var(--text-h, var(--mm-ink-950-19));
   font-size: 12.5px;
   line-height: 1.55;
 }
@@ -458,14 +458,14 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font: 600 11px var(--sans);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .review-readiness-section h3 svg {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
 }
 
 .review-readiness-section h3 > span[aria-hidden="true"] {
@@ -479,7 +479,7 @@
   padding: 1px 6px;
   border-radius: 999px;
   background: rgb(112 109 102 / 12%);
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font: 600 10px var(--sans);
   letter-spacing: 0;
   text-align: center;
@@ -570,7 +570,7 @@
   gap: 6px;
   padding: 10px 12px;
   border: 1px solid var(--border, var(--review-line));
-  border-left: 3px solid var(--muted, var(--mm-ink-800-8));
+  border-left: 3px solid var(--muted, var(--mm-ink-800-4));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface) 95%, white);
 }
@@ -685,13 +685,13 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font: 600 12px var(--sans);
 }
 
 .note-review-report-back:not(:disabled):hover {
   background: rgb(112 109 102 / 10%);
-  color: var(--text-h, var(--mm-ink-950-15));
+  color: var(--text-h, var(--mm-ink-950-19));
 }
 
 .note-review-report-title {
@@ -895,7 +895,7 @@
 }
 
 .review-reset-hint {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12.5px;
 }
 
@@ -942,7 +942,7 @@
 
 .review-ai-usage dt {
   font-size: 12px;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
 }
 
 .review-ai-usage dd {
@@ -965,7 +965,7 @@
   margin: 0 0 8px;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
 }
 
 .review-ai-comparison-report {
@@ -990,7 +990,7 @@
 
 .review-ai-comparison-report > dl dt {
   font-size: 12px;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
 }
 
 .review-ai-comparison-report > dl dd {
@@ -1024,7 +1024,7 @@
 
 .review-ai-comparison-provider > dl dt {
   font-size: 11.5px;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
 }
 
 .review-ai-comparison-provider > dl dd {
@@ -1042,7 +1042,7 @@
 
 .review-ai-comparison-quotes li {
   font-size: 11.5px;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   list-style: disc;
 }
 

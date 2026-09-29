@@ -105,7 +105,7 @@
 
 .note-tag-impact-heading h3 {
   margin: 2px 0 0;
-  color: var(--mm-ink-950-16);
+  color: var(--mm-ink-950-22);
   font-size: 18px;
 }
 
@@ -124,13 +124,13 @@
 }
 
 .note-tag-impact-summary dt {
-  color: var(--mm-ink-800-14);
+  color: var(--mm-ink-800-15);
   font-size: 11px;
 }
 
 .note-tag-impact-summary dd {
   margin: 3px 0 0;
-  color: var(--mm-ink-900-9);
+  color: var(--mm-ink-900-11);
   font-size: 18px;
   font-weight: 600;
 }

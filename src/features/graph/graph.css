@@ -275,7 +275,7 @@
   border: 1px solid rgb(28 36 39 / 14%);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--mm-ink-800-5);
+  color: var(--mm-ink-800-4);
   font: 11px var(--sans);
   cursor: pointer;
   transition: background 140ms ease, color 140ms ease;
@@ -283,7 +283,7 @@
 
 .graph-settings-popover .graph-settings-reset:hover {
   background: var(--mm-gold-200-2);
-  color: var(--mm-ink-950-8);
+  color: var(--mm-ink-950-11);
 }
 
 .graph-settings-popover .graph-settings-group {
@@ -309,7 +309,7 @@
 }
 
 .graph-settings-popover .graph-settings-group-title svg {
-  color: var(--mm-ink-600-3);
+  color: var(--mm-ink-600-5);
 }
 
 .graph-settings-popover .graph-settings-row {
@@ -330,7 +330,7 @@
 }
 
 .graph-settings-popover .graph-settings-row small {
-  color: var(--mm-ink-650-3);
+  color: var(--mm-ink-650-4);
   font-size: 10px;
   line-height: 1.3;
 }
@@ -349,7 +349,7 @@
 }
 
 .graph-settings-popover .graph-settings-row input:hover {
-  border-color: var(--mm-ink-500-4);
+  border-color: var(--mm-ink-550-3);
 }
 
 .graph-settings-popover .graph-settings-row input:focus {
@@ -379,7 +379,7 @@
 }
 
 .graph-settings-popover .graph-settings-toggle small {
-  color: var(--mm-ink-650-3);
+  color: var(--mm-ink-650-4);
   font-size: 10px;
   line-height: 1.3;
 }
@@ -398,7 +398,7 @@
   width: 34px;
   height: 19px;
   border-radius: 999px;
-  background: var(--mm-ink-350-7);
+  background: var(--mm-ink-350-3);
   transition: background 160ms ease;
 }
 
@@ -460,7 +460,7 @@
 }
 
 .graph-settings-popover .graph-settings-colors-title svg {
-  color: var(--mm-ink-600-3);
+  color: var(--mm-ink-600-5);
 }
 
 .graph-settings-popover .graph-settings-color-row {
@@ -497,13 +497,13 @@
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-xs);
   background: var(--mm-gold-50);
-  color: var(--mm-ink-800-3);
+  color: var(--mm-ink-800-4);
   font-size: 10px;
   cursor: pointer;
 }
 
 .graph-settings-popover .graph-settings-color-reset:hover {
-  border-color: var(--mm-ink-500-4);
+  border-color: var(--mm-ink-550-3);
   color: var(--mm-ink-900-23);
 }
 
@@ -513,13 +513,13 @@
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-xs);
   background: transparent;
-  color: var(--mm-ink-800-3);
+  color: var(--mm-ink-800-4);
   font-size: 10px;
   cursor: pointer;
 }
 
 .graph-settings-popover .graph-settings-color-reset-all:hover {
-  border-color: var(--mm-ink-500-4);
+  border-color: var(--mm-ink-550-3);
   color: var(--mm-ink-900-23);
 }
 
@@ -530,7 +530,7 @@
   margin: 18px 0 0;
   padding-top: 10px;
   border-top: 1px solid rgb(28 36 39 / 8%);
-  color: var(--mm-ink-650-3);
+  color: var(--mm-ink-650-4);
   font-size: 11px;
 }
 
@@ -644,7 +644,7 @@
 }
 
 .workspace-shell .graph-detail-stat span {
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -670,7 +670,7 @@
   border: 1px solid rgb(28 36 39 / 8%);
   border-radius: var(--radius-lg);
   background: var(--mm-gold-50);
-  color: var(--mm-ink-850-11);
+  color: var(--mm-ink-850-10);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -736,7 +736,7 @@
   padding: 0 14px;
   border: 0;
   border-radius: var(--radius-md);
-  background: var(--mm-ink-950-8);
+  background: var(--mm-ink-950-11);
   color: var(--mm-gold-50);
   font: 600 13px/1 var(--sans);
   cursor: pointer;
@@ -758,14 +758,14 @@
   border: 1px solid rgb(28 36 39 / 12%);
   border-radius: var(--radius-md);
   background: transparent;
-  color: var(--mm-ink-800-5);
+  color: var(--mm-ink-800-4);
   cursor: pointer;
   transition: background 140ms ease, color 140ms ease;
 }
 
 .workspace-shell .graph-note-drawer-close:hover {
   background: var(--mm-gold-200-2);
-  color: var(--mm-ink-950-8);
+  color: var(--mm-ink-950-11);
 }
 
 .workspace-shell .graph-note-drawer-actions {
@@ -788,7 +788,7 @@
   padding: 0 14px;
   border: 0;
   border-radius: var(--radius-md);
-  background: var(--mm-ink-950-8);
+  background: var(--mm-ink-950-11);
   color: var(--mm-gold-50);
   font: 600 13px/1 var(--sans);
   cursor: pointer;
@@ -899,7 +899,7 @@
   min-height: 0;
   overflow: hidden;
   background-color: var(--mm-gold-50);
-  background-image: radial-gradient(var(--mm-ink-350-6) 0.75px, transparent 0.75px);
+  background-image: radial-gradient(var(--mm-ink-350-3) 0.75px, transparent 0.75px);
   background-size: 16px 16px;
   cursor: grab;
   touch-action: none;
@@ -999,7 +999,7 @@
 }
 
 .workspace-shell .note-graph-links line {
-  stroke: var(--mm-ink-600);
+  stroke: var(--mm-ink-600-2);
   stroke-width: 0.35;
   vector-effect: non-scaling-stroke;
 }
@@ -1121,7 +1121,7 @@
 .workspace-shell .graph-empty-state {
   max-width: 640px;
   margin: 4px 0;
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
   font-size: 13px;
 }
 
@@ -1141,7 +1141,7 @@
 .workspace-shell .trash-table-wrap {
   width: min(100%, 920px);
   overflow-x: auto;
-  border: 1px solid var(--mm-ink-300-3);
+  border: 1px solid var(--mm-ink-250-2);
   border-radius: var(--radius-sm);
   background: var(--mm-gold-50);
 }
@@ -1163,7 +1163,7 @@
 }
 
 .workspace-shell .trash-table-wrap th {
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.07em;
@@ -1283,7 +1283,7 @@
    tema claro — wash claro aqui (mesmo do secondary), sem `!important`. */
 .workspace-shell .note-find-nav-button.note-find-nav-button:hover:not(:disabled),
 .workspace-shell .note-find-close.note-find-close:hover:not(:disabled) {
-  background: var(--mm-ink-250);
+  background: var(--mm-ink-250-2);
 }
 
 .workspace-shell.is-markdown-tools-open .editor-surface {
@@ -1299,7 +1299,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 28px;
   padding-right: 6px;
-  background: var(--mm-ink-200);
+  background: var(--mm-ink-250-3);
   border-right-color: var(--workspace-line);
   transition: background-color 180ms ease;
 }
@@ -1313,7 +1313,7 @@
 .workspace-shell .tab-close,
 .workspace-shell .tab-chip.is-active .tab-select,
 .workspace-shell .tab-chip.is-active .tab-close {
-  color: var(--mm-ink-900-28);
+  color: var(--mm-ink-900-27);
   transition: color 180ms ease;
 }
 
@@ -1326,12 +1326,12 @@
 /* Hover da aba: wash quente no claro (o fallback var(--mm-ink-950-4) pintava chapa
    escura) e carvão elevado no escuro; texto acompanha o tema. */
 .workspace-shell .tab-chip:hover {
-  background: var(--tab-hover-color, var(--mm-ink-300-2));
+  background: var(--tab-hover-color, var(--mm-ink-350-3));
 }
 
 .workspace-shell .tab-chip:hover .tab-select,
 .workspace-shell .tab-chip:hover .tab-close {
-  color: var(--mm-ink-900-28);
+  color: var(--mm-ink-900-27);
 }
 
 [data-theme='dark'] .workspace-shell .tab-chip:hover {
@@ -1379,7 +1379,7 @@
   height: 22px;
   padding: 4px;
   border-radius: var(--radius-xs);
-  background: var(--mm-ink-350);
+  background: var(--mm-ink-400-4);
 }
 
 .workspace-shell .new-tab-button {
@@ -1392,7 +1392,7 @@
   padding: 0;
   place-items: center;
   background: transparent;
-  color: var(--mm-ink-900-28);
+  color: var(--mm-ink-900-27);
 }
 
 .workspace-shell .new-tab-button::before {
@@ -1412,7 +1412,7 @@
 }
 
 .workspace-shell .new-tab-button:hover:not(:disabled)::before {
-  background: var(--mm-ink-350);
+  background: var(--mm-ink-400-4);
 }
 
 .workspace-shell .editor-title-input {
@@ -1422,7 +1422,7 @@
   outline: none;
   padding: 0;
   background: transparent;
-  color: var(--mm-ink-950-8);
+  color: var(--mm-ink-950-11);
   font: 600 24px/1.2 var(--sans);
 }
 
@@ -1438,7 +1438,7 @@
   border-bottom: 1px solid transparent;
   padding: 0;
   background: transparent;
-  color: var(--mm-ink-950-8);
+  color: var(--mm-ink-950-11);
   cursor: text;
   font: 600 24px/1.2 var(--sans);
   text-align: left;

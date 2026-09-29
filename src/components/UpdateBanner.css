@@ -16,7 +16,7 @@
   border: 1px solid rgba(94, 128, 255, 0.35);
   background: var(--selection-paper, var(--mm-gold-50));
   box-shadow: 0 12px 32px rgba(15, 14, 20, 0.24);
-  color: var(--selection-ink, var(--mm-ink-950-10));
+  color: var(--selection-ink, var(--mm-ink-950-13));
 }
 
 .workspace-shell .update-banner {

@@ -10,7 +10,7 @@
   --bases-line: var(--mm-gold-250-3);
   --bases-line-soft: rgb(28 36 39 / 6%);
   --bases-text: var(--mm-ink-900-23);
-  --bases-muted: var(--mm-ink-800-11);
+  --bases-muted: var(--mm-ink-800-7);
   --bases-accent: var(--mm-sage-850);
   --bases-accent-soft: rgb(46 107 79 / 7%);
   display: flex;
@@ -24,12 +24,12 @@
 }
 
 [data-theme='dark'] .bases-page {
-  --bases-surface: var(--mm-ink-950-6);
+  --bases-surface: var(--mm-ink-950-7);
   --bases-surface-raised: var(--mm-ink-950-7);
-  --bases-header-bg: var(--mm-ink-950-10);
+  --bases-header-bg: var(--mm-ink-950-13);
   --bases-line: var(--mm-ink-900-20);
   --bases-line-soft: rgb(232 230 221 / 8%);
-  --bases-text: var(--mm-ink-300-4);
+  --bases-text: var(--mm-ink-250-2);
   --bases-muted: var(--mm-ink-600-5);
   --bases-accent: var(--mm-sage-500);
   --bases-accent-soft: rgb(143 196 176 / 10%);
@@ -108,7 +108,7 @@
 
 /* Botao "Colunas": abre o popover que escolhe quais propriedades aparecem.
    IMPORTANTE (bug do cabecalho escuro): o App tem regras globais
-   `.workspace-shell button { background: var(--mm-ink-950-17); color: var(--mm-gold-50) }` com
+   `.workspace-shell button { background: var(--mm-ink-950-14); color: var(--mm-gold-50) }` com
    especificidade (0,2,1) — maior que a de um simples `.bases-columns-button`
    (0,1,0). Sem o escopo `.workspace-shell`, esses botoes (e os de ordenacao
    do cabecalho) ficavam ESCUROS com texto claro, mesmo com o restante da
@@ -153,8 +153,8 @@
 
 [data-theme='dark'] .workspace-shell .bases-columns-button {
   border-color: var(--mm-ink-900-20);
-  background: var(--mm-ink-950-6);
-  color: var(--mm-ink-300-4);
+  background: var(--mm-ink-950-7);
+  color: var(--mm-ink-250-2);
 }
 
 [data-theme='dark'] .workspace-shell .bases-columns-button:hover:not(:disabled) {
@@ -232,7 +232,7 @@
   padding: 8px 10px;
   border-bottom: 1px solid var(--mm-gold-250-3);
   background: var(--mm-gold-100);
-  color: var(--mm-ink-800-3);
+  color: var(--mm-ink-800-4);
   text-align: left;
   white-space: nowrap;
 }
@@ -265,8 +265,8 @@
 
 [data-theme='dark'] .bases-table thead th {
   border-bottom-color: var(--mm-ink-900-20);
-  background: var(--mm-ink-950-10);
-  color: var(--mm-ink-450-4);
+  background: var(--mm-ink-950-13);
+  color: var(--mm-ink-450-2);
 }
 
 [data-theme='dark'] .workspace-shell .bases-th-button:hover:not(:disabled) {
@@ -354,7 +354,7 @@
   gap: 8px;
   padding: 9px 12px;
   border-bottom: 1px solid var(--mm-clay-200-3);
-  color: var(--mm-ink-800-3);
+  color: var(--mm-ink-800-4);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -362,7 +362,7 @@
 }
 
 .bases-column-picker-count {
-  color: var(--mm-ink-600-3);
+  color: var(--mm-ink-600-5);
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -432,14 +432,14 @@
 .bases-column-key {
   margin-left: auto;
   flex: none;
-  color: var(--mm-ink-600-3);
+  color: var(--mm-ink-600-5);
   font-size: 11px;
 }
 
 .bases-column-lock {
   margin-left: auto;
   flex: none;
-  color: var(--mm-ink-600-3);
+  color: var(--mm-ink-600-5);
 }
 
 .bases-column-picker-foot {
@@ -469,22 +469,22 @@
 /* Tema escuro do popover (portalado: o escopo parte do proprio conteudo). */
 [data-theme='dark'] .ui-popover-content.bases-column-picker {
   border-color: var(--mm-ink-900-20);
-  background: var(--mm-ink-950-6);
-  color: var(--mm-ink-300-4);
+  background: var(--mm-ink-950-7);
+  color: var(--mm-ink-250-2);
   box-shadow: 0 10px 30px rgb(0 0 0 / 45%);
 }
 
 [data-theme='dark'] .bases-column-picker-head {
-  border-bottom-color: var(--mm-ink-900-7);
+  border-bottom-color: var(--mm-ink-900-13);
   color: var(--mm-ink-600-5);
 }
 
 [data-theme='dark'] .bases-column-picker-count {
-  color: var(--mm-ink-700-5);
+  color: var(--mm-ink-700-2);
 }
 
 [data-theme='dark'] .bases-column-row {
-  color: var(--mm-ink-300-4);
+  color: var(--mm-ink-250-2);
 }
 
 [data-theme='dark'] .bases-column-row:hover:not(:disabled) {
@@ -507,15 +507,15 @@
 }
 
 [data-theme='dark'] .bases-column-key {
-  color: var(--mm-ink-700-5);
+  color: var(--mm-ink-700-2);
 }
 
 [data-theme='dark'] .bases-column-lock {
-  color: var(--mm-ink-700-5);
+  color: var(--mm-ink-700-2);
 }
 
 [data-theme='dark'] .bases-column-picker-foot {
-  border-top-color: var(--mm-ink-900-7);
+  border-top-color: var(--mm-ink-900-13);
 }
 
 [data-theme='dark'] .bases-columns-reset {

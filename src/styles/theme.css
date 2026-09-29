@@ -12,20 +12,20 @@
  * entao o tema inverte o chrome e recolore as superficies de conteudo. */
 [data-theme='dark'] .workspace-shell {
   --workspace-bg: var(--mm-ink-950-3);
-  --workspace-raised: var(--mm-ink-950-6);
+  --workspace-raised: var(--mm-ink-950-7);
   --workspace-sidebar: var(--mm-ink-950-7);
-  --workspace-line: var(--mm-ink-900-7);
-  --workspace-text: var(--mm-ink-300-4);
-  --workspace-muted: var(--mm-ink-700-8);
+  --workspace-line: var(--mm-ink-900-13);
+  --workspace-text: var(--mm-ink-250-2);
+  --workspace-muted: var(--mm-ink-700-7);
   --workspace-accent: var(--mm-azure-600);
 }
 
 [data-theme='dark'] .workspace-shell .workspace-rail {
-  background: var(--mm-ink-950-10);
+  background: var(--mm-ink-950-13);
 }
 
 [data-theme='dark'] .workspace-shell .rail-button {
-  color: var(--mm-ink-450-4);
+  color: var(--mm-ink-450-2);
 }
 
 [data-theme='dark'] .workspace-shell .rail-button:hover:not(:disabled) {
@@ -52,13 +52,13 @@
 }
 
 [data-theme='dark'] .workspace-shell .editor-header {
-  border-bottom-color: var(--mm-ink-900-7);
+  border-bottom-color: var(--mm-ink-900-13);
 }
 
 [data-theme='dark'] .workspace-shell .editor-disclosure-button {
   border-color: var(--mm-ink-900-20);
-  background: var(--mm-ink-950-6);
-  color: var(--mm-ink-450-4);
+  background: var(--mm-ink-950-7);
+  color: var(--mm-ink-450-2);
 }
 
 [data-theme='dark'] .workspace-shell .editor-disclosure-button:hover:not(:disabled) {
@@ -69,7 +69,7 @@
 
 /* Editor (CodeMirror) e leitura sobre o canvas escuro. */
 [data-theme='dark'] .workspace-shell .codemirror-markdown-editor .cm-editor {
-  color: var(--mm-ink-300-4) !important;
+  color: var(--mm-ink-250-2) !important;
 }
 
 [data-theme='dark'] .workspace-shell .codemirror-markdown-editor .cm-content {
@@ -87,12 +87,12 @@
 
 [data-theme='dark'] .workspace-shell .markdown-mixed pre {
   background: rgba(232, 230, 221, 0.06);
-  color: var(--mm-ink-350-2);
+  color: var(--mm-ink-350-3);
 }
 
 /* Paginas de conteudo (Configuracoes, Tags, Bases, grafo) sobre o canvas escuro. */
 [data-theme='dark'] .workspace-page {
-  color: var(--mm-ink-350-2);
+  color: var(--mm-ink-350-3);
 }
 
 [data-theme='dark'] .workspace-page h2 {
@@ -108,8 +108,8 @@
 [data-theme='dark'] .settings-segmented,
 [data-theme='dark'] .settings-number {
   border-color: var(--mm-ink-900-20);
-  background: var(--mm-ink-950-6);
-  color: var(--mm-ink-350-2);
+  background: var(--mm-ink-950-7);
+  color: var(--mm-ink-350-3);
 }
 
 [data-theme='dark'] .settings-toggle small {
@@ -117,7 +117,7 @@
 }
 
 [data-theme='dark'] .settings-nav button {
-  color: var(--mm-ink-450-4);
+  color: var(--mm-ink-450-2);
 }
 
 [data-theme='dark'] .settings-nav button:hover {
@@ -125,14 +125,14 @@
 }
 
 [data-theme='dark'] .settings-nav button.is-active {
-  background: var(--mm-ink-950-18);
+  background: var(--mm-ink-950-20);
   color: var(--mm-gold-150);
 }
 
 [data-theme='dark'] .settings-segmented button {
   border-color: var(--mm-ink-900-20);
   background: transparent;
-  color: var(--mm-ink-450-4);
+  color: var(--mm-ink-450-2);
 }
 
 [data-theme='dark'] .settings-segmented button:hover:not(:disabled) {
@@ -162,7 +162,7 @@
 
 [data-theme='dark'] .note-search-modal {
   border-color: var(--mm-ink-900-20);
-  background: var(--mm-ink-950-6);
+  background: var(--mm-ink-950-7);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
 }
 
@@ -170,16 +170,16 @@
 [data-theme='dark'] .note-search-modal textarea {
   border-color: var(--mm-ink-900-20);
   background: var(--mm-ink-950-3);
-  color: var(--mm-ink-300-4);
+  color: var(--mm-ink-250-2);
 }
 
 [data-theme='dark'] .note-search-modal .move-item-heading strong,
 [data-theme='dark'] .note-search-modal .move-item-heading span {
-  color: var(--mm-ink-300-4);
+  color: var(--mm-ink-250-2);
 }
 
 [data-theme='dark'] .special-file-row {
-  border-bottom-color: var(--mm-ink-900-7);
+  border-bottom-color: var(--mm-ink-900-13);
 }
 
 [data-theme='dark'] .special-file-row strong {
@@ -191,7 +191,7 @@
 }
 
 [data-theme='dark'] .special-file-row p {
-  color: var(--mm-ink-450-4);
+  color: var(--mm-ink-450-2);
 }
 
 [data-theme='dark'] .special-file-open-button {
@@ -207,13 +207,13 @@
 
 [data-theme='dark'] .ui-popover-content.graph-settings-popover {
   border-color: var(--mm-ink-900-20);
-  background: var(--mm-ink-950-6);
-  color: var(--mm-ink-350-2);
+  background: var(--mm-ink-950-7);
+  color: var(--mm-ink-350-3);
 }
 
 [data-theme='dark'] .graph-settings-popover .graph-settings-row,
 [data-theme='dark'] .graph-settings-popover .graph-settings-toggle {
-  color: var(--mm-ink-350-2);
+  color: var(--mm-ink-350-3);
 }
 
 [data-theme='dark'] .graph-settings-popover .graph-settings-row small {
@@ -225,7 +225,7 @@
 [data-theme='dark'] .graph-settings-popover .graph-settings-color-row input[type='color'] {
   border-color: var(--mm-ink-900-20);
   background: var(--mm-ink-950-3);
-  color: var(--mm-ink-300-4);
+  color: var(--mm-ink-250-2);
 }
 
 [data-theme='dark'] .graph-settings-popover .graph-settings-toggle-track {
@@ -239,23 +239,23 @@
 [data-theme='dark'] .graph-settings-popover .graph-settings-color-label,
 [data-theme='dark'] .graph-settings-popover .graph-settings-colors-title,
 [data-theme='dark'] .graph-settings-popover .graph-settings-group-title {
-  color: var(--mm-ink-450-4);
+  color: var(--mm-ink-450-2);
 }
 
 [data-theme='dark'] .graph-settings-popover .graph-settings-color-reset,
 [data-theme='dark'] .graph-settings-popover .graph-settings-color-reset-all {
   border-color: var(--mm-ink-900-20);
-  background: var(--mm-ink-950-6);
-  color: var(--mm-ink-450-4);
+  background: var(--mm-ink-950-7);
+  color: var(--mm-ink-450-2);
 }
 
 /* Painel integrado de propriedades no tema escuro (sem borda/fundo proprio). */
 [data-theme='dark'] .workspace-shell .frontmatter-panel {
-  color: var(--mm-ink-350-2);
+  color: var(--mm-ink-350-3);
 }
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel-section-toggle:hover {
-  background: var(--mm-ink-950-25);
+  background: var(--mm-ink-950-20);
 }
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel-section-toggle .frontmatter-panel-section-chevron {
@@ -275,7 +275,7 @@
    seletores do tema escuro partem de .ui-popover-content (mesmo escopo do
    tema claro acima). */
 [data-theme='dark'] .ui-popover-content.frontmatter-property-popover .frontmatter-property-item {
-  color: var(--mm-ink-350-2);
+  color: var(--mm-ink-350-3);
 }
 
 [data-theme='dark'] .ui-popover-content.frontmatter-property-popover .frontmatter-property-item:hover {
@@ -284,12 +284,12 @@
 
 [data-theme='dark'] .ui-popover-content.frontmatter-tag-popover input {
   border-color: var(--mm-ink-900-20);
-  background: var(--mm-ink-950-2);
-  color: var(--mm-ink-350-2);
+  background: var(--mm-ink-950-3);
+  color: var(--mm-ink-350-3);
 }
 
 [data-theme='dark'] .ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list button {
-  color: var(--mm-ink-350-2);
+  color: var(--mm-ink-350-3);
 }
 
 [data-theme='dark'] .ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list button:hover {
@@ -311,8 +311,8 @@
 [data-theme='dark'] .workspace-shell .frontmatter-panel-key,
 [data-theme='dark'] .workspace-shell .frontmatter-panel-value {
   border-color: var(--mm-ink-900-20);
-  background: var(--mm-ink-950-2);
-  color: var(--mm-ink-350-2);
+  background: var(--mm-ink-950-3);
+  color: var(--mm-ink-350-3);
 }
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel-remove {
@@ -370,8 +370,8 @@
 }
 
 [data-theme='dark'] .workspace-shell .note-header-tags .note-tags-toggle:hover {
-  background: var(--mm-ink-950-25);
-  color: var(--mm-ink-350-2);
+  background: var(--mm-ink-950-20);
+  color: var(--mm-ink-350-3);
 }
 
 [data-theme='dark'] .workspace-shell .frontmatter-panel-broken {

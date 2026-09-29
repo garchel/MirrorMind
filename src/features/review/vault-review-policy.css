@@ -25,7 +25,7 @@
 
 .vault-review-policy-presets small,
 .vault-review-policy-heading small {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   line-height: 1.35;
 }
 
@@ -41,13 +41,13 @@
 
 .vault-review-policy-modes legend {
   margin-bottom: 8px;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
 }
 
 .vault-review-policy-modes-hint {
   margin: 0;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
   line-height: 1.45;
 }
@@ -86,7 +86,7 @@
 }
 
 .vault-review-policy-modes label small {
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
   line-height: 1.35;
 }
@@ -112,7 +112,7 @@
 .vault-review-policy-advanced label {
   display: grid;
   gap: 5px;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
 }
 
@@ -187,7 +187,7 @@
 .vault-tag-policy-fields label {
   display: grid;
   gap: 5px;
-  color: var(--muted, var(--mm-ink-800-8));
+  color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
 }
 

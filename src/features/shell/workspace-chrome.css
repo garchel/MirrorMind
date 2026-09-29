@@ -159,13 +159,13 @@
 .workspace-shell .tree-folder summary {
   min-height: 28px;
   padding: 0 7px;
-  color: var(--mm-ink-500-3);
+  color: var(--mm-ink-500-5);
   font-size: 12px;
 }
 
 .workspace-shell .tree-folder summary::before {
   margin-right: 6px;
-  color: var(--mm-ink-800-10);
+  color: var(--mm-ink-800-13);
 }
 
 .workspace-shell .tree-note {
@@ -178,7 +178,7 @@
 }
 
 .workspace-shell .tree-note.is-active {
-  background: var(--mm-ink-900-8);
+  background: var(--mm-ink-900-13);
   color: var(--mm-lilac-150-2);
 }
 
@@ -400,7 +400,7 @@
   padding: 6px 8px;
   border: 1px solid var(--mm-ink-800-15);
   border-radius: var(--radius-sm);
-  background: var(--mm-ink-950-17);
+  background: var(--mm-ink-950-14);
   color: var(--mm-gold-50);
   font: 12px/1.25 var(--mono);
   pointer-events: none;
@@ -413,7 +413,7 @@
   gap: 24px;
   width: min(720px, 100%);
   padding: 16px 18px;
-  border: 1px solid var(--mm-ink-350-7);
+  border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-lg);
   background: var(--mm-gold-50);
   transition: border-color 150ms ease, box-shadow 150ms ease;
@@ -438,7 +438,7 @@ label.settings-toggle {
 }
 
 .settings-toggle small {
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
   font-size: 12px;
 }
 
@@ -452,7 +452,7 @@ label.settings-toggle {
 .settings-segmented {
   display: inline-flex;
   flex-shrink: 0;
-  border: 1px solid var(--mm-ink-350-7);
+  border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-sm);
   background: var(--mm-gold-50);
   overflow: hidden;
@@ -461,9 +461,9 @@ label.settings-toggle {
 .settings-segmented button {
   padding: 8px 14px;
   border: none;
-  border-right: 1px solid var(--mm-ink-350-7);
+  border-right: 1px solid var(--mm-ink-350-3);
   background: transparent;
-  color: var(--mm-ink-850-16);
+  color: var(--mm-ink-850-14);
   font: 12.5px var(--sans);
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
@@ -594,7 +594,7 @@ label.settings-toggle {
 
 .settings-section-description {
   margin: -4px 0 0;
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -607,7 +607,7 @@ label.settings-toggle {
   min-width: 140px;
   min-height: 36px;
   padding: 0 30px 0 12px;
-  border: 1px solid var(--mm-ink-350-7);
+  border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-md);
   background: var(--mm-gold-50);
   color: var(--mm-ink-900-23);
@@ -627,7 +627,7 @@ label.settings-toggle {
   width: 96px;
   height: 34px;
   padding: 0 10px;
-  border: 1px solid var(--mm-ink-350-7);
+  border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-md);
   background: var(--mm-gold-50);
   color: var(--mm-ink-900-23);
@@ -653,7 +653,7 @@ label.settings-toggle {
 
 .workspace-page h2 {
   margin: 0;
-  color: var(--mm-ink-950-8);
+  color: var(--mm-ink-950-11);
   font: 600 28px/1.1 var(--sans);
 }
 
@@ -677,9 +677,9 @@ label.settings-toggle {
   gap: 1px;
   max-width: 720px;
   overflow: hidden;
-  border: 1px solid var(--mm-ink-350-7);
+  border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-md);
-  background: var(--mm-ink-350-7);
+  background: var(--mm-ink-350-3);
 }
 
 /* Allow the filter menu to float over the explorer and editor without changing the sidebar's normal clipping. */
@@ -696,7 +696,7 @@ label.settings-toggle {
   align-items: center;
   padding: 14px 16px;
   background: var(--mm-gold-50);
-  color: var(--mm-ink-900-18);
+  color: var(--mm-ink-900-17);
   font-size: 14px;
   cursor: pointer;
   transition: background 150ms ease;
@@ -716,7 +716,7 @@ label.settings-toggle {
 }
 
 .shortcut-settings small {
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
   font-size: 12px;
 }
 
@@ -726,7 +726,7 @@ label.settings-toggle {
   border: 1px solid var(--mm-ink-450-2);
   border-radius: var(--radius-md);
   background: var(--mm-gold-150);
-  color: var(--mm-ink-950-8);
+  color: var(--mm-ink-950-11);
   font: 13px/1 var(--mono);
   text-align: center;
   cursor: pointer;
@@ -782,7 +782,7 @@ label.settings-toggle {
 
 [data-theme='dark'] .modal.note-search-modal {
   border-color: var(--mm-ink-900-20);
-  background: var(--mm-ink-950-6);
+  background: var(--mm-ink-950-7);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
 }
 
@@ -795,10 +795,10 @@ label.settings-toggle {
   min-height: 48px;
   padding: 0 14px;
   border: 0;
-  border-bottom: 1px solid var(--mm-ink-350-7);
+  border-bottom: 1px solid var(--mm-ink-350-3);
   outline: none;
   background: transparent;
-  color: var(--mm-ink-950-8);
+  color: var(--mm-ink-950-11);
   font: 14px/1 var(--sans);
 }
 
@@ -825,7 +825,7 @@ label.settings-toggle {
 
 .note-search-results small,
 .note-search-results p {
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
   font: 11px/1.25 var(--mono);
 }
 
@@ -923,7 +923,7 @@ label.settings-toggle {
 .workspace-shell .special-file-row p {
   grid-column: 1 / -1;
   margin: 0;
-  color: var(--mm-ink-850-16);
+  color: var(--mm-ink-850-14);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -933,7 +933,7 @@ label.settings-toggle {
   padding: 4px 7px;
   border-radius: 999px;
   background: var(--mm-gold-150);
-  color: var(--mm-ink-850-4);
+  color: var(--mm-ink-850-8);
   font: 9px/1 var(--mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -958,9 +958,9 @@ label.settings-toggle {
   --selection-paper: var(--mm-gold-50);
   --selection-raised: var(--mm-gold-150);
   --selection-rail: var(--mm-ink-250-3);
-  --selection-line: var(--mm-ink-350-7);
-  --selection-ink: var(--mm-ink-950-8);
-  --selection-muted: var(--mm-ink-800-11);
+  --selection-line: var(--mm-ink-350-3);
+  --selection-ink: var(--mm-ink-950-11);
+  --selection-muted: var(--mm-ink-800-7);
   display: grid;
   grid-template-columns: 156px minmax(0, 1fr);
   align-content: start;
@@ -1095,14 +1095,14 @@ label.settings-toggle {
 
 .vault-selection-shell button {
   border-radius: var(--radius-sm);
-  background: var(--mm-ink-950-17);
+  background: var(--mm-ink-950-14);
   color: var(--mm-gold-50);
 }
 
 .vault-selection-shell .secondary-button {
   border: 1px solid var(--selection-line);
   background: transparent;
-  color: var(--mm-ink-900-26);
+  color: var(--mm-ink-900-27);
 }
 
 .vault-selection-shell .vault-panel {
@@ -1201,9 +1201,9 @@ label.settings-toggle {
   --workspace-bg: var(--mm-gold-50);
   --workspace-raised: var(--mm-gold-150);
   --workspace-sidebar: var(--mm-gold-150);
-  --workspace-line: var(--mm-ink-350-7);
-  --workspace-text: var(--mm-ink-950-8);
-  --workspace-muted: var(--mm-ink-800-11);
+  --workspace-line: var(--mm-ink-350-3);
+  --workspace-text: var(--mm-ink-950-11);
+  --workspace-muted: var(--mm-ink-800-7);
   --workspace-accent: var(--mm-ink-600-2);
   --rail-width: 156px;
   --explorer-width: 272px;
@@ -1227,7 +1227,7 @@ label.settings-toggle {
   padding: 8px 12px;
   transform: translateY(-160%);
   border-radius: var(--radius-xs);
-  background: var(--mm-ink-950-12);
+  background: var(--mm-ink-950-14);
   color: var(--mm-gold-50);
   font: 12px var(--sans);
   transition: transform 140ms ease;
@@ -1440,7 +1440,7 @@ label.settings-toggle {
   width: 230px;
   gap: 5px;
   padding: 8px;
-  border: 1px solid var(--mm-ink-350-7);
+  border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-sm);
   background: var(--mm-gold-50);
   box-shadow: 0 10px 26px rgba(32, 32, 30, 0.14);
@@ -1523,7 +1523,7 @@ label.settings-toggle {
 /* Base de botoes do workspace: `:where` zera a especificidade para (0,0,1) /
  * (0,2,1) no hover — mesmo contrato da base da sidebar acima. */
 :where(.workspace-shell) button {
-  background: var(--mm-ink-950-17);
+  background: var(--mm-ink-950-14);
   color: var(--mm-gold-50);
 }
 
@@ -1532,12 +1532,12 @@ label.settings-toggle {
 }
 
 .workspace-shell .secondary-button {
-  color: var(--mm-ink-900-30);
+  color: var(--mm-ink-900-32);
   background: transparent;
 }
 
 .workspace-shell .secondary-button:hover:not(:disabled) {
-  background: var(--mm-ink-250);
+  background: var(--mm-ink-250-2);
 }
 
 .workspace-shell .workspace-tree {
@@ -1627,7 +1627,7 @@ label.settings-toggle {
   display: grid;
   margin-top: 22px;
   padding: 14px 2px 4px;
-  border-top: 1px solid var(--mm-ink-250-4);
+  border-top: 1px solid var(--mm-ink-250-3);
 }
 
 .workspace-shell .trash-tree-summary {
@@ -1646,7 +1646,7 @@ label.settings-toggle {
 }
 
 .workspace-shell .trash-tree-summary:hover:not(:disabled) {
-  background: var(--mm-ink-250);
+  background: var(--mm-ink-250-2);
 }
 
 .workspace-shell .trash-tree-content {
@@ -1654,12 +1654,12 @@ label.settings-toggle {
   gap: 1px;
   margin: 4px 0 2px 12px;
   padding-left: 6px;
-  border-left: 1px solid var(--mm-ink-250-4);
+  border-left: 1px solid var(--mm-ink-250-3);
 }
 
 .workspace-shell .trash-tree-content > p {
   margin: 6px 0;
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
   font-size: 11px;
 }
 
@@ -1670,7 +1670,7 @@ label.settings-toggle {
   min-height: 28px;
   gap: 6px;
   padding-left: 6px;
-  color: var(--mm-ink-850-12);
+  color: var(--mm-ink-850-14);
   font-size: 12px;
 }
 
@@ -1700,7 +1700,7 @@ label.settings-toggle {
   gap: 4px;
   min-height: 30px;
   padding: 4px;
-  border: 1px solid var(--mm-ink-350-7);
+  border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-xs);
   background: var(--mm-gold-50);
 }
@@ -1712,7 +1712,7 @@ label.settings-toggle {
   border: 0;
   outline: 0;
   background: transparent;
-  color: var(--mm-ink-900-18);
+  color: var(--mm-ink-900-17);
   font: 11px var(--sans);
 }
 
@@ -1725,7 +1725,7 @@ label.settings-toggle {
   border: 0;
   border-radius: var(--radius-xs);
   background: var(--mm-gold-200-2);
-  color: var(--mm-ink-850-20);
+  color: var(--mm-ink-850-19);
   font: 11px var(--sans);
 }
 
@@ -1750,7 +1750,7 @@ label.settings-toggle {
   border: 0;
   border-radius: var(--radius-xs);
   background: transparent;
-  color: var(--mm-ink-850-12);
+  color: var(--mm-ink-850-14);
   font: 11px var(--sans);
   text-align: left;
 }
@@ -1763,7 +1763,7 @@ label.settings-toggle {
 .workspace-shell .tag-filter-suggestions small,
 .workspace-shell .tag-filter-suggestions p {
   margin: 0;
-  color: var(--mm-ink-750-3);
+  color: var(--mm-ink-700-2);
   font-size: 10px;
 }
 
@@ -1827,11 +1827,11 @@ label.settings-toggle {
   border: 0;
   border-radius: var(--radius-xs);
   background: transparent;
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
 }
 
 .workspace-shell .tree-item-action:hover:not(:disabled) {
-  background: var(--mm-ink-250);
+  background: var(--mm-ink-250-2);
 }
 
 .workspace-shell .tree-item-action.is-favorite {
@@ -1877,7 +1877,7 @@ label.settings-toggle {
   display: grid;
   min-width: 188px;
   padding: 5px;
-  border: 1px solid var(--mm-ink-350-7);
+  border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-sm);
   background: var(--mm-gold-50);
   box-shadow: 0 10px 24px rgba(32, 32, 30, 0.14);
@@ -1892,7 +1892,7 @@ label.settings-toggle {
   border: 0;
   border-radius: var(--radius-xs);
   background: transparent;
-  color: var(--mm-ink-900-22);
+  color: var(--mm-ink-900-23);
   font-size: 12px;
   text-align: left;
 }
@@ -1910,7 +1910,7 @@ label.settings-toggle {
   display: grid;
   gap: 4px;
   padding: 14px 14px 10px;
-  color: var(--mm-ink-950-12);
+  color: var(--mm-ink-950-14);
   font-size: 13px;
 }
 
@@ -1931,11 +1931,11 @@ label.settings-toggle {
 }
 
 .modal-close-button:hover {
-  background: var(--mm-ink-250);
+  background: var(--mm-ink-250-2);
 }
 
 .move-item-heading span {
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
   font-size: 12px;
 }
 
@@ -1999,7 +1999,7 @@ label.settings-toggle {
 
 .trash-item-list > p {
   margin: 12px 0;
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
   font-size: 12px;
 }
 
@@ -2009,7 +2009,7 @@ label.settings-toggle {
   justify-content: space-between;
   gap: 10px;
   min-height: 42px;
-  border-bottom: 1px solid var(--mm-ink-250-4);
+  border-bottom: 1px solid var(--mm-ink-250-3);
   color: var(--mm-ink-900-32);
   font-size: 12px;
 }
@@ -2029,7 +2029,7 @@ label.settings-toggle {
   width: 16px;
   margin-right: 6px;
   place-items: center;
-  color: var(--mm-ink-800-11);
+  color: var(--mm-ink-800-7);
   font-size: 12px;
 }
 
@@ -2047,7 +2047,7 @@ label.settings-toggle {
   width: 14px;
   height: 10px;
   margin-top: 2px;
-  border: 1px solid var(--mm-ink-950-8);
+  border: 1px solid var(--mm-ink-950-11);
   border-radius: 1px;
   background: var(--mm-gold-50);
   color: transparent;
@@ -2062,7 +2062,7 @@ label.settings-toggle {
   left: 1px;
   width: 6px;
   height: 3px;
-  border: 1px solid var(--mm-ink-950-8);
+  border: 1px solid var(--mm-ink-950-11);
   border-bottom: 0;
   border-radius: 1px 1px 0 0;
   background: var(--mm-gold-50);
@@ -2070,7 +2070,7 @@ label.settings-toggle {
 
 .workspace-shell .tree-icon--folder-open {
   transform: skewX(-10deg);
-  background: var(--mm-ink-950-8);
+  background: var(--mm-ink-950-11);
 }
 
 .workspace-shell .tree-icon--folder-open::after {
@@ -2096,7 +2096,7 @@ label.settings-toggle {
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--mm-ink-950-8);
+  color: var(--mm-ink-950-11);
   font-size: inherit;
   transform: none;
 }
@@ -2123,7 +2123,7 @@ label.settings-toggle {
   gap: 8px;
   min-height: 61px;
   padding: 12px 10px 12px 14px;
-  border-top: 1px solid var(--mm-ink-350-7);
+  border-top: 1px solid var(--mm-ink-350-3);
   color: var(--mm-ink-900-32);
   font-size: 12px;
   overflow: hidden;
@@ -2148,8 +2148,8 @@ label.settings-toggle {
 }
 
 .workspace-shell .vault-switch-button:hover:not(:disabled) {
-  background: var(--mm-ink-250-5);
-  color: var(--mm-ink-950-23);
+  background: var(--mm-ink-250-3);
+  color: var(--mm-ink-950-22);
 }
 
 .workspace-shell .vault-switch-button:disabled {
