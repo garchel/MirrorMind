@@ -27,6 +27,31 @@
   --button-transition: transform 0.18s ease, opacity 0.18s ease,
     background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 
+  /* Densidades. Os tres degraus NAO sao escolha estetica: sao o
+   * agrupamento das 6 alturas que o app realmente usa (24, 26, 28, 30,
+   * 34, 40), medido no CSS antes do componente existir. As tres
+   * faixas:
+   *   xs  24/26/28  glifo solto (rail, header, popover de menu)
+   *   sm  30/34      compacto (dialog, menu de nota, pagina de tag)
+   *   md  40         padrao de pagina
+   * Quem estava em 26 vira xs; 30 e 34 viram sm; 40 vira md. Nenhum
+   * pixel de altura muda -- o agrupamento so nomeia o que ja era
+   * repetido. */
+  --button-size-xs-height: 28px;
+  --button-size-xs-padding: 0 8px;
+  --button-size-xs-font: var(--font-size-caption);
+  --button-size-sm-height: 34px;
+  --button-size-sm-padding: 0 14px;
+  --button-size-sm-font: var(--font-size-caption);
+  --button-size-md-height: 40px;
+  --button-size-md-padding: 0 16px;
+  --button-size-md-font: var(--font-size-body-sm);
+
+  /* O glifo solto (xs sem rotulo) e quadrado: sem isso o botao de 28px
+   * com um icone de 16px fica largo demais para o trilho. */
+  --button-icon-size: 16px;
+  --button-icon-only-padding: 0;
+
   /* primaria: a unica com tinta cheia. Uma por tela. */
   --button-primary-bg: var(--button-bg);
   --button-primary-fg: var(--button-text);
@@ -138,4 +163,105 @@
   --duration-fast: 130ms;
   --duration-base: 180ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+
+/* ==================================================================
+ * PRIMITIVO: <Button> (src/components/ui/Button.tsx)
+ *
+ * Especificidade deliberadamente BAIXA (0,1,0). As 42 regras antigas de
+ * `.secondary-button` / `.primary-button` usam seletor de 2 ou 3
+ * classes e continuam vencendo -- e isso o que mantem a aparencia
+ * identica enquanto a migracao corre por ondas. Um `.ui-button--md`
+ * com especificidade maior sobrescreveria o ajuste de contexto do
+ * workspace e estouraria o trilho.
+ *
+ * Consequencia: enquanto `secondary-button` estiver no className, estas
+ * regras quase nao aplicam. Isso e de proposito -- elas valem para o
+ * botao NOVO, que nasce ja tokenizado. Quando a ultima onda migrar,
+ * estas viram a unica fonte.
+ * ================================================================== */
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  font-family: var(--sans);
+  border-radius: var(--button-radius);
+  transition: var(--button-transition);
+}
+
+.ui-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--button-icon-size);
+  height: var(--button-icon-size);
+  flex: none;
+}
+
+/* --- densidades (as 6 alturas medidas, em 3 faixas) ----------------- */
+.ui-button--xs {
+  min-height: var(--button-size-xs-height);
+  padding: var(--button-size-xs-padding);
+  font-size: var(--button-size-xs-font);
+}
+
+/* Glifo sem rotulo: quadrado, senao o botao de 28px fica largo demais
+ * para o trilho do rail. */
+.ui-button--xs:not(:has(.ui-button__icon + :not(:empty))) {
+  padding: var(--button-icon-only-padding);
+  min-width: var(--button-size-xs-height);
+}
+
+.ui-button--sm {
+  min-height: var(--button-size-sm-height);
+  padding: var(--button-size-sm-padding);
+  font-size: var(--button-size-sm-font);
+}
+
+.ui-button--md {
+  min-height: var(--button-size-md-height);
+  padding: var(--button-size-md-padding);
+  font-size: var(--button-size-md-font);
+}
+
+/* --- variantes (significado) ----------------------------------------- */
+/* primaria: tinta cheia. Uma por tela. */
+.ui-button--primary {
+  background: var(--button-primary-bg);
+  color: var(--button-primary-fg);
+  border: 1px solid var(--button-primary-border);
+}
+
+.ui-button--primary:hover:not(:disabled) {
+  background: var(--button-primary-bg-hover);
+}
+
+/* secundaria: contorno sobre a superficie. O padrao. */
+.ui-button--secondary {
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-fg);
+  border: 1px solid var(--button-secondary-border);
+}
+
+.ui-button--secondary:hover:not(:disabled) {
+  background: var(--button-secondary-bg-hover);
+}
+
+/* perigo: acao destrutiva. Nunca a unica acao da tela. */
+.ui-button--danger {
+  background: var(--button-danger-bg);
+  color: var(--button-danger-fg);
+}
+
+.ui-button--danger:hover:not(:disabled) {
+  background: var(--button-danger-bg-hover);
+}
+
+/* Um botao desabilitado esta inerte: opaco, sem feedback de hover. */
+.ui-button:disabled {
+  opacity: var(--button-disabled-opacity);
+  cursor: var(--button-disabled-cursor);
+  transform: none;
 }

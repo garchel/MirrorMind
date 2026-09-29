@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import type { SyncConflictCopy } from '../../lib/vault'
 import { Modal, ModalHeader } from '../../components/Modal'
 
@@ -73,38 +74,38 @@ export function SyncConflictsDialog({ open, copies, hasOriginal, onClose, onOpen
                 </small>
               </div>
               <div className="sync-conflicts-actions">
-                <button type="button" className="secondary-button" onClick={() => onOpen(copy.originalPath)} disabled={originalMissing}>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => onOpen(copy.originalPath)} disabled={originalMissing}>
                   Abrir original
-                </button>
-                <button type="button" className="secondary-button" onClick={() => onOpen(copy.relativePath)}>
+                </Button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => onOpen(copy.relativePath)}>
                   Abrir cópia
-                </button>
+                </Button>
                 {confirmId === copy.relativePath ? (
-                  <button
+                  <Button
                     type="button"
-                    className="secondary-button"
+                    className="ui-button ui-button--secondary ui-button--sm"
                     disabled={busyId !== null || originalMissing}
                     onClick={() => void promote(copy)}
                   >
                     {busyId === copy.relativePath ? 'Substituindo…' : 'Confirmar substituição'}
-                  </button>
+                  </Button>
                 ) : (
-                  <button
+                  <Button
                     type="button"
-                    className="secondary-button"
+                    className="ui-button ui-button--secondary ui-button--sm"
                     disabled={originalMissing}
                     onClick={() => { setError(null); setConfirmId(copy.relativePath) }}
                   >
                     Substituir
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
-                  className="secondary-button danger-button"
+                  className="ui-button ui-button--secondary ui-button--sm"
                   onClick={() => onDelete(copy)}
                 >
                   Excluir cópia
-                </button>
+                </Button>
               </div>
             </li>
           )
