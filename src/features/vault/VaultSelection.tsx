@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
+import { Button } from '../../components/ui/Button'
 import { TitleBar } from '../../components/TitleBar'
 import { UpdateBanner } from '../../components/UpdateBanner'
 import { Modal } from '../../components/Modal'
@@ -109,14 +110,14 @@ export function VaultSelection({
           </label>
           <div className="field">
             <span>Pasta pai</span>
-            <button
+            <Button
               type="button"
-              className="secondary-button"
+              className="ui-button ui-button--secondary ui-button--sm"
               onClick={chooseVaultParent}
               disabled={loading}
             >
               {createForm.parentPath ? 'Trocar pasta' : 'Escolher pasta pai'}
-            </button>
+            </Button>
             <small>{buildVaultPathPreview(createForm.parentPath, createForm.name)}</small>
           </div>
           <button type="button" onClick={createVault} disabled={loading}>
@@ -151,9 +152,9 @@ export function VaultSelection({
               <span>Não perguntar novamente e abrir este vault automaticamente.</span>
             </label>
             <div className="recent-vault-actions">
-              <button type="button" className="secondary-button" onClick={() => void dismissRecentVault()}>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void dismissRecentVault()}>
                 Escolher outro vault
-              </button>
+              </Button>
               <button type="button" onClick={() => void confirmRecentVault()}>
                 Usar este vault
               </button>

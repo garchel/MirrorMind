@@ -1,4 +1,5 @@
 import type { RefObject } from 'react'
+import { Button } from '../../components/ui/Button'
 import { invoke } from '@tauri-apps/api/core'
 import {
   DEFAULT_FONT_SIZE,
@@ -253,7 +254,7 @@ export function SettingsPage({
                   <strong>Tamanho do Obsidian</strong>
                   <small>O Vault declara baseFontSize de {Math.round(obsidianAppearance.baseFontSize)}px. Aplica sem alterar o `.obsidian`.</small>
                 </span>
-                <button type="button" className="secondary-button" onClick={() => setEditorFontSize(clampFontSize(obsidianAppearance?.baseFontSize ?? DEFAULT_FONT_SIZE))}>Usar tamanho do Obsidian</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setEditorFontSize(clampFontSize(obsidianAppearance?.baseFontSize ?? DEFAULT_FONT_SIZE))}>Usar tamanho do Obsidian</Button>
               </label>
             ) : null}
             <label className="settings-toggle">
@@ -463,9 +464,9 @@ export function SettingsPage({
               </label>
             </div>
             <div>
-              <button type="button" className="secondary-button" onClick={resetShortcuts}>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={resetShortcuts}>
                 Restaurar padroes
-              </button>
+              </Button>
             </div>
           </div>
           <div className="settings-section" id="settings-grafo3d" aria-labelledby="graph3d-preferences-title">
@@ -674,14 +675,14 @@ export function SettingsPage({
                 <strong>Versão do MirrorMind</strong>
                 <small>{appVersion ? `Você está na versão ${appVersion}.` : 'Versão disponível no app desktop.'}</small>
               </span>
-              <button
+              <Button
                 type="button"
-                className="secondary-button"
+                className="ui-button ui-button--secondary ui-button--sm"
                 onClick={() => void appUpdater.checkNow()}
                 disabled={appUpdater.status.kind === 'checking' || appUpdater.status.kind === 'downloading'}
               >
                 {appUpdater.status.kind === 'checking' ? 'Verificando…' : 'Verificar atualizações'}
-              </button>
+              </Button>
             </div>
             {appUpdater.status.kind === 'upToDate' ? (
               <p className="settings-note" role="status">MirrorMind está atualizado.</p>
@@ -711,9 +712,9 @@ export function SettingsPage({
                 <strong>Privacidade — Apagar dados locais</strong>
                 <small>Remove recent-vault.json, chaves do cofre (Gemini/OpenAI) e preferências locais (LGPD Art.18 VI). Vaults e notas NÃO são apagados.</small>
               </span>
-              <button
+              <Button
                 type="button"
-                className="secondary-button danger-button"
+                className="ui-button ui-button--secondary ui-button--sm"
                 onClick={async () => {
                   if (!confirm('Apagar dados locais do MirrorMind? Isso limpa recent-vault.json, chaves do cofre e localStorage (preferências). Vaults e notas serão preservados.')) return
                   try {
@@ -726,7 +727,7 @@ export function SettingsPage({
                 }}
               >
                 Apagar dados locais
-              </button>
+              </Button>
             </div>
           </div>
           <div className="settings-section" id="settings-provedor-ia" aria-labelledby="ai-provider-preferences-title">

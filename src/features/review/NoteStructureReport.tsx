@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Button } from '../../components/ui/Button'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { AlertTriangle, ArrowLeft, CheckCircle2, CheckSquare, RotateCcw } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -94,7 +95,7 @@ export function NoteStructureReport({ audit, loading, error, appliedIndex, onBac
         <div className="review-ai-report-body">
           <div className="structural-audit-state is-error">
             <span>{error}</span>
-            <button type="button" className="secondary-button" onClick={onRetry}>Tentar novamente</button>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onRetry}>Tentar novamente</Button>
           </div>
         </div>
       ) : !audit ? (
@@ -137,9 +138,9 @@ export function NoteStructureReport({ audit, loading, error, appliedIndex, onBac
                       ) : null}
                       {finding.edit ? (
                         <div className="structural-audit-apply-row">
-                          <button
+                          <Button
                             type="button"
-                            className="primary-button structural-audit-apply"
+                            className="ui-button ui-button--primary ui-button--md structural-audit-apply"
                             onClick={() => onApply(index)}
                             disabled={appliedIndex !== null && appliedIndex !== index}
                           >
@@ -148,7 +149,7 @@ export function NoteStructureReport({ audit, loading, error, appliedIndex, onBac
                             ) : (
                               'Aplicar no rascunho'
                             )}
-                          </button>
+                          </Button>
                           {appliedIndex !== null && appliedIndex !== index ? (
                             <small className="structural-audit-hint">Aplique uma de cada vez; re-execute a auditoria depois.</small>
                           ) : null}

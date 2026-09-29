@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { AlertTriangle, CalendarDays, Settings2, Wrench, X } from 'lucide-react'
 import {
   getNoteReviewPolicy,
@@ -210,16 +211,16 @@ export function NoteReviewPolicyControl({
 
   if (loadFailed && policy === null) {
     return (
-      <button
+      <Button
         type="button"
-        className="secondary-button note-review-policy-trigger note-review-policy-trigger-error"
+        className="ui-button ui-button--secondary ui-button--sm note-review-policy-trigger note-review-policy-trigger-error"
         aria-label="Falha ao carregar a política de revisão. Tentar novamente"
         title={`Falha ao carregar a política de revisão: ${error}`}
         disabled={disabled || loading}
         onClick={() => setReloadToken((current) => current + 1)}
       >
         <AlertTriangle size={15} strokeWidth={1.5} aria-hidden="true" />
-      </button>
+      </Button>
     )
   }
 
@@ -329,9 +330,9 @@ export function NoteReviewPolicyControl({
 
   return (
     <>
-      <button
+      <Button
         type="button"
-        className="secondary-button note-review-policy-trigger"
+        className="ui-button ui-button--secondary ui-button--sm note-review-policy-trigger"
         aria-label="Configurar revisão da nota"
         title="Configurar revisão da nota"
         disabled={disabled || loading}
@@ -345,7 +346,7 @@ export function NoteReviewPolicyControl({
           <span>Política de revisão</span>
           {policy && form ? <small>{presetSummary(policy)}</small> : null}
         </span>
-      </button>
+      </Button>
 
       {open && policy && form ? (
         <Modal
@@ -431,9 +432,9 @@ export function NoteReviewPolicyControl({
               </div>
 
             <footer>
-              <button type="button" className="secondary-button" disabled={saving} onClick={() => void inheritVaultDefaults()}>Usar padrão do Vault</button>
-              <button type="button" className="secondary-button" disabled={saving} onClick={closeDialog}>Cancelar</button>
-              <button type="button" className="primary-button" disabled={saving || !validation?.success} onClick={() => void save()}>{saving ? 'Salvando…' : 'Salvar política'}</button>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={saving} onClick={() => void inheritVaultDefaults()}>Usar padrão do Vault</Button>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={saving} onClick={closeDialog}>Cancelar</Button>
+              <Button type="button" className="ui-button ui-button--primary ui-button--md" disabled={saving || !validation?.success} onClick={() => void save()}>{saving ? 'Salvando…' : 'Salvar política'}</Button>
             </footer>
           </section>
         </Modal>

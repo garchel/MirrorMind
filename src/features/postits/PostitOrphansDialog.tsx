@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { POSTIT_COLOR_HEX, type NotePostit } from '../../lib/postits'
 import { Modal, ModalHeader } from '../../components/Modal'
 
@@ -43,13 +44,13 @@ export function PostitOrphansDialog({ open, orphans, onClose, onOpen, onDelete }
             <span className="postit-orphans-text">
               {postit.text.trim() ? postit.text.trim() : 'Post-it vazio'}
             </span>
-            <button type="button" className="secondary-button" onClick={() => { setError(null); setConfirmId(null); onOpen(postit.id) }}>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setError(null); setConfirmId(null); onOpen(postit.id) }}>
               Abrir
-            </button>
+            </Button>
             {confirmId === postit.id ? (
-              <button
+              <Button
                 type="button"
-                className="secondary-button danger-button"
+                className="ui-button ui-button--secondary ui-button--sm"
                 onClick={() => {
                   const failure = onDelete(postit.id)
                   if (failure) {
@@ -61,11 +62,11 @@ export function PostitOrphansDialog({ open, orphans, onClose, onOpen, onDelete }
                 }}
               >
                 Excluir?
-              </button>
+              </Button>
             ) : (
-              <button type="button" className="secondary-button" onClick={() => { setError(null); setConfirmId(postit.id) }}>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setError(null); setConfirmId(postit.id) }}>
                 Excluir
-              </button>
+              </Button>
             )}
           </li>
         ))}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { CalendarClock, CheckCircle2, Minus, Plus } from 'lucide-react'
 import { ErrorState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
@@ -175,9 +176,9 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
             <li>Volte quando vencer</li>
           </ol>
           {onBrowseNotes ? (
-            <button type="button" className="primary-button" onClick={onBrowseNotes}>
+            <Button type="button" className="ui-button ui-button--primary ui-button--md" onClick={onBrowseNotes}>
               Avaliar notas
-            </button>
+            </Button>
           ) : null}
         </div>
       ) : (
@@ -223,22 +224,22 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
                 </div>
               </div>
               <div className="review-queue-actions">
-                <button
+                <Button
                   type="button"
-                  className="primary-button"
+                  className="ui-button ui-button--primary ui-button--md"
                   onClick={() => onStartReview(item)}
                   aria-label={`Revisar ${item.title}`}
                 >
                   Revisar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="secondary-button review-queue-open"
+                  className="ui-button ui-button--secondary ui-button--sm review-queue-open"
                   onClick={() => onOpenNote(item.relativePath)}
                   aria-label={`Abrir nota ${item.title}`}
                 >
                   Abrir nota
-                </button>
+                </Button>
               </div>
             </li>
           ))}
@@ -259,9 +260,9 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
           ) : upcomingError && upcomingItems.length === 0 ? (
             <div className="review-queue-upcoming-error" role="alert">
               <p>{upcomingError}</p>
-              <button type="button" className="secondary-button" onClick={() => void loadUpcomingPage(true)}>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void loadUpcomingPage(true)}>
                 Tentar novamente
-              </button>
+              </Button>
             </div>
           ) : upcomingItems.length === 0 ? (
             <div className="review-queue-upcoming-empty">
@@ -288,14 +289,14 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
                     </div>
                   </div>
                   <div className="review-queue-actions">
-                    <button
+                    <Button
                       type="button"
-                      className="secondary-button review-queue-open"
+                      className="ui-button ui-button--secondary ui-button--sm review-queue-open"
                       onClick={() => onOpenNote(item.relativePath)}
                       aria-label={`Abrir nota ${item.title}`}
                     >
                       Abrir nota
-                    </button>
+                    </Button>
                   </div>
                 </li>
               ))}
@@ -307,14 +308,14 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
           {hasMoreUpcoming && !upcomingLoading ? (
             <>
               <div ref={sentinelRef} className="review-queue-sentinel" aria-hidden="true" />
-              <button
+              <Button
                 type="button"
-                className="secondary-button"
+                className="ui-button ui-button--secondary ui-button--sm"
                 onClick={() => void loadUpcomingPage(false)}
                 disabled={upcomingLoadingMore}
               >
                 {upcomingLoadingMore ? 'Carregando…' : 'Carregar mais'}
-              </button>
+              </Button>
             </>
           ) : null}
           {upcomingLoadingMore ? <p role="status">Carregando mais…</p> : null}

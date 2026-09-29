@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { useSession, type SessionClient } from '../../lib/session'
 import { useEntitlement } from '../../lib/entitlement'
 import { PLANS, type PlanId } from '../../lib/billing'
@@ -56,19 +57,19 @@ export function AccountSettings({ client }: { client: SessionClient }) {
             <small>Conectado como {snapshot.email ?? 'conta local'}.</small>
           </span>
           <div className="settings-account-actions">
-            <button type="button" className="secondary-button" onClick={() => void signOut()}>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void signOut()}>
               Sair
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="secondary-button danger-button"
+              className="ui-button ui-button--secondary ui-button--sm"
               onClick={() => {
                 if (!confirm('Excluir a conta neste aparelho? Isso encerra a sessão local.')) return
                 void signOut()
               }}
             >
               Excluir conta
-            </button>
+            </Button>
           </div>
         </div>
         {planPanel()}
@@ -108,15 +109,15 @@ export function AccountSettings({ client }: { client: SessionClient }) {
         />
         {error ? <p role="alert" className="settings-note">{error}</p> : null}
         <div className="settings-account-actions">
-          <button type="button" className="secondary-button" onClick={() => void signInWithGoogle()}>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void signInWithGoogle()}>
             Entrar com Google
-          </button>
+          </Button>
           <button type="submit">
             Entrar
           </button>
-          <button type="button" className="secondary-button" onClick={() => void signUp(email, password)}>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void signUp(email, password)}>
             Criar conta
-          </button>
+          </Button>
         </div>
       </form>
       </div>

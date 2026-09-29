@@ -1,4 +1,5 @@
 import { useMemo, type Dispatch, type SetStateAction } from 'react'
+import { Button } from './ui/Button'
 import {
   Download,
   Eye,
@@ -238,20 +239,20 @@ export function GraphToolbar(props: GraphToolbarProps) {
       <input value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
       {!graphMode3d ? (
         <span className="graph-zoom-cluster" aria-label="Zoom do grafo">
-          <button type="button" className="secondary-button" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.min(2.4, view.scale + 0.15) }))} aria-label="Aproximar grafo">+</button>
-          <button type="button" className="secondary-button" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.max(0.55, view.scale - 0.15) }))} aria-label="Afastar grafo">−</button>
-          <button type="button" className="secondary-button" onClick={resetGraphView} aria-label="Centralizar grafo">Centralizar</button>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.min(2.4, view.scale + 0.15) }))} aria-label="Aproximar grafo">+</Button>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.max(0.55, view.scale - 0.15) }))} aria-label="Afastar grafo">−</Button>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={resetGraphView} aria-label="Centralizar grafo">Centralizar</Button>
         </span>
       ) : null}
       <span className="graph-header-sep" aria-hidden="true" />
-      <button type="button" className="secondary-button graph-icon-button" onClick={() => void openGraphPage()} disabled={isGraphLoading} aria-label="Atualizar grafo">
+      <Button type="button" className="ui-button ui-button--secondary ui-button--sm graph-icon-button" onClick={() => void openGraphPage()} disabled={isGraphLoading} aria-label="Atualizar grafo">
         <RefreshCw size={15} strokeWidth={1.5} aria-hidden="true" />
-      </button>
+      </Button>
       <Popover open={graphExportOpen} onOpenChange={setGraphExportOpen}>
         <PopoverTrigger asChild>
-          <button type="button" className="secondary-button graph-icon-button graph-export-button" aria-label="Exportar grafo" title="Exportar grafo como SVG ou PNG">
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm graph-icon-button graph-export-button" aria-label="Exportar grafo" title="Exportar grafo como SVG ou PNG">
             <Download size={15} strokeWidth={1.5} aria-hidden="true" />
-          </button>
+          </Button>
         </PopoverTrigger>
         <PopoverContent align="end" sideOffset={6} className="graph-export-popover">
           <p className="graph-settings-header-title"><Download size={14} strokeWidth={1.75} aria-hidden="true" /><strong>Exportar grafo</strong></p>
@@ -264,16 +265,16 @@ export function GraphToolbar(props: GraphToolbarProps) {
             </select>
           </label>
           <div className="graph-export-actions">
-            <button type="button" className="secondary-button" onClick={() => handleGraphExport('svg')} aria-label="Exportar grafo como SVG">SVG</button>
-            <button type="button" className="secondary-button" onClick={() => handleGraphExport('png')} aria-label="Exportar grafo como PNG">PNG</button>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => handleGraphExport('svg')} aria-label="Exportar grafo como SVG">SVG</Button>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => handleGraphExport('png')} aria-label="Exportar grafo como PNG">PNG</Button>
           </div>
         </PopoverContent>
       </Popover>
       <Popover open={graphSettingsOpen} onOpenChange={setGraphSettingsOpenSynced}>
         <PopoverTrigger asChild>
-          <button type="button" className="secondary-button graph-icon-button graph-settings-button" aria-label="Configurações do grafo" title="Configurações do grafo">
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm graph-icon-button graph-settings-button" aria-label="Configurações do grafo" title="Configurações do grafo">
             <Settings size={15} strokeWidth={1.5} aria-hidden="true" />
-          </button>
+          </Button>
         </PopoverTrigger>
         <PopoverContent align="end" sideOffset={6} className="graph-settings-popover">
           <header className="graph-settings-header">

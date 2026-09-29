@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Button } from './components/ui/Button'
 import { createPortal } from 'react-dom'
 import type { CSSProperties, DragEvent, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import type { EditorState } from '@codemirror/state'
@@ -4798,14 +4799,14 @@ function App() {
       switch (key) {
         case 'favorite':
           return (
-            <button key={key} type="button" className={`secondary-button favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></button>
+            <Button key={key} type="button" className="ui-button ui-button--secondary ui-button--sm favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}" onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></Button>
           )
         case 'indexadora':
           return (
-            <button
+            <Button
               key={key}
               type="button"
-              className={`secondary-button indexadora-button${isIndexadora(activeNote.content) ? ' is-active' : ''}`}
+              className="ui-button ui-button--secondary ui-button--sm indexadora-button${isIndexadora(activeNote.content) ? ' is-active' : ''}"
               onClick={() => void toggleActiveNoteIndexadora()}
               disabled={saving || loading}
               title={isIndexadora(activeNote.content) ? 'Nota indexadora: remove a lista automatica de referencias' : 'Declarar como nota indexadora: lista automaticamente as notas que referenciam esta nota'}
@@ -4813,7 +4814,7 @@ function App() {
               aria-pressed={isIndexadora(activeNote.content)}
             >
               <BookMarked size={15} strokeWidth={1.5} aria-hidden="true" />
-            </button>
+            </Button>
           )
         case 'review':
           return (
@@ -4822,15 +4823,15 @@ function App() {
               if (!open) setReviewReportOpen(false)
             }}>
               <PopoverTrigger asChild>
-                <button
+                <Button
                   type="button"
-                  className="secondary-button note-review-menu-trigger"
+                  className="ui-button ui-button--secondary ui-button--sm note-review-menu-trigger"
                   aria-label="Avaliação e revisão da nota"
                   title="Avaliação e revisão da nota"
                 >
                   <span className={`note-review-status-dot is-${noteReadiness ?? 'none'}`} aria-hidden="true" />
                   <ClipboardList size={15} strokeWidth={1.5} aria-hidden="true" />
-                </button>
+                </Button>
               </PopoverTrigger>
               <PopoverContent align="end" sideOffset={6} className="note-review-menu">
                 {auditReportOpen ? (
@@ -4887,14 +4888,14 @@ function App() {
               if (open && factCheck === null && factCheckError === null) void runFactCheck()
             }}>
               <PopoverTrigger asChild>
-                <button
+                <Button
                   type="button"
-                  className="secondary-button structural-audit-trigger"
+                  className="ui-button ui-button--secondary ui-button--sm structural-audit-trigger"
                   aria-label="Verificar fatos da nota"
                   title="Verificação factual opcional — compara as afirmações com conhecimento externo, sem alterar a nota nem as pontuações"
                 >
                   <CheckCircle2 size={15} strokeWidth={1.5} aria-hidden="true" />
-                </button>
+                </Button>
               </PopoverTrigger>
               <PopoverContent align="end" sideOffset={6} className="structural-audit-scope fact-check-panel">
                 <header className="structural-audit-header">
@@ -4906,7 +4907,7 @@ function App() {
                 ) : factCheckError ? (
                   <div className="structural-audit-state is-error">
                     <span>{factCheckError}</span>
-                    <button type="button" className="secondary-button" onClick={() => void runFactCheck()}>Tentar novamente</button>
+                    <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void runFactCheck()}>Tentar novamente</Button>
                   </div>
                 ) : factCheck === null ? (
                     <div className="structural-audit-state">Preparando a verificação…</div>
@@ -5388,7 +5389,7 @@ function App() {
               </div>
               <p>Escolha qual versão deve permanecer no editor. Nenhuma versão será sobrescrita automaticamente.</p>
               <div className="folder-dialog-actions">
-                <button type="button" className="secondary-button" onClick={loadExternalNoteVersion}>Carregar arquivo externo</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={loadExternalNoteVersion}>Carregar arquivo externo</Button>
                 <button type="button" onClick={keepLocalNoteVersion}>Manter meu rascunho</button>
               </div>
           </Modal>
@@ -5415,8 +5416,8 @@ function App() {
                 />
               </label>
               <div className="folder-dialog-actions external-removed-note-actions">
-                <button type="button" className="secondary-button" onClick={closeExternallyRemovedNote} disabled={loading}>Fechar aba</button>
-                <button type="button" className="secondary-button" onClick={() => void saveExternallyRemovedNoteAsNew()} disabled={loading || !recoveredNotePath.trim()}>Salvar como nova</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeExternallyRemovedNote} disabled={loading}>Fechar aba</Button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void saveExternallyRemovedNoteAsNew()} disabled={loading || !recoveredNotePath.trim()}>Salvar como nova</Button>
                 <button type="button" onClick={() => void restoreExternallyRemovedNote()} disabled={loading}>Restaurar arquivo</button>
               </div>
           </Modal>
@@ -5429,7 +5430,7 @@ function App() {
                 {matchingCommands.map((command) => <button key={command.id} type="button" disabled={command.disabled} onClick={() => runPaletteCommand(command)}><span>{command.label}</span><small>{command.description}</small></button>)}
                 {matchingCommands.length === 0 ? <p>Nenhum comando encontrado.</p> : null}
               </div>
-              <div className="folder-dialog-actions"><span className="command-palette-hint">Ctrl+K para abrir</span><button type="button" className="secondary-button" onClick={() => setShowCommandPalette(false)}>Fechar</button></div>
+              <div className="folder-dialog-actions"><span className="command-palette-hint">Ctrl+K para abrir</span><Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowCommandPalette(false)}>Fechar</Button></div>
             </section>
           </div>
         ) : null}
@@ -5570,7 +5571,7 @@ function App() {
                 </div>
               </div>
               <div className="folder-dialog-actions">
-                <button type="button" className="secondary-button" onClick={() => { setSelectedTags([]); setTagFilterQuery('') }}>Limpar</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setSelectedTags([]); setTagFilterQuery('') }}>Limpar</Button>
                 <button type="button" onClick={() => setShowTagFilterDialog(false)}>Aplicar filtro</button>
               </div>
           </Modal>
@@ -5590,7 +5591,7 @@ function App() {
                 {linkableNotes.length === 0 ? <p>Nenhuma outra nota encontrada.</p> : null}
               </div>
               <div className="folder-dialog-actions">
-                <button type="button" className="secondary-button" onClick={() => setShowNoteLinkDialog(false)}>Cancelar</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowNoteLinkDialog(false)}>Cancelar</Button>
               </div>
           </Modal>
         ) : null}
@@ -5610,7 +5611,7 @@ function App() {
                 {graphConnectNotes.length === 0 ? <p>Nenhuma outra nota disponível para conectar.</p> : null}
               </div>
               <div className="folder-dialog-actions">
-                <button type="button" className="secondary-button" onClick={() => setGraphConnectSource(null)}>Cancelar</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setGraphConnectSource(null)}>Cancelar</Button>
               </div>
           </Modal>
           </div>,
@@ -5625,7 +5626,7 @@ function App() {
           >
               <input autoFocus value={tagName} onChange={(event) => setTagName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') insertTag() }} placeholder="Nome da tag" aria-label="Nome da tag" />
               <div className="folder-dialog-actions">
-                <button type="button" className="secondary-button" onClick={() => setShowTagDialog(false)}>Cancelar</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowTagDialog(false)}>Cancelar</Button>
                 <button type="button" onClick={insertTag} disabled={!tagName.trim()}>Inserir tag</button>
               </div>
           </Modal>
@@ -5639,7 +5640,7 @@ function App() {
           >
               <input autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void createFolder() }} placeholder="Nome ou caminho da pasta" aria-label="Nome da pasta" />
               <div className="folder-dialog-actions">
-                <button type="button" className="secondary-button" onClick={() => setShowFolderDialog(false)}>Cancelar</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowFolderDialog(false)}>Cancelar</Button>
                 <button type="button" onClick={() => void createFolder()} disabled={!folderName.trim() || loading}>Criar pasta</button>
               </div>
           </Modal>
@@ -5656,14 +5657,14 @@ function App() {
                 <p className="wikilink-index-progress" role="status">
                   Indexando wikilinks... ({wikilinkIndexProgress.processed} de {wikilinkIndexProgress.total} notas)
                   {!wikilinkIndexCancelled ? (
-                    <button type="button" className="secondary-button" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</button>
+                    <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</Button>
                   ) : (
                     <span className="wikilink-index-cancelled">Indexacao cancelada; usando varredura completa.</span>
                   )}
                 </p>
               ) : null}
               <div className="folder-dialog-actions">
-                <button type="button" className="secondary-button" onClick={() => setRenameTarget(null)}>Cancelar</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setRenameTarget(null)}>Cancelar</Button>
                 <button type="button" onClick={() => void renameVaultItem()} disabled={!renameName.trim() || loading}>Renomear</button>
               </div>
           </Modal>
@@ -5692,14 +5693,14 @@ function App() {
                 <p className="wikilink-index-progress" role="status">
                   Indexando wikilinks... ({wikilinkIndexProgress.processed} de {wikilinkIndexProgress.total} notas)
                   {!wikilinkIndexCancelled ? (
-                    <button type="button" className="secondary-button" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</button>
+                    <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</Button>
                   ) : (
                     <span className="wikilink-index-cancelled">Indexacao cancelada; usando varredura completa.</span>
                   )}
                 </p>
               ) : null}
               <div className="folder-dialog-actions">
-                <button type="button" className="secondary-button" onClick={() => setMoveTarget(null)}>Cancelar</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setMoveTarget(null)}>Cancelar</Button>
                 <button type="button" onClick={() => void moveVaultItem()} disabled={loading}>Mover</button>
               </div>
           </Modal>
@@ -5720,8 +5721,8 @@ function App() {
                 Não mostrar esta confirmação novamente
               </label>
               <div className="folder-dialog-actions">
-                <button type="button" className="secondary-button" onClick={() => setDeleteTarget(null)}>Cancelar</button>
-                <button type="button" className="danger-button" onClick={() => void deleteVaultItem()} disabled={loading}>Mover para lixeira</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+                <Button type="button" className="ui-button ui-button--danger ui-button--sm" onClick={() => void deleteVaultItem()} disabled={loading}>Mover para lixeira</Button>
               </div>
           </Modal>
         ) : null}
@@ -5737,8 +5738,8 @@ function App() {
                 <span>{permanentDeleteTarget.itemType === 'folder' ? `A pasta "${permanentDeleteTarget.originalRelativePath}" e todo o seu conteudo serao removidos definitivamente.` : `A nota "${permanentDeleteTarget.originalRelativePath.replace(/\.md$/i, '')}" será removida definitivamente e nao podera ser restaurada.`}</span>
               </div>
               <div className="folder-dialog-actions">
-                <button type="button" className="secondary-button" onClick={() => setPermanentDeleteTarget(null)}>Cancelar</button>
-                <button type="button" className="danger-button" onClick={() => void permanentlyDeleteTrashItem()} disabled={loading}>Excluir permanentemente</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setPermanentDeleteTarget(null)}>Cancelar</Button>
+                <Button type="button" className="ui-button ui-button--danger ui-button--sm" onClick={() => void permanentlyDeleteTrashItem()} disabled={loading}>Excluir permanentemente</Button>
               </div>
           </Modal>
         ) : null}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, TimerReset, TrendingUp, X } from 'lucide-react'
 import { ErrorState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
@@ -163,9 +164,9 @@ function DeadlineChangeDialog({ vaultPath, item, onClose, onApplied }: {
             <p className="card-kicker">Prazo de estudo</p>
             <h3 id="deadline-dialog-title">Alterar prazo · #{item.sourceTag ?? 'sem origem'}</h3>
           </div>
-          <button type="button" className="secondary-button review-dashboard-dialog-close" onClick={onClose} disabled={applying} aria-label="Fechar alteração de prazo">
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm review-dashboard-dialog-close" onClick={onClose} disabled={applying} aria-label="Fechar alteração de prazo">
             <X size={16} aria-hidden="true" />
-          </button>
+          </Button>
         </div>
         <p className="review-dashboard-dialog-copy">
           A data vale para todas as notas com a tag <strong>#{item.sourceTag}</strong>. Confirmar recalcula a próxima revisão de cada uma, preservando pontuações, histórico e estado de memória.
@@ -206,15 +207,15 @@ function DeadlineChangeDialog({ vaultPath, item, onClose, onApplied }: {
         ) : null}
 
         <div className="review-dashboard-dialog-actions">
-          <button type="button" className="secondary-button" onClick={onClose} disabled={applying}>Cancelar</button>
-          <button
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onClose} disabled={applying}>Cancelar</Button>
+          <Button
             type="button"
-            className="secondary-button"
+            className="ui-button ui-button--secondary ui-button--sm"
             onClick={() => void refreshPreview()}
             disabled={!item.sourceTag || !deadlineChanged || busy || applying}
           >
             {busy ? 'Calculando…' : 'Ver impacto'}
-          </button>
+          </Button>
           <button
             type="button"
             onClick={() => void confirm()}
@@ -388,33 +389,33 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
                     </div>
                     <div className="review-dashboard-deadline-actions">
                       {item.due ? (
-                        <button
+                        <Button
                           type="button"
-                          className="primary-button review-dashboard-deadline-review"
+                          className="ui-button ui-button--primary ui-button--md review-dashboard-deadline-review"
                           onClick={() => onStartReview(item)}
                           aria-label={`Revisar ${item.title}`}
                         >
                           Revisar
-                        </button>
+                        </Button>
                       ) : null}
-                      <button
+                      <Button
                         type="button"
-                        className="secondary-button review-dashboard-deadline-open"
+                        className="ui-button ui-button--secondary ui-button--sm review-dashboard-deadline-open"
                         onClick={() => onOpenNote(item.relativePath)}
                         aria-label={`Abrir nota ${item.title}`}
                       >
                         Abrir
-                      </button>
+                      </Button>
                       {item.sourceTag ? (
-                        <button
+                        <Button
                           type="button"
-                          className="secondary-button review-dashboard-deadline-edit"
+                          className="ui-button ui-button--secondary ui-button--sm review-dashboard-deadline-edit"
                           onClick={() => setDeadlineItem(item)}
                           aria-label={`Alterar prazo de ${item.title}`}
                         >
                           <Pencil size={13} strokeWidth={1.6} aria-hidden="true" />
                           Alterar prazo
-                        </button>
+                        </Button>
                       ) : null}
                     </div>
                   </li>
@@ -530,15 +531,15 @@ function ReadinessSection({ unassessed, ready, ambiguous, insufficient, modified
                     {item.issueCount > 0 ? ` · ${item.issueCount} ${item.issueCount === 1 ? 'problema' : 'problemas'} apontados` : ''}
                   </span>
                 </div>
-                <button
+                <Button
                   type="button"
-                  className="secondary-button review-dashboard-readiness-open"
+                  className="ui-button ui-button--secondary ui-button--sm review-dashboard-readiness-open"
                   onClick={() => onOpenNote(item.relativePath)}
                   aria-label={`Abrir nota ${item.title}`}
                 >
                   <FileText size={13} strokeWidth={1.6} aria-hidden="true" />
                   Abrir
-                </button>
+                </Button>
               </li>
             ))}
           </ol>
@@ -594,14 +595,14 @@ function CalibrationSection({ notes, count, onOpenNote }: {
                   <span className="review-dashboard-calibration-count">
                     {item.observedUnitCount} de {item.totalUnitCount} {item.unitKind === 'section' ? (item.totalUnitCount === 1 ? 'seção' : 'seções') : item.unitKind === 'paragraph' ? (item.totalUnitCount === 1 ? 'parágrafo' : 'parágrafos') : (item.totalUnitCount === 1 ? 'unidade' : 'unidades')} · {remaining} {remaining === 1 ? 'restante' : 'restantes'}
                   </span>
-                  <button
+                  <Button
                     type="button"
-                    className="secondary-button review-dashboard-calibration-open"
+                    className="ui-button ui-button--secondary ui-button--sm review-dashboard-calibration-open"
                     onClick={() => onOpenNote(item.relativePath)}
                     aria-label={`Abrir nota ${item.title}`}
                   >
                     Abrir
-                  </button>
+                  </Button>
                 </li>
               )
             })}
@@ -654,32 +655,32 @@ function ExpiredDeadlinesSection({ items, count, onOpenNote, onEditDeadline, onS
                   ) : null}
                 </div>
                 <div className="review-dashboard-deadline-actions">
-                  <button
+                  <Button
                     type="button"
-                    className="primary-button review-dashboard-deadline-review"
+                    className="ui-button ui-button--primary ui-button--md review-dashboard-deadline-review"
                     onClick={() => onStartReview(item)}
                     aria-label={`Revisar ${item.title}`}
                   >
                     Revisar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
-                    className="secondary-button review-dashboard-deadline-open"
+                    className="ui-button ui-button--secondary ui-button--sm review-dashboard-deadline-open"
                     onClick={() => onOpenNote(item.relativePath)}
                     aria-label={`Abrir nota ${item.title}`}
                   >
                     Abrir
-                  </button>
+                  </Button>
                   {item.sourceTag ? (
-                    <button
+                    <Button
                       type="button"
-                      className="secondary-button review-dashboard-deadline-edit"
+                      className="ui-button ui-button--secondary ui-button--sm review-dashboard-deadline-edit"
                       onClick={() => onEditDeadline(item)}
                       aria-label={`Alterar prazo de ${item.title}`}
                     >
                       <Pencil size={13} strokeWidth={1.6} aria-hidden="true" />
                       Alterar prazo
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
               </li>

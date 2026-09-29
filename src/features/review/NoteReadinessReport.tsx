@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Button } from '../../components/ui/Button'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { AlertTriangle, ArrowLeft, CheckCircle2, Lightbulb, ListChecks, ShieldAlert } from 'lucide-react'
 import 'katex/dist/katex.min.css'
@@ -180,9 +181,9 @@ export function NoteReadinessReport({ attempt, isStaleReport, error, busy, onClo
           </section>
           {error ? <p className="field-error" role="alert">{error}</p> : null}
            <div className="review-ai-dialog-actions">
-             <button type="button" className="secondary-button" onClick={onRetry} disabled={busy}>
+             <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onRetry} disabled={busy}>
                {busy ? 'Gerando…' : 'Gerar novo relatório da IA'}
-             </button>
+             </Button>
            </div>
         </div>
       )}

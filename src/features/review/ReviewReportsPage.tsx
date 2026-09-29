@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { BarChart3, ClipboardList, ExternalLink } from 'lucide-react'
 import { ErrorState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
@@ -290,15 +291,15 @@ export function ReviewReportsPage({ vaultPath, onOpenNote }: Props) {
                         <td>{report.gapCount}</td>
                         <td>{formatDate(report.nextReviewAtUnixMs)}</td>
                         <td>
-                          <button
+                          <Button
                             type="button"
-                            className="secondary-button review-reports-open"
+                            className="ui-button ui-button--secondary ui-button--sm review-reports-open"
                             onClick={() => onOpenNote(report.relativePath)}
                             aria-label={`Abrir nota ${report.title}`}
                           >
                             <ExternalLink size={13} aria-hidden="true" />
                             Abrir
-                          </button>
+                          </Button>
                         </td>
                       </tr>
                     ))}

@@ -1,4 +1,5 @@
 import type { Dispatch, ReactNode, RefObject, SetStateAction } from 'react'
+import { Button } from '../../components/ui/Button'
 import {
   AlertTriangle,
   FileWarning,
@@ -184,19 +185,19 @@ export function ExplorerSidebar({
           <div className="explorer-navigation-row">
             <h2>Navegacao</h2>
             <div className="explorer-actions">
-            <button type="button" className="secondary-button" onClick={startNewNote} title="Nova nota" aria-label="Nova nota">
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={startNewNote} title="Nova nota" aria-label="Nova nota">
               <span aria-hidden="true">&#9998;</span>
-            </button>
-            <button type="button" className="secondary-button" onClick={() => setShowFolderDialog(true)} title="Nova pasta" aria-label="Nova pasta">
+            </Button>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowFolderDialog(true)} title="Nova pasta" aria-label="Nova pasta">
               <FolderPlus size={15} strokeWidth={1.5} aria-hidden="true" />
-            </button>
-            <button type="button" className="secondary-button" onClick={() => setStatus('As notas estão ordenadas por nome.')} title="Ordenação" aria-label="Ordenação">
+            </Button>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setStatus('As notas estão ordenadas por nome.')} title="Ordenação" aria-label="Ordenação">
               <span aria-hidden="true">&#8645;</span>
-            </button>
+            </Button>
             <div className="explorer-filter-control" ref={tagFilterDropdownRef}>
-              <button type="button" className="secondary-button" onClick={() => setShowTagFilterDropdown((open) => !open)} title="Filtrar tags (Ctrl+Shift+F)" aria-label="Filtrar por tags" aria-expanded={showTagFilterDropdown}>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowTagFilterDropdown((open) => !open)} title="Filtrar tags (Ctrl+Shift+F)" aria-label="Filtrar por tags" aria-expanded={showTagFilterDropdown}>
                 {selectedTags.length > 0 ? <ListFilter size={15} strokeWidth={1.5} aria-hidden="true" /> : <Filter size={15} strokeWidth={1.5} aria-hidden="true" />}
-              </button>
+              </Button>
               {showTagFilterDropdown ? (
                 <div className="tag-filter-dropdown" role="dialog" aria-label="Filtro rápido de tags">
                   <div className="tag-filter-selection">
@@ -213,28 +214,28 @@ export function ExplorerSidebar({
               ) : null}
             </div>
             {specialFiles.length > 0 ? (
-              <button
+              <Button
                 type="button"
-                className="secondary-button special-files-button"
+                className="ui-button ui-button--secondary ui-button--sm special-files-button"
                 onClick={() => setShowSpecialFilesDialog(true)}
                 title={`${specialFiles.length}${specialFilesTruncated ? '+' : ''} arquivo${specialFiles.length === 1 ? '' : 's'} preservado${specialFiles.length === 1 ? '' : 's'} sem edição`}
                 aria-label={`Ver ${specialFiles.length}${specialFilesTruncated ? ' ou mais' : ''} arquivo${specialFiles.length === 1 ? '' : 's'} com compatibilidade limitada`}
               >
                 <FileWarning size={15} strokeWidth={1.5} aria-hidden="true" />
                 <span aria-hidden="true">{specialFiles.length}{specialFilesTruncated ? '+' : ''}</span>
-              </button>
+              </Button>
             ) : null}
             {syncConflictCopies.length > 0 ? (
-              <button
+              <Button
                 type="button"
-                className="secondary-button special-files-button"
+                className="ui-button ui-button--secondary ui-button--sm special-files-button"
                 onClick={() => setShowSyncConflicts(true)}
                 title={`${syncConflictCopies.length} ${syncConflictCopies.length === 1 ? 'cópia de conflito' : 'cópias de conflito'} de sincronização fora do inventário`}
                 aria-label={`Resolver ${syncConflictCopies.length} ${syncConflictCopies.length === 1 ? 'cópia de conflito' : 'cópias de conflito'} de sincronização`}
               >
                 <AlertTriangle size={15} strokeWidth={1.5} aria-hidden="true" />
                 <span aria-hidden="true">{syncConflictCopies.length}</span>
-              </button>
+              </Button>
             ) : null}
             </div>
           </div>
@@ -270,9 +271,9 @@ export function ExplorerSidebar({
           <span className="vault-indicator-icon" aria-hidden="true">&#9670;</span>
           <span>{vault.name}</span>
         </button>
-        <button type="button" className="secondary-button vault-refresh-button" onClick={() => void refreshNotes(vault.path)} disabled={loading || saving} title="Atualizar explorador" aria-label="Atualizar explorador de arquivos">
+        <Button type="button" className="ui-button ui-button--secondary ui-button--sm vault-refresh-button" onClick={() => void refreshNotes(vault.path)} disabled={loading || saving} title="Atualizar explorador" aria-label="Atualizar explorador de arquivos">
           <RefreshCw size={14} strokeWidth={1.5} aria-hidden="true" />
-        </button>
+        </Button>
       </footer>
     </aside>
   )
@@ -351,9 +352,9 @@ function VaultDiagnosticsBanner({
         ) : null}
       </div>
       <div className="vault-diagnostics-actions">
-        <button type="button" className="secondary-button" onClick={onRetry}>
+        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onRetry}>
           Tentar novamente
-        </button>
+        </Button>
         <button
           type="button"
           className="vault-diagnostics-dismiss"

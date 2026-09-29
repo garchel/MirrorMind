@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Button } from '../../components/ui/Button'
 import { ArrowLeft, CheckCircle2, Clock, Info, Lightbulb, MessageCircle, RotateCw } from 'lucide-react'
 import {
   appendKnowledgeSuggestionToNote,
@@ -105,7 +106,7 @@ function SynthesisResult({ attempt, onRedo }: {
           ))}
         </ul>
       ) : null}
-      <button type="button" className="primary-button review-start" onClick={onRedo}>Reescrever e avaliar de novo</button>
+      <Button type="button" className="ui-button ui-button--primary ui-button--md review-start" onClick={onRedo}>Reescrever e avaliar de novo</Button>
     </div>
   )
 }
@@ -466,9 +467,9 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
     return (
       <section className="workspace-page review-session-page review-synthesis-page" aria-labelledby="review-synthesis-title">
         <header className="review-session-topbar">
-          <button type="button" className="secondary-button" onClick={() => { setSynthesisMode(false); setSynthesisAttempt(null) }}>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setSynthesisMode(false); setSynthesisAttempt(null) }}>
             <ArrowLeft size={15} /> Voltar à fila
-          </button>
+          </Button>
           <span>{item.relativePath}</span>
         </header>
         {synthesisAttempt?.outcome === 'valid' ? (
@@ -527,14 +528,14 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
               </p>
             ) : null}
             {!canUseProvider ? <p role="alert" className="review-consent-warning">Autorize o envio ao Gemini nas configurações antes de avaliar.</p> : null}
-            <button
+            <Button
               type="button"
-              className="primary-button review-start"
+              className="ui-button ui-button--primary ui-button--md review-start"
               onClick={() => void runSynthesis()}
               disabled={busy || !canUseProvider || synthesis.trim().length < 20}
             >
               {busy ? 'Avaliando…' : 'Avaliar síntese'}
-            </button>
+            </Button>
           </div>
         )}
       </section>
@@ -546,7 +547,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
     return (
       <section className="workspace-page review-session-page review-report-page" aria-labelledby="review-result-title">
         <header className="review-session-topbar">
-          <button type="button" className="secondary-button" onClick={onExit}><ArrowLeft size={15} /> Voltar à fila</button>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onExit}><ArrowLeft size={15} /> Voltar à fila</Button>
           <span>{report.inconclusive ? 'Relatório inconclusivo' : 'Relatório concluído'}</span>
         </header>
         <header className="review-report-header">
@@ -574,10 +575,10 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
         {report.inconclusive ? (
           <div className="review-report-inconclusive" role="alert">
             <p><strong>A cobertura válida desta sessão ficou abaixo do mínimo.</strong> Nada foi salvo; a nota segue vencida. Refazer não contesta o resultado.</p>
-            <button type="button" className="primary-button" onClick={() => void continueCalibration()} disabled={busy}>
+            <Button type="button" className="ui-button ui-button--primary ui-button--md" onClick={() => void continueCalibration()} disabled={busy}>
               <RotateCw size={15} aria-hidden="true" />
               Refazer revisão agora
-            </button>
+            </Button>
           </div>
         ) : null}
         <div className={`review-report-layout${hasUnits ? ' has-note' : ''}`}>
@@ -594,15 +595,15 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
                     <p className="review-coverage-note">
                       Esta sessão cobriu <strong>{evaluatedCount} de {report.units.length}</strong> {plural} da nota. Os {plural} restantes serão priorizados na próxima revisão — ou você pode continuar agora.
                     </p>
-                    <button
+                    <Button
                       type="button"
-                      className="primary-button review-calibration-continue"
+                      className="ui-button ui-button--primary ui-button--md review-calibration-continue"
                       onClick={() => void continueCalibration()}
                       disabled={busy}
                     >
                       <RotateCw size={15} aria-hidden="true" />
                       Revisar mais {remainingCount} {remainingCount === 1 ? noun : plural} agora
-                    </button>
+                    </Button>
                   </>
                 )
               })()
@@ -672,14 +673,14 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
                       {addedKnowledge.has(index) ? (
                         <p className="review-knowledge-added" role="status"><CheckCircle2 size={15} /> Adicionada à nota</p>
                       ) : (
-                        <button
+                        <Button
                           type="button"
-                          className="secondary-button review-knowledge-add"
+                          className="ui-button ui-button--secondary ui-button--sm review-knowledge-add"
                           onClick={() => setKnowledgeSuggestion(suggestion)}
                           disabled={knowledgeBusy}
                         >
                           Adicionar à nota
-                        </button>
+                        </Button>
                       )}
                     </li>
                   ))}
@@ -733,7 +734,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   if (!draft) {
     return (
       <section className="workspace-page review-session-page" aria-labelledby="review-setup-title">
-        <header className="review-session-topbar"><button type="button" className="secondary-button" onClick={onExit}><ArrowLeft size={15} /> Voltar à fila</button><span>{item.relativePath}</span></header>
+        <header className="review-session-topbar"><Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onExit}><ArrowLeft size={15} /> Voltar à fila</Button><span>{item.relativePath}</span></header>
         <div className="review-setup">
           <p className="review-session-kicker">Preparar sessão</p>
           <h2 id="review-setup-title">{item.title}</h2>
@@ -770,7 +771,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             </section>
           ) : null}
           {!canUseProvider ? <p role="alert" className="review-consent-warning">Autorize o envio ao Gemini nas configurações antes de iniciar.</p> : null}
-          <button type="button" className="primary-button review-start" onClick={() => void begin()} disabled={busy || !canUseProvider}>{busy ? 'Preparando…' : 'Iniciar revisão'}</button>
+          <Button type="button" className="ui-button ui-button--primary ui-button--md review-start" onClick={() => void begin()} disabled={busy || !canUseProvider}>{busy ? 'Preparando…' : 'Iniciar revisão'}</Button>
           {diagnostic ? <DiagnosticPanel diagnostic={diagnostic} retry={begin} retryLabel="Gerar novas perguntas" busy={busy} /> : null}
         </div>
       </section>
@@ -780,7 +781,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   const lastExamPrompt = draft.mode === 'exam' && promptIndex === draft.prompts.length - 1
   return (
     <section className="workspace-page review-session-page" aria-labelledby="review-question-title">
-      <header className="review-session-topbar"><button type="button" className="secondary-button" onClick={requestAbandon} disabled={busy}><ArrowLeft size={15} /> {busy ? 'Finalizando…' : 'Abandonar'}</button><span>{draft.mode === 'exam' ? `Questão ${promptIndex + 1} de ${draft.prompts.length}` : `Turno ${exchanges.length + 1}`}</span></header>
+      <header className="review-session-topbar"><Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={requestAbandon} disabled={busy}><ArrowLeft size={15} /> {busy ? 'Finalizando…' : 'Abandonar'}</Button><span>{draft.mode === 'exam' ? `Questão ${promptIndex + 1} de ${draft.prompts.length}` : `Turno ${exchanges.length + 1}`}</span></header>
       <div className="review-question">
         <p className="review-session-kicker">{draft.mode === 'exam' ? 'Modo prova' : 'Modo conversa'}
           {draft.mode === 'conversation' && prompt?.isClarification ? (
@@ -820,8 +821,8 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
           </button>
         ) : null}
         <div className="review-answer-actions">
-          <button type="button" className="secondary-button" onClick={() => setAssistanceVisible((visible) => !visible)}><Lightbulb size={15} /> {assistanceVisible ? 'Ocultar ajuda' : draft.mode === 'exam' ? 'Mostrar dica' : 'Mostrar contexto'}</button>
-          <button type="button" className="primary-button" onClick={() => void submitAnswer()} disabled={busy || diagnostic !== null || (draft.mode === 'exam' ? (prompt?.kind === 'shortAnswer' ? (!answer.trim() && !dontKnow) : (selectedOption === null && !dontKnow)) : !answer.trim())}>{busy ? 'Processando…' : lastExamPrompt ? 'Concluir e avaliar' : 'Salvar resposta'}</button>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setAssistanceVisible((visible) => !visible)}><Lightbulb size={15} /> {assistanceVisible ? 'Ocultar ajuda' : draft.mode === 'exam' ? 'Mostrar dica' : 'Mostrar contexto'}</Button>
+          <Button type="button" className="ui-button ui-button--primary ui-button--md" onClick={() => void submitAnswer()} disabled={busy || diagnostic !== null || (draft.mode === 'exam' ? (prompt?.kind === 'shortAnswer' ? (!answer.trim() && !dontKnow) : (selectedOption === null && !dontKnow)) : !answer.trim())}>{busy ? 'Processando…' : lastExamPrompt ? 'Concluir e avaliar' : 'Salvar resposta'}</Button>
         </div>
         {assistanceVisible ? <aside className="review-assistance"><MessageCircle size={16} /><div className="review-assistance-text"><ReviewRichMarkdown content={prompt?.assistance ?? ''} /></div></aside> : null}
         {diagnostic ? <DiagnosticPanel diagnostic={diagnostic} retry={() => draft.mode === 'conversation' && exchanges.length < draft.maximumAnswers ? requestConversationTurn(exchanges) : finish(exchanges)} retryLabel={draft.mode === 'conversation' && exchanges.length < draft.maximumAnswers ? 'Tentar continuar conversa' : 'Gerar novo relatorio'} busy={busy} /> : null}
@@ -833,7 +834,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             <h3 id="review-abandon-title">Abandonar esta revisão?</h3>
             <p>As respostas desta sessão serão descartadas e nenhuma pontuação será registrada.</p>
             <div className="review-abandon-actions">
-              <button type="button" className="secondary-button" onClick={() => setAbandonOpen(false)} autoFocus>Cancelar</button>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setAbandonOpen(false)} autoFocus>Cancelar</Button>
               <button type="button" className="review-abandon-confirm" aria-label="Confirmar abandono da sessão" onClick={confirmAbandon}>Abandonar</button>
             </div>
           </section>
@@ -847,8 +848,8 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             <p className="review-knowledge-confirm-text">{knowledgeSuggestion}</p>
             <p>O texto será adicionado como citação ao final da nota. Nada é alterado sem sua confirmação.</p>
             <div className="review-abandon-actions">
-              <button type="button" className="secondary-button" onClick={() => setKnowledgeSuggestion(null)} disabled={knowledgeBusy} autoFocus>Cancelar</button>
-              <button type="button" className="primary-button" aria-label="Confirmação de adição do conhecimento à nota" onClick={() => void confirmAddKnowledge(knowledgeSuggestion)} disabled={knowledgeBusy}>{knowledgeBusy ? 'Adicionando…' : 'Adicionar'}</button>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setKnowledgeSuggestion(null)} disabled={knowledgeBusy} autoFocus>Cancelar</Button>
+              <Button type="button" className="ui-button ui-button--primary ui-button--md" aria-label="Confirmação de adição do conhecimento à nota" onClick={() => void confirmAddKnowledge(knowledgeSuggestion)} disabled={knowledgeBusy}>{knowledgeBusy ? 'Adicionando…' : 'Adicionar'}</Button>
             </div>
           </section>
         </div>
@@ -858,5 +859,5 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
 }
 
 function DiagnosticPanel({ diagnostic, retry, retryLabel, busy }: { diagnostic: Diagnostic; retry: () => void | Promise<void>; retryLabel: string; busy: boolean }) {
-  return <section className="review-diagnostic" role="alert"><strong>{diagnostic.message}</strong>{diagnostic.validationErrors.length > 0 ? <ul>{diagnostic.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul> : null}{diagnostic.rawResponse !== null ? <label>Resposta bruta da IA<textarea readOnly value={diagnostic.rawResponse} rows={7} /></label> : null}<button type="button" className="secondary-button" onClick={() => void retry()} disabled={busy}><RotateCw size={15} /> {retryLabel}</button></section>
+  return <section className="review-diagnostic" role="alert"><strong>{diagnostic.message}</strong>{diagnostic.validationErrors.length > 0 ? <ul>{diagnostic.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul> : null}{diagnostic.rawResponse !== null ? <label>Resposta bruta da IA<textarea readOnly value={diagnostic.rawResponse} rows={7} /></label> : null}<Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void retry()} disabled={busy}><RotateCw size={15} /> {retryLabel}</Button></section>
 }

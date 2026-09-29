@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { Check, ChevronDown, ExternalLink, Info, Plus, Target, Trash2, X } from 'lucide-react'
 import { EmptyState, ErrorState } from '../../components/ErrorState'
 import { GoalsSkeleton } from '../../components/PageSkeleton'
@@ -526,32 +527,32 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
             <div className="goals-detail-footer">
               {confirmDeleteId === detailGoal.id ? (
                 <>
-                  <button
+                  <Button
                     type="button"
-                    className="secondary-button goal-delete-confirm"
+                    className="ui-button ui-button--secondary ui-button--sm goal-delete-confirm"
                     onClick={() => void handleDelete(detailGoal.id)}
                     aria-label={`Confirmar exclusão da meta ${detailGoal.title}`}
                   >
                     Confirmar exclusão
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
-                    className="secondary-button"
+                    className="ui-button ui-button--secondary ui-button--sm"
                     onClick={() => setConfirmDeleteId(null)}
                   >
                     Cancelar
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
+                <Button
                   type="button"
-                  className="secondary-button"
+                  className="ui-button ui-button--secondary ui-button--sm"
                   onClick={() => void handleDelete(detailGoal.id)}
                   aria-label={`Excluir meta ${detailGoal.title}`}
                   title="Excluir meta"
                 >
                   <Trash2 size={14} aria-hidden="true" /> Excluir meta
-                </button>
+                </Button>
               )}
             </div>
             {actionError ? (
@@ -649,9 +650,9 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
             />
           </div>
           <div className="goals-dialog-actions">
-            <button type="button" className="secondary-button" onClick={() => setModalOpen(false)}>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setModalOpen(false)}>
               Cancelar
-            </button>
+            </Button>
             <button
               type="submit"
               className="goals-submit-button"

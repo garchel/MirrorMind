@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import {
   getVaultReviewPolicyConfig,
   previewVaultReviewDefaults,
@@ -178,19 +179,19 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
 
       {loading ? <p role="status">Carregando política do Vault…</p> : null}
       {!loading && !form ? (
-        <button type="button" className="secondary-button" onClick={() => setReloadToken((current) => current + 1)}>
+        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setReloadToken((current) => current + 1)}>
           Tentar carregar novamente
-        </button>
+        </Button>
       ) : null}
 
       {form ? (
         <>
           <div className="vault-review-policy-presets" aria-label="Ritmos padrão do Vault">
             {Object.values(PRESETS).map((preset) => (
-              <button
+              <Button
                 type="button"
                 key={preset.label}
-                className="secondary-button"
+                className="ui-button ui-button--secondary ui-button--sm"
                 disabled={busy}
                 onClick={() => {
                   if (!form) return
@@ -201,7 +202,7 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
               >
                 <strong>{preset.label}</strong>
                 <small>{preset.description}</small>
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -240,7 +241,7 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
             <div className="vault-review-policy-confirmation" role="alertdialog" aria-label="Confirmar alteração do padrão do Vault">
               <p><strong>{preview.result.affectedNoteCount} notas terão suas datas recalculadas.</strong> Sobrescritas próprias serão preservadas.</p>
               <div>
-                <button type="button" className="secondary-button" disabled={busy} onClick={() => setPreview(null)}>Cancelar</button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={busy} onClick={() => setPreview(null)}>Cancelar</Button>
                 <button type="button" disabled={busy} onClick={() => void applyDefaults(preview.defaults)}>{busy ? 'Aplicando…' : 'Confirmar alteração'}</button>
               </div>
             </div>

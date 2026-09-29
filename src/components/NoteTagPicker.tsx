@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from './ui/Button'
 import { AlertTriangle, ChevronDown, X } from 'lucide-react'
 import { getNoteReviewState, reviewAiErrorMessage, type NoteReviewState } from '../features/review/ai'
 import { getVaultReviewPolicyConfig, type VaultReviewPolicyConfig } from '../features/review/vaultReviewPolicy'
@@ -127,7 +128,7 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
           <section>
             <div className="note-tag-impact-heading">
               <div><p className="card-kicker">Impacto da tag</p><h3 id="note-tag-impact-title">Aplicar #{pendingTag}</h3></div>
-              <button type="button" className="secondary-button" onClick={closeImpact} aria-label="Fechar impacto"><X size={16} /></button>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeImpact} aria-label="Fechar impacto"><X size={16} /></Button>
             </div>
             <p>Esta nota passará a usar a tag <strong>#{pendingTag}</strong>.</p>
             <dl className="note-tag-impact-summary">
@@ -144,7 +145,7 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
               </div>
             ) : null}
             <div className="note-tag-impact-actions">
-              <button type="button" className="secondary-button" onClick={closeImpact}>Cancelar</button>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeImpact}>Cancelar</Button>
               <button type="button" onClick={confirmApply}>Aplicar tag</button>
             </div>
           </section>

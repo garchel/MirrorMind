@@ -2,6 +2,7 @@ import { AlertTriangle, CalendarCheck2, ChartColumnBig, Check, Download, RotateC
 import { HugeiconsIcon } from '@hugeicons/react'
 import { StructureCheckIcon } from '@hugeicons/core-free-icons'
 import type { ReactNode } from 'react'
+import { Button } from '../../components/ui/Button'
 import type { NoteReviewState } from './ai'
 import { useNoteReadiness, type ReviewStartInfo } from './useNoteReadiness'
 import { NoteReadinessReport } from './NoteReadinessReport'
@@ -196,10 +197,10 @@ export function NoteReadinessControl({
       {showStartHint ? (
         <p className="note-review-hint">{startHintText}</p>
       ) : null}
-      <button
+      <Button
         ref={triggerButtonRef}
         type="button"
-        className="secondary-button note-readiness-trigger"
+        className="ui-button ui-button--secondary ui-button--sm note-readiness-trigger"
         onClick={() => void runAssessment()}
         disabled={disabled || busy || stateLoading || Boolean(unavailableReason)}
         title={unavailableReason ?? 'Avaliar se a nota está pronta para revisão'}
@@ -207,11 +208,11 @@ export function NoteReadinessControl({
       >
         <Sparkles size={15} strokeWidth={1.5} aria-hidden="true" />
         <span>{busy ? 'Avaliando...' : reviewState ? 'Reavaliar nota' : 'Avaliar nota'}</span>
-      </button>
+      </Button>
       {reviewState?.report ? (
-        <button
+        <Button
           type="button"
-          className="secondary-button note-readiness-report-trigger"
+          className="ui-button ui-button--secondary ui-button--sm note-readiness-report-trigger"
           onClick={openPersistedReport}
           disabled={disabled || isDirty || busy}
           aria-label="Abrir último relatório de prontidão"
@@ -221,12 +222,12 @@ export function NoteReadinessControl({
             <Search size={9} strokeWidth={2.25} className="note-review-icon-corner" />
           </span>
           <span>Ver relatório</span>
-        </button>
+        </Button>
       ) : null}
       {onAuditStructure ? (
-        <button
+        <Button
           type="button"
-          className="secondary-button note-structure-trigger"
+          className="ui-button ui-button--secondary ui-button--sm note-structure-trigger"
           onClick={() => onAuditStructure()}
           disabled={disabled}
           title="Avaliar a estrutura da nota para a revisão (determinístico, sem IA)"
@@ -234,7 +235,7 @@ export function NoteReadinessControl({
         >
           <span aria-hidden="true"><HugeiconsIcon icon={StructureCheckIcon} size={15} strokeWidth={1.5} /></span>
           <span>Avaliar estrutura</span>
-        </button>
+        </Button>
       ) : null}
       {adjustments}
       {suggestedProfiles.length > 0 ? (
@@ -252,10 +253,10 @@ export function NoteReadinessControl({
                   ? 'Boa retenção sem concentrar revisões.'
                   : 'Para não esquecer completamente.'
               return (
-                <button key={tag} type="button" className="secondary-button" onClick={() => onApplyTag?.(tag)}>
+                <Button key={tag} type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => onApplyTag?.(tag)}>
                   <strong>{label}</strong>
                   <small>#{tag} · {description}</small>
-                </button>
+                </Button>
               )
             })}
           </div>
@@ -299,23 +300,23 @@ export function NoteReadinessControl({
             {recoveryError ? <p className="review-reset-error" role="alert">{recoveryError}</p> : null}
           </div>
           <div className="note-recovery-banner-actions">
-            <button
+            <Button
               type="button"
-              className="secondary-button"
+              className="ui-button ui-button--secondary ui-button--sm"
               onClick={() => void performRecoveryExport()}
               disabled={recoveryBusy}
             >
               <Download size={13} strokeWidth={1.6} aria-hidden="true" />
               {recoveryBusy ? 'Exportando…' : 'Exportar arquivo'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="secondary-button"
+              className="ui-button ui-button--secondary ui-button--sm"
               onClick={openDiscardConfirm}
               disabled={recoveryBusy}
             >
               Descartar e reavaliar
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
@@ -356,9 +357,9 @@ export function NoteReadinessControl({
               {recoveryError ? <p className="review-reset-error" role="alert">{recoveryError}</p> : null}
             </div>
             <div className="review-ai-dialog-actions">
-              <button type="button" className="secondary-button" onClick={closeDiscardConfirm} disabled={recoveryBusy}>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeDiscardConfirm} disabled={recoveryBusy}>
                 Cancelar
-              </button>
+              </Button>
               <button
                 type="button"
                 className="review-reset-confirm"
@@ -420,9 +421,9 @@ export function NoteReadinessControl({
               {resetError ? <p className="review-reset-error" role="alert">{resetError}</p> : null}
             </div>
             <div className="review-ai-dialog-actions">
-              <button type="button" className="secondary-button" onClick={closeResetConfirm} disabled={resetBusy}>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeResetConfirm} disabled={resetBusy}>
                 Cancelar
-              </button>
+              </Button>
               <button
                 type="button"
                 className="review-reset-confirm"

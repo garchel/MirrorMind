@@ -1,4 +1,5 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
+import { Button } from '../../components/ui/Button'
 import { Check, Trash2, X } from 'lucide-react'
 import {
   POSTIT_COLOR_HEX,
@@ -128,11 +129,11 @@ export function PostitPopover({
       {editable ? (
         <div className="postit-popover-range">
           {!rangeArming ? (
-            <button type="button" className="secondary-button" onClick={onArmRange}>Alterar área</button>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onArmRange}>Alterar área</Button>
           ) : canReanchor ? (
-            <button type="button" className="secondary-button" onClick={onConfirmRange}>Confirmar área</button>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onConfirmRange}>Confirmar área</Button>
           ) : (
-            <button type="button" className="secondary-button" disabled>Selecione o texto…</button>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled>Selecione o texto…</Button>
           )}
         </div>
       ) : null}

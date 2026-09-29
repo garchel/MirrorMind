@@ -1,3 +1,4 @@
+import { Button } from './ui/Button'
 /** Estado de erro padrao das paginas do workspace: mensagem + botao Tentar
  * novamente, com role=alert para leitores de tela. Substitui as 11 copias
  * duplicadas de bloco de erro nas paginas de features. */
@@ -6,9 +7,9 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
     <div className="workspace-error-state is-error" role="alert">
       <p>{message}</p>
       {onRetry ? (
-        <button type="button" className="secondary-button" onClick={onRetry}>
+        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onRetry}>
           Tentar novamente
-        </button>
+        </Button>
       ) : null}
     </div>
   )

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { Bell, BellOff } from 'lucide-react'
 import { SettingsSection } from '../../components/SettingsSection'
 import {
@@ -162,9 +163,9 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
             />
           </label>
           <div className="review-ai-inline-actions">
-            <button type="button" className="secondary-button" onClick={() => void sendTest()} disabled={busy || settings.muted}>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void sendTest()} disabled={busy || settings.muted}>
               Enviar notificação de teste
-            </button>
+            </Button>
             {testStatus ? <span role="status">{testStatus}</span> : null}
           </div>
         </>

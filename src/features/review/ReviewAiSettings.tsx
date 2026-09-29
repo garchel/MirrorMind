@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import {
   checkOllamaReviewStatus,
   getReviewAiConfiguration,
@@ -221,9 +222,9 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           </label>
           <div className="review-ai-inline-actions">
             {configuration?.geminiConfigured ? (
-              <button type="button" className="secondary-button danger-button" onClick={() => void removeKey()} disabled={busy}>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void removeKey()} disabled={busy}>
                 Remover chave
-              </button>
+              </Button>
             ) : null}
             <button type="button" onClick={() => void saveKey()} disabled={busy || !apiKey.trim()}>
               Salvar chave
@@ -298,9 +299,9 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           </label>
           <div className="review-ai-inline-actions">
             {configuration?.openAiCompatibleConfigured ? (
-              <button type="button" className="secondary-button danger-button" onClick={() => void removeOpenAiCompatible()} disabled={busy}>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void removeOpenAiCompatible()} disabled={busy}>
                 Remover servidor
-              </button>
+              </Button>
             ) : null}
             <button
               type="button"
@@ -319,9 +320,9 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
             <div><dt>Modelo</dt><dd>{configuration?.ollamaModel ?? 'qwen2.5:7b'}</dd></div>
           </dl>
           <div className="review-ai-inline-actions">
-            <button type="button" className="secondary-button" onClick={() => void checkOllama()} disabled={busy}>
+            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void checkOllama()} disabled={busy}>
               Verificar Ollama
-            </button>
+            </Button>
             {ollamaStatus ? (
               <span role="status">
                 {ollamaStatus.reachable && ollamaStatus.modelInstalled
@@ -341,9 +342,9 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           falha em um lado não derruba o relatório.
         </p>
         <div className="review-ai-inline-actions">
-          <button type="button" className="secondary-button" onClick={() => void runComparison()} disabled={busy || comparisonLoading}>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void runComparison()} disabled={busy || comparisonLoading}>
             {comparisonLoading ? 'Comparando…' : 'Comparar provedores'}
-          </button>
+          </Button>
         </div>
         {comparisonError ? <p className="field-error" role="alert">{comparisonError}</p> : null}
         {comparison ? (

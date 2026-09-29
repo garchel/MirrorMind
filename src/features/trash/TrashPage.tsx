@@ -1,6 +1,7 @@
 import { RotateCcw, Trash2 } from 'lucide-react'
 import type { TrashItem } from '../../lib/useTrashItems'
 
+import { Button } from '../../components/ui/Button'
 /** Formata o dia da exclusão (movido do `App.tsx` — uso exclusivo da página). */
 function formatTrashDate(day: number) {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(day * 86_400_000))
@@ -37,8 +38,8 @@ export function TrashPage({
                 <td>{formatTrashDate(item.deletedAtDay)}</td>
                 <td>
                   <div className="trash-table-actions">
-                    <button type="button" className="secondary-button" onClick={() => void restoreTrashItem(item.id)} disabled={loading} title="Restaurar item" aria-label="Restaurar item"><RotateCcw size={14} strokeWidth={1.5} aria-hidden="true" /></button>
-                    <button type="button" className="secondary-button danger-button" onClick={() => setPermanentDeleteTarget(item)} disabled={loading} title="Excluir permanentemente" aria-label="Excluir permanentemente"><Trash2 size={14} strokeWidth={1.5} aria-hidden="true" /></button>
+                    <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void restoreTrashItem(item.id)} disabled={loading} title="Restaurar item" aria-label="Restaurar item"><RotateCcw size={14} strokeWidth={1.5} aria-hidden="true" /></Button>
+                    <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setPermanentDeleteTarget(item)} disabled={loading} title="Excluir permanentemente" aria-label="Excluir permanentemente"><Trash2 size={14} strokeWidth={1.5} aria-hidden="true" /></Button>
                   </div>
                 </td>
               </tr>

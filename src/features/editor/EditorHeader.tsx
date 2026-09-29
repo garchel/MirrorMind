@@ -1,4 +1,5 @@
 import type { ComponentProps, Dispatch, MouseEvent, ReactNode, RefObject, SetStateAction } from 'react'
+import { Button } from '../../components/ui/Button'
 import {
   ChevronDown,
   Eye,
@@ -269,8 +270,8 @@ export function EditorHeader({
       </div>
       <div className="editor-actions" ref={headerActionsRef}>
         <div className="history-actions" aria-label="Histórico de edição">
-          <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void undoLastCommand()} disabled={!canUndoActiveEditor || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
-          <button type="button" className="secondary-button" onMouseDown={preserveEditorSelection} onClick={() => void redoLastCommand()} disabled={!canRedoActiveEditor || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></button>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onMouseDown={preserveEditorSelection} onClick={() => void undoLastCommand()} disabled={!canUndoActiveEditor || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onMouseDown={preserveEditorSelection} onClick={() => void redoLastCommand()} disabled={!canRedoActiveEditor || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
         </div>
         {isAutoSaveEnabled && !isNewNoteDraft ? (
           <span className={`autosave-indicator is-${autoSaveState}`} aria-live="polite">
@@ -284,14 +285,14 @@ export function EditorHeader({
         {hiddenActions.length > 0 ? (
           <Popover>
             <PopoverTrigger asChild>
-              <button
+              <Button
                 type="button"
-                className="secondary-button header-overflow-trigger"
+                className="ui-button ui-button--secondary ui-button--sm header-overflow-trigger"
                 aria-label="Mais ações"
                 title="Mais ações"
               >
                 <MoreHorizontal size={15} strokeWidth={1.8} aria-hidden="true" />
-              </button>
+              </Button>
             </PopoverTrigger>
             <PopoverContent align="end" sideOffset={6} className="header-overflow-menu">
               {HEADER_ACTION_KEYS.filter((key) => hiddenActions.includes(key)).map((key) => renderHeaderAction(key))}
@@ -387,18 +388,18 @@ export function EditorHeader({
             </button>
           </div>
         ) : null}
-        <button type="button" className="secondary-button" onClick={openNoteFind} title="Buscar na nota (Ctrl+F)" aria-label="Buscar na nota"><Search size={15} strokeWidth={1.5} aria-hidden="true" /></button>
+        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={openNoteFind} title="Buscar na nota (Ctrl+F)" aria-label="Buscar na nota"><Search size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
         {editorMode !== 'read' ? (
-          <button
+          <Button
             type="button"
-            className={`secondary-button markdown-tools-toggle${isMarkdownToolsOpen ? ' is-active' : ''}`}
+            className="ui-button ui-button--secondary ui-button--sm markdown-tools-toggle${isMarkdownToolsOpen ? ' is-active' : ''}"
             onClick={() => setMarkdownToolsOpen((isOpen) => !isOpen)}
             title="Ferramentas de Markdown"
             aria-label="Ferramentas de Markdown"
             aria-expanded={isMarkdownToolsOpen}
           >
             <TextCursorInput size={15} strokeWidth={1.5} aria-hidden="true" />
-          </button>
+          </Button>
         ) : null}
       </div>
       {editorMode === 'mixed' ? (

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { AlertTriangle, Check, ChevronRight, FileText, Hash, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
 import {
   getVaultReviewPolicyConfig,
@@ -589,9 +590,9 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   <p className="card-kicker">{mode === 'create' ? 'Nova tag' : 'Editando tag'}</p>
                   <h3>{mode === 'create' ? 'Defina a tag e seu ritmo' : `#${selectedTag}`}</h3>
                 </div>
-                <button type="button" className="secondary-button tag-icon-button" onClick={cancelEditing} disabled={busy} aria-label="Cancelar edição">
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm tag-icon-button" onClick={cancelEditing} disabled={busy} aria-label="Cancelar edição">
                   <X size={16} aria-hidden="true" />
-                </button>
+                </Button>
               </div>
 
               <div className="tag-form">
@@ -613,10 +614,10 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   <legend>Perfil de revisão</legend>
                   <div>
                     {Object.values(PRESETS).map((preset) => (
-                      <button type="button" className="secondary-button" key={preset.label} onClick={() => applyPreset(preset.values)}>
+                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm" key={preset.label} onClick={() => applyPreset(preset.values)}>
                         <strong>{preset.label}</strong>
                         <small>{preset.description}</small>
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </fieldset>
@@ -671,7 +672,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 {!validation.success ? <p className="field-error" role="alert">Revise o nome e os intervalos da tag.</p> : null}
                 {duplicate ? <p className="field-error" role="alert">Esta tag já existe no vault.</p> : null}
                 <div className="tag-form-actions">
-                  <button type="button" className="secondary-button" onClick={cancelEditing} disabled={busy}>Cancelar</button>
+                  <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={cancelEditing} disabled={busy}>Cancelar</Button>
                   <button type="button" onClick={() => void requestSave()} disabled={busy || !validation.success || duplicate}>
                     {busy ? 'Calculando impacto…' : mode === 'create' ? 'Revisar criação' : 'Revisar alterações'}
                   </button>
@@ -696,19 +697,19 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 <div className="tag-detail-actions">
                   {selected ? (
                     <>
-                      <button type="button" className="secondary-button" onClick={startEdit} disabled={busy}><Pencil size={15} aria-hidden="true" />Editar</button>
-                      <button type="button" className="secondary-button danger-button" onClick={() => void requestDelete()} disabled={busy}><Trash2 size={15} aria-hidden="true" />Excluir</button>
+                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={startEdit} disabled={busy}><Pencil size={15} aria-hidden="true" />Editar</Button>
+                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void requestDelete()} disabled={busy}><Trash2 size={15} aria-hidden="true" />Excluir</Button>
                     </>
                   ) : (
-                    <button
+                    <Button
                       type="button"
-                      className="secondary-button"
+                      className="ui-button ui-button--secondary ui-button--sm"
                       onClick={() => startCreate(selectedTag)}
                       disabled={busy || atRuleLimit}
                       title={atRuleLimit ? 'Limite de 100 regras de tag atingido' : `Criar uma regra de revisão para #${selectedTag}`}
                     >
                       <Settings size={15} aria-hidden="true" />Configurar
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -781,7 +782,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
             <div className="tag-page-error" role="alert">
               <AlertTriangle size={17} aria-hidden="true" />
               <span>{error}</span>
-              <button type="button" className="secondary-button" onClick={() => setReloadToken((value) => value + 1)}>Recarregar</button>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setReloadToken((value) => value + 1)}>Recarregar</Button>
             </div>
           ) : null}
           {success ? <p className="tag-page-success" role="status">{success}</p> : null}
@@ -818,7 +819,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               ) : <p>Nenhuma nota existente será alterada.</p>}
             </div>
             <div className="tag-impact-actions">
-              <button type="button" className="secondary-button" onClick={() => setPending(null)} disabled={busy}>Cancelar</button>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setPending(null)} disabled={busy}>Cancelar</Button>
               <button type="button" onClick={() => confirmPending()} disabled={busy}>
                 {busy ? 'Aplicando…' : 'Confirmar alteração'}
               </button>
@@ -892,10 +893,10 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               ) : <p>Nenhuma nota existente será alterada.</p>}
             </div>
             <div className="tag-impact-actions">
-              <button type="button" className="secondary-button" onClick={() => setPendingDelete(null)} disabled={busy}>Cancelar</button>
-              <button type="button" className="danger-button" onClick={() => confirmDelete()} disabled={busy}>
+              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setPendingDelete(null)} disabled={busy}>Cancelar</Button>
+              <Button type="button" className="ui-button ui-button--danger ui-button--sm" onClick={() => confirmDelete()} disabled={busy}>
                 {busy ? 'Aplicando…' : 'Excluir tag'}
-              </button>
+              </Button>
             </div>
           </>
         ) : null}

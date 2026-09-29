@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { listen } from '@tauri-apps/api/event'
 import {
   getVaultReviewPolicyConfig,
@@ -158,9 +159,9 @@ export function SegmentationSettings({ vaultPath }: Props) {
 
       {loading ? <p role="status">Carregando segmentação do Vault…</p> : null}
       {!loading && !config ? (
-        <button type="button" className="secondary-button" onClick={() => setReloadToken((current) => current + 1)}>
+        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setReloadToken((current) => current + 1)}>
           Tentar carregar novamente
-        </button>
+        </Button>
       ) : null}
 
       {config ? (

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Button } from './ui/Button'
 import { RefreshCw } from 'lucide-react'
 import './PageHeader.css'
 
@@ -40,14 +41,14 @@ export function PageRefreshButton({
   disabled?: boolean
 }) {
   return (
-    <button
+    <Button
       type="button"
-      className="secondary-button workspace-page-refresh"
+      className="ui-button ui-button--secondary ui-button--sm workspace-page-refresh"
       onClick={onRefresh}
       disabled={disabled}
     >
       <RefreshCw size={15} aria-hidden="true" />
       Atualizar
-    </button>
+    </Button>
   )
 }

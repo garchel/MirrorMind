@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
+import { Button } from '../../components/ui/Button'
 import {
   BookOpenCheck,
   ClipboardList,
@@ -253,18 +254,18 @@ export function WorkspaceTopbar({
         </div>
         <div className="workspace-actions">
           {!vault.metadata.isInitialized ? (
-            <button
+            <Button
               type="button"
-              className="secondary-button"
+              className="ui-button ui-button--secondary ui-button--sm"
               onClick={initializeMetadata}
               disabled={loading || saving}
             >
               Inicializar .mirmind
-            </button>
+            </Button>
           ) : null}
-          <button type="button" className="secondary-button" onClick={chooseExistingVault} disabled={loading || saving}>
+          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={chooseExistingVault} disabled={loading || saving}>
             Trocar vault
-          </button>
+          </Button>
         </div>
       </header>
 
