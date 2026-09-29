@@ -32,3 +32,7 @@ src-tauri/updater-keys/*.key
 *.njsproj
 *.sln
 *.sw?
+
+# Python bytecode dos scripts de token
+__pycache__/
+*.pyc
