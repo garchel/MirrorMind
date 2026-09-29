@@ -20,9 +20,9 @@
 }
 
 .workspace-shell .update-banner {
-  background: var(--workspace-raised, var(--mm-lilac-950-6));
+  background: var(--workspace-raised, var(--mm-lilac-950-7));
   border-color: rgba(94, 128, 255, 0.45);
-  color: var(--workspace-text, var(--mm-lilac-250-2));
+  color: var(--workspace-text, var(--mm-lilac-250-3));
 }
 
 .update-banner-icon {

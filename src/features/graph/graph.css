@@ -1335,7 +1335,7 @@
 }
 
 [data-theme='dark'] .workspace-shell .tab-chip:hover {
-  background: var(--tab-hover-color, var(--mm-lilac-950-10));
+  background: var(--tab-hover-color, var(--mm-lilac-950-11));
 }
 
 [data-theme='dark'] .workspace-shell .tab-chip:hover .tab-select,

@@ -1,8 +1,8 @@
 /* Vault workspace: a full-window desktop writing surface. */
 .workspace-shell {
   --workspace-bg: var(--mm-lilac-950);
-  --workspace-raised: var(--mm-lilac-950-4);
-  --workspace-sidebar: var(--mm-lilac-950-8);
+  --workspace-raised: var(--mm-lilac-950-2);
+  --workspace-sidebar: var(--mm-lilac-950-7);
   --workspace-line: var(--mm-lilac-950-12);
   --workspace-text: var(--mm-lilac-350);
   --workspace-muted: var(--mm-ink-750-2);
@@ -101,7 +101,7 @@
   min-height: 34px;
   border: 1px solid var(--workspace-line);
   border-radius: var(--radius-xs);
-  background: var(--mm-lilac-950-9);
+  background: var(--mm-lilac-950-11);
   color: var(--workspace-text);
   padding: 0 9px;
   font-size: 12px;
@@ -179,7 +179,7 @@
 
 .workspace-shell .tree-note.is-active {
   background: var(--mm-ink-900-8);
-  color: var(--mm-lilac-150);
+  color: var(--mm-lilac-150-2);
 }
 
 .workspace-shell .empty-sidebar-state {
@@ -206,7 +206,7 @@
   min-height: 38px;
   padding: 0;
   border-bottom: 1px solid var(--workspace-line);
-  background: var(--mm-lilac-950-3);
+  background: var(--mm-lilac-950-2);
 }
 
 .workspace-shell .tab-chip {
@@ -214,7 +214,7 @@
   border: 0;
   border-right: 1px solid var(--workspace-line);
   border-radius: 0;
-  background: var(--mm-lilac-950-5);
+  background: var(--mm-lilac-950-7);
 }
 
 .workspace-shell .tab-chip.is-active {
