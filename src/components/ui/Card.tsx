@@ -11,7 +11,20 @@ import type { ElementType, HTMLAttributes, ReactNode } from 'react'
  * diferente — por isso um componente so, com `as="section"`.
  *
  * `className` aberto, como no Button e no Field: o ajuste de contexto
- * vence porque o selutor tem mais classes que `.ui-card`.
+ * vence porque o seletor tem mais classes que `.ui-card`.
+ *
+ * Sobre `padded={false}`
+ * ----------------------
+ * Os cartoes que existem hoje no app nao usam os 18px do token:
+ * `.retention-card` e 14px 16px com raio lg, `.sk-stat-card` e 14px
+ * tambem com raio lg. Isso e escolha, nao esquecimento — sao blocos
+ * densos de leitura, nao superficies de conteudo. Por isso eles NAO
+ * foram migrados: emitir <Card> trocaria o padding e o raio.
+ *
+ * A correcao aqui seria alinhar o token a geometria real (14px,
+ * radius-lg) e dar ao <Card> um `density` para o caso dos 18px. Isso
+ * e decisao de design, nao de refatoracao — e por isso fica para o
+ * usuario escolher, e nao foi feito no escuro.
  */
 
 type CardProps = HTMLAttributes<HTMLElement> & {
