@@ -3,6 +3,7 @@ import { Button } from '../../components/ui/Button'
 import { useSession, type SessionClient } from '../../lib/session'
 import { useEntitlement } from '../../lib/entitlement'
 import { PLANS, type PlanId } from '../../lib/billing'
+import { Field } from '../../components/ui/Field'
 
 /** Conta (fundacao F1a): login/cadastro/saida sobre `useSession`, atras da
  * flag de cobranca. Sem backend (F1b), o App injeta um cliente desabilitado.
@@ -30,7 +31,8 @@ export function AccountSettings({ client }: { client: SessionClient }) {
           </small>
         </span>
         <div className="settings-account-actions">
-          <select
+          <Field as="select"
+            size="sm"
             className="settings-select"
             value={resolved.plan}
             aria-label="Plano de teste"
@@ -42,7 +44,7 @@ export function AccountSettings({ client }: { client: SessionClient }) {
             {Object.values(PLANS).map((plan) => (
               <option key={plan.id} value={plan.id}>{plan.name}</option>
             ))}
-          </select>
+          </Field>
         </div>
       </div>
     )

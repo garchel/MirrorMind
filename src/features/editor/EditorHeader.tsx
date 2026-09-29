@@ -20,6 +20,7 @@ import { formatNoteTitleAsPath, type CreateNoteForm, type TagSummary } from '../
 import type { ReviewGapMode } from '../settings/SettingsPage'
 import type { NoteReviewGap } from '../review/noteReviewGaps'
 import type { NoteReviewUnit } from '../review/noteReviewUnits'
+import { Field } from '../../components/ui/Field'
 
 /** Chaves das ações do header (movidas do `App.tsx` sem mudança — o App
  * importa daqui para o cálculo de overflow). */
@@ -183,7 +184,7 @@ export function EditorHeader({
       <div>
         {isNewNoteDraft ? (
           <>
-          <input
+          <Field
             id="note-title-input"
             className="editor-title-input"
             value={createNoteForm.title}
@@ -204,7 +205,7 @@ export function EditorHeader({
           </select>
           </>
         ) : isInlineTitleEditing ? (
-          <input
+          <Field
             className="editor-title-input"
             value={inlineTitle}
             onChange={(event) => {

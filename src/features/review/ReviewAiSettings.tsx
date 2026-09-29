@@ -13,6 +13,7 @@ import { estimateManagedCallCostUsd } from './managedProvider'
 import { useReviewAiSettings } from './ReviewAiSettingsContext'
 import { SettingsSection } from '../../components/SettingsSection'
 import './review-ai.css'
+import { Field } from '../../components/ui/Field'
 
 /** Contagem de caracteres do prompt estimado para a chamada gerenciada. */
 function estimatedManagedInputChars(): number {
@@ -181,8 +182,9 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           <strong>Provedor da revisão</strong>
           <small>A sessão usa somente o provedor escolhido. Não existe troca automática.</small>
         </span>
-        <select
-          className="settings-select"
+        <Field as="select"
+          size="sm"
+            className="settings-select"
           value={provider}
           onChange={(event) => selectProvider(event.target.value as ReviewAiProvider)}
           aria-label="Provedor da revisão"
@@ -191,7 +193,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           <option value="gemini">Gemini</option>
           <option value="openAiCompatible">OpenAI-compatible</option>
           <option value="managed" disabled={!managedGate.allowed}>{managedGate.label}</option>
-        </select>
+        </Field>
       </label>
 
       {provider === 'gemini' ? (
