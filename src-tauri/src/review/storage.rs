@@ -1644,8 +1644,8 @@ fn atomic_replace(target: &Path, replacement: &Path, backup: Option<&Path>) -> R
 mod tests {
     use super::{
         backup_path, discard_unrecoverable_learning_document, document_path,
-        ensure_learning_note_inside_vault, export_unrecoverable_learning_document,
-        learning_directory, list_learning_storage_keys_with_limit,
+        export_unrecoverable_learning_document, learning_directory,
+        list_learning_storage_keys_with_limit,
         list_unrecoverable_learning_documents, load_learning_document,
         policy_transaction_journal_path, reconcile_external_learning_paths,
         recover_relocation_transaction_unlocked, relocation_snapshot_directory,
@@ -1660,6 +1660,11 @@ mod tests {
     };
     use std::fs;
     use tempfile::tempdir;
+
+    // O teste de junction usa essa funcao direto; nos outros alvos ela seria
+    // unused e o -D warnings do CI derrubaria o job.
+    #[cfg(windows)]
+    use super::ensure_learning_note_inside_vault;
 
     const VALID_DOCUMENT: &str = include_str!("../../../tests/fixtures/review-learning-v1.json");
     const LEGACY_DOCUMENT: &str = include_str!("../../../tests/fixtures/review-learning-v0.json");
