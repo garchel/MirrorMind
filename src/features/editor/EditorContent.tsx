@@ -49,6 +49,7 @@ import type { LinkTarget } from '../../components/markdownLivePreview'
 import type { ReviewGapData } from '../../components/markdownLivePreview'
 import type { EditorMode } from './EditorHeader'
 import type { ReviewGapMode } from '../settings/SettingsPage'
+import { Button } from '../../components/ui/Button'
 
 /** Corpo do editor (CodeMirror) extraído do `App.tsx`: busca na nota, os
  * três motores (Edição, Leitura, Misto), popover de formatação, popover de
@@ -268,9 +269,9 @@ export function EditorContent({
         <span className="note-find-count" aria-live="polite">
           {noteFindQuery.trim() && findTotal > 0 ? `${noteFindIndex + 1}/${findTotal}` : '0/0'}
         </span>
-        <button type="button" className="note-find-nav-button" onClick={() => navigateNoteFind(-1)} disabled={findTotal === 0} title="Correspondência anterior" aria-label="Correspondência anterior"><ChevronUp size={14} strokeWidth={1.7} aria-hidden="true" /></button>
-        <button type="button" className="note-find-nav-button" onClick={() => navigateNoteFind(1)} disabled={findTotal === 0} title="Próxima correspondência" aria-label="Próxima correspondência"><ChevronDown size={14} strokeWidth={1.7} aria-hidden="true" /></button>
-        <button type="button" className="note-find-close" onClick={closeNoteFind} title="Fechar busca (Esc)" aria-label="Fechar busca"><X size={13} strokeWidth={1.7} aria-hidden="true" /></button>
+        <Button type="button" className="ui-button note-find-nav-button" onClick={() => navigateNoteFind(-1)} disabled={findTotal === 0} title="Correspondência anterior" aria-label="Correspondência anterior"><ChevronUp size={14} strokeWidth={1.7} aria-hidden="true" /></Button>
+        <Button type="button" className="ui-button note-find-nav-button" onClick={() => navigateNoteFind(1)} disabled={findTotal === 0} title="Próxima correspondência" aria-label="Próxima correspondência"><ChevronDown size={14} strokeWidth={1.7} aria-hidden="true" /></Button>
+        <Button type="button" className="ui-button note-find-close" onClick={closeNoteFind} title="Fechar busca (Esc)" aria-label="Fechar busca"><X size={13} strokeWidth={1.7} aria-hidden="true" /></Button>
       </div>
     ) : null}
     {editorMode === 'edit' ? (
@@ -412,12 +413,12 @@ export function EditorContent({
         aria-label="Ferramentas de Markdown"
         style={{ right: markdownToolsPosition.x, top: markdownToolsPosition.y }}
       >
-        <button type="button" className="markdown-tools-drag-handle" onPointerDown={startMarkdownToolsDrag} title="Arrastar ferramentas" aria-label="Arrastar ferramentas">
+        <Button type="button" className="ui-button markdown-tools-drag-handle" onPointerDown={startMarkdownToolsDrag} title="Arrastar ferramentas" aria-label="Arrastar ferramentas">
           <GripHorizontal size={15} strokeWidth={1.7} aria-hidden="true" />
-        </button>
-        <button type="button" className="markdown-tools-orientation" onClick={toggleMarkdownToolsOrientation} title={markdownToolsOrientation === 'horizontal' ? 'Usar barra vertical' : 'Usar barra horizontal'} aria-label={markdownToolsOrientation === 'horizontal' ? 'Usar barra vertical' : 'Usar barra horizontal'}>
+        </Button>
+        <Button type="button" className="ui-button markdown-tools-orientation" onClick={toggleMarkdownToolsOrientation} title={markdownToolsOrientation === 'horizontal' ? 'Usar barra vertical' : 'Usar barra horizontal'} aria-label={markdownToolsOrientation === 'horizontal' ? 'Usar barra vertical' : 'Usar barra horizontal'}>
           {markdownToolsOrientation === 'horizontal' ? <PanelLeft size={15} strokeWidth={1.5} aria-hidden="true" /> : <PanelTop size={15} strokeWidth={1.5} aria-hidden="true" />}
-        </button>
+        </Button>
         <div className="markdown-toolbar-group" aria-label="Títulos">
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('heading1')} title="Título 1" aria-label="Título 1"><Heading1 size={16} /></button>
           <button type="button" onMouseDown={preserveEditorSelection} onClick={() => selectMarkdownTool('heading2')} title="Título 2" aria-label="Título 2"><Heading2 size={16} /></button>

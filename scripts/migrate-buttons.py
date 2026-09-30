@@ -6,7 +6,7 @@ A primeira tentativa usou regex em
 `<button[^>]*className="secondary-button"[^>]*>` e nao migrou NENHUM dos
 5 botoes do SyncConflictsDialog: o className esta em outra linha da
 tag de abertura, e o `[^>]*` com o default do re nao atravessa
-quebra de linha sem DOTALL. A segunda, com DOTALL,遷 substituiu a
+quebra de linha sem DOTALL. A segunda, com DOTALL, substituiu a
 tag de abertura e esqueceu a de fechamento -- quebrando o JSX.
 
 Este migrador, entao, faz o trabalho em tres passos com conferencia
@@ -113,8 +113,8 @@ def find_buttons(text):
         tok = m.group(0)
         if tok.startswith('</'):
             if stack:
-                open_s, open_e, _cn = stack.pop()
-                out.append((open_s, open_e, m.start(), m.end(), _cn))
+                open_s, open_e, _cn, _dyn = stack.pop()
+                out.append((open_s, open_e, m.start(), m.end(), _cn, _dyn))
             continue
         if tok.startswith('<Button'):
             continue          # ja migrado
@@ -129,10 +129,17 @@ def find_buttons(text):
         self_closing = tag.rstrip().endswith('/>')
         cm = re.search(r'className=(?:"([^"]*)"|\{`([^`]*)`\})', tag)
         cn = (cm.group(1) or cm.group(2)) if cm else ''
+        # `dynamic` marca que o className e um template literal COM
+        # interpolacao. Nao da para reescrever como string literal: o
+        # GraphPage usa `${isCurrent ? ' is-current' : ''}` e perder
+        # isso deixa as variaveis orfas (o typecheck acusa) e some a
+        # classe de estado. Nesse caso o botao so troca a tag; a
+        # classe vai como esta.
+        dynamic = bool(cm and cm.group(2) and '${' in cm.group(2))
         if self_closing:
-            out.append((m.start(), end + 1, end + 1, end + 1, cn))
+            out.append((m.start(), end + 1, end + 1, end + 1, cn, dynamic))
         else:
-            stack.append((m.start(), end + 1, cn))
+            stack.append((m.start(), end + 1, cn, dynamic))
     return out
 
 
@@ -147,15 +154,69 @@ def classify(class_name):
     return None
 
 
+
+def legacy_height(cls):
+    """Altura que a regra .<cls> ja fixa, ou None.
+
+    Se a regra existe e declara min-height/height, o Button NAO deve
+    emitir size: a regra de contexto tem especificidade menor que a do
+    primitivo, mas `height` fixo e `min-height` nao se anulam — o
+    max() dos dois e o que o browser aplica. Foi um bug real de 2px
+    nos campos de Settings; aqui a mesma logica vale para botao.
+    """
+    for css in glob.glob(os.path.join(ROOT, 'src/**/*.css'), recursive=True):
+        text = open(css, encoding='utf-8').read()
+        m = re.search(r'[^{},]*\.' + re.escape(cls) + r'(?![\w-])[^{]*\{([^{}]*)\}', text)
+        if m:
+            if re.search(r'(?:^|;)\s*(?:min-)?height\s*:', m.group(1)):
+                return 'set'
+    return None
+
+
+def density_of(cls):
+    """Densidade mais proxima, medida das alturas do app.
+
+    xs=28 (glifo), sm=34 (compacto), md=40 (padrao). A escolha e
+    feita por proximidade: um botao de 30px fica em sm, um de 26px em
+    xs. Se a regra nao fixa altura, nao emitimos size — o md e o
+    padrao do Button e a regra de contexto continua mandando.
+    """
+    for css in glob.glob(os.path.join(ROOT, 'src/**/*.css'), recursive=True):
+        text = open(css, encoding='utf-8').read()
+        m = re.search(r'[^{},]*\.' + re.escape(cls) + r'(?![\w-])[^{]*\{([^{}]*)\}', text)
+        if m:
+            h = re.search(r'(?:^|;)\s*(?:min-)?height:\s*([0-9]+)px', m.group(1))
+            if h:
+                px = int(h.group(1))
+                return {26: 'xs', 28: 'xs', 30: 'sm', 34: 'sm', 36: 'sm',
+                        40: 'md'}.get(px, 'md')
+    return None
+
+
 def migrate_file(path, dry):
     text = read(path)
     nl = '\r\n' if '\r\n' in text else '\n'
     buttons = find_buttons(text)
     targets = []
-    for open_s, open_e, close_s, close_e, cn in buttons:
+    for open_s, open_e, close_s, close_e, cn, dyn in buttons:
         got = classify(cn)
         if got:
             targets.append((open_s, open_e, close_s, close_e, cn, got))
+        elif CONTEXTUAL:
+            # onda 2: botao com className mas sem variante. A regra de
+            # contexto nao usa seletor de tag (medido), entao trocar a
+            # tag nao quebra o casamento. O que decide a densidade e a
+            # altura que o CSS ja fixa para aquela classe.
+            if dyn:
+                # so a tag muda; a classe continua sendo a expressao
+                targets.append((open_s, open_e, close_s, close_e, cn,
+                                ('tag-only', None)))
+                continue
+            primeiro = cn.split()[0] if cn.split() else ''
+            if primeiro and not primeiro.startswith('ui-button'):
+                dens = None if legacy_height(primeiro) else density_of(primeiro)
+                targets.append((open_s, open_e, close_s, close_e, cn,
+                                ('contextual', dens)))
     if not targets:
         return 0
 
@@ -164,10 +225,36 @@ def migrate_file(path, dry):
         # 1) reescreve a classe na tag de abertura
         tag = new[open_s:open_e]
         # mantem as classes de contexto, troca a de variante
+        if variant == 'tag-only':
+            tag = tag.replace('<button', '<Button', 1)
+            if close_s == close_e and new[open_e - 2:open_e].rstrip().endswith('/>'):
+                new = new[:open_s] + tag + new[open_e:]
+            else:
+                closing = new[close_s:close_e].replace('</button>', '</Button>', 1)
+                new = new[:open_s] + tag + new[open_e:close_s] + closing + new[close_e:]
+            continue
+        if variant == 'contextual':
+            # Nenhuma variante e nenhuma densidade sao inventadas: a
+            # regra de contexto ja define cor, borda e altura. O
+            # Button entra so com a classe base + a original, e a
+            # especificidade do CSS continua a mesma.
+            rest = ' '.join(cn.split())
+            newcls = ' '.join(['ui-button'] + ([rest] if rest else []))
+            tag = re.sub(r'className=(?:"[^"]*"|\{`[^`]*`\})',
+                         f'className="{newcls}"', tag)
+            tag = tag.replace('<button', '<Button', 1)
+            if close_s == close_e and new[open_e - 2:open_e].rstrip().endswith('/>'):
+                new = new[:open_s] + tag + new[open_e:]
+            else:
+                closing = new[close_s:close_e].replace('</button>', '</Button>', 1)
+                new = new[:open_s] + tag + new[open_e:close_s] + closing + new[close_e:]
+            continue
         kept = [t for t in cn.split()
                 if t not in ('primary-button', 'secondary-button',
                              'danger-button')]
-        ui = ['ui-button', f'ui-button--{variant}', f'ui-button--{size}']
+        ui = ['ui-button', f'ui-button--{variant}']
+        if size:
+            ui.append(f'ui-button--{size}')
         # reemite preservando a ordem relativa das classes de contexto
         rest = ' '.join(kept)
         newcls = ' '.join(ui + ([rest] if rest else []))
@@ -184,20 +271,31 @@ def migrate_file(path, dry):
             new = new[:open_s] + tag + new[open_e:close_s] + closing + new[close_e:]
 
     # import
-    if 'ui/Button' not in new and "from 'react'" in new:
+    if 'ui/Button' not in new:
         rel = os.path.relpath('src/components/ui/Button',
                               os.path.dirname(os.path.join(ROOT, path)))
         rel = rel.replace('\\', '/').replace('.tsx', '')
         if not rel.startswith('.'):
             rel = './' + rel
+        linha = f"import {{ Button }} from '{rel}'"
+        # Nao exigir "from 'react'": varios .tsx do app nao importam
+        # React (ele entra pelo JSX automatico), e antes o import nao
+        # era inserido — o arquivo fica com <Button> sem import e o
+        # typecheck acusa 'Button' is not defined.
         m = re.search(r"^import .*?from 'react'.*?$", new, re.M)
-        new = new[:m.end()] + f"\nimport {{ Button }} from '{rel}'" + new[m.end():]
+        if m:
+            pos = m.end()
+        else:
+            # depois do ultimo import do topo, ou no inicio
+            imports = list(re.finditer(r"^import .*?$", new, re.M))
+            pos = imports[-1].end() if imports else 0
+        new = new[:pos] + '\n' + linha + new[pos:]
 
     # Conferencia. Nao basta contar '<button' contra '</button>': uma
     # tag auto-fechada (`<button ... />`, o overlay do card no
     # GoalsPage) abre e fecha sozinha, e a conta simples accuse
     # desbalanceamento num arquivo perfeitamente valido. O teste certo e o
-    #结构性: percorrer as tags e confirmar que a pilha volta a zero.
+    # estrutural: percorrer as tags e confirmar que a pilha volta a zero.
     def balanced(src, name):
         depth = 0
         for m in re.finditer(r'<' + name + r'\b|</' + name + r'>', src):
@@ -222,12 +320,20 @@ def migrate_file(path, dry):
     return len(targets)
 
 
+CONTEXTUAL = False
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--file', action='append',
                     help='arquivo .tsx especifico (repetivel)')
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--contextual', action='store_true',
+                    help='migra tambem os botoes que so tem classe de '
+                         'contexto (sem secondary/primary/danger-button)')
     args = ap.parse_args()
+    global CONTEXTUAL
+    CONTEXTUAL = args.contextual
 
     if args.file:
         files = args.file

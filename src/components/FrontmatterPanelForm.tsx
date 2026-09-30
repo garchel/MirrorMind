@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from './ui/Button'
 import { ChevronDown, Plus, X } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { COMMON_PROPERTIES, propertyIcon } from '../lib/commonProperties'
@@ -78,16 +79,16 @@ export function FrontmatterPanelForm({ backlinks, brokenLinks, compatibilityNote
           <span className="frontmatter-panel-section-title">Propriedades</span>
           <Popover open={propertiesPopoverOpen} onOpenChange={setPropertiesPopoverOpen}>
             <PopoverTrigger asChild>
-              <button type="button" className="frontmatter-panel-add" aria-label="Nova propriedade" title="Adicionar propriedade comum">
+              <Button type="button" className="ui-button frontmatter-panel-add" aria-label="Nova propriedade" title="Adicionar propriedade comum">
                 <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
-              </button>
+              </Button>
             </PopoverTrigger>
             <PopoverContent align="start" sideOffset={6} className="frontmatter-property-popover">
               {COMMON_PROPERTIES.map((property) => (
-                <button
+                <Button
                   key={property.key}
                   type="button"
-                  className="frontmatter-property-item"
+                  className="ui-button frontmatter-property-item"
                   title={`${property.label} (${property.key})`}
                   aria-label={`${property.label} (${property.key})`}
                   onClick={() => {
@@ -96,7 +97,7 @@ export function FrontmatterPanelForm({ backlinks, brokenLinks, compatibilityNote
                   }}
                 >
                   <property.icon size={16} strokeWidth={1.8} aria-hidden="true" />
-                </button>
+                </Button>
               ))}
             </PopoverContent>
           </Popover>
@@ -127,15 +128,15 @@ export function FrontmatterPanelForm({ backlinks, brokenLinks, compatibilityNote
                   spellCheck={false}
                   rows={Math.max(1, row.value.split(/\r?\n/).length)}
                 />
-                <button
+                <Button
                   type="button"
-                  className="frontmatter-panel-remove"
+                  className="ui-button frontmatter-panel-remove"
                   onClick={() => removeRow(index)}
                   aria-label={`Remover propriedade ${row.key || index + 1}`}
                   title="Remover propriedade"
                 >
                   <X size={14} strokeWidth={1.8} aria-hidden="true" />
-                </button>
+                </Button>
               </div>
             )
           })}
@@ -145,26 +146,26 @@ export function FrontmatterPanelForm({ backlinks, brokenLinks, compatibilityNote
 
       {backlinks.length > 0 ? (
         <section className="frontmatter-panel-section frontmatter-panel-backlinks" aria-label="Backlinks">
-          <button
+          <Button
             type="button"
-            className="frontmatter-panel-section-toggle"
+            className="ui-button frontmatter-panel-section-toggle"
             aria-expanded={backlinksOpen}
             onClick={() => setBacklinksOpen((open) => !open)}
           >
             <span className="frontmatter-panel-section-title">Referenciada por ({backlinks.length})</span>
             <ChevronDown size={13} strokeWidth={2} aria-hidden="true" className="frontmatter-panel-section-chevron" />
-          </button>
+          </Button>
           {backlinksOpen ? (
             <div className="frontmatter-panel-backlink-list">
               {backlinks.map((backlink) => (
-                <button
+                <Button
                   key={backlink.relativePath}
                   type="button"
-                  className="frontmatter-panel-backlink"
+                  className="ui-button frontmatter-panel-backlink"
                   onClick={() => onOpenBacklink(backlink.relativePath)}
                 >
                   {backlink.name}
-                </button>
+                </Button>
               ))}
             </div>
           ) : null}
@@ -176,16 +177,16 @@ export function FrontmatterPanelForm({ backlinks, brokenLinks, compatibilityNote
           tooltip). Nao sao botoes: o destino nao existe. */}
       {brokenLinks.length > 0 ? (
         <section className="frontmatter-panel-section frontmatter-panel-backlinks" aria-label="Links pendentes">
-          <button
+          <Button
             type="button"
-            className="frontmatter-panel-section-toggle"
+            className="ui-button frontmatter-panel-section-toggle"
             aria-expanded={brokenOpen}
             title="Apontam para notas que ainda não existem"
             onClick={() => setBrokenOpen((open) => !open)}
           >
             <span className="frontmatter-panel-section-title">Links pendentes ({brokenLinks.length})</span>
             <ChevronDown size={13} strokeWidth={2} aria-hidden="true" className="frontmatter-panel-section-chevron" />
-          </button>
+          </Button>
           {brokenOpen ? (
             <div className="frontmatter-panel-backlink-list">
               {brokenLinks.map((broken) => (

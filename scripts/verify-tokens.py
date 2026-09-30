@@ -79,6 +79,39 @@ def main():
     for f in files:
         for m in USE_RE.finditer(open(f, encoding='utf-8').read()):
             uses[m.group(1)] += 1
+    # 1b) token de componente definido e nunca lido
+    #
+    # Este nao e erro de sintaxe: o build passa, o navegador ignora o
+    # token. E a forma mais silenciosa de o design system divergir do
+    # app — a camada 3 cresce descrevendo coisas que ninguem usa.
+    #
+    # Havia 19 deles (--button-height: 46px, --tab-*, --notice-*). Os
+    # de botao carregavam 46px e 32px, que nao existem em nenhuma
+    # regra do app; os de tab descreviam uma aba que usa tokens do
+    # dominio workspace; os de notice descreviam um aviso inline que o
+    # app nao tem (o .error-banner e um toast com tokens proprios).
+    #
+    # Nao basta contar: um token de componente e definitionally lido
+    # pelo proprio component.css (e o .ui-button--xs que consome
+    # --button-size-xs-height), entao o gate precisa varrer o CSS
+    # inteiro, como ja faz acima.
+    comp_tokens = set()
+    comp_css = os.path.join(ROOT, 'src/styles/tokens/component.css')
+    if os.path.exists(comp_css):
+        ctext = open(comp_css, encoding='utf-8').read()
+        for m in re.finditer(
+                r'^\s*(--(?:button|field|card|chip|panel|notice|tab|ui)-[a-z0-9-]+)\s*:',
+                ctext, re.M):
+            comp_tokens.add(m.group(1))
+    comp_dead = sorted(t for t in comp_tokens if uses.get(t, 0) == 0)
+    if comp_dead:
+        for t in comp_dead:
+            print(f'  [3] token de componente SEM consumidor: {t}')
+        print(f'\nFALHOU: {len(comp_dead)} token(s) de componente definido(s) '
+              f'e nunca lido(s). Ou o primitivo os usa, ou nao deveria '
+              f'estar em component.css.')
+        return 1
+
     # tokens definidos no :root do arquivo, mas usados em um escopo que
     # pode nao alcanca-los, e tokens definidos so localmente e usados fora
     # desse escopo (o vazamento de --tag-* que quase aconteceu)

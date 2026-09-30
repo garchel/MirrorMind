@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { Button } from './ui/Button'
 import { X } from 'lucide-react'
 import { useEscapeToClose } from '../lib/escapeStack'
 import { closeDialog, openDialog } from './dialog'
@@ -134,9 +135,9 @@ export function ModalHeader({
         {kicker ? <p className="card-kicker">{kicker}</p> : null}
         <h3 id={titleId}>{title}</h3>
       </div>
-      <button type="button" className="modal-close" onClick={onClose} aria-label={closeLabel}>
+      <Button type="button" className="ui-button modal-close" onClick={onClose} aria-label={closeLabel}>
         <X size={16} strokeWidth={2.2} aria-hidden="true" />
-      </button>
+      </Button>
     </div>
   )
 }

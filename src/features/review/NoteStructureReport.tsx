@@ -72,16 +72,16 @@ export function NoteStructureReport({ audit, loading, error, appliedIndex, onBac
       onKeyDown={handleDialogKeyDown}
     >
       <div className="note-review-report-topbar">
-        <button
+        <Button
           ref={backButtonRef}
           type="button"
-          className="note-review-report-back"
+          className="ui-button note-review-report-back"
           onClick={onBack}
           aria-label="Voltar ao menu de avaliação"
         >
           <ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" />
           <span>Voltar</span>
-        </button>
+        </Button>
         <p className="card-kicker">Estrutura da nota</p>
       </div>
       <h2 id="structure-report-title" className="note-review-report-title">
@@ -162,14 +162,14 @@ export function NoteStructureReport({ audit, loading, error, appliedIndex, onBac
             </section>
           ) : null}
           <footer className="structural-audit-footer">
-            <button
+            <Button
               type="button"
-              className="structural-audit-rerun"
+              className="ui-button structural-audit-rerun"
               onClick={onRetry}
             >
               <RotateCcw size={14} strokeWidth={1.75} aria-hidden="true" />
               <span>Re-executar auditoria</span>
-            </button>
+            </Button>
           </footer>
         </div>
       )}

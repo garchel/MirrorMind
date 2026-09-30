@@ -70,7 +70,7 @@ export function PostitPopover({
         <span className="postit-popover-pin" style={{ background: POSTIT_COLOR_HEX[popover.draftColor] }} aria-hidden="true" />
         <span className="postit-popover-spacer" aria-hidden="true" />
         {popover.postitId ? (
-          <button
+          <Button
             type="button"
             className={`postit-popover-delete${popover.deleteArmed ? ' is-armed' : ''}`}
             onClick={onDeleteRequest}
@@ -78,11 +78,11 @@ export function PostitPopover({
             aria-label={popover.deleteArmed ? 'Confirmar exclusão do post-it' : 'Excluir post-it'}
           >
             {popover.deleteArmed ? 'Excluir?' : <Trash2 size={13} strokeWidth={1.7} aria-hidden="true" />}
-          </button>
+          </Button>
         ) : null}
-        <button type="button" className="postit-popover-close" onClick={onClose} title="Fechar (Esc)" aria-label="Fechar post-it">
+        <Button type="button" className="ui-button postit-popover-close" onClick={onClose} title="Fechar (Esc)" aria-label="Fechar post-it">
           <X size={13} strokeWidth={1.7} aria-hidden="true" />
-        </button>
+        </Button>
       </div>
       <textarea
         className="postit-popover-input"
@@ -108,7 +108,7 @@ export function PostitPopover({
       <div className="postit-popover-actions">
         <div className="postit-popover-colors" role="radiogroup" aria-label="Cor do post-it">
           {POSTIT_COLORS.map((color) => (
-            <button
+            <Button
               key={color}
               type="button"
               className={`postit-color-dot is-${color}${popover.draftColor === color ? ' is-selected' : ''}`}
@@ -119,7 +119,7 @@ export function PostitPopover({
               role="radio"
             >
               {popover.draftColor === color ? <Check size={10} strokeWidth={3} aria-hidden="true" /> : null}
-            </button>
+            </Button>
           ))}
         </div>
         <span className={`postit-popover-count${popover.draftText.length >= POSTIT_MAX_CHARS - 40 ? ' is-warning' : ''}`} aria-live="off">

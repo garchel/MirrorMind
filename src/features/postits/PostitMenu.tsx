@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { POSTIT_COLOR_HEX, type PostitColor } from '../../lib/postits'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 
@@ -25,22 +26,22 @@ export function PostitMenu({ items, onOpen }: PostitMenuProps) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
+        <Button
           type="button"
-          className="postit-menu-trigger"
+          className="ui-button postit-menu-trigger"
           aria-label={`Post-its da nota (${items.length})`}
           title="Listar post-its da nota"
         >
           Post-its ({items.length})
-        </button>
+        </Button>
       </PopoverTrigger>
       <PopoverContent align="start" sideOffset={6} className="postit-menu-popover">
         <div className="postit-menu-list" role="group" aria-label="Post-its da nota">
           {items.map((item) => (
-            <button
+            <Button
               key={item.id}
               type="button"
-              className="postit-menu-item"
+              className="ui-button postit-menu-item"
               onClick={() => {
                 setOpen(false)
                 onOpen(item.id)
@@ -54,7 +55,7 @@ export function PostitMenu({ items, onOpen }: PostitMenuProps) {
               />
               <span className="postit-menu-text">{item.text}</span>
               {item.detail ? <span className="postit-menu-detail">{item.detail}</span> : null}
-            </button>
+            </Button>
           ))}
         </div>
       </PopoverContent>

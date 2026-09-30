@@ -196,25 +196,25 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
                   <span>{formatOverdueDate(item.nextReviewAtUnixMs)}</span>
                   <span>{item.preferredMode === 'exam' ? 'Modo prova' : 'Modo conversa'}</span>
                   <span className="review-queue-priority" aria-label={`Prioridade ${item.priorityWeight}`} aria-live="polite">
-                    <button
+                    <Button
                       type="button"
-                      className="review-queue-priority-step"
+                      className="ui-button review-queue-priority-step"
                       onClick={() => void changePriority(item, -PRIORITY_STEP)}
                       disabled={priorityBusy !== null || item.priorityWeight <= 0.1}
                       aria-label={`Diminuir prioridade de ${item.title}`}
                     >
                       <Minus size={13} strokeWidth={2} aria-hidden="true" />
-                    </button>
+                    </Button>
                     <span>Prioridade {item.priorityWeight}</span>
-                    <button
+                    <Button
                       type="button"
-                      className="review-queue-priority-step"
+                      className="ui-button review-queue-priority-step"
                       onClick={() => void changePriority(item, PRIORITY_STEP)}
                       disabled={priorityBusy !== null || item.priorityWeight >= 100}
                       aria-label={`Aumentar prioridade de ${item.title}`}
                     >
                       <Plus size={13} strokeWidth={2} aria-hidden="true" />
-                    </button>
+                    </Button>
                   </span>
                   {item.deadlineAtUnixMs !== null ? (
                     <span className={`review-queue-deadline${item.deadlineAtUnixMs <= Date.now() ? ' is-expired' : ''}`}>

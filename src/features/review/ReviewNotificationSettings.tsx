@@ -11,6 +11,7 @@ import {
 } from './reviewNotifications'
 import './review-notification-settings.css'
 import { errorMessage } from '../../lib/tauri'
+import { Field } from '../../components/ui/Field'
 
 type Props = {
   /** Resultado da ultima checagem periodica, exibido como status. */
@@ -134,7 +135,7 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
               <strong>Hora do resumo</strong>
               <small>O resumo é enviado a partir deste horário, enquanto o aplicativo estiver aberto.</small>
             </span>
-            <input
+            <Field
               className="review-notification-time"
               type="time"
               value={toTimeInput(settings)}

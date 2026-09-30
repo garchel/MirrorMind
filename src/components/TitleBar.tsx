@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { Button } from './ui/Button'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Copy, Minus, Square, X } from 'lucide-react'
 import logoUrl from '../../assets/logo.svg'
@@ -71,18 +72,18 @@ export function TitleBar({ children }: { children?: ReactNode }) {
       <TitleBarBrand />
       {children ? <div className="app-titlebar-tabs" data-tauri-drag-region>{children}</div> : null}
       <div className="app-titlebar-controls">
-        <button
+        <Button
           type="button"
-          className="app-titlebar-control"
+          className="ui-button app-titlebar-control"
           onClick={minimize}
           aria-label="Minimizar janela"
           title="Minimizar"
         >
           <Minus size={14} strokeWidth={1.5} aria-hidden="true" />
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="app-titlebar-control"
+          className="ui-button app-titlebar-control"
           onClick={toggleMaximize}
           aria-label={isMaximized ? 'Restaurar janela' : 'Maximizar janela'}
           title={isMaximized ? 'Restaurar' : 'Maximizar'}
@@ -90,16 +91,16 @@ export function TitleBar({ children }: { children?: ReactNode }) {
           {isMaximized
             ? <Copy size={12} strokeWidth={1.5} aria-hidden="true" />
             : <Square size={12} strokeWidth={1.5} aria-hidden="true" />}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="app-titlebar-control app-titlebar-control--close"
+          className="ui-button app-titlebar-control app-titlebar-control--close"
           onClick={close}
           aria-label="Fechar janela"
           title="Fechar"
         >
           <X size={15} strokeWidth={1.5} aria-hidden="true" />
-        </button>
+        </Button>
       </div>
     </header>
   )

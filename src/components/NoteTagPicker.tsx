@@ -91,10 +91,10 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
 
   return (
     <div className="note-tag-picker" ref={pickerRef}>
-      <button
+      <Button
         ref={triggerRef}
         type="button"
-        className="note-tag-picker-trigger"
+        className="ui-button note-tag-picker-trigger"
         onClick={() => setOpen((current) => !current)}
         aria-expanded={isOpen}
         aria-haspopup="menu"
@@ -103,7 +103,7 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
       >
         <span>tags:</span>
         <ChevronDown size={12} aria-hidden="true" className="note-tag-picker-chevron" />
-      </button>
+      </Button>
 
       {isOpen ? (
         <div className="note-tag-picker-menu" role="menu" aria-label="Tags existentes">

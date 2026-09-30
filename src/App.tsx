@@ -4375,7 +4375,7 @@ function App() {
               </div>
             ) : (
               <div className="tree-item-row">
-                <button
+                <Button
                   type="button"
                   className={`tree-note${node.path === activeNote?.relativePath ? ' is-active' : ''}${draggedNotePath === node.path ? ' is-dragging' : ''}`}
                   draggable={false}
@@ -4388,7 +4388,7 @@ function App() {
                 >
                   <span className="tree-icon tree-icon--note" aria-hidden="true"><HugeiconsIcon icon={File02Icon} size={14} strokeWidth={1.5} /></span>
                   <span className="tree-item-label">{node.name.replace(/\.md$/i, '')}</span>
-                </button>
+                </Button>
               </div>
             )}
           </li>
@@ -4799,14 +4799,14 @@ function App() {
       switch (key) {
         case 'favorite':
           return (
-            <Button key={key} type="button" className="ui-button ui-button--secondary ui-button--sm favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}" onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></Button>
+            <Button key={key} type="button" className={`ui-button ui-button--secondary ui-button--sm favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></Button>
           )
         case 'indexadora':
           return (
             <Button
               key={key}
               type="button"
-              className="ui-button ui-button--secondary ui-button--sm indexadora-button${isIndexadora(activeNote.content) ? ' is-active' : ''}"
+              className={`ui-button ui-button--secondary ui-button--sm indexadora-button${isIndexadora(activeNote.content) ? ' is-active' : ''}`}
               onClick={() => void toggleActiveNoteIndexadora()}
               disabled={saving || loading}
               title={isIndexadora(activeNote.content) ? 'Nota indexadora: remove a lista automatica de referencias' : 'Declarar como nota indexadora: lista automaticamente as notas que referenciam esta nota'}
@@ -5444,7 +5444,7 @@ function App() {
               <div className="move-item-heading">
                 <strong>Arquivos preservados</strong>
                 <span>Estes arquivos permanecem no Vault, mas ainda não podem ser visualizados ou editados aqui.</span>
-                <button autoFocus type="button" className="modal-close-button" onClick={() => setShowSpecialFilesDialog(false)} aria-label="Fechar arquivos especiais"><X size={15} aria-hidden="true" /></button>
+                <Button autoFocus type="button" className="ui-button modal-close-button" onClick={() => setShowSpecialFilesDialog(false)} aria-label="Fechar arquivos especiais"><X size={15} aria-hidden="true" /></Button>
               </div>
               {specialFilesTruncated ? <p className="special-files-limit-notice" role="status">Mostrando os primeiros 500 arquivos. A coleta foi interrompida para manter o workspace responsivo.</p> : null}
               <div className="special-files-list">
@@ -5452,15 +5452,15 @@ function App() {
                   <article key={file.relativePath} className="special-file-row">
                     <div>
                       {(file.kind === 'canvas' || file.kind === 'excalidraw') ? (
-                        <button
+                        <Button
                           type="button"
-                          className="special-file-open-button"
+                          className="ui-button special-file-open-button"
                           onClick={() => void openSpecialFileViewer(file)}
                           aria-label={`Visualizar ${file.name}`}
                           title="Visualizar somente leitura"
                         >
                           {file.name}
-                        </button>
+                        </Button>
                       ) : (
                         <strong>{file.name}</strong>
                       )}
@@ -5490,7 +5490,7 @@ function App() {
                 <div className="move-item-heading">
                   <strong>{specialFileViewer.name}</strong>
                   <span>Não foi possível ler o arquivo para visualização.</span>
-                  <button autoFocus type="button" className="modal-close-button" onClick={() => setSpecialFileViewer(null)} aria-label="Fechar erro de visualização"><X size={15} aria-hidden="true" /></button>
+                  <Button autoFocus type="button" className="ui-button modal-close-button" onClick={() => setSpecialFileViewer(null)} aria-label="Fechar erro de visualização"><X size={15} aria-hidden="true" /></Button>
                 </div>
                 <p className="field-error" role="alert">{specialFileViewerError}</p>
             </Modal>
@@ -5550,14 +5550,14 @@ function App() {
               <div className="move-item-heading">
                 <strong>Filtrar por tags</strong>
                 <span>As notas precisam conter todas as tags selecionadas.</span>
-                <button type="button" className="modal-close-button" onClick={() => setShowTagFilterDialog(false)} aria-label="Fechar filtro"><X size={15} aria-hidden="true" /></button>
+                <Button type="button" className="ui-button modal-close-button" onClick={() => setShowTagFilterDialog(false)} aria-label="Fechar filtro"><X size={15} aria-hidden="true" /></Button>
               </div>
               <div className="tag-filter" aria-label="Filtro de tags">
                 <div className="tag-filter-selection">
                   {selectedTags.map((tag) => (
-                    <button key={tag} type="button" className="tag-filter-chip" onClick={() => setSelectedTags((tags) => tags.filter((item) => item !== tag))} title={`Remover #${tag}`}>
+                    <Button key={tag} type="button" className="ui-button tag-filter-chip" onClick={() => setSelectedTags((tags) => tags.filter((item) => item !== tag))} title={`Remover #${tag}`}>
                       #{tag} <X size={11} strokeWidth={1.5} aria-hidden="true" />
-                    </button>
+                    </Button>
                   ))}
                   <input autoFocus value={tagFilterQuery} onChange={(event) => setTagFilterQuery(event.target.value)} placeholder={selectedTags.length ? 'Adicionar tag' : 'Digite uma tag'} aria-label="Buscar tags" />
                 </div>

@@ -16,14 +16,18 @@
   /* --- Botao ------------------------------------------------------------
    * O app tem um botao generico global (base.css) e tres variacoes
    * nomeadas: primaria (tinta cheia), secundaria (contorno) e perigo.
-   * As medidas sao o contrato do alvo de toque: 46px de altura e o
-   * minimo do projeto, 32px o piso para acoes densas. */
-  --button-height: 46px;
-  --button-height-sm: 32px;
-  --button-padding-x: var(--space-4);
-  --button-padding-x-sm: var(--space-3);
+   *
+   * A geometria NAO mora aqui: esta em --button-size-xs/sm/md-*,
+   * que sao as densidades medidas do app. Este bloco guarda so o que
+   * nao muda com a densidade — raio, transicao, cores por variante.
+   *
+   * Antes havia --button-height: 46px, --button-height-sm: 32px,
+   * --button-padding-x(-sm) e --button-font aqui. Nenhum era lido, e
+   * os dois valores de altura (46 e 32) nao existem em lugar nenhum do
+   * CSS do app, cujas alturas reais sao 14, 30, 34, 36 e 40px. Eram
+   * resto de um esquema anterior, superado pelas densidades. Foram
+   * removidos em vez de corrigidos: nao ha valor de 46px para alinhar. */
   --button-radius: var(--radius-md);
-  --button-font: 600 1rem / 1.2 var(--sans);
   --button-transition: transform 0.18s ease, opacity 0.18s ease,
     background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 
@@ -88,9 +92,11 @@
 
   /* --- Painel / cartao --------------------------------------------------
    * Um painel e uma superficie elevada com contorno. Card usa o mesmo
-   * vocabulario com menos sombra. */
-  --panel-border-radius: var(--radius-2xl);
-  --panel-inset-radius: var(--radius-xl);
+   * vocabulario com menos sombra.
+   *
+   * --panel-border-radius e --panel-inset-radius sairam daqui: nao havia
+   * primitivo de painel. O Drawer e o Popover do app usam --panel-shadow
+   * (que continua em uso) e tokens de dialogo, nao um raio de painel. */
   --card-bg: var(--surface);
   --card-fg: var(--text-normal);
   --card-border: var(--line);
@@ -107,26 +113,20 @@
   --chip-opacity-hover: 1;
   --chip-fg: var(--text-muted);
   --chip-border: var(--line-soft);
+  --chip-bg: var(--surface-field);
 
   /* --- Aviso / erro ----------------------------------------------------
-   * Uma mensagem que precisa de atencao usa o slot bg-soft do status: a
-   * unica variante que aceita texto por cima. */
-  --notice-padding: 14px 16px;
-  --notice-radius: var(--radius-xl);
-  --notice-fg: var(--status-bad);
-  --notice-bg: var(--status-bad-bg-soft);
-  --notice-border: var(--status-bad-bg);
+   * Havia --notice-padding/radius/fg/bg/border aqui. Foram removidos:
+   * nenhum elemento do app os lia, e o que existe nao e o que eles
+   * descreviam. O aviso real e o .error-banner, um toast fixo no canto
+   * da tela, com tokens proprios (--mm-rose-950 de fundo). Ele nao
+   * compartilha a forma com um aviso inline, entao nao ha um unico
+   * token de aviso a criar aqui. Se um aviso inline aparecer, o token
+   * nasce com o componente. */
 
   /* --- Aba / navegacao --------------------------------------------------
    * Uma aba carrega um estado ativo que NAO e cor: e a superficie do
    * editor aparecendo atras dela. Por isso ativo = fundo, nao tinta. */
-  --tab-height: 40px;
-  --tab-radius: var(--radius-xl);
-  --tab-bg: var(--surface-sunk);
-  --tab-bg-active: var(--bg);
-  --tab-fg: var(--text-muted);
-  --tab-fg-active: var(--text-h);
-  --tab-border: var(--line-soft);
 
   /* --- Medidas de shell ------------------------------------------------- */
   --titlebar-height: 40px;
@@ -264,4 +264,138 @@
   opacity: var(--button-disabled-opacity);
   cursor: var(--button-disabled-cursor);
   transform: none;
+}
+
+/* ===================================================================
+   Primitivos — as classes que o codigo consome.
+
+   Especificidade (0,1,0) de proposito. As 42 regras antigas de campo
+   e botao usam 2-3 classes; um override de contexto vence uma regra
+   generica, que e exatamente o comportamento antigo do app.
+   =================================================================== */
+
+.ui-field {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--field-height);
+  padding: 0 var(--field-padding-x);
+  border: 1px solid var(--field-border);
+  border-radius: var(--field-radius);
+  background: var(--field-bg);
+  color: var(--field-fg);
+  font: var(--field-font);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.ui-field::placeholder {
+  color: var(--field-placeholder);
+}
+
+.ui-field:hover:not(:disabled) {
+  border-color: var(--field-border-hover);
+}
+
+.ui-field:focus-visible {
+  outline: 2px solid var(--field-focus-ring);
+  outline-offset: 1px;
+  border-color: var(--field-focus-ring);
+}
+
+.ui-field:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Densidades medidas do app: .settings-select/.settings-number = 36px,
+   .field input = 48px. Nenhum outro valor existe em uso. */
+/* Densidades medidas do CSS fonte do app, nao da minha suposicao:
+
+     xs = 34px  .settings-number e o .field input do workspace-chrome
+     sm = 36px  .settings-select
+     md = 48px  .field input do base.css (o campo do vault)
+
+   O comentario anterior dizia sm=36px / md=48px e omitia os 34px —
+   que e a altura mais comum do app. A primeira versao deste arquivo
+   usava min-height: 36px no sm, e como .settings-number define
+   `height: 34px` (fixo, nao min-height), o min-height novo vencia por
+   ser a unica propriedade aplicavel: o campo ficava 2px mais alto.
+
+   Por isso o campo usa `min-height` (nunca `height`) nas densidades
+   genericas: assim uma regra de contexto que declara height explicito
+   continua mandando, que e como o app ja funcionava.
+
+   Quem vence, em cada caso medido no bundle:
+     .settings-toggle input.settings-number  spec (2,1) -> a legada
+       ganha por especificidade, sem depender de ordem.
+     .settings-select                        spec (1,0) -> empate com
+       .ui-field--xs. Vence a que vem depois no bundle, e o
+       component.css e importado antes de workspace-chrome.css.
+     [data-theme=dark] .settings-number       spec (1,2) -> a legada.
+ */
+.ui-field--xs {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+}
+
+.ui-field--sm {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+}
+
+.ui-field--md {
+  min-height: var(--field-height);
+  border-radius: var(--field-radius);
+}
+
+/* select e textarea nao aceitam padding vertical igual ao input:
+   o texto nao ficaria centralizado. */
+.ui-field--textarea {
+  padding: 10px var(--field-padding-x);
+  min-height: 72px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.ui-card {
+  box-sizing: border-box;
+  padding: var(--card-padding);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  color: var(--card-fg);
+}
+
+.ui-card--flush {
+  padding: 0;
+}
+
+/* Chip: rotulo inline. Sem hover proprio — so deixa de ser discreto
+   quando o ponteiro passa por cima, para nao roubar atencao. */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--chip-padding);
+  border: 1px solid var(--chip-border);
+  border-radius: var(--chip-radius);
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  font: var(--chip-font);
+  opacity: var(--chip-opacity);
+  transition: opacity 120ms ease;
+}
+
+.ui-chip:hover {
+  opacity: var(--chip-opacity-hover);
+}
+
+.ui-chip--accent {
+  color: var(--accent);
+  border-color: var(--accent-soft);
+}
+
+.ui-chip--danger {
+  color: var(--status-bad-strong);
+  border-color: var(--status-bad-bg-soft);
 }

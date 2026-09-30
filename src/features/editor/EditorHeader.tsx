@@ -20,6 +20,7 @@ import { formatNoteTitleAsPath, type CreateNoteForm, type TagSummary } from '../
 import type { ReviewGapMode } from '../settings/SettingsPage'
 import type { NoteReviewGap } from '../review/noteReviewGaps'
 import type { NoteReviewUnit } from '../review/noteReviewUnits'
+import { Field } from '../../components/ui/Field'
 
 /** Chaves das ações do header (movidas do `App.tsx` sem mudança — o App
  * importa daqui para o cálculo de overflow). */
@@ -183,7 +184,7 @@ export function EditorHeader({
       <div>
         {isNewNoteDraft ? (
           <>
-          <input
+          <Field
             id="note-title-input"
             className="editor-title-input"
             value={createNoteForm.title}
@@ -204,7 +205,7 @@ export function EditorHeader({
           </select>
           </>
         ) : isInlineTitleEditing ? (
-          <input
+          <Field
             className="editor-title-input"
             value={inlineTitle}
             onChange={(event) => {
@@ -226,9 +227,9 @@ export function EditorHeader({
             spellCheck={false}
           />
         ) : (
-          <button type="button" className="editor-title-button" onClick={startInlineTitleRename} title="Clique para renomear a nota">
+          <Button type="button" className="ui-button editor-title-button" onClick={startInlineTitleRename} title="Clique para renomear a nota">
             {activeNoteName}
-          </button>
+          </Button>
         )}
         {/* Tags sempre visiveis abaixo do titulo (antes moravam no
             painel do arrow down): badges + "+" com popover. */}
@@ -244,16 +245,16 @@ export function EditorHeader({
               <PostitMenu items={postitMenuItems} onOpen={handlePostitWidgetClick} />
             ) : null}
             {postitOrphans.length > 0 ? (
-              <button
+              <Button
                 type="button"
-                className="postit-orphans-chip"
+                className="ui-button postit-orphans-chip"
                 onClick={() => setShowPostitOrphans(true)}
                 title="Post-its cuja âncora sumiu da nota"
               >
                 {postitOrphans.length === 1
                   ? '1 post-it sem âncora'
                   : `${postitOrphans.length} post-its sem âncora`}
-              </button>
+              </Button>
             ) : null}
           </div>
         ) : null}
@@ -314,30 +315,30 @@ export function EditorHeader({
           }}
         >
           <Eye size={15} strokeWidth={1.5} aria-hidden="true" />
-          <button
+          <Button
             type="button"
             role="radio"
             className={`editor-mode-button${editorMode === 'edit' ? ' is-active' : ''}`}
             onClick={() => changeEditorMode('edit')}
             aria-checked={editorMode === 'edit'}
             title="Edição: mostra o Markdown puro"
-          >Edição</button>
-          <button
+          >Edição</Button>
+          <Button
             type="button"
             role="radio"
             className={`editor-mode-button${editorMode === 'mixed' ? ' is-active' : ''}`}
             onClick={() => changeEditorMode('mixed')}
             aria-checked={editorMode === 'mixed'}
             title="Misto: edita o bloco ativo com a nota formatada"
-          >Misto</button>
-          <button
+          >Misto</Button>
+          <Button
             type="button"
             role="radio"
             className={`editor-mode-button${editorMode === 'read' ? ' is-active' : ''}`}
             onClick={() => changeEditorMode('read')}
             aria-checked={editorMode === 'read'}
             title="Leitura: mostra a nota formatada"
-          >Leitura</button>
+          >Leitura</Button>
         </div>
         {editorMode !== 'edit' && (reviewGaps.length > 0 || reviewUnits.length > 0) ? (
           <div
@@ -392,7 +393,7 @@ export function EditorHeader({
         {editorMode !== 'read' ? (
           <Button
             type="button"
-            className="ui-button ui-button--secondary ui-button--sm markdown-tools-toggle${isMarkdownToolsOpen ? ' is-active' : ''}"
+            className={`ui-button ui-button--secondary ui-button--sm markdown-tools-toggle${isMarkdownToolsOpen ? ' is-active' : ''}`}
             onClick={() => setMarkdownToolsOpen((isOpen) => !isOpen)}
             title="Ferramentas de Markdown"
             aria-label="Ferramentas de Markdown"
@@ -407,7 +408,7 @@ export function EditorHeader({
           {/* Arrow down: fica em cima da borda inferior do header e,
               ao clicar, desce junto com a borda (animacao slide
               down) — o menu integrado abre dentro do header. */}
-          <button
+          <Button
             type="button"
             className={`editor-disclosure-button${frontmatterPanelOpen ? ' is-open' : ''}`}
             onClick={() => setFrontmatterPanelOpen((isOpen) => !isOpen)}
@@ -417,7 +418,7 @@ export function EditorHeader({
             aria-label={frontmatterPanelOpen ? 'Recolher propriedades da nota' : 'Expandir propriedades da nota'}
           >
             <ChevronDown size={16} strokeWidth={1.5} aria-hidden="true" />
-          </button>
+          </Button>
           {frontmatterPanelOpen ? (
             <div className="frontmatter-menu-collapse">
               <div id="frontmatter-menu-panel" className="frontmatter-menu-panel">

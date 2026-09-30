@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Button } from './ui/Button'
 import { ChevronDown, Plus, Tag, X } from 'lucide-react'
 import { nudgeCursor } from '../lib/nudgeCursor'
 import { Badge } from './ui/badge'
@@ -56,7 +57,7 @@ export function NoteTagRow({ availableTags, onApplyTag, onRemoveTag, tags }: Not
           do hover, o dismiss dele corre contra a troca de cursor e prende o
           I-beam em branco (invisivel no tema claro). O `aria-label` segue
           como nome acessivel. */}
-      <button
+      <Button
         type="button"
         className={`note-tags-toggle${tags.length === 0 ? ' is-empty' : ''}`}
         aria-expanded={expanded}
@@ -66,7 +67,7 @@ export function NoteTagRow({ availableTags, onApplyTag, onRemoveTag, tags }: Not
         <Tag size={12} strokeWidth={1.8} aria-hidden="true" />
         <span className="note-tags-summary">{tags.length === 0 || expanded ? 'Tags' : summary}</span>
         <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="note-tags-chevron" />
-      </button>
+      </Button>
       {expanded ? (
         <div className="frontmatter-panel-tag-row" role="group" aria-label="Editar tags da nota">
           {tags.map((tag) => (
@@ -74,14 +75,14 @@ export function NoteTagRow({ availableTags, onApplyTag, onRemoveTag, tags }: Not
               #{tag}
               {/* X dentro da badge, visivel no hover (a badge cresce para
                   revela-lo): remove a tag da nota. */}
-              <button
+              <Button
                 type="button"
-                className="frontmatter-panel-tag-remove"
+                className="ui-button frontmatter-panel-tag-remove"
                 onClick={() => onRemoveTag(tag)}
                 aria-label={`Remover tag ${tag}`}
               >
                 <X size={10} strokeWidth={2.2} aria-hidden="true" />
-              </button>
+              </Button>
             </Badge>
           ))}
           <Popover open={tagsPopoverOpen} onOpenChange={(open) => { setTagsPopoverOpen(open); if (!open) setTagQuery(''); nudgeCursor(30) }}>
@@ -89,9 +90,9 @@ export function NoteTagRow({ availableTags, onApplyTag, onRemoveTag, tags }: Not
               {/* Entrar no "+" e abrir/fechar o popover sao mudancas de
                   composicao (transicao de hover + portal animado) que prendem
                   o I-beam em branco no WebView2: reemite o cursor nativo. */}
-              <button type="button" className="frontmatter-panel-add" aria-label="Adicionar tag" onMouseEnter={() => nudgeCursor(30)}>
+              <Button type="button" className="ui-button frontmatter-panel-add" aria-label="Adicionar tag" onMouseEnter={() => nudgeCursor(30)}>
                 <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
-              </button>
+              </Button>
             </PopoverTrigger>
             <PopoverContent align="start" sideOffset={6} className="frontmatter-tag-popover">
               <input

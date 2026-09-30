@@ -32,6 +32,7 @@ import { VaultReviewPolicySettings } from '../review/VaultReviewPolicySettings'
 import { AccountSettings } from './AccountSettings'
 import type { SessionClient } from '../../lib/session'
 import { errorMessage } from '../../lib/tauri'
+import { Field } from '../../components/ui/Field'
 
 /** Como destacar os trechos esquecidos/confundidos no editor (resultado mais
  * recente). Movido do `App.tsx` sem mudança — o App importa este tipo. */
@@ -226,18 +227,18 @@ export function SettingsPage({
                 <strong>Fonte do editor e da leitura</strong>
                 <small>Família aplicada aos modos Edição, Misto e Leitura.</small>
               </span>
-              <select className="settings-select" value={editorFontFamily} onChange={(event) => setEditorFontFamily(event.target.value as EditorFontFamily)} aria-label="Família da fonte do editor e da leitura">
+              <Field as="select" className="settings-select" value={editorFontFamily} onChange={(event) => setEditorFontFamily(event.target.value as EditorFontFamily)} aria-label="Família da fonte do editor e da leitura">
                 {FONT_FAMILIES.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
-              </select>
+              </Field>
             </label>
             <label className="settings-toggle">
               <span>
                 <strong>Tamanho da fonte</strong>
                 <small>Medida base do texto do editor e da leitura em pixels.</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 min={MIN_FONT_SIZE}
@@ -262,7 +263,7 @@ export function SettingsPage({
                 <strong>Limite do histórico</strong>
                 <small>Acoes de desfazer/refazer mantidas por nota no editor ({DEFAULT_HISTORY_LIMIT} por padrao).</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 min={MIN_HISTORY_LIMIT}
@@ -336,22 +337,22 @@ export function SettingsPage({
                 <strong>Fonte de leitura</strong>
                 <small>Aplica a família tipográfica escolhida no modo Leitura.</small>
               </span>
-              <select className="settings-select" value={readingFont} onChange={(event) => setReadingFont(event.target.value as ReadingFont)} aria-label="Fonte de leitura">
+              <Field as="select" className="settings-select" value={readingFont} onChange={(event) => setReadingFont(event.target.value as ReadingFont)} aria-label="Fonte de leitura">
                 <option value="sans">Sans serif</option>
                 <option value="serif">Serif</option>
                 <option value="mono">Monoespacada</option>
-              </select>
+              </Field>
             </label>
             <label className="settings-toggle">
               <span>
                 <strong>Largura da leitura</strong>
                 <small>Controla a medida da coluna de conteúdo no modo Leitura.</small>
               </span>
-              <select className="settings-select" value={readingWidth} onChange={(event) => setReadingWidth(event.target.value as ReadingWidth)} aria-label="Largura da leitura">
+              <Field as="select" className="settings-select" value={readingWidth} onChange={(event) => setReadingWidth(event.target.value as ReadingWidth)} aria-label="Largura da leitura">
                 <option value="compact">Compacta</option>
                 <option value="comfortable">Confortavel</option>
                 <option value="wide">Ampla</option>
-              </select>
+              </Field>
             </label>
             <label className="settings-toggle">
               <span>
@@ -476,7 +477,7 @@ export function SettingsPage({
                 <strong>Tamanho dos nós</strong>
                 <small>Raio base dos orbes 3D no grafo.</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 min={0.2}
@@ -492,7 +493,7 @@ export function SettingsPage({
                 <strong>Distância entre nós</strong>
                 <small>Raio das órbitas dos elétrons ao redor do elemento com mais conexões.</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 min={2}
@@ -508,7 +509,7 @@ export function SettingsPage({
                 <strong>Velocidade de orbitação</strong>
                 <small>Multiplicador da velocidade com que os elétrons orbitam o núcleo.</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 min={0.1}
@@ -524,7 +525,7 @@ export function SettingsPage({
                 <strong>Tamanho máximo das arestas</strong>
                 <small>Distância máxima entre nós conectados; além dela, a aresta puxa os extremos de volta.</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 min={4}
@@ -540,7 +541,7 @@ export function SettingsPage({
                 <strong>Tamanho mínimo das arestas</strong>
                 <small>Distância mínima entre nós conectados; abaixo dela, a aresta empurra os extremos para longe.</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 min={0}
@@ -556,7 +557,7 @@ export function SettingsPage({
                 <strong>Fator de aumento por conexão</strong>
                 <small>Quanto cada conexão adicional aumenta o raio do nó.</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 min={0}
@@ -576,7 +577,7 @@ export function SettingsPage({
                 <strong>Repulsão</strong>
                 <small>Força com que os nós se repelem entre si (inversa ao quadrado da distância).</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 step={50}
@@ -590,7 +591,7 @@ export function SettingsPage({
                 <strong>Rigidez da mola</strong>
                 <small>Força das arestas por unidade de distância além do descanso.</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 step={0.1}
@@ -604,7 +605,7 @@ export function SettingsPage({
                 <strong>Amortecimento</strong>
                 <small>Decaimento da velocidade por segundo; mais alto = movimento mais "gredoso".</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 step={0.05}
@@ -618,7 +619,7 @@ export function SettingsPage({
                 <strong>Distância do link</strong>
                 <small>Comprimento de descanso das molas entre nós conectados.</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 step={0.5}
@@ -632,7 +633,7 @@ export function SettingsPage({
                 <strong>Força central</strong>
                 <small>Atração ao anel no meio do grafo; nós dentro do anel ficam soltos.</small>
               </span>
-              <input
+              <Field
                 className="settings-number"
                 type="number"
                 step={5}
@@ -649,7 +650,7 @@ export function SettingsPage({
                 <strong>Lacunas da última revisão no editor</strong>
                 <small>Como destacar os trechos esquecidos ou confundidos na nota, usando o resultado mais recente. O Markdown nunca é modificado.</small>
               </span>
-              <select
+              <Field as="select"
                 className="settings-select"
                 value={reviewGapMode}
                 onChange={(event) => setReviewGapMode(event.target.value as ReviewGapMode)}
@@ -658,7 +659,7 @@ export function SettingsPage({
                 <option value="always">Revisão (sempre visíveis)</option>
                 <option value="hover">Misto (somente no hover)</option>
                 <option value="off">Minhas cores (desativadas)</option>
-              </select>
+              </Field>
             </label>
             <VaultReviewPolicySettings vaultPath={vaultPath} />
             <SegmentationSettings vaultPath={vaultPath} />

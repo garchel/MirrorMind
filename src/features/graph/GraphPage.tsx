@@ -501,7 +501,7 @@ export function GraphPage({
               const isDimmed = (graphHoverNeighbors !== null && !graphHoverNeighbors.has(document.relativePath))
                 || isFilteredOut
               return (
-                <button
+                <Button
                   key={document.relativePath}
                   type="button"
                   className={`note-graph-node${isCurrent ? ' is-current' : ''}${focusedGraphPath === document.relativePath ? ' is-focused' : ''}${isHovered ? ' is-hovered' : ''}${isDimmed ? ' is-dimmed' : ''}${isFilterMatch ? ' is-match' : ''}${isFilteredOut ? ' is-filtered-out' : ''}`}
@@ -554,7 +554,7 @@ export function GraphPage({
                      agrupamento por pasta, a cor vem do grupo. */}
                   <span className="note-graph-node-dot" style={{ '--graph-scale': 1 + Math.min(degree, 8) * 0.13, ...(graphGroupingKind && graphGroupMaps ? { '--node-folder-color': graphGroupMaps.groupColorByPath[graphGroupMaps.groupByPath[document.relativePath] ?? ''] } : {}) } as CSSProperties} />
                   <span className={`note-graph-node-label${showLabel ? '' : ' is-hidden'}`}>{document.name.replace(/\.md$/i, '')}</span>
-                </button>
+                </Button>
               )
             })}
             </div>
@@ -595,9 +595,9 @@ export function GraphPage({
                       <DrawerTitle>{focusedGraphDocument.name.replace(/\.md$/i, '')}</DrawerTitle>
                       <DrawerDescription>{focusedGraphDocument.relativePath}</DrawerDescription>
                     </div>
-                    <button type="button" className="graph-note-drawer-close" onClick={() => setGraphDetailOpen(false)} aria-label="Fechar detalhes da nota">
+                    <Button type="button" className="ui-button graph-note-drawer-close" onClick={() => setGraphDetailOpen(false)} aria-label="Fechar detalhes da nota">
                       <X size={16} strokeWidth={1.75} aria-hidden="true" />
-                    </button>
+                    </Button>
                   </DrawerHeader>
                   <div className="graph-detail-stats" aria-label="Métricas da nota no grafo">
                     <div className="graph-detail-stat"><strong>{focusedIncomingLinks.length}</strong><span>entradas</span></div>
@@ -613,23 +613,23 @@ export function GraphPage({
                       <p className="graph-note-drawer-section-title">Referenciada por</p>
                       <div className="graph-note-drawer-references">
                         {focusedIncomingNotes.map((note) => (
-                          <button
+                          <Button
                             key={note.relativePath}
                             type="button"
-                            className="graph-note-drawer-ref"
+                            className="ui-button graph-note-drawer-ref"
                             onClick={() => setFocusedGraphPath(note.relativePath)}
                             title={`Focar ${note.name.replace(/\.md$/i, '')} no grafo`}
                           >
                             {note.name.replace(/\.md$/i, '')}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>
                   ) : null}
                   <div className="graph-note-drawer-actions">
-                    <button type="button" className="graph-note-drawer-primary" onClick={() => onOpenNote(focusedGraphDocument.relativePath)}>
+                    <Button type="button" className="ui-button graph-note-drawer-primary" onClick={() => onOpenNote(focusedGraphDocument.relativePath)}>
                       <ExternalLink size={14} strokeWidth={1.75} aria-hidden="true" /> Abrir nota
-                    </button>
+                    </Button>
                     <div className="graph-note-drawer-actions-grid">
                       <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(focusedGraphDocument) }} title={`Criar uma conexao de ${focusedGraphDocument.name.replace(/\.md$/i, '')} para outra nota`}>
                         <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Criar conexão

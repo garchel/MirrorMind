@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewAiSettingsProvider } from './ReviewAiSettingsContext'
 import { EntitlementProvider } from '../../lib/entitlement'
 import { ReviewSessionPage } from './ReviewSessionPage'
+import { Button } from '../../components/ui/Button'
 
 const { startMock, completeMock, continueMock, reclassifyMock, previewMock, synthesisMock, sourcesMock } = vi.hoisted(() => ({
   startMock: vi.fn(),
@@ -745,7 +746,7 @@ $$6\text{CO}_2 + 6\text{H}_2\text{O} \rightarrow \text{C}_6\text{H}_{12}\text{O}
     render(
       <EntitlementProvider>
         <ReviewAiSettingsProvider>
-          <footer><button type="button" className="vault-switch-button">Meu Vault</button></footer>
+          <footer><Button type="button" className="ui-button vault-switch-button">Meu Vault</Button></footer>
           <ReviewSessionPage vaultPath="C:\\Vault" item={item} onExit={onExit} onCompleted={vi.fn()} />
         </ReviewAiSettingsProvider>
       </EntitlementProvider>,

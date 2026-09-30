@@ -42,35 +42,63 @@ tamanhos token a token contra o baseline.
 
 ## Pendencias conhecidas
 
-1. **Camada 3 sem uso — e nao e um find-and-replace.** `--button-*` esta
-   definido em `styles/tokens/component.css`, mas 184 botoes continuam
-   com `className="secondary-button"` inline. A distribuicao real:
+Medido em `camada3-primitivos` (2026-09-29), nao estimado.
 
-   | composicao | ocorrencias |
-   |---|---|
-   | `secondary-button` | 97 |
-   | `secondary-button danger-button` | 8 |
-   | `primary-button` | 6 |
-   | `primary-button review-start` | 3 |
-   | `danger-button` isolado | 3 |
-   | variantes com 3o token de contexto | o resto |
+### A camada 3 esta pela metade, e isso e um numero
 
-   E o CSS tem **38 regras de `.secondary-button`** e 5 de
-   `.primary-button`, das quais **26 sao ajuste de contexto** (min-height
-   19x, padding 19x, font-size 13x) por seletor de 3 classes. O proprio
-   codigo admite: *"o seletor em 3 classes vence o `.secondary-button` do
-   workspace"*. Um `<Button variant="secondary">` generico perde esses
-   ajustes, porque eles sao o que diferencia o botao de 40px do header do
-   botao de 28px do rail.
+| primitivo | uso real | tokens que le |
+|---|---:|---|
+| `<Button>` | 152 | `--button-*` |
+| `<Field>` | 22 | `--field-*` |
+| `<Card>` | 2 | `--card-*` |
+| `<Badge>` | 1 | `--chip-*` |
 
-   O caminho e criar `<Button size="sm|md">` e deixar `className` aberto
-   para o ajuste de contexto, em vez de tentar absorber tudo num enum.
-   Isso toca muitos `.tsx` com E2E que fixam nome de botao; por isso fica
-   para uma onda dedicada, com verificacao a cada passo.
-2. **`--serif` criado (`b7a8354`).** 4 usos na Revisao. Agora existe de
-   proposito e o acento serifado acontece.
-3. **`.gitattributes` aplicado.** Resolve a falha de fixture em worktree
-   novo: era 0/5, agora 991/991 com o arquivo em 377 bytes e zero CRLF.
+Tokens de componente consumidos: **19 -> 77 referencias**. Dos 68
+tokens de componente definidos, **49 tem consumidor e 19 sao orfaos**.
+
+### O que falta, em ordem de tamanho
+
+1. **83 `<button>` crus sem className** (de 183). As 100 que tinham
+   classe de contexto foram migradas em `d2a` — agora 252 `<Button>`.
+   As 83 restantes dependem do seletor de tag; ver a secao "Por que os
+   183 `<button>` restantes nao foram migrados" abaixo.
+
+2. **112 campos crus** (93 `<input>`, 10 `<select>`, 9 `<textarea>`).
+   A migracao pegou os 25 que tinham classe; o resto herdava o reset
+   global de `base.css`. Migrar exigiria decidir o visual de cada um —
+   hoje nao ha um "campo" no app, ha tres tags com aparencia que
+   depende de onde aparecem.
+
+3. **15 alturas de botao distintas** no CSS do app (14, 18, 20, 22,
+   24, 26, 28, 30, 34, 36, 37, 40px), e o `size` do `<Button>` cobre
+   3 (`xs`/`sm`/`md`). A escala foi medida para os 3 grupos mais
+   frequentes (glifo/compacto/padrao); o resto e ajuste de contexto
+   que fica no `className`. Reduzir isso exige decisao de design sobre
+   quantas densidades o app deve ter — nao e refatoracao.
+
+4. **19 tokens orfaos** em tres grupos:
+   - botao (5): `--button-height`, `--button-height-sm`,
+     `--button-padding-x`, `--button-padding-x-sm`, `--button-font`.
+     Declarados como 46px e 32px, que **nao batem com nenhuma altura
+     real** do app. Estao orfaos porque o `.ui-button` hardcodes a
+     geometria em `--button-size-{xs,sm,md}-*`. Sao tokens que
+     contradizem a medicao: devem ser removidos ou corrigidos.
+   - aviso (5): `--notice-*`. O app tem `.error-banner` e
+     `.special-files-limit-notice`, que nao leem nenhum token.
+   - tab (9): `--tab-*`. O app tem `.tab-strip`, `.tab-chip`,
+     `.tab-select`, `.tab-close`, todos com CSS proprio.
+   - panel (2): `--panel-border-radius`, `--panel-inset-radius`.
+
+### Fora do escopo (pre-existente)
+
+5. **Rust/coverage na CI falha na `main` tambem** (verificado em
+   `bca78d8` e `1cb754b`, anteriores ao design system):
+   `Missing coverage report: coverage/rust/lcov.info` e falha em
+   `cargo test`. Nao e regressao. No job Windows, `Frontend tests`
+   estava falhando por outra causa — stderr tratado como erro pelo
+   PowerShell — e isso **foi corrigido** (`d061c61`): agora o JUnit e
+   a autoridade. `Windows required` passa em `Frontend tests`,
+   `Design system gates`, `Lint`, `Typecheck` e `Frontend build`.
 
 ## Concluido nesta rodada
 
@@ -161,12 +189,11 @@ antes/depois.
    vira 2–3 de razao de contraste.
 4. **`clay`, `azure`** — baixa economia (30% e 3,7%), ganho pequeno
    para o risco em cor de acao. Ultimo.
-5. **Tipografia** — hoje existem **zero** tokens de `font-size`. O app
-   usa 12px (138x), 11px (69x), 13px (51x), 12.5px (41x), 10px (21x):
-   14 tamanhos com decimais, todos literais. E a lacuna de sistema
-   mais obvia que sobrou, e a unica que **nao** mexe em cor.
-6. **Camada 3** — `--button-*` esta definido mas nenhum `.tsx` usa.
-   117 botoes ainda com `className="secondary-button"` inline.
+5. **Tipografia — feita.** 29 literais viraram 10 papeis
+   (`404f35c`), com `small = 13px` e `caption = 12px` decididos.
+6. **Camada 3 — ondas 1 e 2 feitas.** `<Button>` criado e 150 botoes
+   migrados. Faltam `<Input>`, `<Card>` e `<Chip>`, que tem token mas
+   nenhum primitivo os usa.
 
 ## Regra de decisao
 
@@ -180,3 +207,55 @@ cada familia so e aplicada depois de:
 
 Se um passo falhar o terceiro ponto, o hex volta. O ganho de 39% nao
 vale um pixel de texto pior.
+
+### Por que os 183 `<button>` restantes nao foram migrados (medido)
+
+A camada 3 fechou em **49 tokens de componente, zero orfaos**. O que
+falta e adocao, e a barreira e concreta:
+
+**As 100 classes contextuais** (`.modal-close`, `.tab-close`,
+`.tree-note`, `.tag-filter-chip`...) nao usam seletor de tag, entao
+foram migradas: nenhuma variante nem densidade foi inventada, o
+`<Button>` entra so com `ui-button` + a classe original, e a
+especificidade do CSS permanece a mesma.
+
+**As 83 sem className** nao sao caso. A auditoria achou **58 regras CSS
+cujo seletor contem a tag `button`** e que declaram `min-height`. As
+principais:
+
+```text
+31x  .workspace-shell ... button
+ 4x  .tag-management-page ... button
+ 2x  .ui-popover-content ... button
+ 2x  .goals-page ... button
+ 1x  .modal ... button
+ 1x  .graph-export-popover ... button
+```
+
+Exemplo real, em `editor.css`:
+
+```css
+.workspace-shell .selection-format-popover button {
+  display: grid; width: 28px; min-height: 28px; padding: 0; ...
+}
+```
+
+Se `<button>` virar `<Button>`, o elemento deixa de casar com o
+seletor de tag e herda o `button { }` global de `base.css`
+(`min-height: 46px`, `border-radius: 999px`). Os 83 botões de toolbar
+do editor ficariam com 46px de altura em vez de 28px.
+
+Migrar isso exige reescrever as 58 regras de `button` para
+`.ui-button` (ou equivalente) — o que toca o shell inteiro, 20 arquivos de
+TSX e toda a cascata de workspace. E o que os tokens
+`--button-size-xs-*` (28px) foram feitos para expressar, mas a
+aplicacao e umaonda por si so, com E2E.
+
+Restam as 83, e o caminho e em dois passos:
+
+1. reescrever as 58 regras de seletor-de-tag para seletor-de-classe,
+   em um commit so, **sem migrar nenhum .tsx** — isso prepara o terreno
+   e nao muda nada visualmente, porque a especificidade se mantem;
+2. so entao os 83 sem classe, que passariam a poder usar `<Button>`.
+
+O passo 1 e o que destrava o resto, e ainda e seguro.

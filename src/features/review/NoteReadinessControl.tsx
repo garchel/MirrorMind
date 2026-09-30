@@ -177,9 +177,9 @@ export function NoteReadinessControl({
           ) : null}
         </div>
       </header>
-      <button
+      <Button
         type="button"
-        className="note-review-start-trigger"
+        className="ui-button note-review-start-trigger"
         onClick={() => void startReviewNow()}
         disabled={disabled || busy || enrollmentBusy || (isDirty && !onSaveFirst) || !reviewState || reviewState.readiness !== 'ready'}
         title={isDirty && !onSaveFirst
@@ -191,7 +191,7 @@ export function NoteReadinessControl({
       >
         <CalendarCheck2 size={15} strokeWidth={1.5} aria-hidden="true" />
         <span>{enrollmentBusy ? 'Preparando…' : 'Fazer revisão agora'}</span>
-      </button>
+      </Button>
       {/* Botao desabilitado que nao diz o porquê e beco sem saida: a dica
           aponta o proximo passo (mesma regra do title, em texto visivel). */}
       {showStartHint ? (
@@ -268,16 +268,16 @@ export function NoteReadinessControl({
       ) : null}
       {!stateLoading && reviewState ? (
         <div className="note-review-danger-zone">
-          <button
+          <Button
             type="button"
-            className="note-review-reset-trigger"
+            className="ui-button note-review-reset-trigger"
             onClick={openResetConfirm}
             disabled={disabled || busy || resetBusy}
             title="Remove pontuações, estado de memória e datas de revisão desta nota"
           >
             <RotateCcw size={13} strokeWidth={1.6} aria-hidden="true" />
             <span>Reiniciar aprendizado desta nota</span>
-          </button>
+          </Button>
         </div>
       ) : null}
       {error && !attempt ? <p className="review-ai-toolbar-error" role="alert">{error}</p> : null}
@@ -336,15 +336,15 @@ export function NoteReadinessControl({
                 <p className="card-kicker">Recuperação de aprendizado</p>
                 <h3 id="review-discard-title">Descartar aprendizado irrecuperável?</h3>
               </div>
-              <button
+              <Button
                 type="button"
-                className="modal-close"
+                className="ui-button modal-close"
                 onClick={closeDiscardConfirm}
                 disabled={recoveryBusy}
                 aria-label="Cancelar descarte"
               >
                 <X size={16} strokeWidth={2.2} aria-hidden="true" />
-              </button>
+              </Button>
             </div>
             <div className="review-ai-report-body">
               <p id="review-discard-description">
@@ -360,15 +360,15 @@ export function NoteReadinessControl({
               <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeDiscardConfirm} disabled={recoveryBusy}>
                 Cancelar
               </Button>
-              <button
+              <Button
                 type="button"
-                className="review-reset-confirm"
+                className="ui-button review-reset-confirm"
                 onClick={() => void performRecoveryDiscard()}
                 disabled={recoveryBusy}
                 autoFocus
               >
                 {recoveryBusy ? 'Descartando…' : 'Descartar e reavaliar'}
-              </button>
+              </Button>
             </div>
           </section>
         </Modal>
@@ -392,15 +392,15 @@ export function NoteReadinessControl({
                 <p className="card-kicker">Aprendizado da nota</p>
                 <h3 id="review-reset-title">Reiniciar aprendizado?</h3>
               </div>
-              <button
+              <Button
                 type="button"
-                className="modal-close"
+                className="ui-button modal-close"
                 onClick={closeResetConfirm}
                 disabled={resetBusy}
                 aria-label="Cancelar reinício"
               >
                 <X size={16} strokeWidth={2.2} aria-hidden="true" />
-              </button>
+              </Button>
             </header>
             <div className="review-ai-report-body">
               <p id="review-reset-description">
@@ -424,15 +424,15 @@ export function NoteReadinessControl({
               <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeResetConfirm} disabled={resetBusy}>
                 Cancelar
               </Button>
-              <button
+              <Button
                 type="button"
-                className="review-reset-confirm"
+                className="ui-button review-reset-confirm"
                 onClick={() => void performReset()}
                 disabled={resetBusy}
                 autoFocus
               >
                 {resetBusy ? 'Reiniciando…' : 'Reiniciar aprendizado'}
-              </button>
+              </Button>
             </div>
           </section>
         </Modal>

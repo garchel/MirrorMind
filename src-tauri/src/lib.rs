@@ -6447,8 +6447,7 @@ mod tests {
         restore_trash_item_in_root, save_note_in_root, scan_vault_unified, search_notes_in_root,
         parse_sync_conflict_copy, remove_inventory_path, rename_inventory_path, SyncConflictProvider,
         to_relative_display, truncate_attachment_inventory, update_wiki_links_for_note_path_change,
-        update_wiki_links_for_note_path_change_with_hook,
-        update_wiki_links_for_note_path_change_with_hooks, update_wikilink_index_after_save,
+        update_wiki_links_for_note_path_change_with_hook, update_wikilink_index_after_save,
         validate_vault_name, write_file_regular_no_follow, write_new_file, write_trash_entries,
         HistoryCommand, PendingRenameBuffer, PlannedWikiLinkUpdate, RecentVaultPreference,
         SpecialVaultFileKind, UnreadableReason, VaultFileSystemChange, VaultFileSystemChangeKind,
@@ -6472,7 +6471,7 @@ mod tests {
     #[cfg(windows)]
     use super::{
         queue_pending_watcher_modification, start_vault_watcher, start_vault_watcher_with_capacity,
-        VaultWatcherState,
+        update_wiki_links_for_note_path_change_with_hooks, VaultWatcherState,
     };
     #[cfg(windows)]
     use std::{
@@ -6485,7 +6484,7 @@ mod tests {
     // de teste do Windows (fila, modelo, janelas) nao existem em unix, entao
     // o teste unix usa um canal mpsc direto.
     #[cfg(unix)]
-    use super::{start_vault_watcher, start_vault_watcher_with_capacity};
+    use super::start_vault_watcher;
     #[cfg(unix)]
     use std::{
         sync::mpsc,

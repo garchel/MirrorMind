@@ -520,12 +520,21 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
               />
             </label>
             {synthesisAttempt?.outcome === 'invalid' ? (
-              <p className="review-synthesis-error" role="alert">
+              /*
+               * <div role="alert">, nao <p>: o aviso pode conter uma
+               * <ul> com os erros de validacao, e <ul> dentro de <p> e
+               * HTML invalido. O React avisava em stderr, e no job
+               * Windows do CI o PowerShell transforma stderr em erro
+               * e mata o build — a falha aparecia como "Frontend
+               * tests" sem relacao com o design system. O papel
+               * "alert" e o mesmo, entao a acessibilidade nao muda.
+               */
+              <div className="review-synthesis-error" role="alert">
                 {synthesisAttempt.message}
                 {synthesisAttempt.validationErrors.length > 0 ? (
                   <ul>{synthesisAttempt.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul>
                 ) : null}
-              </p>
+              </div>
             ) : null}
             {!canUseProvider ? <p role="alert" className="review-consent-warning">Autorize o envio ao Gemini nas configurações antes de avaliar.</p> : null}
             <Button
@@ -712,7 +721,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             {reclassifyError ? <p className="review-reclassify-error" role="alert">{reclassifyError}</p> : null}
             <div className="review-reclassify-options">
               {CLASSIFICATION_BANDS.map((band) => (
-                <button
+                <Button
                   key={band.outcome}
                   type="button"
                   className={`review-reclassify-option is-${band.outcome}`}
@@ -722,7 +731,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
                 >
                   <span className="review-reclassify-range">{band.hint}</span>
                   <span className="review-reclassify-label">{band.label}</span>
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -810,7 +819,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
           </>
         )}
         {draft.mode === 'exam' ? (
-          <button
+          <Button
             type="button"
             className={`review-option-dont-know${dontKnow ? ' is-selected' : ''}`}
             onClick={() => { setDontKnow((value) => !value); if (!dontKnow) setSelectedOption(null) }}
@@ -818,7 +827,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
           >
             <span className="review-option-letter" aria-hidden="true">?</span>
             <span className="review-option-text">Não sei</span>
-          </button>
+          </Button>
         ) : null}
         <div className="review-answer-actions">
           <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setAssistanceVisible((visible) => !visible)}><Lightbulb size={15} /> {assistanceVisible ? 'Ocultar ajuda' : draft.mode === 'exam' ? 'Mostrar dica' : 'Mostrar contexto'}</Button>
@@ -835,7 +844,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             <p>As respostas desta sessão serão descartadas e nenhuma pontuação será registrada.</p>
             <div className="review-abandon-actions">
               <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setAbandonOpen(false)} autoFocus>Cancelar</Button>
-              <button type="button" className="review-abandon-confirm" aria-label="Confirmar abandono da sessão" onClick={confirmAbandon}>Abandonar</button>
+              <Button type="button" className="ui-button review-abandon-confirm" aria-label="Confirmar abandono da sessão" onClick={confirmAbandon}>Abandonar</Button>
             </div>
           </section>
         </div>
