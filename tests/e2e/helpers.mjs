@@ -67,7 +67,36 @@ export async function typeIntoEditor(content) {
     }),
     { timeout: 5_000, timeoutMsg: 'O editor nao recebeu foco antes da digitacao.' },
   )
+  // O `Control+a` precisa ser CONFIRMADO, nao presumido. Medido no runner do
+  // CI (run 36776222701): `keys(['Control','a'])` e assincrono e chegava
+  // depois do `addValue`, entao a digitacao era CONCATENADA ao texto antigo
+  // em vez de substitui-lo. O sintoma enganava: editor e arquivo ficavam
+  // coerentes entre si, ambos com o conteudo da digitacao anterior, o que
+  // parecia app quebrado em vez de teste. Probe confirmou que 400ms depois
+  // do atalho a selecao existe e cobre o texto inteiro.
+  //
+  // O predicate compara o texto selecionado com o conteudo do editor, em vez
+  // de so checar `isCollapsed`: em editor VAZIO o `Control+a` nao produz
+  // selecao alguma (nao ha o que selecionar), e exigir selecao ali travava o
+  // teste. Comparar os dois valores aceita o caso vazio e so espera quando ha
+  // texto de verdade para apagar.
+  //
+  // Sem retry nem skip: se o atalho falhar, a mensagem de timeout nomeia a
+  // causa em vez de mascarar.
   await browser.keys(['Control', 'a'])
+  await browser.waitUntil(
+    async () => browser.execute(() => {
+      const target = document.querySelector('[aria-label^="Editor Markdown"]')
+      if (!target) return false
+      const current = Array.from(target.querySelectorAll('.cm-line'))
+        .map((line) => line.textContent ?? '')
+        .join('\n')
+      if (current.trim() === '') return true
+      const selection = target.ownerDocument.getSelection()
+      return !!selection && !selection.isCollapsed && String(selection) === current
+    }),
+    { timeout: 5_000, timeoutMsg: 'O Control+a nao selecionou o conteudo do editor antes de digitar.' },
+  )
   await browser.keys('Delete')
   await editor.addValue(content)
   await waitForEditorText(content)
