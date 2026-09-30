@@ -1645,9 +1645,8 @@ mod tests {
     use super::{
         backup_path, discard_unrecoverable_learning_document, document_path,
         export_unrecoverable_learning_document, learning_directory,
-        list_learning_storage_keys_with_limit,
-        list_unrecoverable_learning_documents, load_learning_document,
-        policy_transaction_journal_path, reconcile_external_learning_paths,
+        list_learning_storage_keys_with_limit, list_unrecoverable_learning_documents,
+        load_learning_document, policy_transaction_journal_path, reconcile_external_learning_paths,
         recover_relocation_transaction_unlocked, relocation_snapshot_directory,
         relocation_transaction_journal_path, source_hash, staged_path,
         with_relocated_learning_documents, write_learning_document,

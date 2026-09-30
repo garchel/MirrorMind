@@ -132,8 +132,7 @@ pub fn persist_readiness_assessment(
             // Modo inicial = padrao do Vault escolhido pelo usuario (Prova ate
             // ele definir outro); tags e a propria nota continuam podendo
             // sobrescrever depois, pela precedencia normal.
-            let initial_preferred_mode =
-                super::policy_config::load_vault_default_mode(vault_root)?;
+            let initial_preferred_mode = super::policy_config::load_vault_default_mode(vault_root)?;
             new_learning_document(
                 note_id.clone(),
                 relative_path,

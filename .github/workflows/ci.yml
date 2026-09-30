@@ -113,8 +113,20 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force test-results | Out-Null
-          npm run test:ci:rust 2>&1 | Tee-Object -FilePath test-results/rust.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          # Mesmo defeito ja corrigido no step de frontend: o
+          # `2>&1 | Tee-Object` funde stderr no pipeline e o PowerShell trata
+          # qualquer linha em stderr como erro. Um "Compiling ..." do cargo
+          # em stderr derrubava o job com NativeCommandError, sem que nenhum
+          # teste tivesse falhado. O codigo do cargo so vale se o log
+          # confirmar; aqui nao ha JUnit, entao o log e a autoridade e a saida
+          # do processo e lida explicitamente.
+          $ErrorActionPreference = 'Continue'
+          cmd /c "npm run test:ci:rust > test-results\rust.log 2>&1"
+          $cargoExit = $LASTEXITCODE
+          Get-Content test-results/rust.log -Tail 40
+
+          if ($cargoExit -ne 0) { exit $cargoExit }
 
       - name: Rust formatting
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
