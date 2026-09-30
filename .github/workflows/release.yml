@@ -76,28 +76,40 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force test-results | Out-Null
-          npm run test:ci:frontend 2>&1 | Tee-Object -FilePath test-results/frontend.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $ErrorActionPreference = 'Continue'
+          cmd /c "npm run test:ci:frontend > test-results\frontend.log 2>&1"
+          $feExit = $LASTEXITCODE
+          Get-Content test-results/frontend.log -Tail 40
+          if ($feExit -ne 0) { exit $feExit }
 
       - name: Rust tests
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force test-results | Out-Null
-          npm run test:ci:rust 2>&1 | Tee-Object -FilePath test-results/rust.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $ErrorActionPreference = 'Continue'
+          cmd /c "npm run test:ci:rust > test-results\rust.log 2>&1"
+          $rustExit = $LASTEXITCODE
+          Get-Content test-results/rust.log -Tail 40
+          if ($rustExit -ne 0) { exit $rustExit }
 
       - name: Build Windows E2E app
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force test-results | Out-Null
-          npm run build:e2e:windows 2>&1 | Tee-Object -FilePath test-results/windows-e2e-build.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $ErrorActionPreference = 'Continue'
+          cmd /c "npm run build:e2e:windows > test-results\windows-e2e-build.log 2>&1"
+          $buildExit = $LASTEXITCODE
+          Get-Content test-results/windows-e2e-build.log -Tail 40
+          if ($buildExit -ne 0) { exit $buildExit }
 
       - name: Desktop E2E
         shell: powershell
         run: |
-          npm run test:e2e:windows 2>&1 | Tee-Object -FilePath test-results/windows-e2e.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $ErrorActionPreference = 'Continue'
+          cmd /c "npm run test:e2e:windows > test-results\windows-e2e.log 2>&1"
+          $e2eExit = $LASTEXITCODE
+          Get-Content test-results/windows-e2e.log -Tail 40
+          if ($e2eExit -ne 0) { exit $e2eExit }
 
       - name: Build Windows distributable (NSIS + MSI)
         shell: powershell
@@ -115,8 +127,12 @@ jobs:
           } else {
             Write-Host 'Secret TAURI_SIGNING_PRIVATE_KEY ausente: build SEM artefatos de atualizacao'
           }
-          npx tauri @tauriArgs 2>&1 | Tee-Object -FilePath test-results/windows-bundle-build.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $ErrorActionPreference = 'Continue'
+          $tauriLog = 'test-results\windows-bundle-build.log'
+          & npx tauri @tauriArgs > $tauriLog 2>&1
+          $bundleExit = $LASTEXITCODE
+          Get-Content $tauriLog -Tail 40
+          if ($bundleExit -ne 0) { exit $bundleExit }
 
       - name: Smoke test Windows distributable
         shell: powershell

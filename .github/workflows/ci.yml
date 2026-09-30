@@ -135,21 +135,33 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force test-results | Out-Null
-          npm run build:e2e:windows 2>&1 | Tee-Object -FilePath test-results/windows-e2e-build.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Ver a nota em "Rust tests": `2>&1 | Tee-Object` transforma
+          # qualquer linha em stderr (inclusive um "Info" do tauri) em erro,
+          # derrubando o job sem que o comando tenha falhado.
+          $ErrorActionPreference = 'Continue'
+          cmd /c "npm run build:e2e:windows > test-results\windows-e2e-build.log 2>&1"
+          $buildExit = $LASTEXITCODE
+          Get-Content test-results/windows-e2e-build.log -Tail 40
+          if ($buildExit -ne 0) { exit $buildExit }
 
       - name: Desktop E2E
         shell: powershell
         run: |
-          npm run test:e2e:windows 2>&1 | Tee-Object -FilePath test-results/windows-e2e.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $ErrorActionPreference = 'Continue'
+          cmd /c "npm run test:e2e:windows > test-results\windows-e2e.log 2>&1"
+          $e2eExit = $LASTEXITCODE
+          Get-Content test-results/windows-e2e.log -Tail 40
+          if ($e2eExit -ne 0) { exit $e2eExit }
 
       - name: Build Windows distributable
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force test-results | Out-Null
-          npm run build:desktop:bundle 2>&1 | Tee-Object -FilePath test-results/windows-bundle-build.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $ErrorActionPreference = 'Continue'
+          cmd /c "npm run build:desktop:bundle > test-results\windows-bundle-build.log 2>&1"
+          $bundleExit = $LASTEXITCODE
+          Get-Content test-results/windows-bundle-build.log -Tail 40
+          if ($bundleExit -ne 0) { exit $bundleExit }
 
       - name: Smoke test Windows distributable
         shell: powershell
