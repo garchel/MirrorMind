@@ -458,7 +458,8 @@ fn scan_vault_inventory(
     inventory_state.store(&root, scan.clone());
     // Indice de tags sobre a MESMA passada (elimina a segunda varredura +
     // leitura integral do refresh; mesmos limites de seguranca).
-    let tags = build_tag_index_for_note_paths(&root, &scan.notes).map_err(|error| error.to_string())?;
+    let tags =
+        build_tag_index_for_note_paths(&root, &scan.notes).map_err(|error| error.to_string())?;
     Ok(VaultInventory {
         notes: build_note_previews(&root, &scan.notes),
         folders: scan
@@ -524,7 +525,8 @@ fn apply_vault_inventory_changes(
             .cmp(&right.relative_path)
             .then_with(|| left.original_path.cmp(&right.original_path))
     });
-    scan.sync_conflict_copies.dedup_by(|left, right| left.relative_path == right.relative_path);
+    scan.sync_conflict_copies
+        .dedup_by(|left, right| left.relative_path == right.relative_path);
     scan.diagnostics.attachments_truncated =
         truncate_attachment_inventory(&mut scan.attachments, MAX_ATTACHMENT_INVENTORY_FILES);
     Ok(VaultInventory {
@@ -1359,10 +1361,8 @@ fn get_note_broken_links_in_root(root: &Path, relative_path: &str) -> Result<Vec
         let fragment_exists = if let (Some(target_path), Some(fragment)) =
             (resolved_target.as_ref(), raw_target.fragment.as_ref())
         {
-            let target_content =
-                fs::read_to_string(root.join(target_path)).with_context(|| {
-                    format!("Nao foi possivel ler o destino '{}'.", target_path)
-                })?;
+            let target_content = fs::read_to_string(root.join(target_path))
+                .with_context(|| format!("Nao foi possivel ler o destino '{}'.", target_path))?;
             markdown_fragment_exists(&target_content, fragment)
         } else {
             true
@@ -1434,10 +1434,7 @@ fn get_tag_index_in_root(root: &Path) -> Result<Vec<TagSummary>> {
 
 /// Monta o indice de tags sobre caminhos ja varridos (reaproveita a passada
 /// do inventario em vez de re-varrer o Vault). Mesmos limites de seguranca.
-fn build_tag_index_for_note_paths(
-    root: &Path,
-    note_paths: &[PathBuf],
-) -> Result<Vec<TagSummary>> {
+fn build_tag_index_for_note_paths(root: &Path, note_paths: &[PathBuf]) -> Result<Vec<TagSummary>> {
     let mut tags: HashMap<String, Vec<String>> = HashMap::new();
     if note_paths.len() > MAX_TAG_INDEX_NOTES {
         bail!("O Vault excede o limite seguro de notas para indexacao de tags.");
@@ -4888,7 +4885,8 @@ fn scan_vault_unified(root: &Path) -> Result<VaultScan> {
             .cmp(&right.relative_path)
             .then_with(|| left.original_path.cmp(&right.original_path))
     });
-    scan.sync_conflict_copies.dedup_by(|left, right| left.relative_path == right.relative_path);
+    scan.sync_conflict_copies
+        .dedup_by(|left, right| left.relative_path == right.relative_path);
     scan.special_files
         .sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
     if scan.special_files.len() > MAX_SPECIAL_VAULT_FILES {
@@ -5002,7 +5000,11 @@ fn visit_unified_vault_directory(
                     Some(index) => format!("{}/{}", &relative_path[..index], original_name),
                     None => original_name,
                 };
-                let entry = SyncConflictCopy { relative_path, original_path, provider };
+                let entry = SyncConflictCopy {
+                    relative_path,
+                    original_path,
+                    provider,
+                };
                 if !scan.sync_conflict_copies.contains(&entry) {
                     scan.sync_conflict_copies.push(entry);
                 }
@@ -6433,27 +6435,28 @@ pub fn run() {
 mod tests {
     use super::{
         append_knowledge_suggestion_in_root, apply_history_command, apply_vault_scan_change,
-        attachment_directory_for_note, classify_vault_file_system_change, collect_attachment_files,
-        collect_folders, collect_markdown_files, collect_special_vault_files, copy_file_synced,
+        attachment_directory_for_note, build_tag_index_for_note_paths,
+        classify_vault_file_system_change, collect_attachment_files, collect_folders,
+        collect_markdown_files, collect_special_vault_files, copy_file_synced,
         delete_vault_item_in_root, diagnose_unreadable_notes, ensure_metadata_layout, extract_tags,
-        extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root, build_tag_index_for_note_paths, get_note_broken_links_in_root, get_tag_index_in_root,
-        hard_link_or_copy, import_attachment_in_root, inspect_metadata, inspect_vault_path,
-        list_trash_in_root, move_vault_item_in_root, move_vault_path_without_overwrite,
-        obsidian_attachment_directory, permanently_delete_trash_item_in_root,
-        prepare_wiki_link_updates, read_history, read_pdf_attachment_in_root,
-        read_special_vault_file_in_root, read_trash_entries, read_vault_notes_in_root,
-        record_history, recover_note_in_root, rename_vault_item_in_root,
+        extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root,
+        get_note_broken_links_in_root, get_tag_index_in_root, hard_link_or_copy,
+        import_attachment_in_root, inspect_metadata, inspect_vault_path, list_trash_in_root,
+        move_vault_item_in_root, move_vault_path_without_overwrite, obsidian_attachment_directory,
+        parse_sync_conflict_copy, permanently_delete_trash_item_in_root, prepare_wiki_link_updates,
+        read_history, read_pdf_attachment_in_root, read_special_vault_file_in_root,
+        read_trash_entries, read_vault_notes_in_root, record_history, recover_note_in_root,
+        remove_inventory_path, rename_inventory_path, rename_vault_item_in_root,
         rename_vault_item_in_root_with_state, resolve_folder_path, resolve_note_path,
         restore_trash_item_in_root, save_note_in_root, scan_vault_unified, search_notes_in_root,
-        parse_sync_conflict_copy, remove_inventory_path, rename_inventory_path, SyncConflictProvider,
         to_relative_display, truncate_attachment_inventory, update_wiki_links_for_note_path_change,
         update_wiki_links_for_note_path_change_with_hook, update_wikilink_index_after_save,
         validate_vault_name, write_file_regular_no_follow, write_new_file, write_trash_entries,
         HistoryCommand, PendingRenameBuffer, PlannedWikiLinkUpdate, RecentVaultPreference,
-        SpecialVaultFileKind, UnreadableReason, VaultFileSystemChange, VaultFileSystemChangeKind,
-        WikilinkIndexState, ASSESSMENTS_DIR, ATTACHMENTS_DIR, CONFIG_FILE,
-        MAX_ATTACHMENT_INVENTORY_FILES, MAX_PDF_ATTACHMENT_BYTES, MAX_SPECIAL_VAULT_FILES,
-        METADATA_DIR, REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
+        SpecialVaultFileKind, SyncConflictProvider, UnreadableReason, VaultFileSystemChange,
+        VaultFileSystemChangeKind, WikilinkIndexState, ASSESSMENTS_DIR, ATTACHMENTS_DIR,
+        CONFIG_FILE, MAX_ATTACHMENT_INVENTORY_FILES, MAX_PDF_ATTACHMENT_BYTES,
+        MAX_SPECIAL_VAULT_FILES, METADATA_DIR, REVIEW_PLANS_DIR, SESSIONS_DIR, TRASH_DIR,
     };
     use crate::review::{
         evaluation::{ReadinessReport, ReadinessStatus},
@@ -7292,7 +7295,10 @@ mod tests {
         assert_eq!(parse_sync_conflict_copy("nota-PC.md"), None);
         assert_eq!(parse_sync_conflict_copy("a < b.md"), None);
         assert_eq!(parse_sync_conflict_copy("nota.sync-conflict-xyz.md"), None);
-        assert_eq!(parse_sync_conflict_copy("img.sync-conflict-20260926-120000-ABC1234.png"), None);
+        assert_eq!(
+            parse_sync_conflict_copy("img.sync-conflict-20260926-120000-ABC1234.png"),
+            None
+        );
     }
 
     #[test]
@@ -7307,7 +7313,8 @@ mod tests {
         .expect("write dropbox copy");
         fs::create_dir_all(root.join("Pasta")).expect("create folder");
         fs::write(
-            root.join("Pasta").join("outra.sync-conflict-20260926-120000-ABC1234.md"),
+            root.join("Pasta")
+                .join("outra.sync-conflict-20260926-120000-ABC1234.md"),
             "# Copia",
         )
         .expect("write syncthing copy");
@@ -7360,14 +7367,14 @@ mod tests {
             .expect("canonical root");
         fs::create_dir_all(root.join("curso")).expect("create folder");
         fs::write(root.join("curso/aula.md"), "# Aula\n\n#fisica #revisao\n").expect("write note");
-        fs::write(root.join("notas.md"), "---\ntags: [fisica]\n---\n").expect("write frontmatter note");
+        fs::write(root.join("notas.md"), "---\ntags: [fisica]\n---\n")
+            .expect("write frontmatter note");
         fs::write(root.join("sem-tag.md"), "so texto").expect("write plain note");
 
         // A fusao no inventario precisa enxergar exatamente o que a passada
         // dedicada enxerga (mesmos limites, mesma extracao).
         let scan = scan_vault_unified(&root).expect("unified scan");
-        let fused =
-            build_tag_index_for_note_paths(&root, &scan.notes).expect("fused tag index");
+        let fused = build_tag_index_for_note_paths(&root, &scan.notes).expect("fused tag index");
         let dedicated = get_tag_index_in_root(&root).expect("dedicated tag index");
         assert_eq!(fused, dedicated);
         assert_eq!(fused.len(), 2);
@@ -7378,13 +7385,12 @@ mod tests {
     #[test]
     fn inventory_increment_keeps_sync_conflict_copies_consistent() {
         let temporary_directory = tempdir().expect("temp dir");
-        let root = temporary_directory.path().canonicalize().expect("canonical root");
+        let root = temporary_directory
+            .path()
+            .canonicalize()
+            .expect("canonical root");
         fs::write(root.join("nota.md"), "# Nota").expect("write note");
-        fs::write(
-            root.join("nota (conflito de PAPC).md"),
-            "# Copia",
-        )
-        .expect("write copy");
+        fs::write(root.join("nota (conflito de PAPC).md"), "# Copia").expect("write copy");
 
         let mut scan = scan_vault_unified(&root).expect("unified scan");
         assert_eq!(scan.sync_conflict_copies.len(), 1);
@@ -7401,8 +7407,10 @@ mod tests {
         assert_eq!(scan.sync_conflict_copies.len(), 2);
         rename_inventory_path(&mut scan, &root, "Velha", "Nova");
         assert_eq!(scan.sync_conflict_copies.len(), 2);
-        assert!(scan.sync_conflict_copies.iter().any(|copy| copy.relative_path.replace('\\', "/")
-            == "Nova/x (conflito).md"));
+        assert!(scan
+            .sync_conflict_copies
+            .iter()
+            .any(|copy| copy.relative_path.replace('\\', "/") == "Nova/x (conflito).md"));
     }
 
     #[test]

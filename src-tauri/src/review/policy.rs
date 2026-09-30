@@ -386,7 +386,8 @@ mod tests {
     use crate::review::evaluation::{ReadinessReport, ReadinessStatus};
     use crate::review::policy_config::{
         load_vault_default_mode, set_vault_review_defaults, VaultReviewDefaultsInput,
-    };    use crate::review::state::{persist_readiness_assessment, set_manual_enrollment};
+    };
+    use crate::review::state::{persist_readiness_assessment, set_manual_enrollment};
     use crate::review::storage::load_learning_document;
     use tempfile::tempdir;
 
