@@ -36,3 +36,6 @@ src-tauri/updater-keys/*.key
 # Python bytecode dos scripts de token
 __pycache__/
 *.pyc
+
+# Worktrees de agentes paralelos (1 por agente)
+.worktrees/

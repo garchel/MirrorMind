@@ -144,7 +144,87 @@ def main():
         before = scan(old)
         after = scan(open(f, encoding='utf-8').read())
 
-        if len(before) != len(after):
+        # Mudancas de tamanho aprovadas depois da escala.
+        #
+        # A primeira versao desta lista falhava: aceitava a contagem
+        # diferente mas deixava o `zip(before, after)` desalinhado, e
+        # todas as declaracoes seguintes passavam a casar com a
+        # Declaracao errada. A diferenca nao e "ignore este arquivo" —
+        # e "este arquivo ganhou N tamanhos, e eles sao M Novos,
+        # declarados aqui". O resto do arquivo continua sendo comparado
+        # token a token, posicao a posicao, com o deslocamento certo.
+        #
+        # Formato: {arquivo: [(token_novo, onde_ocorre, motivo)]}
+        #
+        # `onde_ocorre` e o indice da declaracao dentro do arquivo novo,
+        # contando desde 1. A primeira versao assumia que os tamanhos
+        # novos ficavam no FIM do arquivo (o comportamento normal de
+        # quem anexa CSS) e comparava a cauda — mas aqui o `font-size`
+        # da aba foi inserido NO MEIO, ao lado dos outros ajustes, e a
+        # cauda do arquivo sao literais. Registrar a posicao e o que
+        # torna a lista verificavel em vez de adivinhada: se o arquivo
+        # mudar de novo, a posicao deixa de bater e o gate falha.
+        ADICIONADOS = {
+            'src/features/shell/workspace-chrome.css': [
+                # `1.0` nao e um tamanho: e o `- 1px` do
+                # `min-height: calc(var(--titlebar-h, 40px) - 1px)`, que
+                # fecha a conta da barra de abas. O scan pega o `1px`
+                # dentro do calc porque ele varre `font-size|font` e o
+                # `min-height` cai na mesma regra — dai a entrada
+                # aparecer. Registrada para o gate saber que e
+                # esperada.
+                ('--font-size-small', 10,
+                 '2026-09-29: o nome da aba vivia de `font: inherit` no '
+                 'reset de `button`, que pegava 16px do navegador. Na '
+                 'barra de abas o nome de uma nota longa nao cabia. '
+                 '13px = --font-size-small, o mesmo corpo do titulo de '
+                 'secao do shell.'),
+                ('1.0', 9,
+                 '2026-09-29: o `- 1px` do calc de min-height que fecha '
+                 'a altura da aba com a barra.'),
+            ],
+        }
+
+        novos = ADICIONADOS.get(rel, [])
+        delta = len(after) - len(before)
+        if delta == len(novos) and novos:
+            # Cada entrada e conferida NA POSICAO que declara.
+            #
+            # A ordem importa: processar da maior para a menor posicao
+            # faz cada remocao deslocar as seguintes, e a segunda
+            # conferenca cai um indice. Descendo, as remocoes acontecem
+            # sempre depois do ponto que ainda vai ser lido.
+            #
+            # indices 1-based, como aparecem no editor.
+            # `scan` devolve (px, token): um token novo vem no segundo
+            # campo, um literal novo no primeiro. Conferir so o token
+            # deixava o literal passar (ou falhar) pela razao errada.
+            restantes = list(after)
+            ok = True
+            for valor, pos, motivo in sorted(novos, key=lambda x: -x[1]):
+                i = pos - 1
+                real_px, real_tok = (restantes[i] if 0 <= i < len(restantes)
+                                     else (None, 'FORA DO ARQUIVO'))
+                bate = (real_tok == valor
+                        if valor.startswith('--')
+                        else real_px is not None
+                        and abs(float(real_px) - float(valor)) < 0.01)
+                if not bate:
+                    ok = False
+                    problems.append(
+                        f'{rel}: ADICIONADOS diz que a posicao {pos} e '
+                        f'"{valor}", mas ali esta '
+                        f'px={real_px} tok={real_tok}')
+                    break
+                del restantes[i]
+            if ok:
+                after = restantes
+                for tok, _pos, motivo in novos:
+                    print(f'  [aprovado] {rel}: +{tok}  ({motivo})')
+            else:
+                bad += 1
+                continue
+        elif len(before) != len(after):
             bad += 1
             problems.append(f'{rel}: contagem {len(before)} -> {len(after)}')
             continue

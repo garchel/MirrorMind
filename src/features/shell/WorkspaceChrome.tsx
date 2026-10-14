@@ -53,7 +53,7 @@ export function TabStrip({
     <div className="tab-strip" role="tablist" aria-label="Notas abertas" data-builder-name="tab-strip">
       {openTabs.length > 0 ? (
         openTabs.map((tabPath) => {
-          const tabName = tabPath === '__new_note__' ? 'Nova nota' : notes.find((note) => note.relativePath === tabPath)?.name ?? tabPath
+          const tabName = tabPath === '__new_note__' ? 'Nova nota' : notes.find((note) => note.relativePath === tabPath)?.name.replace(/\.md$/i, '') ?? tabPath.replace(/\.md$/i, '')
           return (
             <div
               key={tabPath}
@@ -61,6 +61,7 @@ export function TabStrip({
             >
               <Button
                 type="button"
+                variant="bare"
                 className="ui-button tab-select"
                 onClick={() => void openNote(tabPath)}
                 disabled={loading || saving}
@@ -72,6 +73,7 @@ export function TabStrip({
               </Button>
               <Button
                 type="button"
+                variant="bare"
                 className="ui-button tab-close"
                 onClick={() => closeTab(tabPath)}
                 disabled={loading || saving}
@@ -86,7 +88,7 @@ export function TabStrip({
       ) : (
         <p className="empty-tabs">As notas abertas aparecerão aqui em abas.</p>
       )}
-      <Button type="button" className="ui-button new-tab-button" onClick={startNewNote} disabled={loading || saving} title="Nova nota na raiz do vault" aria-label="Nova nota na raiz do vault">
+      <Button type="button" variant="bare" className="ui-button new-tab-button" onClick={startNewNote} disabled={loading || saving} title="Nova nota na raiz do vault" aria-label="Nova nota na raiz do vault">
         <Plus size={16} strokeWidth={1.7} aria-hidden="true" />
       </Button>
     </div>

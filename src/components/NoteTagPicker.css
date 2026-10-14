@@ -63,7 +63,7 @@
 }
 
 .workspace-shell .note-tag-picker-menu button,
-.note-tag-picker-menu button {
+.note-tag-picker-menu :where(button, .ui-button) {
   border: 0;
   padding: 7px 8px;
   border-radius: var(--radius-xs);
@@ -77,7 +77,7 @@
 .workspace-shell .note-tag-picker-menu button:hover,
 .workspace-shell .note-tag-picker-menu button:focus-visible,
 .note-tag-picker-menu button:hover,
-.note-tag-picker-menu button:focus-visible {
+.note-tag-picker-menu :where(button, .ui-button):focus-visible {
   background: rgba(28, 36, 39, 0.07);
   outline: none;
 }

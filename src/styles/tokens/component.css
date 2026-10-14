@@ -259,6 +259,46 @@
   background: var(--button-danger-bg-hover);
 }
 
+/* nua: so um alvo clicavel. Sem fundo, sem borda.
+ *
+ * Nao e um botao de acao — e a linha de uma lista, o alvo de um clique
+ * sobre um texto. A aba de nota, a linha do explorador, o X da aba e a
+ * acao do banner de atualizacao sao todos "nua".
+ *
+ * Existiu ate o <Button> passar a injetar `ui-button--secondary` por
+ * padrao. Como a variante tem a mesma especificidade da classe de
+ * contexto (0,1,0), ela vencia por ordem no bundle e desenhava um
+ * contorno de 1px em elementos que nunca tiveram um. O `1px solid
+ * transparent` que o UpdateBanner usava era a tentativa do app de
+ * neutralizar exatamente isso, na mao, caso por caso.
+ *
+ * A variante resolve pela raiz: o botao que nao e de acao nao recebe a
+ * aparencia de botao de acao.
+ *
+ * Cor: por que `bare` declara `color` e nao o deixa herdar
+ * ----------------------------------------------------------
+ * A primeira versao do `bare` nao declarava cor, achando que a regra
+ * de contexto do botao resolveria. Nao resolve: `.ui-button--secondary`
+ * e a variante que define `color: var(--button-secondary-fg)`, e ao
+ * trocar por `bare` esse `color` saia junto com a borda. O botao
+ * passava a herdar a cor do container — e onde o icone usava
+ * `currentColor` (ExplorerSidebar, EditorHeader), ele sumia.
+ *
+ * `currentColor` e o contrato: o icone e desenhado com a cor do texto
+ * do botao, entao o botao precisa ter uma cor propria. Declarar
+ * `color: inherit` aqui e explicito: a variante nao escolhe a cor, ela
+ * devolve a controle da regra de contexto, e quem nao declarar nada
+ * herda do pai. */
+.ui-button--bare {
+  background: transparent;
+  border: 0;
+  color: inherit;
+}
+
+.ui-button--bare:hover:not(:disabled) {
+  background: transparent;
+}
+
 /* Um botao desabilitado esta inerte: opaco, sem feedback de hover. */
 .ui-button:disabled {
   opacity: var(--button-disabled-opacity);

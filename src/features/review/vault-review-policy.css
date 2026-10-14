@@ -14,7 +14,7 @@
   gap: 8px;
 }
 
-.vault-review-policy-presets button {
+.vault-review-policy-presets :where(button, .ui-button) {
   display: grid;
   align-content: start;
   gap: 4px;

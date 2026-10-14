@@ -33,7 +33,15 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
  * estouraria o trilho. Fingir que os 3 tamanhos resolvem tudo seria
  * reescrever 42 regras como se fossem 3.
  */
-export type ButtonVariant = 'primary' | 'secondary' | 'danger'
+/**
+ * primary   acao principal da tela, tinta cheia
+ * secondary acao comum, contorno sobre a superficie (o padrao)
+ * danger    acao destrutiva
+ * bare      so um alvo clicavel: linha de lista, aba, X. Sem fundo e
+ *           sem borda. Nao e um botao de acao, entao nao recebe a
+ *           aparencia de um.
+ */
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'bare'
 export type ButtonSize = 'xs' | 'sm' | 'md'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -48,6 +56,7 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   primary: 'ui-button--primary',
   secondary: 'ui-button--secondary',
   danger: 'ui-button--danger',
+  bare: 'ui-button--bare',
 }
 
 const SIZE_CLASS: Record<ButtonSize, string> = {

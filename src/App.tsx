@@ -117,7 +117,7 @@ import {
 import { SettingsPage, type ReviewGapMode } from './features/settings/SettingsPage'
 import { GraphPage } from './features/graph/GraphPage'
 import { ExplorerItemMenu, ExplorerSidebar, type ExplorerContextMenu } from './features/explorer/ExplorerSidebar'
-import { EditorHeader, HEADER_ACTION_KEYS, type HeaderActionKey, type NoteTemplate } from './features/editor/EditorHeader'
+import { EditorHeader, HEADER_ACTION_KEYS, type HeaderActionKey } from './features/editor/EditorHeader'
 import { EditorContent } from './features/editor/EditorContent'
 import { VaultSelection } from './features/vault/VaultSelection'
 import { disabledSessionClient } from './lib/session'
@@ -710,9 +710,7 @@ function App() {
   // lib/useNoteSearch — mesmo debounce, mesmo comando, mesmas regras.
   const noteSearchResults = useNoteSearch(vault?.path ?? null, noteSearchQuery, showNoteSearch)
   const [favorites, setFavorites] = useState<string[]>([])
-  const [templates, setTemplates] = useState<NoteTemplate[]>([])
-  const [selectedTemplateId, setSelectedTemplateId] = useState('blank')
-  const [showFolderDialog, setShowFolderDialog] = useState(false)
+    const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [folderName, setFolderName] = useState('')
   const [renameTarget, setRenameTarget] = useState<{ path: string; name: string; type: 'note' | 'folder' } | null>(null)
   const [renameName, setRenameName] = useState('')
@@ -1753,12 +1751,11 @@ function App() {
     try {
       // Varredura unificada: uma unica passagem no backend produz notas,
       // pastas, anexos, arquivos especiais E o indice de tags (sem a segunda
-      // varredura do `get_tag_index`). Favoritos e templates, independentes,
+      // varredura do `get_tag_index`). Favoritos, independente,
       // rodam em paralelo com o scan.
-      const [inventoryPayload, nextFavorites, nextTemplates] = await Promise.all([
+      const [inventoryPayload, nextFavorites] = await Promise.all([
         invoke<unknown>('scan_vault_inventory', { path: vaultPath }),
         invoke<string[]>('list_favorites', { path: vaultPath }),
-        invoke<NoteTemplate[]>('list_templates', { path: vaultPath }),
       ])
       const inventory = parseVaultInventory(inventoryPayload)
       const nextNotes = inventory.notes
@@ -1774,7 +1771,6 @@ function App() {
       setSpecialFiles(nextSpecialFiles)
       setSpecialFilesTruncated(nextSpecialInventory.truncated)
       setFavorites(nextFavorites)
-      setTemplates(nextTemplates)
       setVaultDiagnostics(inventory.diagnostics)
       setSyncConflictCopies(inventory.syncConflictCopies)
       setDiagnosticsDismissed(false)
@@ -3162,6 +3158,38 @@ function App() {
       return
     }
 
+    // Voltar para a aba "__new_note__" pelo menu de abas NAO e abrir uma
+    // nota: e retomar o rascunho que o botao "nova nota" deixou pendente.
+    // Sem esta guarda, `invoke('read_note')` recebia o sentinela como se
+    // fosse um caminho e o Rust devolvia "Nao foi possivel encontrar a
+    // pasta da nota" — um erro para o usuario que nao fez nada de errado,
+    // e que reaparecia toda vez que ele voltava para a aba.
+    //
+    // Com titulo vazio (o caso que o usuario relatou) o certo e o mesmo
+    // que clicar em "nova nota". Com titulo digitado, so o flag volta —
+    // `startNewNote` zeria `createNoteForm` e jogaria fora o que ele
+    // escreveu, entao nao pode ser chamado.
+    if (relativePath === '__new_note__') {
+      const pendingTitle = createNoteForm.title
+      const canResumeDraft = isNewNoteDraft || pendingTitle.length > 0
+      if (!canResumeDraft) {
+        // Rascunho ja salvo: a aba foi renomeada para o caminho real e
+        // este ramo so sobra para um estado inconsistente. Recomecar e
+        // melhor do que tentar ler um sentinela do disco.
+        startNewNote()
+        return
+      }
+      setSidebarExpanded(true)
+      setWorkspacePage('notes')
+      setIsNewNoteDraft(true)
+      setActiveNote({ name: 'Nova nota', relativePath: '__new_note__', content: '' })
+      setOpenTabs((tabs) => (tabs.includes('__new_note__') ? tabs : [...tabs, '__new_note__']))
+      setError(null)
+      setStatus('Defina o titulo da nova nota.')
+      requestAnimationFrame(() => document.getElementById('note-title-input')?.focus())
+      return
+    }
+
     // Navegar para uma nota existente encerra o rascunho de nova nota: sem
     // isso, autosave, indicador e historico continuavam tratando a nota aberta
     // como se fosse a nova nota nao salva.
@@ -3679,7 +3707,6 @@ function App() {
     setSidebarExpanded(true)
     setWorkspacePage('notes')
     setCreateNoteForm({ title: '' })
-    setSelectedTemplateId('blank')
     setMarkdownHistoryStatus({ canUndo: false, canRedo: false })
     setActiveNote({ name: 'Nova nota', relativePath: '__new_note__', content: '' })
     setOpenTabs((tabs) => (tabs.includes('__new_note__') ? tabs : [...tabs, '__new_note__']))
@@ -3727,10 +3754,6 @@ function App() {
     }
   }
 
-  function applyTemplate(templateId: string) {
-    setSelectedTemplateId(templateId)
-    setDraftContent(templates.find((template) => template.id === templateId)?.content ?? '')
-  }
 
   function getActiveEditorSelection() {
     if (editorMode !== 'read') return markdownCodeEditorRef.current?.getSelection() ?? null
@@ -4377,6 +4400,7 @@ function App() {
               <div className="tree-item-row">
                 <Button
                   type="button"
+                  variant="bare"
                   className={`tree-note${node.path === activeNote?.relativePath ? ' is-active' : ''}${draggedNotePath === node.path ? ' is-dragging' : ''}`}
                   draggable={false}
                   onPointerDown={(event) => beginNotePointerDrag(event, node.path)}
@@ -4799,14 +4823,15 @@ function App() {
       switch (key) {
         case 'favorite':
           return (
-            <Button key={key} type="button" className={`ui-button ui-button--secondary ui-button--sm favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></Button>
+            <Button key={key} type="button" variant="bare" className={`ui-button favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></Button>
           )
         case 'indexadora':
           return (
             <Button
               key={key}
               type="button"
-              className={`ui-button ui-button--secondary ui-button--sm indexadora-button${isIndexadora(activeNote.content) ? ' is-active' : ''}`}
+              variant="bare"
+              className={`ui-button indexadora-button${isIndexadora(activeNote.content) ? ' is-active' : ''}`}
               onClick={() => void toggleActiveNoteIndexadora()}
               disabled={saving || loading}
               title={isIndexadora(activeNote.content) ? 'Nota indexadora: remove a lista automatica de referencias' : 'Declarar como nota indexadora: lista automaticamente as notas que referenciam esta nota'}
@@ -4825,7 +4850,8 @@ function App() {
               <PopoverTrigger asChild>
                 <Button
                   type="button"
-                  className="ui-button ui-button--secondary ui-button--sm note-review-menu-trigger"
+                  variant="bare"
+                  className="ui-button note-review-menu-trigger"
                   aria-label="Avaliação e revisão da nota"
                   title="Avaliação e revisão da nota"
                 >
@@ -4890,7 +4916,8 @@ function App() {
               <PopoverTrigger asChild>
                 <Button
                   type="button"
-                  className="ui-button ui-button--secondary ui-button--sm structural-audit-trigger"
+                  variant="bare"
+                  className="ui-button structural-audit-trigger"
                   aria-label="Verificar fatos da nota"
                   title="Verificação factual opcional — compara as afirmações com conhecimento externo, sem alterar a nota nem as pontuações"
                 >
@@ -5018,7 +5045,7 @@ function App() {
               setDiagnosticsDismissed,
             }}
             footer={{ loading, saving, chooseExistingVault, refreshNotes }}
-            actions={{ startNewNote, openNote, retryVaultDiagnostics, setShowFolderDialog, setStatus }}
+            actions={{ onOpenNoteSearch: () => setShowNoteSearch(true), startNewNote, openNote, retryVaultDiagnostics, setShowFolderDialog, setStatus }}
           />
 
           <section id="workspace-content" className="editor-surface" role="region" aria-label="Conteúdo do workspace" tabIndex={-1} data-builder-name="workspace-content-panel">
@@ -5035,9 +5062,6 @@ function App() {
                     saveActiveNote,
                     saving,
                     loading,
-                    templates,
-                    selectedTemplateId,
-                    applyTemplate,
                     isInlineTitleEditing,
                     setInlineTitleEditing,
                     inlineTitle,

@@ -126,7 +126,7 @@
   color: inherit;
 }
 
-.review-policy-presets button {
+.review-policy-presets :where(button, .ui-button) {
   display: grid;
   gap: 4px;
   padding: 11px;
@@ -134,7 +134,7 @@
   cursor: pointer;
 }
 
-.review-policy-presets button:hover {
+.review-policy-presets :where(button, .ui-button):hover {
   border-color: var(--accent);
 }
 
@@ -157,7 +157,7 @@
 }
 
 /* Ritmo vigente em destaque (mesmo idioma do modo marcado). */
-.review-policy-presets button.is-active {
+.review-policy-presets :where(button, .ui-button).is-active {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--surface) 88%, var(--workspace, var(--mm-gold-150)));
 }

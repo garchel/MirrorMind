@@ -111,7 +111,7 @@
    botoes nus mantem o visual escuro, mas QUALQUER regra de componente vence
    sem precisar de escalacao (fim da classe de bugs "hover/chapa escura"
    vencendo o componente por ordem). */
-:where(.workspace-shell) button {
+:where(.workspace-shell) :where(button, .ui-button) {
   min-height: 30px;
   border-radius: var(--radius-xs);
   background: var(--mm-lilac-950-11);
@@ -120,7 +120,7 @@
   font-weight: 500;
 }
 
-:where(.workspace-shell) button:hover:not(:disabled) {
+:where(.workspace-shell) :where(button, .ui-button):hover:not(:disabled) {
   transform: none;
   background: var(--mm-ink-900-4);
 }
@@ -218,16 +218,56 @@
 }
 
 .workspace-shell .tab-chip.is-active {
-  border-top: 1px solid var(--workspace-accent);
+  /*
+   * Sem a barra de acento no topo.
+   *
+   * A aba ativa se distinguia por `border-top: 1px solid
+   * var(--workspace-accent)` — uma linha de 1px colada no topo da janela,
+   * que a tela sem moldura transformava numa faixa fina. Era o que
+   * aparecia como "1px sobrando" e nao um vao: `getComputedStyle`
+   * mostrava `border-top: 1px solid rgb(115,137,121)` pintado, com o
+   * conteudo do botao alinhado em `delta 0.00` dentro do chip.
+   *
+   * A distincao da aba ativa fica sendo a cor de fundo, que ja era o
+   * segundo sinal e continua legivel em tema claro e escuro.
+   */
   background: var(--workspace-bg);
 }
 
 .workspace-shell .tab-select,
 .workspace-shell .tab-close {
-  min-height: 37px;
   border-radius: 0;
   background: transparent;
   color: var(--workspace-muted);
+  /*
+   * O reset global de `button` traz `font: inherit`, `font-weight: 600`
+   * e `button:hover` traz `transform: translateY(-1px)`. Os tres chegam
+   * aqui sem filtro:
+   *
+   * - o tamanho: `font: inherit` pegava o do `body`, que nao define
+   *   nenhum — 16px do navegador. Na barra de abas o nome de uma nota
+   *   longa nao cabia. 13px (`--font-size-small`) e o mesmo corpo do
+   *   titulo de secao do shell.
+   *
+   * - o peso deixava o nome da aba mais forte do que qualquer outro
+   *   texto do shell. O reset trazia 600, e 500 ainda deixava a aba
+   *   acima do texto ao lado. 400 devolve a aba ao peso do texto
+   *   corrente, que e onde todo o resto do shell ja esta. O que
+   *   distingue a aba ativa e a cor e a barra de acento, nao o peso.
+   *
+   * - o `translateY(-1px)` fazia o X e o + saltarem 1px no hover. Alvos
+   *   pequenos e vizinhos nao devem se mover debaixo do ponteiro.
+   */
+  min-height: calc(var(--titlebar-h, 40px) - 1px);
+  font-size: var(--font-size-small);
+  font-weight: 400;
+  transform: none;
+}
+
+.workspace-shell .tab-select:hover:not(:disabled),
+.workspace-shell .tab-close:hover:not(:disabled),
+.workspace-shell .new-tab-button:hover:not(:disabled) {
+  transform: none;
 }
 
 .workspace-shell .tab-select {
@@ -458,7 +498,7 @@ label.settings-toggle {
   overflow: hidden;
 }
 
-.settings-segmented button {
+.settings-segmented :where(button, .ui-button) {
   padding: 8px 14px;
   border: none;
   border-right: 1px solid var(--mm-ink-350-3);
@@ -469,21 +509,21 @@ label.settings-toggle {
   transition: background 150ms ease, color 150ms ease;
 }
 
-.settings-segmented button:last-child {
+.settings-segmented :where(button, .ui-button):last-child {
   border-right: none;
 }
 
-.settings-segmented button.is-active {
+.settings-segmented :where(button, .ui-button).is-active {
   background: var(--mm-sage-850);
   color: var(--mm-gold-50);
 }
 
-.settings-segmented button.is-active:hover:not(:disabled) {
+.settings-segmented :where(button, .ui-button).is-active:hover:not(:disabled) {
   background: var(--mm-sage-850);
   color: var(--mm-gold-50);
 }
 
-.settings-segmented button:focus-visible {
+.settings-segmented :where(button, .ui-button):focus-visible {
   outline: 2px solid rgb(46 107 79 / 45%);
   outline-offset: -2px;
 }
@@ -540,7 +580,7 @@ label.settings-toggle {
 /* Qualificado ao tema claro: no escuro o bloco [data-theme='dark'] manda.
    Especificidade (0,4,0+) vence a chapa escura global
    `.workspace-shell button` (0,1,1), que empatava e vencia por ordem. */
-:root:not([data-theme='dark']) .workspace-shell .settings-nav button {
+:root:not([data-theme='dark']) .workspace-shell .settings-nav :where(button, .ui-button) {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -557,23 +597,23 @@ label.settings-toggle {
   transition: background 150ms ease, color 150ms ease;
 }
 
-:root:not([data-theme='dark']) .workspace-shell .settings-nav button:hover {
+:root:not([data-theme='dark']) .workspace-shell .settings-nav :where(button, .ui-button):hover {
   background: var(--mm-clay-150-3);
 }
 
-:root:not([data-theme='dark']) .workspace-shell .settings-nav button.is-active {
+:root:not([data-theme='dark']) .workspace-shell .settings-nav :where(button, .ui-button).is-active {
   background: var(--mm-clay-200);
   box-shadow: inset 3px 0 0 var(--mm-sage-850);
   color: var(--mm-azure-950-4);
   font-weight: 600;
 }
 
-.settings-nav button svg {
+.settings-nav :where(button, .ui-button) svg {
   flex: none;
   opacity: 0.85;
 }
 
-.settings-nav button.is-active svg {
+.settings-nav :where(button, .ui-button).is-active svg {
   opacity: 1;
 }
 
@@ -808,7 +848,7 @@ label.settings-toggle {
   overflow: auto;
 }
 
-.note-search-results button {
+.note-search-results :where(button, .ui-button) {
   display: grid;
   gap: 3px;
   min-height: 0;
@@ -819,7 +859,7 @@ label.settings-toggle {
   text-align: left;
 }
 
-.note-search-results button:hover:not(:disabled) {
+.note-search-results :where(button, .ui-button):hover:not(:disabled) {
   background: var(--mm-moss-150-2);
 }
 
@@ -1093,7 +1133,7 @@ label.settings-toggle {
   color: var(--selection-ink);
 }
 
-.vault-selection-shell button {
+.vault-selection-shell :where(button, .ui-button) {
   border-radius: var(--radius-sm);
   background: var(--mm-ink-950-14);
   color: var(--mm-gold-50);
@@ -1418,13 +1458,50 @@ label.settings-toggle {
   white-space: nowrap;
 }
 
-.workspace-shell .explorer-navigation-row h2 {
-  margin: 0;
-}
-
 .workspace-shell .explorer-actions {
   justify-self: end;
   flex-shrink: 0;
+}
+
+/* A barra de comandos do explorador: os quatro comandos e a busca em
+ * uma linha so.
+ *
+ * O "Navegacao" que ocupava a primeira coluna foi removido. No lugar
+ * dele, a busca entra no mesmo fluxo dos outros — os cinco botoes
+ * dividem a linha e a ordem e por frequencia de uso.
+ *
+ * A busca e o ultimo de proposito: e o unico dos cinco que nao age
+ * sobre a lista visivel, e o unico que tira o usuario de onde ele
+ * esta. Os outros quatro sao locais, e local vai primeiro.
+ *
+ * `flex-wrap: wrap` com `row-gap` curto mantem os cinco visiveis em
+ * coluna estreita sem cortar nada; a coluna do explorador tem
+ * 232px-300px na pratica, o que cabe com folga. */
+.workspace-shell .explorer-command-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.workspace-shell .explorer-command-bar .explorer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+}
+
+/* A busca e o separador visual do resto: um fio vertical a esquerda
+ * marca "aqui acaba o que age sobre a lista". O divider e do proprio
+ * botao (borda-esquerda), nao de um elemento extra — um elemento a
+ * mais seria um alvo de clique que nao faz nada. */
+.workspace-shell .explorer-search-button {
+  margin-left: 4px;
+  border-left: 1px solid var(--line-soft);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding-left: 6px;
+  padding-right: 6px;
 }
 
 .workspace-shell .explorer-filter-control {
@@ -1522,12 +1599,12 @@ label.settings-toggle {
 
 /* Base de botoes do workspace: `:where` zera a especificidade para (0,0,1) /
  * (0,2,1) no hover — mesmo contrato da base da sidebar acima. */
-:where(.workspace-shell) button {
+:where(.workspace-shell) :where(button, .ui-button) {
   background: var(--mm-ink-950-14);
   color: var(--mm-gold-50);
 }
 
-:where(.workspace-shell) button:hover:not(:disabled) {
+:where(.workspace-shell) :where(button, .ui-button):hover:not(:disabled) {
   background: var(--mm-ink-950);
 }
 
@@ -1740,7 +1817,7 @@ label.settings-toggle {
   overflow-y: auto;
 }
 
-.workspace-shell .tag-filter-suggestions button {
+.workspace-shell .tag-filter-suggestions :where(button, .ui-button) {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1755,7 +1832,7 @@ label.settings-toggle {
   text-align: left;
 }
 
-.workspace-shell .tag-filter-suggestions button:hover {
+.workspace-shell .tag-filter-suggestions :where(button, .ui-button):hover {
   background: var(--mm-moss-200);
   color: var(--mm-sage-950);
 }
@@ -1883,7 +1960,7 @@ label.settings-toggle {
   box-shadow: 0 10px 24px rgba(32, 32, 30, 0.14);
 }
 
-.workspace-shell .explorer-context-menu button {
+.workspace-shell .explorer-context-menu :where(button, .ui-button) {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1897,11 +1974,11 @@ label.settings-toggle {
   text-align: left;
 }
 
-.workspace-shell .explorer-context-menu button:hover:not(:disabled) {
+.workspace-shell .explorer-context-menu :where(button, .ui-button):hover:not(:disabled) {
   background: var(--mm-gold-200-2);
 }
 
-.workspace-shell .explorer-context-menu button.is-danger {
+.workspace-shell .explorer-context-menu :where(button, .ui-button).is-danger {
   color: var(--mm-brick-850-5);
 }
 
@@ -1945,7 +2022,7 @@ label.settings-toggle {
   padding: 6px;
 }
 
-.move-destination-list button {
+.move-destination-list :where(button, .ui-button) {
   display: flex;
   align-items: center;
   width: 100%;
@@ -1961,7 +2038,7 @@ label.settings-toggle {
 }
 
 .move-destination-list button:hover,
-.move-destination-list button.is-selected {
+.move-destination-list :where(button, .ui-button).is-selected {
   background: var(--mm-moss-250);
   color: var(--mm-sage-950);
 }

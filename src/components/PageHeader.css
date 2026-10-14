@@ -156,7 +156,7 @@
   font: 700 12px/1.55 var(--mono);
 }
 
-.workspace-empty-state > button {
+.workspace-empty-state > :where(button, .ui-button) {
   margin-top: 4px;
 }
 
