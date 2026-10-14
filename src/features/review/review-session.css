@@ -62,7 +62,7 @@
 .review-report-side::-webkit-scrollbar-thumb, .review-report-note::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; }
 .review-report-side:hover::-webkit-scrollbar-thumb, .review-report-note:hover::-webkit-scrollbar-thumb { background: var(--line-strong); }
 .review-session-topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; border-bottom:1px solid var(--line); padding-bottom:14px; color:var(--text-muted); font: var(--font-size-caption)/1.4 var(--mono); }
-.review-session-topbar button, .review-answer-actions button, .review-diagnostic button, .review-perfect { display:inline-flex; align-items:center; gap:7px; }
+.review-session-topbar :where(button, .ui-button), .review-answer-actions :where(button, .ui-button), .review-diagnostic :where(button, .ui-button), .review-perfect { display:inline-flex; align-items:center; gap:7px; }
 .review-setup, .review-question { display:grid; gap:18px; width:min(100%, 720px); }
 .review-session-kicker { color:var(--accent); font:700 10px/1 var(--sans); letter-spacing:.14em; text-transform:uppercase; }
 .review-setup h2, .review-question h2, .review-report-header-main h2 { font:600 26px/1.18 var(--serif); }
@@ -121,7 +121,7 @@
 .review-assistance svg { flex:0 0 auto; margin-top:2px; }
 .review-diagnostic { display:grid; gap:10px; border:1px solid color-mix(in srgb,var(--danger) 35%,var(--line)); border-radius: var(--radius-md); padding:14px; background:var(--status-bad-bg-soft); font-size:12px; }
 .review-diagnostic label { display:grid; gap:7px; }
-.review-diagnostic button { justify-self:start; }
+.review-diagnostic :where(button, .ui-button) { justify-self:start; }
 .review-score { display:flex; align-items:baseline; min-width:170px; color:var(--accent); }
 .review-score strong { font:600 84px/1 var(--serif); }
 .review-score span { color:var(--text-muted); font-size:13px; }

@@ -165,7 +165,7 @@
   width: 30px;
   padding: 0;
 }
-.workspace-shell .graph-immersive-header .graph-dimension-toggle button { min-height: 26px; }
+.workspace-shell .graph-immersive-header .graph-dimension-toggle :where(button, .ui-button) { min-height: 26px; }
 
 .workspace-shell .graph-settings-button {
   display: inline-flex;
@@ -198,7 +198,6 @@
   min-height: 0;
   max-width: 130px;
   padding: 0 2px;
-  border: 0;
   border-radius: 0;
   background: transparent;
   font-size: 12px;
@@ -916,7 +915,7 @@
   background: var(--mm-clay-200-5);
 }
 
-.workspace-shell .graph-dimension-toggle button {
+.workspace-shell .graph-dimension-toggle :where(button, .ui-button) {
   min-height: 28px;
   padding: 0 11px;
   border-radius: var(--radius-sm);
@@ -926,12 +925,12 @@
   font-weight: 600;
 }
 
-.workspace-shell .graph-dimension-toggle button:hover:not(:disabled) {
+.workspace-shell .graph-dimension-toggle :where(button, .ui-button):hover:not(:disabled) {
   transform: none;
   background: var(--mm-clay-250-3);
 }
 
-.workspace-shell .graph-dimension-toggle button.is-active {
+.workspace-shell .graph-dimension-toggle :where(button, .ui-button).is-active {
   background: var(--mm-gold-50);
   color: var(--mm-ink-900-6);
   box-shadow: 0 1px 3px rgb(48 63 51 / 18%);
@@ -1007,7 +1006,7 @@
 .workspace-shell .note-graph-links line.is-focused { stroke: var(--mm-sage-800-4); stroke-width: 0.7; }
 
 /* Nos do grafo 2D: sempre uma bolinha circular centrada no ponto do no. O
- * button e apenas a ancora de posicionamento (caixa 0x0); a bolinha visivel
+ * :where(button, .ui-button) e apenas a ancora de posicionamento (caixa 0x0); a bolinha visivel
  * cresce com o numero de conexoes (--graph-scale) e o nome fica abaixo.
  * min-height/min-width: 0 anulam o `button { min-height: 46px }` global — sem
  * isso a caixa fica 0x46px e o loop da fisica, que posiciona por transform
@@ -1305,7 +1304,6 @@
 }
 
 .workspace-shell .tab-chip.is-active {
-  border-top-color: var(--mm-ink-750);
   background: var(--mm-gold-50);
 }
 
@@ -1353,6 +1351,17 @@
   font-size: 0;
   line-height: 0;
   padding: 0;
+  /*
+   * Este arquivo entra depois de workspace-chrome.css no bundle e tem
+   * a mesma especificidade da regra de la, entao a correcao do salto
+   * do hover precisa se repetir aqui. Ver
+   * `.workspace-shell .tab-select` em workspace-chrome.css.
+   */
+  transform: none;
+}
+
+.workspace-shell .tab-close:hover:not(:disabled) {
+  transform: none;
 }
 
 .workspace-shell .tab-close::before {
@@ -1383,6 +1392,7 @@
 }
 
 .workspace-shell .new-tab-button {
+  border: 0;
   position: relative;
   display: grid;
   width: 38px;
@@ -1393,6 +1403,18 @@
   place-items: center;
   background: transparent;
   color: var(--mm-ink-900-27);
+  /*
+   * O reset global de `button` traz `transform: translateY(-1px)`
+   * no hover, e este arquivo entra DEPOIS de workspace-chrome.css no
+   * bundle — entao a correcao de transform precisa estar aqui tambem,
+   * senao o salto volta. Ver o comentario em
+   * `.workspace-shell .tab-select`.
+   */
+  transform: none;
+}
+
+.workspace-shell .new-tab-button:hover:not(:disabled) {
+  transform: none;
 }
 
 .workspace-shell .new-tab-button::before {
@@ -1419,7 +1441,45 @@
   width: min(100%, 620px);
   border: 0;
   border-bottom: 1px solid var(--mm-ink-450-2);
-  outline: none;
+  /*
+   * `border-radius: 0` e obrigatorio aqui, e nao opcional.
+   *
+   * O titulo da nota usa `<Field>`, que traz `.ui-field` e a densidade
+   * `.ui-field--xs` — ambas com especificidade (0,1,0) e `border-radius`
+   * declarado. O `border: 0` acima ja vencia a borda (medido: `0px none`),
+   * mas o RAIO nao: nenhuma das duas regras de contexto declara raio, e
+   * o `--xs` (`border-radius: var(--radius-md)`) sobrevivia.
+   *
+   * Medido no Chrome 154 antes desta correcao:
+   *
+   *     border:        0px none
+   *     border-bottom: 1px solid rgb(200,198,190)
+   *     border-radius: 8px / 8px        <- vinculo do .ui-field--xs
+   *
+   * O efeito era a linha de baixo com as pontas arredondadas — a "borda
+   * arredondada" que nao devia existir num campo que so tem uma regua.
+   * Um campo com borda em tres lados e cantos retos nao tem razao; as
+   * duas bordas de cima ja eram 0, entao os 8px apareciam so embaixo.
+   */
+  border-radius: 0;
+  /*
+   * `outline: 0` cancela o anel de foco que `.ui-field:focus-visible`
+   * desenha (2px em `var(--field-focus-ring)`, com offset de 1px).
+   *
+   * Medido no Chrome 154 com Tab real — foco de teclado, que e quando o
+   * `:focus-visible` aparece:
+   *
+   *     outline:  2px solid rgb(115,137,121) offset=1px
+   *
+   * Aqui o foco ja e visivel sem ele: o cursor de texto esta dentro do
+   * campo, e o proprio campo tem `border-bottom`. Um retangulo em volta
+   * de um campo que so tem uma regua desenhava um retangulo sem uma
+   * borda correspondente — a caixa aparecia "solta" ao redor do titulo.
+   * O que indica foco aqui e a regua escurecer (regra `:focus-visible`
+   * logo abaixo), nao uma caixa. Mesmo padrao do editor de markdown, que
+   * tambem nao desenha anel em volta do campo focado.
+   */
+  outline: 0;
   padding: 0;
   background: transparent;
   color: var(--mm-ink-950-11);
@@ -1427,7 +1487,21 @@
 }
 
 .workspace-shell .editor-title-input:focus-visible {
-  border-bottom-color: var(--mm-ink-750);
+  /* O anel de foco ja foi cancelado na regra base. Aqui o unico sinal
+   * de foco e a regua escurecer — sem caixa, sem outline-offset. */
+  outline: 0;
+  outline-offset: 0;
+  /* `border-bottom` inteiro, e nao so `border-bottom-color`.
+   *
+   * `.ui-field:focus-visible` declara `border-color: var(--field-focus-ring)`,
+   * que e um SHORTHAND: ele reescreve a cor das quatro bordas, inclusive a
+   * de baixo. As duas regras tem `:focus-visible`, mas a do shell e (0,3,0)
+   * contra (0,2,0) — entao a do shell vence, e ela precisa declarar a
+   * propriedade INTEIRA. Declarar so a cor deixava o shorthand do Field
+   * como vencedor para `border-color` e a regua nao mudava (medido:
+   * `rgb(200,198,190)` = a cor de repouso `--mm-ink-450-2`, em foco).
+   */
+  border-bottom: 1px solid var(--mm-ink-750);
 }
 
 .workspace-shell .editor-title-button {
@@ -1447,7 +1521,13 @@
 }
 
 .workspace-shell .editor-title-button:focus-visible {
-  border-bottom-color: var(--mm-ink-750);
+  /* Mesmo cancelamento do campo: o titulo nao ganha caixa de foco. O
+   * indicador e a regua escurecer. Ver o comentario longo em
+   * `.editor-title-input:focus-visible` — inclusive o por que e
+   * `border-bottom` inteiro e nao so a cor. */
+  outline: 0;
+  outline-offset: 0;
+  border-bottom: 1px solid var(--mm-ink-750);
   background: transparent;
 }
 

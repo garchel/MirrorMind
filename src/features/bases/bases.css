@@ -108,7 +108,7 @@
 
 /* Botao "Colunas": abre o popover que escolhe quais propriedades aparecem.
    IMPORTANTE (bug do cabecalho escuro): o App tem regras globais
-   `.workspace-shell button { background: var(--mm-ink-950-14); color: var(--mm-gold-50) }` com
+   `.workspace-shell :where(button, .ui-button) { background: var(--mm-ink-950-14); color: var(--mm-gold-50) }` com
    especificidade (0,2,1) — maior que a de um simples `.bases-columns-button`
    (0,1,0). Sem o escopo `.workspace-shell`, esses botoes (e os de ordenacao
    do cabecalho) ficavam ESCUROS com texto claro, mesmo com o restante da

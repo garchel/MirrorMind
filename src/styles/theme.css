@@ -116,35 +116,35 @@
   color: var(--mm-ink-600-5);
 }
 
-[data-theme='dark'] .settings-nav button {
+[data-theme='dark'] .settings-nav :where(button, .ui-button) {
   color: var(--mm-ink-450-2);
 }
 
-[data-theme='dark'] .settings-nav button:hover {
+[data-theme='dark'] .settings-nav :where(button, .ui-button):hover {
   background: rgba(232, 230, 221, 0.07);
 }
 
-[data-theme='dark'] .settings-nav button.is-active {
+[data-theme='dark'] .settings-nav :where(button, .ui-button).is-active {
   background: var(--mm-ink-950-20);
   color: var(--mm-gold-150);
 }
 
-[data-theme='dark'] .settings-segmented button {
+[data-theme='dark'] .settings-segmented :where(button, .ui-button) {
   border-color: var(--mm-ink-900-20);
   background: transparent;
   color: var(--mm-ink-450-2);
 }
 
-[data-theme='dark'] .settings-segmented button:hover:not(:disabled) {
+[data-theme='dark'] .settings-segmented :where(button, .ui-button):hover:not(:disabled) {
   background: rgba(232, 230, 221, 0.07);
 }
 
-[data-theme='dark'] .settings-segmented button.is-active {
+[data-theme='dark'] .settings-segmented :where(button, .ui-button).is-active {
   background: var(--mm-sage-900-7);
   color: var(--mm-sage-150-2);
 }
 
-[data-theme='dark'] .settings-segmented button.is-active:hover:not(:disabled) {
+[data-theme='dark'] .settings-segmented :where(button, .ui-button).is-active:hover:not(:disabled) {
   background: var(--mm-sage-900-7);
   color: var(--mm-sage-150-2);
 }
@@ -288,11 +288,11 @@
   color: var(--mm-ink-350-3);
 }
 
-[data-theme='dark'] .ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list button {
+[data-theme='dark'] .ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list :where(button, .ui-button) {
   color: var(--mm-ink-350-3);
 }
 
-[data-theme='dark'] .ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list button:hover {
+[data-theme='dark'] .ui-popover-content.frontmatter-tag-popover .frontmatter-tag-popover-list :where(button, .ui-button):hover {
   background: var(--mm-ink-950-13);
 }
 

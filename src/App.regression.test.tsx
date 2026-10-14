@@ -134,8 +134,7 @@ function createTauriHarness(
         return [...notes.values()].map(({ name, relativePath }) => ({ name, relativePath }))
       case 'list_folders':
       case 'list_favorites':
-      case 'list_templates':
-        return command === 'list_templates' ? [{ id: 'blank', name: 'Em branco', content: '' }] : []
+        return []
       case 'list_attachments':
         return ['media/manual.pdf']
       case 'list_special_files':
@@ -567,6 +566,35 @@ describe('Regressao do editor no workspace', () => {
     expect(notes.get('inicial.md')?.content).toContain('quimica')
   })
 
+  it('[nota nova] voltar para a aba do rascunho nao tenta ler a nota do disco', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    // Abre o rascunho: cria a aba "__new_note__" sem gravar nada.
+    await user.click(screen.getByRole('button', { name: 'Nova nota' }))
+    await screen.findByRole('textbox', { name: 'Título da nova nota' })
+
+    // Tira o foco da barra de abas abrindo outra nota.
+    await user.click(screen.getByRole('button', { name: 'Abrir nota alvo' }))
+    await screen.findByRole('tab', { name: 'alvo' })
+
+    // Volta para a aba do rascunho pelo menu de abas.
+    invokeMock.mockClear()
+    await user.click(screen.getByRole('tab', { name: 'Nova nota' }))
+
+    // O sentinela "__new_note__" NAO pode chegar no read_note: o Rust
+    // respondia "Nao foi possivel encontrar a pasta da nota" e o usuario
+    // via um erro so por voltar para a aba onde ele estava criando.
+    const readCalls = invokeMock.mock.calls.filter(([command]) => command === 'read_note')
+    expect(readCalls.every(([, args]) => (args as { relativePath?: string })?.relativePath !== '__new_note__')).toBe(true)
+
+    // E o rascunho precisa voltar de verdade: campo de titulo presente,
+    // titulo vazio (nada foi digitado) e sem erro na tela.
+    expect(await screen.findByRole('textbox', { name: 'Título da nova nota' })).toHaveValue('')
+    expect(screen.queryByText(/Nao foi possivel encontrar|Não foi possível encontrar/)).toBeNull()
+  })
+
   it('[nota nova] salva ao confirmar o título com Enter e abre a nota criada', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
@@ -728,7 +756,7 @@ describe('Regressao do editor no workspace', () => {
 
     await waitFor(() => expect(notes.get(dailyPath)).toBeDefined())
     expect(invokeMock).toHaveBeenCalledWith('create_note', expect.objectContaining({ relativePath: dailyPath }))
-    expect(screen.getByRole('tab', { name: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}.md` })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}` })).toBeInTheDocument()
   })
 
   it('[metas] abre a pagina de Metas pela Command Palette', async () => {
@@ -765,7 +793,7 @@ describe('Regressao do editor no workspace', () => {
     fireEvent.click(wikiLink)
 
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'alvo.md' })))
-    expect(await screen.findByRole('tab', { name: 'alvo.md' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('tab', { name: 'alvo' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('[contador] mostra o número de palavras da nota no canto do editor', async () => {
@@ -804,7 +832,7 @@ describe('Regressao do editor no workspace', () => {
     await user.click(await screen.findByRole('link', { name: 'nova/página' }))
 
     await waitFor(() => expect(notes.has('nova/página.md')).toBe(true))
-    expect(await screen.findByRole('tab', { name: 'página.md' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('tab', { name: 'página' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('[links internos] cria a nota do wikilink inexistente na mesma pasta da origem', async () => {
@@ -825,7 +853,7 @@ describe('Regressao do editor no workspace', () => {
     // Sem pasta no `[[...]]`: nasce junto da nota de origem, nao na raiz.
     await waitFor(() => expect(notes.has('Metas/violao/ideia nova.md')).toBe(true))
     expect(notes.has('ideia nova.md')).toBe(false)
-    expect(await screen.findByRole('tab', { name: 'ideia nova.md' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('tab', { name: 'ideia nova' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('[links internos] cria uma nota apenas uma vez em cliques concorrentes', async () => {
@@ -964,7 +992,7 @@ describe('Regressao do editor no workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Abrir nota alvo no grafo' }))
 
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'alvo.md' })))
-    expect(screen.getByRole('tab', { name: 'alvo.md' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'alvo' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('[grafo] filtro por pasta destaca sem remover nos do layout', async () => {
@@ -1112,7 +1140,7 @@ describe('Regressao do editor no workspace', () => {
     const orphanPanel = screen.getByRole('region', { name: 'Notas não conectadas' })
     await user.click(within(orphanPanel).getByRole('button', { name: 'Revelar' }))
 
-    await waitFor(() => expect(screen.getByRole('tab', { name: 'anotada.md' })).toHaveAttribute('aria-selected', 'true'))
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'anotada' })).toHaveAttribute('aria-selected', 'true'))
     expect(document.querySelector('.tree-folder')?.hasAttribute('open')).toBe(true)
     expect(document.querySelector('.tree-note.is-active')).toHaveTextContent('anotada')
   })
@@ -1208,7 +1236,7 @@ describe('Regressao do editor no workspace', () => {
     // Abrir a nota pela linha: o workspace volta para a nota e a aba fica ativa.
     await user.click(within(table).getByText('diario'))
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'Diarios/diario.md' })))
-    expect(screen.getByRole('tab', { name: 'diario.md' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'diario' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('[grafo] agrupa por tag com tag principal e cores configuraveis persistidas por Vault', async () => {
@@ -2277,7 +2305,7 @@ describe('Regressao do editor no workspace', () => {
 
     // Abrir copia navega ate ela.
     await user.click(within(dialog).getByRole('button', { name: 'Abrir cópia' }))
-    expect(await screen.findByRole('tab', { name: 'nota (conflito).md' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('tab', { name: 'nota (conflito)' })).toHaveAttribute('aria-selected', 'true')
 
     // Substituir grava o conteudo da copia no original e manda a copia para a lixeira.
     await user.click(screen.getByRole('button', { name: /cópia de conflito/ }))

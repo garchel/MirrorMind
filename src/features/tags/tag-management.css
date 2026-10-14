@@ -67,7 +67,7 @@
   flex: 0 0 auto;
 }
 
-.tag-header-actions > button {
+.tag-header-actions > :where(button, .ui-button) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -164,8 +164,8 @@
 
 /* Botao Criar tag no topo da arvore: onde a tag nova vai aparecer. Estilo
  * "linha tracejada" — mesmo peso visual das linhas da arvore, sem virar
- * pílula escura (o escudo generico de button nao pega: excluido abaixo). */
-.tag-management-page.tag-management-page button.tag-tree-create {
+ * pílula escura (o escudo generico de :where(button, .ui-button) nao pega: excluido abaixo). */
+.tag-management-page.tag-management-page :where(button, .ui-button).tag-tree-create {
   min-height: 32px;
   margin: 2px 0 6px;
   border: 1px dashed var(--tag-line);
@@ -181,18 +181,18 @@
   gap: 6px;
 }
 
-.tag-management-page.tag-management-page button.tag-tree-create svg {
+.tag-management-page.tag-management-page :where(button, .ui-button).tag-tree-create svg {
   display: block;
   flex: none;
 }
 
-.tag-management-page.tag-management-page button.tag-tree-create:hover:not(:disabled) {
+.tag-management-page.tag-management-page :where(button, .ui-button).tag-tree-create:hover:not(:disabled) {
   border-color: var(--tag-accent);
   color: var(--tag-accent);
   background: color-mix(in srgb, var(--tag-accent) 6%, transparent);
 }
 
-.tag-management-page.tag-management-page button.tag-tree-create:disabled {
+.tag-management-page.tag-management-page :where(button, .ui-button).tag-tree-create:disabled {
   opacity: 0.55;
 }
 
@@ -310,7 +310,7 @@
 
 /* Botoes de acao do detalhe: icone com espaco para o texto e largura
    minima uniforme para Editar e Excluir ficarem do mesmo tamanho. */
-.tag-detail-actions button {
+.tag-detail-actions :where(button, .ui-button) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -690,7 +690,7 @@
   margin-top: 10px;
 }
 
-.tag-presets button {
+.tag-presets :where(button, .ui-button) {
   display: grid;
   gap: 5px;
   padding: 12px;
@@ -804,7 +804,7 @@
   background: var(--mm-brick-200-2);
 }
 
-.tag-page-error button {
+.tag-page-error :where(button, .ui-button) {
   margin-left: auto;
 }
 
@@ -927,7 +927,7 @@
  * próprio (0,3,0) — sem isso, esta regra (0,3,1) pinta o fundo delas de
  * escuro até no tema claro. O `.tag-tree-create` (botão Criar tag da
  * árvore) também tem estilo próprio. */
-.tag-management-page.tag-management-page button:not(.modal-close):not(.tag-tree-row):not(.tag-tree-create) {
+.tag-management-page.tag-management-page :where(button, .ui-button):not(.modal-close):not(.tag-tree-row):not(.tag-tree-create) {
   min-height: 34px;
   border-radius: var(--radius-md);
   background: var(--mm-ink-950-14);
@@ -936,7 +936,7 @@
   font-weight: 600;
 }
 
-.tag-management-page.tag-management-page button:hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create) {
+.tag-management-page.tag-management-page :where(button, .ui-button):hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create) {
   transform: none;
   background: var(--mm-ink-950);
 }
@@ -972,7 +972,7 @@
 }
 
 /* Linhas da arvore de tags nunca devem parecer botao primario (o
-   workspace-shell button vence os empates). */
+   workspace-shell :where(button, .ui-button) vence os empates). */
 .tag-management-page.tag-management-page .tag-tree-row {
   min-height: 30px;
   padding: 0 8px;

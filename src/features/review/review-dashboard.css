@@ -647,7 +647,7 @@
   font-size: var(--font-size-small);
 }
 
-.review-dashboard-dialog-actions button:last-child {
+.review-dashboard-dialog-actions :where(button, .ui-button):last-child {
   min-height: 34px;
   padding: 0 14px;
   font-size: var(--font-size-small);

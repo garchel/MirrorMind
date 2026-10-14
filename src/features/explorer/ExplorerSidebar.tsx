@@ -2,6 +2,8 @@ import type { Dispatch, ReactNode, RefObject, SetStateAction } from 'react'
 import { Button } from '../../components/ui/Button'
 import {
   AlertTriangle,
+  ArrowUpDown,
+  FilePlus2,
   FileWarning,
   Filter,
   FolderInput,
@@ -9,6 +11,7 @@ import {
   ListFilter,
   Pencil,
   RefreshCw,
+  Search,
   Star,
   Trash2,
   X,
@@ -80,6 +83,8 @@ export type ExplorerFooter = {
 }
 
 export type ExplorerActions = {
+  /** Abre a paleta de busca de notas (a mesma do atalho global). */
+  onOpenNoteSearch: () => void
   startNewNote: () => void
   openNote: (relativePath: string) => Promise<void>
   retryVaultDiagnostics: () => void
@@ -134,6 +139,7 @@ export function ExplorerSidebar({
     refreshNotes,
   },
   actions: {
+    onOpenNoteSearch,
     startNewNote,
     openNote,
     retryVaultDiagnostics,
@@ -182,20 +188,33 @@ export function ExplorerSidebar({
           <div className="explorer-title-row">
             <p className="card-kicker">Notas do vault</p>
           </div>
-          <div className="explorer-navigation-row">
-            <h2>Navegacao</h2>
+          {/*
+            Uma linha so: os quatro comandos e a busca. O rotulo
+            "Navegacao" foi removido — ele nomeava a acao mais comum
+            (criar nota) e ocupava a largura que os icones precisam.
+
+            A ordem e por frequencia e por reversibilidade:
+              1. Nova nota     — a acao que inicia o trabalho
+              2. Nova pasta    — criacao, reversivel
+              3. Ordenacao     — leitura, muda a ordem
+              4. Filtro tags   — leitura, combina com a busca
+              5. Busca         — navegação, a mais usada em vault grande
+            Busca fica no fim porque e a unica das cinco que nao age
+            sobre a lista visivel: e a unica que troca de lugar.
+          */}
+          <div className="explorer-navigation-row explorer-command-bar">
             <div className="explorer-actions">
-            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={startNewNote} title="Nova nota" aria-label="Nova nota">
-              <span aria-hidden="true">&#9998;</span>
+            <Button type="button" variant="bare" className="ui-button" onClick={startNewNote} title="Nova nota" aria-label="Nova nota">
+              <FilePlus2 size={15} strokeWidth={1.5} aria-hidden="true" />
             </Button>
-            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowFolderDialog(true)} title="Nova pasta" aria-label="Nova pasta">
+            <Button type="button" variant="bare" className="ui-button" onClick={() => setShowFolderDialog(true)} title="Nova pasta" aria-label="Nova pasta">
               <FolderPlus size={15} strokeWidth={1.5} aria-hidden="true" />
             </Button>
-            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setStatus('As notas estão ordenadas por nome.')} title="Ordenação" aria-label="Ordenação">
-              <span aria-hidden="true">&#8645;</span>
+            <Button type="button" variant="bare" className="ui-button" onClick={() => setStatus('As notas estão ordenadas por nome.')} title="Ordenação" aria-label="Ordenação">
+              <ArrowUpDown size={15} strokeWidth={1.5} aria-hidden="true" />
             </Button>
             <div className="explorer-filter-control" ref={tagFilterDropdownRef}>
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowTagFilterDropdown((open) => !open)} title="Filtrar tags (Ctrl+Shift+F)" aria-label="Filtrar por tags" aria-expanded={showTagFilterDropdown}>
+              <Button type="button" variant="bare" className="ui-button" onClick={() => setShowTagFilterDropdown((open) => !open)} title="Filtrar tags (Ctrl+Shift+F)" aria-label="Filtrar por tags" aria-expanded={showTagFilterDropdown}>
                 {selectedTags.length > 0 ? <ListFilter size={15} strokeWidth={1.5} aria-hidden="true" /> : <Filter size={15} strokeWidth={1.5} aria-hidden="true" />}
               </Button>
               {showTagFilterDropdown ? (
@@ -212,6 +231,19 @@ export function ExplorerSidebar({
                   </div>
                 </div>
               ) : null}
+            {/* Busca: abre a mesma paleta que o atalho global usa. Fica
+                no fim porque e o unico dos cinco que nao age sobre a
+                lista visivel — e o unico que troca o usuario de lugar. */}
+            <Button
+              type="button"
+              variant="bare"
+              className="ui-button explorer-search-button"
+              onClick={onOpenNoteSearch}
+              title="Buscar nota (Ctrl+P)"
+              aria-label="Buscar nota"
+            >
+              <Search size={15} strokeWidth={1.5} aria-hidden="true" />
+            </Button>
             </div>
             {specialFiles.length > 0 ? (
               <Button
@@ -271,7 +303,7 @@ export function ExplorerSidebar({
           <span className="vault-indicator-icon" aria-hidden="true">&#9670;</span>
           <span>{vault.name}</span>
         </Button>
-        <Button type="button" className="ui-button ui-button--secondary ui-button--sm vault-refresh-button" onClick={() => void refreshNotes(vault.path)} disabled={loading || saving} title="Atualizar explorador" aria-label="Atualizar explorador de arquivos">
+        <Button type="button" variant="bare" className="ui-button vault-refresh-button" onClick={() => void refreshNotes(vault.path)} disabled={loading || saving} title="Atualizar explorador" aria-label="Atualizar explorador de arquivos">
           <RefreshCw size={14} strokeWidth={1.5} aria-hidden="true" />
         </Button>
       </footer>
@@ -352,7 +384,7 @@ function VaultDiagnosticsBanner({
         ) : null}
       </div>
       <div className="vault-diagnostics-actions">
-        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onRetry}>
+        <Button type="button" variant="bare" className="ui-button" onClick={onRetry}>
           Tentar novamente
         </Button>
         <Button

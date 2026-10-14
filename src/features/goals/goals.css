@@ -45,7 +45,7 @@
 /* Escudo de especificidade: neutraliza regras globais do App.css (`button`,
  * `button:hover`, `.secondary-button`) dentro desta página, independente da
  * ordem em que os CSS são carregados no bundle. */
-.goals-page button:hover:not(:disabled) {
+.goals-page :where(button, .ui-button):hover:not(:disabled) {
   transform: none;
 }
 
@@ -417,7 +417,7 @@
 /* Botoes da pagina de Metas seguem o padrao do workspace
    (`.workspace-shell button`: cantos de 4px) — nada de pilula. O seletor
    com `.goals-page` garante o padrao mesmo se a cascata mudar. */
-.goals-page button {
+.goals-page :where(button, .ui-button) {
   border-radius: var(--radius-xs);
 }
 

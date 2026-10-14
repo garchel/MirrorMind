@@ -91,6 +91,35 @@
 
 .workspace-shell .app-titlebar .tab-chip {
   height: 100%;
+  /*
+   * `align-items: stretch` e a correcao do vao de 1px no topo.
+   *
+   * Medido no Chrome 154 com o botao ja em 39px:
+   *
+   *     chip: display=grid  align-items=center  grid-template-rows=38px
+   *           height=39px  box-sizing=border-box
+   *           border: top=1px  right=1px  bottom=0  left=0
+   *     sel : topo=-38.50  altura=37        (esperado: topo=-40.00)
+   *
+   * A borda superior de 1px do chip come 1px da caixa de 39px, e o
+   * `grid-template-rows: 38px` explicito fecha exatamente a conta. Com
+   * `align-items:center` herdado do `.tab-chip` de base.css, o botao e
+   * centralizado dentro dessa linha e sobra 1px — metade em cima, metade
+   * embaixo. O topo e o que se ve.
+   *
+   * Duas tentativas ERRADAS antes, ambas mexendo na ALTURA do botao
+   * quando o problema e de ALINHAMENTO:
+   *
+   *   1. 39px (barra menos a borda) — reproduziu o vao de 1px.
+   *   2. 37px (barra menos 3)       — piorou para 1.5px, porque
+   *      centralizar um item MENOR numa linha de tamanho fixo aumenta a
+   *      folga em vez de diminuir.
+   *
+   * `stretch` faz o botao ocupar a linha inteira, e o vao deixa de
+   * depender da altura dele.
+   */
+  align-items: stretch;
+  align-content: stretch;
 }
 
 .app-titlebar-brand {

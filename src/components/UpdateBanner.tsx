@@ -72,6 +72,7 @@ export function UpdateBanner({
       {isDownloading ? null : (
         <Button
           type="button"
+          variant="bare"
           className="ui-button update-banner-close"
           onClick={dismiss}
           aria-label="Dispensar aviso de atualização"

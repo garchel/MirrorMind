@@ -75,7 +75,12 @@
   justify-self: start;
   margin-top: 4px;
   padding: 7px 12px;
-  border: 1px solid transparent;
+  /* Era `1px solid transparent`: nenhuma borda visivel, so 1px de
+   * altura. O <Button> primitivo trouxe border-radius e o reset
+   * global trouxe border para a mesma conta, e o contorno passou a
+   * aparecer. Este botao e uma acao do banner, nao um botao de
+   * contorno — sem borda. */
+  border: 0;
   border-radius: var(--radius-lg);
   background: var(--accent, var(--mm-azure-700));
   color: var(--mm-ink-50);

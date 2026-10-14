@@ -31,7 +31,6 @@ export type HeaderActionKey = (typeof HEADER_ACTION_KEYS)[number]
 export type EditorMode = 'mixed' | 'edit' | 'read'
 
 /** Template de nota (`list_templates`). Movido do `App.tsx` — o App importa. */
-export type NoteTemplate = { id: string; name: string; content: string }
 
 /** Cabeçalho do editor extraído do `App.tsx`: título (nova nota, rename
  * inline, botão), tags, post-its, ações (histórico, autosave, overflow),
@@ -45,9 +44,6 @@ export type HeaderTitle = {
   saveActiveNote: () => void
   saving: boolean
   loading: boolean
-  templates: NoteTemplate[]
-  selectedTemplateId: string
-  applyTemplate: (templateId: string) => void
   isInlineTitleEditing: boolean
   setInlineTitleEditing: (editing: boolean) => void
   inlineTitle: string
@@ -120,9 +116,6 @@ export function EditorHeader({
     saveActiveNote,
     saving,
     loading,
-    templates,
-    selectedTemplateId,
-    applyTemplate,
     isInlineTitleEditing,
     setInlineTitleEditing,
     inlineTitle,
@@ -200,9 +193,6 @@ export function EditorHeader({
             autoComplete="off"
             spellCheck={false}
           />
-          <select value={selectedTemplateId} onChange={(event) => applyTemplate(event.target.value)} aria-label="Template da nota">
-            {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
-          </select>
           </>
         ) : isInlineTitleEditing ? (
           <Field
@@ -271,8 +261,8 @@ export function EditorHeader({
       </div>
       <div className="editor-actions" ref={headerActionsRef}>
         <div className="history-actions" aria-label="Histórico de edição">
-          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onMouseDown={preserveEditorSelection} onClick={() => void undoLastCommand()} disabled={!canUndoActiveEditor || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
-          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onMouseDown={preserveEditorSelection} onClick={() => void redoLastCommand()} disabled={!canRedoActiveEditor || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
+          <Button type="button" variant="bare" className="ui-button" onMouseDown={preserveEditorSelection} onClick={() => void undoLastCommand()} disabled={!canUndoActiveEditor || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
+          <Button type="button" variant="bare" className="ui-button" onMouseDown={preserveEditorSelection} onClick={() => void redoLastCommand()} disabled={!canRedoActiveEditor || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
         </div>
         {isAutoSaveEnabled && !isNewNoteDraft ? (
           <span className={`autosave-indicator is-${autoSaveState}`} aria-live="polite">
@@ -288,7 +278,8 @@ export function EditorHeader({
             <PopoverTrigger asChild>
               <Button
                 type="button"
-                className="ui-button ui-button--secondary ui-button--sm header-overflow-trigger"
+                variant="bare"
+            className="ui-button header-overflow-trigger"
                 aria-label="Mais ações"
                 title="Mais ações"
               >
@@ -389,11 +380,12 @@ export function EditorHeader({
             </button>
           </div>
         ) : null}
-        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={openNoteFind} title="Buscar na nota (Ctrl+F)" aria-label="Buscar na nota"><Search size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
+        <Button type="button" variant="bare" className="ui-button" onClick={openNoteFind} title="Buscar na nota (Ctrl+F)" aria-label="Buscar na nota"><Search size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
         {editorMode !== 'read' ? (
           <Button
             type="button"
-            className={`ui-button ui-button--secondary ui-button--sm markdown-tools-toggle${isMarkdownToolsOpen ? ' is-active' : ''}`}
+            variant="bare"
+            className={`ui-button markdown-tools-toggle${isMarkdownToolsOpen ? ' is-active' : ''}`}
             onClick={() => setMarkdownToolsOpen((isOpen) => !isOpen)}
             title="Ferramentas de Markdown"
             aria-label="Ferramentas de Markdown"

@@ -99,4 +99,18 @@ describe('Button', () => {
     )
     expect(captured).toBeInstanceOf(HTMLButtonElement)
   })
+
+  it('variant="bare" nao tem borda nem fundo', () => {
+    // Regressao real: o <Button> injeta `ui-button--secondary` por
+    // padrao, e essa variante tem border: 1px. Como a classe de
+    // contexto (.tree-note, .tab-select) tem a MESMA especificidade
+    // (0,1,0), a variante vencia por ordem no bundle e desenhava um
+    // contorno em botoes que nunca tiveram um: a aba, o X da aba, o
+    // + das abas e a linha do explorador. `bare` e a variante que
+    // existe para esses casos.
+    render(<Button variant="bare">linha</Button>)
+    const el = screen.getByRole('button', { name: 'linha' })
+    expect(el.className).toContain('ui-button--bare')
+    expect(el.className).not.toContain('ui-button--secondary')
+  })
 })
