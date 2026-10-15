@@ -86,6 +86,7 @@ export function NoteReadinessReport({ attempt, isStaleReport, error, busy, onClo
         <Button
           ref={closeButtonRef}
           type="button"
+          variant="bare"
           className="ui-button note-review-report-back"
           onClick={onClose}
           aria-label="Voltar ao menu de avaliação e revisão"

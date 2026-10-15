@@ -649,8 +649,19 @@
   max-width: 100%;
   max-height: min(620px, calc(100vh - 120px));
   overflow-y: auto;
+  /* Esconde a barra de rolagem visual, mas MANTEM a rolagem funcional
+   * (roda do mouse / toque). Remover o overflow esconderia o conteudo
+   * que nao cabe na tela; esconder so o trilho da o visual limpo sem
+   * perder acesso. `scrollbar-width` cobre Firefox; `::-webkit-scrollbar`
+   * cobre o WebView2/Chromium do app. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   padding: 2px 0 6px;
   animation: note-review-report-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.note-review-report-view::-webkit-scrollbar {
+  display: none;
 }
 
 @keyframes note-review-report-in {
@@ -684,18 +695,24 @@
   padding: 0 9px 0 5px;
   border: 0;
   border-radius: var(--radius-sm);
+  /* Sem fundo, nem em repouso nem no hover: e a seta de voltar, nao um
+   * botao de acao. O `variant="bare"` no componente ja nao injeta o
+   * `ui-button--secondary` (que trazia fundo); aqui o hover tambem fica
+   * transparente para o fundo nao reaparecer ao passar o mouse. */
   background: transparent;
   color: var(--muted, var(--mm-ink-800-4));
   font: 600 12px var(--sans);
 }
 
 .note-review-report-back:not(:disabled):hover {
-  background: rgb(112 109 102 / 10%);
+  background: transparent;
   color: var(--text-h, var(--mm-ink-950-19));
 }
 
 .note-review-report-title {
-  margin: 0 0 4px;
+  /* Respiro acima do titulo: separa "Pronta para revisao" da barra de
+   * cima (Voltar + kicker) para o titulo nao ficar colado nela. */
+  margin: 10px 0 4px;
   padding: 0 2px;
   font-size: var(--font-size-lead);
 }
