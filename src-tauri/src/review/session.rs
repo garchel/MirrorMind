@@ -660,7 +660,10 @@ fn floor_to_char_boundary(markdown: &str, byte: usize) -> usize {
 /// imprecisa do modelo: normaliza cada linha, conta os termos significativos
 /// da citacao presentes nela e devolve a melhor linha (empate resolve para a
 /// primeira), com os limites originais da ocorrencia.
-fn best_matching_line(markdown: &str, normalized_quote: &str) -> Option<(String, u64, u64)> {
+pub(crate) fn best_matching_line(
+    markdown: &str,
+    normalized_quote: &str,
+) -> Option<(String, u64, u64)> {
     let terms = normalized_quote
         .split_whitespace()
         .filter(|word| word.len() >= 4)

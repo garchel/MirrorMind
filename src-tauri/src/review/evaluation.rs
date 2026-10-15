@@ -330,15 +330,15 @@ fn ground_source(
     // garante que esse trecho literal e unico na nota — mesma regra de
     // "exatamente uma vez", so que sobre o texto fiel.
     let normalized = crate::review::session::normalize_for_grounding(quote);
-    let Some((byte_start, byte_end)) =
-        crate::review::session::tolerant_match_range(markdown, &normalized, None)
-    else {
-        // As palavras nao existem na nota em nenhuma forma: parafrase
-        // ou citacao inventada. Rejeicao correta.
-        errors.push(format!(
-            "{pointer}: a citacao deve ocorrer exatamente uma vez no Markdown."
-        ));
-        return None;
+    let byte_range = crate::review::session::tolerant_match_range(markdown, &normalized, None);
+    let Some((byte_start, byte_end)) = byte_range else {
+        // 3) Ultimo recurso: ancorar pelos termos significativos. Cobre a
+        // citacao que a IA reescreve com uma palavra a mais/a menos no
+        // inicio (artigo, preposicao) — as palavras de conteudo estao
+        // todas la, em ordem, mas a sequencia exata nao casa. O limiar de
+        // cobertura (80% dos termos, em ordem) mantem a rejeicao de
+        // citacao inventada/parafraseada.
+        return ground_source_by_terms(markdown, quote, pointer, errors);
     };
     let (byte_start, byte_end) =
         crate::review::session::expand_to_word_bounds(markdown, byte_start, byte_end);
@@ -358,6 +358,85 @@ fn ground_source(
             None
         }
     }
+}
+
+/// Terceiro e ultimo recurso: ancora a citacao pelos TERMOS significativos
+/// (nao pela string exata), como o `session` faz para lacunas de revisao.
+///
+/// Resolve o caso que os dois estagios acima nao cobrem e que a IA produz
+/// de rotina: ela reescreve a citacao com uma palavra a mais ou a menos
+/// no inicio ("A latencia de processamento" onde a nota tem "Latencia de
+/// processamento"), troca uma preposicao ou engole um artigo. As palavras
+/// de conteudo estao TODAS la, na ordem, mas a sequencia byte/word exata
+/// nao casa.
+///
+/// A seguranca contra citacao inventada vem de um LIMIAR DE COBERTURA:
+/// so aceitamos se uma fracao alta dos termos significativos da citacao
+/// (len >= 4) aparece, EM ORDEM, no markdown. Uma citacao inventada ou
+/// parafraseada espalha palavras que nao existem e a cobertura cai muito
+/// abaixo do limiar — rejeicao preservada. O trecho devolvido e a LINHA
+/// do markdown (literal, unica por construcao do `best_matching_line`),
+/// nunca a versao reformatada da IA.
+fn ground_source_by_terms(
+    markdown: &str,
+    quote: &str,
+    pointer: &str,
+    errors: &mut Vec<String>,
+) -> Option<GroundedReadinessSource> {
+    let normalized = crate::review::session::normalize_for_grounding(quote);
+    // Termos significativos da citacao (o mesmo filtro do session: len >= 4).
+    let quote_terms = normalized
+        .split_whitespace()
+        .filter(|word| word.len() >= 4)
+        .collect::<Vec<_>>();
+    // Citação curta demais para ancorar por termos sem risco de falso
+    // positivo: exige ao menos 4 termos de conteudo.
+    if quote_terms.len() < 4 {
+        errors.push(format!(
+            "{pointer}: a citacao deve ocorrer exatamente uma vez no Markdown."
+        ));
+        return None;
+    }
+    // Cobertura ordenada: quantos dos termos da citacao aparecem, em ordem,
+    // no markdown normalizado. Cada palavra do markdown e comparada sem a
+    // pontuacao/marcacao que ficou colada nela (`calcular,`, `**latencia`,
+    // `existir.`): a normalizacao do `session` junta markup e pontuacao na
+    // palavra, entao `latencia` nao casaria `**latencia` e a cobertura
+    // cairia a toa.  Aqui comparamos o nucleo alfanumerico de cada palavra.
+    let md_terms = crate::review::session::normalize_for_grounding(markdown)
+        .split_whitespace()
+        .map(|word| {
+            word.trim_matches(|c: char| !c.is_alphanumeric())
+                .to_string()
+        })
+        .filter(|word| !word.is_empty())
+        .collect::<Vec<_>>();
+    let mut matched = 0usize;
+    let mut md_cursor = 0usize;
+    for term in &quote_terms {
+        if let Some(offset) = md_terms[md_cursor..].iter().position(|word| word == term) {
+            matched += 1;
+            md_cursor += offset + 1;
+        }
+    }
+    // Limiar: 80% dos termos de conteudo, em ordem. Abaixo disso a citacao
+    // nao e suficientemente fundamentada — trata como parafrase/invencao.
+    let coverage_ok = matched * 5 >= quote_terms.len() * 4;
+    if !coverage_ok {
+        errors.push(format!(
+            "{pointer}: a citacao deve ocorrer exatamente uma vez no Markdown."
+        ));
+        return None;
+    }
+    // Ancorou: devolve a linha do markdown que o session escolheu (literal,
+    // unica). `best_matching_line` ja aplica o limite de tamanho e a
+    // unicidade internamente.
+    let (line, start, end) = crate::review::session::best_matching_line(markdown, &normalized)?;
+    Some(GroundedReadinessSource {
+        source_quote: line,
+        source_start_utf16: start as u32,
+        source_end_utf16: end as u32,
+    })
 }
 
 fn issue_allowed(status: ReadinessStatus, code: ReadinessIssueCode) -> bool {
@@ -699,6 +778,75 @@ mod tests {
         assert_eq!(
             report.central_idea.as_ref().unwrap().source_quote,
             "Latencia de processamento** pode dominar o custo"
+        );
+    }
+
+    #[test]
+    fn grounds_a_quote_that_adds_a_word_the_note_does_not_have() {
+        // O caso exato que o usuario bateu e que o retry nao resolve: a IA
+        // citou "A latencia de processamento..." onde a nota tem
+        // "**Latencia de processamento**...". Uma palavra ("A") a mais no
+        // inicio. Byte-exato falha, casamento tolerante por palavra falha
+        // (a sequencia divergem ja no primeiro termo), mas os TERMOS de
+        // conteudo estao 100% la, em ordem. O ancoramento por termos
+        // (80%+ de cobertura) fundamenta e devolve a LINHA literal da nota.
+        let markdown = "# Titulo\n\n## O que a CDN nao resolve\n\n- **Latencia de processamento** — se sua API demora 2s para calcular, a CDN\n  entrega a resposta mais rapido, mas ela ainda demora 2s para existir.\n\nO primeiro usuario paga o cache miss ate a origem remota.";
+        // IA acrescentou "A" antes de "latencia".
+        let ai_quote = "A latencia de processamento — se sua API demora 2s para calcular, a CDN entrega a resposta mais rapido, mas ela ainda demora 2s para existir.";
+        let provider = FakeProvider::success(json!({
+            "status":"ready",
+            "explanation":"A nota possui tres pontos avaliaveis distintos.",
+            "centralIdeaQuote":ai_quote,
+            "evaluablePoints":[
+                {"sourceQuote":"se sua API demora 2s para calcular"},
+                {"sourceQuote":"O primeiro usuario paga o cache miss"},
+                {"sourceQuote":"entrega a resposta mais rapido mas ela ainda"}
+            ],
+            "issues":[]
+        }));
+        let attempt = evaluate_readiness(&provider, markdown, DEFAULT_MAX_WHOLE_NOTE_WORDS, None)
+            .expect("evaluate");
+        let ReadinessAttempt::Valid { report, .. } = attempt else {
+            panic!("expected valid report — o ancoramento por termos deve fundamentar a citacao com artigo a mais");
+        };
+        // Devolveu uma LINHA literal do markdown que o `best_matching_line`
+        // escolheu (a de maior sobreposicao de termos), nao a versao
+        // reformatada da IA. Pode ser qualquer uma das linhas do bullet —
+        // aqui caiu na segunda — desde que seja texto fiel da nota.
+        let grounded = &report.central_idea.as_ref().unwrap().source_quote;
+        assert!(
+            !grounded.starts_with("A latencia"),
+            "nao deve devolver a versao da IA com o artigo acrescentado; veio: {grounded:?}"
+        );
+        // O trecho devolvido existe de fato no markdown (e fiel a ele).
+        assert!(
+            markdown.contains(grounded.as_str()),
+            "o trecho fundamentado deve ser literal da nota; veio: {grounded:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_a_paraphrase_whose_terms_do_not_cover() {
+        // Espelho do teste acima: uma citacao inventada, em que as palavras
+        // de conteudo NAO estao na nota, nao pode passar pelo ancoramento
+        // por termos. A cobertura cai abaixo do limiar e a rejeicao e
+        // preservada — o ancoramento por termos nao virou passador.
+        let markdown = "# Nota\n\nA fotossintese transforma energia luminosa em energia quimica.\n\nA luz e capturada pela clorofila no interior das folhas verdes das plantas.";
+        // IA inventou uma frase com palavras que nao existem na nota.
+        let ai_quote =
+            "O motor de combustao interna queima gasolina para gerar movimento mecanico.";
+        let provider = FakeProvider::success(json!({
+            "status":"ready",
+            "explanation":"A nota possui tres pontos avaliaveis distintos.",
+            "centralIdeaQuote":ai_quote,
+            "evaluablePoints":[{"sourceQuote":ai_quote}],
+            "issues":[]
+        }));
+        let attempt = evaluate_readiness(&provider, markdown, DEFAULT_MAX_WHOLE_NOTE_WORDS, None)
+            .expect("evaluate");
+        assert!(
+            matches!(&attempt, ReadinessAttempt::Invalid { validation_errors, .. }
+            if validation_errors.iter().any(|e| e.contains("exatamente uma vez")))
         );
     }
 
