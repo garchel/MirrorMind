@@ -3,6 +3,7 @@ import { Button } from '../../components/ui/Button'
 import {
   AlertTriangle,
   ArrowUpDown,
+  BookMarked,
   FilePlus2,
   FileWarning,
   Filter,
@@ -315,16 +316,20 @@ export function ExplorerSidebar({
 export function ExplorerItemMenu({
   menu,
   favorites,
+  indexadoraPaths,
   onClose,
   onToggleFavorite,
+  onToggleIndexadora,
   onMoveFolder,
   onRename,
   onDelete,
 }: {
   menu: ExplorerContextMenu
   favorites: string[]
+  indexadoraPaths: string[]
   onClose: () => void
   onToggleFavorite: (relativePath: string) => void
+  onToggleIndexadora: (relativePath: string) => void
   onMoveFolder: (path: string, name: string) => void
   onRename: (path: string, name: string, type: 'note' | 'folder') => void
   onDelete: (target: ExplorerContextMenu['target']) => void
@@ -347,10 +352,22 @@ export function ExplorerItemMenu({
           <Pencil size={14} strokeWidth={1.5} aria-hidden="true" />
           Renomear
         </button>
-        <Button type="button" role="menuitem" className="ui-button is-danger" onClick={() => { onDelete(menu.target); onClose() }}>
+        {menu.target.type === 'note' ? (
+          <button
+            type="button"
+            role="menuitem"
+            className="is-danger"
+            onClick={() => { void onToggleIndexadora(menu.target.path); onClose() }}
+            aria-pressed={indexadoraPaths.includes(menu.target.path)}
+          >
+            <BookMarked size={14} strokeWidth={1.5} aria-hidden="true" />
+            {indexadoraPaths.includes(menu.target.path) ? 'Remover indexadora' : 'Nota indexadora'}
+          </button>
+        ) : null}
+        <button type="button" role="menuitem" className="is-danger" onClick={() => { onDelete(menu.target); onClose() }}>
           <Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
           Enviar para lixeira
-        </Button>
+        </button>
       </div>
     </div>
   )

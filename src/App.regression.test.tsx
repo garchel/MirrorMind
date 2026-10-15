@@ -1691,7 +1691,10 @@ describe('Regressao do editor no workspace', () => {
     const { notes } = createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Declarar nota como indexadora' }))
+    // A acao saiu do cabecalho da nota e mora no menu de contexto do
+    // explorador (click direito na nota). Abre o menu da "inicial".
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('button', { name: 'Abrir nota inicial' }) })
+    await user.click(await screen.findByRole('menuitem', { name: 'Nota indexadora' }))
 
     await waitFor(() => {
       const content = notes.get('inicial.md')?.content ?? ''
@@ -1708,10 +1711,13 @@ describe('Regressao do editor no workspace', () => {
     const { notes } = createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Declarar nota como indexadora' }))
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('button', { name: 'Abrir nota inicial' }) })
+    await user.click(await screen.findByRole('menuitem', { name: 'Nota indexadora' }))
     await waitFor(() => expect(notes.get('inicial.md')?.content).toContain('indexadora: true'))
 
-    await user.click(screen.getByRole('button', { name: 'Declarar nota como indexadora' }))
+    // Reabre o menu: agora o rotulo eh "Remover indexadora" (a flag ligou).
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('button', { name: 'Abrir nota inicial' }) })
+    await user.click(await screen.findByRole('menuitem', { name: 'Remover indexadora' }))
     await waitFor(() => {
       const content = notes.get('inicial.md')?.content ?? ''
       expect(content).toContain('indexadora: false')

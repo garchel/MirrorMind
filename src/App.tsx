@@ -9,7 +9,7 @@ import { errorMessage, invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { BookMarked, CheckCircle2, ClipboardList, Folder, FolderOpen, Star, X } from 'lucide-react'
+import { CheckCircle2, ClipboardList, Folder, FolderOpen, Star, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { File02Icon } from '@hugeicons/core-free-icons'
 import { RiFocus2Fill, RiFocus2Line } from '@remixicon/react'
@@ -246,6 +246,7 @@ function App() {
   const { provider: reviewProvider } = useReviewAiSettings()
   const [vault, setVault] = useState<VaultSummary | null>(null)
   const [notes, setNotes] = useState<NotePreview[]>([])
+  const [indexadoraPaths, setIndexadoraPaths] = useState<string[]>([])
   const [folders, setFolders] = useState<string[]>([])
   const [activeNote, setActiveNote] = useState<NoteDocument | null>(null)
   const [isInlineTitleEditing, setInlineTitleEditing] = useState(false)
@@ -1715,6 +1716,11 @@ function App() {
       if (requestId !== vaultWikilinkIndexRequestRef.current || vaultWikilinkIndexLoadedPathRef.current !== vaultPath) return
       const contents = allNotes.map((note) => ({ relativePath: note.relativePath, content: note.content }))
       vaultIndexRef.current.rebuild(vaultPath, contents)
+      // Quais notas sao indexadoras (flag no frontmatter). Alimenta o menu
+      // de contexto do explorador, que precisa saber o estado de qualquer
+      // nota — nao so da ativa. Derivado do mesmo conteudo que alimenta o
+      // indice, entao fica em sincronia com ele.
+      setIndexadoraPaths(contents.filter((doc) => isIndexadora(doc.content)).map((doc) => doc.relativePath))
       // Atualiza os backlinks da nota ativa com o indice pronto.
       if (vault && activeNoteRef.current && activeNoteRef.current.relativePath !== '__new_note__') {
         const snapshot = vaultIndexRef.current.getSnapshot()
@@ -3539,20 +3545,41 @@ function App() {
     }
   }
 
-  /** Liga/desliga a flag indexadora da nota ativa e salva na hora. A secao
-   *  gerada ja entra no rascunho para o editor refletir imediatamente. */
-  async function toggleActiveNoteIndexadora() {
-    if (!vault || !activeNote || isNewNoteDraft || saving || loading) return
-    const enabled = !isIndexadora(activeNote.content)
-    const flagContent = setIndexadoraFlag(activeNote.content, enabled)
+  /** Liga/desliga a flag indexadora de uma nota por caminho (menu de
+   *  contexto do explorador, que age em qualquer nota, nao so na ativa).
+   *  Rele a nota do disco, alterna a flag, regrava a secao gerada. */
+  async function toggleNoteIndexadora(relativePath: string) {
+    if (!vault || saving || loading) return
     const index = graphWikilinkIndexRef.current ?? vaultIndexRef.current.getSnapshot()
-    const backlinks = index ? getWikilinkBacklinks(index, activeNote.relativePath) : []
-    const finalContent = enabled
-      ? syncIndexadoraSection(flagContent, backlinks)
-      : removeIndexadoraSection(flagContent)
-    draftContentRef.current = finalContent
-    setDraftContent(finalContent)
-    await saveActiveNote(false, finalContent)
+    if (!index) return
+    try {
+      const payload = await invoke<unknown>('read_note', { path: vault.path, relativePath })
+      const note = parseNoteDocument(payload)
+      const enabled = !isIndexadora(note.content)
+      const flagContent = setIndexadoraFlag(note.content, enabled)
+      const backlinks = getWikilinkBacklinks(index, relativePath)
+      const finalContent = enabled
+        ? syncIndexadoraSection(flagContent, backlinks)
+        : removeIndexadoraSection(flagContent)
+      await invoke<unknown>('save_note', { path: vault.path, relativePath, content: finalContent })
+      if (relativePath === activeNote?.relativePath) {
+        draftContentRef.current = finalContent
+        setDraftContent(finalContent)
+      }
+      if (graphWikilinkIndexRef.current) {
+        graphWikilinkIndexRef.current = applyWikilinkEdit(graphWikilinkIndexRef.current, relativePath, finalContent)
+      }
+      vaultIndexRef.current.applyEdit(relativePath, finalContent)
+      vaultIndexRef.current.updateDocumentContent(relativePath, finalContent)
+      setIndexadoraPaths((paths) => (
+        enabled
+          ? paths.includes(relativePath) ? paths : [...paths, relativePath]
+          : paths.filter((path) => path !== relativePath)
+      ))
+      await refreshNotes(vault.path)
+    } catch (caughtError) {
+      setError(errorMessage(caughtError, 'Não foi possível alternar a nota indexadora.'))
+    }
   }
 
   function loadExternalNoteVersion() {
@@ -4825,22 +4852,6 @@ function App() {
           return (
             <Button key={key} type="button" variant="bare" className={`ui-button favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></Button>
           )
-        case 'indexadora':
-          return (
-            <Button
-              key={key}
-              type="button"
-              variant="bare"
-              className={`ui-button indexadora-button${isIndexadora(activeNote.content) ? ' is-active' : ''}`}
-              onClick={() => void toggleActiveNoteIndexadora()}
-              disabled={saving || loading}
-              title={isIndexadora(activeNote.content) ? 'Nota indexadora: remove a lista automatica de referencias' : 'Declarar como nota indexadora: lista automaticamente as notas que referenciam esta nota'}
-              aria-label="Declarar nota como indexadora"
-              aria-pressed={isIndexadora(activeNote.content)}
-            >
-              <BookMarked size={15} strokeWidth={1.5} aria-hidden="true" />
-            </Button>
-          )
         case 'review':
           return (
             <Popover key={key} open={reviewMenuOpen} onOpenChange={(open) => {
@@ -5378,8 +5389,10 @@ function App() {
           <ExplorerItemMenu
             menu={explorerContextMenu}
             favorites={favorites}
+            indexadoraPaths={indexadoraPaths}
             onClose={() => setExplorerContextMenu(null)}
             onToggleFavorite={(relativePath) => void toggleNoteFavorite(relativePath)}
+            onToggleIndexadora={(relativePath) => void toggleNoteIndexadora(relativePath)}
             onMoveFolder={(path, name) => startMove(path, name, 'folder')}
             onRename={(path, name, type) => startRename(path, name, type)}
             onDelete={(target) => requestDelete(target)}

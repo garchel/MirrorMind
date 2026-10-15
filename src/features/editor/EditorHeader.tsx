@@ -24,7 +24,7 @@ import { Field } from '../../components/ui/Field'
 
 /** Chaves das ações do header (movidas do `App.tsx` sem mudança — o App
  * importa daqui para o cálculo de overflow). */
-export const HEADER_ACTION_KEYS = ['favorite', 'indexadora', 'review', 'factcheck'] as const
+export const HEADER_ACTION_KEYS = ['favorite', 'review', 'factcheck'] as const
 export type HeaderActionKey = (typeof HEADER_ACTION_KEYS)[number]
 
 /** Modo de visualização da nota (mesma união do `App.tsx`). */
@@ -270,7 +270,6 @@ export function EditorHeader({
           </span>
         ) : null}
         {!hiddenActions.includes('favorite') ? renderHeaderAction('favorite') : null}
-        {!hiddenActions.includes('indexadora') ? renderHeaderAction('indexadora') : null}
         {!hiddenActions.includes('review') ? renderHeaderAction('review') : null}
         {!hiddenActions.includes('factcheck') ? renderHeaderAction('factcheck') : null}
         {hiddenActions.length > 0 ? (
