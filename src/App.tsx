@@ -4428,7 +4428,7 @@ function App() {
                 <Button
                   type="button"
                   variant="bare"
-                  className={`tree-note${node.path === activeNote?.relativePath ? ' is-active' : ''}${draggedNotePath === node.path ? ' is-dragging' : ''}`}
+                  className={`tree-note${node.path === activeNote?.relativePath ? ' is-active' : ''}${draggedNotePath === node.path ? ' is-dragging' : ''}${explorerContextMenu?.target.path === node.path ? ' is-context-open' : ''}`}
                   draggable={false}
                   onPointerDown={(event) => beginNotePointerDrag(event, node.path)}
                   onClick={() => { if (suppressNoteClickRef.current) { suppressNoteClickRef.current = false; return } void openNote(node.path) }}

@@ -182,6 +182,18 @@
   color: var(--mm-lilac-150-2);
 }
 
+/* Nota com o menu de contexto ABERTO: indica de qual nota o menu aberto
+ * e, sem depender de decorar a posicao do clique. Estado proprio — nao
+ * reusa `is-active`, que e "nota aberta no editor" (outra coisa).
+ * Especificidade (0,3,0) + `:not(:disabled)`: acima do `:hover`
+ * (0,3,0 com o :where) para o destaque nao piscar ao passar o mouse
+ * por cima enquanto o menu esta aberto. */
+.workspace-shell .tree-note.is-context-open:not(:disabled),
+.workspace-shell .tree-note.is-context-open:not(:disabled):hover {
+  background: var(--mm-ink-900-13);
+  color: var(--mm-lilac-150-2);
+}
+
 .workspace-shell .empty-sidebar-state {
   color: var(--workspace-muted);
   font-size: 12px;
