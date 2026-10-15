@@ -1994,6 +1994,19 @@ label.settings-toggle {
   color: var(--mm-brick-850-5);
 }
 
+/* Item de indexadora no estado "ligado" (a nota JA é indexadora): fundo
+ * do proprio menu + peso da fonte. Familiar porque e o mesmo tratamento
+ * do `is-active` em outras listas do app, e dispensavel porque o rotulo
+ * ja diz "Remover indexadora". Especificidade (0,3,0) vence o `:hover`
+ * generico (0,2,0 + :where), entao o destaque nao some ao passar o
+ * mouse — igual ao `is-danger`, que tambem nao depende so do hover. */
+.workspace-shell .explorer-context-menu button.indexadora-menu-item.is-active,
+.workspace-shell .explorer-context-menu button.indexadora-menu-item.is-active:hover:not(:disabled) {
+  background: var(--mm-ink-900-13);
+  color: var(--mm-lilac-150-2);
+  font-weight: 600;
+}
+
 .move-item-heading {
   position: relative;
   display: grid;

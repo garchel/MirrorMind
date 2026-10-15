@@ -11,7 +11,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { CheckCircle2, ClipboardList, Folder, FolderOpen, Star, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { File02Icon } from '@hugeicons/core-free-icons'
+import { Bookmark02Icon, File02Icon } from '@hugeicons/core-free-icons'
 import { RiFocus2Fill, RiFocus2Line } from '@remixicon/react'
 import 'katex/dist/katex.min.css'
 import { BuilderModeControl } from './components/BuilderModeControl'
@@ -4437,7 +4437,7 @@ function App() {
                   disabled={loading || saving}
                   aria-label={`Abrir nota ${node.name.replace(/\.md$/i, '')}`}
                 >
-                  <span className="tree-icon tree-icon--note" aria-hidden="true"><HugeiconsIcon icon={File02Icon} size={14} strokeWidth={1.5} /></span>
+                  <span className="tree-icon tree-icon--note" aria-hidden="true"><HugeiconsIcon icon={indexadoraPaths.includes(node.path) ? Bookmark02Icon : File02Icon} size={14} strokeWidth={1.5} /></span>
                   <span className="tree-item-label">{node.name.replace(/\.md$/i, '')}</span>
                 </Button>
               </div>

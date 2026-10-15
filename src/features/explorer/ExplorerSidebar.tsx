@@ -356,6 +356,7 @@ export function ExplorerItemMenu({
           <button
             type="button"
             role="menuitem"
+            className={`indexadora-menu-item${indexadoraPaths.includes(menu.target.path) ? ' is-active' : ''}`}
             onClick={() => { void onToggleIndexadora(menu.target.path); onClose() }}
             aria-pressed={indexadoraPaths.includes(menu.target.path)}
           >
