@@ -484,7 +484,7 @@ fn push_normalized_space(out: &mut String, last_space: &mut bool) {
 /// de um termo normalizado, tolerando caixa e marcacao inline (negrito,
 /// LaTeX) que a normalizacao remove entre as palavras. Os limites caem sempre
 /// em fronteiras de caractere.
-fn tolerant_match_range(
+pub(crate) fn tolerant_match_range(
     markdown: &str,
     normalized_term: &str,
     within: Option<(usize, usize)>,
@@ -553,7 +553,7 @@ fn tolerant_match_range(
 /// Expande os limites de uma ocorrencia ate as fronteiras das palavras
 /// vizinhas no texto original, para o trecho citado nao comecar no meio de
 /// uma palavra.
-fn expand_to_word_bounds(markdown: &str, start: usize, end: usize) -> (usize, usize) {
+pub(crate) fn expand_to_word_bounds(markdown: &str, start: usize, end: usize) -> (usize, usize) {
     let mut new_start = start;
     while new_start > 0 {
         let previous = markdown[..new_start].chars().next_back().unwrap();
@@ -3361,7 +3361,7 @@ pub(crate) fn outcome_for_score(score: u8) -> Result<ReviewResultOutcome> {
     })
 }
 
-fn find_unique_quote_range(markdown: &str, quote: &str) -> Result<(u64, u64)> {
+pub(crate) fn find_unique_quote_range(markdown: &str, quote: &str) -> Result<(u64, u64)> {
     let mut matches = markdown.match_indices(quote);
     let byte_start = matches
         .next()

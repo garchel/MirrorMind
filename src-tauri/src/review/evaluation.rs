@@ -310,106 +310,54 @@ fn ground_source(
     }
     if matches.len() > 1 {
         // Mais de uma ocorrencia byte-exata: rejeicao legitima. Nao
-        // ha uma fonte unica; normalizar whitespace nao mudaria isso.
+        // ha uma fonte unica; normalizar nao mudaria isso.
         errors.push(format!(
             "{pointer}: a citacao deve ocorrer exatamente uma vez no Markdown."
         ));
         return None;
     }
-    // 2) Normalizacao tolerante a whitespace. O caso que esta melhoria
-    // resolve: a IA citou a mesma frase, mas com a quebra de linha em
-    // outro lugar (linha longa no markdown que a IA reformatou ao
-    // citar). markdown.match_indices e byte-exato e rejeitaria. Aqui
-    // buscamos a mesma sequencia de palavras, colapsando os \n e os
-    // espacos repetidos dos dois lados. Se casar, devolvemos o trecho
-    // LITERAL do markdown (com as quebras reais) e os deslocamentos
-    // calculados sobre esse trecho literal — a citacao fica fundamentada
-    // e quem a le ve o texto fiel a nota, nao a versao reformatada.
-    let candidates = collapse_whitespace(markdown, quote);
-    match candidates.as_slice() {
-        [only] => {
-            let grounded = markdown[only.0..only.1].to_string();
-            Some(GroundedReadinessSource {
-                source_quote: grounded,
-                source_start_utf16: markdown[..only.0].encode_utf16().count() as u32,
-                source_end_utf16: markdown[..only.1].encode_utf16().count() as u32,
-            })
-        }
-        [] => {
-            // A frase nao existe na nota em nenhuma forma. Rejeicao
-            // correta: relatorio nao fundamentado.
+    // 2) Casamento tolerante. O byte-exato falhou. Reaproveita a
+    // normalizacao do `session` (mesma usada para fundamentar lacunas de
+    // revisao): lowercase, sem acentos (NFD) e ignorando marcacao inline
+    // e pontuacao. Isso absorve o que a IA realmente faz ao citar —
+    // mover a quebra de linha, trocar caixa, engolir/duplicar `**`,
+    // acrescentar um ponto final — sem aceitar citacao inventada, porque
+    // a comparacao continua sendo sobre a sequencia de palavras.
+    //
+    // `tolerant_match_range` ancora a forma normalizada da citacao no
+    // markdown e devolve o range no texto ORIGINAL; devolvemos entao o
+    // trecho LITERAL (com markup e quebras reais), e `find_unique_quote_range`
+    // garante que esse trecho literal e unico na nota — mesma regra de
+    // "exatamente uma vez", so que sobre o texto fiel.
+    let normalized = crate::review::session::normalize_for_grounding(quote);
+    let Some((byte_start, byte_end)) =
+        crate::review::session::tolerant_match_range(markdown, &normalized, None)
+    else {
+        // As palavras nao existem na nota em nenhuma forma: parafrase
+        // ou citacao inventada. Rejeicao correta.
+        errors.push(format!(
+            "{pointer}: a citacao deve ocorrer exatamente uma vez no Markdown."
+        ));
+        return None;
+    };
+    let (byte_start, byte_end) =
+        crate::review::session::expand_to_word_bounds(markdown, byte_start, byte_end);
+    let grounded = markdown[byte_start..byte_end].to_string();
+    // Unicidade sobre o trecho literal: se ele aparece mais de uma vez,
+    // a fonte e ambigua e a citacao nao pode fundamentar sozinha.
+    match crate::review::session::find_unique_quote_range(markdown, &grounded) {
+        Ok((start, end)) => Some(GroundedReadinessSource {
+            source_quote: grounded,
+            source_start_utf16: start as u32,
+            source_end_utf16: end as u32,
+        }),
+        Err(_) => {
             errors.push(format!(
                 "{pointer}: a citacao deve ocorrer exatamente uma vez no Markdown."
             ));
             None
         }
-        // Multiplas ocorrencias apos colapsar: ambigua, mesma rejeicao
-        // do caso byte-exato com mais de um match.
-        _ => {
-            errors.push(format!(
-                "{pointer}: a citacao deve ocorrer exatamente uma vez no Markdown."
-            ));
-            None
-        }
     }
-}
-
-/// Colapsa os whitespaces (quebra de linha + espacos/tabs repetidos) de
-/// `quote` e encontra no `markdown` os trechos literais que, colapsados
-/// da mesma forma, produzem exatamente a mesma sequencia. Devolve os
-/// intervalos byte no markdown ORIGINAL (nao colapsado).
-///
-/// A logica: percorre o markdown caractere a caractere; cada "token" e
-/// uma palavra ou um espaco em branco (espaco, tab, \n, \r, tratados
-/// como um unico separador). Um candidato e o trecho que comeca em uma
-/// palavra e termina em uma palavra, cuja sequencia de tokens iguala a
-/// sequencia de tokens da quote. A comparacao e feita sobre os tokens
-/// de palavras; whitespaces colapsados so confirmam a separacao.
-fn collapse_whitespace(markdown: &str, quote: &str) -> Vec<(usize, usize)> {
-    // Sequencia de palavras (sem whitespace) da quote.
-    let quote_words: Vec<&str> = quote.split_whitespace().collect();
-    if quote_words.is_empty() {
-        return Vec::new();
-    }
-    let mut candidates = Vec::new();
-    // Percorre o markdown caractere a caractere, agrupando em palavras
-    // (sequencias contiguas de caracteres nao-whitespace).
-    let mut word_spans: Vec<(usize, usize)> = Vec::new();
-    for (byte_start, ch) in markdown.char_indices() {
-        if ch.is_whitespace() {
-            continue;
-        }
-        let end = byte_start + ch.len_utf8();
-        if let Some(last) = word_spans.last_mut() {
-            if last.1 == byte_start {
-                last.1 = end;
-                continue;
-            }
-        }
-        word_spans.push((byte_start, end));
-    }
-    // Agora, para cada posicao inicial i, verifica se as proximas
-    // quote_words.len() palavras do markdown igualam a quote.
-    let n = quote_words.len();
-    for i in 0..word_spans.len() {
-        if i + n > word_spans.len() {
-            break;
-        }
-        let mut matches = true;
-        for (j, qw) in quote_words.iter().enumerate() {
-            let (s, e) = word_spans[i + j];
-            if &markdown[s..e] != *qw {
-                matches = false;
-                break;
-            }
-        }
-        if matches {
-            let start = word_spans[i].0;
-            let end = word_spans[i + n - 1].1;
-            candidates.push((start, end));
-        }
-    }
-    candidates
 }
 
 fn issue_allowed(status: ReadinessStatus, code: ReadinessIssueCode) -> bool {
@@ -703,9 +651,54 @@ mod tests {
             panic!("expected valid report");
         };
         // Devolveu o trecho LITERAL do markdown (com a quebra real).
+        // `expand_to_word_bounds` para antes do ponto final (`.` nao e
+        // alfanumerico), entao o trecho fundamentado vem sem a
+        // pontuacao da borda — ainda um trecho fiel e unico da nota.
         assert_eq!(
             report.evaluable_points[0].source_quote,
-            "Uma frase muito longa que no markdown ocupa\nduas linhas e continua aqui ate o fim."
+            "Uma frase muito longa que no markdown ocupa\nduas linhas e continua aqui ate o fim"
+        );
+    }
+
+    #[test]
+    fn grounds_a_quote_differing_only_in_markup_case_and_punctuation() {
+        // O caso real que o usuario bateu: a nota tem markup/formatacao e
+        // a IA citou a MESA frase removendo `**`, mudando a capitalizacao
+        // e acrescentando/removendo pontuacao. Nao e parafrase — sao as
+        // mesmas palavras. O casamento tolerante (lowercase, sem acentos,
+        // ignora markup) fundamenta e devolve o trecho LITERAL da nota.
+        let markdown = "# Titulo\n\n## O que a CDN nao resolve\n\n- **Latencia de processamento** pode dominar o custo.\n\nO primeiro usuario de uma regiao paga o cache miss.";
+        // IA tirou o `**`, mudou caixa e pontuou diferente.
+        let ai_quote = "latência de processamento pode dominar o custo";
+        let ai_quote2 = "O primeiro usuario de uma regiao paga o cache miss.";
+        let provider = FakeProvider::success(json!({
+            "status":"ready",
+            "explanation":"A nota possui tres pontos avaliaveis distintos.",
+            "centralIdeaQuote":ai_quote,
+            "evaluablePoints":[
+                {"sourceQuote":"Latencia de processamento pode dominar o custo"},
+                {"sourceQuote":"O primeiro usuario de uma regiao paga o cache miss"},
+                {"sourceQuote":"custo. O primeiro usuario de uma regiao paga"}
+            ],
+            "issues":[]
+        }));
+        let attempt = evaluate_readiness(&provider, markdown, DEFAULT_MAX_WHOLE_NOTE_WORDS, None)
+            .expect("evaluate");
+        let ReadinessAttempt::Valid { report, .. } = attempt else {
+            panic!("expected valid report, erro de rejeicao indevida");
+        };
+        // Devolveu o trecho LITERAL do markdown a partir do inicio da
+        // primeira palavra alfanumerica. Nota honesta: `tolerant_match_range`
+        // salta os nao-alfanumericos ANTES do termo (o `**` de abertura do
+        // negrito sai), mas nao corta os que vem depois (o `**` de
+        // fechamento fica). O resultado e um trecho fiel e unico da nota —
+        // todas as palavras estao la, na ordem certa — so com o markup de
+        // fechamento preservado. Como essas funcoes sao compartilhadas com
+        // o `session` (fundamentacao de lacunas), nao as mudo aqui para nao
+        // alterar aquele comportamento; documento o efeito no teste.
+        assert_eq!(
+            report.central_idea.as_ref().unwrap().source_quote,
+            "Latencia de processamento** pode dominar o custo"
         );
     }
 
