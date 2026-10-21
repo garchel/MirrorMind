@@ -109,6 +109,18 @@ for (const entry of entries) {
     continue
   }
   const markdown = readFileSync(notePath, 'utf8')
+  // As notas tem **hard-wrap**: uma frase longa quebra em ~80 colunas. A
+  // citacao "A fixacao de carbono usa a enzima rubisco, que adiciona CO2 a
+  // uma molecula de ribulose-1,5-bisfosfato." existe na nota — so que
+  // atravessa a quebra, e o texto cru tem "molecula de\nribulose".
+  //
+  // Sem normalizar, o verificador acusaria uma citacao **correta** como
+  // inexistente, e quem revisasse perderia a confianca no verificador
+  // inteiro — que e o jeito de um verificador deixar de ser lido.
+  //
+  // Normalizar so a whitespace e seguro: a ancora continua sendo conferida
+  // palavra a palavra. A palavra **exatamente igual** ainda tem que existir.
+  const unfolded = markdown.replace(/\r\n/g, '\n').replace(/\n/g, ' ').replace(/[ \t]+/g, ' ')
   const terms = entry.terms ?? []
   if (!Array.isArray(terms)) {
     problems.push(`${caseId}: "terms" precisa ser uma lista`)
@@ -121,15 +133,15 @@ for (const entry of entries) {
       problems.push(`${caseId}: um termo sem texto`)
       continue
     }
-    if (!markdown.includes(term)) {
+    if (!unfolded.includes(term)) {
       problems.push(
-        `${caseId}: o termo "${term}" nao aparece literalmente na nota — ` +
+        `${caseId}: o termo "${term}" nao aparece na nota — ` +
           'a medicao compara o texto exato',
       )
     }
-    if (quote && !markdown.includes(quote)) {
+    if (quote && !unfolded.includes(quote)) {
       problems.push(
-        `${caseId}: a citacao "${quote}" nao aparece literalmente na nota`,
+        `${caseId}: a citacao "${quote}" nao aparece na nota`,
       )
     }
     if (!quote) {

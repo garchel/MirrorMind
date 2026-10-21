@@ -405,6 +405,15 @@ struct DefinitionRecallSummary {
     /// Os casos em que o pipeline nao achou nenhum termo esperado.
     missed_cases: Vec<String>,
     failures: Vec<String>,
+    /// Termos que o provider **propôs** e o JEV **recusou**.
+    ///
+    /// A distincao importa: um termo que nunca foi proposto e um termo que o
+    /// motor disse "esse aqui nao precisa de definicao" sao problemas
+    /// **diferentes**, com consertos diferentes. Sem essa contagem, o recall
+    /// baixo nao diz onde esta a perda.
+    rejected_by_engine: Vec<String>,
+    /// Quantos termos o provider propôs (antes da confirmacao do motor).
+    proposed_terms: usize,
 }
 
 impl DefinitionRecallSummary {
@@ -475,6 +484,17 @@ fn measure_definition_recall(
             .filter(|(_, verdict)| verdict.needs_definition)
             .map(|(proposal, _)| proposal.term.as_str())
             .collect();
+
+        // O provider propos, mas o motor recusou: e uma perda **diferente**
+        // da perda de "nunca foi proposto".
+        for (proposal, verdict) in proposals.proposals.iter().zip(&confirmed) {
+            if !verdict.needs_definition {
+                summary
+                    .rejected_by_engine
+                    .push(format!("{}: {}", case.id, proposal.term));
+            }
+        }
+        summary.proposed_terms += proposals.proposals.len();
 
         summary.cases_measured += 1;
         let mut missed = Vec::new();
@@ -631,11 +651,45 @@ fn jev_is_measured_against_the_legacy_path() {
             definition_recall.cases_with_ground_truth,
             definition_recall.extra_terms
         ),
-        None => eprintln!(
-            "recall de definicoes: NAO MEDIDO — nenhum caso tem ground truth de definicoes \
-             (0 de {} casos revisados). Isso nao e 0%: e ausencia de medida.",
-            definition_recall.cases_total
-        ),
+        None => {
+            // A causa importa: "ninguem revisou" e "o provider generativo
+            // estava fora do ar" sao situacoes completamente diferentes, e a
+            // mensagem anterior dizia "nenhum caso tem ground truth" mesmo
+            // com os 23 casos revisados. Uma falha do provider que aparece
+            // como "nao medido" esconde que **nada foi medido porque nada
+            // pode ser medido**.
+            let sem_ground_truth = definition_recall.cases_with_ground_truth == 0;
+            if sem_ground_truth {
+                eprintln!(
+                    "recall de definicoes: NAO MEDIDO — nenhum caso tem ground truth de \
+                     definicoes (0 de {} casos revisados). Isso nao e 0%: e ausencia de medida.",
+                    definition_recall.cases_total
+                );
+            } else {
+                eprintln!(
+                    "recall de definicoes: NAO MEDIDO — ha ground truth ({} casos, {} termos \
+                     esperados), mas nada foi medido: {} falha(s) do provider. Ver as falhas \
+                     abaixo.",
+                    definition_recall.cases_with_ground_truth,
+                    definition_recall.expected_terms,
+                    definition_recall.failures.len()
+                );
+            }
+        }
+    }
+    for failure in &definition_recall.failures {
+        eprintln!("  falha: {failure}");
+    }
+    // Onde a perda acontece: o provider propos poucos termos, ou propos e o
+    // motor recusou? Sem esta separacao, um recall baixo nao diz o que
+    // consertar.
+    eprintln!(
+        "  termos propostos pelo provider: {} | recusados pelo motor: {}",
+        definition_recall.proposed_terms,
+        definition_recall.rejected_by_engine.len()
+    );
+    for rejected in &definition_recall.rejected_by_engine {
+        eprintln!("  recusado pelo motor: {rejected}");
     }
     for missed in &definition_recall.missed_cases {
         eprintln!("  nao encontrado: {missed}");

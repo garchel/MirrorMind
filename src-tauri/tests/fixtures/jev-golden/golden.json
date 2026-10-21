@@ -74,7 +74,30 @@
         "gaps": "complete"
       },
       "synthesisProvenance": "human",
-      "unsupportedClaims": "Ainda nao sei bem por que a rubisco prefere o CO2 e nao o O2"
+      "unsupportedClaims": "Ainda nao sei bem por que a rubisco prefere o CO2 e nao o O2",
+      "expectedDefinitions": [
+        {
+          "term": "estroma",
+          "sourceQuote": "Essa fase ocorre no estroma dos cloroplastos e nao na membrana tilacoidal."
+        },
+        {
+          "term": "rubisco",
+          "sourceQuote": "A fixacao de carbono usa a enzima rubisco, que adiciona CO2 a uma molecula de ribulose-1,5-bisfosfato."
+        },
+        {
+          "term": "ATP",
+          "sourceQuote": "Cada molecula de CO2 fixado consome 3 ATP e 2 NADPH produzidos na fase clara."
+        },
+        {
+          "term": "NADPH",
+          "sourceQuote": "Cada molecula de CO2 fixado consome 3 ATP e 2 NADPH produzidos na fase clara."
+        },
+        {
+          "term": "fotofosforilacao",
+          "sourceQuote": "A fotofosforilacao transloca protons para dentro do tilacoide, criando um gradiente que alimenta a sintese de ATP."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "somente-titulos",
@@ -86,7 +109,9 @@
       },
       "claims": [],
       "exchanges": [],
-      "synthesis": null
+      "synthesis": null,
+      "expectedDefinitions": [],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "contradicao-fotossintese",
@@ -148,7 +173,26 @@
         "gaps": "forgotten"
       },
       "synthesisProvenance": "human",
-      "unsupportedClaims": "A ideia central desta nota e que a divisibilidade e uma relacao entre inteiros; dividir por um numero nao e o inverso de multiplicar quando o numero nao e primo; e essa diferenca entre dividir por 2 e dividir por 3 que estrutura a aritmetica; por que o conjunto dos primos parece tao especial"
+      "unsupportedClaims": "A ideia central desta nota e que a divisibilidade e uma relacao entre inteiros; dividir por um numero nao e o inverso de multiplicar quando o numero nao e primo; e essa diferenca entre dividir por 2 e dividir por 3 que estrutura a aritmetica; por que o conjunto dos primos parece tao especial",
+      "expectedDefinitions": [
+        {
+          "term": "ciclo de Calvin",
+          "sourceQuote": "A fotossintese ocorre na fase escura do ciclo de Calvin."
+        },
+        {
+          "term": "tilacoides",
+          "sourceQuote": "A fotossintese ocorre na fase clara, dentro dos tilacoides."
+        },
+        {
+          "term": "clorofila",
+          "sourceQuote": "A clorofila absorve luz principalmente nas bandas azul e vermelha do espectro."
+        },
+        {
+          "term": "respiracao celular",
+          "sourceQuote": "A glicose produzida serve de materia-prima para a respiracao celular."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "termodinamica",
@@ -194,7 +238,18 @@
         "gaps": "complete"
       },
       "synthesisProvenance": "human",
-      "unsupportedClaims": "a energia se conserva em um sistema isolado; a segunda lei diz que a entropia de um sistema isolado nunca diminui"
+      "unsupportedClaims": "a energia se conserva em um sistema isolado; a segunda lei diz que a entropia de um sistema isolado nunca diminui",
+      "expectedDefinitions": [
+        {
+          "term": "propriedade extensiva",
+          "sourceQuote": "A entropia e uma propriedade extensiva."
+        },
+        {
+          "term": "recipiente adiabatico",
+          "sourceQuote": "Calcule a entropia de um recipiente adiabatico."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "bases-de-dados",
@@ -255,7 +310,18 @@
         "gaps": "forgotten"
       },
       "synthesisProvenance": "human",
-      "unsupportedClaims": "arvores balanceadas e tabelas hash resolvem o mesmo problema; hash da a mesma complexidade media mas exige que a chave seja hashavel; como dimensionar a tabela hash para evitar rehashes"
+      "unsupportedClaims": "arvores balanceadas e tabelas hash resolvem o mesmo problema; hash da a mesma complexidade media mas exige que a chave seja hashavel; como dimensionar a tabela hash para evitar rehashes",
+      "expectedDefinitions": [
+        {
+          "term": "teorema CAP",
+          "sourceQuote": "O teorema CAP diz que um banco nao pode garantir simultaneamente consistencia, disponibilidade e tolerancia a particionamento."
+        },
+        {
+          "term": "tolerancia a particionamento",
+          "sourceQuote": "O teorema CAP diz que um banco nao pode garantir simultaneamente consistencia, disponibilidade e tolerancia a particionamento."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "sistema-imunologico-limite",
@@ -277,7 +343,9 @@
       },
       "synthesisProvenance": "human",
       "unsupportedClaims": "o sistema imune identifica padroes moleculares e dispara uma resposta; a mesma assinatura molecular pode ser inofensiva num lugar e perigosa em outro; por que uma pessoa pode ser alergica a uma substancia que outras toleram",
-      "reclassifiedFrom": "ready"
+      "reclassifiedFrom": "ready",
+      "expectedDefinitions": [],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "contradicao-estroma",
@@ -306,7 +374,26 @@
         "gaps": "complete"
       },
       "synthesisProvenance": "human",
-      "unsupportedClaims": "a fixacao depende da energia captada na fase clara"
+      "unsupportedClaims": "a fixacao depende da energia captada na fase clara",
+      "expectedDefinitions": [
+        {
+          "term": "estroma",
+          "sourceQuote": "A segunda fase do ciclo de Calvin ocorre no estroma dos cloroplastos, onde a enzima rubisco fixa o carbono atmosférico na molécula de Accepted glicose."
+        },
+        {
+          "term": "rubisco",
+          "sourceQuote": "A segunda fase do ciclo de Calvin ocorre no estroma dos cloroplastos, onde a enzima rubisco fixa o carbono atmosférico na molécula de Accepted glicose."
+        },
+        {
+          "term": "membrana tilacoidal",
+          "sourceQuote": "Segundo o mesmo mecanismo, a fixação de carbono é realizada exclusivamente na membrana tilacoidal, nunca no estroma."
+        },
+        {
+          "term": "citoplasma",
+          "sourceQuote": "A glicose produzida é exportada para o citoplasma, onde pode ser convertida em amido ou usada na respiração."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "referencia-indefinida",
@@ -327,7 +414,26 @@
         "gaps": "complete"
       },
       "synthesisProvenance": "human",
-      "unsupportedClaims": "da fase clara; o resultado e a glicose; energia captada na luz"
+      "unsupportedClaims": "da fase clara; o resultado e a glicose; energia captada na luz",
+      "expectedDefinitions": [
+        {
+          "term": "estroma",
+          "sourceQuote": "A segunda fase do ciclo de Calvin ocorre no estroma dos cloroplastos."
+        },
+        {
+          "term": "glicólise aeróbica",
+          "sourceQuote": "Como vimos antes, a fixação de carbono segue exatamente o mesmo caminho da glicólise aeróbica."
+        },
+        {
+          "term": "ATP",
+          "sourceQuote": "Cada molécula de CO2 fixado consome 3 ATP e 2 NADPH."
+        },
+        {
+          "term": "NADPH",
+          "sourceQuote": "Cada molécula de CO2 fixado consome 3 ATP e 2 NADPH."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "passa-baixa-fronteira",
@@ -346,7 +452,22 @@
         "application": "complete",
         "gaps": "complete"
       },
-      "synthesisProvenance": "human"
+      "synthesisProvenance": "human",
+      "expectedDefinitions": [
+        {
+          "term": "frequência de corte",
+          "sourceQuote": "Um filtro de passa-baixa atenua frequências acima da sua frequência de corte, e para abaixo dela a resposta tende a unity."
+        },
+        {
+          "term": "Butterworth",
+          "sourceQuote": "A ordem do filtro define a inclinação final:Butterworth tem inclinacao de 20 dB por década, enquanto Chebyshev tem ondulação na banda de passagem."
+        },
+        {
+          "term": "Chebyshev",
+          "sourceQuote": "A ordem do filtro define a inclinação final:Butterworth tem inclinacao de 20 dB por década, enquanto Chebyshev tem ondulação na banda de passagem."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "termo-definido-inline",
@@ -365,7 +486,18 @@
         "application": "complete",
         "gaps": "complete"
       },
-      "synthesisProvenance": "human"
+      "synthesisProvenance": "human",
+      "expectedDefinitions": [
+        {
+          "term": "Árvores balanceadas",
+          "sourceQuote": "Árvores balanceadas mantêm essa busca em tempo logarithmico ao custo de rebalanceamento occasional na inserção."
+        },
+        {
+          "term": "Tabelas hash",
+          "sourceQuote": "Tabelas hash sacrificam ordem, mas trazem a mesma complexidade média de busca sem custo de rebalanceamento."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "somente-listas",
@@ -377,7 +509,9 @@
       },
       "claims": [],
       "exchanges": [],
-      "synthesis": null
+      "synthesis": null,
+      "expectedDefinitions": [],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "contexto-implicito",
@@ -407,7 +541,26 @@
         "gaps": "complete"
       },
       "synthesisProvenance": "human",
-      "unsupportedClaims": "fixar carbono em glicose"
+      "unsupportedClaims": "fixar carbono em glicose",
+      "expectedDefinitions": [
+        {
+          "term": "rubisco",
+          "sourceQuote": "A fixação ocorre no estroma, o fluido interno do cloroplasto, onde a enzima rubisco catalisa a primeira etapa."
+        },
+        {
+          "term": "ATP",
+          "sourceQuote": "O ATP e o NADPH consumidos nesse processo vêm da fotofosforação que acontece nas membranas tilacoidais."
+        },
+        {
+          "term": "NADPH",
+          "sourceQuote": "O ATP e o NADPH consumidos nesse processo vêm da fotofosforação que acontece nas membranas tilacoidais."
+        },
+        {
+          "term": "fotofosforação",
+          "sourceQuote": "O ATP e o NADPH consumidos nesse processo vêm da fotofosforação que acontece nas membranas tilacoidais."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "contradicao-quantidade",
@@ -426,7 +579,22 @@
         "application": "complete",
         "gaps": "complete"
       },
-      "synthesisProvenance": "human"
+      "synthesisProvenance": "human",
+      "expectedDefinitions": [
+        {
+          "term": "ATP",
+          "sourceQuote": "Uma molécula de CO2 fixada consome 3 ATP e 2 NADPH na fase escura."
+        },
+        {
+          "term": "NADPH",
+          "sourceQuote": "Uma molécula de CO2 fixada consome 3 ATP e 2 NADPH na fase escura."
+        },
+        {
+          "term": "citoplasma",
+          "sourceQuote": "A glicose formada é exportada do cloroplasto para o citoplasma."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "promessa-vazia",
@@ -455,7 +623,22 @@
         "application": "complete",
         "gaps": "complete"
       },
-      "synthesisProvenance": "human"
+      "synthesisProvenance": "human",
+      "expectedDefinitions": [
+        {
+          "term": "curva de demanda",
+          "sourceQuote": "Derivada da curva de demanda, tem unidades de resposta por unidade de preço."
+        },
+        {
+          "term": "elástica",
+          "sourceQuote": "Elasticidade-preço é negativa na maioria dos bens, e o sinal indica se a demanda é elástica ou inelástica."
+        },
+        {
+          "term": "inelástica",
+          "sourceQuote": "Elasticidade-preço é negativa na maioria dos bens, e o sinal indica se a demanda é elástica ou inelástica."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "termo-sem-definicao",
@@ -475,7 +658,26 @@
         "gaps": "complete"
       },
       "synthesisProvenance": "human",
-      "unsupportedClaims": "a segunda lei restringe o que pode acontecer; impede que o calor suba sozinho"
+      "unsupportedClaims": "a segunda lei restringe o que pode acontecer; impede que o calor suba sozinho",
+      "expectedDefinitions": [
+        {
+          "term": "sistema isolado",
+          "sourceQuote": "A primeira lei estabelece que a energia se conserva em um sistema isolado."
+        },
+        {
+          "term": "microestados",
+          "sourceQuote": "A entropia quantifica o número de microestados compatíveis com um estado macroscópico."
+        },
+        {
+          "term": "estado macroscópico",
+          "sourceQuote": "A entropia quantifica o número de microestados compatíveis com um estado macroscópico."
+        },
+        {
+          "term": "princípio da mínima entropia",
+          "sourceQuote": "Segundo o princípio da mínima entropia, um sistema espontaneamente evolui no sentido que maximiza a entropia."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "duas-afirmacoes",
@@ -505,7 +707,9 @@
         "gaps": "complete"
       },
       "synthesisProvenance": "human",
-      "unsupportedClaims": "ligadas pela lei de Ohm"
+      "unsupportedClaims": "ligadas pela lei de Ohm",
+      "expectedDefinitions": [],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "contradicao-maior",
@@ -535,7 +739,22 @@
         "gaps": "complete"
       },
       "synthesisProvenance": "human",
-      "unsupportedClaims": "e por isso que a pilula tem revestimento gastrico"
+      "unsupportedClaims": "e por isso que a pilula tem revestimento gastrico",
+      "expectedDefinitions": [
+        {
+          "term": "pH",
+          "sourceQuote": "As enzimas digestivas atuam em pH varied, e cada enzima tem um pH ótimo."
+        },
+        {
+          "term": "pepsina",
+          "sourceQuote": "A pepsina, enzima do estômago, tem pH ótimo em 2, o ambiente fortemente ácido."
+        },
+        {
+          "term": "protease",
+          "sourceQuote": "A protease do pâncreas funciona melhor em pH 8, o meio alcalino do intestino delgado."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "sem-sujeito",
@@ -547,7 +766,9 @@
       },
       "claims": [],
       "exchanges": [],
-      "synthesis": null
+      "synthesis": null,
+      "expectedDefinitions": [],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "apenas-imagens",
@@ -559,7 +780,9 @@
       },
       "claims": [],
       "exchanges": [],
-      "synthesis": null
+      "synthesis": null,
+      "expectedDefinitions": [],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "lista-com-conteudo",
@@ -589,7 +812,22 @@
       },
       "synthesisProvenance": "human",
       "unsupportedClaims": "produzir ATP e NADPH; em glicose",
-      "reclassifiedFrom": "ambiguous"
+      "reclassifiedFrom": "ambiguous",
+      "expectedDefinitions": [
+        {
+          "term": "estroma",
+          "sourceQuote": "A fixação de carbono ocorre no estroma e é catalisada pela enzima rubisco"
+        },
+        {
+          "term": "rubisco",
+          "sourceQuote": "A fixação de carbono ocorre no estroma e é catalisada pela enzima rubisco"
+        },
+        {
+          "term": "fotofosforação",
+          "sourceQuote": "Reler a seção sobre fotofosforação antes da prova"
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "conceito-isolado",
@@ -610,7 +848,9 @@
         "gaps": "complete"
       },
       "synthesisProvenance": "human",
-      "unsupportedClaims": "e composicao sao as tres formas de organizar isso; os tres existem para controlar o acoplamento entre o que muda e o que nao muda; heranca que resolve o problema errado custa mais caro que composicao; quando a composicao vira indirecao desnecessaria"
+      "unsupportedClaims": "e composicao sao as tres formas de organizar isso; os tres existem para controlar o acoplamento entre o que muda e o que nao muda; heranca que resolve o problema errado custa mais caro que composicao; quando a composicao vira indirecao desnecessaria",
+      "expectedDefinitions": [],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "contrato-implicito",
@@ -630,7 +870,9 @@
         "application": "complete",
         "gaps": "complete"
       },
-      "synthesisProvenance": "human"
+      "synthesisProvenance": "human",
+      "expectedDefinitions": [],
+      "expectedDefinitionsProvenance": "human"
     },
     {
       "id": "exemplo-numerico",
@@ -659,7 +901,14 @@
         "application": "complete",
         "gaps": "complete"
       },
-      "synthesisProvenance": "human"
+      "synthesisProvenance": "human",
+      "expectedDefinitions": [
+        {
+          "term": "capacidade de suporte",
+          "sourceQuote": "O crescimento logistico desacelera quando a populacao se aproxima da capacidade de suporte do meio."
+        }
+      ],
+      "expectedDefinitionsProvenance": "human"
     }
   ]
 }

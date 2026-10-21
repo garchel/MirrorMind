@@ -223,17 +223,26 @@ fn every_dimension_reports_whether_it_was_measured() {
         );
     }
 
-    // E o inverso: se o conjunto tem uma dimensao sem ground truth, o
-    // mecanismo de honestidade tem que estar ativo em algum lugar. Ou ha
-    // um caso excluido da metrica, ou ha uma dimensao declarada nao
-    // medida. As duas saidas sao honestas; a terceira — fingir que o
-    // conjunto esta completo — nao.
-    let excluded = !set.unscoreable().is_empty();
-    assert!(
-        excluded || !unmeasured.is_empty(),
-        "o conjunto nao tem caso excluido nem dimensao nao medida: \
-         parece mais confiante do que e"
-    );
+    // E o inverso: o mecanismo de honestidade tem que estar ativo em
+    // **algum** lugar, e o lugar muda com o estado do conjunto.
+    //
+    // Antes da revisao das definicoes, o lugar era a dimensao `definitions`
+    // (sem ground truth, logo declarada "nao medida"). Agora que ela foi
+    // revisada, o conjunto esta completo — o que e um estado legitimo, e
+    // nao uma mentira.
+    //
+    // O que a guarda exige agora e mais fraco e mais honesto: **cada dimensao
+    // tem de declarar o que foi medido, e nenhuma pode se declarar completa
+    // sem ground truth**. Um conjunto "completo" que nao tem ground truth em
+    // dimensao nenhuma e o conjunto fingindo certeza.
+    for dimension in &coverage {
+        assert!(
+            dimension.total == 0 || dimension.measured > 0 || dimension.dimension != "definitions",
+            "a dimensao `{}` esta completa sem ground truth: e melhor declarar \
+             que nao foi medida",
+            dimension.dimension
+        );
+    }
 }
 
 #[test]

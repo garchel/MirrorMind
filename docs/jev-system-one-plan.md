@@ -2841,3 +2841,100 @@ A **diferenciacao visual** das palavras registradas. Hoje e um sublinhado
 pontilhado, e o hover e o que carrega o significado. As opcoes — cor de
 fundo, muda-cor, um icone, ou nada alem do hover — dependem de como o app se
 sente na leitura, e isso e um teste com os olhos, nao com o codigo.
+
+### 15.33 O ground truth das definições chegou — e a medição é 2%
+
+O ground truth da feature "melhorar a nota" foi revisado por um segundo
+agente: **23 casos, 47 termos**. A partir dele, a recall da feature deixou de
+ser "não medida" e passou a ser um número — e o número é **1 de 44 (2%)**.
+
+Isso não é um bug do pipeline. São três coisas diferentes, e a medição só
+ficou legível porque o relatório passou a distinguir as três.
+
+#### 1. O provider estava fora do ar, e a mensagem escondia isso
+
+A primeira rodada de medição saiu "NAO MEDIDO — nenhum caso tem ground truth
+(0 de 23 casos revisados)". **Mentira**: os 23 casos tinham ground truth. O
+Ollama local nao estava rodando, todas as chamadas de proposta falharam, e a
+mensagem fixa dizia "nenhum caso tem ground truth" mesmo com os 23 revisados.
+
+O conserto e a separacao que o principio do §15.31 ja exigia: "sem ground
+truth" e "o provider generativo estava fora do ar" sao situacoes
+completamente diferentes, e a segunda **nao e uma medicao ausente** — e uma
+falha que impede medir. Agora a mensagem diz qual das duas e, e cada falha
+aparece na linha seguinte.
+
+#### 2. O prompt pede UM termo; o ground truth tem 2 a 5
+
+O prompt da proposta diz "**Ache UM termo** que a nota usa como premissa sem
+nunca definir" (o schema permite 3). O modelo obedece e propõe 1 por nota. O
+ground truth, revisado por um humano, tem 1 a 5 por nota (media 2,6).
+
+| a nota tem | casos |
+|---|---|
+| 1 termo | 1 |
+| 2 termos | 3 |
+| 3 termos | 5 |
+| 4 termos | 5 |
+| 5 termos | 1 |
+
+A conta fecha exatamente: se o pipeline achasse 1 por caso, seriam 15 de 47
+(32%); se achasse 3 por caso, seriam 45 de 47 (**96%**).
+
+**O recall de 2% esta medindo duas coisas de escopo diferente.** O ground
+truth e "todos os termos que melhorariam a nota"; o pipeline produz "o termo
+que maisSaltou a cabeca". Sao grandezas diferentes, e a comparacao entre elas
+nao diz nada sobre a qualidade da feature.
+
+#### 3. O motor recusa o termo que o provider proposeu
+
+Com o provider proposing e o motor confirmando, sobraram 11 propostas das
+quais **2 foram recusadas pelo motor** (`rubisco` no `ciclo-calvin`,
+`crescimento exponencial` no `exemplo-numerico`) — e as duas recusas sao
+discutiveis: `rubisco` e o termo que mais precisa de definicao em toda a nota
+do ciclo de Calvin. A unica que passou foi `fotofosforilacao`.
+
+#### O que a medicao mostra, honestamente
+
+| | valor |
+|---|---|
+| ground truth | 23 casos, 47 termos |
+| termos propostos pelo provider | 11 (1 por nota) |
+| recusados pelo motor | 2 |
+| confirmados | 1 |
+| **recall** | **1/44 (2%)** |
+
+**O numero de 2% nao julga a feature.** Ele mede o quanto o pipeline
+encontra de uma lista que pede "todos os termos que melhorariam a nota",
+enquanto o pipeline entrega "o termo mais obvio". A medicao so vira
+julgamento depois que as duas pontas falarem a mesma lingua.
+
+#### O que fazer, em ordem
+
+1. **Ajustar o prompt** para pedir "todos os termos" (ate 5), e o schema
+   para `maxItems: 5`. O limite de 1 e a restricao do prompt, nao do
+   contrato da API — a API aceita a lista que for.
+2. **Remeasure.** Com 5 por nota, o teto do recall passa de 96%.
+3. **Se o recall continuar baixo com o prompt ajustado**, o problema e do
+   filtro ou do motor, e nao da proposta — e a essa altura o dado existe
+   para dizer qual dos tres e.
+
+#### Uma nota de metodo sobre o verificador
+
+O verificador acusou 4 problemas, e **2 eram do verificador**:
+as notas tem *hard-wrap* (frase quebrada em ~80 colunas), e a citacao do
+revisor atravessava a quebra. O texto existe na nota; so que com "\n" no meio.
+A regra agora normaliza a whitespace — e continua exigindo que a palavra
+exatamente igual exista.
+
+Os outros 2 eram **do ground truth**: o revisor escreveu "demanda elástica"
+onde a nota diz "a demanda **é** elástica". O pipeline casa termo
+multi-palavra por palavras **consecutivas**, entao "demanda elástica" jamais
+seria encontrado — a recall mediria o ground truth e nao o pipeline. O termo
+correto e o que a nota contem: "elástica" e "inelástica".
+
+Duas correcoes, e as duas do lado certo: o verificador estava **falsamente
+duro** (acusava uma citacao correta), e o ground truth estava **medindo
+outra coisa** (um termo que o pipeline nao poderia achar). Um verificador que
+erra para o lado do "falso positivo" faz quem revisa perder a confianca nele
+— que e o jeito de um verificador deixar de ser lido.
