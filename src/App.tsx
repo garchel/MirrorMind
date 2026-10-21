@@ -124,6 +124,10 @@ import { disabledSessionClient } from './lib/session'
 import { isBillingEnabled } from './lib/billing'
 import { TabStrip, WorkspaceRail, WorkspaceTopbar, type WorkspacePage } from './features/shell/WorkspaceChrome'
 import { TrashPage } from './features/trash/TrashPage'
+import { DictionaryPage } from './features/dictionary/DictionaryPage'
+import { DictionaryTooltip } from './features/dictionary/DictionaryTooltip'
+import { useDictionary } from './features/dictionary/useDictionary'
+import type { DictionaryEntry } from './features/dictionary/dictionarySchema'
 import { useSettingsNav, type SettingsSectionId } from './features/settings/useSettingsNav'
 import { buildGraphSvg, downloadPng, downloadSvg, graphNodeExportColor } from './lib/graphExport'
 import type { Graph3DExportRequest, Graph3DExportScene } from './components/NoteGraph3D'
@@ -256,6 +260,12 @@ function App() {
   const [isNewNoteDraft, setIsNewNoteDraft] = useState(false)
   const [editorMode, setEditorMode] = useState<'mixed' | 'edit' | 'read'>('mixed')
   const [markdownHistoryStatus, setMarkdownHistoryStatus] = useState<MarkdownEditorHistoryStatus>({ canUndo: false, canRedo: false })
+  // O conceito sob o cursor e o retangulo da palavra, para o balao do
+  // dicionario. Dois estados e nao um: o balao precisa da posicao na tela
+  // para se posicionar acima da palavra, e o texto do conceito para o
+  // conteudo.
+  const [dictionaryHover, setDictionaryHover] = useState<DictionaryEntry | null>(null)
+  const [dictionaryHoverRect, setDictionaryHoverRect] = useState<DOMRect | null>(null)
   const [editorSessionsByPath, setEditorSessionsByPath] = useState<Record<string, MarkdownEditorSession>>({})
   // Teto dos caches por nota (sessoes de cursor/scroll + EditorStates com
   // syntax tree): sem despejo, vaults grandes fixam um por nota visitada.
@@ -360,6 +370,10 @@ function App() {
   const [dropFolderPath, setDropFolderPath] = useState<string | null>(null)
   const [justReleasedDrag, setJustReleasedDrag] = useState(false)
   const [workspacePage, setWorkspacePage] = useState<WorkspacePage>('notes')
+  // O dicionario de conceitos do Vault aberto. Vive aqui (e nao num
+  // contexto global) porque e **por Vault**: o conceito de "rubisco" na
+  // biologia nao e o conceito de "rubisco" na fisica.
+  const { entries: dictionaryEntries } = useDictionary(vault?.path)
   // O explorador de arquivos colapsa fora da pagina de notas para dar espaco
   // ao conteudo da pagina; ao voltar para notas, expande de volta. Sem botao
   // manual — o estado e derivado da pagina atual.
@@ -5167,6 +5181,11 @@ function App() {
                   format={format}
                   postits={postits}
                   noteWordCount={noteWordCount}
+                  dictionary={{
+                    entries: dictionaryEntries,
+                    onHover: setDictionaryHover,
+                    onHoverRect: setDictionaryHoverRect,
+                  }}
                   tools={{
                     open: isMarkdownToolsOpen,
                     toolsRef: markdownToolsRef,
@@ -5194,13 +5213,15 @@ function App() {
               </div>
             )}
               </>
-            ) : workspacePage === 'review' || workspacePage === 'dashboard' || workspacePage === 'reports' || workspacePage === 'tags' || workspacePage === 'bases' || workspacePage === 'goals' ? (
+            ) : workspacePage === 'review' || workspacePage === 'dashboard' || workspacePage === 'reports' || workspacePage === 'tags' || workspacePage === 'bases' || workspacePage === 'goals' || workspacePage === 'dictionary' ? (
               <Suspense fallback={<PageSkeleton variant={workspacePage} />}>
                 {workspacePage === 'goals' ? (
                   <GoalsPage
                     vaultPath={vault.path}
                     onOpenNote={openNoteInWorkspace}
                   />
+                ) : workspacePage === 'dictionary' ? (
+                  <DictionaryPage vaultPath={vault.path} />
                 ) : workspacePage === 'review' ? (
                   activeReviewItem ? (
                     <ReviewSessionPage
@@ -5398,6 +5419,9 @@ function App() {
             onDelete={(target) => requestDelete(target)}
           />
         ) : null}
+        {/* O balao do dicionario: vive fora da arvore do editor porque o
+            editor tem `overflow` proprio, que cortaria o balao. */}
+        <DictionaryTooltip entry={dictionaryHover} rect={dictionaryHoverRect} />
         <SyncConflictsDialog
           open={showSyncConflicts}
           copies={syncConflictCopies}

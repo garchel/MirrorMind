@@ -28,6 +28,7 @@ export type WorkspacePage =
   | 'settings'
   | 'trash'
   | 'goals'
+  | 'dictionary'
 
 /** Abas de notas (dentro do `TitleBar`, só na página de notas). */
 export function TabStrip({
@@ -156,6 +157,16 @@ export function WorkspaceRail({
       >
         <Target size={17} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Metas</span>
+      </Button>
+      <Button
+        type="button"
+        className={`rail-button${workspacePage === 'dictionary' ? ' is-active' : ''}`}
+        onClick={() => setWorkspacePage('dictionary')}
+        aria-label="Abrir dicionário de conceitos"
+        title="Dicionário"
+      >
+        <BookMarked size={17} strokeWidth={1.5} aria-hidden="true" />
+        <span className="rail-label">Dicionário</span>
       </Button>
       <Button
         type="button"

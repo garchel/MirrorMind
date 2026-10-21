@@ -47,6 +47,7 @@ import { replaceMarkdownBody, type MarkdownFormat, type MarkdownTableAction } fr
 import type { MarkdownAutocompleteData } from '../../lib/markdown-autocomplete'
 import type { LinkTarget } from '../../components/markdownLivePreview'
 import type { ReviewGapData } from '../../components/markdownLivePreview'
+import type { DictionaryEntry } from '../dictionary/dictionarySchema'
 import type { EditorMode } from './EditorHeader'
 import type { ReviewGapMode } from '../settings/SettingsPage'
 import { Button } from '../../components/ui/Button'
@@ -150,6 +151,13 @@ export type EditorContentProps = {
   >
   noteWordCount: number
   tools: EditorTools
+  /** Dicionario de conceitos: as palavras registradas e o aviso de hover.
+   * O App e o dono dos dois estados porque o balao e um componente React. */
+  dictionary: {
+    entries: readonly DictionaryEntry[] | null
+    onHover: (entry: DictionaryEntry | null) => void
+    onHoverRect: (rect: DOMRect | null) => void
+  }
 }
 
 export function EditorContent({
@@ -197,6 +205,7 @@ export function EditorContent({
   format,
   postits,
   noteWordCount,
+  dictionary,
   tools: {
     open: isMarkdownToolsOpen,
     toolsRef: markdownToolsRef,
@@ -288,6 +297,9 @@ export function EditorContent({
         value={draftContent}
         onHistoryChange={setMarkdownHistoryStatus}
         session={editorSessionsByPath[activeNotePath]}
+        dictionaryEntries={dictionary.entries}
+        onDictionaryHover={dictionary.onHover}
+        onDictionaryHoverRect={dictionary.onHoverRect}
         onChange={setDraftContent}
         onSessionChange={(session) => {
           setEditorSessionsByPath((currentSessions) => ({
@@ -320,6 +332,9 @@ export function EditorContent({
           onPostitPeek={{ onOpen: openPostitPeek, onClose: schedulePostitPeekClose }}
           onSearchRequest={openNoteFind}
           value={noteBody}
+          dictionaryEntries={dictionary.entries}
+          onDictionaryHover={dictionary.onHover}
+          onDictionaryHoverRect={dictionary.onHoverRect}
           // O doc do Leitura e `noteBody` (sem frontmatter): o merge
           // preserva o frontmatter do draft ao alternar um checkbox.
           onChange={(content) => setDraftContent((current) => replaceMarkdownBody(current, content))}
@@ -354,6 +369,9 @@ export function EditorContent({
           onPostitPeek={{ onOpen: openPostitPeek, onClose: schedulePostitPeekClose }}
           onSearchRequest={openNoteFind}
           value={draftContent}
+          dictionaryEntries={dictionary.entries}
+          onDictionaryHover={dictionary.onHover}
+          onDictionaryHoverRect={dictionary.onHoverRect}
           onChange={setDraftContent}
           onHistoryChange={setMarkdownHistoryStatus}
           onSessionChange={(session) => {

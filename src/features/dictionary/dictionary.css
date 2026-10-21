@@ -1,0 +1,193 @@
+/* Pagina do dicionario de conceitos. */
+
+.dictionary-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Busca e contagem. */
+
+.dictionary-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dictionary-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 420px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.dictionary-search:focus-within {
+  border-color: var(--border-strong);
+}
+
+.dictionary-search input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.dictionary-count {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Formulario de cadastro e edicao. */
+
+.dictionary-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+}
+
+.dictionary-form h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.dictionary-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.dictionary-form input,
+.dictionary-form textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.dictionary-form input:focus,
+.dictionary-form textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.dictionary-form-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.dictionary-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* A lista de verbetes. */
+
+.dictionary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dictionary-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+}
+
+.dictionary-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dictionary-item-term {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.dictionary-item-concept {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dictionary-item-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* A marca da palavra do dicionario no editor.
+ *
+ * Discreta de proposito: a diferenciacao visual forte e uma decisao em
+ * aberto, e um estilo definitivo agora seria retrabalho depois. O que importa
+ * no hover e o conceito - e ele aparece com clareza. */
+
+.cm-dictionary-word {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+/* O balao com o conceito. */
+
+.dictionary-tooltip {
+  position: fixed;
+  z-index: 60;
+  max-width: 320px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+  pointer-events: none;
+}
+
+.dictionary-tooltip-term {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.dictionary-tooltip-concept {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

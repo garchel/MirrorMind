@@ -21,6 +21,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
+pub(crate) mod dictionary;
 pub(crate) mod goals;
 pub mod review;
 pub(crate) mod session;
@@ -6365,6 +6366,19 @@ pub fn run() {
             review::ipc::confirm_openai_compatible_data_consent,
             review::ipc::check_ollama_review_status,
             review::ipc::run_provider_comparability,
+            review::ipc::get_calibration_configuration,
+            review::ipc::get_calibration_comparison,
+            review::ipc::get_note_calibration_divergence,
+            review::ipc::propose_note_improvements,
+            review::ipc::set_calibration_strategy_for_vault,
+            dictionary::ipc::list_dictionary_entries,
+            dictionary::ipc::save_dictionary_entry,
+            dictionary::ipc::remove_dictionary_entry,
+            dictionary::ipc::dictionary_limits,
+            review::ipc::configure_typesafe_api_key,
+            review::ipc::remove_typesafe_api_key,
+            review::ipc::set_typesafe_data_consent,
+            review::ipc::confirm_typesafe_data_consent,
             review::ipc::assess_note_readiness,
             review::ipc::assess_note_synthesis,
             review::ipc::note_session_sources,

@@ -10,6 +10,11 @@ import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
 import { EditorState, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
 import { Decoration, type DecorationSet, EditorView, keymap } from '@codemirror/view'
 import { markdownLivePreview, postitDataEffect, registerPostitClickHandler, registerPostitPeekHandler, reviewGapDataEffect, type LinkTarget, type PostitData, type PostitPeekHandler, type ReviewGapData } from './markdownLivePreview'
+import {
+  dictionaryEntriesEffect,
+  dictionaryExtension,
+  type DictionaryEntry,
+} from '../features/dictionary/dictionaryExtension'
 import { getMarkdownAutocompleteResult, type MarkdownAutocompleteData } from '../lib/markdown-autocomplete'
 import { findTextMatches } from '../lib/findMatches'
 
@@ -82,6 +87,15 @@ type MarkdownCodeEditorProps = {
   /** Peek por hover na bolinha do post-it (abrir sem foco + fechar com
    * tolerancia). Registrado como o clique, via getter para nunca obsoletar. */
   onPostitPeek?: { onOpen: (id: string) => void; onClose: (id: string) => void }
+  /** Verboes do dicionario de conceitos, para marcar as palavras e avisar o
+   * hover. O componente dispara `dictionaryEntriesEffect` sem recriar o
+   * editor — o mesmo caminho de `postitDataEffect`. */
+  dictionaryEntries?: readonly DictionaryEntry[] | null
+  /** O verbete sob o cursor (ou null). Permite ao app mostrar o balao com o
+   * conceito acima da palavra. */
+  onDictionaryHover?: (entry: DictionaryEntry | null) => void
+  /** O retangulo da palavra sob o cursor, para posicionar o balao. */
+  onDictionaryHoverRect?: (rect: DOMRect | null) => void
   /** Quebra de linha automatica (EditorView.lineWrapping). Padrao: true;
    * o modo Leitura read-only respeita a preferência `reading-line-wrap`. */
   lineWrap?: boolean
@@ -305,7 +319,7 @@ const findHighlighter = StateField.define<DecorationSet>({
 })
 
 function MarkdownCodeEditorComponent(
-  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, documentKey, getEmbedContent, historyLimit = 100, lineWrap = true, livePreview = false, onBlur, onChange, onHistoryChange, onOpenLink, onPostitClick, onPostitPeek, onSearchRequest, onSessionChange, readOnly = false, resolveAssetUrl, reviewGapData, postitData, session, spellCheck = true, stateCache, value, vaultPath }: MarkdownCodeEditorProps,
+  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, dictionaryEntries = null, documentKey, getEmbedContent, historyLimit = 100, lineWrap = true, livePreview = false, onBlur, onChange, onDictionaryHover, onDictionaryHoverRect, onHistoryChange, onOpenLink, onPostitClick, onPostitPeek, onSearchRequest, onSessionChange, readOnly = false, resolveAssetUrl, reviewGapData, postitData, session, spellCheck = true, stateCache, value, vaultPath }: MarkdownCodeEditorProps,
   ref: ForwardedRef<MarkdownCodeEditorHandle>,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -336,6 +350,11 @@ function MarkdownCodeEditorComponent(
   const postitDataRef = useRef(postitData)
   const onPostitClickRef = useRef(onPostitClick)
   const onPostitPeekRef = useRef<PostitPeekHandler | undefined>(onPostitPeek)
+  const onDictionaryHoverRef = useRef(onDictionaryHover)
+  const onDictionaryHoverRectRef = useRef(onDictionaryHoverRect)
+  // O valor inicial do dicionario, para o primeiro despacho (na criacao do
+  // editor). O efeito de atualizacao usa o `useEffect`, que roda depois.
+  const dictionaryEntriesRef = useRef(dictionaryEntries)
 
   getEmbedContentRef.current = getEmbedContent
   vaultPathRef.current = vaultPath
@@ -343,6 +362,9 @@ function MarkdownCodeEditorComponent(
   postitDataRef.current = postitData
   onPostitClickRef.current = onPostitClick
   onPostitPeekRef.current = onPostitPeek
+  onDictionaryHoverRef.current = onDictionaryHover
+  onDictionaryHoverRectRef.current = onDictionaryHoverRect
+  dictionaryEntriesRef.current = dictionaryEntries
 
   onChangeRef.current = onChange
   onBlurRef.current = onBlur
@@ -378,6 +400,19 @@ function MarkdownCodeEditorComponent(
     view.dispatch({ effects: postitDataEffect.of(postitData ?? null) })
   }, [postitData])
 
+  // O dicionario muda quando o usuario registra um conceito; dispara o efeito
+  // para as marcas das palavras aparecerem sem recriar o editor.
+  //
+  // O efeito e despachado **depois** que o view existe (ver o `useEffect` que
+  // cria o editor, mais abaixo): um `useEffect` roda na ordem em que foi
+  // declarado, e este esta antes da criacao — o `viewRef.current` seria
+  // `null` e o despacho se perderia, e o dicionario nunca apareceria.
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({ effects: dictionaryEntriesEffect.of(dictionaryEntries ?? null) })
+  }, [dictionaryEntries])
+
   // Widgets CM nao tem acesso a props React: o handler de clique dos pinos e
   // registrado no modulo do live preview (chave '*' captura qualquer pino).
   useEffect(() => registerPostitClickHandler('*', (id) => onPostitClickRef.current?.(id)), [])
@@ -406,6 +441,13 @@ function MarkdownCodeEditorComponent(
       },
       extensions: [
         history({ minDepth: historyLimit }),
+        // O dicionario de conceitos: marca as palavras registradas e avisa o
+        // hover. A extensao e incluida sempre (mesmo sem verbetes) porque o
+        // `StateField` precisa existir para receber o efeito.
+        dictionaryExtension({
+          hoverHandler: (entry) => onDictionaryHoverRef.current?.(entry),
+          hoverRect: (rect) => onDictionaryHoverRectRef.current?.(rect),
+        }),
         // GFM como base: tabelas, tarefas, riscado e links de autolink ganham
         // nos na arvore sintatica, a mesma base do modo Leitura (remark-gfm).
         // A extensao setext desativa o ESTILO de heading (bold) que o
@@ -592,6 +634,12 @@ function MarkdownCodeEditorComponent(
     view.scrollDOM.addEventListener('scroll', handleScroll)
     if (autoFocusRef.current) requestAnimationFrame(() => view.focus())
 
+    // O dicionario entra **aqui**, logo apos a criacao do view: e o
+    // primeiro momento em que existe um editor para marcar. O efeito
+    // declarado antes (que reage a mudancas do dicionario) continua la,
+    // para as atualizacoes seguintes.
+    view.dispatch({ effects: dictionaryEntriesEffect.of(dictionaryEntriesRef.current ?? null) })
+
     return () => {
       view.scrollDOM.removeEventListener('scroll', handleScroll)
       view.destroy()
@@ -640,6 +688,19 @@ function MarkdownCodeEditorComponent(
     view.scrollDOM.scrollTop = previousScrollTop
     activeDocumentKeyRef.current = documentKey
   }, [createEditorState, documentKey, session, value])
+
+  // O dicionario muda quando o usuario registra um conceito: as marcas das
+  // palavras precisam aparecer sem recriar o editor.
+  //
+  // Este efeito e declarado **depois** do que cria o editor, e por isso
+  // encontra um `viewRef.current` de verdade. (A ordem importa: um
+  // `useEffect` roda na ordem em que foi declarado, e o primeiro despacho do
+  // dicionario acontece na criacao do editor.)
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({ effects: dictionaryEntriesEffect.of(dictionaryEntries ?? null) })
+  }, [dictionaryEntries])
 
   return <div ref={containerRef} className="codemirror-markdown-editor" />
 }
