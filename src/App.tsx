@@ -21,6 +21,8 @@ import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover
 import { NoteReadinessControl, type ReviewStartInfo } from './features/review/NoteReadinessControl'
 import { NoteStructureReport } from './features/review/NoteStructureReport'
 import { applyStructuralAuditEdit } from './features/review/structuralAuditApply'
+import { NoteImprovementPanel } from './features/review/NoteImprovementPanel'
+import { applyNoteExpansion } from './features/review/noteExpansionApply'
 import { NoteReviewPolicyControl } from './features/review/NoteReviewPolicyControl'
 import type { ExpiredDeadlineItem, UpcomingDeadlineItem } from './features/review/reviewDashboard'
 import { auditNoteStructure, verifyNoteFacts, type FactCheckAttempt, type StructuralAudit } from './features/review/ai'
@@ -373,7 +375,7 @@ function App() {
   // O dicionario de conceitos do Vault aberto. Vive aqui (e nao num
   // contexto global) porque e **por Vault**: o conceito de "rubisco" na
   // biologia nao e o conceito de "rubisco" na fisica.
-  const { entries: dictionaryEntries } = useDictionary(vault?.path)
+  const { entries: dictionaryEntries, save: saveDictionaryEntry } = useDictionary(vault?.path)
   // O explorador de arquivos colapsa fora da pagina de notas para dar espaco
   // ao conteudo da pagina; ao voltar para notas, expande de volta. Sem botao
   // manual — o estado e derivado da pagina atual.
@@ -455,6 +457,11 @@ function App() {
   const [factCheck, setFactCheck] = useState<FactCheckAttempt | null>(null)
   const [factCheckLoading, setFactCheckLoading] = useState(false)
   const [factCheckError, setFactCheckError] = useState<string | null>(null)
+  // "Melhorar a nota": expande trechos apressados e sugere as definicoes que
+  // faltam. Pagina propria dentro do menu de avaliacao, como a auditoria
+  // estrutural.
+  const [improvementOpen, setImprovementOpen] = useState(false)
+  const [improvementError, setImprovementError] = useState<string | null>(null)
   const [notificationLastCheck, setNotificationLastCheck] = useState<ReviewNotificationCheck | null>(null)
   // Acoes do cabecalho escondidas no menu "Mais acoes" (medicao via
   // ResizeObserver; em ordem de prioridade, da ultima para a primeira).
@@ -2000,6 +2007,92 @@ function App() {
     void runStructuralAudit()
   }
 
+  /**
+   * Aplica uma expansao de trecho apressado ao rascunho.
+   *
+   * A substituicao e **conferida**: o texto no intervalo tem que ser ainda o
+   * trecho que o provider ancorou. Se o rascunho mudou desde a proposta, a
+   * edicao fica desatualizada e nada e gravado — escrever a frase no lugar
+   * errado apagaria conteudo do aluno.
+   */
+  function handleApplyNoteExpansion(expansion: {
+    startUtf16: number
+    endUtf16: number
+    expanded: string
+    sourceQuote: string
+  }) {
+    const nextContent = applyNoteExpansion(draftContent, expansion, expansion.sourceQuote)
+    if (nextContent === null) {
+      setImprovementError(
+        'Não foi possível aplicar a expansão (a nota mudou desde a sugestão). Peça as melhorias de novo.',
+      )
+      return false
+    }
+    setDraftContent(nextContent)
+    return true
+  }
+
+  /**
+   * Aplica uma definicao que faltava, inserindo-a antes do bloco que usa o
+   * termo.
+   *
+   * A insercao e **aditiva** (nao substitui nada), e por isso os offsets
+   * das outras sugestoes continuam valendo depois.
+   */
+  function handleApplyNoteSuggestion(suggestion: {
+    term: string
+    definition: string
+    startUtf16: number
+  }) {
+    const edit = {
+      kind: 'insertText' as const,
+      startUtf16: suggestion.startUtf16,
+      endUtf16: suggestion.startUtf16,
+      insert: `\n\n${suggestion.definition.trim()}\n\n`,
+      message: `Definicao de ${suggestion.term}`,
+    }
+    const nextContent = applyStructuralAuditEdit(draftContent, edit)
+    if (nextContent === null) {
+      setImprovementError(
+        'Não foi possível aplicar a sugestão (offsets desatualizados). Peça as melhorias de novo.',
+      )
+      return false
+    }
+    setDraftContent(nextContent)
+    return true
+  }
+
+  /**
+   * Registra um conceito no Dicionario do Vault.
+   *
+   * E o que fecha o ciclo: a definicao que faltava deixa de ser reescrita em
+   * cada nota, e passa a aparecer no hover de qualquer nota.
+   */
+  async function handleSaveToDictionary(term: string, concept: string) {
+    if (!vault) return false
+    try {
+      await saveDictionaryEntry(term, concept)
+      return true
+    } catch (failure) {
+      setImprovementError(
+        failure instanceof Error ? failure.message : String(failure),
+      )
+      return false
+    }
+  }
+
+  /**
+   * Abre a pagina "melhorar a nota".
+   *
+   * Nao chama a IA aqui: o painel so pede as sugestoes quando o usuario
+   * clica em "Sugerir melhorias". Abrir a pagina nao consome provider.
+   */
+  function openImprovementPanel() {
+    if (!vault || !activeNote || isNewNoteDraft) return
+    setImprovementError(null)
+    setImprovementOpen(true)
+  }
+
   useEffect(() => {
     setAuditReportOpen(false)
     setStructuralAudit(null)
@@ -2008,6 +2101,7 @@ function App() {
     setFactCheckOpen(false)
     setFactCheck(null)
     setFactCheckError(null)
+    setImprovementOpen(false)
   }, [activeNote?.relativePath])
 
   useEffect(() => {
@@ -4895,6 +4989,18 @@ function App() {
                     onRetry={() => void runStructuralAudit()}
                     onApply={handleApplyStructuralAuditEdit}
                   />
+                ) : improvementOpen ? (
+                  <NoteImprovementPanel
+                    vaultPath={vault.path}
+                    relativePath={activeNote.relativePath}
+                    provider={reviewProvider}
+                    before={draftContent}
+                    externalError={improvementError}
+                    onApply={handleApplyNoteSuggestion}
+                    onApplyExpansion={handleApplyNoteExpansion}
+                    onSaveToDictionary={handleSaveToDictionary}
+                    onBack={() => setImprovementOpen(false)}
+                  />
                 ) : (
                 <NoteReadinessControl
                   vaultPath={vault.path}
@@ -4916,6 +5022,7 @@ function App() {
                     }
                   }}
                   onAuditStructure={openAuditReport}
+                  onImproveNote={openImprovementPanel}
                   adjustments={reviewReportOpen ? null : (
                     <>
                       <NoteReviewPolicyControl

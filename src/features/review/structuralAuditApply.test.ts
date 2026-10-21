@@ -17,6 +17,34 @@ describe('applyStructuralAuditEdit', () => {
     expect(result).toBe('## Introducao\n\nParagrafo antes do titulo.\n\n## Secao\n\nConteudo da secao.\n')
   })
 
+  it('insere um texto sem mexer no que esta em volta', () => {
+    // A edicao e **aditiva**: e assim que a definicao do termo entra antes
+    // do paragrafo que a usa, sem apagar nada do rascunho do aluno.
+    const offset = CONTENT.indexOf('Paragrafo')
+    const result = applyStructuralAuditEdit(CONTENT, {
+      kind: 'insertText',
+      startUtf16: offset,
+      endUtf16: offset,
+      insert: 'Estroma: o fluido interno do cloroplasto.\n\n',
+      ops: null,
+    })
+    expect(result).toBe(
+      'Estroma: o fluido interno do cloroplasto.\n\nParagrafo antes do titulo.\n\n## Secao\n\nConteudo da secao.\n',
+    )
+  })
+
+  it('recusa um insertText sem texto', () => {
+    expect(
+      applyStructuralAuditEdit(CONTENT, {
+        kind: 'insertText',
+        startUtf16: 0,
+        endUtf16: 0,
+        insert: null,
+        ops: null,
+      }),
+    ).toBeNull()
+  })
+
   it('remove o intervalo de uma linha (titulo vazio)', () => {
     const start = CONTENT.indexOf('## Secao\n\nConteudo')
     const end = start + '## Secao'.length

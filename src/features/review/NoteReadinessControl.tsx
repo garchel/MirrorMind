@@ -38,6 +38,9 @@ type NoteReadinessControlProps = {
   /** Abre a pagina de avaliacao de estrutura ( auditoria deterministica,
    *  espelho da pagina de avaliacao da nota). */
   onAuditStructure?: () => void
+  /** Abre a pagina "melhorar a nota": expande trechos apressados e sugere as
+   *  definicoes que faltam (com IA). */
+  onImproveNote?: () => void
   /** Politica de revisao (vinda do pai): ajustes, apos divisor. */
   adjustments?: ReactNode
 }
@@ -67,6 +70,7 @@ export function NoteReadinessControl({
   onReportOpenChange,
   onSaveFirst,
   onAuditStructure,
+  onImproveNote,
   adjustments,
 }: NoteReadinessControlProps) {
   // Ciclo de vida da prontidao com dono proprio; aqui ficam so props de
@@ -235,6 +239,19 @@ export function NoteReadinessControl({
         >
           <span aria-hidden="true"><HugeiconsIcon icon={StructureCheckIcon} size={15} strokeWidth={1.5} /></span>
           <span>Avaliar estrutura</span>
+        </Button>
+      ) : null}
+      {onImproveNote ? (
+        <Button
+          type="button"
+          className="ui-button ui-button--secondary ui-button--sm note-structure-trigger"
+          onClick={() => onImproveNote()}
+          disabled={disabled}
+          title="Expandir os trechos apressados e escrever as definições que faltam (usa IA)"
+          aria-label="Melhorar a nota"
+        >
+          <span aria-hidden="true"><Sparkles size={15} strokeWidth={1.5} /></span>
+          <span>Melhorar a nota</span>
         </Button>
       ) : null}
       {adjustments}

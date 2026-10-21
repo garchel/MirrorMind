@@ -1141,3 +1141,172 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
+
+/* --- "Melhorar a nota" ---------------------------------------------------
+ *
+ * O painel mostra o antes e o lado a lado: o trecho apressado e a frase
+ * completa. As duas colunas precisam ter o mesmo peso visual, senao o olho
+ * nao sabe qual e a proposta.
+ */
+
+.review-improvement-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 340px;
+  max-width: 560px;
+}
+
+.review-improvement-intro {
+  margin: 0;
+  font-size: var(--font-size-caption);
+  color: var(--muted, var(--mm-ink-800-4));
+}
+
+.review-improvement-empty {
+  margin: 0;
+  font-size: var(--font-size-caption);
+  color: var(--muted, var(--mm-ink-800-4));
+  font-style: italic;
+}
+
+.review-improvement-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font: 600 12px var(--sans);
+  color: var(--mm-ink-900-1, inherit);
+}
+
+.review-improvement-expansions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-improvement-expansion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--mm-ink-200-2, rgb(0 0 0 / 0.08));
+  border-radius: 8px;
+}
+
+.review-improvement-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.review-improvement-column {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.review-improvement-column-title {
+  margin: 0;
+  font: 600 10px var(--sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, var(--mm-ink-800-4));
+}
+
+.review-improvement-block {
+  margin: 0;
+  padding: 7px 8px;
+  border-radius: 6px;
+  font-size: var(--font-size-caption);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.review-improvement-block.is-removed {
+  background: color-mix(in srgb, var(--mm-danger-100, #fdecec) 70%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--mm-danger-500, #c0392b) 60%, transparent);
+}
+
+.review-improvement-block.is-inserted {
+  background: color-mix(in srgb, var(--mm-success-100, #e8f6ee) 70%, transparent);
+}
+
+.review-improvement-hint {
+  color: var(--muted, var(--mm-ink-800-4));
+  font-size: var(--font-size-caption);
+}
+
+/* --- Modal do Dicionario ------------------------------------------------ */
+
+.dictionary-offer-dialog {
+  max-width: 520px;
+}
+
+.dictionary-offer-intro {
+  margin: 0 0 12px;
+  font-size: var(--font-size-caption);
+  color: var(--muted, var(--mm-ink-800-4));
+  line-height: 1.5;
+}
+
+.dictionary-offer-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dictionary-offer-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--mm-ink-200-2, rgb(0 0 0 / 0.08));
+  border-radius: 8px;
+}
+
+.dictionary-offer-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dictionary-offer-term {
+  font: 600 13px var(--sans);
+}
+
+.dictionary-offer-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-caption);
+  color: var(--mm-success-700, #1e7a4d);
+}
+
+.dictionary-offer-label {
+  display: block;
+}
+
+.dictionary-offer-label textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: 400 12px/1.5 var(--sans);
+  padding: 7px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--mm-ink-200-2, rgb(0 0 0 / 0.12));
+  background: transparent;
+  color: inherit;
+}
+
+.dictionary-offer-label textarea:focus-visible {
+  outline: 2px solid var(--mm-accent-500, currentColor);
+  outline-offset: 1px;
+}

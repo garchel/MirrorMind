@@ -25,7 +25,7 @@ use mirrormind_lib::review::calibrated::eval::golden::{
 use mirrormind_lib::review::calibrated::eval::metrics::{Prediction, ScoredCase};
 use mirrormind_lib::review::calibrated::eval::{ComparisonReport, DEFAULT_THRESHOLDS};
 use mirrormind_lib::review::calibrated::improvements::confirm_definition_proposals;
-use mirrormind_lib::review::calibrated::proposals::propose_definitions;
+use mirrormind_lib::review::calibrated::proposals::propose_improvements;
 use mirrormind_lib::review::calibrated::questions::{
     instructions, options_from_pairs, QuestionSpec,
 };
@@ -458,7 +458,7 @@ fn measure_definition_recall(
             continue;
         }
         let markdown = note_of(&case.note);
-        let proposals = match propose_definitions(legacy_provider, &markdown) {
+        let proposals = match propose_improvements(legacy_provider, &markdown) {
             Ok(outcome) => outcome,
             Err(failure) => {
                 summary

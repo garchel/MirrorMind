@@ -974,6 +974,20 @@ pub(crate) fn get_note_calibration_divergence(
     }))
 }
 
+/// Uma expansao de trecho que o aluno escreveu apressado.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteImprovementExpansion {
+    /// O trecho original da nota, literal.
+    pub source_quote: String,
+    /// A frase completa que o aluno quis dizer.
+    pub expanded: String,
+    /// Onde o trecho original comeca, em offset UTF-16.
+    pub start_utf16: u64,
+    /// Onde o trecho original termina, em offset UTF-16.
+    pub end_utf16: u64,
+}
+
 /// Uma sugestao de melhoria da nota, ja confirmada.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -992,6 +1006,9 @@ pub struct NoteImprovementSuggestion {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoteImprovementReport {
+    /// As expansoes de trecho apressado, prontas para aplicar.
+    pub expansions: Vec<NoteImprovementExpansion>,
+    /// As definicoes que faltam, ja confirmadas.
     pub suggestions: Vec<NoteImprovementSuggestion>,
     /// Quantas propostas o provider fez e o filtro recusou.
     ///
@@ -1002,12 +1019,17 @@ pub struct NoteImprovementReport {
     pub invalid: bool,
 }
 
-/// Sugere melhorias para uma nota: definicoes que faltam.
+/// Sugere melhorias para uma nota: expansoes de trechos apressados e
+/// definicoes que faltam.
 ///
 /// O provider **generativo** propoe (ele escreve texto) e o **motor
 /// calibrado** confirma (ele julga). A ordem importa: as checagens
 /// deterministicas rodam entre as duas, porque cada proposta recusada ali e
 /// uma chamada de JEV que nao precisa acontecer.
+///
+/// A expansao **nao** passa pelo motor calibrado: o motor julga se um termo
+/// precisa de definicao, o que ele nao faz e dizer o que o aluno quis
+/// escrever. E um texto gerado, revisado pelo usuario.
 #[tauri::command]
 pub(crate) async fn propose_note_improvements(
     path: String,
@@ -1034,10 +1056,11 @@ pub(crate) async fn propose_note_improvements(
 
         // 1. O provider generativo propoe.
         let outcome =
-            super::calibrated::proposals::propose_definitions(provider.as_ref(), &markdown)
+            super::calibrated::proposals::propose_improvements(provider.as_ref(), &markdown)
                 .map_err(|failure| failure.message)?;
         if outcome.invalid {
             return Ok(NoteImprovementReport {
+                expansions: Vec::new(),
                 suggestions: Vec::new(),
                 rejected: outcome.rejected.len(),
                 invalid: true,
@@ -1083,7 +1106,19 @@ pub(crate) async fn propose_note_improvements(
             }
         }
 
+        let expansions = outcome
+            .expansions
+            .into_iter()
+            .map(|expansion| NoteImprovementExpansion {
+                source_quote: expansion.source_quote,
+                expanded: expansion.expanded,
+                start_utf16: expansion.start_utf16,
+                end_utf16: expansion.end_utf16,
+            })
+            .collect();
+
         Ok(NoteImprovementReport {
+            expansions,
             suggestions,
             rejected: outcome.rejected.len(),
             invalid: false,

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { BookMarked, Wand2 } from 'lucide-react'
 import { NoteImprovementDiff } from './NoteImprovementDiff'
+import { DictionaryOfferModal } from './DictionaryOfferModal'
 import { proposeNoteImprovements, type NoteImprovementReport } from './calibrationComparison'
 import type { ReviewAiProvider } from './ai'
 
@@ -9,16 +11,19 @@ import type { ReviewAiProvider } from './ai'
  *
  * ## O que ele faz
  *
- * Pede ao provider generativo os termos que a nota usa sem definir, deixa o
- * filtro deterministico e o motor calibrado descartarem o que nao presta, e
- * mostra o que sobrou **lado a lado**: a nota como esta, e a nota com a
- * definicao inserida.
+ * Faz duas perguntas ao provider generativo, e mostra o resultado **lado a
+ * lado** com a nota:
+ *
+ * 1. **Expansao**: os trechos que o aluno escreveu apressado — anotacao de
+ *    video aula, contao de propria autoria — viram a frase que ele quis dizer.
+ * 2. **Definicoes**: os termos que a nota usa como premissa sem nunca
+ *    explicar, com a definicao que faltava.
  *
  * ## O que ele nao faz
  *
- * Nao altera a nota sozinho. A sugestao e **aplicada ao rascunho** e o
- * usuario revisa antes de salvar — o mesmo cuidado do `applyStructuralAuditEdit`
- * que a auditoria estrutural ja usa.
+ * Nao altera a nota sozinho. Tudo e **aplicado ao rascunho** e o usuario
+ * revisa antes de salvar — o mesmo cuidado do `applyStructuralAuditEdit` que a
+ * auditoria estrutural ja usa.
  *
  * ## O provider
  *
@@ -31,7 +36,10 @@ export function NoteImprovementPanel({
   relativePath,
   provider,
   before,
+  externalError,
   onApply,
+  onApplyExpansion,
+  onSaveToDictionary,
   onBack,
 }: {
   vaultPath: string
@@ -39,19 +47,39 @@ export function NoteImprovementPanel({
   provider: ReviewAiProvider
   /** O conteudo atual da nota, para o painel "antes". */
   before: string
+  /**
+   * Erro vindo do pai (edicao desatualizada, falha ao gravar no
+   * Dicionario). Aparece junto do erro local.
+   */
+  externalError?: string | null
   /** Aplica a sugestao ao rascunho. Devolve `false` quando a edicao e invalida. */
   onApply: (suggestion: { term: string; definition: string; startUtf16: number }) => boolean
+  /**
+   * Aplica a expansao ao rascunho: substitui o trecho original pela frase
+   * completa. Devolve `false` quando a edicao e invalida.
+   */
+  onApplyExpansion: (expansion: { startUtf16: number; endUtf16: number; expanded: string }) => boolean
+  /**
+   * Registra um conceito no Dicionario do Vault.
+   *
+   * Devolve `true` quando gravou.
+   */
+  onSaveToDictionary: (term: string, concept: string) => Promise<boolean>
   onBack: () => void
 }) {
   const [report, setReport] = useState<NoteImprovementReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [applied, setApplied] = useState(false)
+  const [appliedExpansions, setAppliedExpansions] = useState<number[]>([])
+  const [dictionaryOpen, setDictionaryOpen] = useState(false)
+  const [dictionarySaved, setDictionarySaved] = useState<string[]>([])
 
   async function run() {
     setLoading(true)
     setError('')
     setApplied(false)
+    setAppliedExpansions([])
     try {
       setReport(
         await proposeNoteImprovements(vaultPath, relativePath, provider),
@@ -63,12 +91,17 @@ export function NoteImprovementPanel({
     }
   }
 
+  const expansions = report?.expansions ?? []
+  const suggestions = report?.suggestions ?? []
+  const nothingToDo =
+    expansions.length === 0 && suggestions.length === 0
+
   return (
     <div className="review-setup review-improvement-panel">
       <p className="review-session-kicker">Melhorar a nota</p>
       <p className="review-improvement-intro">
-        Procura termos que a nota usa como premissa sem nunca definir, e escreve a
-        definição que faltava. Você revisa antes de salvar.
+        Expande os trechos que você escreveu apressado e escreve a definição dos
+        termos que a nota usa sem explicar. Você revisa antes de salvar.
       </p>
 
       <div className="review-ai-inline-actions">
@@ -85,45 +118,119 @@ export function NoteImprovementPanel({
         </Button>
       </div>
 
-      {error ? <p className="field-error" role="alert">{error}</p> : null}
+      {error || externalError ? (
+        <p className="field-error" role="alert">{error || externalError}</p>
+      ) : null}
 
       {report && !loading ? (
         report.invalid ? (
           <p className="review-improvement-empty">
             A IA não respondeu no formato esperado. Nenhuma sugestão foi feita.
           </p>
-        ) : report.suggestions.length === 0 ? (
+        ) : nothingToDo ? (
           <p className="review-improvement-empty">
-            Nenhuma definição faltando nesta nota.
+            Nada a melhorar nesta nota.
             {report.rejected > 0
               ? ` ${report.rejected} sugestão(ões) foram descartadas por não se sustentarem.`
               : ''}
           </p>
         ) : (
           <>
-            <NoteImprovementDiff
-              before={before}
-              suggestions={report.suggestions}
-            />
-            <div className="review-ai-inline-actions">
-              <Button
-                type="button"
-                className="ui-button ui-button--sm"
-                disabled={applied}
-                onClick={() => {
-                  const first = report.suggestions[0]
-                  if (first && onApply(first)) setApplied(true)
-                }}
-              >
-                {applied ? 'Aplicada ao rascunho' : 'Aplicar a primeira sugestão'}
-              </Button>
-            </div>
-            <small className="review-improvement-hint">
-              A sugestão vai para o rascunho. Revise e salve para valer.
-            </small>
+            {expansions.length > 0 ? (
+              <section className="review-improvement-expansions">
+                <h3 className="review-improvement-section-title">
+                  <Wand2 size={15} aria-hidden="true" />
+                  Trechos que você escreveu apressado
+                </h3>
+                {expansions.map((expansion, index) => (
+                  <div key={`${expansion.startUtf16}`} className="review-improvement-expansion">
+                    <div className="review-improvement-pair">
+                      <div className="review-improvement-column">
+                        <p className="review-improvement-column-title">Como está</p>
+                        <p className="review-improvement-block is-removed">
+                          {expansion.sourceQuote}
+                        </p>
+                      </div>
+                      <div className="review-improvement-column">
+                        <p className="review-improvement-column-title">O que você quis dizer</p>
+                        <p className="review-improvement-block is-inserted">
+                          {expansion.expanded}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="review-ai-inline-actions">
+                      <Button
+                        type="button"
+                        className="ui-button ui-button--sm"
+                        disabled={appliedExpansions.includes(index)}
+                        onClick={() => {
+                          if (onApplyExpansion(expansion)) {
+                            setAppliedExpansions((current) => [...current, index])
+                          }
+                        }}
+                      >
+                        {appliedExpansions.includes(index)
+                          ? 'Aplicada ao rascunho'
+                          : 'Aplicar ao rascunho'}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </section>
+            ) : null}
+
+            {suggestions.length > 0 ? (
+              <>
+                <NoteImprovementDiff
+                  before={before}
+                  suggestions={suggestions}
+                />
+                <div className="review-ai-inline-actions">
+                  <Button
+                    type="button"
+                    className="ui-button ui-button--sm"
+                    disabled={applied}
+                    onClick={() => {
+                      const first = suggestions[0]
+                      if (first && onApply(first)) setApplied(true)
+                    }}
+                  >
+                    {applied ? 'Aplicada ao rascunho' : 'Aplicar a primeira sugestão'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="ui-button ui-button--secondary ui-button--sm"
+                    onClick={() => setDictionaryOpen(true)}
+                  >
+                    <BookMarked size={14} aria-hidden="true" />
+                    Adicionar ao dicionário
+                  </Button>
+                </div>
+                <small className="review-improvement-hint">
+                  A sugestão vai para o rascunho. Revise e salve para valer.
+                </small>
+              </>
+            ) : null}
           </>
         )
       ) : null}
+
+      <DictionaryOfferModal
+        open={dictionaryOpen}
+        suggestions={suggestions}
+        saved={dictionarySaved}
+        onClose={() => setDictionaryOpen(false)}
+        onSave={async (term, concept) => {
+          const wrote = await onSaveToDictionary(term, concept)
+          if (wrote) {
+            setDictionarySaved((current) =>
+              current.includes(term) ? current : [...current, term],
+            )
+          }
+          return wrote
+        }}
+      />
     </div>
   )
 }

@@ -379,7 +379,14 @@ const structuralAuditEditOpSchema = z.object({
 }).strict()
 
 const structuralAuditEditSchema = z.object({
-  kind: z.enum(['insertHeadingBefore', 'removeLines', 'splitSection']),
+  /**
+   * `insertText` insere um bloco de texto sem mexer no que esta em volta.
+   *
+   * E o que a feature "melhorar a nota" usa para colocar a definicao do
+   * termo antes do paragrafo que o usa: a edicao e **aditiva**, entao os
+   * offsets das outras sugestoes continuam valendo depois.
+   */
+  kind: z.enum(['insertHeadingBefore', 'insertText', 'removeLines', 'splitSection']),
   startUtf16: z.number().int().nonnegative(),
   endUtf16: z.number().int().positive().nullable(),
   insert: z.string().min(1).nullable(),

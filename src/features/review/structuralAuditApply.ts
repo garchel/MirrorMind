@@ -18,7 +18,7 @@ export function applyStructuralAuditEdit(
     return null
   }
 
-  if (edit.kind === 'insertHeadingBefore') {
+  if (edit.kind === 'insertHeadingBefore' || edit.kind === 'insertText') {
     if (!edit.insert) return null
     return content.slice(0, edit.startUtf16) + edit.insert + content.slice(edit.startUtf16)
   }

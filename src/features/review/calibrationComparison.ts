@@ -73,6 +73,20 @@ export async function getNoteCalibrationDivergence(
 
 // --- melhorias da nota ------------------------------------------------------
 
+/**
+ * A expansao de um trecho que o aluno escreveu apressado.
+ *
+ * `sourceQuote` e o trecho original (a ancora) e `expanded` e a frase
+ * completa que o aluno quis dizer. `startUtf16` e `endUtf16` delimitam o
+ * trecho original, para a substituicao ser exata.
+ */
+const improvementExpansionSchema = z.object({
+  sourceQuote: z.string().min(1),
+  expanded: z.string().min(1),
+  startUtf16: z.number().int().nonnegative(),
+  endUtf16: z.number().int().nonnegative(),
+}).strict()
+
 const improvementSuggestionSchema = z.object({
   term: z.string().min(1),
   definition: z.string().min(1),
@@ -82,19 +96,22 @@ const improvementSuggestionSchema = z.object({
 }).strict()
 
 const improvementReportSchema = z.object({
+  expansions: z.array(improvementExpansionSchema).max(20),
   suggestions: z.array(improvementSuggestionSchema).max(20),
   rejected: z.number().int().nonnegative(),
   invalid: z.boolean(),
 }).strict()
 
+export type NoteImprovementExpansion = z.infer<typeof improvementExpansionSchema>
 export type NoteImprovementSuggestion = z.infer<typeof improvementSuggestionSchema>
 export type NoteImprovementReport = z.infer<typeof improvementReportSchema>
 
 /**
  * Pede sugestoes de melhoria para a nota.
  *
- * O provider generativo propoe e o motor calibrado confirma. A estrategia do
- * Vault decide se o motor calibrado participa.
+ * O provider generativo propoe (expansoes e definicoes) e o motor
+ * calibrado confirma as definicoes. A estrategia do Vault decide se o motor
+ * calibrado participa.
  */
 export async function proposeNoteImprovements(
   vaultPath: string,
@@ -108,3 +125,4 @@ export async function proposeNoteImprovements(
   })
   return improvementReportSchema.parse(payload)
 }
+
