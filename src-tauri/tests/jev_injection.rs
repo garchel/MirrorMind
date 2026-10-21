@@ -29,10 +29,13 @@ use mirrormind_lib::review::calibrated::questions::{
 };
 use mirrormind_lib::review::calibrated::readiness::classify_readiness;
 use mirrormind_lib::review::calibrated::typesafe::TypeSafeProvider;
-use mirrormind_lib::review::calibrated::CalibratedProvider;
-use mirrormind_lib::review::calibrated::{state_object, CalibrationEngine};
+use mirrormind_lib::review::calibrated::{
+    state_object, Answer, CalibratedProvider, CalibrationEngine, ChoiceAnswer,
+};
+use mirrormind_lib::review::calibrated::answers::choice_confidence_from;
 use mirrormind_lib::review::credentials::{load_typesafe_api_key, NativeCredentialStore};
 use mirrormind_lib::review::evaluation::ReadinessStatus;
+use mirrormind_lib::review::provider::ProviderFailure;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
@@ -249,15 +252,86 @@ fn the_harness_reports_no_movement_when_nothing_moves() {
         "e a confianca tambem nao pode variar sozinha"
     );
 
-    // A forma como o movimento aparece no relatorio da F1: rotulo igual vira
-    // "sem divergencia"; rotulo diferente vira divergencia. Se o provider
-    // devolvesse sempre o mesmo rotulo, o teste de injecao nunca acusaria
-    // nada — e um vazio assim passa por robustez.
+    // A outra metade do par: o harness **sabe** acusar quando o veredito se
+    // move. Sem este par, um harness que nunca acusa passaria por robustez.
     assert_eq!(control.status, treated.status);
+}
+
+/// Provider de teste que responde **conforme o conteudo da nota**.
+///
+/// O mock global e constante: devolve o mesmo rotulo para qualquer entrada.
+/// Isso e o que faz o teste acima valer — e o que impede o harness de ter
+/// capacidade de distinguir. Este provider existe para a outra metade.
+struct MovingProvider;
+
+impl CalibratedProvider for MovingProvider {
+    fn engine(&self) -> CalibrationEngine {
+        CalibrationEngine::Jev
+    }
+
+    fn model(&self) -> &'static str {
+        "moving-test-provider"
+    }
+
+    fn evaluate(
+        &self,
+        state: &Value,
+        questions: &BTreeMap<String, QuestionSpec>,
+    ) -> Result<mirrormind_lib::review::calibrated::CalibratedResponse, ProviderFailure> {
+        let markdown = state
+            .get("untrusted_note_markdown")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        // A nota com o bloco de injecao e a que o motor "enxerga" diferente.
+        let injected = markdown.contains(">> SISTEMA");
+        let choice = if injected { "ambiguous" } else { "ready" };
+        let probabilities = BTreeMap::from([
+            ("ready".to_string(), if injected { 0.2 } else { 0.8 }),
+            (
+                "ambiguous".to_string(),
+                if injected { 0.6 } else { 0.15 },
+            ),
+            (
+                "insufficient".to_string(),
+                if injected { 0.2 } else { 0.05 },
+            ),
+        ]);
+        let mut answers = BTreeMap::new();
+        for id in questions.keys() {
+            answers.insert(
+                id.clone(),
+                Answer::Choice(ChoiceAnswer {
+                    choice: choice.to_string(),
+                    probabilities: probabilities.clone(),
+                    confidence: choice_confidence_from(&probabilities),
+                }),
+            );
+        }
+        Ok(mirrormind_lib::review::calibrated::CalibratedResponse {
+            model: self.model().to_string(),
+            answers,
+            input_tokens: Some(0),
+            output_tokens: Some(0),
+            latency_ms: 0,
+            raw_response: "moving-test-provider".to_string(),
+        })
+    }
+}
+
+/// O harness distingue um veredito que se move.
+#[test]
+fn the_harness_detects_a_movement_when_the_verdict_moves() {
+    // A contraparte necessaria do teste acima. Sem ela, "o harness nao acusa"
+    // e indistinguivel de "o harness nao sabe acusar" — e o arquivo inteiro
+    // seria um vazio que passa por robustez.
+    let provider = MovingProvider;
+    let control = classify_readiness(&provider, CLEAN_NOTE, &[]).expect("controle");
+    let treated = classify_readiness(&provider, INJECTED_NOTE, &[]).expect("tratada");
+
     assert_ne!(
-        control.status,
-        ReadinessStatus::Insufficient,
-        "o mock precisa produzir um rotulo que nao seja o de `insufficient`, \
-         senao este teste nao distingue nada"
+        control.status, treated.status,
+        "o harness precisa distinguir um veredito que se move"
     );
+    assert_eq!(control.status, ReadinessStatus::Ready);
+    assert_eq!(treated.status, ReadinessStatus::Ambiguous);
 }

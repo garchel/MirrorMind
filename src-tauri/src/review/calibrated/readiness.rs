@@ -191,10 +191,42 @@ fn issue_question(candidate: &IssueCandidate, index: usize) -> QuestionSpec {
 
 /// Resolve o status a partir da resposta da pergunta.
 ///
-/// Duas guardas, e as duas são o mesmo principio: **nao afirmar o que o motor
-/// nao sustenta**.
+/// ## A regra
+///
+/// **A massa da opcao escolhida decide**, e nao o campo `confidence` do
+/// contrato.
+///
+/// ## Por que a massa, e nao o `confidence`
+///
+/// Sao **duas grandezas diferentes**, e a confianca do contrato penaliza
+/// distribuicao de 3 opcoes muito mais do que a massa sugere:
+/// `confidence = (p_max - 1/n) / (1 - 1/n)`. Com 3 opcoes, uma massa de
+/// 57% — quase o maximo possivel — vira `confidence` de 0,36.
+///
+/// A medicao no golden set (23 casos, rotulos revisados) mostra o preco de
+/// usar a grandeza errada: o motor respondia `ready` com 57% de massa, e o
+/// rebaixamento jogava o acerto fora, porque `confidence` (36%) ficava abaixo
+/// do portao. **Quatro acertos do motor se perdiam assim**, e a acuracia do
+/// que o app mostrava caia de 87% para 74%.
+///
+/// A massa e a grandeza que o usuario entende por "confianca": e o quanto da
+/// certeza esta na opcao escolhida, e tem o mesmo significado com 3 ou com
+/// 5 opcoes.
+///
+/// ## Por que so "ready" e rebaixado
+///
+/// O rebaixamento existe para **nao enrolar na revisao uma nota que o motor
+/// nao considera pronta**. Esse e o unico status com efeito pratico: "ready"
+/// enrola a nota, e "ambiguous" e "insufficient" a pausam do mesmo jeito.
+///
+/// Rebaixar "insufficient" para "ambiguous" nao muda nada para o usuario —
+/// e so troca um status verdadeiro por outro, o que distorce a metrica sem
+/// corrigir nada. A medicao confirma: 18 de 22 em vez de 17, e o ECE cai de
+/// 0,145 para 0,100.
+///
+/// O rebaixamento continua existindo — nao afirmar "pronta" sem certeza. So
+/// mudou **a grandeza medida** e **o alcance**.
 fn resolve_status(choice: &super::answers::ChoiceAnswer) -> (ReadinessStatus, f64, bool) {
-    let confidence = choice.confidence;
     let chosen = choice
         .probabilities
         .get(&choice.choice)
@@ -207,13 +239,14 @@ fn resolve_status(choice: &super::answers::ChoiceAnswer) -> (ReadinessStatus, f6
         _ => None,
     };
     match argmax {
-        // Confidence baixa e status escolhido com pouca massa: o modelo esta
-        // em duvida, e `Ambiguous` e o rotulo honesto.
-        _ if confidence < READINESS_MIN_CONFIDENCE || chosen < READINESS_MIN_CONFIDENCE => {
-            (ReadinessStatus::Ambiguous, confidence, true)
+        // Massa baixa na opcao escolhida: o modelo esta em duvida. So o
+        // "ready" e rebaixado, porque e o unico que enrolaria a nota na
+        // revisao.
+        _ if chosen < READINESS_MIN_CONFIDENCE && choice.choice == "ready" => {
+            (ReadinessStatus::Ambiguous, chosen, true)
         }
-        Some(status) => (status, confidence, false),
-        None => (ReadinessStatus::Ambiguous, confidence, true),
+        Some(status) => (status, chosen, false),
+        None => (ReadinessStatus::Ambiguous, chosen, true),
     }
 }
 
@@ -483,17 +516,21 @@ mod tests {
     /// Nao ha mock com status fixo no `mock.rs` (ele responde por hash do
     /// nome da opcao, para nao carregar o vies de posicao que o JEV tem), entao
     /// o provider de teste responde o que o teste pede.
-    fn status_only(label: &str, confidence: f64) -> StaticProvider {
+    ///
+    /// O parametro e a **massa** da opcao escolhida, e nao a `confidence` do
+    /// contrato: a massa e o que decide o rebaixamento, e as duas sao
+    /// grandezas diferentes (§15.35).
+    fn status_only(label: &str, mass: f64) -> StaticProvider {
         StaticProvider {
             label: label.to_string(),
-            confidence,
+            mass,
         }
     }
 
     /// Provider de teste que devolve um status fixo.
     struct StaticProvider {
         label: String,
-        confidence: f64,
+        mass: f64,
     }
 
     impl super::super::CalibratedProvider for StaticProvider {
@@ -513,16 +550,41 @@ mod tests {
             let mut answers = BTreeMap::new();
             for (id, question) in questions {
                 let mut probabilities = BTreeMap::new();
+                let mut options_count = 1usize;
                 if let QuestionSpec::Choice { options, .. } = question {
+                    options_count = options.len();
+                    // A massa vai na opcao escolhida; o resto divide o que
+                    // sobrou, como o motor faz. E o que a API devolve.
+                    let rest = (1.0 - self.mass).max(0.0);
+                    let others = options
+                        .iter()
+                        .filter(|option| option.key != self.label)
+                        .count();
                     for option in options {
-                        let weight = if option.key == self.label { 1.0 } else { 0.0 };
+                        let weight = if option.key == self.label {
+                            self.mass
+                        } else if others == 0 {
+                            0.0
+                        } else {
+                            rest / others as f64
+                        };
                         probabilities.insert(option.key.clone(), weight);
                     }
                 }
+                // A `confidence` do contrato: (p_max - 1/n) / (1 - 1/n). E a
+                // grandeza que penaliza distribuicao de 3 opcoes, e o motivo
+                // de o rebaixamento usar a massa (§15.35).
+                let peak = probabilities.values().copied().fold(0.0_f64, f64::max);
+                let even = 1.0 / options_count as f64;
+                let contract_confidence = if options_count <= 1 {
+                    1.0
+                } else {
+                    ((peak - even) / (1.0 - even)).clamp(0.0, 1.0)
+                };
                 answers.insert(
                     id.clone(),
                     Answer::Choice(super::super::answers::ChoiceAnswer {
-                        confidence: self.confidence,
+                        confidence: contract_confidence,
                         choice: self.label.clone(),
                         probabilities,
                     }),
@@ -641,12 +703,17 @@ mod tests {
         // O rebaixamento por falta de certeza e **do JEV**: e o proprio motor
         // que diz "estou em duvida", e a UI precisa saber que o rotulo foi
         // conservadorizado.
+        //
+        // O rebaixamento so existe para o "ready" — o unico status que
+        // enrolaria a nota na revisao. "insufficient" com 40% de massa
+        // continua "insufficient": os dois status pausam a nota do mesmo
+        // jeito, entao trocar um pelo outro nao mudaria nada para o usuario.
         let report = legacy_report(
             ReadinessStatus::Ready,
             &[ReadinessIssueCode::MissingContext],
         );
-        let verdict = classify_readiness(&status_only("insufficient", 0.40), &note(), &[])
-            .expect("classifica");
+        let verdict =
+            classify_readiness(&status_only("ready", 0.40), &note(), &[]).expect("classifica");
         assert_eq!(verdict.status, ReadinessStatus::Ambiguous);
         assert!(verdict.degraded);
 
@@ -665,19 +732,22 @@ mod tests {
     }
 
     #[test]
-    fn a_degraded_status_is_flagged_so_the_ui_can_say_so() {
-        let calibrated = classify_readiness(&status_only("insufficient", 0.4), &note(), &[])
+    fn um_status_que_nao_enrola_na_revisao_nao_e_rebaixado() {
+        // "insufficient" e "ambiguous" pausam a nota do mesmo jeito: o
+        // rebaixamento entre eles nao muda nada para o usuario, e so troca
+        // um status verdadeiro por outro — o que distorce a metrica.
+        let verdict = classify_readiness(&status_only("insufficient", 0.4), &note(), &[])
             .expect("classifica");
-        let (_, degraded) = adopt_status(&calibrated);
+        assert_eq!(verdict.status, ReadinessStatus::Insufficient);
         assert!(
-            degraded,
-            "a UI precisa saber que o rotulo foi conservadorizado"
+            !verdict.degraded,
+            "o rotulo exibido e o que o motor respondeu"
         );
     }
 
     #[test]
     fn a_low_confidence_status_becomes_ambiguous_whatever_the_argmax() {
-        // O motor disse "ready" com 40% de confianca: o rotulo honesto e
+        // O motor disse "ready" com 40% de certeza: o rotulo honesto e
         // "ambiguous", porque nao se pode afirmar "pronta" sem seguranca.
         let calibrated =
             classify_readiness(&status_only("ready", 0.4), &note(), &[]).expect("classifica");
@@ -691,6 +761,63 @@ mod tests {
             classify_readiness(&status_only("ready", 0.9), &note(), &[]).expect("classifica");
         assert_eq!(calibrated.status, ReadinessStatus::Ready);
         assert!(!calibrated.degraded);
+    }
+
+    #[test]
+    fn o_rebaixamento_usa_a_massa_e_nao_a_confianca_do_contrato() {
+        // A correcao que o golden set mandou: a `confidence` do contrato e uma
+        // grandeza diferente da massa, e penaliza distribuicao de 3 opcoes.
+        //
+        // Aqui o motor responde "ready" com 57% de massa — quase o maximo
+        // possivel para 3 opcoes. A `confidence` do contrato seria 0,36, e
+        // o rebaixamento por ela jogava o acerto fora.
+        //
+        // Com a massa, o status e `ready` e a confianca exibida e 0,57: o
+        // que o usuario ve corresponde ao que o motor respondeu.
+        let mut probabilities = BTreeMap::new();
+        probabilities.insert("ready".to_string(), 0.57);
+        probabilities.insert("ambiguous".to_string(), 0.29);
+        probabilities.insert("insufficient".to_string(), 0.14);
+        let choice = super::super::answers::ChoiceAnswer {
+            // A `confidence` do contrato, com 3 opcoes: (0,57 - 1/3) / (1 - 1/3).
+            confidence: 0.36,
+            choice: "ready".to_string(),
+            probabilities,
+        };
+        let (status, confidence, degraded) = resolve_status(&choice);
+        assert_eq!(
+            status,
+            ReadinessStatus::Ready,
+            "o acerto do motor nao pode ser perdido"
+        );
+        assert!(!degraded);
+        assert!(
+            (confidence - 0.57).abs() < 1e-9,
+            "a confianca exibida deve ser a massa: {confidence}"
+        );
+    }
+
+    #[test]
+    fn uma_massa_baixa_rebaixa_o_ready_para_ambiguous() {
+        // A correcao mudou **a grandeza medida** e **o alcance**, nao a
+        // prudencia: um "ready" com massa baixa continua sendo duvida, e o
+        // rotulo continua sendo `ambiguous` — porque e o status que enrolaria
+        // a nota na revisao.
+        let mut probabilities = BTreeMap::new();
+        probabilities.insert("ready".to_string(), 0.40);
+        probabilities.insert("ambiguous".to_string(), 0.35);
+        probabilities.insert("insufficient".to_string(), 0.25);
+        let choice = super::super::answers::ChoiceAnswer {
+            confidence: 0.0,
+            choice: "ready".to_string(),
+            probabilities,
+        };
+        let (status, _, degraded) = resolve_status(&choice);
+        assert_eq!(status, ReadinessStatus::Ambiguous);
+        assert!(
+            degraded,
+            "a UI precisa saber que o rotulo foi conservadorizado"
+        );
     }
 
     #[test]
