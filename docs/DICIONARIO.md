@@ -19,6 +19,21 @@ Vault, o conceito aparece acima da palavra.
 Para corrigir um conceito, clique no ícone de lápis ao lado dele. Para
 remover, use a lixeira.
 
+## O atalho: "Melhorar a nota"
+
+A feature "Melhorar a nota" (no menu de avaliação da nota, ao lado de
+"Avaliar estrutura") sugere as definições que estão faltando. O botão
+**Adicionar ao dicionário** abre um modal com esses termos, e cada definição
+vem **editável**: você aceita, corrige ou reescreve antes de gravar.
+
+Vale a pena porque o conceito depende do assunto: "rubisco" na biologia e
+na física não é a mesma coisa. Por isso o modal deixa você reescrever — o
+que você aceita vale mais do que o que o modelo propôs.
+
+Depois de registrado, o termo passa a ter o balão de conceito no hover de
+**qualquer** nota do Vault. Não precisa reescrever a definição em cada nota
+que falar do assunto.
+
 ## Onde fica guardado
 
 `.mirmind/dictionary.json`, dentro do Vault. O dicionário é **por Vault**:
@@ -38,6 +53,6 @@ exatamente o que o hover encontra.
 
 A **diferenciação visual** das palavras registradas. Hoje é um sublinhado
 pontilhado, e o significado vem do hover. As alternativas (cor de fundo,
-muda-cor, um ícone) dependem de como o app se sente na leitura — é um teste
+muda-cor, um ícone) dependem de como o app se sente na leitura - é um teste
 com os olhos, não com o código. Se preferir outro visual, é uma mudança
 localizada em `src/features/dictionary/dictionary.css`.

@@ -171,8 +171,26 @@ determinístico tem um buraco.
 
 Ela mede a **dimensão das definições**, que é outra pergunta que a de
 prontidão. Avaliar a feature contra os rótulos de prontidão mediria a coisa
-errada — é o que o §15.26 do plano registra.
+errada - é o que o §15.26 do plano registra.
 
 Por isso o golden set tem duas dimensões com proveniência separada:
 `readiness.provenance` (já revisado) e `expectedDefinitionsProvenance` (esta
 revisão).
+
+## E as expansões de trecho?
+
+A feature "Melhorar a nota" também propõe **expansões**: os trechos que o
+aluno escreveu apressado viram a frase que ele quis dizer.
+
+**Esta revisão não as mede, e elas não têm recall.** Não existe ground truth
+para elas: medir exigiria alguém escrevendo, para cada trecho, a frase que o
+aluno queria dizer — e o que o aluno queria dizer é dele, não do revisor.
+
+Então o número das expansões aparece como **"não medido"**, nunca como 0%.
+O que existe hoje é o relatório do provider (quantas expansões vieram, quantas
+passaram na âncora) e a revisão do próprio aluno, que é quem decide se a frase
+proposta era o que ele pensava.
+
+Se um dia essa dimensão entrar no golden set, ela entra com a **própria
+proveniência** — como as outras duas — e não misturada na lista de termos.
+
