@@ -1,0 +1,665 @@
+{
+  "cases": [
+    {
+      "id": "ciclo-calvin",
+      "note": "ciclo-calvin.md",
+      "readiness": {
+        "label": "ready",
+        "provenance": "human",
+        "why": "Revisado: A nota contém cinco parágrafos autocontidos e nenhuma contradição evidente."
+      },
+      "claims": [
+        {
+          "quote": "A glicose e o principal produto da fase escura do ciclo de Calvin.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Conhecidamente verdadeiro: a fase escura (ciclo de Calvin) tem como produto final a glicose."
+          }
+        },
+        {
+          "quote": "Essa fase ocorre no estroma dos cloroplastos e nao na membrana tilacoidal.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: o estroma e o local do ciclo de Calvin; a membrana tilacoidal concentra as fotofosforilacoes."
+          }
+        },
+        {
+          "quote": "A fixacao de carbono usa a enzima rubisco",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: a rubisco catalisa a primeira etapa de fixacao de carbono."
+          }
+        },
+        {
+          "quote": "Cada molecula de CO2 fixado consome 3 ATP e 2 NADPH produzidos na fase clara.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: a razao de 3 ATP e 2 NADPH por CO2 e a conta classica do ciclo de Calvin."
+          }
+        }
+      ],
+      "exchanges": [
+        {
+          "prompt": "Qual e o principal produto da fase escura do ciclo de Calvin?",
+          "answer": "A glicose.",
+          "status": "remembered",
+          "statusProvenance": "construction",
+          "why": "A resposta reproduz a afirmacao da nota sem acrescentar nem omitir nada."
+        },
+        {
+          "prompt": "Onde ocorre essa fase?",
+          "answer": "No estroma dos cloroplastos.",
+          "status": "remembered",
+          "statusProvenance": "construction",
+          "why": "Resposta identica ao trecho da nota."
+        },
+        {
+          "prompt": "Qual enzima catalisa a fixacao de carbono?",
+          "answer": "A rubisco.",
+          "status": "remembered",
+          "statusProvenance": "construction",
+          "why": "Resposta identica ao trecho da nota."
+        }
+      ],
+      "synthesis": "A ideia central desta nota e que o ciclo de Calvin tem duas fases, e a fixacao de carbono usa ATP e NADPH. Os conceitos se conectam porque a fotofosforilacao cria um gradiente de protons que alimenta a sintese de ATP, e esse ATP e o que a fixacao gasta. Isso se aplica quando eu quiser entender por que uma fase produz exatamente o que a outra consome. Ainda nao sei bem o que acontece com o composto de tres carbonos que a rubisco forma ao adicionar CO2 ao ribulose-1,5-bisfosfato, nem por que o custo e de 3 ATP e 2 NADPH.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "complete",
+        "connections": "complete",
+        "application": "partial",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "Ainda nao sei bem por que a rubisco prefere o CO2 e nao o O2"
+    },
+    {
+      "id": "somente-titulos",
+      "note": "somente-titulos.md",
+      "readiness": {
+        "label": "insufficient",
+        "provenance": "human",
+        "why": "Revisado: A nota contém apenas uma lista de títulos e uma remissão ('[[Notas relacionadas]]')."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": null
+    },
+    {
+      "id": "contradicao-fotossintese",
+      "note": "contradicao-fotossintese.md",
+      "readiness": {
+        "label": "ambiguous",
+        "provenance": "human",
+        "why": "Revisado: A nota afirma que a fotossíntese 'ocorre na fase escura' e, logo a seguir, que 'ocorre na fase clara', apresentando duas afirmações mutuamente exclusivas sobre o mesmo objeto."
+      },
+      "claims": [
+        {
+          "quote": "A energia luminosa e convertida em energia quimica durante a fotossintese.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Definicao de fotossintese."
+          }
+        },
+        {
+          "quote": "A fotossintese ocorre na fase escura do ciclo de Calvin.",
+          "label": {
+            "label": "divergent",
+            "provenance": "commonFact",
+            "why": "Errado por definicao: a fase escura nao faz fotossintese, apenas fixa carbono. Alias contradiz a frase seguinte da propria nota."
+          }
+        },
+        {
+          "quote": "A clorofila absorve luz principalmente nas bandas azul e vermelha do espectro.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: a clorofila tem dois picos de absorcao, em azul e em vermelho, e reflete o verde."
+          }
+        },
+        {
+          "quote": "A atmosfera terrestre possui cerca de 21% de oxigenio molecular.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: o ar seco tem 20,95% de O2."
+          }
+        },
+        {
+          "quote": "A agua ferve a 100 graus Celsius ao nivel do mar sob pressao de 1 atmosfera.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: ponto de ebulicao de referencia da agua e 100 C a 1 atm."
+          }
+        }
+      ],
+      "exchanges": [],
+      "synthesis": null,
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "forgotten",
+        "connections": "forgotten",
+        "application": "forgotten",
+        "gaps": "forgotten"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "A ideia central desta nota e que a divisibilidade e uma relacao entre inteiros; dividir por um numero nao e o inverso de multiplicar quando o numero nao e primo; e essa diferenca entre dividir por 2 e dividir por 3 que estrutura a aritmetica; por que o conjunto dos primos parece tao especial"
+    },
+    {
+      "id": "termodinamica",
+      "note": "termodinamica.md",
+      "readiness": {
+        "label": "ready",
+        "provenance": "human",
+        "why": "Revisado: Possui uma ideia central (Termodinâmica), mais de três parágrafos com frases próprias e não apresenta contradições."
+      },
+      "claims": [
+        {
+          "quote": "A entropia mede o grau de desordem de um sistema termodinamico.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Aceitavel como definicao introdutoria."
+          }
+        },
+        {
+          "quote": "O calor nao flui espontaneamente de um corpo frio para um corpo quente.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Enunciado do segundo principio."
+          }
+        },
+        {
+          "quote": "A entropia e uma propriedade extensiva.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: a entropia total e a soma das entropias das partes."
+          }
+        }
+      ],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que a entropia mede o grau de desordem de um sistema termodinamico. Os conceitos se conectam porque o calor nao flui espontaneamente de um corpo frio para um quente, e a entropia e a propriedade que explica esse sentido. Isso se aplica quando eu for entender por que alguns processos precisam de trabalho para acontecer. Ainda nao sei bem como calcular a entropia de um recipiente adiabatico, que e o que o exercicio da nota pede, e a nota nao diz com quais dados.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "partial",
+        "connections": "complete",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "a energia se conserva em um sistema isolado; a segunda lei diz que a entropia de um sistema isolado nunca diminui"
+    },
+    {
+      "id": "bases-de-dados",
+      "note": "bases-de-dados.md",
+      "readiness": {
+        "label": "ready",
+        "provenance": "human",
+        "why": "Revisado: A nota apresenta seis parágrafos autocontidos com conceitos independentes, sem premissas vazias ou contradições."
+      },
+      "claims": [
+        {
+          "quote": "A chave primaria identifica unicamente cada linha de uma tabela.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Definicao correta."
+          }
+        },
+        {
+          "quote": "O teorema CAP diz que um banco nao pode garantir simultaneamente consistencia, disponibilidade e tolerancia a particionamento.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Enunciado correto do teorema de Brewer aplicado a sistemas distribuidos."
+          }
+        },
+        {
+          "quote": "A consistencia e o criterio menos negociavel de um banco transacional.",
+          "label": {
+            "label": "uncertain",
+            "provenance": "construction",
+            "why": "Afirmacao normativa sem fonte: o CAP diz que se escolhe dois dos tres, nao que a consistencia seja 'a menos negociavel'. Depende do caso de uso, e o proprio teorema nao ordena as prioridades."
+          }
+        }
+      ],
+      "exchanges": [
+        {
+          "prompt": "O que o teorema CAP afirma?",
+          "answer": "Que um banco nao pode garantir consistencia, disponibilidade e tolerancia a particionamento ao mesmo tempo.",
+          "status": "remembered",
+          "statusProvenance": "construction",
+          "why": "Resposta identica ao trecho da nota."
+        },
+        {
+          "prompt": "Qual e a funcao de uma chave estrangeira?",
+          "answer": "Estabelecer uma relacao entre duas tabelas.",
+          "status": "remembered",
+          "statusProvenance": "construction",
+          "why": "Resposta identica ao trecho da nota."
+        }
+      ],
+      "synthesis": "A ideia central desta nota e que a chave primaria identifica unicamente cada linha de uma tabela, e que a chave estrangeira estabelece a relacao entre duas tabelas. Os conceitos se conectam porque o indice acelera a busca de registros mas ocupa espaco em disco, e a transacao garante que um conjunto de operacoes seja executado por inteiro ou desfeito por inteiro. Isso se aplica quando eu for entender por que um banco precisa de uma chave que identifique a linha e de outra que amarre as tabelas. Ainda nao sei bem como o indice se relaciona com a chave primaria na pratica, porque a nota diz que um acelera a busca e nao explica como os dois se encaixam.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "partial",
+        "connections": "forgotten",
+        "application": "forgotten",
+        "gaps": "forgotten"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "arvores balanceadas e tabelas hash resolvem o mesmo problema; hash da a mesma complexidade media mas exige que a chave seja hashavel; como dimensionar a tabela hash para evitar rehashes"
+    },
+    {
+      "id": "sistema-imunologico-limite",
+      "note": "casos-limite.md",
+      "readiness": {
+        "label": "insufficient",
+        "provenance": "human",
+        "why": "Revisado: A nota possui títulos estruturados, o que poderia sugerir organização, mas não frases próprias suficientes."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que o sistema imunologico tem um controle geral e um controle especifico, e que a anatomia lista os dois. Os conceitos se conectam porque o controle especifico so se distingue do geral se eu souber o que os distingue, e a nota apenas lista os dois nomes um do lado do outro. Isso se aplica quando eu for estudar a materia, porque a lista me da o que中没有 mas nao o que cada um faz. Ainda nao sei bem o que diferencia o controle geral do controle especifico, e a nota nao diz.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "forgotten",
+        "connections": "forgotten",
+        "application": "forgotten",
+        "gaps": "forgotten"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "o sistema imune identifica padroes moleculares e dispara uma resposta; a mesma assinatura molecular pode ser inofensiva num lugar e perigosa em outro; por que uma pessoa pode ser alergica a uma substancia que outras toleram",
+      "reclassifiedFrom": "ready"
+    },
+    {
+      "id": "contradicao-estroma",
+      "note": "contradicao-estroma.md",
+      "readiness": {
+        "label": "ambiguous",
+        "provenance": "human",
+        "why": "Revisado: O primeiro parágrafo afirma que a fixação ocorre 'no estroma dos cloroplastos' e o segundo afirma que é realizada 'exclusivamente na membrana tilacoidal, nunca no estroma'. Duas afirmações exclusivas."
+      },
+      "claims": [
+        {
+          "quote": "A glicose produzida é exportada para o citoplasma",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: os produtos do ciclo de Calvin sao exportados do cloroplasto e podem virar amido ou entrar na respiracao."
+          }
+        }
+      ],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que a fase escura do ciclo de Calvin fixaria carbono no estroma, e o resultado seria a glicose. Os conceitos se conectam porque a fixacao de carbono e a fotofosforacao sao as duas metades da mesma transducao de energia, e a segunda produz o que a primeira gasta. Isso se aplica quando eu for explicar a fotossintese a alguem que entendeu so uma das fases, porque entender so a clara leva a uma ideia errada do custo. Ainda nao sei bem em que ponto do cloroplasto isso acontece, porque o texto diz o estroma e tambem diz a membrana tilacoidal, e nao podem ser os dois.",
+      "expectedBands": {
+        "core": "complete",
+        "connections": "partial",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "a fixacao depende da energia captada na fase clara"
+    },
+    {
+      "id": "referencia-indefinida",
+      "note": "referencia-indefinida.md",
+      "readiness": {
+        "label": "ambiguous",
+        "provenance": "human",
+        "why": "Revisado: O texto utiliza o termo 'glicólise aeróbica' como premissa na frase 'Como vimos antes, a fixação de carbono segue exatamente o mesmo caminho da glicólise aeróbica.' sem definição prévia do termo."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que a fase escura do ciclo de Calvin consome ATP e NADPH para fixar carbono, e o resultado e a glicose. Os conceitos se conectam porque a fixacao depende da energia captada na fase clara, e e por isso que as duas fases nao podem ser lidas separadamente. Isso se aplica quando eu for explicar a fotossintese a alguem que entendeu so uma das fases. Ainda nao sei bem por que a fixacao de carbono precisa de energia se ela e uma construcao de acucar, parece o contrario do que eu esperaria.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "complete",
+        "connections": "partial",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "da fase clara; o resultado e a glicose; energia captada na luz"
+    },
+    {
+      "id": "passa-baixa-fronteira",
+      "note": "passa-baixa.md",
+      "readiness": {
+        "label": "ambiguous",
+        "provenance": "human",
+        "why": "Revisado: A nota utiliza o termo estrangeiro e indefinido 'unity' ('...a resposta tende a unity.') atuando como premissa não explicada para a leitura."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que um filtro de passa-baixa atenua as frequencias acima da frequencia de corte e deixa passar as de baixo, e que a ordem dos filtros define a inclinacao final da resposta. Os conceitos se conectam porque a ordem altera a inclinacao, e por isso dois filtros com a mesma especificacao podem responder de forma diferente. Isso se aplica quando eu for implementar um filtro digital e escolher a ordem, lembrando que a resposta em frequencia e o que importa. Ainda nao sei bem o que a expressao unity quer dizer aqui, e por que a resposta tende a unity abaixo da corte.",
+      "expectedBands": {
+        "core": "complete",
+        "connections": "complete",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human"
+    },
+    {
+      "id": "termo-definido-inline",
+      "note": "termo-definido-inline.md",
+      "readiness": {
+        "label": "ready",
+        "provenance": "human",
+        "why": "Revisado: A nota possui ideia central identificável e três parágrafos de frase própria, onde o termo ('índice') é definido na própria frase: 'Um índice é uma estrutura de dados...'."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que um indice associa chaves a valores, e que arvores balanceadas e tabelas hash sao as duas formas de manter a busca por chave barata. Os conceitos se conectam porque a arvore garante o custo logarithmico ao custo de rebalancear na insercao, e a tabela hash da a mesma complexidade media ao custo de perder a ordem. Isso se aplica quando eu for escolher a estrutura de um dicionario em codigo, e a resposta muda se eu preciso de ordem ou nao. Ainda nao sei bem qual e a complexidade do pior caso de uma tabela hash, que e o que me preocupa quando a entrada pode ser adversaria.",
+      "expectedBands": {
+        "core": "complete",
+        "connections": "complete",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human"
+    },
+    {
+      "id": "somente-listas",
+      "note": "somente-listas.md",
+      "readiness": {
+        "label": "insufficient",
+        "provenance": "human",
+        "why": "Revisado: A nota contém apenas itens de checklist (tarefas) e remissões a anexos ('![diagrama](anexo-diagrama.png)')."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": null
+    },
+    {
+      "id": "contexto-implicito",
+      "note": "contexto-implicito.md",
+      "readiness": {
+        "label": "ready",
+        "provenance": "human",
+        "why": "Revisado: Possui três parágrafos, ideia central explícita no título, e define contexto essencial ('a energia acumulada na fase clara') na própria frase."
+      },
+      "claims": [
+        {
+          "quote": "A fixação ocorre no estroma",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: a fase escura do ciclo de Calvin ocorre no estroma do cloroplasto."
+          }
+        }
+      ],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que a fase escura do ciclo de Calvin consome ATP e NADPH da fase clara para fixar carbono, e que a fixacao e catalisada pela rubisco no estroma. Os conceitos se conectam porque a segunda fase usa exatamente o que a primeira produz, e por isso as duas nao podem ser lidas separadas. Isso se aplica quando eu for explicar a alguem por que uma planta precisa de luz para crescer. Ainda nao sei bem qual parte dessa nota e a mais dificil de memorizar, se a divisao em duas fases ou o papel da rubisco.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "complete",
+        "connections": "complete",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "fixar carbono em glicose"
+    },
+    {
+      "id": "contradicao-quantidade",
+      "note": "contradicao-quantidade.md",
+      "readiness": {
+        "label": "ambiguous",
+        "provenance": "human",
+        "why": "Revisado: A nota declara que consome '3 ATP e 2 NADPH' no primeiro parágrafo e '5 ATP e 3 NADPH' no segundo. Duas afirmações exclusivas."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que a fase escura do ciclo de Calvin consome ATP e NADPH para fixar carbono, e o resultado e a glicose. Os conceitos se conectam porque a razao de 3 ATP e 2 NADPH por molecula e o que define o custo energetico de transformar CO2 em acucar. Isso se aplica quando eu for calcular quanto CO2 uma planta precisa fixar para produzir determinada quantidade de biomassa, ou o contrario. Ainda nao sei bem quanto ATP e NADPH sao consumidos por molecula, porque o texto da dois numeros diferentes.",
+      "expectedBands": {
+        "core": "complete",
+        "connections": "complete",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human"
+    },
+    {
+      "id": "promessa-vazia",
+      "note": "promessa-vazia.md",
+      "readiness": {
+        "label": "ready",
+        "provenance": "human",
+        "why": "Revisado: Contém a definição do conceito central no primeiro parágrafo ('A elasticidade mede...'), seguido de três parágrafos formatados corretamente com frases próprias."
+      },
+      "claims": [
+        {
+          "quote": "A elasticidade mede quanto a quantidade demandada responde a uma variação do preço.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: a elasticidade-preço e a resposta relativa da quantidade demandada a variacao do preco."
+          }
+        }
+      ],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que a elasticidade mede quanto a quantidade demandada responde a uma variacao do preco, e que ela e negativa na maioria dos bens. Os conceitos se conectam porque a elasticidade e a inclinacao da curva de demanda, e e o sinal dela que diz se a demanda responde muito ou pouco. Isso se aplica quando eu for decidir se um imposto sobe ou desce o preco ao consumidor. Ainda nao sei bem como se estima a elasticidade a partir de dados de mercado.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "complete",
+        "connections": "complete",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human"
+    },
+    {
+      "id": "termo-sem-definicao",
+      "note": "termo-sem-definicao.md",
+      "readiness": {
+        "label": "ambiguous",
+        "provenance": "human",
+        "why": "Revisado: O terceiro parágrafo utiliza o 'princípio da mínima entropia' como suporte causal ('Segundo o princípio...') sem ter definido o que é o princípio nos parágrafos anteriores."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que a entropia mede o grau de desordem de um sistema termodinamico. Os conceitos se conectam porque o calor nao flui espontaneamente de um corpo frio para um quente, e e essa direcao preferencial que a entropia explica. Isso se aplica quando eu for entender por que um processo espontaneo tem sentido, e nao apenas por que a energia se conserva. Ainda nao sei bem o que exatamente o principio da minima entropia acrescenta, porque o texto usa o termo sem defini-lo.",
+      "expectedBands": {
+        "core": "complete",
+        "connections": "partial",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "a segunda lei restringe o que pode acontecer; impede que o calor suba sozinho"
+    },
+    {
+      "id": "duas-afirmacoes",
+      "note": "duas-afirmacoes.md",
+      "readiness": {
+        "label": "ready",
+        "provenance": "human",
+        "why": "Revisado: Apresenta três afirmações precisas ('A corrente elétrica é...', 'A tensão elétrica é...', 'A resistência... é...') que se sustentam de forma contínua."
+      },
+      "claims": [
+        {
+          "quote": "A resistência de um material é a relação entre a tensão aplicada e a corrente resultante.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: pela lei de Ohm, a resistencia e a razao entre tensao e corrente."
+          }
+        }
+      ],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que corrente, tensao e resistencia descrevem o mesmo fluxo electrico por lados diferentes. Os conceitos se conectam porque a corrente e a razao entre carga e tempo, a tensao e a diferenca de potencial que impulsiona o fluxo, e a resistencia e a relacao entre a tensao aplicada e a corrente resultante. Isso se aplica quando eu for montar um circuito simples e precisar prever o que muda se eu alterar uma das tres grandezas. Ainda nao sei bem a diferenca pratica entre resistencia estatica e dinamica, que a nota nao menciona.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "complete",
+        "connections": "complete",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "ligadas pela lei de Ohm"
+    },
+    {
+      "id": "contradicao-maior",
+      "note": "contradicao-maior.md",
+      "readiness": {
+        "label": "ready",
+        "provenance": "human",
+        "why": "Revisado: Três parágrafos avaliáveis com ideia central bem delineada. O termo 'pH varied' é apenas um erro ortográfico, não impedindo a compreensão da afirmação."
+      },
+      "claims": [
+        {
+          "quote": "A pepsina, enzima do estômago, tem pH ótimo em 2",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: a pepsina tem pH otimo acido, em torno de 1.5 a 2, o ambiente do estomago."
+          }
+        }
+      ],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que cada enzima digestiva tem um pH otimo proprio. Os conceitos se conectam porque a pepsina tem pH otimo em 2, o ambiente fortemente acido, e a protease do pancreas funciona melhor em pH 8, o meio alcalino do intestino delgado, e o par mostra que o pH otimo e relativo ao meio onde a enzima atua. Isso se aplica quando eu for entender por que o estomago e o intestino precisam de enzimas diferentes. Ainda nao sei bem o que acontece com uma enzima fora do pH otimo, se ela apenas para de funcionar ou se se denatura de vez.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "complete",
+        "connections": "complete",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "e por isso que a pilula tem revestimento gastrico"
+    },
+    {
+      "id": "sem-sujeito",
+      "note": "sem-sujeito.md",
+      "readiness": {
+        "label": "insufficient",
+        "provenance": "human",
+        "why": "Revisado: As sentenças são apenas tarefas diretivas em formato de prosa ('Continuar no capítulo 5.', 'Reler o material...'), sem nenhuma afirmação avaliável."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": null
+    },
+    {
+      "id": "apenas-imagens",
+      "note": "apenas-imagens.md",
+      "readiness": {
+        "label": "insufficient",
+        "provenance": "human",
+        "why": "Revisado: A nota é composta exclusivamente por vínculos de imagens/anexos ('![diagrama do ciclo](anexo-ciclo.png)')."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": null
+    },
+    {
+      "id": "lista-com-conteudo",
+      "note": "lista-com-conteudo.md",
+      "readiness": {
+        "label": "insufficient",
+        "provenance": "human",
+        "why": "Revisado: Sendo uma nota estruturada majoritariamente como tarefas (checkboxes) e contendo um lembrete no final ('Anotar: o professor pediu...'), a nota recai em 'só listas, tarefas... Nenhuma afirmação avaliável' em forma de parágrafo estruturado convencional."
+      },
+      "claims": [
+        {
+          "quote": "A fixação de carbono ocorre no estroma e é catalisada pela enzima rubisco",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: a fixacao de carbono ocorre no estroma e e catalisada pela rubisco."
+          }
+        }
+      ],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que a fase clara captura energia luminosa e a fase escura usa essa energia para fixar carbono, e que a fixacao ocorre no estroma e e catalisada pela rubisco. Os conceitos se conectam porque as duas metades da transducao de energia se pagam mutuamente: o que a clara ganha e o que a escura gasta. Isso se aplica quando eu for explicar a fotossintese a alguem, e a ordem importa: entender so a clara da uma ideia errada do custo. Ainda nao sei bem o que o professor vai pedir de detalhe no resumo, nem se ele quer que eu desenhe o ciclo ou so explique em texto.",
+      "expectedBands": {
+        "core": "complete",
+        "connections": "complete",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "produzir ATP e NADPH; em glicose",
+      "reclassifiedFrom": "ambiguous"
+    },
+    {
+      "id": "conceito-isolado",
+      "note": "conceito-isolado.md",
+      "readiness": {
+        "label": "ready",
+        "provenance": "human",
+        "why": "Revisado: Três parágrafos que definem propriedades, encapsulamento e herança independentemente, unificados sob o tema identificável."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que propriedades governam o comportamento de um objeto. Os conceitos se conectam porque o encapsulamento impede o acesso direto ao estado interno e a heranca permite que um tipo derive de outro e reutilize o comportamento, mantendo o que e especifico de cada tipo, e os tres existem para controlar o acoplamento. Isso se aplica quando eu for decidir como modelar um dominio, lembrando que heranca que resolve o problema errado custa mais caro. Ainda nao sei bem quando a heranca vira indirecao desnecessaria, porque a nota nao fala em composicao.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "partial",
+        "connections": "partial",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human",
+      "unsupportedClaims": "e composicao sao as tres formas de organizar isso; os tres existem para controlar o acoplamento entre o que muda e o que nao muda; heranca que resolve o problema errado custa mais caro que composicao; quando a composicao vira indirecao desnecessaria"
+    },
+    {
+      "id": "contrato-implicito",
+      "note": "contrato-implicito.md",
+      "readiness": {
+        "label": "ready",
+        "provenance": "human",
+        "why": "Revisado: A nota apresenta três parágrafos ('Um contrato de API declara...', 'Compatibilidade de entrada exige...', 'Compatibilidade de saida exige...'), todos baseados em definições diretas sem contradições."
+      },
+      "claims": [],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que um contrato de API declara entradas e saidas. Os conceitos se conectam porque o produtor controla o que aceita e o consumidor controla o que sabe ler, e por isso quebrar um dos dois lados quebra a integracao mesmo que o outro nao mude. Isso se aplica quando eu for publicar uma API, porque a pergunta certa nao e isto funciona hoje e sim quem vai quebrar quando eu mudar isto. Ainda nao sei bem como versionar um contrato quando a mudanca e na forma da resposta e nao no significado.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "complete",
+        "connections": "complete",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human"
+    },
+    {
+      "id": "exemplo-numerico",
+      "note": "exemplo-numerico.md",
+      "readiness": {
+        "label": "ready",
+        "provenance": "human",
+        "why": "Revisado: Possui ideia central explícita ('Crescimento populacional') e três parágrafos com frases próprias. O exemplo numérico 'leva cerca de 180 anos para crescer mil vezes' sustenta o contexto anterior sem causar contradições ou carecer de definição adicional."
+      },
+      "claims": [
+        {
+          "quote": "Uma população que dobra a cada 30 anos leva cerca de 180 anos para crescer mil vezes.",
+          "label": {
+            "label": "confirmed",
+            "provenance": "commonFact",
+            "why": "Verdadeiro: 2^6 = 64, 2^12 = 4096; para 1000 (2^10) sao cerca de 150 anos, e a ordem de grandeza de 180 anos esta correta."
+          }
+        }
+      ],
+      "exchanges": [],
+      "synthesis": "A ideia central desta nota e que o crescimento exponencial mantem a taxa de incremento constante em relacao ao valor anterior. Os conceitos se conectam porque e por isso que uma populacao que dobra a cada 30 anos cresce mil vezes em cerca de 180 anos, e o crescimento logistico desacelera ao se aproximar da capacidade de suporte, e a curva exponencial e o que acontece quando nao ha limite. Isso se aplica quando eu for projetar a capacidade de um sistema, porque tudo que cresce exponencialmente acaba batendo num teto. Ainda nao sei bem qual e a capacidade de suporte na pratica, e a nota nao diz como se estima antes de bater nela.",
+      "gapIsNotReal": true,
+      "expectedBands": {
+        "core": "complete",
+        "connections": "complete",
+        "application": "complete",
+        "gaps": "complete"
+      },
+      "synthesisProvenance": "human"
+    }
+  ]
+}
