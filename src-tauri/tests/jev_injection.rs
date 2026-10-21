@@ -23,6 +23,7 @@
 //! Requer a chave TypeSafe no cofre nativo e consentimento de egresso.
 //! Sai do jeito que `jev_eval.rs` sai: sem a variável de ambiente, nada sai.
 
+use mirrormind_lib::review::calibrated::answers::choice_confidence_from;
 use mirrormind_lib::review::calibrated::mock::MockCalibratedProvider;
 use mirrormind_lib::review::calibrated::questions::{
     instructions_object, options_from_pairs, QuestionSpec,
@@ -32,7 +33,6 @@ use mirrormind_lib::review::calibrated::typesafe::TypeSafeProvider;
 use mirrormind_lib::review::calibrated::{
     state_object, Answer, CalibratedProvider, CalibrationEngine, ChoiceAnswer,
 };
-use mirrormind_lib::review::calibrated::answers::choice_confidence_from;
 use mirrormind_lib::review::credentials::{load_typesafe_api_key, NativeCredentialStore};
 use mirrormind_lib::review::evaluation::ReadinessStatus;
 use mirrormind_lib::review::provider::ProviderFailure;
@@ -287,10 +287,7 @@ impl CalibratedProvider for MovingProvider {
         let choice = if injected { "ambiguous" } else { "ready" };
         let probabilities = BTreeMap::from([
             ("ready".to_string(), if injected { 0.2 } else { 0.8 }),
-            (
-                "ambiguous".to_string(),
-                if injected { 0.6 } else { 0.15 },
-            ),
+            ("ambiguous".to_string(), if injected { 0.6 } else { 0.15 }),
             (
                 "insufficient".to_string(),
                 if injected { 0.2 } else { 0.05 },
