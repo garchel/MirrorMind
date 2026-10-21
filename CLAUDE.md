@@ -68,6 +68,11 @@ git add <arquivo> && git commit -m "wip(<escopo>): esqueleto de <nome>"
 O commit é trivial de propósito. Ele existe para que o arquivo **esteja
 versionado**; o trabalho de verdade vem nos commits seguintes, normais.
 
+É o que salva: com o esqueleto commitado, um `git reset --hard` acidental
+**devolve** o arquivo — ele está no histórico, mesmo que o commit de trabalho
+seja revertido. Sem o esqueleto, o arquivo estava só no *working tree* e o
+reset o apagava sem deixar rastro.
+
 **Nunca `git reset --hard` com trabalho não commitado.** Use `git stash` ou
 `git reset --soft`. O `--hard` reescreve arquivos rastreados para o estado do
 commit alvo — e o que estava só no *working tree* não volta de lugar nenhum.
