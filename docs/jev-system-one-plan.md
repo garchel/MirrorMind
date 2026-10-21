@@ -3014,3 +3014,185 @@ entre as duas promessas.
 
 O que **nao** e preciso agora: mais ground truth. O dado existe e ja
 separou os gargalos.
+
+### 15.35 Os erros do JEV não são falta de conceitos — é a regra de rebaixamento
+
+A pergunta "os erros são por falta de conceitos nas notas?" tem resposta
+**não**, e ela não é opinativa: sai do proprio relatorio.
+
+#### O que o motor responde, e o que o app mostra
+
+O `confidence` que a API devolve **nao e** a massa da opcao escolhida: sao
+duas grandezas diferentes. A comparacao caso a caso:
+
+| caso | argmax do JEV | massa | `confidence` | o que o app mostra |
+|---|---|---|---|---|
+| `ciclo-calvin` | ready | 70% | 55% | ready |
+| `somente-titulos` | insufficient | 99% | 98% | insufficient |
+| `termodinamica` | ambiguous | 58% | 37% | ambiguous |
+| `promessa-vazia` | **ready** | 57% | 35% | **ambiguous** |
+| `sem-sujeito` | **insufficient** | 57% | 36% | **ambiguous** |
+| `contrato-implicito` | **ready** | 58% | 37% | **ambiguous** |
+| `lista-com-conteudo` | ready | 74% | 61% | ready |
+
+O padrao e nitido: nos casos problematicos, o `confidence` fica **~20 pontos
+abaixo** da massa. A regra de rebaixamento (`resolve_status`) exige
+`confidence >= 0,55` **E** massa `>= 0,55`. Com o `confidence` artificialmente
+baixo, o app **rebaixa um acerto do motor para `ambiguous`**.
+
+| | acertos |
+|---|---|
+| argmax do JEV (o que o motor **realmente** respondeu) | **20/23 = 87%** |
+| o que o app **mostra** | 17/23 = 74% |
+
+**Quatro acertos do motor se perdem no caminho** (`somente-listas`,
+`promessa-vazia`, `sem-sujeito`, `contrato-implicito`) — todos com massa entre
+56% e 58% e `confidence` entre 34% e 37%.
+
+#### Por que o `confidence` diverge da massa
+
+A formula de `choice` do contrato e `confidence = (p_max - 1/n) / (1 - 1/n)`.
+Com 3 opcoes, uma massa de 57% da masculo **confianca de 0,36** — e o
+mesmo padrao para as 3 opcoes. O rebaixamento foi desenhado com essa formula
+em mente, e ela **penaliza distribuicoes de 3 opcoes** muito mais do que a
+massa sugere: 57% de certeza numa distribuicao de 3 opcoes e o maximo
+possivel, mas a formula diz "36% de confianca".
+
+O rebaixamento **e** a ideia boa — nao afirmar "pronta" sem certeza. O
+problema e que ele compara a **grandeza errada**: a massa (o quanto da
+probabilidade esta na opcao escolhida) e o que o usuario entende por
+"confianca". A massa de 57% numa distribuicao de 3 opcoes e quase
+certteza; o `confidence` de 36% e um numero que nao corresponde a nada que o
+usuario possa_ver.
+
+#### O que isso significa para a pergunta
+
+**Nao e falta de conceitos.** Os casos que erram **nao** sao os que
+precisam de conceito definido:
+
+- `termodinamica` (ready esperado): a nota tem 4 paragrafos, uma ideia
+  central e um exercicio. Nenhum termo sem definicao. O motor disse
+  `ambiguous` com 58% — e um **juizo do motor**, nao um problema de
+  conceito.
+- `contrato-implicito` (ready esperado): a nota **define cada termo que usa**
+  ("Um contrato de API declara..."). O motor disse `ready` com 58% — e o
+  rebaixamento jogou fora.
+- `lista-com-conteudo` (insufficient esperado): a unica errada na direcao
+  oposta, e o motor disse `ready` com 74%.
+
+Ou seja: **os erros de prontidao nao tem relacao com conceitos definidos.**
+Têm relacao com (a) a regra de rebaixamento medindo a grandeza errada e (b) o
+motor ser leniente demais com notas de checklist.
+
+Ja a **feature de definicoes** (C12) e um problema diferente: la o
+relevante e o provider nao proposer todos os termos, e o motor recusar 7 de
+36. Duas dimensoes distintas, que por acaso compartilham o nome "JEV".
+
+#### A correcao, e o que ela custaria
+
+Trocar o criterio de rebaixamento para a **massa** (em vez do `confidence`
+recalculado) leva a acuracia do que o app mostra de 74% para **87%** — e
+mantem a idea do rebaixamento (massa de 57% ainda e rebaixada).
+
+O custo: o numero de confianca **exibido na tela** passaria a ser a massa, e
+nao o `confidence` do contrato. Isso e uma decisao de produto — a confianca
+exibida ao usuario deveria ser "quanto da certeza esta na opcao escolhida"
+(massa, com o mesmo significado em 3 ou 5 opcoes) ou o valor do contrato
+(`confidence`, que e comparável entre chamadas da API mas nao entre
+distribuições de tamanhos diferentes)?
+
+E o **ECE** do gate mede justamente essa confianca. Trocar a grandeza
+muda o ECE — e o gate hoje reprova em 0,15. Entao a correcao e coupled: ela
+pode passar o gate **ou** deixa-lo ainda pior, e so a medicao diz.
+
+### 15.36 A C12 ampliada: expansao de trechos apressados + o ciclo do dicionario
+
+A feature "melhorar a nota" deixou de ser so "sugerir definicoes". Agora ela
+faz **duas** coisas, e as duas sao propostas que o usuario revisa:
+
+1. **Expansao**: os trechos que o aluno escreveu apressado — anotacao de
+   video aula, contao de propria autoria — viram a frase que ele quis dizer.
+   O exemplo do proprio usuario era
+   `"Carbono Fix (rubisco) = C02 + ribulose"`, que vira
+   `"A fixacao de carbono usa a enzima rubisco, que adiciona CO2 a uma
+   molecula de ribulose-1,5-bisfosfato."`
+2. **Definicoes**: os termos que a nota usa como premissa sem nunca explicar.
+
+#### A divisao de trabalho
+
+O provider **generativo** propoe (ele escreve texto). O motor **calibrado**
+confirma (ele julga). A expansao **nao** passa pelo motor: o motor julga se
+um termo precisa de definicao, o que ele nao faz e dizer o que o aluno quis
+escrever. Um texto gerado, revisado pelo usuario.
+
+#### A ancora, e por que ela e conferida
+
+A expansao traz `source_quote` (o trecho literal da nota) e os offsets
+UTF-16 do trecho. A aplicacao **confere** que o texto no intervalo ainda e o
+trecho original: entre a proposta e o clique o rascunho pode ter mudado
+(outra sugestao aplicada, digitacao do usuario), e sem a conferencia a frase
+entraria no lugar errado — apagando conteudo do aluno. A funcao devolve
+`null` nesse caso, e a UI pede as melhorias de novo.
+
+#### O ciclo: o modal do dicionario
+
+A definicao que faltava nao precisa ser reescrita em cada nota. O modal
+oferece registrar o conceito no **Dicionario do Vault** (por Vault, porque
+o conceito de "rubisco" na biologia e na fisica nao e o mesmo). A definicao
+e editavel antes de gravar: o que o aluno aceita vale mais do que o que o
+provider propôs. Depois de registrada, a palavra passa a ter o balao de
+conceito no hover de **qualquer** nota do Vault.
+
+#### O que a medicao real mostra (rodada de 2026-10-21)
+
+O prompt mudou — agora pede as duas tarefas — entao a recall das definicoes
+foi **remedida**, nao presumida:
+
+| Medida | Antes (§15.34) | Agora | Leitura |
+| --- | --- | --- | --- |
+| Recall de definicoes | 15/47 (32%) | **16/47 (34%)** | subiu |
+| Termos propostos pelo provider | 36 (1,6/caso) | **28 (1,2/caso)** | caiu |
+| Recusados pelo motor | 7 | **2** | caiu muito |
+| ECE (pior de 3) | 0,145–0,158 | **0,138** | melhor, ainda reprovado |
+
+O provider passou a **dividir o orcamento** entre as duas tarefas, e por isso
+propoe menos termos por caso. A recall subiu mesmo assim: o que ele proposeu
+foi mais certeiro (2 recusados em vez de 7). E o ECE melhorou um pouco, mas
+continua **acima do gate de 0,10** — o gate reprovado, e o veredito segue
+"confianca nao acionavel".
+
+**A expansao nao tem ground truth**, e portanto nao tem recall. Isso e
+"nao medido", nao "0%": o que existe hoje e o relatorio do provider (quantas
+expansoes vieram, quantas passaram na ancora) e a revisao do usuario. Um
+ground truth de expansao exigiria um revisor escrevendo a frase que o aluno
+queria dizer para cada trecho — trabalho que ainda nao foi feito.
+
+#### O que mudou no codigo
+
+- `proposals.rs`: `PROPOSAL_INSTRUCTIONS` com TAREFA 1 (expansao) e TAREFA 2
+  (definicoes); `proposal_response_schema()` com `expansions` e `proposals`
+  (ambos `maxItems: 5`); `RawExpansion`; `NoteExpansion`; `propose_improvements`
+  (que antes era `propose_definitions`); `offset_of_quote` e `utf16_len`.
+- `ipc.rs`: `NoteImprovementExpansion`; `NoteImprovementReport.expansions`;
+  `propose_note_improvements` repassa as expansoes (sem passar pelo JEV).
+- Frontend: `NoteImprovementPanel` (antes/depois lado a lado, aplicar ao
+  rascunho, abrir o dicionario), `DictionaryOfferModal` (termos + definicoes
+  editaveis), `noteExpansionApply` (a ancora conferida), `insertText` no
+  schema de edicoes estruturais (a insercao da definicao e **aditiva**).
+- `NoteReadinessControl`: o botao "Melhorar a nota" — a feature estava
+  implementada e **nao ligada** em lugar nenhum.
+
+#### Um achado colateral: o harness de injecao
+
+O harness de injecao (R-01) tinha um teste que exigia que o mock do motor
+**nao** produzisse o rotulo `insufficient`. Esse teste media a regra antiga de
+rebaixamento, nao a capacidade do harness: o mock global e constante, entao
+ele nunca distinguiria uma injecao de ruido. O par certo e:
+
+- o harness **nao** acusa quando nada mexeu (provider constante);
+- o harness **acusa** quando o veredito se move (provider que responde
+  conforme o conteudo da nota).
+
+O segundo teste foi escrito agora. Sem ele, "o harness nao acusa" e
+indistinguivel de "o harness nao sabe acusar" — e o arquivo inteiro seria um
+vazio que passa por robustez.
