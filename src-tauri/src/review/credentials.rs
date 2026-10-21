@@ -9,6 +9,8 @@ const OPENAI_COMPATIBLE_BASE_URL_ACCOUNT: &str = "openai-compatible-base-url";
 const OPENAI_COMPATIBLE_MODEL_ACCOUNT: &str = "openai-compatible-model";
 const OPENAI_COMPATIBLE_API_KEY_ACCOUNT: &str = "openai-compatible-api-key";
 const OPENAI_CONSENT_ACCOUNT: &str = "openai-compatible-consent-v1";
+const TYPESAFE_API_KEY_ACCOUNT: &str = "typesafe-api-key";
+const TYPESAFE_CONSENT_ACCOUNT: &str = "typesafe-content-consent-v1";
 const CONSENT_MARKER: &str = "accepted";
 const MIN_CREDENTIAL_LENGTH: usize = 16;
 const MAX_CREDENTIAL_LENGTH: usize = 4_096;
@@ -24,6 +26,7 @@ pub trait CredentialStore: Send + Sync {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CredentialStatus {
     pub gemini_configured: bool,
+    pub typesafe_configured: bool,
 }
 
 #[derive(Debug, Default)]
@@ -154,6 +157,75 @@ pub fn delete_gemini_api_key(store: &dyn CredentialStore) -> Result<()> {
     store
         .delete_secret(GEMINI_ACCOUNT)
         .map_err(|_| anyhow!("Nao foi possivel remover a chave do Gemini com seguranca."))
+}
+
+// ---------------------------------------------------------------------------
+// TypeSafe AI (System One / JEV)
+// ---------------------------------------------------------------------------
+//
+// Nao ha base URL para configurar: o endpoint e fixo no codigo
+// (`calibrated::typesafe::TYPESAFE_ENDPOINT`). Uma base URL variavel permitiria
+// enviar a chave da TypeSafe para um servidor arbitrario escolhido por quem
+// configure, entao a validacao de URL dos outros provedores se aplica aqui
+// pela ausencia do parametro.
+
+/// Valida a chave da TypeSafe AI. Mesmas restricoes de comprimento e charset da
+/// chave do Gemini.
+pub(crate) fn validate_typesafe_api_key(api_key: &str) -> Result<&str> {
+    let api_key = api_key.trim();
+    if api_key.len() < MIN_CREDENTIAL_LENGTH
+        || api_key.len() > MAX_CREDENTIAL_LENGTH
+        || !api_key
+            .bytes()
+            .all(|byte| byte.is_ascii_graphic() && !matches!(byte, b'"' | b'\\'))
+    {
+        bail!("A chave da TypeSafe AI e invalida.");
+    }
+    Ok(api_key)
+}
+
+pub fn save_typesafe_api_key(store: &dyn CredentialStore, api_key: &str) -> Result<()> {
+    let api_key = validate_typesafe_api_key(api_key)?;
+    store
+        .set_secret(TYPESAFE_API_KEY_ACCOUNT, api_key)
+        .map_err(|_| anyhow!("Nao foi possivel salvar a chave da TypeSafe AI com seguranca."))
+}
+
+pub fn load_typesafe_api_key(store: &dyn CredentialStore) -> Result<Option<String>> {
+    let stored = store
+        .get_secret(TYPESAFE_API_KEY_ACCOUNT)
+        .map_err(|_| anyhow!("Nao foi possivel acessar a chave da TypeSafe AI com seguranca."))?;
+    stored
+        .map(|secret| validate_typesafe_api_key(&secret).map(str::to_owned))
+        .transpose()
+        .map_err(|_| anyhow!("A chave da TypeSafe AI armazenada e invalida."))
+}
+
+pub fn delete_typesafe_api_key(store: &dyn CredentialStore) -> Result<()> {
+    store
+        .delete_secret(TYPESAFE_API_KEY_ACCOUNT)
+        .map_err(|_| anyhow!("Nao foi possivel remover a chave da TypeSafe AI com seguranca."))
+}
+
+pub fn set_typesafe_consent(store: &dyn CredentialStore, consent: bool) -> Result<()> {
+    if consent {
+        store
+            .set_secret(TYPESAFE_CONSENT_ACCOUNT, CONSENT_MARKER)
+            .map_err(|_| {
+                anyhow!("Nao foi possivel salvar o consentimento da TypeSafe AI com seguranca.")
+            })
+    } else {
+        store.delete_secret(TYPESAFE_CONSENT_ACCOUNT).map_err(|_| {
+            anyhow!("Nao foi possivel remover o consentimento da TypeSafe AI com seguranca.")
+        })
+    }
+}
+
+pub fn has_typesafe_consent(store: &dyn CredentialStore) -> Result<bool> {
+    let marker = store.get_secret(TYPESAFE_CONSENT_ACCOUNT).map_err(|_| {
+        anyhow!("Nao foi possivel ler o consentimento da TypeSafe AI com seguranca.")
+    })?;
+    Ok(marker.as_deref() == Some(CONSENT_MARKER))
 }
 
 pub(crate) fn validate_openai_compatible_base_url(base_url: &str) -> Result<&str> {
@@ -287,6 +359,7 @@ pub fn load_openai_compatible_provider(
 pub fn credential_status(store: &dyn CredentialStore) -> Result<CredentialStatus> {
     Ok(CredentialStatus {
         gemini_configured: load_gemini_api_key(store)?.is_some(),
+        typesafe_configured: load_typesafe_api_key(store)?.is_some(),
     })
 }
 
@@ -294,9 +367,10 @@ pub fn credential_status(store: &dyn CredentialStore) -> Result<CredentialStatus
 mod tests {
     use super::{
         credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
-        has_gemini_consent, load_gemini_api_key, load_openai_compatible_provider,
-        save_gemini_api_key, save_openai_compatible_provider, set_gemini_consent, CredentialStore,
-        GEMINI_ACCOUNT,
+        delete_typesafe_api_key, has_gemini_consent, has_typesafe_consent, load_gemini_api_key,
+        load_openai_compatible_provider, load_typesafe_api_key, save_gemini_api_key,
+        save_openai_compatible_provider, save_typesafe_api_key, set_gemini_consent,
+        set_typesafe_consent, CredentialStore, GEMINI_ACCOUNT, TYPESAFE_API_KEY_ACCOUNT,
     };
     use anyhow::{bail, Result};
     use std::collections::HashMap;
@@ -447,6 +521,78 @@ mod tests {
 
         let error = load_gemini_api_key(&store).expect_err("invalid external key");
         assert!(!error.to_string().contains("invalid\nkey"));
+        assert!(credential_status(&store).is_err());
+    }
+
+    #[test]
+    fn stores_reads_reports_and_deletes_the_typesafe_key() {
+        let store = MemoryCredentialStore::default();
+        save_typesafe_api_key(&store, "  typesk_teste_0123456789  ").expect("save key");
+
+        assert_eq!(
+            load_typesafe_api_key(&store).expect("load key").as_deref(),
+            Some("typesk_teste_0123456789")
+        );
+        assert!(
+            credential_status(&store)
+                .expect("status")
+                .typesafe_configured
+        );
+
+        delete_typesafe_api_key(&store).expect("delete key");
+        assert!(
+            !credential_status(&store)
+                .expect("status")
+                .typesafe_configured
+        );
+        assert!(!store
+            .values
+            .lock()
+            .expect("values lock")
+            .contains_key(TYPESAFE_API_KEY_ACCOUNT));
+    }
+
+    #[test]
+    fn stores_and_revokes_typesafe_content_consent() {
+        let store = MemoryCredentialStore::default();
+        assert!(!has_typesafe_consent(&store).expect("initial consent"));
+        set_typesafe_consent(&store, true).expect("save consent");
+        assert!(has_typesafe_consent(&store).expect("stored consent"));
+        set_typesafe_consent(&store, false).expect("revoke consent");
+        assert!(!has_typesafe_consent(&store).expect("revoked consent"));
+    }
+
+    #[test]
+    fn rejects_invalid_typesafe_keys_with_the_same_rules_as_the_others() {
+        let store = MemoryCredentialStore::default();
+        assert!(save_typesafe_api_key(&store, "   ").is_err());
+        assert!(save_typesafe_api_key(&store, &"x".repeat(4_097)).is_err());
+        assert!(save_typesafe_api_key(&store, "key\nleak-invalid-123").is_err());
+        assert!(save_typesafe_api_key(&store, "invalid\"key\\value").is_err());
+    }
+
+    #[test]
+    fn never_includes_the_typesafe_secret_in_public_errors() {
+        let store = MemoryCredentialStore::default();
+        let secret = "typesk-super-secret-value";
+        *store.fail_with_secret.lock().expect("failure lock") =
+            Some(format!("backend leaked {secret}"));
+
+        let error = save_typesafe_api_key(&store, secret).expect_err("store failure");
+        assert!(!error.to_string().contains(secret));
+    }
+
+    #[test]
+    fn an_invalid_typesafe_key_inserted_outside_fails_loudly() {
+        let store = MemoryCredentialStore::default();
+        store
+            .values
+            .lock()
+            .expect("values lock")
+            .insert(TYPESAFE_API_KEY_ACCOUNT.to_string(), "curta".to_string());
+
+        let error = load_typesafe_api_key(&store).expect_err("chave invalida externa");
+        assert!(!error.to_string().contains("curta"));
         assert!(credential_status(&store).is_err());
     }
 }

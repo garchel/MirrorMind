@@ -1,3 +1,4 @@
+use super::calibration::EvaluationProvenance;
 use super::evaluation::{ReadinessReport, ReadinessStatus};
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -245,6 +246,17 @@ pub struct AssertionReport {
     pub source_quote: String,
     pub source_start_utf16: u64,
     pub source_end_utf16: u64,
+    /// Confianca do classificador, de 0 a 1. Ausente quando a avaliacao veio do
+    /// caminho legado, que nao produz probabilidades.
+    #[serde(default)]
+    pub status_confidence: Option<f64>,
+    /// Probabilidade por status, somando 1. Ausente no caminho legado.
+    #[serde(default)]
+    pub status_probabilities: Option<std::collections::BTreeMap<String, f64>>,
+    /// `true` quando a confianca estava baixa e o status virou `Missing`.
+    /// Ausente no caminho legado, que nao degrada.
+    #[serde(default)]
+    pub status_degraded: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -302,6 +314,15 @@ pub struct ReviewSession {
     pub note_content_hash: String,
     pub mode: ReviewMode,
     pub provider: AiProvider,
+    /// Quem **julgou** esta sessao. `provider` acima diz quem **escreveu**.
+    ///
+    /// Ausente em documentos anteriores a feature: nesses casos a proveniencia
+    /// e `Legacy`/`Off`, via `provenance_or_legacy`. A migracao e preguicosa de
+    /// proposito — reescrever todo documento de Vault na abertura para preencher
+    /// um campo que tem valor deduzivel seria um custo de escrita sem ganho,
+    /// e o valor deduzivel e exato (o motor calibrado nao existia antes).
+    #[serde(default)]
+    pub calibration: Option<EvaluationProvenance>,
     pub completed_at_unix_ms: u64,
     #[serde(deserialize_with = "deserialize_nullable")]
     pub overall_score: Option<u8>,
@@ -309,6 +330,15 @@ pub struct ReviewSession {
     pub effective_policy: ReviewPolicy,
     #[serde(deserialize_with = "deserialize_nullable")]
     pub next_review_at_unix_ms: Option<u64>,
+}
+
+impl ReviewSession {
+    /// A proveniencia da sessao, com o padrao do documento antigo aplicado.
+    pub fn provenance_or_legacy(&self) -> EvaluationProvenance {
+        self.calibration
+            .clone()
+            .unwrap_or_else(EvaluationProvenance::legacy)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1404,7 +1434,11 @@ fn require_text(value: &str, max_utf16_length: usize, message: &str) -> Result<(
 mod tests {
     use super::{
         migrate_learning_document, parse_learning_document, validate_session_against_markdown,
+        AiProvider, EvaluationProvenance, ReviewMode, ReviewPolicy, ReviewSession,
     };
+    use crate::review::calibrated::CalibrationEngine;
+    use crate::review::calibration::CalibrationStrategy;
+    use crate::review::evaluation::{ReadinessIssueCode, ReadinessStatus};
     use serde::Deserialize;
     use std::collections::HashMap;
 
@@ -1431,6 +1465,86 @@ mod tests {
         assert_eq!(document.schema_version, 1);
         assert_eq!(document.note.id, "note-1");
         assert_eq!(document.units.len(), 2);
+    }
+
+    /// Documento de Vault real, gravado **antes** das chaves de confiança.
+    ///
+    /// Este e o unico teste que fecha a migracao de ponta a ponta. Os fixtures
+    /// compartilhados (`v0` e `v1`) nao trazem `readiness.report`, entao nao
+    /// exercitam a desserializacao desse relatorio — e um Vault de usuario que
+    /// rodou a avaliacao antes da F5 tem exatamente esse formato. Sem o
+    /// `#[serde(default)]`, `deny_unknown_fields` Combined com a ausencia das
+    /// chaves tornaria todo Vault ja avaliado ilegivel.
+    #[test]
+    fn a_persisted_report_saved_before_the_confidence_fields_still_loads() {
+        let mut value: serde_json::Value =
+            serde_json::from_str(VALID_DOCUMENT).expect("fixture v1 como JSON");
+        // Espelha o documento real: uma nota ambigua ja vem pausada, porque o
+        // contrato recusa agenda ativa para nota que nao esta pronta.
+        value["scheduling"]["status"] = serde_json::json!("paused");
+        value["scheduling"]["nextReviewAtUnixMs"] = serde_json::Value::Null;
+        // As cinco chaves que o legado gravava, e nenhuma das novas.
+        value["note"]["readiness"]["status"] = serde_json::json!("ambiguous");
+        value["note"]["readiness"]["report"] = serde_json::json!({
+            "status": "ambiguous",
+            "explanation": "A segunda ideia depende de um termo nao definido.",
+            "centralIdea": {
+                "sourceQuote": "O ciclo de Calvin produz glicose.",
+                "sourceStartUtf16": 0,
+                "sourceEndUtf16": 34
+            },
+            "evaluablePoints": [],
+            "issues": [{
+                "code": "missingContext",
+                "message": "Termo nao definido.",
+                "suggestion": "Definir o termo.",
+                "sourceQuote": "depende de um termo",
+                "sourceStartUtf16": 40,
+                "sourceEndUtf16": 58
+            }]
+        });
+
+        let document = parse_learning_document(&value.to_string())
+            .expect("relatorio salvo antes das chaves de confianca deve carregar");
+
+        let report = match &document.note.readiness {
+            super::ReadinessAssessment::Ambiguous { report, .. } => report
+                .as_ref()
+                .expect("o relatorio precisa sobreviver a desserializacao"),
+            other => panic!("esperava Ambiguous, veio {other:?}"),
+        };
+        assert_eq!(report.status, ReadinessStatus::Ambiguous);
+        assert_eq!(report.issues.len(), 1);
+        assert_eq!(report.issues[0].code, ReadinessIssueCode::MissingContext);
+        // Ausente no documento antigo, e portanto `None` — nunca `0`.
+        assert_eq!(report.confidence, None);
+        assert_eq!(report.status_probabilities, None);
+        assert_eq!(report.confidence_degraded, None);
+    }
+
+    #[test]
+    fn a_loaded_legacy_report_is_rewritten_with_explicit_null_confidence() {
+        // Depois de carregar, o documento volta ao disco com as chaves
+        // presentes e nulas. E o que mantem `ai.ts` (que exige a chave) e
+        // `contracts.ts` (que tolera a ausencia) em acordo sobre o mesmo
+        // objeto depois do primeiro salvamento.
+        let mut value: serde_json::Value =
+            serde_json::from_str(VALID_DOCUMENT).expect("fixture v1 como JSON");
+        value["note"]["readiness"]["report"] = serde_json::json!({
+            "status": "ready",
+            "explanation": "Material avaliavel.",
+            "centralIdea": null,
+            "evaluablePoints": [],
+            "issues": []
+        });
+
+        let document = parse_learning_document(&value.to_string()).expect("carrega");
+        let rewritten = serde_json::to_value(&document).expect("serializa");
+        let report = &rewritten["note"]["readiness"]["report"];
+
+        assert_eq!(report["confidence"], serde_json::Value::Null);
+        assert_eq!(report["statusProbabilities"], serde_json::Value::Null);
+        assert_eq!(report["confidenceDegraded"], serde_json::Value::Null);
     }
 
     #[test]
@@ -1556,6 +1670,110 @@ mod tests {
         });
         value["units"] = serde_json::json!([section]);
         assert!(parse_learning_document(&value.to_string()).is_err());
+    }
+
+    #[test]
+    fn a_session_without_provenance_reads_as_legacy_not_as_unknown() {
+        // A migracao e preguicosa: o documento antigo nao ganha o campo, mas
+        // `provenance_or_legacy` responde `Legacy`/`Off`. E a resposta correta —
+        // o motor calibrado nao existia quando aquele documento foi escrito.
+        // O que seria errado e devolver "desconhecido".
+        let document = parse_learning_document(VALID_DOCUMENT).expect("fixture v1");
+        assert!(
+            document.sessions.is_empty()
+                || document
+                    .sessions
+                    .iter()
+                    .all(|session| session.calibration.is_none()),
+            "o fixture nao tem provencia gravada: e um documento anterior a feature"
+        );
+
+        let legacy = EvaluationProvenance::legacy();
+        assert_eq!(legacy.engine, CalibrationEngine::Legacy);
+        assert_eq!(legacy.strategy, CalibrationStrategy::Off);
+        assert_eq!(
+            legacy.confidence, None,
+            "o caminho legado nao tem confianca — isso e diferente de confianca zero"
+        );
+    }
+
+    #[test]
+    fn a_legacy_session_reports_the_same_provenance_as_an_explicit_one() {
+        // `provenance_or_legacy` tem de devolver exatamente o que um
+        // `Some(legacy())` devolveria: caso contrario, um documento antigo e um
+        // novo seriam distinguíveis por um campo que nao distingue nada.
+        let stored = EvaluationProvenance::legacy();
+        let session = ReviewSession {
+            id: "session-1".to_string(),
+            note_content_hash: "sha256:note-content".to_string(),
+            mode: ReviewMode::Exam,
+            provider: AiProvider::Ollama,
+            calibration: None,
+            completed_at_unix_ms: 1_720_000_000_000,
+            overall_score: Some(80),
+            unit_results: Vec::new(),
+            effective_policy: ready_document_policy(),
+            next_review_at_unix_ms: Some(1_720_172_800_000),
+        };
+        assert_eq!(session.provenance_or_legacy(), stored);
+    }
+
+    #[test]
+    fn an_explicit_provenance_is_preserved_through_a_save_and_load_cycle() {
+        let value: serde_json::Value =
+            serde_json::from_str(VALID_DOCUMENT).expect("fixture v1 como JSON");
+        let mut document = parse_learning_document(&value.to_string()).expect("carrega");
+        let provenance = EvaluationProvenance {
+            engine: CalibrationEngine::Jev,
+            model: "jev-1.13.0".to_string(),
+            strategy: CalibrationStrategy::Jev,
+            confidence: Some(0.81),
+            latency_ms: 412,
+            input_tokens: Some(1_200),
+            output_tokens: Some(90),
+        };
+        let session = document
+            .sessions
+            .first_mut()
+            .expect("a sessao precisa existir para o teste");
+        session.calibration = Some(provenance.clone());
+
+        let serialized = serde_json::to_string(&document).expect("serializa");
+        let reloaded = parse_learning_document(&serialized).expect("recarrega");
+        let restored = reloaded.sessions[0].provenance_or_legacy();
+        assert_eq!(restored, provenance);
+        assert_eq!(restored.confidence, Some(0.81));
+    }
+
+    #[test]
+    fn a_real_legacy_session_document_loads_without_the_calibration_key() {
+        // Este e o teste de migracao que importa: o fixture v1 tem sessoes
+        // **sem** a chave `calibration` — e e um documento real, gravado por uma
+        // versao anterior. Com `deny_unknown_fields` e um campo obrigatorio,
+        // todo Vault ja avaliado viraria ilegivel.
+        let document = parse_learning_document(VALID_DOCUMENT).expect("fixture v1");
+        assert!(
+            !document.sessions.is_empty(),
+            "o fixture precisa ter ao menos uma sessao para o teste ter valor"
+        );
+        for session in &document.sessions {
+            assert!(
+                session.calibration.is_none(),
+                "a sessao do fixture nao tem `calibration`: e anterior a feature"
+            );
+            // E ainda assim responde com proveniencia conhecida.
+            assert_eq!(
+                session.provenance_or_legacy().engine,
+                CalibrationEngine::Legacy
+            );
+        }
+    }
+
+    fn ready_document_policy() -> ReviewPolicy {
+        // A politica vem do proprio fixture: escreva-la aqui seria duplicar
+        // uma regra de validacao que ja existe em outro lugar.
+        let document = parse_learning_document(VALID_DOCUMENT).expect("fixture v1");
+        document.effective_policy
     }
 
     #[test]

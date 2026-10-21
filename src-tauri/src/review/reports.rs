@@ -472,6 +472,7 @@ mod tests {
                 note_content_hash: content_hash.clone(),
                 mode: ReviewMode::Exam,
                 provider: crate::review::contract::AiProvider::Ollama,
+                calibration: None,
                 completed_at_unix_ms: reviewed_at,
                 overall_score: Some(score),
                 unit_results: vec![SessionUnitResult {
@@ -501,6 +502,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let persisted = persist_readiness_assessment(
             vault.path(),
@@ -553,6 +557,7 @@ mod tests {
             note_content_hash: document.note.content_hash.clone(),
             mode: crate::review::contract::ReviewMode::Exam,
             provider: crate::review::contract::AiProvider::Ollama,
+            calibration: None,
             completed_at_unix_ms: reviewed_at,
             overall_score: Some(80),
             unit_results: vec![crate::review::contract::SessionUnitResult {

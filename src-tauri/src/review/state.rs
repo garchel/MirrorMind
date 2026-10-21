@@ -931,6 +931,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
 
         let state = persist_readiness_assessment(
@@ -979,6 +982,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             assessed_at,
         )
@@ -1031,6 +1037,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
 
         let first =
@@ -1079,6 +1088,9 @@ mod tests {
             }),
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
 
         let state = persist_readiness_assessment(
@@ -1113,6 +1125,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(vault.path(), "ATP.md", markdown, &report, 1_720_000_000_000)
             .expect("persist assessment");
@@ -1137,6 +1152,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(vault.path(), "ATP.md", markdown, &report, 1_720_000_000_000)
             .expect("persist assessment");
@@ -1179,6 +1197,7 @@ mod tests {
             note_content_hash: loaded.document.note.content_hash.clone(),
             mode: crate::review::contract::ReviewMode::Exam,
             provider: crate::review::contract::AiProvider::Ollama,
+            calibration: None,
             completed_at_unix_ms: session_at,
             overall_score: Some(45),
             unit_results: vec![crate::review::contract::SessionUnitResult {
@@ -1240,6 +1259,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(vault.path(), "RNA.md", markdown, &report, 1_720_000_000_000)
             .expect("persist assessment");
@@ -1262,6 +1284,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(
             vault.path(),
@@ -1326,6 +1351,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(
             vault.path(),
@@ -1370,6 +1398,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(
             vault.path(),
@@ -1408,6 +1439,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(vault.path(), "RNA.md", original, &report, 1_720_000_000_000)
             .expect("persist assessment");
@@ -1449,6 +1483,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
         };
 
@@ -1479,6 +1516,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let ready_at = 1_720_000_000_000;
         let state =
@@ -1528,6 +1568,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let ready_at = 1_720_000_000_000;
         let enrolled =
@@ -1558,6 +1601,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let assessed_at = 1_720_000_000_000;
         let state = persist_readiness_assessment(
@@ -1587,6 +1633,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let ready_at = 1_720_000_000_000;
         persist_readiness_assessment(vault.path(), "Tema.md", original, &report, ready_at)
@@ -1629,6 +1678,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let ready_at = 1_720_000_000_000;
         let assessed =
@@ -1676,6 +1728,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let ready_at = 1_720_000_000_000;
         persist_readiness_assessment(vault.path(), path, body, &report, ready_at)
@@ -1715,6 +1770,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let ready_at = 1_720_000_000_000;
         persist_readiness_assessment(vault.path(), path, original, &report, ready_at)
@@ -1741,6 +1799,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let ready_at = 1_720_000_000_000;
         let state = persist_readiness_assessment(vault.path(), path, markdown, &report, ready_at)
@@ -1787,6 +1848,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let ready_at = 1_720_000_000_000;
         let state = persist_readiness_assessment(vault.path(), path, original, &report, ready_at)
@@ -1825,6 +1889,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(vault.path(), "ATP.md", markdown, &report, 1_720_000_000_000)
             .expect("persist assessment");
@@ -1859,6 +1926,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(vault.path(), "ATP.md", markdown, &report, 1_720_000_000_000)
             .expect("persist assessment");
@@ -1901,6 +1971,7 @@ mod tests {
             note_content_hash: loaded.document.note.content_hash.clone(),
             mode: crate::review::contract::ReviewMode::Exam,
             provider: crate::review::contract::AiProvider::Ollama,
+            calibration: None,
             completed_at_unix_ms: session_at,
             overall_score: Some(45),
             unit_results: vec![crate::review::contract::SessionUnitResult {
@@ -1976,6 +2047,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(vault.path(), "RNA.md", markdown, &report, 1_720_000_000_000)
             .expect("persist assessment");

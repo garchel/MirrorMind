@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod adversarial;
+pub mod calibrated;
+pub mod calibration;
 pub(crate) mod comparability;
 #[cfg(test)]
 pub(crate) mod conformance;

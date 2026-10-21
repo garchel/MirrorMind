@@ -1,3 +1,6 @@
+use super::calibrated::typesafe::TYPESAFE_ENDPOINT;
+use super::calibrated::{CalibratedProvider, TypeSafeProvider};
+use super::calibration::{load_calibration_config, set_calibration_strategy, CalibrationStrategy};
 use super::comparability::{
     build_divergence_report, evaluate_with_provider, DivergenceReport, CASES,
     MARKDOWN as COMPARABILITY_MARKDOWN,
@@ -6,9 +9,11 @@ use super::contract::{ReviewMode, UnitEvaluation};
 use super::coverage::{select_session_units, SessionPlan};
 use super::credentials::{
     credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
-    has_gemini_consent, has_openai_compatible_consent, load_gemini_api_key,
-    load_openai_compatible_provider, save_gemini_api_key, save_openai_compatible_provider,
-    set_gemini_consent, set_openai_compatible_consent, NativeCredentialStore,
+    delete_typesafe_api_key, has_gemini_consent, has_openai_compatible_consent,
+    has_typesafe_consent, load_gemini_api_key, load_openai_compatible_provider,
+    load_typesafe_api_key, save_gemini_api_key, save_openai_compatible_provider,
+    save_typesafe_api_key, set_gemini_consent, set_openai_compatible_consent, set_typesafe_consent,
+    NativeCredentialStore,
 };
 use super::dashboard::{build_vault_review_dashboard, VaultReviewDashboard};
 use super::evaluation::{
@@ -43,7 +48,8 @@ use super::reports::{
     list_review_reports as collect_review_reports, RetentionReport, ReviewReportItem,
 };
 use super::session::{
-    complete_review_session, continue_review_conversation, start_review_session_with_coverage,
+    complete_review_session_with_calibration, continue_review_conversation,
+    continue_review_conversation_with_calibration, start_review_session_with_coverage,
     ConversationTurnAttempt, ReviewCompletionAttempt, ReviewCompletionInput, ReviewExchange,
     ReviewGenerationAttempt, ReviewPrompt,
 };
@@ -310,6 +316,28 @@ pub struct AiConfiguration {
     open_ai_compatible_model: Option<String>,
 }
 
+/// Estado do motor calibrado, lido junto da configuracao de IA.
+///
+/// Vai no mesmo payload em vez de um comando separado porque a tela de
+/// configuracao precisa dos dois ao mesmo tempo, e porque `calibrationValidated`
+/// e o que decide se o numero de confianca pode ser renderizado.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CalibrationConfiguration {
+    /// Estrategia ativa. `off` enquanto ninguem escolheu outra coisa.
+    pub strategy: CalibrationStrategy,
+    /// Chave da TypeSafe AI presente no cofre nativo.
+    pub typesafe_configured: bool,
+    /// Consentimento de egresso concedido no dialogo do sistema operacional.
+    pub typesafe_consent: bool,
+    /// O harness de F1 ja validou a calibracao? Enquanto `false`, a UI nao
+    /// exibe numeros de confianca — numero nao validado e teatro, e theater
+    /// exibido como verdade e pior que a ausencia dele.
+    pub calibration_validated: bool,
+    /// Endpoint, so para a UI mostrar a quem os dados saem. Nao configuravel.
+    pub typesafe_endpoint: &'static str,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OllamaStatus {
@@ -343,6 +371,198 @@ pub fn get_review_ai_configuration() -> Result<AiConfiguration, String> {
             .map(|(base_url, _)| base_url.clone()),
         open_ai_compatible_model: open_ai_compatible.map(|(_, model)| model),
     })
+}
+
+/// Le o estado do motor calibrado para o Vault aberto.
+#[tauri::command]
+pub(crate) fn get_calibration_configuration(
+    vault_root: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<CalibrationConfiguration, String> {
+    let root = authorized_vault_root(&vault_root, &authorized_paths)?;
+    calibration_configuration_for(&root)
+}
+
+/// Resolve e **autoriza** a raiz do Vault.
+///
+/// Sem isto, `vault_root` seria um caminho arbitrário vindo da interface: os
+/// comandos abaixo gravam e leem `.mirmind/` a partir dele, e uma interface
+/// comprometida conseguiria escrever um arquivo de configuração fora do Vault
+/// autorizado — ou ler um `.mirmind/review-calibration.json` de um Vault que o
+/// usuário não abriu.
+///
+/// Os outros 38 pontos deste arquivo já faziam isso; estes três foram escritos
+/// sem a checagem.
+fn authorized_vault_root(
+    vault_root: &str,
+    authorized_paths: &crate::AuthorizedPaths,
+) -> Result<PathBuf, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(vault_root)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    Ok(root)
+}
+
+/// Monta o estado do motor calibrado. Separado do comando para que os testes
+/// possam exercitar a logica sem passar pelo Tauri.
+fn calibration_configuration_for(vault_root: &Path) -> Result<CalibrationConfiguration, String> {
+    let store = NativeCredentialStore::new();
+    let config = load_calibration_config(vault_root).map_err(|error| error.to_string())?;
+    Ok(CalibrationConfiguration {
+        strategy: config.strategy,
+        typesafe_configured: load_typesafe_api_key(&store)
+            .map_err(|error| error.to_string())?
+            .is_some(),
+        typesafe_consent: has_typesafe_consent(&store).map_err(|error| error.to_string())?,
+        calibration_validated: config.calibration_validated,
+        typesafe_endpoint: TYPESAFE_ENDPOINT,
+    })
+}
+
+/// Troca o motor das funcionalidades calibradas.
+///
+/// A decisao e por Vault e nao global: comparar dois provedores dentro da
+/// mesma sessao exige que ambos vejam exatamente o mesmo conteudo, e um toggle
+/// global permitiria misturar notas avaliadas por maquinas diferentes no mesmo
+/// historico de agendamento.
+#[tauri::command]
+pub(crate) fn set_calibration_strategy_for_vault(
+    vault_root: String,
+    strategy: CalibrationStrategy,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<CalibrationConfiguration, String> {
+    let root = authorized_vault_root(&vault_root, &authorized_paths)?;
+    // Falhar cedo e legivel: escolher `jev` sem chave nem consentimento
+    // deixaria o app quebrado na proxima avaliacao, em vez de na escolha.
+    if strategy.requires_jev() {
+        let store = NativeCredentialStore::new();
+        if load_typesafe_api_key(&store)
+            .map_err(|error| error.to_string())?
+            .is_none()
+        {
+            return Err(
+                "Configure a chave da TypeSafe AI antes de ativar o motor calibrado.".to_string(),
+            );
+        }
+        if !has_typesafe_consent(&store).map_err(|error| error.to_string())? {
+            return Err(
+                "Autorize o envio do conteudo a TypeSafe AI antes de ativar o motor calibrado."
+                    .to_string(),
+            );
+        }
+    }
+    set_calibration_strategy(&root, strategy).map_err(|error| error.to_string())?;
+    calibration_configuration_for(&root)
+}
+
+/// Constrói o provider calibrado para o Vault, se a estratégia exigir um.
+///
+/// Espelha `provider_for_selection`: exige consentimento **antes** de
+/// construir o cliente, para que a chave existir no cofre nunca seja tratada
+/// como autorização de envio.
+///
+/// `Ok(None)` quando a estratégia é `off` — nenhum outro caminho chama
+/// `CalibratedProvider`, e um cliente HTTP a mais seria recurso gasto sem uso.
+pub(crate) fn calibrated_provider_for(
+    strategy: CalibrationStrategy,
+) -> Result<Option<Box<dyn CalibratedProvider>>, String> {
+    if !strategy.requires_jev() {
+        return Ok(None);
+    }
+    let store = NativeCredentialStore::new();
+    if !has_typesafe_consent(&store).map_err(|error| error.to_string())? {
+        return Err(
+            "Autorize o envio do conteudo a TypeSafe AI antes de usar o motor calibrado."
+                .to_string(),
+        );
+    }
+    let api_key = load_typesafe_api_key(&store).map_err(|error| error.to_string())?;
+    let Some(api_key) = api_key else {
+        return Err(
+            "Configure a chave da TypeSafe AI antes de usar o motor calibrado.".to_string(),
+        );
+    };
+    Ok(Some(Box::new(
+        TypeSafeProvider::new(api_key).map_err(|error| error.message)?,
+    )))
+}
+
+#[tauri::command]
+pub(crate) fn configure_typesafe_api_key(
+    vault_root: String,
+    api_key: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<CalibrationConfiguration, String> {
+    let root = authorized_vault_root(&vault_root, &authorized_paths)?;
+    save_typesafe_api_key(&NativeCredentialStore::new(), &api_key)
+        .map_err(|error| error.to_string())?;
+    calibration_configuration_for(&root)
+}
+
+#[tauri::command]
+pub(crate) fn remove_typesafe_api_key(
+    vault_root: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<CalibrationConfiguration, String> {
+    let root = authorized_vault_root(&vault_root, &authorized_paths)?;
+    delete_typesafe_api_key(&NativeCredentialStore::new()).map_err(|error| error.to_string())?;
+    // Sem chave, `jev` e `dual` deixam de ser escolhas validas; o toggle volta
+    // para `off` em vez de deixar a configuracao num estado impossivel.
+    let config = load_calibration_config(&root).map_err(|error| error.to_string())?;
+    if config.strategy.requires_jev() {
+        set_calibration_strategy(&root, CalibrationStrategy::Off)
+            .map_err(|error| error.to_string())?;
+    }
+    calibration_configuration_for(&root)
+}
+
+/// Revogar o consentimento e tem efeito colateral: derruba a estrategia para
+/// `off`, porque consentir e o que autoriza o egresso.
+#[tauri::command]
+pub(crate) fn set_typesafe_data_consent(
+    vault_root: String,
+    consent: bool,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<CalibrationConfiguration, String> {
+    let root = authorized_vault_root(&vault_root, &authorized_paths)?;
+    if consent {
+        // O consentimento so e concedido pelo dialogo nativo; uma interface
+        // comprometida nao pode autoautorizar o envio.
+        return calibration_configuration_for(&root);
+    }
+    set_typesafe_consent(&NativeCredentialStore::new(), false)
+        .map_err(|error| error.to_string())?;
+    let config = load_calibration_config(&root).map_err(|error| error.to_string())?;
+    if config.strategy.requires_jev() {
+        set_calibration_strategy(&root, CalibrationStrategy::Off)
+            .map_err(|error| error.to_string())?;
+    }
+    calibration_configuration_for(&root)
+}
+
+/// Concede o consentimento de envio a TypeSafe AI SOMENTE pelo dialogo nativo
+/// do sistema operacional (fora do renderer), espelhando o fluxo do Gemini.
+#[tauri::command]
+pub fn confirm_typesafe_data_consent(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+    let confirmed = app
+        .dialog()
+        .message("O MirrorMind enviara o trecho da nota selecionado e os dados da sessao atual a TypeSafe AI, servico externo hospedado nos Estados Unidos que usa um modelo de decisao estruturada. Nada sera enviado sem esta autorizacao, e voce pode revoga-la a qualquer momento nas configuracoes.")
+        .title("Autorizar envio a TypeSafe AI")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Autorizar".to_string(),
+            "Cancelar".to_string(),
+        ))
+        .blocking_show();
+    if confirmed {
+        set_typesafe_consent(&NativeCredentialStore::new(), true)
+            .map_err(|error| error.to_string())?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 /// Configura o provedor OpenAI-compatible (endereco, modelo e chave) no cofre
@@ -525,6 +745,12 @@ pub async fn run_provider_comparability() -> Result<DivergenceReport, String> {
 /// operacao SEPARADA da avaliacao de memoria: nunca altera o Markdown, nunca
 /// modifica pontuacoes de revisoes nem o estado DSR/FSRS. Distingue
 /// claramente fatos confirmados, divergentes e incertos, com fontes/razoes.
+///
+/// O caminho e escolhido pela estrategia do Vault: em `off` roda o legado
+/// intacto; em `jev` extrai as afirmacoes com o provider generativo e
+/// classifica com o motor calibrado. A reserva de orcamento acontece uma vez
+/// por caminho — no calibrado, a extracao e a classificacao sao duas chamadas
+/// de motores diferentes e por isso custam como duas.
 #[tauri::command]
 pub(crate) async fn verify_note_facts(
     path: String,
@@ -542,10 +768,33 @@ pub(crate) async fn verify_note_facts(
             crate::resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
         let markdown =
             read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
+        let strategy = super::calibration::load_calibration_config(&root)
+            .map_err(|error| error.to_string())?
+            .strategy;
         let provider = provider_for_selection(provider)?;
-        reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
-        super::fact_check::verify_note_facts(provider.as_ref(), &markdown)
-            .map_err(|error| error.to_string())
+        let calibrated = calibrated_provider_for(strategy)?;
+
+        match calibrated {
+            // Caminho legado, byte a byte como antes: nenhuma linha de
+            // `fact_check::verify_note_facts` muda quando a estrategia e off.
+            None => {
+                reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
+                super::fact_check::verify_note_facts(provider.as_ref(), &markdown)
+                    .map_err(|error| error.to_string())
+            }
+            Some(calibrated) => {
+                // Extracao (generativa) e classificacao (calibrada) sao duas
+                // chamadas: reservar duas antes de qualquer custo.
+                reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
+                reserve_ai_call(&root, provider.as_ref(), markdown.len() / 2)?;
+                super::calibrated::fact_check::verify_facts_with_calibrated_engine(
+                    provider.as_ref(),
+                    calibrated.as_ref(),
+                    &markdown,
+                )
+                .map_err(|failure: super::provider::ProviderFailure| failure.message)
+            }
+        }
     })
     .await
     .map_err(|_| "Nao foi possivel concluir a verificacao factual.".to_string())?
@@ -599,6 +848,251 @@ pub(crate) async fn note_session_sources(
 /// nota, em quatro dimensoes separadas (cerne, conexoes, aplicacao e
 /// integracao de lacunas). Avaliacao formativa: nao altera o estado DSR/FSRS
 /// nem as proximas datas de revisao.
+/// Le o registro de comparacao do Vault.
+///
+/// O sidecar so e escrito no modo `Dual`, entao uma resposta vazia significa
+/// "ainda nao houve comparacao" e nao "os motores concordam sempre".
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CalibrationComparison {
+    /// Quantas avaliacoes comparadas existem.
+    pub total: usize,
+    /// Quantas divergiram.
+    pub divergences: usize,
+    /// A fracao que divergiu, de 0 a 1.
+    pub divergence_rate: Option<f64>,
+    /// As divergencias, mais recentes primeiro.
+    pub recent: Vec<CalibrationDivergence>,
+    /// `true` quando o modo `Dual` esta ligado — o que e a condicao para o
+    /// sidecar existir.
+    pub collecting: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CalibrationDivergence {
+    pub at_unix_ms: u64,
+    pub relative_path: String,
+    pub dimension: String,
+    pub primary_engine: String,
+    pub primary_label: Option<String>,
+    pub secondary_engine: String,
+    pub secondary_label: Option<String>,
+    pub primary_confidence: Option<f64>,
+    /// A distribuicao do lado que julgou, para o usuario ver *por que* ele
+    /// decidiu diferente.
+    pub primary_distribution: Option<std::collections::BTreeMap<String, f64>>,
+}
+
+#[tauri::command]
+pub(crate) fn get_calibration_comparison(
+    vault_root: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<CalibrationComparison, String> {
+    let root = authorized_vault_root(&vault_root, &authorized_paths)?;
+    let log = super::calibrated::comparison::load_comparison(&root);
+    let strategy = super::calibration::load_calibration_config(&root)
+        .map_err(|error| error.to_string())?
+        .strategy;
+    let divergences: Vec<CalibrationDivergence> = log
+        .records
+        .iter()
+        .rev()
+        .filter(|record| !record.agreed)
+        .take(50)
+        .map(|record| CalibrationDivergence {
+            at_unix_ms: record.at_unix_ms,
+            relative_path: record.relative_path.clone(),
+            dimension: record.dimension.clone(),
+            primary_engine: record.primary.engine.clone(),
+            primary_label: record.primary.label.clone(),
+            secondary_engine: record.secondary.engine.clone(),
+            secondary_label: record.secondary.label.clone(),
+            primary_confidence: record.primary.confidence,
+            primary_distribution: record.primary.distribution.clone(),
+        })
+        .collect();
+    let total = log.records.len();
+    let diverging = log.records.iter().filter(|record| !record.agreed).count();
+    Ok(CalibrationComparison {
+        total,
+        divergences: diverging,
+        divergence_rate: if total == 0 {
+            None
+        } else {
+            Some(diverging as f64 / total as f64)
+        },
+        recent: divergences,
+        collecting: strategy == CalibrationStrategy::Dual,
+    })
+}
+
+/// A divergencia do motor calibrado nesta nota, se houver.
+///
+/// Fica na nota porque e **la** que o usuario decide: a tela de comparacao nas
+/// configuracoes mostra o agregado, e o agregado nao diz o que fazer com esta
+/// nota.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteCalibrationDivergence {
+    pub at_unix_ms: u64,
+    pub dimension: String,
+    pub primary_engine: String,
+    pub primary_label: Option<String>,
+    pub secondary_engine: String,
+    pub secondary_label: Option<String>,
+    pub primary_confidence: Option<f64>,
+}
+
+#[tauri::command]
+pub(crate) fn get_note_calibration_divergence(
+    vault_root: String,
+    relative_path: String,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<Option<NoteCalibrationDivergence>, String> {
+    let root = authorized_vault_root(&vault_root, &authorized_paths)?;
+    let log = super::calibrated::comparison::load_comparison(&root);
+    // O registro mais recente desta nota: uma avaliacao nova substitui a
+    // antiga, e mostrar a divergencia antiga seria mostrar um dado que ja nao
+    // descreve a nota.
+    let record = log
+        .records
+        .iter()
+        .rev()
+        .find(|record| record.relative_path == relative_path);
+    let Some(record) = record else {
+        return Ok(None);
+    };
+    Ok(Some(NoteCalibrationDivergence {
+        at_unix_ms: record.at_unix_ms,
+        dimension: record.dimension.clone(),
+        primary_engine: record.primary.engine.clone(),
+        primary_label: record.primary.label.clone(),
+        secondary_engine: record.secondary.engine.clone(),
+        secondary_label: record.secondary.label.clone(),
+        primary_confidence: record.primary.confidence,
+    }))
+}
+
+/// Uma sugestao de melhoria da nota, ja confirmada.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteImprovementSuggestion {
+    pub term: String,
+    pub definition: String,
+    /// A citacao da nota onde o termo e usado sem definicao.
+    pub source_quote: String,
+    /// Onde a definicao seria inserida, em offset UTF-16.
+    pub start_utf16: u64,
+    /// A confianca do motor na confirmacao.
+    pub confidence: f64,
+}
+
+/// As sugestoes de melhoria de uma nota.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteImprovementReport {
+    pub suggestions: Vec<NoteImprovementSuggestion>,
+    /// Quantas propostas o provider fez e o filtro recusou.
+    ///
+    /// O numero e diagnostico: se quase tudo e recusado, o provider esta
+    /// propondo mal; se quase nada e recusado, o filtro nao esta filtrando.
+    pub rejected: usize,
+    /// `true` quando o provider nao respondeu no contrato.
+    pub invalid: bool,
+}
+
+/// Sugere melhorias para uma nota: definicoes que faltam.
+///
+/// O provider **generativo** propoe (ele escreve texto) e o **motor
+/// calibrado** confirma (ele julga). A ordem importa: as checagens
+/// deterministicas rodam entre as duas, porque cada proposta recusada ali e
+/// uma chamada de JEV que nao precisa acontecer.
+#[tauri::command]
+pub(crate) async fn propose_note_improvements(
+    path: String,
+    relative_path: String,
+    provider: AiProviderSelection,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<NoteImprovementReport, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let note_path =
+            crate::resolve_note_path(&root, &relative_path).map_err(|error| error.to_string())?;
+        let markdown =
+            read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
+        let provider = provider_for_selection(provider)?;
+        reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
+
+        let strategy = super::calibration::load_calibration_config(&root)
+            .map_err(|error| error.to_string())?
+            .strategy;
+
+        // 1. O provider generativo propoe.
+        let outcome =
+            super::calibrated::proposals::propose_definitions(provider.as_ref(), &markdown)
+                .map_err(|failure| failure.message)?;
+        if outcome.invalid {
+            return Ok(NoteImprovementReport {
+                suggestions: Vec::new(),
+                rejected: outcome.rejected.len(),
+                invalid: true,
+            });
+        }
+
+        // 2. O motor calibrado confirma as que sobreviveram. Sem o motor
+        // calibrado configurado, as sugestoes do provider vao direto: ele ja
+        // filtrou, e a confirmacao e o que agrega valor.
+        let mut suggestions = Vec::new();
+        match calibrated_provider_for(strategy)? {
+            Some(calibrated) => {
+                reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
+                let verdicts = super::calibrated::improvements::confirm_definition_proposals(
+                    calibrated.as_ref(),
+                    &markdown,
+                    &outcome.proposals,
+                )
+                .map_err(|failure| failure.message)?;
+                for (proposal, verdict) in outcome.proposals.iter().zip(verdicts) {
+                    if !verdict.needs_definition {
+                        continue;
+                    }
+                    suggestions.push(NoteImprovementSuggestion {
+                        term: proposal.term.clone(),
+                        definition: proposal.definition.clone(),
+                        source_quote: proposal.source_quote.clone(),
+                        start_utf16: proposal.start_utf16,
+                        confidence: verdict.confidence,
+                    });
+                }
+            }
+            None => {
+                for proposal in &outcome.proposals {
+                    suggestions.push(NoteImprovementSuggestion {
+                        term: proposal.term.clone(),
+                        definition: proposal.definition.clone(),
+                        source_quote: proposal.source_quote.clone(),
+                        start_utf16: proposal.start_utf16,
+                        confidence: proposal.confidence,
+                    });
+                }
+            }
+        }
+
+        Ok(NoteImprovementReport {
+            suggestions,
+            rejected: outcome.rejected.len(),
+            invalid: false,
+        })
+    })
+    .await
+    .map_err(|_| "Nao foi possivel sugerir melhorias para a nota.".to_string())?
+}
+
 #[tauri::command]
 pub(crate) async fn assess_note_synthesis(
     path: String,
@@ -630,7 +1124,6 @@ pub(crate) async fn assess_note_synthesis(
         let mut reserve_vision = |image_bytes: usize| {
             super::usage::check_and_record_vision_call(&root, provider_kind, image_bytes)
                 .map(|_| ())
-                .map_err(anyhow::Error::from)
         };
         let material = super::session_sources::build_session_material(
             &root,
@@ -640,11 +1133,34 @@ pub(crate) async fn assess_note_synthesis(
         )
         .map_err(|error| error.to_string())?;
         reserve_ai_call(&root, provider.as_ref(), material.len() + synthesis.len())?;
+        let strategy = super::calibration::load_calibration_config(&root)
+            .map_err(|error| error.to_string())?
+            .strategy;
+
+        // A sintese fica no caminho legado, e isso e uma DECISAO medida, nao
+        // uma omissao.
+        //
+        // Os dois motores respondem a perguntas **diferentes** aqui: o legado
+        // da um score 0-100 a partir da sintese do usuario, e o JEV classifica
+        // a mesma frase em cinco niveis com a sua propria rubrica. Nao sao
+        // equivalentes, entao "concordar" nao e o mesmo que "errar junto".
+        //
+        // Contra a revisao independente (19 casos, `golden-review-gemini.json`),
+        // o legado acerta 23 de 32 dimensoes e o JEV 19 de 32 — o legado erra
+        // menos, sobretudo em `application` (6/8 contra 3/8). Trocar a sintese
+        // para o JEV pioraria o que o usuario ve.
+        //
+        // E, se o score do legado e o que vale, **nao ha razao para chamar o
+        // JEV**: a chamada custaria dinheiro e latencia para um numero que
+        // seria descartado. O caminho calibrado continua valendo para
+        // prontidao, fatos, assertions e `shouldFinish`, onde os dois motores
+        // respondem a MESMA pergunta e o JEV ganha de lavada.
+        let _ = strategy;
         super::synthesis::evaluate_synthesis(provider.as_ref(), &material, &synthesis)
             .map_err(|error| error.to_string())
     })
     .await
-    .map_err(|_| "Nao foi possivel concluir a avaliacao da sintese.".to_string())?
+    .map_err(|_| "Nao foi possivel avaliar a sintese.".to_string())?
 }
 
 #[tauri::command]
@@ -675,6 +1191,11 @@ pub(crate) async fn assess_note_readiness(
         let max_whole_note_words =
             usize::try_from(limits.max_whole_note_words).unwrap_or(usize::MAX);
 
+        let strategy = super::calibration::load_calibration_config(&root)
+            .map_err(|error| error.to_string())?
+            .strategy;
+        let calibrated = calibrated_provider_for(strategy)?;
+
         let attempt = evaluate_readiness(
             provider.as_ref(),
             &markdown,
@@ -682,16 +1203,74 @@ pub(crate) async fn assess_note_readiness(
             expected_source_hash.as_deref(),
         )
         .map_err(|error| error.to_string())?;
+
+        let calibrated = match calibrated {
+            Some(calibrated) => calibrated,
+            // Sem JEV configurado: caminho legado puro.
+            None => {
+                let current_markdown =
+                    read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
+                persist_readiness_attempt(
+                    &root,
+                    &relative_path,
+                    &current_markdown,
+                    &attempt,
+                    current_unix_ms().map_err(|error| error.to_string())?,
+                )
+                .map_err(|error| error.to_string())?;
+                return Ok(attempt);
+            }
+        };
+
+        // A prosa decide se a tentativa e valida: sem texto ancorado nao ha o
+        // que mostrar, e o caminho calibrado nao inventa grounding.
+        let ReadinessAttempt::Valid {
+            source_hash,
+            report,
+        } = attempt
+        else {
+            return Ok(attempt);
+        };
+
+        // Estas duas chamadas NAO sao paralelas, ao contrario de F2/F3/F4.
+        // O JEV reclassifica os issues que o legado acabou de produzir, entao a
+        // segunda depende da primeira por dados, nao por escolha. Rodar em
+        // paralelo exigiria classificar issues obsoletos de uma avaliacao
+        // anterior, que e o modo de falha que o portao de confianca existe
+        // justamente para evitar.
+        //
+        // Uma chamada de reserva: o JEV e a segunda via, entao ela e orcada
+        // separadamente. Sem isso o modo Dual dobraria a conta sem nenhuma
+        // variavel de controle.
+        reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
+        let now = current_unix_ms().map_err(|error| error.to_string())?;
+        // O trecho calibrado vive em `calibrated::dispatch` para ser testavel
+        // de ponta a ponta. Um caminho de producao sem teste e o tipo de
+        // coisa que esconde um bug ate o usuario avaliar a primeira nota — a
+        // sintese esteve quebrada assim.
+        let assessment = super::calibrated::dispatch::assess_with_calibration(
+            super::calibrated::dispatch::CalibratedInput {
+                vault_root: &root,
+                strategy,
+                calibrated: calibrated.as_ref(),
+                markdown: &markdown,
+                legacy_report: &report,
+                source_hash: &source_hash,
+                relative_path: &relative_path,
+                now_unix_ms: now,
+            },
+        )
+        .map_err(|failure| failure.message)?;
+        let merged = assessment.report;
+
+        let attempt = ReadinessAttempt::Valid {
+            source_hash,
+            report: merged,
+        };
         let current_markdown =
             read_bounded_markdown(&root, &note_path).map_err(|error| error.to_string())?;
-        persist_readiness_attempt(
-            &root,
-            &relative_path,
-            &current_markdown,
-            &attempt,
-            current_unix_ms().map_err(|error| error.to_string())?,
-        )
-        .map_err(|error| error.to_string())?;
+        persist_readiness_attempt(&root, &relative_path, &current_markdown, &attempt, now)
+            .map_err(|error| error.to_string())?;
         Ok(attempt)
     })
     .await
@@ -886,11 +1465,32 @@ pub(crate) async fn continue_note_review_conversation(
         )?;
         let provider = provider_for_selection(provider)?;
         reserve_ai_call(&root, provider.as_ref(), bound.session_markdown.len())?;
+        let strategy = super::calibration::load_calibration_config(&root)
+            .map_err(|error| error.to_string())?
+            .strategy;
+        let calibrated = calibrated_provider_for(strategy)?;
         // A conversa continua com o subset das unidades-alvo (cobertura
         // adaptativa), para os turnos nunca sairem do escopo da sessao.
-        let attempt =
-            continue_review_conversation(provider.as_ref(), &bound.session_markdown, &exchanges)
-                .map_err(|error| error.to_string())?;
+        //
+        // C6: com motor calibrado, sao ate DUAS chamadas neste caminho — a
+        // decisao de encerrar e a pergunta. Isso encarece o turno mais sensivel
+        // de latencia da UX, entao a reserva de orcamento e feita duas vezes e
+        // o caminho sem JEV continua sendo exatamente o legado.
+        let attempt = match calibrated {
+            Some(calibrated) => {
+                reserve_ai_call(&root, provider.as_ref(), bound.session_markdown.len())?;
+                continue_review_conversation_with_calibration(
+                    provider.as_ref(),
+                    calibrated.as_ref(),
+                    &bound.session_markdown,
+                    &exchanges,
+                )
+            }
+            None => {
+                continue_review_conversation(provider.as_ref(), &bound.session_markdown, &exchanges)
+            }
+        }
+        .map_err(|error| error.to_string())?;
         if let ConversationTurnAttempt::Valid {
             prompt: Some(prompt),
             ..
@@ -948,6 +1548,15 @@ pub(crate) async fn complete_note_review_session(
         }
         let provider = provider_for_selection(provider)?;
         reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
+        let strategy = super::calibration::load_calibration_config(&root)
+            .map_err(|error| error.to_string())?
+            .strategy;
+        let calibrated = calibrated_provider_for(strategy)?;
+        // A classificacao calibrada e uma chamada extra sobre a avaliacao
+        // generativa, que ja rodou porque as lacunas e o resumo sao texto.
+        if calibrated.is_some() {
+            reserve_ai_call(&root, provider.as_ref(), markdown.len() / 2)?;
+        }
         let input = ReviewCompletionInput {
             session_id: session_id.clone(),
             note_id: note_id.clone(),
@@ -962,11 +1571,20 @@ pub(crate) async fn complete_note_review_session(
             // registro interno da sessao, nunca do cliente.
             target_unit_ids: bound.target_unit_ids.clone(),
             session_markdown: bound.session_markdown.clone(),
+            // Quem julgou. O campo e preenchido aqui, no unico ponto onde a
+            // estrategia esta resolvida, para que nenhum caminho de avaliacao
+            // possa esquecer de preenche-lo: sem isto, a comparabilidade do §11
+            // nao tem como attributir um numero ao motor que o produziu.
+            calibration: Some(super::calibration::provenance_for(
+                strategy,
+                calibrated.as_deref(),
+            )),
         };
-        let attempt = complete_review_session(
+        let attempt = complete_review_session_with_calibration(
             &root,
             &note_id,
             provider.as_ref(),
+            calibrated.as_deref(),
             &markdown,
             input,
             current_unix_ms().map_err(|error| error.to_string())?,
@@ -1193,6 +1811,9 @@ pub(crate) async fn seed_e2e_review_state(
             central_idea: quotes.first().cloned().map(grounded),
             evaluable_points: quotes.iter().take(3).cloned().map(grounded).collect(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(&root, &relative_path, &markdown, &report, now)
             .map_err(|error| error.to_string())?;

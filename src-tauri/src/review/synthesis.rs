@@ -33,7 +33,7 @@ Para cada dimensao, cite na explicacao o trecho da sintese do usuario que susten
 
 overallScore e a media ponderada das quatro dimensoes (core 40%, connections 25%, application 20%, gaps 15%), arredondada para inteiro.
 
-FORMATO OBRIGATORIO: responda somente com um objeto JSON, sem Markdown e sem texto adicional. Use exatamente estas chaves camelCase: overallScore, dimensions, observations. dimensions e um objeto com as chaves core, connections, application e gaps; cada dimensao usa as chaves score, explanation, quote e sourceQuote. observations e uma lista de ate 5 observacoes curtas (cada uma com texto, mensagem dirigida ao usuario) apontando forcas e pontos de melhoria. Nao use chaves alternativas. scores devem ser inteiros de 0 a 100. Nao invente, resuma ou altere uma citacao: toda citacao deve ser literal exata.
+FORMATO OBRIGATORIO: responda somente com um objeto JSON, sem Markdown e sem texto adicional. Use exatamente estas chaves camelCase: overallScore, dimensions, observations. dimensions e um objeto com as chaves core, connections, application e gaps; cada dimensao usa as chaves score, explanation, quote e sourceQuote. observations e uma lista de ate 5 observacoes curtas, e **cada item e um objeto com a unica chave `text`**, cujo valor e a mensagem dirigida ao usuario, apontando forcas e pontos de melhoria. Nao use chaves alternativas. scores devem ser inteiros de 0 a 100. Nao invente, resuma ou altere uma citacao: toda citacao deve ser literal exata.
 
 Exemplo: {\"overallScore\":72,\"dimensions\":{\"core\":{\"score\":80,\"explanation\":\"...\",\"quote\":\"trecho da sintese\",\"sourceQuote\":\"trecho literal da nota\"},\"connections\":{\"score\":60,\"explanation\":\"...\",\"quote\":\"...\",\"sourceQuote\":null},\"application\":{\"score\":75,\"explanation\":\"...\",\"quote\":\"...\",\"sourceQuote\":\"...\"},\"gaps\":{\"score\":50,\"explanation\":\"...\",\"quote\":\"...\",\"sourceQuote\":null}},\"observations\":[{\"text\":\"...\"}]}.";
 
@@ -127,10 +127,39 @@ struct RawSynthesisDimension {
     source_quote: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+/// Uma observação vinda do modelo.
+///
+/// Aceita **duas** formas: o objeto `{"text": "..."}` que o schema pede, e a
+/// string simples `["..."]`. Um modelo pequeno (qwen2.5:7b, o padrao local do
+/// MirrorMind) devolve a lista de strings, e o `deny_unknown_fields` do resto
+/// do relatorio descartava o **relatorio inteiro** por causa disso — a
+/// dimensao scores, as citacoes ancoradas, tudo perdido por um detalhe de
+/// forma numa lista de texto livre.
+///
+/// A coerciao nao perde nada: o texto e a unica informacao que a observacao
+/// carrega. O que continua estrito e o que importa — os scores, as cotacoes e
+/// o grounding.
+#[derive(Debug, Clone)]
 struct RawSynthesisObservation {
     text: String,
+}
+
+impl<'de> Deserialize<'de> for RawSynthesisObservation {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Shape {
+            Text(String),
+            Object { text: String },
+        }
+        match Shape::deserialize(deserializer)? {
+            Shape::Text(text) => Ok(Self { text }),
+            Shape::Object { text } => Ok(Self { text }),
+        }
+    }
 }
 
 fn synthesis_response_schema() -> serde_json::Value {
@@ -163,11 +192,22 @@ fn synthesis_response_schema() -> serde_json::Value {
             "observations": {
                 "type": "array",
                 "maxItems": 5,
+                // As duas formas sao aceitas. O Ollama com modelo pequeno
+                // devolve a lista de strings, e o schema que exigia objeto
+                // descartava o relatorio INTEIRO — scores, cotacoes ancoradas e
+                // tudo mais — por causa de uma lista de texto livre. O
+                // primeiro item do `oneOf` e a forma pedida; o segundo e a
+                // que os modelos locais produzem.
                 "items": {
-                    "type": "object",
-                    "properties": { "text": { "type": "string", "minLength": 1, "maxLength": 8192 } },
-                    "required": ["text"],
-                    "additionalProperties": false
+                    "oneOf": [
+                        { "type": "string", "minLength": 1, "maxLength": 8192 },
+                        {
+                            "type": "object",
+                            "properties": { "text": { "type": "string", "minLength": 1, "maxLength": 8192 } },
+                            "required": ["text"],
+                            "additionalProperties": false
+                        }
+                    ]
                 }
             }
         },

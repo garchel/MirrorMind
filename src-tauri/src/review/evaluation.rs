@@ -15,6 +15,21 @@ pub enum ReadinessStatus {
     Insufficient,
 }
 
+impl ReadinessStatus {
+    /// Rotulo textual, identico ao que `serde` emite em camelCase.
+    ///
+    /// O sidecar de comparacao grava o rotulo como `String` para ser legivel
+    /// por humano. Derivar o nome do `serde` seria depender de um detalhe de
+    /// serializacao; o metodo torna a dependencia explicita.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ReadinessStatus::Ready => "ready",
+            ReadinessStatus::Ambiguous => "ambiguous",
+            ReadinessStatus::Insufficient => "insufficient",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ReadinessIssueCode {
@@ -22,6 +37,18 @@ pub enum ReadinessIssueCode {
     Insufficient,
     Contradictory,
     MissingContext,
+}
+
+impl ReadinessIssueCode {
+    /// Rotulo estavel no wire e na mensagem da pergunta calibrada.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ReadinessIssueCode::Ambiguous => "ambiguous",
+            ReadinessIssueCode::Insufficient => "insufficient",
+            ReadinessIssueCode::Contradictory => "contradictory",
+            ReadinessIssueCode::MissingContext => "missingContext",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -43,7 +70,7 @@ pub struct GroundedReadinessIssue {
     pub source_end_utf16: Option<u32>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ReadinessReport {
     pub status: ReadinessStatus,
@@ -51,6 +78,20 @@ pub struct ReadinessReport {
     pub central_idea: Option<GroundedReadinessSource>,
     pub evaluable_points: Vec<GroundedReadinessSource>,
     pub issues: Vec<GroundedReadinessIssue>,
+    /// Confianca do classificador, de 0 a 1.
+    ///
+    /// `None` no caminho legado, que devolve um rotulo seco. Serializado como
+    /// `null` em vez de omitido porque o schema do frontend e `.strict()` e
+    /// rejeita chave desconhecida.
+    #[serde(default)]
+    pub confidence: Option<f64>,
+    /// Probabilidade por status, somando 1. `None` no caminho legado.
+    #[serde(default)]
+    pub status_probabilities: Option<std::collections::BTreeMap<String, f64>>,
+    /// `true` quando a confianca estava baixa e o status virou `Ambiguous`.
+    /// `None` no caminho legado, que nao degrada.
+    #[serde(default)]
+    pub confidence_degraded: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -586,6 +627,12 @@ fn ground_report(
             central_idea,
             evaluable_points,
             issues,
+            // O caminho legado nao produz probabilidades. Os tres campos ficam
+            // vazios e a UI trata `null` como "motor sem informacao de
+            // incerteza".
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         })
     } else {
         Err(errors)

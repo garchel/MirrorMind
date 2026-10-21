@@ -9180,6 +9180,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             ready_at,
         )
@@ -9224,6 +9227,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             now,
         )
@@ -9249,6 +9255,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let notes = [
             ("curso/aula.md", "# Aula\n\nUm.\n\nDois.\n\nTres."),
@@ -9303,6 +9312,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             1_720_000_000_000,
         )

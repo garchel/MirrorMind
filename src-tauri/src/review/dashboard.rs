@@ -560,6 +560,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let first = persist_readiness_assessment(
             vault.path(),
@@ -636,6 +639,7 @@ mod tests {
             note_content_hash: second_document.note.content_hash.clone(),
             mode: crate::review::contract::ReviewMode::Exam,
             provider: crate::review::contract::AiProvider::Ollama,
+            calibration: None,
             completed_at_unix_ms: now,
             overall_score: Some(85),
             unit_results: vec![crate::review::contract::SessionUnitResult {
@@ -717,6 +721,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let persisted = persist_readiness_assessment(
             vault.path(),
@@ -768,6 +775,7 @@ mod tests {
             note_content_hash: document.note.content_hash.clone(),
             mode: crate::review::contract::ReviewMode::Exam,
             provider: crate::review::contract::AiProvider::Ollama,
+            calibration: None,
             completed_at_unix_ms: completed_at,
             overall_score: Some(80),
             unit_results: vec![crate::review::contract::SessionUnitResult {
@@ -876,6 +884,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let tagged = "# Prova\n\nIdeia um.\n\nIdeia dois.\n\nIdeia tres.\n\n#revisao/prova";
         crate::review::policy_config::set_vault_review_tag_rules(
@@ -917,6 +928,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         crate::review::policy_config::set_vault_review_tag_rules(
             vault.path(),
@@ -995,6 +1009,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         // A regra da tag tem prazo encerrado mas nao ativa automaticamente: a
         // politica da tag aparece na nota, mas ela nao esta inscrita e nao deve
@@ -1103,6 +1120,7 @@ mod tests {
                 note_content_hash: content_hash.clone(),
                 mode: ReviewMode::Exam,
                 provider: crate::review::contract::AiProvider::Ollama,
+                calibration: None,
                 completed_at_unix_ms: reviewed_at_unix_ms + index as u64,
                 overall_score: Some(85),
                 unit_results: vec![SessionUnitResult {
@@ -1300,6 +1318,7 @@ mod tests {
                         note_content_hash: content_hash.clone(),
                         mode: ReviewMode::Exam,
                         provider: crate::review::contract::AiProvider::Ollama,
+                        calibration: None,
                         completed_at_unix_ms: last_reviewed_at_unix_ms,
                         overall_score: Some(80),
                         unit_results: vec![crate::review::contract::SessionUnitResult {
@@ -1335,6 +1354,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(
             vault.path(),
@@ -1359,6 +1381,9 @@ mod tests {
                 source_start_utf16: Some(0),
                 source_end_utf16: Some(10),
             }],
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(
             vault.path(),
@@ -1383,6 +1408,9 @@ mod tests {
                 source_start_utf16: None,
                 source_end_utf16: None,
             }],
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(
             vault.path(),

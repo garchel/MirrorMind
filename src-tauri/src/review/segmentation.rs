@@ -943,6 +943,7 @@ mod tests {
             note_content_hash: content_hash.clone(),
             mode: ReviewMode::Exam,
             provider: AiProvider::Ollama,
+            calibration: None,
             completed_at_unix_ms: 1_720_000_000_000,
             overall_score: Some(57),
             unit_results: [0, 1, 2]

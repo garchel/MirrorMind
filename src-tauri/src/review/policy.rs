@@ -403,6 +403,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let state =
             persist_readiness_assessment(vault.path(), path, markdown, &report, assessed_at)
@@ -472,6 +475,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let state =
             persist_readiness_assessment(vault.path(), path, markdown, &report, assessed_at)
@@ -566,6 +572,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(vault.path(), path, markdown, &report, assessed_at)
             .expect("persist readiness");
@@ -644,6 +653,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             assessed_at,
         )
@@ -720,6 +732,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         let state =
             persist_readiness_assessment(vault.path(), path, markdown, &report, assessed_at)
@@ -799,6 +814,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             assessed_at,
         )
@@ -888,6 +906,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             assessed_at,
         )

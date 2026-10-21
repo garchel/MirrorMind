@@ -1016,6 +1016,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             assessed_at,
         )
@@ -1101,6 +1104,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         };
         persist_readiness_assessment(
             vault.path(),
@@ -1224,6 +1230,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             assessed_at,
         )
@@ -1283,6 +1292,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             1_720_000_000_000,
         )
@@ -1318,6 +1330,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             assessed_at,
         )
@@ -1392,6 +1407,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             assessed_at,
         )
@@ -1476,6 +1494,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             1_720_000_050_000,
         )
@@ -1526,6 +1547,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             assessed_at,
         )
@@ -1586,6 +1610,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             assessed_at,
         )
@@ -1645,6 +1672,9 @@ mod tests {
                 central_idea: None,
                 evaluable_points: Vec::new(),
                 issues: Vec::new(),
+                confidence: None,
+                status_probabilities: None,
+                confidence_degraded: None,
             },
             assessed_at,
         )
@@ -1761,6 +1791,9 @@ mod tests {
             central_idea: None,
             evaluable_points: Vec::new(),
             issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
         }
     }
 
@@ -1897,6 +1930,7 @@ mod tests {
             note_content_hash: document.note.content_hash.clone(),
             mode: fixture_session.mode,
             provider: fixture_session.provider,
+            calibration: None,
             completed_at_unix_ms: last_reviewed_at,
             overall_score,
             unit_results: vec![crate::review::contract::SessionUnitResult {
