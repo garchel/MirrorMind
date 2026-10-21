@@ -1,4 +1,4 @@
-import { EditorState, StateEffect, StateField, type Extension } from '@codemirror/state'
+import { EditorState, StateEffect, StateField, type Extension, type Range } from '@codemirror/state'
 import { Decoration, EditorView, type DecorationSet } from '@codemirror/view'
 import { indexDictionary, normalizeTerm, wordAt, type DictionaryEntry } from './dictionarySchema'
 
@@ -150,7 +150,7 @@ function dictionaryDecorations(
   // Um termo que contem outro marcaria a mesma faixa duas vezes, e o
   // CodeMirror nao aceita faixas sobrepostas.
   ranges.sort((left, right) => left.from - right.from || right.to - left.to)
-  const marks: ReturnType<DecorationSet['of']>[] = []
+  const marks: Range<Decoration>[] = []
   let lastTo = -1
   for (const range of ranges) {
     if (range.from < lastTo) continue

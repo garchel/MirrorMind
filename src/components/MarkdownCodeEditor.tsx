@@ -13,8 +13,8 @@ import { markdownLivePreview, postitDataEffect, registerPostitClickHandler, regi
 import {
   dictionaryEntriesEffect,
   dictionaryExtension,
-  type DictionaryEntry,
 } from '../features/dictionary/dictionaryExtension'
+import type { DictionaryEntry } from '../features/dictionary/dictionarySchema'
 import { getMarkdownAutocompleteResult, type MarkdownAutocompleteData } from '../lib/markdown-autocomplete'
 import { findTextMatches } from '../lib/findMatches'
 
