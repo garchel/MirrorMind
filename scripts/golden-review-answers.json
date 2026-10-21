@@ -1,0 +1,211 @@
+{
+  "_como_usar": "Preencha um objeto por caso, com as chaves core, connections, application e gaps. Valores: yes | partial | no. gapIsReal: true | false. unsupportedClaims: texto livre (vazio se nenhuma). notes: texto livre. Este arquivo e lido por scripts/golden-review-worksheet.mjs e por scripts/apply-golden-review.mjs. Pode ser preenchido parcialmente: a medicao so usa os casos revisados.",
+  "ciclo-calvin": {
+    "core": "yes",
+    "connections": "yes",
+    "application": "partial",
+    "gaps": "yes",
+    "gapIsReal": true,
+    "unsupportedClaims": "",
+    "notes": "",
+    "evidence": {
+      "core": {
+        "for": "A ideia central e as duas fases.",
+        "against": ""
+      },
+      "connections": {
+        "for": "A clara paga a escura.",
+        "against": ""
+      },
+      "application": {
+        "for": "Fala de processo com etapas.",
+        "against": "Nao e uma situacao nova real."
+      },
+      "gaps": {
+        "for": "Admite a duvida sobre a rubisco.",
+        "against": ""
+      }
+    },
+    "gapNoteEvidence": "A nota nao explica a preferencia da rubisco."
+  },
+  "termodinamica": {
+    "core": "partial",
+    "connections": "yes",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": false,
+    "unsupportedClaims": "a energia se conserva em um sistema isolado; a segunda lei diz que a entropia de um sistema isolado nunca diminui",
+    "notes": "",
+    "evidence": {}
+  },
+  "bases-de-dados": {
+    "core": "partial",
+    "connections": "no",
+    "application": "no",
+    "gaps": "no",
+    "gapIsReal": false,
+    "unsupportedClaims": "arvores balanceadas e tabelas hash resolvem o mesmo problema; hash da a mesma complexidade media mas exige que a chave seja hashavel; como dimensionar a tabela hash para evitar rehashes",
+    "notes": "",
+    "evidence": {}
+  },
+  "sistema-imunologico-limite": {
+    "core": "no",
+    "connections": "no",
+    "application": "no",
+    "gaps": "no",
+    "gapIsReal": false,
+    "unsupportedClaims": "o sistema imune identifica padroes moleculares e dispara uma resposta; a mesma assinatura molecular pode ser inofensiva num lugar e perigosa em outro; por que uma pessoa pode ser alergica a uma substancia que outras toleram",
+    "notes": "",
+    "evidence": {}
+  },
+  "contradicao-estroma": {
+    "core": "yes",
+    "connections": "partial",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": true,
+    "unsupportedClaims": "a fixacao depende da energia captada na fase clara",
+    "notes": "",
+    "evidence": {}
+  },
+  "referencia-indefinida": {
+    "core": "yes",
+    "connections": "partial",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": false,
+    "unsupportedClaims": "da fase clara; o resultado e a glicose; energia captada na luz",
+    "notes": "",
+    "evidence": {}
+  },
+  "passa-baixa-fronteira": {
+    "core": "yes",
+    "connections": "yes",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": true,
+    "unsupportedClaims": "",
+    "notes": "",
+    "evidence": {}
+  },
+  "termo-definido-inline": {
+    "core": "yes",
+    "connections": "yes",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": true,
+    "unsupportedClaims": "",
+    "notes": "",
+    "evidence": {}
+  },
+  "contexto-implicito": {
+    "core": "yes",
+    "connections": "yes",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": false,
+    "unsupportedClaims": "fixar carbono em glicose",
+    "notes": "",
+    "evidence": {}
+  },
+  "contradicao-quantidade": {
+    "core": "yes",
+    "connections": "yes",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": true,
+    "unsupportedClaims": "",
+    "notes": "",
+    "evidence": {}
+  },
+  "promessa-vazia": {
+    "core": "yes",
+    "connections": "yes",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": false,
+    "unsupportedClaims": "",
+    "notes": "",
+    "evidence": {}
+  },
+  "termo-sem-definicao": {
+    "core": "yes",
+    "connections": "partial",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": true,
+    "unsupportedClaims": "a segunda lei restringe o que pode acontecer; impede que o calor suba sozinho",
+    "notes": "",
+    "evidence": {}
+  },
+  "duas-afirmacoes": {
+    "core": "yes",
+    "connections": "yes",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": false,
+    "unsupportedClaims": "ligadas pela lei de Ohm",
+    "notes": "",
+    "evidence": {}
+  },
+  "contradicao-maior": {
+    "core": "yes",
+    "connections": "yes",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": false,
+    "unsupportedClaims": "e por isso que a pilula tem revestimento gastrico",
+    "notes": "",
+    "evidence": {}
+  },
+  "lista-com-conteudo": {
+    "core": "yes",
+    "connections": "yes",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": true,
+    "unsupportedClaims": "produzir ATP e NADPH; em glicose",
+    "notes": "",
+    "evidence": {}
+  },
+  "conceito-isolado": {
+    "core": "partial",
+    "connections": "partial",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": false,
+    "unsupportedClaims": "e composicao sao as tres formas de organizar isso; os tres existem para controlar o acoplamento entre o que muda e o que nao muda; heranca que resolve o problema errado custa mais caro que composicao; quando a composicao vira indirecao desnecessaria",
+    "notes": "",
+    "evidence": {}
+  },
+  "contrato-implicito": {
+    "core": "yes",
+    "connections": "yes",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": false,
+    "unsupportedClaims": "",
+    "notes": "",
+    "evidence": {}
+  },
+  "exemplo-numerico": {
+    "core": "yes",
+    "connections": "yes",
+    "application": "yes",
+    "gaps": "yes",
+    "gapIsReal": false,
+    "unsupportedClaims": "",
+    "notes": "",
+    "evidence": {}
+  },
+  "contradicao-fotossintese": {
+    "core": "no",
+    "connections": "no",
+    "application": "no",
+    "gaps": "no",
+    "gapIsReal": false,
+    "unsupportedClaims": "A ideia central desta nota e que a divisibilidade e uma relacao entre inteiros; dividir por um numero nao e o inverso de multiplicar quando o numero nao e primo; e essa diferenca entre dividir por 2 e dividir por 3 que estrutura a aritmetica; por que o conjunto dos primos parece tao especial",
+    "notes": "",
+    "evidence": {}
+  }
+}

@@ -1,0 +1,209 @@
+[
+  {
+    "caseId": "ciclo-calvin",
+    "proposed": "ready",
+    "agreed": true,
+    "label": "ready",
+    "evidenceAgainst": "Vazia. A nota atende aos requisitos de possuir ideia central identificável e pelo menos 3 parágrafos com frase própria[cite: 1].",
+    "evidenceFor": "A nota contém cinco parágrafos autocontidos e nenhuma contradição evidente[cite: 1].",
+    "notes": "A glicose é o principal produto da fase escura do ciclo de Calvin.[cite: 1]"
+  },
+  {
+    "caseId": "somente-titulos",
+    "proposed": "insufficient",
+    "agreed": true,
+    "label": "insufficient",
+    "evidenceAgainst": "Vazia. A nota não possui nenhuma afirmação avaliável para contradizer o rótulo[cite: 1].",
+    "evidenceFor": "A nota contém apenas uma lista de títulos e uma remissão ('[[Notas relacionadas]]')[cite: 1].",
+    "notes": "A ausência de frases com substância justifica o rótulo insufficient[cite: 1]."
+  },
+  {
+    "caseId": "contradicao-fotossintese",
+    "proposed": "ambiguous",
+    "agreed": true,
+    "label": "ambiguous",
+    "evidenceAgainst": "Vazia. Existe contradição clara presente no texto[cite: 1].",
+    "evidenceFor": "A nota afirma que a fotossíntese 'ocorre na fase escura' e, logo a seguir, que 'ocorre na fase clara', apresentando duas afirmações mutuamente exclusivas sobre o mesmo objeto[cite: 1].",
+    "notes": "Atende diretamente ao critério de contradição para o rótulo ambiguous[cite: 1]."
+  },
+  {
+    "caseId": "termodinamica",
+    "proposed": "ready",
+    "agreed": true,
+    "label": "ready",
+    "evidenceAgainst": "Vazia. Não há termos não definidos ou contradições[cite: 1].",
+    "evidenceFor": "Possui uma ideia central (Termodinâmica), mais de três parágrafos com frases próprias e não apresenta contradições[cite: 1].",
+    "notes": "O enunciado de exercício ('Calcule a entropia de um recipiente adiabatico.') atua como uma frase própria avaliável[cite: 1]."
+  },
+  {
+    "caseId": "bases-de-dados",
+    "proposed": "ready",
+    "agreed": true,
+    "label": "ready",
+    "evidenceAgainst": "Vazia. A nota segue rigorosamente os critérios de prontidão[cite: 1].",
+    "evidenceFor": "A nota apresenta seis parágrafos autocontidos com conceitos independentes, sem premissas vazias ou contradições[cite: 1].",
+    "notes": "Exemplo de afirmação válida: 'A chave primaria identifica unicamente cada linha de uma tabela.'[cite: 1]"
+  },
+  {
+    "caseId": "sistema-imunologico-limite",
+    "proposed": "ready",
+    "agreed": false,
+    "label": "insufficient",
+    "evidenceAgainst": "A rubrica para 'ready' exige 'pelo menos 3 parágrafos com frase própria'[cite: 1]. A nota possui apenas listas ('- Controle geral', etc) e uma única frase no final ('Responde a pergunta \"por que isso acontece?\".')[cite: 1].",
+    "evidenceFor": "A nota possui títulos estruturados, o que poderia sugerir organização, mas não frases próprias suficientes[cite: 1].",
+    "notes": "Como possui majoritariamente listas e apenas uma afirmação[cite: 1], não atinge o limiar para ready."
+  },
+  {
+    "caseId": "contradicao-estroma",
+    "proposed": "ambiguous",
+    "agreed": true,
+    "label": "ambiguous",
+    "evidenceAgainst": "Vazia. A contradição interna impede o rótulo ready[cite: 1].",
+    "evidenceFor": "O primeiro parágrafo afirma que a fixação ocorre 'no estroma dos cloroplastos' e o segundo afirma que é realizada 'exclusivamente na membrana tilacoidal, nunca no estroma'[cite: 1]. Duas afirmações exclusivas[cite: 1].",
+    "notes": "Justifica plenamente a regra A2 descrita pelo conjunto[cite: 1]."
+  },
+  {
+    "caseId": "referencia-indefinida",
+    "proposed": "ambiguous",
+    "agreed": true,
+    "label": "ambiguous",
+    "evidenceAgainst": "Vazia. A referência carece de sustentação no texto[cite: 1].",
+    "evidenceFor": "O texto utiliza o termo 'glicólise aeróbica' como premissa na frase 'Como vimos antes, a fixação de carbono segue exatamente o mesmo caminho da glicólise aeróbica.' sem definição prévia do termo[cite: 1].",
+    "notes": "Enquadra-se em 'premissa com termo indefinido'[cite: 1]."
+  },
+  {
+    "caseId": "passa-baixa-fronteira",
+    "proposed": "ambiguous",
+    "agreed": true,
+    "label": "ambiguous",
+    "evidenceAgainst": "Vazia. A indefinição do termo central é verificável[cite: 1].",
+    "evidenceFor": "A nota utiliza o termo estrangeiro e indefinido 'unity' ('...a resposta tende a unity.') atuando como premissa não explicada para a leitura[cite: 1].",
+    "notes": "A ambiguidade ocorre pela barreira de vocabulário indefinido assumido como premissa[cite: 1]."
+  },
+  {
+    "caseId": "termo-definido-inline",
+    "proposed": "ready",
+    "agreed": true,
+    "label": "ready",
+    "evidenceAgainst": "Vazia. As definições são autoexplicativas[cite: 1].",
+    "evidenceFor": "A nota possui ideia central identificável e três parágrafos de frase própria, onde o termo ('índice') é definido na própria frase: 'Um índice é uma estrutura de dados...'[cite: 1].",
+    "notes": "Nenhuma contradição ou termo usado antes de ser definido[cite: 1]."
+  },
+  {
+    "caseId": "somente-listas",
+    "proposed": "insufficient",
+    "agreed": true,
+    "label": "insufficient",
+    "evidenceAgainst": "Vazia. Nenhuma afirmação em prosa para contradizer[cite: 1].",
+    "evidenceFor": "A nota contém apenas itens de checklist (tarefas) e remissões a anexos ('![diagrama](anexo-diagrama.png)')[cite: 1].",
+    "notes": "Atende exatamente ao critério que define 'só listas, tarefas, imagens de anexo ou remissões'[cite: 1]."
+  },
+  {
+    "caseId": "contexto-implicito",
+    "proposed": "ready",
+    "agreed": true,
+    "label": "ready",
+    "evidenceAgainst": "Vazia. A nota funciona de maneira independente[cite: 1].",
+    "evidenceFor": "Possui três parágrafos, ideia central explícita no título, e define contexto essencial ('a energia acumulada na fase clara') na própria frase[cite: 1].",
+    "notes": "A formatação textual está perfeitamente alinhada com a rubrica para ready[cite: 1]."
+  },
+  {
+    "caseId": "contradicao-quantidade",
+    "proposed": "ambiguous",
+    "agreed": true,
+    "label": "ambiguous",
+    "evidenceAgainst": "Vazia. As proposições numéricas colidem no texto[cite: 1].",
+    "evidenceFor": "A nota declara que consome '3 ATP e 2 NADPH' no primeiro parágrafo e '5 ATP e 3 NADPH' no segundo[cite: 1]. Duas afirmações exclusivas[cite: 1].",
+    "notes": "Enquadra-se na regra de contradição de informações[cite: 1]."
+  },
+  {
+    "caseId": "promessa-vazia",
+    "proposed": "ready",
+    "agreed": true,
+    "label": "ready",
+    "evidenceAgainst": "Vazia. Há proposições claras sobre as propriedades[cite: 1].",
+    "evidenceFor": "Contém a definição do conceito central no primeiro parágrafo ('A elasticidade mede...'), seguido de três parágrafos formatados corretamente com frases próprias[cite: 1].",
+    "notes": "A ausência do sujeito no segundo parágrafo ('Derivada da curva de demanda...') refere-se claramente à Elasticidade, sem quebrar a auto-suficiência[cite: 1]."
+  },
+  {
+    "caseId": "termo-sem-definicao",
+    "proposed": "ambiguous",
+    "agreed": true,
+    "label": "ambiguous",
+    "evidenceAgainst": "Vazia. A lacuna informacional cria ambiguidade[cite: 1].",
+    "evidenceFor": "O terceiro parágrafo utiliza o 'princípio da mínima entropia' como suporte causal ('Segundo o princípio...') sem ter definido o que é o princípio nos parágrafos anteriores[cite: 1].",
+    "notes": "Isso classifica a nota como detentora de 'premissa com termo indefinido'[cite: 1]."
+  },
+  {
+    "caseId": "duas-afirmacoes",
+    "proposed": "ready",
+    "agreed": true,
+    "label": "ready",
+    "evidenceAgainst": "Vazia. Definições progressivas em conformidade com as regras[cite: 1].",
+    "evidenceFor": "Apresenta três afirmações precisas ('A corrente elétrica é...', 'A tensão elétrica é...', 'A resistência... é...') que se sustentam de forma contínua[cite: 1].",
+    "notes": "Cada parágrafo suporta e define a si próprio e seu vocabulário[cite: 1]."
+  },
+  {
+    "caseId": "contradicao-maior",
+    "proposed": "ready",
+    "agreed": true,
+    "label": "ready",
+    "evidenceAgainst": "Vazia. Não existe contradição real, apenas exemplificações que variam por contexto (enzimas diferentes)[cite: 1].",
+    "evidenceFor": "Três parágrafos avaliáveis com ideia central bem delineada. O termo 'pH varied' é apenas um erro ortográfico, não impedindo a compreensão da afirmação[cite: 1].",
+    "notes": "As afirmações sobre a pepsina e a protease não são mutuamente exclusivas pois referem-se a objetos diferentes[cite: 1]."
+  },
+  {
+    "caseId": "sem-sujeito",
+    "proposed": "insufficient",
+    "agreed": true,
+    "label": "insufficient",
+    "evidenceAgainst": "Vazia. Não possui informações didáticas ou afirmativas a serem retidas[cite: 1].",
+    "evidenceFor": "As sentenças são apenas tarefas diretivas em formato de prosa ('Continuar no capítulo 5.', 'Reler o material...'), sem nenhuma afirmação avaliável[cite: 1].",
+    "notes": "Cai diretamente na definição de tarefas para insufficient[cite: 1]."
+  },
+  {
+    "caseId": "apenas-imagens",
+    "proposed": "insufficient",
+    "agreed": true,
+    "label": "insufficient",
+    "evidenceAgainst": "Vazia. Texto integralmente desprovido de prosa avaliável[cite: 1].",
+    "evidenceFor": "A nota é composta exclusivamente por vínculos de imagens/anexos ('![diagrama do ciclo](anexo-ciclo.png)')[cite: 1].",
+    "notes": "Reflete a regra de conteúdo de 'só imagens de anexo'[cite: 1]."
+  },
+  {
+    "caseId": "lista-com-conteudo",
+    "proposed": "ambiguous",
+    "agreed": false,
+    "label": "insufficient",
+    "evidenceAgainst": "A rubrica para ambiguous requer 'premissa com termo indefinido', 'afirmações mutuamente exclusivas' ou 'conteúdo delegado a anexos'[cite: 1]. Uma checklist não é classificada como 'anexo' pelas definições do prompt, e a nota não apresenta exclusão mútua ou premissa não definida[cite: 1].",
+    "evidenceFor": "Sendo uma nota estruturada majoritariamente como tarefas (checkboxes) e contendo um lembrete no final ('Anotar: o professor pediu...'), a nota recai em 'só listas, tarefas... Nenhuma afirmação avaliável' em forma de parágrafo estruturado convencional[cite: 1].",
+    "notes": "Embora possua prosa dentro das listas, falta a estrutura em parágrafos normais, o que tenderia mais a classifica-la como insuficiente perante a ausência de justificativas sólidas para a ambiguidade estrita da rubrica."
+  },
+  {
+    "caseId": "conceito-isolado",
+    "proposed": "ready",
+    "agreed": true,
+    "label": "ready",
+    "evidenceAgainst": "Vazia. A nota atende aos critérios fundamentais para prontidão[cite: 1].",
+    "evidenceFor": "Três parágrafos que definem propriedades, encapsulamento e herança independentemente, unificados sob o tema identificável[cite: 1].",
+    "notes": "As afirmações se conectam logicamente sem omitir etapas[cite: 1]."
+  },
+  {
+    "caseId": "contrato-implicito",
+    "proposed": "ready",
+    "agreed": true,
+    "label": "ready",
+    "evidenceAgainst": "Vazia. Padrão de definição consistente[cite: 1].",
+    "evidenceFor": "A nota apresenta três parágrafos ('Um contrato de API declara...', 'Compatibilidade de entrada exige...', 'Compatibilidade de saida exige...'), todos baseados em definições diretas sem contradições[cite: 1].",
+    "notes": "Adequado para uso como informação estável[cite: 1]."
+  },
+  {
+    "caseId": "exemplo-numerico",
+    "proposed": "ready",
+    "agreed": true,
+    "label": "ready",
+    "evidenceAgainst": "Vazia. A nota apresenta proposições densas e logicamente conectadas[cite: 1].",
+    "evidenceFor": "Possui ideia central explícita ('Crescimento populacional') e três parágrafos com frases próprias. O exemplo numérico 'leva cerca de 180 anos para crescer mil vezes' sustenta o contexto anterior sem causar contradições ou carecer de definição adicional[cite: 1].",
+    "notes": "Cumpre todas as exigências do rótulo ready[cite: 1]."
+  }
+]
