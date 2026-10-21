@@ -43,3 +43,76 @@ This project is indexed by GitNexus as **MirrorMind** (7652 symbols, 21071 relat
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+<!-- mirror-mind:start -->
+# MirrorMind — regras do repo
+
+Esta seção é do MirrorMind e **fora** do bloco do GitNexus (que fica entre
+`<!-- gitnexus:start -->` e `<!-- gitnexus:end -->`). O GitNexus reescreve
+só o bloco dele; o que está aqui fora permanece.
+
+## Git: o trabalho entra no repositório antes de existir como risco
+
+**Regra principal: um arquivo novo entra no git no primeiro dia.**
+
+Um arquivo que existe só no *working tree* é um arquivo que uma operação de
+git pode apagar sem deixar rastro. Não há backup: o PDB guarda nomes de
+símbolos, não o código, e o `git fsck` só acha o que já foi commitado.
+
+Quando começar um arquivo novo (módulo, feature, script):
+
+```bash
+git add <arquivo> && git commit -m "wip(<escopo>): esqueleto de <nome>"
+```
+
+O commit é trivial de propósito. Ele existe para que o arquivo **esteja
+versionado**; o trabalho de verdade vem nos commits seguintes, normais.
+
+**Nunca `git reset --hard` com trabalho não commitado.** Use `git stash` ou
+`git reset --soft`. O `--hard` reescreve arquivos rastreados para o estado do
+commit alvo — e o que estava só no *working tree* não volta de lugar nenhum.
+
+**Cada commit compila sozinho.** Um commit que só compila quando o seguinte
+aplica é um commit quebrado: quem fizer `git bisect`, cherry-pick ou
+reverter precisa de cada um funcionando. Isso vale para o Rust (cada commit
+passa em `cargo check`) e para o frontend (cada commit passa em `tsc`).
+
+**Commitar por unidade de compilação, não por caminho.** Um arquivo que
+participa de dois trabalhos (o `lib.rs` do Rust registra os comandos IPC de
+várias features) precisa ser dividido por *hunk*, não escondido num commit
+inteiro. A verificação é: aplicar o commit sozinho, num worktree, e
+compilar.
+
+**Ler o aviso do lint antes de seguir.** O `oxlint` e o `clippy` encontraram
+bugs reais que o typecheck não pega (um componente usado sem import, uma
+função com nome errado). O aviso estava certo e passar por ele custou tempo.
+
+## Medição: só o que foi medido pode virar número
+
+Um critério **não medido** aparece como "não medido", nunca como aprovado. Vale
+para o harness do JEV (a dimensão `definitions` sem ground truth é
+`measured: false`, com `recall: null`) e vale para o resto do app.
+
+Relatório que mostra `0` onde não houve medição é pior do que relatório que
+mostra que não houve medição.
+
+## Documentação: o documento descreve o que existe
+
+Quando o estado muda (uma revisão chega, uma regra é trocada, um ground truth
+é preenchido), o documento que descreve esse estado é atualizado **no mesmo
+passo**. Um README que diz "nenhum caso foi revisado" enquanto todos foram é
+uma mentira que faz o leitor duvidar do número — que é o oposto do que a
+medição comprou.
+
+## Chaves de API: conferir contra o servidor real
+
+O contrato do fornecedor (a TypeSafe AI) muda. A forma do payload foi conferida
+contra a API real e é esta:
+
+- `choice.criteria` é um **mapa** nome → descrição (não lista de opções);
+- `score.criteria` é uma **lista** (não mapa);
+- `noul.criteria` usa os lados `true` e `false` (não `yes` e `no`).
+
+O `serde` do `ChoiceAnswer` também é **custom** (não derivado), porque o wire
+usa `criteria` como mapa e o `Deserialize` derivado não representa isso.
+<!-- mirror-mind:end -->
