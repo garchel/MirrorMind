@@ -47,7 +47,113 @@ const readinessReportSchema = z.object({
   centralIdea: groundedSourceSchema.nullable(),
   evaluablePoints: z.array(groundedSourceSchema).max(100),
   issues: z.array(groundedIssueSchema).max(100),
+  /**
+   * Confianca do classificador, de 0 a 1.
+   *
+   * `null` no caminho legado, que devolve um rotulo seco. Serializado como
+   * `null` em vez de omitido porque o schema e `.strict()` e rejeita chave
+   * desconhecida.
+   *
+   * O `.optional()` aceita o documento **antigo**, que nao tinha o campo: um
+   * relatorio gravado antes da feature continua valido, e o app trata
+   * "ausente" como "motor sem informacao de incerteza".
+   */
+  confidence: z.number().min(0).max(1).nullable().optional(),
+  /**
+   * Probabilidade por status, somando 1. `null` no caminho legado.
+   */
+  statusProbabilities: z.record(z.string(), z.number().min(0).max(1)).nullable().optional(),
+  /**
+   * `true` quando a confianca estava baixa e o status virou `ambiguous`.
+   * `null` no caminho legado, que nao degrada.
+   */
+  confidenceDegraded: z.boolean().nullable().optional(),
 }).strict()
+
+/**
+ * O relatorio de prontidao, como o app o consome.
+ *
+ * Exportado porque o painel de prontidao (`NoteReadinessReport`) e os testes
+ * precisam do tipo: o schema acima e a forma do **relatorio** (o que o
+ * provider devolve), e este e o que a **interface** recebe.
+ *
+ * Os tres campos de confianca sao **opcionais**: um documento antigo (sem
+ * os campos) ainda e valido, e o app trata "ausente" como "motor sem
+ * informacao de incerteza" — que e o caso do caminho legado.
+ */
+export type ReadinessReport = z.infer<typeof readinessReportSchema>
+export { readinessReportSchema }
+
+/**
+ * Estrategia do motor calibrado (JEV / System One).
+ *
+ * `off` e o padrao e o unico valor que nao muda o comportamento do app.
+ */
+export const calibrationStrategySchema = z.enum(['off', 'jev', 'dual'])
+export type CalibrationStrategy = z.infer<typeof calibrationStrategySchema>
+
+/**
+ * O estado do motor calibrado para o Vault aberto.
+ *
+ * `calibrationValidated` decide a **legenda** do numero de confianca, nao a
+ * sua existencia. Enquanto `false`, o numero aparece (D10) mas a legenda
+ * diz que ele nao foi validado contra veredito humano.
+ */
+export const calibrationConfigurationSchema = z.object({
+  strategy: calibrationStrategySchema,
+  typesafeConfigured: z.boolean(),
+  typesafeConsent: z.boolean(),
+  calibrationValidated: z.boolean(),
+  typesafeEndpoint: z.string().min(1),
+}).strict().superRefine((configuration, context) => {
+  // Estado **impossivel**: o motor calibrado ativo sem credencial ou sem
+  // permissao de saida. O backend nao deveria gravar isso, mas a fronteira
+  // recusa mesmo assim: um `select` com a estrategia ativa e as opcoes
+  // desabilitadas parece um painel quebrado, e nao um estado que precisa de
+  // reparo.
+  if (configuration.strategy === 'off') return
+  if (!configuration.typesafeConfigured) {
+    context.addIssue({
+      code: 'custom',
+      path: ['typesafeConfigured'],
+      message: 'A estrategia calibrada exige uma API key do TypeSafe AI.',
+    })
+  }
+  if (!configuration.typesafeConsent) {
+    context.addIssue({
+      code: 'custom',
+      path: ['typesafeConsent'],
+      message: 'A estrategia calibrada exige consentimento de autorizacao de egresso.',
+    })
+  }
+})
+export type CalibrationConfiguration = z.infer<typeof calibrationConfigurationSchema>
+
+/**
+ * Le a configuracao do motor calibrado.
+ *
+ * O `.strict()` e o que impede um payload novo de passar em silencio: um
+ * campo a mais no backend vira erro de leitura, e nao um `undefined` que a
+ * interface trata como "nao configurado".
+ */
+export function parseCalibrationConfiguration(payload: unknown): CalibrationConfiguration {
+  return calibrationConfigurationSchema.parse(payload)
+}
+
+/**
+ * A estrategia pode ser ativada agora?
+ *
+ * `jev` e `dual` precisam de chave **e** de consentimento de egresso. Sem
+ * os dois, o backend recusa a escolha — e a UI precisa dizer isso antes de
+ * o usuario escolher, e nao depois do erro.
+ */
+export function isStrategyAvailable(
+  configuration: Pick<CalibrationConfiguration, 'typesafeConfigured' | 'typesafeConsent'>,
+  strategy: CalibrationStrategy,
+): boolean {
+  if (strategy === 'off') return true
+  return configuration.typesafeConfigured && configuration.typesafeConsent
+}
 const readinessAttemptSchema = z.discriminatedUnion('outcome', [
   z.object({
     outcome: z.literal('valid'),

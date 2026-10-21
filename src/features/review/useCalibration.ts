@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ZodError } from 'zod'
 import {
   calibrationEngine,
   createCalibrationEngine,
@@ -19,6 +20,16 @@ import {
  * tratado como se fosse um erro qualquer.
  */
 function readableFailure(failure: unknown): string {
+  // O estado impossivel chega como `ZodError` com uma issue por requisito
+  // faltando. As mensagens das issues ja dizem o que falta; o que falta e
+  // **como** o usuario repara — por isso a frase abaixo, e nao o JSON.
+  if (failure instanceof ZodError) {
+    const estadoImpossivel = failure.issues.some((issue) =>
+      issue.path[0] === 'typesafeConfigured' || issue.path[0] === 'typesafeConsent')
+    if (estadoImpossivel) {
+      return 'A configuração do motor calibrado está inconsistente: ele está ativo sem chave ou sem autorização. Revise as credenciais abaixo ou volte para "Desligado".'
+    }
+  }
   const raw = failure instanceof Error ? failure.message : String(failure)
   if (/without egress consent|without an API key/.test(raw)) {
     return 'A configuração do motor calibrado está inconsistente: ele está ativo sem chave ou sem autorização. Revise as credenciais abaixo ou volte para "Desligado".'

@@ -17,6 +17,25 @@ const STATUS_LABELS = {
   insufficient: 'Insuficiente',
 } as const
 
+/**
+ * Os tres status, na ordem em que o motor distribui as probabilidades.
+ *
+ * A ordem e do mais confiante para o menos: e assim que a pessoa le a
+ * distribuicao ("92% pronta, 6% ambigua, 2% insuficiente") sem precisar
+ * decorar em qual ordem os status aparecem.
+ */
+const STATUS_ORDER = ['ready', 'ambiguous', 'insufficient'] as const
+
+/**
+ * O percentual arredondado, do jeito que o motor disse.
+ *
+ * Arredondar e nao truncar: truncar 0,889 para "88%" subestimaria o que o
+ * motor respondeu.
+ */
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`
+}
+
 function ReviewReportMarkdown({ content }: { content: string }) {
   return (
     <div className="review-ai-markdown">
@@ -125,6 +144,45 @@ export function NoteReadinessReport({ attempt, isStaleReport, error, busy, onClo
               <ReviewReportMarkdown content={attempt.report.explanation} />
             </div>
           </div>
+          {/*
+            A confianca do motor, mostrada desde o inicio (D10).
+          */}
+          {attempt.report.confidence !== null && attempt.report.confidence !== undefined ? (
+            <section
+              className={`review-readiness-confidence${attempt.report.confidenceDegraded ? ' is-degraded' : ''}`}
+              data-testid="review-readiness-confidence"
+              aria-label="Confiança do modelo"
+            >
+              <div className="review-readiness-confidence-head">
+                <span className="review-readiness-confidence-label">Confiança do modelo</span>
+                <span className="review-readiness-confidence-value">
+                  {formatPercent(attempt.report.confidence)}
+                </span>
+              </div>
+              {attempt.report.confidenceDegraded ? (
+                <p className="review-readiness-confidence-degraded">
+                  O motor não ficou seguro deste veredito.
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+          {attempt.report.statusProbabilities ? (
+            <details className="review-readiness-distribution">
+              <summary>Como o modelo distribuiu as probabilidades</summary>
+              <dl className="review-readiness-distribution-list">
+                {STATUS_ORDER.map((status) => {
+                  const probability = attempt.report.statusProbabilities?.[status]
+                  if (probability === undefined) return null
+                  return (
+                    <div key={status} className={`review-readiness-distribution-row is-${status}`}>
+                      <dt>{STATUS_LABELS[status]}</dt>
+                      <dd>{formatPercent(probability)}</dd>
+                    </div>
+                  )
+                })}
+              </dl>
+            </details>
+          ) : null}
           {attempt.report.centralIdea ? (
             <section className="review-readiness-section review-readiness-central-idea" aria-label="Ideia central">
               <h3><Lightbulb size={13} strokeWidth={1.8} aria-hidden="true" /> Ideia central</h3>
