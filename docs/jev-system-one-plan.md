@@ -2938,3 +2938,79 @@ duro** (acusava uma citacao correta), e o ground truth estava **medindo
 outra coisa** (um termo que o pipeline nao poderia achar). Um verificador que
 erra para o lado do "falso positivo" faz quem revisa perder a confianca nele
 — que e o jeito de um verificador deixar de ser lido.
+
+### 15.34 A recall subiu de 2% para 32% — e os dois gargalos ficaram nomeados
+
+O prompt pedia **um** termo; o ground truth revisado tem 1 a 5 por nota
+(media 2,6). Duas correcoes, e a medicao de cada uma:
+
+| | provider propôs | confirmados | recall |
+|---|---|---|---|
+| antes (prompt pedia 1) | 11 | 1 | 1/47 = **2%** |
+| prompt pede "TODOS", ate 5 | 30 | 10 | 10/47 = **21%** |
+| + citacao aceita atravessar a quebra de linha | 36 | 15 | 15/47 = **32%** |
+
+#### A correcao do hard-wrap era a maior das tres
+
+As notas tem **hard-wrap**: a frase quebra em ~80 colunas. O provider reune
+a frase em uma linha e devolve a citacao com o espaco onde a nota tinha
+"\n". A citacao esta **correta** — mas `markdown.contains(&citacao)` nao
+achava, e a proposta era **descartada**.
+
+O efeito era silencioso: 7 das 30 propostas sumiram por causa de uma quebra
+de linha. E o mesmo bug estava no verificador de respostas (que acusou duas
+citacoes corretas) e no `first_use_offset` (que casava termos por palavras
+consecutivas).
+
+A correcao devolve a citacao **do texto real da nota** (com a quebra), e nao
+a do provider. A razao: a UI ancora a sugestao comparando
+`bloco.includes(citacao)`, e uma citacao com o espaco errado nao ancoraria.
+O `resolve_source_quote` tambem exige que a citacao comecem num **limite de
+palavra** — um `find` burro acharia o "no" de "no estroma" e comecaria a
+citacao no meio de outra frase.
+
+#### Os dois gargalos que sobraram
+
+**1. O provider nao propoe tudo que o gt lista.** Os termos que escapam
+sempre sao os mesmos: `estroma` (3 casos), `rubisco` (3), `ATP` (3),
+`NADPH` (3), `citoplasma` (2). O provider propoe 2,0 por caso; o gt tem
+3,1. O que falta e a persistencia em achar **todos** os termos de um
+paragrafo.
+
+**2. O motor recusa 7 dos 36 propostos.** E as recusas sao as que mais
+importam: `chave primaria`, `chave estrangeira`, `indice`, `teorema CAP`,
+`estroma`, `crescimento exponencial`, `crescimento logistico`. Sao exatamente
+os termos que o gt lista. A pergunta ao motor ("o termo X e usado como
+premissa sem definicao antes?") esta correta, e a resposta do motor e
+**discordante do revisor** — e o revisor leu a nota com calma.
+
+O teto, se o motor aceitasse tudo que foi proposto: 36 de 47 = **77%**.
+
+#### O que isso diz sobre a feature
+
+A feature **nao esta quebrada** — ela entrega 15 sugestoes corretas em 15
+casos, e as sugestoes que ela entrega sao as uteis (o provider escolhe o termo
+mais relevante). O que a medicao revelou e que a **meta** estava mal
+definida:
+
+- O gt lista *todos* os termos que melhorariam a nota (47).
+- A feature entrega *o termo mais importante* de cada nota (15).
+
+Sao grandezas diferentes. A recall de 32% nao mede defeito: mede a distancia
+entre as duas promessas.
+
+#### O proximo passo, em ordem de custo
+
+1. **Pedir "todos os termos" de novo, com instrucao mais explicita** ("liste
+   cada termo que a nota usa sem explicar, mesmo que ja tenha listado
+   outros"). Custo: uma medicao (~15 min).
+2. **Se o provider continuar em 2,0 por caso**, o gargalo e a qualidade do
+   modelo local, e a decisao e de produto: deixar a feature sugerir *um* termo
+   por nota (com a UI mostrando so o melhor) e aceitar que o gt e de recall
+   por nota, nao por termo.
+3. **O motor recusando 7 de 36** e a pergunta mais delicate: ou a pergunta
+   ao motor esta mal formulada, ou o motor e leniente demais. Isso e um
+   trabalho de prompt, nao de codigo.
+
+O que **nao** e preciso agora: mais ground truth. O dado existe e ja
+separou os gargalos.

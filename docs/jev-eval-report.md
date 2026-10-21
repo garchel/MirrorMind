@@ -4,7 +4,7 @@ _Gerado por `scripts/render-jev-eval.mjs` a partir de `docs/jev-eval-report.json
 
 ## Veredito
 
-**Confianca NAO acionavel (pior ECE 0.160 acima de 0.10): nao exibir numeros de confianca na UI.**
+**Confianca NAO acionavel (pior ECE 0.158 acima de 0.10): nao exibir numeros de confianca na UI.**
 
 | | |
 | --- | --- |
@@ -13,13 +13,13 @@ _Gerado por `scripts/render-jev-eval.mjs` a partir de `docs/jev-eval-report.json
 | Curvas se cruzam | não |
 | Confiança é acionável | não |
 | Rótulos revisados por alguém | sim |
-| ECE por repetição | 0.139, 0.159, 0.160 |
+| ECE por repetição | 0.157, 0.158, 0.146 |
 
 ## Gate do §11
 
 | Critério | Medida | | Leitura |
 | --- | --- | :-: | --- |
-| ECE <= 0.10 (calibracao) | 0.160 (pior de 3 repeticoes) | ✗ | O gate decide pelo **pior** de varias repeticoes. A acuracia do motor e estavel entre elas; o que varia e a confianca que ele anexa as respostas, e o ECE e penalizado por excesso de confianca. Com uma unica rodada, a decisao era uma moeda. |
+| ECE <= 0.10 (calibracao) | 0.158 (pior de 3 repeticoes) | ✗ | O gate decide pelo **pior** de varias repeticoes. A acuracia do motor e estavel entre elas; o que varia e a confianca que ele anexa as respostas, e o ECE e penalizado por excesso de confianca. Com uma unica rodada, a decisao era uma moeda. |
 | Acuracia seletiva no limiar de operacao | 94.1% sobre 17 respondidos | ✓ | Estavel em todas as rodadas. E a metrica que responde a pergunta do produto: quando o motor diz que esta seguro, ele acerta? |
 | Cobertura no limiar de operacao | 73.9% | ✓ | O preco da seguranca: quantos casos sao respondidos quando se exige confianca alta. |
 | Dominancia sobre o legado | 73.9% contra 61.1% | ✓ | O candidato e melhor ou igual em toda a curva de limiar. |
@@ -48,9 +48,9 @@ leitor não percebe. Por isso o relatório diz "não medido" em vez de "0%".
 
 ### Recall das sugestões de definição (C12)
 
-| Termos encontrados | 1 de 44 (2.3%) |
-| Casos medidos | 14 de 23 com ground truth |
-| Termos extras | 0 (a lista do revisor pode estar incompleta) |
+| Termos encontrados | 15 de 47 (31.9%) |
+| Casos medidos | 15 de 23 com ground truth |
+| Termos extras | 3 (a lista do revisor pode estar incompleta) |
 
 ## As faixas de confiança (de onde sai o ECE)
 
@@ -63,13 +63,12 @@ de cada grupo, somada, dá o ECE.
 
 | Confiança | Casos | Acertou | Disse que ia acertar | Diferença |
 | --- | ---: | ---: | ---: | ---: |
-| 0.3–0.4 | 5 | 20.0% | 34.2% | 14.2% |
-| 0.4–0.5 | 1 | 0.0% | 43.0% | 43.0% |
-| 0.5–0.6 | 1 | 0.0% | 59.0% | 59.0% |
-| 0.6–0.7 | 1 | 100.0% | 61.0% | 39.0% |
-| 0.7–0.8 | 2 | 100.0% | 76.5% | 23.5% |
+| 0.3–0.4 | 6 | 16.7% | 36.0% | 19.3% |
+| 0.5–0.6 | 1 | 100.0% | 55.0% | 45.0% |
+| 0.6–0.7 | 1 | 0.0% | 61.0% | 61.0% |
+| 0.7–0.8 | 1 | 100.0% | 76.0% | 24.0% |
 | 0.8–0.9 | 5 | 100.0% | 84.4% | 15.6% |
-| 0.9–1.0 | 8 | 100.0% | 96.1% | 3.9% |
+| 0.9–1.0 | 9 | 100.0% | 95.7% | 4.3% |
 
 ## Comparação lado a lado
 
@@ -82,10 +81,10 @@ de cada grupo, somada, dá o ECE.
 | Casos pontuados na métrica | 23 | 18 |
 | Acurácia | 73.9% | 61.1% |
 | Risco | 26.1% | 38.9% |
-| ECE | 0.160 | 0.611 |
-| Brier | 0.0647 | — |
-| Latência p50 | 0 ms | 7706 ms |
-| Latência p95 | 0 ms | 14139 ms |
+| ECE | 0.158 | 0.611 |
+| Brier | 0.0660 | — |
+| Latência p50 | 0 ms | 8933 ms |
+| Latência p95 | 0 ms | 13471 ms |
 | Custo total | US$ 0.000000 | US$ 0.000000 |
 
 > O **ECE do legado é 0.611** porque o
@@ -99,28 +98,28 @@ de cada grupo, somada, dá o ECE.
 
 | Caso | Esperado | Previsto | | Confiança | Distribuição |
 | --- | --- | --- | :-: | ---: | --- |
-| `ciclo-calvin` | ready | ready | ✓ | 0.610 | ambiguous 26%, insufficient 0%, ready 74% |
+| `ciclo-calvin` | ready | ready | ✓ | 0.550 | ambiguous 30%, insufficient 0%, ready 70% |
 | `somente-titulos` | insufficient | insufficient | ✓ | 0.980 | ambiguous 1%, insufficient 99%, ready 0% |
 | `contradicao-fotossintese` | ambiguous | ambiguous | ✓ | 0.950 | ambiguous 97%, insufficient 0%, ready 3% |
-| `termodinamica` | ready | ambiguous | ✗ | 0.350 | ambiguous 57%, insufficient 6%, ready 37% |
-| `bases-de-dados` | ready | ready | ✓ | 0.880 | ambiguous 8%, insufficient 0%, ready 92% |
+| `termodinamica` | ready | ambiguous | ✗ | 0.370 | ambiguous 58%, insufficient 6%, ready 36% |
+| `bases-de-dados` | ready | ready | ✓ | 0.910 | ambiguous 6%, insufficient 0%, ready 94% |
 | `sistema-imunologico-limite` | insufficient | insufficient | ✓ | 0.920 | ambiguous 5%, insufficient 95%, ready 0% |
 | `contradicao-estroma` | ambiguous | ambiguous | ✓ | 1.000 | ambiguous 100%, insufficient 0%, ready 0% |
-| `referencia-indefinida` | ambiguous | ambiguous | ✓ | 0.940 | ambiguous 96%, insufficient 0%, ready 4% |
-| `passa-baixa-fronteira` | ambiguous | ambiguous | ✓ | 0.350 | ambiguous 42%, insufficient 1%, ready 57% |
-| `termo-definido-inline` | ready | ready | ✓ | 0.860 | ambiguous 7%, insufficient 2%, ready 91% |
-| `somente-listas` | insufficient | ambiguous | ✗ | 0.300 | ambiguous 38%, insufficient 53%, ready 9% |
+| `referencia-indefinida` | ambiguous | ambiguous | ✓ | 0.970 | ambiguous 98%, insufficient 0%, ready 2% |
+| `passa-baixa-fronteira` | ambiguous | ambiguous | ✓ | 0.370 | ambiguous 41%, insufficient 1%, ready 58% |
+| `termo-definido-inline` | ready | ready | ✓ | 0.860 | ambiguous 8%, insufficient 1%, ready 91% |
+| `somente-listas` | insufficient | ambiguous | ✗ | 0.340 | ambiguous 32%, insufficient 56%, ready 12% |
 | `contexto-implicito` | ready | ready | ✓ | 0.980 | ambiguous 1%, insufficient 0%, ready 99% |
 | `contradicao-quantidade` | ambiguous | ambiguous | ✓ | 0.980 | ambiguous 99%, insufficient 0%, ready 1% |
-| `promessa-vazia` | ready | ambiguous | ✗ | 0.370 | ambiguous 36%, insufficient 6%, ready 58% |
-| `termo-sem-definicao` | ambiguous | ambiguous | ✓ | 0.770 | ambiguous 85%, insufficient 1%, ready 14% |
-| `duas-afirmacoes` | ready | ready | ✓ | 0.830 | ambiguous 2%, insufficient 9%, ready 89% |
-| `contradicao-maior` | ready | ready | ✓ | 0.760 | ambiguous 5%, insufficient 11%, ready 84% |
-| `sem-sujeito` | insufficient | ambiguous | ✗ | 0.340 | ambiguous 40%, insufficient 56%, ready 4% |
-| `apenas-imagens` | insufficient | insufficient | ✓ | 0.940 | ambiguous 4%, insufficient 96%, ready 0% |
-| `lista-com-conteudo` | insufficient | ready | ✗ | 0.590 | ambiguous 21%, insufficient 6%, ready 73% |
-| `conceito-isolado` | ready | ready | ✓ | 0.850 | ambiguous 3%, insufficient 7%, ready 90% |
-| `contrato-implicito` | ready | ambiguous | ✗ | 0.430 | ambiguous 6%, insufficient 32%, ready 62% |
+| `promessa-vazia` | ready | ambiguous | ✗ | 0.350 | ambiguous 38%, insufficient 5%, ready 57% |
+| `termo-sem-definicao` | ambiguous | ambiguous | ✓ | 0.760 | ambiguous 84%, insufficient 1%, ready 15% |
+| `duas-afirmacoes` | ready | ready | ✓ | 0.880 | ambiguous 2%, insufficient 6%, ready 92% |
+| `contradicao-maior` | ready | ready | ✓ | 0.820 | ambiguous 4%, insufficient 8%, ready 88% |
+| `sem-sujeito` | insufficient | ambiguous | ✗ | 0.360 | ambiguous 41%, insufficient 57%, ready 2% |
+| `apenas-imagens` | insufficient | insufficient | ✓ | 0.920 | ambiguous 5%, insufficient 95%, ready 0% |
+| `lista-com-conteudo` | insufficient | ready | ✗ | 0.610 | ambiguous 20%, insufficient 6%, ready 74% |
+| `conceito-isolado` | ready | ready | ✓ | 0.860 | ambiguous 3%, insufficient 6%, ready 91% |
+| `contrato-implicito` | ready | ambiguous | ✗ | 0.370 | ambiguous 6%, insufficient 36%, ready 58% |
 | `exemplo-numerico` | ready | ready | ✓ | 0.800 | ambiguous 12%, insufficient 1%, ready 87% |
 
 ## Caso a caso (baseline)
@@ -150,12 +149,12 @@ de cada grupo, somada, dá o ECE.
 
 | Limiar | Pontuados | Acurácia | Risco | Abstention | ECE | Brier | Conf. média |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0.00 | 23 de 23 | 73.9% | 26.1% | 0.0% | 0.160 | 0.0647 | 0.730 |
-| 0.30 | 23 de 23 | 73.9% | 26.1% | 0.0% | 0.160 | 0.0647 | 0.730 |
-| 0.50 | 17 de 23 | 94.1% | 5.9% | 26.1% | 0.160 | 0.0647 | 0.861 |
-| 0.70 | 15 de 23 | 100.0% | 0.0% | 34.8% | 0.160 | 0.0647 | 0.896 |
-| 0.85 | 11 de 23 | 100.0% | 0.0% | 52.2% | 0.160 | 0.0647 | 0.935 |
-| 1.10 | 0 de 23 | — | — | 100.0% | 0.160 | 0.0647 | — |
+| 0.00 | 23 de 23 | 73.9% | 26.1% | 0.0% | 0.158 | 0.0660 | 0.735 |
+| 0.30 | 23 de 23 | 73.9% | 26.1% | 0.0% | 0.158 | 0.0660 | 0.735 |
+| 0.50 | 17 de 23 | 94.1% | 5.9% | 26.1% | 0.158 | 0.0660 | 0.868 |
+| 0.70 | 15 de 23 | 100.0% | 0.0% | 34.8% | 0.158 | 0.0660 | 0.906 |
+| 0.85 | 12 de 23 | 100.0% | 0.0% | 47.8% | 0.158 | 0.0660 | 0.934 |
+| 1.10 | 0 de 23 | — | — | 100.0% | 0.158 | 0.0660 | — |
 
 ## Fronteira de cobertura (candidato)
 
@@ -166,15 +165,15 @@ de cada grupo, somada, dá o ECE.
 | 0.10 | 100.0% | 73.9% |
 | 0.15 | 100.0% | 73.9% |
 | 0.20 | 100.0% | 73.9% |
-| 0.30 | 95.7% | 77.3% |
-| 0.35 | 82.6% | 84.2% |
-| 0.40 | 78.3% | 88.9% |
+| 0.30 | 100.0% | 73.9% |
+| 0.35 | 91.3% | 81.0% |
+| 0.40 | 73.9% | 94.1% |
 | 0.55 | 73.9% | 94.1% |
-| 0.60 | 69.6% | 100.0% |
+| 0.60 | 69.6% | 93.8% |
 | 0.70 | 65.2% | 100.0% |
-| 0.80 | 56.5% | 100.0% |
-| 0.85 | 43.5% | 100.0% |
-| 0.95 | 17.4% | 100.0% |
+| 0.80 | 60.9% | 100.0% |
+| 0.85 | 52.2% | 100.0% |
+| 0.95 | 21.7% | 100.0% |
 
 ## Falhas
 
