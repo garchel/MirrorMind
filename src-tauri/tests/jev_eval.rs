@@ -17,7 +17,7 @@
 //! ```
 
 use mirrormind_lib::review::calibrated::assertions::{
-    measure_order_bias as measure_order_bias_for, PendingAssertion,
+    classify_assertions, measure_order_bias as measure_order_bias_for, PendingAssertion,
 };
 use mirrormind_lib::review::calibrated::eval::golden::{
     resolve_note_path, CaseFailure, EngineReport, GoldenSet,
@@ -33,6 +33,7 @@ use mirrormind_lib::review::calibrated::readiness::{
     candidates_from_report, classify_readiness, merge_with_prose,
 };
 use mirrormind_lib::review::calibrated::{state_object, CalibratedProvider, TypeSafeProvider};
+use mirrormind_lib::review::contract::AssertionStatus;
 use mirrormind_lib::review::credentials::{
     has_typesafe_consent, load_typesafe_api_key, NativeCredentialStore,
 };
@@ -485,6 +486,101 @@ impl ExpansionFunnel {
     }
 }
 
+/// A acuracia do status das trocas (C1/C2) contra o ground truth.
+///
+/// O ground truth das trocas ja existia, mas era usado so no vies de ordem:
+/// media-se a **estabilidade** da resposta, nunca se ela estava **certa**. As
+/// duas perguntas sao diferentes — um motor constante e consistentemente
+/// errado teria vies de ordem zero.
+#[derive(Debug, Default, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExchangeAccuracySummary {
+    cases_total: usize,
+    cases_measured: usize,
+    exchanges_total: usize,
+    exchanges_correct: usize,
+    failures: Vec<String>,
+    /// As trocas em que o status previsto diferiu do esperado.
+    misses: Vec<String>,
+}
+
+impl ExchangeAccuracySummary {
+    /// A fracao de trocas com o status certo, ou `None` sem trocas medidas.
+    fn accuracy(&self) -> Option<f64> {
+        if self.exchanges_total == 0 {
+            return None;
+        }
+        Some(self.exchanges_correct as f64 / self.exchanges_total as f64)
+    }
+}
+
+fn status_label(status: AssertionStatus) -> &'static str {
+    match status {
+        AssertionStatus::Remembered => "remembered",
+        AssertionStatus::Partial => "partial",
+        AssertionStatus::Missing => "missing",
+        AssertionStatus::Contradicted => "contradicted",
+    }
+}
+
+fn measure_exchange_accuracy(
+    set: &GoldenSet,
+    provider: &TypeSafeProvider,
+) -> ExchangeAccuracySummary {
+    let mut summary = ExchangeAccuracySummary {
+        cases_total: set.cases.len(),
+        ..Default::default()
+    };
+    for case in &set.cases {
+        if case.exchanges.is_empty() {
+            continue;
+        }
+        let markdown = note_of(&case.note);
+        let transcript = serde_json::json!(case
+            .exchanges
+            .iter()
+            .map(|exchange| json!({
+                "prompt": exchange.prompt,
+                "answer": exchange.answer,
+            }))
+            .collect::<Vec<_>>());
+        let assertions: Vec<PendingAssertion> = case
+            .exchanges
+            .iter()
+            .map(|exchange| PendingAssertion {
+                text: exchange.answer.clone(),
+                source_quote: exchange.answer.clone(),
+            })
+            .collect();
+        let classified = match classify_assertions(provider, &markdown, &transcript, &assertions) {
+            Ok(classified) => classified,
+            Err(failure) => {
+                summary
+                    .failures
+                    .push(format!("{}: {}", case.id, failure.message));
+                continue;
+            }
+        };
+        summary.cases_measured += 1;
+        for (exchange, verdict) in case.exchanges.iter().zip(&classified) {
+            if !exchange.status_provenance.is_scorable() {
+                continue;
+            }
+            summary.exchanges_total += 1;
+            let predicted = status_label(verdict.status);
+            if predicted == exchange.status {
+                summary.exchanges_correct += 1;
+            } else {
+                summary.misses.push(format!(
+                    "{}: esperado {}, previsto {predicted}",
+                    case.id, exchange.status
+                ));
+            }
+        }
+    }
+    summary
+}
+
 /// Mede o recall das definicoes e o funil das expansoes, numa passada so.
 ///
 /// A expansao nao tem ground truth — nao existe "a frase certa" para um
@@ -800,9 +896,33 @@ fn jev_is_measured_against_the_legacy_path() {
     for missed in &definition_recall.missed_cases {
         eprintln!("  nao encontrado: {missed}");
     }
-    let order_bias = measure_order_bias(&set, &provider);
 
+    let order_bias = measure_order_bias(&set, &provider);
+    // A acuracia do status das trocas: o ground truth existia e nunca era
+    // comparado com a resposta.
+    let exchange_accuracy = measure_exchange_accuracy(&set, &provider);
+    match exchange_accuracy.accuracy() {
+        Some(accuracy) => eprintln!(
+            "  trocas (C1/C2): {}/{} com o status certo ({}%) em {} caso(s)",
+            exchange_accuracy.exchanges_correct,
+            exchange_accuracy.exchanges_total,
+            (accuracy * 100.0).round() as i64,
+            exchange_accuracy.cases_measured
+        ),
+        None => eprintln!(
+            "  trocas (C1/C2): NAO MEDIDO - {} falha(s)",
+            exchange_accuracy.failures.len()
+        ),
+    }
+    for miss in &exchange_accuracy.misses {
+        eprintln!("  troca com status errado: {miss}");
+    }
+    for failure in &exchange_accuracy.failures {
+        eprintln!("  falha nas trocas: {failure}");
+    }
     let path = report_path();
+    let runs_dir = path.parent().expect("docs").join("jev-eval-runs");
+    std::fs::create_dir_all(&runs_dir).expect("cria diretorio das rodadas");
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).expect("cria diretorio do relatorio");
     }
@@ -822,16 +942,64 @@ fn jev_is_measured_against_the_legacy_path() {
         Some(rate) => serde_json::Value::from(rate),
         None => serde_json::Value::Null,
     };
-    std::fs::write(
-        &path,
-        serde_json::to_string_pretty(&payload).expect("serializa"),
-    )
-    .expect("grava o relatorio");
-    eprintln!(
-        "relatorio em {}\nveredito: {}",
-        path.display(),
-        comparison.verdict
-    );
+    payload["exchangeAccuracy"] =
+        serde_json::to_value(&exchange_accuracy).expect("serializa a acuracia das trocas");
+    payload["exchangeAccuracy"]["accuracy"] = match exchange_accuracy.accuracy() {
+        Some(rate) => serde_json::Value::from(rate),
+        None => serde_json::Value::Null,
+    };
+
+    // Uma rodada so vale como baseline se **todas** as dimensoes foram
+    // medidas. Uma rodada com o Ollama fora do ar produz um relatorio em que
+    // `definitionRecall.measured == false`; gravar isso por cima do ultimo
+    // relatorio bom apagaria a unica medicao valida que existia. A
+    // arquivada guarda tudo; o `jev-eval-report.json` (o baseline) so e
+    // trocado quando a rodada esta completa.
+    let complete = definition_recall.is_measured()
+        && expansion_funnel.acceptance_rate().is_some()
+        && exchange_accuracy.accuracy().is_some()
+        && comparison.candidate.cases.len() == set.cases.len();
+    let run_id = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs())
+        .unwrap_or(0);
+    payload["runId"] = serde_json::Value::from(run_id);
+    payload["complete"] = serde_json::Value::from(complete);
+    let serialized = serde_json::to_string_pretty(&payload).expect("serializa");
+    let archived = runs_dir.join(format!(
+        "{}{run_id}.json",
+        if complete { "run-" } else { "incomplete-" }
+    ));
+    std::fs::write(&archived, &serialized).expect("grava a rodada arquivada");
+
+    if complete {
+        std::fs::write(&path, &serialized).expect("grava o relatorio");
+        eprintln!(
+            "relatorio em {}\nrodada arquivada em {}\nveredito: {}",
+            path.display(),
+            archived.display(),
+            comparison.verdict
+        );
+    } else {
+        // O baseline anterior fica intacto de proposito. O aviso e alto
+        // porque a rodada incompleta **nao** e um resultado: e um defeito de
+        // ambiente (provider fora do ar), e ler os zeros dela como medicao
+        // seria pior do que nao ter rodado.
+        eprintln!(
+            "RODADA INCOMPLETA: o baseline em {} NAO foi sobrescrito.\n\
+             rodada arquivada em {}\n\
+             motivo: definicoes medidas = {}, expansoes medidas = {}, trocas \
+             medidas = {}, casos de prontidao = {} de {}\nveredito (nao publicado): {}",
+            path.display(),
+            archived.display(),
+            definition_recall.is_measured(),
+            expansion_funnel.acceptance_rate().is_some(),
+            exchange_accuracy.accuracy().is_some(),
+            comparison.candidate.cases.len(),
+            set.cases.len(),
+            comparison.verdict
+        );
+    }
 
     // O caminho que marca o Vault como "calibrado".
     //

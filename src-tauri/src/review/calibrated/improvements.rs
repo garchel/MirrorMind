@@ -370,7 +370,7 @@ pub fn first_use_offset(markdown: &str, term: &str) -> Option<u64> {
 }
 
 /// Compara ignorando caixa e acentos.
-fn normalize_term(text: &str) -> String {
+pub(crate) fn normalize_term(text: &str) -> String {
     text.trim()
         .trim_matches(|c: char| !c.is_alphanumeric())
         .to_lowercase()

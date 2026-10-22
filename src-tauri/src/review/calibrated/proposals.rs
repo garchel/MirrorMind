@@ -80,7 +80,12 @@ sourceQuote e a citacao literal do trecho original da nota, e expanded e a frase
 completa que o aluno quis dizer. Um item de proposals usa as chaves term, definition \
 e sourceQuote: term e o termo exato como aparece na nota, definition e a \
 definicao proposta, e sourceQuote e a citacao literal da nota onde o termo e \
-usado sem definicao. Nao use chaves alternativas.";
+usado sem definicao. Nao use chaves alternativas.\n\
+AUTOCONFERENCIA antes de responder: cada sourceQuote tem de poder ser colada na \
+nota e encontrada la, caractere por caractere (quebras de linha da nota viram \
+espaco); cada term tem de aparecer na nota com a mesma grafia. Se voce nao \
+consegue copiar o trecho exato, omita o item — um item omitido custa uma \
+sugestao, um item inventado custa a confianca do usuario.";
 
 /// A citacao do provider, casada com o texto **real** da nota.
 ///
@@ -274,6 +279,34 @@ pub struct NoteExpansion {
     pub end_utf16: u64,
 }
 
+/// A ancora literal para uma proposta cuja citacao o provider nao copiou.
+///
+/// O provider as vezes parafraseia a citacao em vez de copia-la, e a proposta
+/// era descartada so por isso — mesmo quando o **termo** existe na nota e a
+/// definicao era boa. A linha onde o termo aparece e uma ancora literal melhor
+/// que a parafrase: ela existe no documento, e o usuario ve o trecho real.
+fn anchor_from_term(markdown: &str, term: &str) -> Option<String> {
+    let needle = crate::review::calibrated::improvements::normalize_term(term);
+    let needle_words: Vec<&str> = needle.split_whitespace().collect();
+    if needle_words.is_empty() {
+        return None;
+    }
+    for line in markdown.lines() {
+        let haystack = crate::review::calibrated::improvements::normalize_term(line);
+        let words: Vec<&str> = haystack.split_whitespace().collect();
+        if words
+            .windows(needle_words.len())
+            .any(|window| window == needle_words.as_slice())
+        {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                return Some(trimmed.to_string());
+            }
+        }
+    }
+    None
+}
+
 /// Pede ao provider generativo as expansoes e as definicoes que faltam.
 ///
 /// Devolve **as tres** listas: o que passou, o que foi recusado e por que. A
@@ -355,13 +388,24 @@ pub fn propose_improvements(
         let definition = raw_proposal.definition.trim().to_string();
         // O provider diz **onde** viu o termo. A citacao tem de existir na
         // nota: um provider que alucina o local nao pode ter visto o termo.
+        //
+        // Se a citacao nao colar, a ancora cai para a linha real onde o termo
+        // aparece. Rejeitar so por causa da citacao puniria a definicao por um
+        // erro de copia que nao diz nada sobre o julgamento do termo; a linha
+        // da nota e uma ancora mais confiavel que a parafrase do provider.
         let raw_quote = raw_proposal.source_quote.trim().to_string();
-        let Some(source_quote) = resolve_source_quote(markdown, &raw_quote) else {
-            rejected.push(ProposalProblem {
-                term: term.clone(),
-                reason: "a citacao enviada nao aparece na nota".to_string(),
-            });
-            continue;
+        let source_quote = match resolve_source_quote(markdown, &raw_quote) {
+            Some(quote) => quote,
+            None => match anchor_from_term(markdown, &term) {
+                Some(anchor) => anchor,
+                None => {
+                    rejected.push(ProposalProblem {
+                        term: term.clone(),
+                        reason: "a citacao enviada nao aparece na nota".to_string(),
+                    });
+                    continue;
+                }
+            },
         };
         // O offset de insercao e o **inicio do bloco** onde o termo e usado.
         // O offset do termo aponta para o meio da frase, e inserir ali partiria
@@ -491,15 +535,45 @@ mod tests {
     }
 
     #[test]
-    fn uma_citacao_que_nao_e_da_nota_continua_sendo_recusada() {
-        // A correcao do hard-wrap nao pode deixar passar citacao inventada:
-        // a ancora continua sendo conferida, e a ancora e o que garante que a
-        // sugestion aponte para um trecho real da nota.
+    fn uma_citacao_inventada_cai_para_a_linha_real_do_termo() {
+        // O provider as vezes parafraseia a citacao em vez de copia-la. Se o
+        // **termo** existe na nota, a proposta nao pode ser descartada por um
+        // erro de copia: a ancora passa a ser a linha real onde o termo
+        // aparece, que e um trecho literal do documento.
         let outcome = propose_improvements(
             &provider(json!({
                 "proposals": [{
                     "term": "estroma",
                     "definition": "O fluido interno.",
+                    "sourceQuote": "uma frase que nao existe na nota"
+                }]
+            })),
+            NOTA,
+        )
+        .expect("propoe");
+        assert_eq!(outcome.proposals.len(), 1);
+        assert_eq!(outcome.proposals[0].term, "estroma");
+        let ancora = &outcome.proposals[0].source_quote;
+        assert!(
+            NOTA.contains(ancora.as_str()),
+            "a ancora substituta tem de ser um trecho literal da nota: {ancora:?}"
+        );
+        assert!(
+            ancora.contains("estroma"),
+            "a ancora substituta tem de conter o termo: {ancora:?}"
+        );
+        assert!(outcome.rejected.is_empty());
+    }
+
+    #[test]
+    fn um_termo_inventado_com_citacao_inventada_e_recusado() {
+        // Sem o termo na nota nao ha ancora possivel: a proposta e inventada
+        // de ponta a ponta, e continua sendo recusada.
+        let outcome = propose_improvements(
+            &provider(json!({
+                "proposals": [{
+                    "term": "fotossistemas quanticos",
+                    "definition": "Uma coisa que nao existe.",
                     "sourceQuote": "uma frase que nao existe na nota"
                 }]
             })),

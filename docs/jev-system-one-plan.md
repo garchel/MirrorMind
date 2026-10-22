@@ -3241,8 +3241,9 @@ seria reportar o que nao foi medido.
 
 - **Claims (22 afirmacoes)**: ha ground truth, mas nenhuma pontuacao ligada a
   ele. `extract_factual_claims` existe e nao e chamado por nenhuma rodada.
-- **Exchanges (5 trocas)**: o ground truth de status e usado so no vies de
-  ordem (D12), nao para comparar o status previsto com o esperado.
+- **Exchanges (5 trocas)**: nesta rodada o ground truth de status ainda era
+  usado so no vies de ordem (D12). A rodada seguinte (§15.38) passou a
+  comparar o status previsto com o esperado.
 - **C5 (sintese)**: nao medido, por decisao de produto (fica no legado).
 - **C9/C10**: nao implementados.
 
@@ -3256,5 +3257,91 @@ nao do codigo: por isso a regra e decidir pelo pior, nunca pela media.
 
 A rodada de 2026-10-21 (§15.36) deu 2 recusas do motor; esta deu 3. A
 diferenca e variacao do modelo. O relatorio `docs/jev-eval-report.{md,json}`
-descreve a rodada mais recente.
+descreve a rodada mais recente — hoje a de §15.38, que ja inclui o conserto
+da ancora.
+
+### 15.38 Segunda rodada: o funil mudou de lugar
+
+Depois de §15.37, duas mudancas entraram no pipeline e uma no harness:
+
+- **ancora com queda deterministica**: quando o provider manda uma citacao que
+  nao existe na nota mas o **termo** existe, a ancora passa a ser a linha real
+  onde o termo aparece, em vez de a proposta ser descartada;
+- **autoconferencia no prompt**: o provider e instruido a colar a citacao
+  caractere por caractere e a omitir o item se nao conseguir;
+- **historico de rodadas**: toda rodada e arquivada em
+  `docs/jev-eval-runs/`; o `jev-eval-report.json` (o baseline) so e trocado
+  quando **todas** as dimensoes foram medidas.
+
+#### O funil, antes e depois
+
+| Etapa | Rodada 1 (§15.37) | Rodada 2 |
+| --- | ---: | ---: |
+| O provider ofereceu | 38 | 38 |
+| Recusadas pelo filtro deterministico | 10 (6 citacao + 4 termo) | **5 (2 citacao + 3 termo)** |
+| Chegaram ao motor | 28 | **33** |
+| Recusadas pelo motor | 3 | **7** |
+| Encontradas no ground truth | 16 de 47 | 16 de 47 |
+
+O conserto da ancora funcionou: as recusas por citacao cairam de 6 para 2, e
+13,2% (era 26%) do que o provider oferece se perde antes do motor. Mas o
+recall **nao** subiu, e a razao e a informacao nova: as propostas recuperadas
+nao eram termos que o revisor esperava. A perda deixou de ser "citacao ruim"
+e passou a ser **cobertura**: o provider oferece 38 termos em 23 casos (1,65
+por caso), e o ground truth dos 15 casos medidos tem 47 termos (3,1 por
+caso). Das 31 ausencias, **pelo menos 21 nunca foram propostas**.
+
+Das 7 recusas do motor, a maioria e de termos que o revisor tambem nao
+esperava (`crescimento exponencial`, `enzimas digestivas`). Uma e erro de
+julgamento: `teorema CAP`, que esta no ground truth e o motor recusou.
+
+#### Trocas (C1/C2): medido, e nao so estavel
+
+O ground truth das trocas (5) existia e era usado apenas no vies de ordem —
+ou seja, media-se a **estabilidade**, nunca o **acerto**. Um motor constante e
+sempre errado teria vies zero. Agora o harness chama `classify_assertions` e
+compara com o status esperado:
+
+| Medida | Resultado |
+| --- | ---: |
+| Trocas com o status certo | **5 de 5 (100%)** |
+| Casos com trocas | 2 |
+
+Cinco de cinco e um bom sinal, mas nao e prova: com n = 5, o intervalo de
+confianca e largo. O numero entra no relatorio como medido; a conclusao fica
+para quando o conjunto tiver mais trocas.
+
+#### Recalibracao: a temperatura passa, a isotonica nao
+
+O experimento (`scripts/recalibration-check.mjs`, resultado em
+`docs/jev-recalibracao.md`) usa os 23 casos do relatorio e validacao
+**leave-one-out** — cada caso e avaliado por um ajuste feito sem ele:
+
+| Metodo | ECE (LOO) |
+| --- | ---: |
+| Nenhuma (baseline) | 0,120 |
+| **Temperatura (1 parametro)** | **0,074** |
+| Isotonica | 0,163 |
+
+A temperatura divide os logits por T e preserva a ordem das classes (logo,
+nao muda o status): corrige a subconfianca sem mexer na decisao. A isotonica,
+com 23 pontos, decora e generaliza pior — o resultado LOO pior que o baseline
+e o aviso.
+
+Duas rodadas independentes deram temperatura LOO em 0,095 e 0,074, as duas
+abaixo do gate de 0,10. **Ainda nao esta ligada em producao**: o ajuste foi
+feito nos mesmos 23 casos, e adotar o numero sem antes gravar o T junto do
+modelo (que muda de versao) transformaria uma estimativa em constante magica.
+O proximo passo e gravar T na configuracao de calibracao do Vault, com a
+rodada que o originou.
+
+#### O que continua nao medido
+
+- **Claims (22 afirmacoes)**: ha ground truth, mas nenhuma pontuacao ligada a
+  ele. `extract_factual_claims` existe e nao e chamado por nenhuma rodada.
+- **C5 (sintese)**: nao medido, por decisao de produto (fica no legado).
+- **C9/C10**: nao implementados.
+- **Qualidade textual das expansoes**: a ancora e medida (92%); o texto nao
+  tem gabarito.
+
 

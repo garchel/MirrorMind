@@ -189,6 +189,30 @@ function expansionFunnelSection(report) {
 }
 
 /**
+ * A acuracia do status das trocas (C1/C2).
+ *
+ * O ground truth das trocas existia e era usado so no vies de ordem: media-se
+ * a estabilidade, nunca o acerto. Um motor constante e sempre errado teria
+ * vies zero — por isso esta secao existe.
+ */
+function exchangeAccuracySection(report) {
+  const summary = report.exchangeAccuracy
+  if (!summary) return '_Nao medido._'
+  const accuracy = summary.accuracy
+  if (accuracy === null || accuracy === undefined) {
+    return `_Nao medido._ Nenhuma troca com ground truth foi medida em ${summary.casesTotal ?? 0} casos. Isso nao e 0%: e ausencia de medida.`
+  }
+  const rows = [
+    `| Trocas com o status certo | ${summary.exchangesCorrect} de ${summary.exchangesTotal} (${pct(accuracy)}) |`,
+    `| Casos medidos | ${summary.casesMeasured} de ${summary.casesTotal} |`,
+  ]
+  for (const miss of summary.misses ?? []) {
+    rows.push(`| Troca errada | ${miss} |`)
+  }
+  return rows.join('\n')
+}
+
+/**
  * O gate do §11, criterio por criterio.
  *
  * A coluna de estado distingue tres coisas que nao podem ser confundidas:
@@ -377,6 +401,10 @@ ${definitionRecallSection(report)}
 ### Expansões de trecho (C12 ampliada)
 
 ${expansionFunnelSection(report)}
+
+### Status das trocas (C1/C2)
+
+${exchangeAccuracySection(report)}
 
 ## As faixas de confiança (de onde sai o ECE)
 
