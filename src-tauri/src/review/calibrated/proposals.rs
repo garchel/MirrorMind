@@ -231,7 +231,7 @@ struct RawProposal {
     source_quote: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct RawProposalReport {
     #[serde(default)]
@@ -260,6 +260,16 @@ pub struct ProposalOutcome {
     pub expansions_rejected: usize,
     /// Quantas definicoes o provider **propos**, antes das checagens.
     pub raw_proposals: usize,
+    /// Quantas definicoes a passada de cobertura ofereceu.
+    ///
+    /// A primeira passada pede "todos os termos", mas o modelo entrega ~1,6
+    /// por nota. A segunda passada pergunta o que ficou de fora, e este numero
+    /// diz se ela trouxe algo.
+    pub coverage_proposals: usize,
+    /// Propostas repetidas descartadas no merge das duas passadas.
+    pub duplicates_dropped: usize,
+    /// `true` quando a passada de cobertura falhou (a primeira valeu sozinha).
+    pub coverage_failed: bool,
 }
 
 /// A expansao de um trecho que o aluno escreveu apressado.
@@ -307,6 +317,26 @@ fn anchor_from_term(markdown: &str, term: &str) -> Option<String> {
     None
 }
 
+/// Minimo de propostas antes de disparar a passada de cobertura.
+///
+/// Uma nota do conjunto tem 3,1 termos esperados em media. Abaixo de 3, o
+/// provider claramente nao cobriu a nota — e a segunda pergunta e barata
+/// perto de perder um termo.
+const COVERAGE_MIN_PROPOSALS: usize = 3;
+
+/// A segunda pergunta: o que ficou de fora da primeira lista.
+const COVERAGE_INSTRUCTIONS: &str = "\
+Voce ja leu esta nota e propos definir alguns termos. Sua tarefa agora e \
+**cobertura**: percorra a nota paragrafo por paragrafo e ache os termos que \
+**ainda faltam**, sem repetir os que ja foram propostos. Nao proponha \
+expansoes: deixe a lista de expansoes vazia.\n\
+Use so a propria nota como fonte: a definicao tem de ser sustentada pelo que a \
+nota ja diz. Se nao houver nenhum termo novo, responda com as duas listas \
+vazias. E melhor nao sugerir nada do que sugerir coisa errada.\n\
+FORMATO OBRIGATORIO: responda somente com um objeto JSON com as chaves \
+expansions e proposals. expansions fica vazia. Um item de proposals usa as \
+chaves term, definition e sourceQuote, com a citacao literal copiada da nota.";
+
 /// Pede ao provider generativo as expansoes e as definicoes que faltam.
 ///
 /// Devolve **as tres** listas: o que passou, o que foi recusado e por que. A
@@ -341,6 +371,9 @@ pub fn propose_improvements(
                 raw_expansions: 0,
                 expansions_rejected: 0,
                 raw_proposals: 0,
+                coverage_proposals: 0,
+                duplicates_dropped: 0,
+                coverage_failed: false,
             })
         }
     };
@@ -383,9 +416,106 @@ pub fn propose_improvements(
 
     let mut proposals = Vec::new();
     let mut rejected = Vec::new();
-    for raw_proposal in raw.proposals {
+    let mut duplicates_dropped = 0usize;
+    accept_raw_proposals(
+        markdown,
+        raw.proposals,
+        &mut proposals,
+        &mut rejected,
+        &mut duplicates_dropped,
+    );
+
+    // Passada de cobertura: a primeira pergunta pede "todos os termos", mas o
+    // modelo entrega ~1,6 por nota (a media do ground truth e 3,1). Abaixo do
+    // minimo, pergunta de novo — explicitamente pelo que faltou. A segunda
+    // chamada e best-effort: se ela falhar, a primeira lista continua valendo,
+    // porque perder as propostas boas por causa da segunda seria pior.
+    let mut coverage_proposals = 0usize;
+    let mut coverage_failed = false;
+    if proposals.len() < COVERAGE_MIN_PROPOSALS {
+        let already: Vec<String> = proposals
+            .iter()
+            .map(|proposal| proposal.term.clone())
+            .chain(rejected.iter().map(|problem| problem.term.clone()))
+            .collect();
+        match request_coverage(provider, markdown, &already) {
+            Ok(extra) => {
+                coverage_proposals = extra.len();
+                accept_raw_proposals(
+                    markdown,
+                    extra,
+                    &mut proposals,
+                    &mut rejected,
+                    &mut duplicates_dropped,
+                );
+            }
+            Err(_) => coverage_failed = true,
+        }
+    }
+    Ok(ProposalOutcome {
+        expansions,
+        proposals,
+        rejected,
+        invalid: false,
+        raw_expansions,
+        expansions_rejected,
+        raw_proposals,
+        coverage_proposals,
+        duplicates_dropped,
+        coverage_failed,
+    })
+}
+
+/// A segunda pergunta ao provider: quais termos ficaram de fora.
+fn request_coverage(
+    provider: &dyn StructuredAiProvider,
+    markdown: &str,
+    already: &[String],
+) -> Result<Vec<RawProposal>, ProviderFailure> {
+    let response = provider.generate_structured(ProviderRequest {
+        system_instructions: COVERAGE_INSTRUCTIONS.to_string(),
+        source_markdown: markdown.to_string(),
+        user_content: format!(
+            "Nota (fonte de verdade):\n---\n{markdown}\n---\n\n\
+             Termos ja propostos (nao repita): {}.\n\
+             Ache os termos que ainda faltam.",
+            if already.is_empty() {
+                "nenhum".to_string()
+            } else {
+                already.join(", ")
+            }
+        ),
+        response_schema: proposal_response_schema(),
+    })?;
+    let raw: RawProposalReport = serde_json::from_value(response.structured).unwrap_or_default();
+    Ok(raw.proposals)
+}
+
+/// Valida as propostas cruas do provider e acrescenta as aceitas.
+///
+/// O mesmo termo pode vir duas vezes (entre as passadas, ou de sinonimo com a
+/// mesma grafia). Repetir a sugestao na tela nao ajuda ninguem: a segunda
+/// ocorrencia e descartada e contada, para o funil fechar.
+fn accept_raw_proposals(
+    markdown: &str,
+    raw_proposals: Vec<RawProposal>,
+    proposals: &mut Vec<DefinitionProposal>,
+    rejected: &mut Vec<ProposalProblem>,
+    duplicates_dropped: &mut usize,
+) {
+    for raw_proposal in raw_proposals {
         let term = raw_proposal.term.trim().to_string();
         let definition = raw_proposal.definition.trim().to_string();
+        let needle = crate::review::calibrated::improvements::normalize_term(&term);
+        let repeated = proposals.iter().any(|proposal| {
+            crate::review::calibrated::improvements::normalize_term(&proposal.term) == needle
+        }) || rejected.iter().any(|problem| {
+            crate::review::calibrated::improvements::normalize_term(&problem.term) == needle
+        });
+        if repeated {
+            *duplicates_dropped += 1;
+            continue;
+        }
         // O provider diz **onde** viu o termo. A citacao tem de existir na
         // nota: um provider que alucina o local nao pode ter visto o termo.
         //
@@ -429,15 +559,6 @@ pub fn propose_improvements(
             Err(problem) => rejected.push(problem),
         }
     }
-    Ok(ProposalOutcome {
-        expansions,
-        proposals,
-        rejected,
-        invalid: false,
-        raw_expansions,
-        expansions_rejected,
-        raw_proposals,
-    })
 }
 
 /// Converte as propostas aceitas em edicoes aplicaveis ao rascunho.
@@ -493,6 +614,68 @@ mod tests {
 
     fn provider(payload: Value) -> Fixed {
         Fixed { payload }
+    }
+
+    /// Provider que devolve uma resposta diferente a cada chamada.
+    ///
+    /// Necessario para testar a passada de cobertura: a segunda pergunta
+    /// precisa de uma resposta diferente da primeira.
+    struct Sequence {
+        payloads: std::sync::Mutex<Vec<Value>>,
+        calls: std::sync::Mutex<usize>,
+        fail_after: Option<usize>,
+    }
+
+    impl Sequence {
+        fn new(payloads: Vec<Value>) -> Self {
+            Self {
+                payloads: std::sync::Mutex::new(payloads),
+                calls: std::sync::Mutex::new(0),
+                fail_after: None,
+            }
+        }
+
+        fn failing_after(payloads: Vec<Value>, fail_after: usize) -> Self {
+            Self {
+                payloads: std::sync::Mutex::new(payloads),
+                calls: std::sync::Mutex::new(0),
+                fail_after: Some(fail_after),
+            }
+        }
+    }
+
+    impl StructuredAiProvider for Sequence {
+        fn kind(&self) -> ProviderKind {
+            ProviderKind::Ollama
+        }
+
+        fn generate_structured(
+            &self,
+            _request: ProviderRequest,
+        ) -> Result<crate::review::provider::ProviderResponse, ProviderFailure> {
+            let mut calls = self.calls.lock().expect("lock das chamadas");
+            let call = *calls;
+            *calls += 1;
+            if let Some(limit) = self.fail_after {
+                if call >= limit {
+                    return Err(ProviderFailure {
+                        message: "provider caiu".to_string(),
+                        raw_response: None,
+                        validation_errors: Vec::new(),
+                    });
+                }
+            }
+            let mut payloads = self.payloads.lock().expect("lock dos payloads");
+            let payload = if payloads.is_empty() {
+                json!({ "expansions": [], "proposals": [] })
+            } else {
+                payloads.remove(0)
+            };
+            Ok(crate::review::provider::ProviderResponse {
+                raw_response: payload.to_string(),
+                structured: payload,
+            })
+        }
     }
 
     #[test]
@@ -582,6 +765,77 @@ mod tests {
         .expect("propoe");
         assert!(outcome.proposals.is_empty());
         assert_eq!(outcome.rejected.len(), 1);
+    }
+
+    #[test]
+    fn a_passada_de_cobertura_acrescenta_o_que_a_primeira_esqueceu() {
+        // A primeira passada pede "todos os termos" e entrega um. A segunda
+        // pergunta o que faltou e traz o outro — que e exatamente o buraco
+        // medido no funil (1,6 proposta por nota contra 3,1 esperados).
+        let provider = Sequence::new(vec![
+            json!({
+                "proposals": [{
+                    "term": "estroma",
+                    "definition": "O fluido interno.",
+                    "sourceQuote": "A fixacao de carbono ocorre no estroma dos cloroplastos."
+                }]
+            }),
+            json!({
+                "proposals": [{
+                    "term": "cloroplastos",
+                    "definition": "A organela onde ocorre a fotossintese.",
+                    "sourceQuote": "A fixacao de carbono ocorre no estroma dos cloroplastos."
+                }]
+            }),
+        ]);
+        let outcome = propose_improvements(&provider, NOTA).expect("propoe");
+        assert_eq!(outcome.proposals.len(), 2);
+        assert_eq!(outcome.coverage_proposals, 1);
+        assert_eq!(outcome.duplicates_dropped, 0);
+        assert!(!outcome.coverage_failed);
+    }
+
+    #[test]
+    fn o_termo_repetido_entre_as_passadas_e_descartado() {
+        let provider = Sequence::new(vec![
+            json!({
+                "proposals": [{
+                    "term": "estroma",
+                    "definition": "O fluido interno.",
+                    "sourceQuote": "A fixacao de carbono ocorre no estroma dos cloroplastos."
+                }]
+            }),
+            json!({
+                "proposals": [{
+                    "term": "Estroma",
+                    "definition": "Outra definicao do mesmo termo.",
+                    "sourceQuote": "A fixacao de carbono ocorre no estroma dos cloroplastos."
+                }]
+            }),
+        ]);
+        let outcome = propose_improvements(&provider, NOTA).expect("propoe");
+        assert_eq!(outcome.proposals.len(), 1);
+        assert_eq!(outcome.duplicates_dropped, 1);
+    }
+
+    #[test]
+    fn a_falha_da_cobertura_nao_derruba_a_primeira_passada() {
+        // A segunda chamada e best-effort: perder as propostas boas da
+        // primeira porque a segunda caiu seria pior do que ficar so com as
+        // primeiras.
+        let provider = Sequence::failing_after(
+            vec![json!({
+                "proposals": [{
+                    "term": "estroma",
+                    "definition": "O fluido interno.",
+                    "sourceQuote": "A fixacao de carbono ocorre no estroma dos cloroplastos."
+                }]
+            })],
+            1,
+        );
+        let outcome = propose_improvements(&provider, NOTA).expect("propoe");
+        assert_eq!(outcome.proposals.len(), 1);
+        assert!(outcome.coverage_failed);
     }
 
     #[test]

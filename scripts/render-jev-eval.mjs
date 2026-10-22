@@ -145,19 +145,32 @@ function definitionRecallSection(report) {
   ]
   const raw = recall.rawProposals
   if (raw !== undefined && raw !== null) {
+    const coverage = recall.coverageProposals ?? 0
+    const duplicates = recall.duplicatesDropped ?? 0
+    const offered = raw + coverage
     const filtered = recall.filteredOutTerms ?? 0
     const toEngine = recall.proposedTerms ?? 0
     const byEngine = (recall.rejectedByEngine ?? []).length
     rows.push(
-      `| Funil, etapa 1: provider ofereceu | ${raw} definicoes |`,
-      `| Funil, etapa 2: filtro deterministico recusou | ${filtered} (${pct(raw ? filtered / raw : null)}) |`,
-      `| Funil, etapa 3: chegaram ao motor | ${toEngine} |`,
-      `| Funil, etapa 4: motor recusou | ${byEngine} |`,
-      `| Funil, etapa 5: encontradas no ground truth | ${recall.foundTerms} |`,
+      `| Funil, etapa 1: provider ofereceu | ${offered} definicoes (${raw} na 1a passada + ${coverage} na cobertura) |`,
+      `| Funil, etapa 2: repetidas descartadas | ${duplicates} |`,
+      `| Funil, etapa 3: filtro deterministico recusou | ${filtered} (${pct(offered ? filtered / offered : null)}) |`,
+      `| Funil, etapa 4: chegaram ao motor | ${toEngine} |`,
+      `| Funil, etapa 5: motor recusou | ${byEngine} |`,
+      `| Funil, etapa 6: encontradas no ground truth | ${recall.foundTerms} |`,
     )
+    if (recall.coverageFailedCases > 0) {
+      rows.push(
+        `| Passada de cobertura falhou | ${recall.coverageFailedCases} caso(s) — a 1a passada valeu sozinha |`,
+      )
+    }
     const reasons = Object.entries(recall.filteredOutByReason ?? {})
     for (const [reason, count] of reasons) {
       rows.push(`| Recusa do filtro (${count}x) | ${reason} |`)
+    }
+    const unmatched = recall.acceptedUnmatchedTerms ?? []
+    if (unmatched.length > 0) {
+      rows.push(`\n**Aceitas que nao casaram com o esperado** (sinonimo ou extra — revisar): ${unmatched.join('; ')}`)
     }
   }
   return rows.join('\n')

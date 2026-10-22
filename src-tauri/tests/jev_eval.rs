@@ -421,6 +421,22 @@ struct DefinitionRecallSummary {
     /// ofereceu 28 ou 300: a perda pode estar na geracao ou no filtro, e as
     /// duas tem consertos completamente diferentes.
     raw_proposals: usize,
+    /// Quantas definicoes a passada de cobertura ofereceu (a segunda pergunta).
+    ///
+    /// A primeira passada pede "todos os termos" e entrega ~1,6; a segunda
+    /// pergunta o que faltou. Sem esse numero, o funil nao diz se a cobertura
+    /// funcionou ou se o modelo simplesmente repetiu o que ja tinha dito.
+    coverage_proposals: usize,
+    /// Propostas repetidas descartadas no merge das duas passadas.
+    duplicates_dropped: usize,
+    /// Casos em que a passada de cobertura falhou (a primeira valeu sozinha).
+    coverage_failed_cases: usize,
+    /// Termos que o motor aceitou e que **nao** casaram com nenhum esperado.
+    ///
+    /// Nao sao falsos positivos automaticos: podem ser sinonimos do termo
+    /// esperado (recall medido por nome exato subestima), ou termos extras que
+    /// o revisor nao listou. Ficam visiveis para a revisao humana decidir.
+    accepted_unmatched_terms: Vec<String>,
     /// Quantas definicoes o filtro determinista recusou, por motivo.
     ///
     /// O filtro e a **primeira** etapa: ele checa a ancora (a citacao existe
@@ -664,6 +680,21 @@ fn measure_improvements(
         }
         summary.proposed_terms += proposals.proposals.len();
         summary.raw_proposals += proposals.raw_proposals;
+        summary.coverage_proposals += proposals.coverage_proposals;
+        summary.duplicates_dropped += proposals.duplicates_dropped;
+        if proposals.coverage_failed {
+            summary.coverage_failed_cases += 1;
+        }
+        for proposal in &proposals.proposals {
+            let expected_hit = expected
+                .iter()
+                .any(|term| normalize_term(&term.term) == normalize_term(&proposal.term));
+            if !expected_hit && !expected.is_empty() {
+                summary
+                    .accepted_unmatched_terms
+                    .push(format!("{}: {}", case.id, proposal.term));
+            }
+        }
         summary.filtered_out_terms += proposals.rejected.len();
         for problem in &proposals.rejected {
             *summary
@@ -862,14 +893,27 @@ fn jev_is_measured_against_the_legacy_path() {
     // motor recusou? Sem esta separacao, um recall baixo nao diz o que
     // consertar.
     eprintln!(
-        "  funil das definicoes: {} oferecidas -> {} recusadas pelo filtro -> {} \
-         chegaram ao motor -> {} recusadas pelo motor -> {} encontradas",
+        "  funil das definicoes: {} oferecidas ({} na 1a passada + {} na cobertura) \
+         -> {} repetidas -> {} recusadas pelo filtro -> {} chegaram ao motor -> \
+         {} recusadas pelo motor -> {} encontradas",
+        definition_recall.raw_proposals + definition_recall.coverage_proposals,
         definition_recall.raw_proposals,
+        definition_recall.coverage_proposals,
+        definition_recall.duplicates_dropped,
         definition_recall.filtered_out_terms,
         definition_recall.proposed_terms,
         definition_recall.rejected_by_engine.len(),
         definition_recall.found_terms
     );
+    if definition_recall.coverage_failed_cases > 0 {
+        eprintln!(
+            "  cobertura falhou em {} caso(s): a 1a passada valeu sozinha",
+            definition_recall.coverage_failed_cases
+        );
+    }
+    for term in &definition_recall.accepted_unmatched_terms {
+        eprintln!("  aceita sem casar com o esperado: {term}");
+    }
     for (reason, count) in &definition_recall.filtered_out_by_reason {
         eprintln!("  recusada pelo filtro ({count}x): {reason}");
     }
