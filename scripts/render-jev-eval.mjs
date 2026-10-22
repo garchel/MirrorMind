@@ -143,7 +143,49 @@ function definitionRecallSection(report) {
     `| Casos medidos | ${recall.casesMeasured} de ${recall.casesWithGroundTruth} com ground truth |`,
     `| Termos extras | ${recall.extraTerms ?? 0} (a lista do revisor pode estar incompleta) |`,
   ]
+  const raw = recall.rawProposals
+  if (raw !== undefined && raw !== null) {
+    const filtered = recall.filteredOutTerms ?? 0
+    const toEngine = recall.proposedTerms ?? 0
+    const byEngine = (recall.rejectedByEngine ?? []).length
+    rows.push(
+      `| Funil, etapa 1: provider ofereceu | ${raw} definicoes |`,
+      `| Funil, etapa 2: filtro deterministico recusou | ${filtered} (${pct(raw ? filtered / raw : null)}) |`,
+      `| Funil, etapa 3: chegaram ao motor | ${toEngine} |`,
+      `| Funil, etapa 4: motor recusou | ${byEngine} |`,
+      `| Funil, etapa 5: encontradas no ground truth | ${recall.foundTerms} |`,
+    )
+    const reasons = Object.entries(recall.filteredOutByReason ?? {})
+    for (const [reason, count] of reasons) {
+      rows.push(`| Recusa do filtro (${count}x) | ${reason} |`)
+    }
+  }
   return rows.join('\n')
+}
+
+/**
+ * O funil das expansoes de trecho (C12 ampliada).
+ *
+ * A expansao **nao tem ground truth** — nao existe "a frase certa" para um
+ * trecho apressado. O que da para medir e a taxa de aceitacao da ancora:
+ * quantas o provider ofereceu e quantas apontam para um trecho real. Chamar
+ * isso de "qualidade das expansoes" seria mentir sobre o que foi medido.
+ */
+function expansionFunnelSection(report) {
+  const funnel = report.expansionFunnel
+  if (!funnel) return '_Nao medido._'
+  const rate = funnel.acceptanceRate
+  if (rate === null || rate === undefined) {
+    return `_Nao medido._ O provider nao ofereceu nenhuma expansao em ${funnel.casesMeasured ?? 0} de ${funnel.casesTotal ?? 0} casos. Isso nao e 0%: e ausencia de medida.`
+  }
+  return [
+    `| Expansoes oferecidas | ${funnel.rawExpansions} |`,
+    `| Aceitas na ancora | ${funnel.expansionsAccepted} (${pct(rate)}) |`,
+    `| Recusadas pelas checagens | ${funnel.expansionsRejected} |`,
+    `| Casos medidos | ${funnel.casesMeasured} de ${funnel.casesTotal} |`,
+    '',
+    '_A expansao nao tem ground truth. O numero acima mede a ancora, nao a qualidade do texto._',
+  ].join('\n')
 }
 
 /**
@@ -331,6 +373,10 @@ ${coverageSection(report)}
 ### Recall das sugestões de definição (C12)
 
 ${definitionRecallSection(report)}
+
+### Expansões de trecho (C12 ampliada)
+
+${expansionFunnelSection(report)}
 
 ## As faixas de confiança (de onde sai o ECE)
 

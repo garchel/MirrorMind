@@ -246,6 +246,15 @@ pub struct ProposalOutcome {
     pub rejected: Vec<ProposalProblem>,
     /// `true` quando o provider nao conseguiu responder no contrato.
     pub invalid: bool,
+    /// Quantas expansoes o provider **propos**, antes das checagens.
+    ///
+    /// Sem esse numero, a taxa de aceitacao das expansoes nao e mensuravel:
+    /// "quantas passaram" nao diz "quantas o provider ofereceu".
+    pub raw_expansions: usize,
+    /// Quantas expansoes foram recusadas pelas checagens (ancora, repeticao).
+    pub expansions_rejected: usize,
+    /// Quantas definicoes o provider **propos**, antes das checagens.
+    pub raw_proposals: usize,
 }
 
 /// A expansao de um trecho que o aluno escreveu apressado.
@@ -296,25 +305,38 @@ pub fn propose_improvements(
                 proposals: Vec::new(),
                 rejected: Vec::new(),
                 invalid: true,
+                raw_expansions: 0,
+                expansions_rejected: 0,
+                raw_proposals: 0,
             })
         }
     };
+
+    // O provider falou: quantas expansoes e quantas definicoes ele ofereceu.
+    // E o inicio do funil, e sem ele nao ha como dizer onde a perda foi.
+    let raw_expansions = raw.expansions.len();
+    let raw_proposals = raw.proposals.len();
+    let mut expansions_rejected = 0usize;
 
     let mut expansions = Vec::new();
     for raw_expansion in raw.expansions {
         let Some(source_quote) = resolve_source_quote(markdown, raw_expansion.source_quote.trim())
         else {
+            expansions_rejected += 1;
             continue;
         };
         if source_quote.is_empty() {
+            expansions_rejected += 1;
             continue;
         }
         let expanded = raw_expansion.expanded.trim().to_string();
         if expanded.is_empty() || expanded == source_quote {
             // Uma expansao que repete o original nao expande nada.
+            expansions_rejected += 1;
             continue;
         }
         let Some(start) = offset_of_quote(markdown, &source_quote) else {
+            expansions_rejected += 1;
             continue;
         };
         let end = start + utf16_len(&source_quote);
@@ -368,6 +390,9 @@ pub fn propose_improvements(
         proposals,
         rejected,
         invalid: false,
+        raw_expansions,
+        expansions_rejected,
+        raw_proposals,
     })
 }
 

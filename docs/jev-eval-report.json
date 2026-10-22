@@ -21,7 +21,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 24773
+          "latencyMs": 26078
         },
         "provenance": "human"
       },
@@ -34,7 +34,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 16406
+          "latencyMs": 15555
         },
         "provenance": "human"
       },
@@ -47,7 +47,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 9808
+          "latencyMs": 9451
         },
         "provenance": "human"
       },
@@ -60,7 +60,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 15285
+          "latencyMs": 14504
         },
         "provenance": "human"
       },
@@ -73,7 +73,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 10455
+          "latencyMs": 10076
         },
         "provenance": "human"
       },
@@ -86,7 +86,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 11640
+          "latencyMs": 11120
         },
         "provenance": "human"
       },
@@ -99,7 +99,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 11570
+          "latencyMs": 11153
         },
         "provenance": "human"
       },
@@ -112,7 +112,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 11256
+          "latencyMs": 10804
         },
         "provenance": "human"
       },
@@ -125,7 +125,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 10932
+          "latencyMs": 10399
         },
         "provenance": "human"
       },
@@ -138,7 +138,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 9262
+          "latencyMs": 8804
         },
         "provenance": "human"
       },
@@ -151,7 +151,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 13732
+          "latencyMs": 12961
         },
         "provenance": "human"
       },
@@ -164,7 +164,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 10469
+          "latencyMs": 9989
         },
         "provenance": "human"
       },
@@ -177,7 +177,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 9351
+          "latencyMs": 10200
         },
         "provenance": "human"
       },
@@ -190,7 +190,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 5358
+          "latencyMs": 5820
         },
         "provenance": "human"
       },
@@ -203,7 +203,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 8630
+          "latencyMs": 9708
         },
         "provenance": "human"
       },
@@ -216,7 +216,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 8287
+          "latencyMs": 9091
         },
         "provenance": "human"
       },
@@ -229,7 +229,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 7177
+          "latencyMs": 7906
         },
         "provenance": "human"
       },
@@ -242,7 +242,7 @@
           "distribution": {},
           "estimatedCostUsd": 0.0,
           "label": "ready",
-          "latencyMs": 9231
+          "latencyMs": 10211
         },
         "provenance": "human"
       }
@@ -291,8 +291,8 @@
         "casesScored": 18,
         "casesTotal": 18,
         "expectedCalibrationError": 0.6111111111111112,
-        "latencyP50Ms": 10462,
-        "latencyP95Ms": 24773,
+        "latencyP50Ms": 10205,
+        "latencyP95Ms": 26078,
         "meanConfidence": 0.0,
         "meanCostUsd": 0.0,
         "risk": 0.38888888888888884,
@@ -306,8 +306,8 @@
         "casesScored": 0,
         "casesTotal": 18,
         "expectedCalibrationError": 0.6111111111111112,
-        "latencyP50Ms": 10462,
-        "latencyP95Ms": 24773,
+        "latencyP50Ms": 10205,
+        "latencyP95Ms": 26078,
         "meanConfidence": null,
         "meanCostUsd": 0.0,
         "risk": null,
@@ -321,8 +321,8 @@
         "casesScored": 0,
         "casesTotal": 18,
         "expectedCalibrationError": 0.6111111111111112,
-        "latencyP50Ms": 10462,
-        "latencyP95Ms": 24773,
+        "latencyP50Ms": 10205,
+        "latencyP95Ms": 26078,
         "meanConfidence": null,
         "meanCostUsd": 0.0,
         "risk": null,
@@ -336,8 +336,8 @@
         "casesScored": 0,
         "casesTotal": 18,
         "expectedCalibrationError": 0.6111111111111112,
-        "latencyP50Ms": 10462,
-        "latencyP95Ms": 24773,
+        "latencyP50Ms": 10205,
+        "latencyP95Ms": 26078,
         "meanConfidence": null,
         "meanCostUsd": 0.0,
         "risk": null,
@@ -351,8 +351,8 @@
         "casesScored": 0,
         "casesTotal": 18,
         "expectedCalibrationError": 0.6111111111111112,
-        "latencyP50Ms": 10462,
-        "latencyP95Ms": 24773,
+        "latencyP50Ms": 10205,
+        "latencyP95Ms": 26078,
         "meanConfidence": null,
         "meanCostUsd": 0.0,
         "risk": null,
@@ -366,8 +366,8 @@
         "casesScored": 0,
         "casesTotal": 18,
         "expectedCalibrationError": 0.6111111111111112,
-        "latencyP50Ms": 10462,
-        "latencyP95Ms": 24773,
+        "latencyP50Ms": 10205,
+        "latencyP95Ms": 26078,
         "meanConfidence": null,
         "meanCostUsd": 0.0,
         "risk": null,
@@ -384,32 +384,32 @@
       1.1
     ],
     "totalCostUsd": 0.0,
-    "totalLatencyMs": 203622
+    "totalLatencyMs": 203830
   },
   "candidate": {
     "bins": [
       {
-        "accuracy": 0.3333333333333333,
-        "count": 3,
-        "meanConfidence": 0.5666666666666665,
+        "accuracy": 0.75,
+        "count": 4,
+        "meanConfidence": 0.54,
         "range": [
           0.5,
           0.6
         ]
       },
       {
-        "accuracy": 1.0,
-        "count": 3,
-        "meanConfidence": 0.63,
+        "accuracy": 0.0,
+        "count": 1,
+        "meanConfidence": 0.62,
         "range": [
           0.6,
           0.7
         ]
       },
       {
-        "accuracy": 0.5,
-        "count": 2,
-        "meanConfidence": 0.73,
+        "accuracy": 1.0,
+        "count": 3,
+        "meanConfidence": 0.7399999999999999,
         "range": [
           0.7,
           0.8
@@ -417,8 +417,8 @@
       },
       {
         "accuracy": 1.0,
-        "count": 3,
-        "meanConfidence": 0.8766666666666666,
+        "count": 4,
+        "meanConfidence": 0.8575,
         "range": [
           0.8,
           0.9
@@ -426,8 +426,8 @@
       },
       {
         "accuracy": 1.0,
-        "count": 12,
-        "meanConfidence": 0.9558333333333334,
+        "count": 11,
+        "meanConfidence": 0.9445454545454546,
         "range": [
           0.9,
           1.0
@@ -440,11 +440,11 @@
         "id": "ciclo-calvin",
         "note": "Revisado: A nota contém cinco parágrafos autocontidos e nenhuma contradição evidente.",
         "prediction": {
-          "confidence": 0.7,
+          "confidence": 0.74,
           "distribution": {
-            "ambiguous": 0.3,
+            "ambiguous": 0.26,
             "insufficient": 0.0,
-            "ready": 0.7
+            "ready": 0.74
           },
           "estimatedCostUsd": 0.0,
           "label": "ready",
@@ -474,11 +474,11 @@
         "id": "contradicao-fotossintese",
         "note": "Revisado: A nota afirma que a fotossíntese 'ocorre na fase escura' e, logo a seguir, que 'ocorre na fase clara', apresentando duas afirmações mutuamente exclusivas sobre o mesmo objeto.",
         "prediction": {
-          "confidence": 0.97,
+          "confidence": 0.93,
           "distribution": {
-            "ambiguous": 0.97,
+            "ambiguous": 0.93,
             "insufficient": 0.0,
-            "ready": 0.03
+            "ready": 0.07
           },
           "estimatedCostUsd": 0.0,
           "label": "ambiguous",
@@ -491,11 +491,11 @@
         "id": "termodinamica",
         "note": "Revisado: Possui uma ideia central (Termodinâmica), mais de três parágrafos com frases próprias e não apresenta contradições.",
         "prediction": {
-          "confidence": 0.58,
+          "confidence": 0.55,
           "distribution": {
-            "ambiguous": 0.58,
-            "insufficient": 0.05,
-            "ready": 0.37
+            "ambiguous": 0.55,
+            "insufficient": 0.04,
+            "ready": 0.41
           },
           "estimatedCostUsd": 0.0,
           "label": "ambiguous",
@@ -508,11 +508,11 @@
         "id": "bases-de-dados",
         "note": "Revisado: A nota apresenta seis parágrafos autocontidos com conceitos independentes, sem premissas vazias ou contradições.",
         "prediction": {
-          "confidence": 0.94,
+          "confidence": 0.91,
           "distribution": {
-            "ambiguous": 0.06,
+            "ambiguous": 0.09,
             "insufficient": 0.0,
-            "ready": 0.94
+            "ready": 0.91
           },
           "estimatedCostUsd": 0.0,
           "label": "ready",
@@ -525,11 +525,11 @@
         "id": "sistema-imunologico-limite",
         "note": "Revisado: A nota possui títulos estruturados, o que poderia sugerir organização, mas não frases próprias suficientes.",
         "prediction": {
-          "confidence": 0.94,
+          "confidence": 0.93,
           "distribution": {
-            "ambiguous": 0.05,
-            "insufficient": 0.94,
-            "ready": 0.01
+            "ambiguous": 0.07,
+            "insufficient": 0.93,
+            "ready": 0.0
           },
           "estimatedCostUsd": 0.0,
           "label": "insufficient",
@@ -541,23 +541,6 @@
         "expected": "ambiguous",
         "id": "contradicao-estroma",
         "note": "Revisado: O primeiro parágrafo afirma que a fixação ocorre 'no estroma dos cloroplastos' e o segundo afirma que é realizada 'exclusivamente na membrana tilacoidal, nunca no estroma'. Duas afirmações exclusivas.",
-        "prediction": {
-          "confidence": 1.0,
-          "distribution": {
-            "ambiguous": 1.0,
-            "insufficient": 0.0,
-            "ready": 0.0
-          },
-          "estimatedCostUsd": 0.0,
-          "label": "ambiguous",
-          "latencyMs": 0
-        },
-        "provenance": "human"
-      },
-      {
-        "expected": "ambiguous",
-        "id": "referencia-indefinida",
-        "note": "Revisado: O texto utiliza o termo 'glicólise aeróbica' como premissa na frase 'Como vimos antes, a fixação de carbono segue exatamente o mesmo caminho da glicólise aeróbica.' sem definição prévia do termo.",
         "prediction": {
           "confidence": 0.97,
           "distribution": {
@@ -573,17 +556,34 @@
       },
       {
         "expected": "ambiguous",
+        "id": "referencia-indefinida",
+        "note": "Revisado: O texto utiliza o termo 'glicólise aeróbica' como premissa na frase 'Como vimos antes, a fixação de carbono segue exatamente o mesmo caminho da glicólise aeróbica.' sem definição prévia do termo.",
+        "prediction": {
+          "confidence": 0.92,
+          "distribution": {
+            "ambiguous": 0.92,
+            "insufficient": 0.0,
+            "ready": 0.08
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ambiguous",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
         "id": "passa-baixa-fronteira",
         "note": "Revisado: A nota utiliza o termo estrangeiro e indefinido 'unity' ('...a resposta tende a unity.') atuando como premissa não explicada para a leitura.",
         "prediction": {
-          "confidence": 0.55,
+          "confidence": 0.54,
           "distribution": {
-            "ambiguous": 0.44,
+            "ambiguous": 0.54,
             "insufficient": 0.01,
-            "ready": 0.55
+            "ready": 0.45
           },
           "estimatedCostUsd": 0.0,
-          "label": "ready",
+          "label": "ambiguous",
           "latencyMs": 0
         },
         "provenance": "human"
@@ -593,11 +593,11 @@
         "id": "termo-definido-inline",
         "note": "Revisado: A nota possui ideia central identificável e três parágrafos de frase própria, onde o termo ('índice') é definido na própria frase: 'Um índice é uma estrutura de dados...'.",
         "prediction": {
-          "confidence": 0.92,
+          "confidence": 0.88,
           "distribution": {
-            "ambiguous": 0.07,
+            "ambiguous": 0.11,
             "insufficient": 0.01,
-            "ready": 0.92
+            "ready": 0.88
           },
           "estimatedCostUsd": 0.0,
           "label": "ready",
@@ -610,11 +610,11 @@
         "id": "somente-listas",
         "note": "Revisado: A nota contém apenas itens de checklist (tarefas) e remissões a anexos ('![diagrama](anexo-diagrama.png)').",
         "prediction": {
-          "confidence": 0.61,
+          "confidence": 0.5,
           "distribution": {
-            "ambiguous": 0.33,
-            "insufficient": 0.61,
-            "ready": 0.06
+            "ambiguous": 0.46,
+            "insufficient": 0.5,
+            "ready": 0.04
           },
           "estimatedCostUsd": 0.0,
           "label": "insufficient",
@@ -627,11 +627,11 @@
         "id": "contexto-implicito",
         "note": "Revisado: Possui três parágrafos, ideia central explícita no título, e define contexto essencial ('a energia acumulada na fase clara') na própria frase.",
         "prediction": {
-          "confidence": 0.99,
+          "confidence": 0.97,
           "distribution": {
-            "ambiguous": 0.01,
+            "ambiguous": 0.03,
             "insufficient": 0.0,
-            "ready": 0.99
+            "ready": 0.97
           },
           "estimatedCostUsd": 0.0,
           "label": "ready",
@@ -661,11 +661,11 @@
         "id": "promessa-vazia",
         "note": "Revisado: Contém a definição do conceito central no primeiro parágrafo ('A elasticidade mede...'), seguido de três parágrafos formatados corretamente com frases próprias.",
         "prediction": {
-          "confidence": 0.61,
+          "confidence": 0.57,
           "distribution": {
-            "ambiguous": 0.35,
-            "insufficient": 0.04,
-            "ready": 0.61
+            "ambiguous": 0.4,
+            "insufficient": 0.03,
+            "ready": 0.57
           },
           "estimatedCostUsd": 0.0,
           "label": "ready",
@@ -678,11 +678,11 @@
         "id": "termo-sem-definicao",
         "note": "Revisado: O terceiro parágrafo utiliza o 'princípio da mínima entropia' como suporte causal ('Segundo o princípio...') sem ter definido o que é o princípio nos parágrafos anteriores.",
         "prediction": {
-          "confidence": 0.87,
+          "confidence": 0.82,
           "distribution": {
-            "ambiguous": 0.87,
-            "insufficient": 0.01,
-            "ready": 0.12
+            "ambiguous": 0.82,
+            "insufficient": 0.02,
+            "ready": 0.16
           },
           "estimatedCostUsd": 0.0,
           "label": "ambiguous",
@@ -695,11 +695,11 @@
         "id": "duas-afirmacoes",
         "note": "Revisado: Apresenta três afirmações precisas ('A corrente elétrica é...', 'A tensão elétrica é...', 'A resistência... é...') que se sustentam de forma contínua.",
         "prediction": {
-          "confidence": 0.9,
+          "confidence": 0.94,
           "distribution": {
             "ambiguous": 0.02,
-            "insufficient": 0.08,
-            "ready": 0.9
+            "insufficient": 0.04,
+            "ready": 0.94
           },
           "estimatedCostUsd": 0.0,
           "label": "ready",
@@ -712,11 +712,11 @@
         "id": "contradicao-maior",
         "note": "Revisado: Três parágrafos avaliáveis com ideia central bem delineada. O termo 'pH varied' é apenas um erro ortográfico, não impedindo a compreensão da afirmação.",
         "prediction": {
-          "confidence": 0.88,
+          "confidence": 0.86,
           "distribution": {
             "ambiguous": 0.05,
-            "insufficient": 0.07,
-            "ready": 0.88
+            "insufficient": 0.09,
+            "ready": 0.86
           },
           "estimatedCostUsd": 0.0,
           "label": "ready",
@@ -729,11 +729,11 @@
         "id": "sem-sujeito",
         "note": "Revisado: As sentenças são apenas tarefas diretivas em formato de prosa ('Continuar no capítulo 5.', 'Reler o material...'), sem nenhuma afirmação avaliável.",
         "prediction": {
-          "confidence": 0.57,
+          "confidence": 0.71,
           "distribution": {
-            "ambiguous": 0.41,
-            "insufficient": 0.57,
-            "ready": 0.02
+            "ambiguous": 0.26,
+            "insufficient": 0.71,
+            "ready": 0.03
           },
           "estimatedCostUsd": 0.0,
           "label": "insufficient",
@@ -746,10 +746,10 @@
         "id": "apenas-imagens",
         "note": "Revisado: A nota é composta exclusivamente por vínculos de imagens/anexos ('![diagrama do ciclo](anexo-ciclo.png)').",
         "prediction": {
-          "confidence": 0.96,
+          "confidence": 0.9,
           "distribution": {
-            "ambiguous": 0.04,
-            "insufficient": 0.96,
+            "ambiguous": 0.1,
+            "insufficient": 0.9,
             "ready": 0.0
           },
           "estimatedCostUsd": 0.0,
@@ -763,11 +763,11 @@
         "id": "lista-com-conteudo",
         "note": "Revisado: Sendo uma nota estruturada majoritariamente como tarefas (checkboxes) e contendo um lembrete no final ('Anotar: o professor pediu...'), a nota recai em 'só listas, tarefas... Nenhuma afirmação avaliável' em forma de parágrafo estruturado convencional.",
         "prediction": {
-          "confidence": 0.76,
+          "confidence": 0.62,
           "distribution": {
-            "ambiguous": 0.19,
-            "insufficient": 0.05,
-            "ready": 0.76
+            "ambiguous": 0.28,
+            "insufficient": 0.1,
+            "ready": 0.62
           },
           "estimatedCostUsd": 0.0,
           "label": "ready",
@@ -780,11 +780,11 @@
         "id": "conceito-isolado",
         "note": "Revisado: Três parágrafos que definem propriedades, encapsulamento e herança independentemente, unificados sob o tema identificável.",
         "prediction": {
-          "confidence": 0.9,
+          "confidence": 0.94,
           "distribution": {
-            "ambiguous": 0.03,
-            "insufficient": 0.07,
-            "ready": 0.9
+            "ambiguous": 0.02,
+            "insufficient": 0.04,
+            "ready": 0.94
           },
           "estimatedCostUsd": 0.0,
           "label": "ready",
@@ -797,11 +797,11 @@
         "id": "contrato-implicito",
         "note": "Revisado: A nota apresenta três parágrafos ('Um contrato de API declara...', 'Compatibilidade de entrada exige...', 'Compatibilidade de saida exige...'), todos baseados em definições diretas sem contradições.",
         "prediction": {
-          "confidence": 0.67,
+          "confidence": 0.77,
           "distribution": {
             "ambiguous": 0.05,
-            "insufficient": 0.28,
-            "ready": 0.67
+            "insufficient": 0.18,
+            "ready": 0.77
           },
           "estimatedCostUsd": 0.0,
           "label": "ready",
@@ -814,11 +814,11 @@
         "id": "exemplo-numerico",
         "note": "Revisado: Possui ideia central explícita ('Crescimento populacional') e três parágrafos com frases próprias. O exemplo numérico 'leva cerca de 180 anos para crescer mil vezes' sustenta o contexto anterior sem causar contradições ou carecer de definição adicional.",
         "prediction": {
-          "confidence": 0.88,
+          "confidence": 0.87,
           "distribution": {
-            "ambiguous": 0.11,
+            "ambiguous": 0.12,
             "insufficient": 0.01,
-            "ready": 0.88
+            "ready": 0.87
           },
           "estimatedCostUsd": 0.0,
           "label": "ready",
@@ -831,82 +831,82 @@
     "failures": [],
     "frontier": [
       {
-        "accuracy": 0.8695652173913043,
+        "accuracy": 0.9130434782608695,
         "coverage": 1.0,
         "threshold": 0.0
       },
       {
-        "accuracy": 0.8695652173913043,
+        "accuracy": 0.9130434782608695,
         "coverage": 1.0,
         "threshold": 0.05
       },
       {
-        "accuracy": 0.8695652173913043,
+        "accuracy": 0.9130434782608695,
         "coverage": 1.0,
         "threshold": 0.1
       },
       {
-        "accuracy": 0.8695652173913043,
+        "accuracy": 0.9130434782608695,
         "coverage": 1.0,
         "threshold": 0.15000000000000002
       },
       {
-        "accuracy": 0.8695652173913043,
+        "accuracy": 0.9130434782608695,
         "coverage": 1.0,
         "threshold": 0.2
       },
       {
-        "accuracy": 0.8695652173913043,
+        "accuracy": 0.9130434782608695,
         "coverage": 1.0,
         "threshold": 0.25
       },
       {
-        "accuracy": 0.8695652173913043,
+        "accuracy": 0.9130434782608695,
         "coverage": 1.0,
         "threshold": 0.30000000000000004
       },
       {
-        "accuracy": 0.8695652173913043,
+        "accuracy": 0.9130434782608695,
         "coverage": 1.0,
         "threshold": 0.35000000000000003
       },
       {
-        "accuracy": 0.8695652173913043,
+        "accuracy": 0.9130434782608695,
         "coverage": 1.0,
         "threshold": 0.4
       },
       {
-        "accuracy": 0.8695652173913043,
+        "accuracy": 0.9130434782608695,
         "coverage": 1.0,
         "threshold": 0.45
       },
       {
-        "accuracy": 0.8695652173913043,
+        "accuracy": 0.9130434782608695,
         "coverage": 1.0,
         "threshold": 0.5
       },
       {
-        "accuracy": 0.8695652173913043,
-        "coverage": 1.0,
+        "accuracy": 0.9047619047619048,
+        "coverage": 0.9130434782608695,
         "threshold": 0.55
       },
       {
-        "accuracy": 0.95,
-        "coverage": 0.8695652173913043,
+        "accuracy": 0.9473684210526315,
+        "coverage": 0.8260869565217391,
         "threshold": 0.6000000000000001
       },
       {
-        "accuracy": 0.9444444444444444,
+        "accuracy": 1.0,
         "coverage": 0.782608695652174,
         "threshold": 0.65
       },
       {
-        "accuracy": 0.9375,
-        "coverage": 0.6956521739130435,
+        "accuracy": 1.0,
+        "coverage": 0.782608695652174,
         "threshold": 0.7000000000000001
       },
       {
-        "accuracy": 0.9375,
+        "accuracy": 1.0,
         "coverage": 0.6956521739130435,
         "threshold": 0.75
       },
@@ -917,97 +917,92 @@
       },
       {
         "accuracy": 1.0,
-        "coverage": 0.6521739130434783,
+        "coverage": 0.6086956521739131,
         "threshold": 0.8500000000000001
       },
       {
         "accuracy": 1.0,
-        "coverage": 0.5217391304347826,
+        "coverage": 0.4782608695652174,
         "threshold": 0.9
       },
       {
         "accuracy": 1.0,
-        "coverage": 0.30434782608695654,
+        "coverage": 0.17391304347826086,
         "threshold": 0.9500000000000001
-      },
-      {
-        "accuracy": 1.0,
-        "coverage": 0.04347826086956519,
-        "threshold": 1.0
       }
     ],
     "metrics": {
       "0.00": {
         "abstentionRate": 0.0,
-        "accuracy": 0.8695652173913043,
-        "accuracyAnsweredOnly": 0.8695652173913043,
-        "brierScore": 0.06198260869565217,
+        "accuracy": 0.9130434782608695,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.054408695652173926,
         "casesScored": 23,
         "casesTotal": 23,
-        "expectedCalibrationError": 0.13782608695652168,
+        "expectedCalibrationError": 0.148695652173913,
         "latencyP50Ms": 0,
         "latencyP95Ms": 0,
-        "meanConfidence": 0.8326086956521739,
+        "meanConfidence": 0.8182608695652174,
         "meanCostUsd": 0.0,
-        "risk": 0.13043478260869568,
+        "risk": 0.08695652173913049,
         "totalCostUsd": 0.0
       },
       "0.30": {
         "abstentionRate": 0.0,
-        "accuracy": 0.8695652173913043,
-        "accuracyAnsweredOnly": 0.8695652173913043,
-        "brierScore": 0.06198260869565217,
+        "accuracy": 0.9130434782608695,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.054408695652173926,
         "casesScored": 23,
         "casesTotal": 23,
-        "expectedCalibrationError": 0.13782608695652168,
+        "expectedCalibrationError": 0.148695652173913,
         "latencyP50Ms": 0,
         "latencyP95Ms": 0,
-        "meanConfidence": 0.8326086956521739,
+        "meanConfidence": 0.8182608695652174,
         "meanCostUsd": 0.0,
-        "risk": 0.13043478260869568,
+        "risk": 0.08695652173913049,
         "totalCostUsd": 0.0
       },
       "0.50": {
         "abstentionRate": 0.0,
-        "accuracy": 0.8695652173913043,
-        "accuracyAnsweredOnly": 0.8695652173913043,
-        "brierScore": 0.06198260869565217,
+        "accuracy": 0.9130434782608695,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.054408695652173926,
         "casesScored": 23,
         "casesTotal": 23,
-        "expectedCalibrationError": 0.13782608695652168,
+        "expectedCalibrationError": 0.148695652173913,
         "latencyP50Ms": 0,
         "latencyP95Ms": 0,
-        "meanConfidence": 0.8326086956521739,
+        "meanConfidence": 0.8182608695652174,
         "meanCostUsd": 0.0,
-        "risk": 0.13043478260869568,
+        "risk": 0.08695652173913049,
         "totalCostUsd": 0.0
       },
       "0.70": {
-        "abstentionRate": 0.26086956521739135,
-        "accuracy": 0.9411764705882353,
-        "accuracyAnsweredOnly": 0.8695652173913043,
-        "brierScore": 0.06198260869565217,
-        "casesScored": 17,
+        "abstentionRate": 0.21739130434782605,
+        "accuracy": 1.0,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.054408695652173926,
+        "casesScored": 18,
         "casesTotal": 23,
-        "expectedCalibrationError": 0.13782608695652168,
+        "expectedCalibrationError": 0.148695652173913,
         "latencyP50Ms": 0,
         "latencyP95Ms": 0,
-        "meanConfidence": 0.9152941176470588,
+        "meanConfidence": 0.8911111111111111,
         "meanCostUsd": 0.0,
-        "risk": 0.05882352941176472,
+        "risk": 0.0,
         "totalCostUsd": 0.0
       },
       "0.85": {
-        "abstentionRate": 0.34782608695652173,
+        "abstentionRate": 0.3913043478260869,
         "accuracy": 1.0,
-        "accuracyAnsweredOnly": 0.8695652173913043,
-        "brierScore": 0.06198260869565217,
-        "casesScored": 15,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.054408695652173926,
+        "casesScored": 14,
         "casesTotal": 23,
-        "expectedCalibrationError": 0.13782608695652168,
+        "expectedCalibrationError": 0.148695652173913,
         "latencyP50Ms": 0,
         "latencyP95Ms": 0,
-        "meanConfidence": 0.9400000000000001,
+        "meanConfidence": 0.9285714285714285,
         "meanCostUsd": 0.0,
         "risk": 0.0,
         "totalCostUsd": 0.0
@@ -1015,11 +1010,11 @@
       "1.10": {
         "abstentionRate": 1.0,
         "accuracy": null,
-        "accuracyAnsweredOnly": 0.8695652173913043,
-        "brierScore": 0.06198260869565217,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.054408695652173926,
         "casesScored": 0,
         "casesTotal": 23,
-        "expectedCalibrationError": 0.13782608695652168,
+        "expectedCalibrationError": 0.148695652173913,
         "latencyP50Ms": 0,
         "latencyP95Ms": 0,
         "meanConfidence": null,
@@ -1050,6 +1045,11 @@
     "expectedTerms": 47,
     "extraTerms": 0,
     "failures": [],
+    "filteredOutByReason": {
+      "a citacao enviada nao aparece na nota": 6,
+      "o termo nao aparece na nota": 4
+    },
+    "filteredOutTerms": 10,
     "foundTerms": 16,
     "measured": true,
     "missedCases": [
@@ -1068,9 +1068,11 @@
       "exemplo-numerico: capacidade de suporte"
     ],
     "proposedTerms": 28,
+    "rawProposals": 38,
     "recall": 0.3404255319148936,
     "rejectedByEngine": [
       "termo-definido-inline: índice",
+      "contradicao-maior: enzimas digestivas",
       "exemplo-numerico: crescimento logístico"
     ]
   },
@@ -1101,10 +1103,19 @@
     }
   ],
   "eceByRun": [
-    0.12304347826086955,
-    0.13782608695652168,
-    0.11173913043478263
+    0.11173913043478277,
+    0.148695652173913,
+    0.10636363636363635
   ],
+  "expansionFunnel": {
+    "acceptanceRate": 0.9230769230769231,
+    "casesMeasured": 23,
+    "casesTotal": 23,
+    "expansionsAccepted": 36,
+    "expansionsRejected": 3,
+    "failures": [],
+    "rawExpansions": 39
+  },
   "goldenSetSize": 23,
   "labelsReviewed": true,
   "orderBias": {
@@ -1116,5 +1127,5 @@
     "meanDisagreementRate": 0.0
   },
   "unscoreable": [],
-  "verdict": "Confianca NAO acionavel (pior ECE 0.138 acima de 0.10): nao exibir numeros de confianca na UI."
+  "verdict": "Confianca NAO acionavel (pior ECE 0.149 acima de 0.10): nao exibir numeros de confianca na UI."
 }

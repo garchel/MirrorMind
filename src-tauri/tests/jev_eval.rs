@@ -414,6 +414,20 @@ struct DefinitionRecallSummary {
     rejected_by_engine: Vec<String>,
     /// Quantos termos o provider propôs (antes da confirmacao do motor).
     proposed_terms: usize,
+    /// Quantas definicoes o provider **ofereceu**, antes do filtro determinista.
+    ///
+    /// E o topo do funil. Sem ele, "28 passaram" nao diz se o provider
+    /// ofereceu 28 ou 300: a perda pode estar na geracao ou no filtro, e as
+    /// duas tem consertos completamente diferentes.
+    raw_proposals: usize,
+    /// Quantas definicoes o filtro determinista recusou, por motivo.
+    ///
+    /// O filtro e a **primeira** etapa: ele checa a ancora (a citacao existe
+    /// na nota?) e a coerencia (o termo aparece?). Uma recusa aqui e um
+    /// provider propondo mal, nao um erro do motor.
+    filtered_out_terms: usize,
+    /// As recusas do filtro, agrupadas por motivo.
+    filtered_out_by_reason: std::collections::BTreeMap<String, usize>,
 }
 
 impl DefinitionRecallSummary {
@@ -435,38 +449,96 @@ impl DefinitionRecallSummary {
     }
 }
 
-/// Mede o recall das sugestoes contra o ground truth da feature.
-fn measure_definition_recall(
+/// O que a medicao das melhorias produz: as definicoes e as expansoes.
+///
+/// As duas saem do **mesmo** `propose_improvements`, numa passada so. Separar
+/// em duas funcoes chamaria o provider duas vezes por caso, e o custo da
+/// rodada dobraria sem medir nada de novo.
+#[derive(Debug, Default, Clone)]
+struct ImprovementsMeasurement {
+    definitions: DefinitionRecallSummary,
+    expansions: ExpansionFunnel,
+}
+
+/// O funil das expansoes, em todos os casos do conjunto.
+#[derive(Debug, Default, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExpansionFunnel {
+    cases_total: usize,
+    cases_measured: usize,
+    raw_expansions: usize,
+    expansions_accepted: usize,
+    expansions_rejected: usize,
+    failures: Vec<String>,
+}
+
+impl ExpansionFunnel {
+    /// A taxa de aceitacao da ancora.
+    ///
+    /// `None` quando o provider nao ofereceu nenhuma expansao: `0/0` nao e
+    /// `0%` — e a ausencia de medida.
+    fn acceptance_rate(&self) -> Option<f64> {
+        if self.raw_expansions == 0 {
+            return None;
+        }
+        Some(self.expansions_accepted as f64 / self.raw_expansions as f64)
+    }
+}
+
+/// Mede o recall das definicoes e o funil das expansoes, numa passada so.
+///
+/// A expansao nao tem ground truth — nao existe "a frase certa" para um
+/// trecho que o aluno escreveu apressado. O que da para medir e a taxa de
+/// **aceitacao da ancora**: quantas expansoes o provider ofereceu e quantas
+/// apontam para um trecho real da nota. Por isso ela e medida em todos os
+/// casos, e nao so nos que tem ground truth de definicoes.
+fn measure_improvements(
     set: &GoldenSet,
     legacy_provider: &OllamaProvider,
     calibrated: &TypeSafeProvider,
-) -> DefinitionRecallSummary {
-    let mut summary = DefinitionRecallSummary {
-        cases_total: set.cases.len(),
-        ..Default::default()
+) -> ImprovementsMeasurement {
+    let mut measurement = ImprovementsMeasurement {
+        definitions: DefinitionRecallSummary {
+            cases_total: set.cases.len(),
+            ..Default::default()
+        },
+        expansions: ExpansionFunnel {
+            cases_total: set.cases.len(),
+            ..Default::default()
+        },
     };
     for case in &set.cases {
-        let Some(expected) = &case.expected_definitions else {
-            continue;
-        };
-        // Um caso revisado sem nenhum termo esperado conta como ground
-        // truth: o revisor olhou e nao achou. So nao ha recall a medir
-        // **nele**, porque nao ha termo para encontrar.
-        summary.cases_with_ground_truth += 1;
-        if expected.is_empty() {
-            // Sem termo esperado, nao ha recall a medir neste caso.
-            continue;
+        let expected = case.expected_definitions.as_ref();
+        let has_ground_truth = expected.is_some();
+        let expected = expected.filter(|terms| !terms.is_empty());
+        if has_ground_truth {
+            // Um caso revisado sem nenhum termo esperado conta como ground
+            // truth: o revisor olhou e nao achou. So nao ha recall a medir
+            // **nele**, porque nao ha termo para encontrar.
+            measurement.definitions.cases_with_ground_truth += 1;
         }
+
         let markdown = note_of(&case.note);
         let proposals = match propose_improvements(legacy_provider, &markdown) {
             Ok(outcome) => outcome,
             Err(failure) => {
-                summary
-                    .failures
-                    .push(format!("{}: {}", case.id, failure.message));
+                let message = format!("{}: {}", case.id, failure.message);
+                measurement.definitions.failures.push(message.clone());
+                measurement.expansions.failures.push(message);
                 continue;
             }
         };
+        // O funil das expansoes vale para **todo** caso com proposta.
+        measurement.expansions.cases_measured += 1;
+        measurement.expansions.raw_expansions += proposals.raw_expansions;
+        measurement.expansions.expansions_accepted += proposals.expansions.len();
+        measurement.expansions.expansions_rejected += proposals.expansions_rejected;
+
+        let expected = match expected {
+            Some(expected) => expected,
+            None => continue,
+        };
+        let summary = &mut measurement.definitions;
         let confirmed =
             match confirm_definition_proposals(calibrated, &markdown, &proposals.proposals) {
                 Ok(confirmed) => confirmed,
@@ -495,6 +567,14 @@ fn measure_definition_recall(
             }
         }
         summary.proposed_terms += proposals.proposals.len();
+        summary.raw_proposals += proposals.raw_proposals;
+        summary.filtered_out_terms += proposals.rejected.len();
+        for problem in &proposals.rejected {
+            *summary
+                .filtered_out_by_reason
+                .entry(problem.reason.clone())
+                .or_insert(0) += 1;
+        }
 
         summary.cases_measured += 1;
         let mut missed = Vec::new();
@@ -516,7 +596,7 @@ fn measure_definition_recall(
                 .push(format!("{}: {}", case.id, missed.join(", ")));
         }
     }
-    summary
+    measurement
 }
 
 /// Compara ignorando caixa e acentos, como o filtro deterministico.
@@ -639,7 +719,9 @@ fn jev_is_measured_against_the_legacy_path() {
     let provider = TypeSafeProvider::new(api_key).expect("provider JEV");
     // O recall das sugestoes de definicao, contra o ground truth da feature.
     // So e medido nos casos que o revisor marcou — sem ele nao ha o que medir.
-    let definition_recall = measure_definition_recall(&set, &legacy_provider, &provider);
+    let improvements = measure_improvements(&set, &legacy_provider, &provider);
+    let definition_recall = &improvements.definitions;
+    let expansion_funnel = &improvements.expansions;
     match definition_recall.recall() {
         Some(recall) => eprintln!(
             "recall de definicoes: {}/{} termos encontrados ({}%) em {} de {} casos com \
@@ -684,6 +766,30 @@ fn jev_is_measured_against_the_legacy_path() {
     // motor recusou? Sem esta separacao, um recall baixo nao diz o que
     // consertar.
     eprintln!(
+        "  funil das definicoes: {} oferecidas -> {} recusadas pelo filtro -> {} \
+         chegaram ao motor -> {} recusadas pelo motor -> {} encontradas",
+        definition_recall.raw_proposals,
+        definition_recall.filtered_out_terms,
+        definition_recall.proposed_terms,
+        definition_recall.rejected_by_engine.len(),
+        definition_recall.found_terms
+    );
+    for (reason, count) in &definition_recall.filtered_out_by_reason {
+        eprintln!("  recusada pelo filtro ({count}x): {reason}");
+    }
+    eprintln!(
+        "  expansoes, em todos os {} casos: {} oferecidas -> {} aceitas na ancora \
+         -> {} recusadas (taxa de aceitacao: {})",
+        expansion_funnel.cases_total,
+        expansion_funnel.raw_expansions,
+        expansion_funnel.expansions_accepted,
+        expansion_funnel.expansions_rejected,
+        match expansion_funnel.acceptance_rate() {
+            Some(rate) => format!("{:.0}%", rate * 100.0),
+            None => "nao medido".to_string(),
+        }
+    );
+    eprintln!(
         "  termos propostos pelo provider: {} | recusados pelo motor: {}",
         definition_recall.proposed_terms,
         definition_recall.rejected_by_engine.len()
@@ -703,13 +809,19 @@ fn jev_is_measured_against_the_legacy_path() {
     let mut payload = serde_json::to_value(&comparison).expect("serializa o relatorio");
     payload["orderBias"] = serde_json::to_value(&order_bias).expect("serializa o vies de ordem");
     payload["definitionRecall"] =
-        serde_json::to_value(&definition_recall).expect("serializa o recall de definicoes");
+        serde_json::to_value(definition_recall).expect("serializa o recall de definicoes");
     payload["definitionRecall"]["recall"] = match definition_recall.recall() {
         Some(recall) => serde_json::Value::from(recall),
         None => serde_json::Value::Null,
     };
     payload["definitionRecall"]["measured"] =
         serde_json::Value::from(definition_recall.is_measured());
+    payload["expansionFunnel"] =
+        serde_json::to_value(expansion_funnel).expect("serializa o funil das expansoes");
+    payload["expansionFunnel"]["acceptanceRate"] = match expansion_funnel.acceptance_rate() {
+        Some(rate) => serde_json::Value::from(rate),
+        None => serde_json::Value::Null,
+    };
     std::fs::write(
         &path,
         serde_json::to_string_pretty(&payload).expect("serializa"),

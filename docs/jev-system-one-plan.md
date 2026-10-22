@@ -3196,3 +3196,65 @@ ele nunca distinguiria uma injecao de ruido. O par certo e:
 O segundo teste foi escrito agora. Sem ele, "o harness nao acusa" e
 indistinguivel de "o harness nao sabe acusar" — e o arquivo inteiro seria um
 vazio que passa por robustez.
+
+### 15.37 A qualidade por etapa: o funil medido (rodada de 2026-10-22)
+
+A pergunta "como cada modelo se sai em cada etapa?" nao tinha resposta por
+etapa: o relatorio dava o resultado **fim-a-fim**. O harness passou a medir o
+funil, numa passada so de `propose_improvements` por caso (medir definicoes e
+expansoes separadamente chamaria o provider duas vezes e dobraria o custo sem
+medir nada de novo).
+
+#### Definicoes: onde a perda acontece
+
+| Etapa | Termos | Leitura |
+| --- | ---: | --- |
+| O provider ofereceu | 38 | o que o modelo generativo propos |
+| O filtro deterministico recusou | 10 (26%) | 6 citacoes inexistentes, 4 termos ausentes da nota |
+| Chegaram ao motor | 28 | propostas com ancora valida |
+| O motor recusou | 3 | o JEV disse "esse termo nao precisa de definicao" |
+| Aceitas | 25 | propostas confirmadas |
+| Encontradas no ground truth | 16 de 47 (34%) | recall por nome exato |
+
+Duas leituras que o numero agregado escondia:
+
+- **26% do que o provider oferece nao tem ancora na nota.** Nao e erro do
+  motor: e o modelo generativo inventando citacao ou termo. O conserto e na
+  geracao (prompt), nao no julgamento.
+- **Das 25 aceitas, 16 batem com a lista do revisor.** As outras 9 sao termos
+  reais da nota que a lista nao previu, ou variacoes de nome. Como a recall e
+  por nome exato, ela **subestima** a cobertura.
+
+#### Expansoes: so a ancora e mensuravel
+
+| Etapa | Expansoes | Leitura |
+| --- | ---: | --- |
+| Oferecidas | 39 | em 23 de 23 casos |
+| Aceitas na ancora | 36 (92%) | apontam para um trecho real |
+| Recusadas | 3 | ancora invalida ou repeticao do original |
+
+A expansao **nao tem ground truth** — nao existe "a frase certa". O 92% mede
+a ancora, nao a qualidade do texto. Chamar isso de qualidade da expansao
+seria reportar o que nao foi medido.
+
+#### O que continua nao medido
+
+- **Claims (22 afirmacoes)**: ha ground truth, mas nenhuma pontuacao ligada a
+  ele. `extract_factual_claims` existe e nao e chamado por nenhuma rodada.
+- **Exchanges (5 trocas)**: o ground truth de status e usado so no vies de
+  ordem (D12), nao para comparar o status previsto com o esperado.
+- **C5 (sintese)**: nao medido, por decisao de produto (fica no legado).
+- **C9/C10**: nao implementados.
+
+#### A rodada, e por que o ECE oscila
+
+`ECE por repeticao: [0,112 | 0,149 | 0,106]` — o gate usa o pior, **0,149**,
+acima do limite de 0,10. O veredito segue "confianca nao acionavel". A
+acuracia de prontidao foi **91,3% (21/23)**, risco 8,7%, Brier 0,054; o
+legado fica em 61,1%. A oscilacao entre rodadas (0,106–0,149) e do modelo,
+nao do codigo: por isso a regra e decidir pelo pior, nunca pela media.
+
+A rodada de 2026-10-21 (§15.36) deu 2 recusas do motor; esta deu 3. A
+diferenca e variacao do modelo. O relatorio `docs/jev-eval-report.{md,json}`
+descreve a rodada mais recente.
+
