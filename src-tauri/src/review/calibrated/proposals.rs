@@ -1038,9 +1038,9 @@ mod tests {
         // em bytes colocaria a frase no lugar errado em qualquer nota com
         // acento antes do trecho.
         //
-        // O acento entra por escape para o fonte continuar em ASCII: "é" tem
-        // 2 bytes em UTF-8, mas **1** unidade UTF-16. O offset em bytes
-        // apontaria 1 caractere alem do trecho.
+        // O acento entra por escape para o fonte continuar em ASCII: o "e"
+        // acentuado tem 2 bytes em UTF-8, mas **1** unidade UTF-16. O offset
+        // em bytes apontaria 1 caractere alem do trecho.
         let nota = "# Notas\n\nA fixa\u{e7}\u{e3}o de carbono.\n\nO rubisco atua.\n";
         let outcome = propose_improvements(
             &provider(json!({
