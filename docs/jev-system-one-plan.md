@@ -3257,8 +3257,8 @@ nao do codigo: por isso a regra e decidir pelo pior, nunca pela media.
 
 A rodada de 2026-10-21 (§15.36) deu 2 recusas do motor; esta deu 3. A
 diferenca e variacao do modelo. O relatorio `docs/jev-eval-report.{md,json}`
-descreve a rodada mais recente — hoje a de §15.38, que ja inclui o conserto
-da ancora.
+descreve a rodada mais recente — hoje a de §15.39, que inclui a passada de
+cobertura.
 
 ### 15.38 Segunda rodada: o funil mudou de lugar
 
@@ -3329,7 +3329,9 @@ com 23 pontos, decora e generaliza pior — o resultado LOO pior que o baseline
 e o aviso.
 
 Duas rodadas independentes deram temperatura LOO em 0,095 e 0,074, as duas
-abaixo do gate de 0,10. **Ainda nao esta ligada em producao**: o ajuste foi
+abaixo do gate de 0,10. **A terceira rodada nao reproduziu o ganho** (0,155
+contra 0,153 de baseline — ver §15.39): a vantagem era ruido. **Ainda nao esta
+ligada em producao**: o ajuste foi
 feito nos mesmos 23 casos, e adotar o numero sem antes gravar o T junto do
 modelo (que muda de versao) transformaria uma estimativa em constante magica.
 O proximo passo e gravar T na configuracao de calibracao do Vault, com a
@@ -3343,5 +3345,103 @@ rodada que o originou.
 - **C9/C10**: nao implementados.
 - **Qualidade textual das expansoes**: a ancora e medida (92%); o texto nao
   tem gabarito.
+
+### 15.39 Terceira rodada: a cobertura acha 3 termos e dobra o ruido
+
+A perda da §15.38 era de **cobertura**: o provider oferecia 1,65 termo por
+nota contra 3,1 no ground truth. Quatro mudancas entraram no pipeline e uma no
+harness:
+
+- **passada de cobertura**: quando a primeira passada devolve menos de 3
+  propostas aceitas, o pipeline pergunta de novo, listando os termos ja
+  propostos e pedindo so os que faltam. A segunda chamada e **best-effort**:
+  se ela falhar, a primeira lista continua valendo, e o funil conta em quantos
+  casos isso aconteceu;
+- **dedup por termo normalizado** entre as duas passadas;
+- **extras contados pelo que o motor aceitou**, nao por
+  `encontrados - esperados` por caso. A formula antiga devolvia `0` extras com
+  o motor aceitando 10 termos fora da lista: um zero que nao era medicao;
+- **funil com as etapas novas** no relatorio: oferecidas (divididas entre as
+  duas passadas), repetidas, filtro, motor, extras.
+
+#### O funil, antes e depois da cobertura
+
+| Etapa | Rodada 2 (§15.38) | Rodada 3 |
+| --- | ---: | ---: |
+| Oferecidas | 38 | **59 (38 + 21 na cobertura)** |
+| Repetidas descartadas | nao medido | 0 |
+| Recusadas pelo filtro | 5 (13,2%) | 12 (20,3%) |
+| Chegaram ao motor | 33 | 47 |
+| Aceitas pelo motor | 26 | 34 |
+| Encontradas no ground truth | 16 de 47 (34,0%) | **19 de 47 (40,4%)** |
+| Aceitas fora da lista (extras) | 10 (por subtracao) | 15 |
+
+A cobertura funcionou no sentido literal — 21 propostas novas, 14 chegaram ao
+motor, 8 foram aceitas — mas so **3** eram termos do ground truth
+(`propriedade extensiva`, `ATP`, `NADPH`). As outras 5 sao extras. Em outras
+palavras: 21 ofertas a mais compraram 3 termos certos e 5 ruidosos.
+
+Duas explicacoes, ambas medidas:
+
+- **o provider nao ve certos termos nem quando perguntado direto.** `estroma`
+  aparece na nota de varios casos e continua sem proposta; `capacidade de
+  suporte` e `protease` foram propostos so com sufixo;
+- **o motor recusa termos certos.** `teorema CAP` e `fotofosforilacao` estao
+  no ground truth, foram propostos com ancora valida, e o motor disse que nao
+  precisam de definicao. Das 28 ausencias restantes, 2 sao erro de julgamento;
+  as outras nunca chegaram a ele como termo esperado.
+
+#### O recall por nome exato e um piso
+
+Dois dos 15 extras sao o **mesmo termo** com nome diferente:
+`capacidade de suporte do meio` (esperado: `capacidade de suporte`) e
+`protease do pancreas` (esperado: `protease`). O casamento por igualdade
+conta os dois como erro de recall **e** como extra ao mesmo tempo. O numero
+honesto e `19 de 47, no piso` — a proxima medicao deve casar por contencao,
+nao por igualdade.
+
+#### Recalibracao: o ganho da temperatura nao reproduziu
+
+| Rodada | Pior ECE | Temperatura (LOO) |
+| --- | ---: | ---: |
+| 1 (§15.37) | 0,149 | 0,095 |
+| 2 (§15.38) | 0,120 | 0,074 |
+| 3 (§15.39) | **0,153** | **0,155** |
+
+Na terceira rodada a temperatura **nao** melhorou o ECE: 0,155 contra 0,153 de
+baseline. Duas rodadas com ganho e uma sem e ruido, nao resultado: a
+temperatura continua fora da producao, e a conclusao da §15.38 de que ela
+"passa o gate" nao se sustenta. `docs/jev-recalibracao.md` foi regerado com os
+numeros da rodada 3.
+
+O resto ficou estavel: acuracia de prontidao **91,3% (21 de 23)**, legado em
+61,1%, vies de ordem **0,0%** em 2 casos, expansoes **34 de 37 (92%)**, trocas
+**5 de 5**. O veredito segue "confianca nao acionavel" — agora com o pior ECE
+em 0,153 (era 0,120), contra o limite de 0,10.
+
+#### O que mudou no harness, e o que a rodada ensinou a nao fazer
+
+Tres rodadas foram gastas antes da publicada, e as tres falharam por ambiente,
+nao por codigo:
+
+- uma ficou **incompleta** porque a TypeSafe devolveu resposta fora do
+  contrato em 1 caso de 23 (`conceito-isolado`). O baseline nao foi trocado —
+  mas 22 de 23 casos bastaram para mostrar `19/47`, entao um caso perdido nao
+  e um resultado;
+- duas rodadas rodaram **sem Ollama**: o processo tinha caido, e o harness
+  mediu 23 falhas de provider por caso. O relatorio saida "NAO MEDIDO", nao
+  zero.
+
+O arquivo da rodada agora leva o prefixo `incomplete-` quando ela nao fecha,
+para que o arquivo nao possa ser lido como baseline. `docs/jev-eval-runs/`
+guarda as quatro rodadas desta sessao.
+
+#### O que continua nao medido
+
+- **Claims (22 afirmacoes)**: `extract_factual_claims` continua sem chamador.
+- **Qualidade textual das expansoes**: a ancora e medida; o texto nao.
+- **Recall tolerante a variacao de nome**: o piso de 19/47 e o que a metrica
+  atual mede.
+- **C5/C9/C10**: inalterados.
 
 
