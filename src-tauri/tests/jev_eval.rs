@@ -670,9 +670,19 @@ fn measure_improvements(
             .collect();
 
         // O provider propos, mas o motor recusou: e uma perda **diferente**
-        // da perda de "nunca foi proposto".
+        // da perda de "nunca foi proposto". A recusa do motor e julgamento, e
+        // o termo recusado nao entra nos extras logo abaixo.
         for (proposal, verdict) in proposals.proposals.iter().zip(&confirmed) {
-            if !verdict.needs_definition {
+            if verdict.needs_definition {
+                let expected_hit = expected
+                    .iter()
+                    .any(|term| normalize_term(&term.term) == normalize_term(&proposal.term));
+                if !expected_hit {
+                    summary
+                        .accepted_unmatched_terms
+                        .push(format!("{}: {}", case.id, proposal.term));
+                }
+            } else {
                 summary
                     .rejected_by_engine
                     .push(format!("{}: {}", case.id, proposal.term));
@@ -684,16 +694,6 @@ fn measure_improvements(
         summary.duplicates_dropped += proposals.duplicates_dropped;
         if proposals.coverage_failed {
             summary.coverage_failed_cases += 1;
-        }
-        for proposal in &proposals.proposals {
-            let expected_hit = expected
-                .iter()
-                .any(|term| normalize_term(&term.term) == normalize_term(&proposal.term));
-            if !expected_hit && !expected.is_empty() {
-                summary
-                    .accepted_unmatched_terms
-                    .push(format!("{}: {}", case.id, proposal.term));
-            }
         }
         summary.filtered_out_terms += proposals.rejected.len();
         for problem in &proposals.rejected {
@@ -716,7 +716,21 @@ fn measure_improvements(
                 missed.push(expected_term.term.clone());
             }
         }
-        summary.extra_terms += found.len().saturating_sub(expected.len());
+        // Extras sao os termos **aceitos** que nao casam com nenhum esperado.
+        //
+        // A formula antiga (`found.len() - expected.len()`, clampada em zero
+        // por caso) subconta: um caso que achou 1 de 5 e propos 4 extras
+        // contava zero. Como o numero existe para dizer se o motor aceita
+        // demais, o denominador tem de ser o que foi aceito, nao a diferenca
+        // entre duas listas de tamanhos diferentes.
+        summary.extra_terms += found
+            .iter()
+            .filter(|term| {
+                !expected.iter().any(|expected_term| {
+                    normalize_term(&expected_term.term) == normalize_term(term)
+                })
+            })
+            .count();
         if !missed.is_empty() {
             summary
                 .missed_cases
