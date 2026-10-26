@@ -414,6 +414,27 @@ struct DefinitionRecallSummary {
     extra_terms_tolerant: usize,
     /// Os casos em que o pipeline nao achou nenhum termo esperado.
     missed_cases: Vec<String>,
+    /// Onde cada termo esperado (ausente no nome exato) morreu no funil.
+    ///
+    /// Quatro causas, quatro consertos: nunca proposto -> geracao; recusado
+    /// pelo filtro -> ancora/citacao; recusado pelo motor -> julgamento;
+    /// proposto com outro nome -> metrica. Sem essa separacao, "faltaram 23"
+    /// e um numero que nao diz o que fazer.
+    missed_terms: Vec<MissedTerm>,
+    /// Ausentes que nunca foram oferecidos ao motor.
+    missed_never_proposed: usize,
+    /// Ausentes que o filtro deterministico recusou antes do motor.
+    missed_rejected_by_filter: usize,
+    /// Ausentes que chegaram ao motor e foram recusados por ele.
+    missed_rejected_by_engine: usize,
+    /// Ausentes que o pipeline achou com outro nome (prefixo/sufixo).
+    missed_name_variant: usize,
+    /// As definicoes aceitas, com o texto que o provider escreveu.
+    ///
+    /// O relatorio guarda os termos desde a rodada 3 e nunca o texto. Sem ele,
+    /// a revisao julga se o termo precisava de definicao, nao se a definicao
+    /// presta - e a qualidade textual fica sem ground truth.
+    accepted_terms: Vec<AcceptedTerm>,
     failures: Vec<String>,
     /// Termos que o provider **propôs** e o JEV **recusou**.
     ///
@@ -461,6 +482,30 @@ struct DefinitionRecallSummary {
     /// se o filtro esta certo — e um filtro que recusa demais custa recall
     /// exatamente como uma geracao que propoe de menos.
     rejected_by_filter: Vec<String>,
+}
+
+/// Onde um termo esperado morreu no funil.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MissedTerm {
+    case_id: String,
+    term: String,
+    /// `neverProposed`, `rejectedByFilter`, `rejectedByEngine` ou
+    /// `nameVariant`.
+    stage: &'static str,
+    /// O nome que o pipeline propos, quando a causa foi variacao de nome.
+    proposed_as: Option<String>,
+}
+
+/// Uma definicao aceita, com o texto que o provider escreveu.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AcceptedTerm {
+    case_id: String,
+    term: String,
+    definition: String,
+    /// Casou com um termo esperado (nome exato ou variacao tolerante)?
+    matched_expected: bool,
 }
 
 impl DefinitionRecallSummary {
@@ -696,8 +741,18 @@ fn measure_improvements(
         // O provider propos, mas o motor recusou: e uma perda **diferente**
         // da perda de "nunca foi proposto". A recusa do motor e julgamento, e
         // o termo recusado nao entra nos extras logo abaixo.
+        let mut engine_rejected: Vec<&str> = Vec::new();
         for (proposal, verdict) in proposals.proposals.iter().zip(&confirmed) {
             if verdict.needs_definition {
+                let matched_expected = expected
+                    .iter()
+                    .any(|term| terms_match(&proposal.term, &term.term));
+                summary.accepted_terms.push(AcceptedTerm {
+                    case_id: case.id.clone(),
+                    term: proposal.term.clone(),
+                    definition: proposal.definition.clone(),
+                    matched_expected,
+                });
                 let expected_hit = expected
                     .iter()
                     .any(|term| normalize_term(&term.term) == normalize_term(&proposal.term));
@@ -707,6 +762,7 @@ fn measure_improvements(
                         .push(format!("{}: {}", case.id, proposal.term));
                 }
             } else {
+                engine_rejected.push(proposal.term.as_str());
                 summary
                     .rejected_by_engine
                     .push(format!("{}: {}", case.id, proposal.term));
@@ -732,6 +788,11 @@ fn measure_improvements(
         }
 
         summary.cases_measured += 1;
+        let filtered_terms: Vec<&str> = proposals
+            .rejected
+            .iter()
+            .map(|problem| problem.term.as_str())
+            .collect();
         let mut missed = Vec::new();
         for expected_term in expected {
             summary.expected_terms += 1;
@@ -743,12 +804,56 @@ fn measure_improvements(
             } else {
                 missed.push(expected_term.term.clone());
             }
-            if found
+            let tolerant_hit = found
                 .iter()
-                .any(|term| terms_match(term, &expected_term.term))
-            {
+                .find(|term| terms_match(term, &expected_term.term))
+                .copied();
+            if tolerant_hit.is_some() {
                 summary.found_terms_tolerant += 1;
             }
+            // So conta a etapa dos que nao foram achados pelo nome exato: e a
+            // diferenca entre recall exato e tolerante (variacao de nome), ou
+            // uma perda de verdade - e cada perda tem um conserto diferente.
+            let exact_hit = found
+                .iter()
+                .any(|term| normalize_term(term) == normalize_term(&expected_term.term));
+            if exact_hit {
+                continue;
+            }
+            let (stage, proposed_as, counter) = if let Some(term) = tolerant_hit {
+                (
+                    "nameVariant",
+                    Some(term.to_string()),
+                    &mut summary.missed_name_variant,
+                )
+            } else if let Some(term) = engine_rejected
+                .iter()
+                .find(|term| terms_match(term, &expected_term.term))
+            {
+                (
+                    "rejectedByEngine",
+                    Some((*term).to_string()),
+                    &mut summary.missed_rejected_by_engine,
+                )
+            } else if let Some(term) = filtered_terms
+                .iter()
+                .find(|term| terms_match(term, &expected_term.term))
+            {
+                (
+                    "rejectedByFilter",
+                    Some((*term).to_string()),
+                    &mut summary.missed_rejected_by_filter,
+                )
+            } else {
+                ("neverProposed", None, &mut summary.missed_never_proposed)
+            };
+            *counter += 1;
+            summary.missed_terms.push(MissedTerm {
+                case_id: case.id.clone(),
+                term: expected_term.term.clone(),
+                stage,
+                proposed_as,
+            });
         }
         // Extras sao os termos **aceitos** que nao casam com nenhum esperado.
         //
@@ -1007,6 +1112,16 @@ fn jev_is_measured_against_the_legacy_path() {
             definition_recall.extra_terms_tolerant
         );
     }
+    // Onde os ausentes morreram. Cada etapa tem um conserto diferente, e sem
+    // esta linha "faltaram 23" nao diz o que fazer.
+    eprintln!(
+        "  ausentes no nome exato por etapa: {} variacao de nome | {} recusados pelo motor | \
+         {} recusados pelo filtro | {} nunca propostos",
+        definition_recall.missed_name_variant,
+        definition_recall.missed_rejected_by_engine,
+        definition_recall.missed_rejected_by_filter,
+        definition_recall.missed_never_proposed
+    );
     for failure in &definition_recall.failures {
         eprintln!("  falha: {failure}");
     }

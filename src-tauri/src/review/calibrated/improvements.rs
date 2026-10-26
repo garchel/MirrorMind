@@ -221,10 +221,19 @@ pub fn validate_proposal(
             reason: "o termo esta vazio".to_string(),
         });
     }
-    if term.len() < 3 {
+    if is_too_short_to_be_a_term(term) {
         return Err(ProposalProblem {
             term: proposal.term.clone(),
             reason: "o termo e curto demais para ser um termo".to_string(),
+        });
+    }
+    // "Energia se conserva" e a afirmacao da nota, nao um termo que falta
+    // definir. Recusar aqui custa zero e evita uma sugestao irrelevante; o
+    // julgamento do motor nao foi feito para distinguir nome de proposicao.
+    if looks_like_a_phrase(term) {
+        return Err(ProposalProblem {
+            term: proposal.term.clone(),
+            reason: "o termo e uma frase, nao um termo".to_string(),
         });
     }
     let definition = proposal.definition.trim();
@@ -390,6 +399,47 @@ fn contains_ignoring_case(haystack: &str, needle: &str) -> bool {
 
 /// Teto do tamanho de uma definicao inserida.
 const MAX_DEFINITION_CHARS: usize = 600;
+
+/// Teto de palavras de um termo.
+///
+/// Acima disso o que chegou e uma frase, nao um termo. O maior termo do
+/// golden set tem 5 palavras (`capacidade de suporte do meio`), entao 6 deixa
+/// margem sem transformar a regra em decoracao do conjunto.
+const MAX_TERM_WORDS: usize = 6;
+
+/// Marcadores de que o "termo" e uma **proposicao**, nao um nome.
+///
+/// `energia se conserva` foi aceito e virou sugestao irrelevante: o leitor nao
+/// precisa que alguem defina "energia se conserva", porque isso e a propria
+/// afirmacao da nota. Verbo conjugado nao da para detectar sem analise
+/// morfologica, mas pronome e conectivo dao — e cobrem o caso real medido.
+const PHRASE_MARKERS: [&str; 6] = [
+    " se ", " que ", " isso ", " quando ", " porque ", " existe ",
+];
+
+/// O termo e curto demais para ser um termo?
+///
+/// Dois caracteres so passam quando ha maiuscula: `pH` e notacao quimica, `de`
+/// e palavra funcional. A regra antiga contava bytes e recusava `pH` — um
+/// termo do gabarito — com a mensagem de "curto demais".
+fn is_too_short_to_be_a_term(term: &str) -> bool {
+    match term.chars().count() {
+        0 | 1 => true,
+        2 => !term.chars().any(|c| c.is_uppercase()),
+        _ => false,
+    }
+}
+
+/// O termo e uma frase em vez de um nome?
+fn looks_like_a_phrase(term: &str) -> bool {
+    let normalized = normalize_term(term);
+    let words = normalized.split_whitespace().count();
+    if words > MAX_TERM_WORDS {
+        return true;
+    }
+    let padded = format!(" {normalized} ");
+    PHRASE_MARKERS.iter().any(|marker| padded.contains(*marker))
+}
 
 ///
 /// Uma chamada com uma pergunta por secao: a API trata perguntas extras quase
@@ -601,9 +651,52 @@ mod tests {
             validate_proposal(NOTA, &proposal("estroma", "   ", 0)).expect_err("vazia");
         assert!(erro_vazia.reason.contains("vazia"), "{}", erro_vazia.reason);
 
-        let erro_curta =
-            validate_proposal(NOTA, &proposal("CO", "Uma sigla.", 0)).expect_err("curta");
+        let erro_curta = validate_proposal(NOTA, &proposal("de", "Uma palavra funcional.", 0))
+            .expect_err("curta");
         assert!(erro_curta.reason.contains("curto"), "{}", erro_curta.reason);
+    }
+
+    #[test]
+    fn uma_sigla_de_dois_caracteres_passa_quando_e_notacao() {
+        // `pH` e notacao quimica: a regra de tamanho em bytes recusava um
+        // termo que o gabarito espera.
+        assert!(!is_too_short_to_be_a_term("pH"));
+        assert!(!is_too_short_to_be_a_term("pKa"));
+        assert!(is_too_short_to_be_a_term("de"));
+        assert!(is_too_short_to_be_a_term("a"));
+        assert!(!is_too_short_to_be_a_term("ATP"));
+    }
+
+    #[test]
+    fn uma_proposicao_e_recusada_como_termo() {
+        // "energia se conserva" foi aceito na rodada 4 e virou sugestao
+        // irrelevante: e a afirmacao da nota, nao um nome que falta definir.
+        let erro = validate_proposal(
+            NOTA,
+            &proposal("energia se conserva", "A energia nao some.", 0),
+        )
+        .expect_err("proposicao");
+        assert!(erro.reason.contains("frase"), "{}", erro.reason);
+    }
+
+    #[test]
+    fn a_forma_do_termo_distingue_nome_de_frase() {
+        for nome in [
+            "glicose",
+            "fase clara",
+            "capacidade de suporte do meio",
+            "estado macroscopico",
+            "teorema CAP",
+        ] {
+            assert!(!looks_like_a_phrase(nome), "{nome} e um nome");
+        }
+        for frase in [
+            "energia se conserva",
+            "o processo que ocorre no estroma",
+            "a nota diz que a glicose e o produto",
+        ] {
+            assert!(looks_like_a_phrase(frase), "{frase} e uma frase");
+        }
     }
 
     #[test]

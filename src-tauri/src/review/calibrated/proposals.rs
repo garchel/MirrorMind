@@ -308,7 +308,14 @@ fn anchor_from_term(markdown: &str, term: &str) -> Option<String> {
     }
     for line in markdown.lines() {
         let haystack = crate::review::calibrated::improvements::normalize_term(line);
-        let words: Vec<&str> = haystack.split_whitespace().collect();
+        // A pontuacao fica no meio da palavra normalizada (`rubisco,`). Sem
+        // tirar a pontuacao, o termo seguido de virgula nao casa — e foi assim
+        // que `rubisco`, um termo do gabarito, foi recusado pelo filtro.
+        let words: Vec<&str> = haystack
+            .split_whitespace()
+            .map(|word| word.trim_matches(|c: char| !c.is_alphanumeric()))
+            .filter(|word| !word.is_empty())
+            .collect();
         if words
             .windows(needle_words.len())
             .any(|window| window == needle_words.as_slice())
@@ -499,6 +506,31 @@ fn request_coverage(
     Ok(raw.proposals)
 }
 
+/// Dois termos carregam o mesmo conhecimento quando um e prefixo ou sufixo do
+/// outro, com pelo menos 5 caracteres no menor.
+///
+/// `energia` e `energia se conserva` sao a mesma proposta partida ao meio: sem
+/// esta regra, as duas passam e o usuario ve duas sugestoes para o mesmo ponto
+/// da nota. Prefixo/sufixo e nao substring livre porque `atp` dentro de
+/// `adaptador` nao e o mesmo termo, e o piso protege siglas (`ATP` so casa com
+/// `ATP`).
+fn same_knowledge(left: &str, right: &str) -> bool {
+    let left = crate::review::calibrated::improvements::normalize_term(left);
+    let right = crate::review::calibrated::improvements::normalize_term(right);
+    if left == right {
+        return true;
+    }
+    let (shorter, longer) = if left.chars().count() <= right.chars().count() {
+        (left.as_str(), right.as_str())
+    } else {
+        (right.as_str(), left.as_str())
+    };
+    if shorter.chars().count() < 5 {
+        return false;
+    }
+    longer.starts_with(shorter) || longer.ends_with(shorter)
+}
+
 /// Valida as propostas cruas do provider e acrescenta as aceitas.
 ///
 /// O mesmo termo pode vir duas vezes (entre as passadas, ou de sinonimo com a
@@ -515,11 +547,15 @@ fn accept_raw_proposals(
         let term = raw_proposal.term.trim().to_string();
         let definition = raw_proposal.definition.trim().to_string();
         let needle = crate::review::calibrated::improvements::normalize_term(&term);
-        let repeated = proposals.iter().any(|proposal| {
-            crate::review::calibrated::improvements::normalize_term(&proposal.term) == needle
-        }) || rejected.iter().any(|problem| {
-            crate::review::calibrated::improvements::normalize_term(&problem.term) == needle
-        });
+        // Contra as aceitas, o casamento e por conhecimento (prefixo/sufixo).
+        // Contra as recusadas, continua exato: uma recusa nao pode bloquear
+        // uma variacao melhor do mesmo termo na segunda passada.
+        let repeated = proposals
+            .iter()
+            .any(|proposal| same_knowledge(&proposal.term, &term))
+            || rejected.iter().any(|problem| {
+                crate::review::calibrated::improvements::normalize_term(&problem.term) == needle
+            });
         if repeated {
             *duplicates_dropped += 1;
             continue;
@@ -824,6 +860,58 @@ mod tests {
         let outcome = propose_improvements(&provider, NOTA).expect("propoe");
         assert_eq!(outcome.proposals.len(), 1);
         assert_eq!(outcome.duplicates_dropped, 1);
+    }
+
+    #[test]
+    fn a_mesma_proposta_partida_ao_meio_e_uma_so() {
+        // O provider ofereceu "energia" e "energia se conserva" na mesma
+        // rodada: uma e o termo, a outra e a frase onde ele aparece. As duas
+        // chegariam a tela como sugestoes diferentes.
+        let provider = Sequence::new(vec![
+            json!({
+                "proposals": [
+                    {
+                        "term": "estroma",
+                        "definition": "O fluido interno do cloroplasto.",
+                        "sourceQuote": "A fixacao de carbono ocorre no estroma dos cloroplastos."
+                    },
+                    {
+                        "term": "estroma dos cloroplastos",
+                        "definition": "A mesma coisa, com o complemento junto.",
+                        "sourceQuote": "A fixacao de carbono ocorre no estroma dos cloroplastos."
+                    }
+                ]
+            }),
+            json!({ "proposals": [] }),
+        ]);
+        let outcome = propose_improvements(&provider, NOTA).expect("propoe");
+        assert_eq!(outcome.proposals.len(), 1);
+        assert_eq!(outcome.duplicates_dropped, 1);
+    }
+
+    #[test]
+    fn o_conhecimento_compartilhado_nao_junta_termos_diferentes() {
+        assert!(same_knowledge("energia", "energia se conserva"));
+        assert!(same_knowledge(
+            "capacidade de suporte",
+            "capacidade de suporte do meio"
+        ));
+        assert!(same_knowledge("adiabatico", "recipiente adiabatico"));
+        assert!(same_knowledge("ATP", "ATP"));
+        assert!(!same_knowledge("ATP", "adaptador"));
+        assert!(!same_knowledge("fase clara", "fase escura"));
+        assert!(!same_knowledge("estroma", "citoplasma"));
+    }
+
+    #[test]
+    fn a_ancora_por_termo_ignora_a_pontuacao_da_linha() {
+        // `rubisco,` com virgula era recusado: a normalizacao mantem a
+        // pontuacao dentro da palavra, e a comparacao palavra a palavra nao
+        // achava o termo.
+        let nota = "A fixacao de carbono usa a enzima rubisco, que adiciona CO2.\n";
+        let anchor = anchor_from_term(nota, "rubisco").expect("a linha do termo");
+        assert!(anchor.starts_with("A fixacao de carbono"), "{anchor}");
+        assert!(anchor_from_term(nota, "pepsina").is_none());
     }
 
     #[test]

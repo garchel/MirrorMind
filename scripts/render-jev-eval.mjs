@@ -170,6 +170,22 @@ function definitionRecallSection(report) {
         `| Passada de cobertura falhou | ${recall.coverageFailedCases} caso(s) — a 1a passada valeu sozinha |`,
       )
     }
+    const stages = [
+      ['nunca proposto', recall.missedNeverProposed, 'prompt/cobertura'],
+      ['recusado pelo motor', recall.missedRejectedByEngine, 'julgamento do JEV'],
+      ['recusado pelo filtro', recall.missedRejectedByFilter, 'citacao/ancora'],
+      ['variacao de nome', recall.missedNameVariant, 'metrica'],
+    ]
+    if (stages.some(([, count]) => typeof count === 'number')) {
+      rows.push(
+        '',
+        '**Onde morreram os termos ausentes (nome exato)**',
+        '',
+        '| Etapa | Termos | Conserto |',
+        '| --- | ---: | --- |',
+        ...stages.map(([label, count, fix]) => `| ${label} | ${count ?? 0} | ${fix} |`),
+      )
+    }
     const reasons = Object.entries(recall.filteredOutByReason ?? {})
     for (const [reason, count] of reasons) {
       rows.push(`| Recusa do filtro (${count}x) | ${reason} |`)
