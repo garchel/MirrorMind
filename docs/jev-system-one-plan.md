@@ -3720,3 +3720,92 @@ UI continua sem mostrar confianca - que e o comportamento correto.
 4. Crescer o conjunto para 30 casos e ligar `extract_factual_claims`.
 
 
+
+### 15.44 Dois botões, o dicionário na frente e o leitor leigo como alvo
+
+O painel tinha **um** botão, `Sugerir melhorias`, que pedia as duas tarefas na
+mesma chamada. O custo apareceu no uso: quem só queria definições pagava uma
+geração de expansões, quem só queria expandir recebia uma lista de termos, e a
+tela misturava "nada a expandir" com "nada a definir" numa frase só. As duas
+perguntas são diferentes e agora são dois botões:
+
+| Botão | Escopo | O que faz |
+| --- | --- | --- |
+| **Completar nota** | `ImprovementScope::Expansions` | os trechos abreviados viram a frase que o aluno quis dizer |
+| **Sugerir definições** | `ImprovementScope::Definitions` | os termos que faltam, já filtrados pelo dicionário |
+
+O escopo vai no IPC e decide três coisas: as instruções ao provider, o schema da
+resposta e o que é processado. Uma proposta que venha "de brinde" no escopo
+errado não entra no funil — no escopo de expansões ela não dispara a passada de
+cobertura. Existe um terceiro valor, `Both`, que é o **modo da medição**: o
+golden set precisa do funil completo numa passada só, e o painel não o usa.
+
+Os dois relatórios vivem em estados separados no painel. Rodar as definições não
+apaga a expansão que o usuário já estava lendo; o teste
+`uma busca de definicoes nao apaga a expansao ja mostrada` cobre isso.
+
+#### O dicionário é consultado antes de sugerir
+
+O fluxo de definições não lia o dicionário do Vault: a mesma palavra podia ser
+sugerida em toda nota, e o usuário registrava o mesmo conhecimento repetidas
+vezes. Agora o dicionário entra nos dois lados do filtro:
+
+- **no pedido**: os termos do Vault que aparecem na nota vão para o prompt (teto
+  de 40, para o pedido não virar lista telefônica), então o modelo não gasta
+  proposta com o que já está registrado;
+- **na resposta**: `accept_raw_proposals` casa cada proposta contra a lista com
+  `same_knowledge` e descarta o que o dicionário já explica. O casamento é por
+  conhecimento (prefixo/sufixo, piso de 5 caracteres), não por chave exata —
+  `estroma dos cloroplastos` é a mesma entrada que `estroma`.
+
+O descarte entra em `already_known`, **separado de `rejected`**: não é proposta
+ruim, é proposta desnecessária. O painel mostra os dois números com nomes
+diferentes, porque "o dicionário já cobria" e "o filtro recusou" pedem reações
+diferentes do usuário.
+
+`same_knowledge` mudou de lugar: vivia em `proposals.rs` e agora vive em
+`dictionary/mod.rs`. O motivo é que o `upsert` precisa da mesma regra. Registrar
+uma variante (`estroma dos cloroplastos` depois de `estroma`) **atualiza** o
+verbete existente em vez de criar um segundo, que competiria com o primeiro no
+hover. O termo já registrado é preservado — só o conceito muda —, para não
+quebrar as notas que já destacam a forma original.
+
+#### A política: leitor que não conhece o assunto
+
+O alvo declarado é quem chegou na nota sem saber o tema. Duas mudanças vêm daí:
+
+- **o prompt não manda mais pular termo conhecido**. A instrução anterior
+  ("não pule um termo só porque você supõe que o leitor já o conhece: o critério
+  é ser premissa para entender a frase") ainda pedia um julgamento de
+  relevância; a nova diz que o alvo é o leitor leigo e que o custo de uma
+  definição a mais é uma sugestão ignorada, enquanto o de uma a menos é a nota
+  continuar sem o que faltava;
+- **a pergunta do JEV mudou**. Ele não pergunta mais se "um leitor que só tem
+  este texto precisaria saber o termo"; pergunta se **um leitor que não conhece
+  o assunto** precisa. A recusa dura ficou só para dois casos: a nota já define
+  o termo antes do primeiro uso, ou o termo é o assunto da nota (definir o tema
+  inteiro dentro dele não ajuda).
+
+O teto de propostas por passada subiu de 5 para 8. A média do gabarito revisado
+é 3,1 termos por nota, e o funil da rodada 4 mostrou que **18 dos 27 ausentes
+nunca foram propostos** — o gargalo é geração, não julgamento. Um teto de 5
+cortava a cauda antes de o filtro poder trabalhar.
+
+#### O que ainda não foi medido
+
+- **A rodada 5 não rodou** com esta política. Os números da rodada 4 (recall
+  exato 27/54, tolerante 31/54, extras 15/11, ECE pior 0,120) continuam sendo
+  os últimos medidos; o efeito dos dois botões e do dicionário no recall ainda é
+  **não medido**.
+- **A qualidade textual das definições** continua sem ground truth. O texto é
+  guardado desde a rodada 5; até lá, "a definição está boa" é julgamento humano,
+  não número.
+- **As duas páginas de revisão humana** (`docs/jev-missed-review.html`, 27
+  termos, e `docs/jev-extras-review.html`, 15 extras) continuam pendentes de
+  revisão.
+
+#### Próximo passo
+
+1. Rodada 5 (~26 min) com a política nova e os consertos determinísticos.
+2. Revisar extras e ausentes com os números novos.
+3. Crescer o conjunto para 30 casos e ligar `extract_factual_claims`.
