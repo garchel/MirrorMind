@@ -95,6 +95,14 @@
         {
           "term": "fotofosforilacao",
           "sourceQuote": "A fotofosforilacao transloca protons para dentro do tilacoide, criando um gradiente que alimenta a sintese de ATP."
+        },
+        {
+          "term": "fase clara",
+          "sourceQuote": "Cada molecula de CO2 fixado consome 3 ATP e 2 NADPH produzidos na fase clara."
+        },
+        {
+          "term": "fase escura",
+          "sourceQuote": "A glicose e o principal produto da fase escura do ciclo de Calvin."
         }
       ],
       "expectedDefinitionsProvenance": "human"
@@ -391,6 +399,10 @@
         {
           "term": "citoplasma",
           "sourceQuote": "A glicose produzida é exportada para o citoplasma, onde pode ser convertida em amido ou usada na respiração."
+        },
+        {
+          "term": "glicose",
+          "sourceQuote": "A segunda fase do ciclo de Calvin ocorre no estroma dos cloroplastos, onde a enzima rubisco fixa o carbono atmosférico na molécula de glicose."
         }
       ],
       "expectedDefinitionsProvenance": "human"
@@ -495,6 +507,10 @@
         {
           "term": "Tabelas hash",
           "sourceQuote": "Tabelas hash sacrificam ordem, mas trazem a mesma complexidade média de busca sem custo de rebalanceamento."
+        },
+        {
+          "term": "complexidade média de busca",
+          "sourceQuote": "Tabelas hash sacrificam ordem, mas trazem a mesma complexidade média de busca sem custo de rebalanceamento."
         }
       ],
       "expectedDefinitionsProvenance": "human"
@@ -558,6 +574,10 @@
         {
           "term": "fotofosforação",
           "sourceQuote": "O ATP e o NADPH consumidos nesse processo vêm da fotofosforação que acontece nas membranas tilacoidais."
+        },
+        {
+          "term": "Membranas tilacoidais",
+          "sourceQuote": "O ATP e o NADPH consumidos nesse processo vêm da fotofosforação que acontece nas membranas tilacoidais."
         }
       ],
       "expectedDefinitionsProvenance": "human"
@@ -592,6 +612,10 @@
         {
           "term": "citoplasma",
           "sourceQuote": "A glicose formada é exportada do cloroplasto para o citoplasma."
+        },
+        {
+          "term": "fase escura",
+          "sourceQuote": "Uma molécula de CO2 fixada consome 3 ATP e 2 NADPH na fase escura."
         }
       ],
       "expectedDefinitionsProvenance": "human"
@@ -825,6 +849,10 @@
         {
           "term": "fotofosforação",
           "sourceQuote": "Reler a seção sobre fotofosforação antes da prova"
+        },
+        {
+          "term": "fixação de carbono",
+          "sourceQuote": "- [x] A fixação de carbono ocorre no estroma e é catalisada pela enzima rubisco"
         }
       ],
       "expectedDefinitionsProvenance": "human"

@@ -1,0 +1,135 @@
+{
+  "kind": "jev-extras-review",
+  "runId": 1792786835,
+  "reviewer": "human",
+  "reviewedAt": "2026-10-26T00:00:00.000Z",
+  "source": "transcrito da conversa; a ordem e a dos cartoes de docs/jev-extras-review.html",
+  "decisions": [
+    {
+      "order": 1,
+      "caseId": "bases-de-dados",
+      "term": "consistencia",
+      "verdict": "erro",
+      "note": "",
+      "suggested": "legitimo"
+    },
+    {
+      "order": 2,
+      "caseId": "ciclo-calvin",
+      "term": "fase clara",
+      "verdict": "legitimo",
+      "note": "",
+      "suggested": "legitimo"
+    },
+    {
+      "order": 3,
+      "caseId": "ciclo-calvin",
+      "term": "fase escura",
+      "verdict": "legitimo",
+      "note": "",
+      "suggested": "legitimo"
+    },
+    {
+      "order": 4,
+      "caseId": "contexto-implicito",
+      "term": "Ciclo de Calvin",
+      "verdict": "assunto",
+      "note": "",
+      "suggested": "assunto"
+    },
+    {
+      "order": 5,
+      "caseId": "contexto-implicito",
+      "term": "Membranas tilacoidais",
+      "verdict": "legitimo",
+      "note": "",
+      "suggested": "legitimo"
+    },
+    {
+      "order": 6,
+      "caseId": "contradicao-estroma",
+      "term": "ciclo de Calvin",
+      "verdict": "assunto",
+      "note": "",
+      "suggested": "assunto"
+    },
+    {
+      "order": 7,
+      "caseId": "contradicao-estroma",
+      "term": "glicose",
+      "verdict": "legitimo",
+      "note": "",
+      "suggested": "legitimo"
+    },
+    {
+      "order": 8,
+      "caseId": "contradicao-quantidade",
+      "term": "fase escura",
+      "verdict": "legitimo",
+      "note": "",
+      "suggested": "legitimo"
+    },
+    {
+      "order": 9,
+      "caseId": "exemplo-numerico",
+      "term": "capacidade de suporte do meio",
+      "verdict": "variante",
+      "note": "",
+      "suggested": "variante"
+    },
+    {
+      "order": 10,
+      "caseId": "lista-com-conteudo",
+      "term": "fixação de carbono",
+      "verdict": "legitimo",
+      "note": "",
+      "suggested": "legitimo"
+    },
+    {
+      "order": 11,
+      "caseId": "referencia-indefinida",
+      "term": "ciclo de Calvin",
+      "verdict": "assunto",
+      "note": "",
+      "suggested": "assunto"
+    },
+    {
+      "order": 12,
+      "caseId": "termo-definido-inline",
+      "term": "complexidade média de busca",
+      "verdict": "legitimo",
+      "note": "",
+      "suggested": "legitimo"
+    },
+    {
+      "order": 13,
+      "caseId": "termo-definido-inline",
+      "term": "tempo logarithmico",
+      "verdict": "erro",
+      "note": "",
+      "suggested": "legitimo"
+    },
+    {
+      "order": 14,
+      "caseId": "termo-sem-definicao",
+      "term": "energia",
+      "verdict": "erro",
+      "note": "",
+      "suggested": "erro"
+    },
+    {
+      "order": 15,
+      "caseId": "termodinamica",
+      "term": "adiabatico",
+      "verdict": "variante",
+      "note": "",
+      "suggested": "variante"
+    }
+  ],
+  "summary": {
+    "legitimo": 7,
+    "assunto": 3,
+    "erro": 3,
+    "variante": 2
+  }
+}

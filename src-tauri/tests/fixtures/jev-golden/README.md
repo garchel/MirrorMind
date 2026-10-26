@@ -42,11 +42,16 @@ O conjunto mede quatro dimensoes, e cada uma tem o proprio ground truth:
 | `readiness` | o rotulo de prontidao da nota | casos |
 | `claims` | a veracidade de cada afirmacao factual | afirmacoes |
 | `exchanges` | o status de cada troca da sessao | trocas |
-| `definitions` | os termos que, definidos, melhorariam a nota | casos |
+| `definitions` | os termos que, definidos, melhorariam a nota | termos |
 
 `golden.dimension_coverage()` diz, para cada dimensao, quantos itens tem
 ground truth (`measured`) e quantos existem (`total`). E o relatorio carrega
 essa cobertura.
+
+A cobertura de `definitions` conta **casos** (23 de 23), mas o recall e medido
+em **termos** (54): um caso revisado pode nao ter termo nenhum (8 dos 23 estao
+nessa situacao, com `expectedDefinitions: []`), e essa lista vazia e uma
+medida, nao uma ausencia. O denominador do recall e a soma dos termos.
 
 **A diferenca entre "medido" e "nao medido" e o ponto.** Uma dimensao sem
 ground truth nao produz erro: produz silencio. E `0/0` lido como "achou tudo"
@@ -69,13 +74,51 @@ rotulo que ela tem:
 - **afirmacao factual** -> `commonFact`, conferivel sem opiniao.
 - **resposta que repete a nota** -> `remembered`, por construcao da resposta.
 
+## Ground truth das definicoes
+
+Os 23 casos tem lista de termos revisada (`expectedDefinitionsProvenance:
+human`), com **54 termos** no total. Todos os 54 tem `sourceQuote` — a linha da
+nota onde o termo aparece, extraida do proprio texto, nunca digitada a mao.
+
+A lista comecou em 47 termos, anotados com o auxilio de um agente. A revisao
+humana aconteceu sobre os **termos que o motor aceitou e a lista nao previa**
+(os "extras" da rodada 3), porque era ali que o gabarito podia estar
+incompleto: 15 termos, decididos um a um em `docs/jev-extras-review.html` e
+transcritos em `docs/jev-extras-review-1792786835.json`.
+
+| decisao | termos | efeito no gabarito |
+|---|---:|---|
+| `legitimo` | 7 | **entra** como termo esperado |
+| `variante` | 2 | nao entra: e o mesmo termo com outro nome |
+| `assunto` | 3 | nao entra: e o tema da nota, nao premissa |
+| `erro` | 3 | nao entra: o motor aceitou demais |
+
+A aplicacao e feita por `node scripts/apply-extras-review.mjs <review.json>`,
+que recusa gravar se algum termo nao tiver citacao literal na nota.
+
+O recall tem duas leituras, e as duas aparecem no relatorio:
+
+| campo | o que conta | rodada 3 |
+|---|---|---:|
+| `recall` | nome exato | 19/47 (40,4%) |
+| `recallTolerant` | nome exato, prefixo ou sufixo (piso de 5 caracteres) | 21/47 (44,7%) |
+
+O numero exato e o que compara com a serie historica; o tolerante mede o
+quanto o gabarito depende de uma grafia especifica. A diferenca entre os dois
+nao e erro de um dos lados: e uma propriedade do conjunto.
+
 ## O que ainda falta (e precisa de voce)
 
 1. **Escala.** O alvo sao 40–60 notas. Ha 23. Cada nota nova precisa de uma
-   regra de construcao, nao so de um rotulo.
-2. **Ground truth das definicoes.** A dimensao "melhorar a nota" tem
-   ground truth em 0 dos 23 casos. A medicao de recall dela **nao esta
-   medida** — e isso aparece no relatorio como "nao medido", nunca como 0%.
+   regra de construcao, nao so de um rotulo. Alvo do plano: 30 casos
+   pontuaveis.
+2. **Qualidade das definicoes.** O conjunto diz **quais** termos faltam, nao
+   **como** a definicao deveria ser. O relatorio guarda so o termo proposto,
+   nunca o texto — por isso a qualidade textual das expansoes ainda nao tem
+   ground truth e nao pode ser medida.
+3. **Afirmacoes factuais.** A dimensao `claims` tem rotulos por afirmacao, mas
+   a extracao de afirmacoes do pipeline (`extract_factual_claims`) ainda nao
+   esta ligada: a dimensao existe no conjunto e nao e pontuada na rodada.
 
 ## Rodando
 
@@ -133,6 +176,9 @@ A honestidade do conjunto nao depende mais de ter um caso `disputed`. Depende
 de **toda dimensao declarar se foi medida**: `golden.dimension_coverage()`
 devolve, por dimensao, quantos itens tem ground truth e quantos foram
 medidos. Uma dimensao sem ground truth e "nao medida", e nao "medida com zero
-erro". Hoje a dimensao `definitions` esta em 0 de 23.
+erro". Hoje a dimensao `definitions` esta em **23 de 23 casos e 54 termos**,
+`claims` tem 22 afirmacoes rotuladas e `exchanges` tem 5 trocas. O que falta
+nessas duas ultimas nao e ground truth: e a extracao de afirmacoes do pipeline
+(`extract_factual_claims`), que ainda nao esta ligada.
 
 Alvo do plano: 30 casos pontuaveis. Hoje: 23 (todos revisados).
