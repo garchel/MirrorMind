@@ -416,12 +416,298 @@ FORMATO OBRIGATORIO: responda somente com um objeto JSON com as chaves \
 expansions e proposals. expansions fica vazia. Um item de proposals usa as \
 chaves term, definition e sourceQuote, com a citacao literal copiada da nota.";
 
+/// Quantos candidatos mecanicos entram no pedido.
+///
+/// A lista existe para o modelo **julgar**, nao para virar resposta: quem
+/// decide o que precisa de definicao continua sendo o modelo (e, depois, o
+/// JEV). Por isso o teto e generoso - o custo e um prompt um pouco maior.
+const CANDIDATE_LIMIT: usize = 20;
+
+/// Palavras que nunca sao candidatas: funcionais, pronomes e verbos comuns.
+const CANDIDATE_STOPWORDS: &[&str] = &[
+    "a",
+    "o",
+    "as",
+    "os",
+    "um",
+    "uma",
+    "uns",
+    "umas",
+    "de",
+    "do",
+    "da",
+    "dos",
+    "das",
+    "em",
+    "no",
+    "na",
+    "nos",
+    "nas",
+    "por",
+    "pelo",
+    "pela",
+    "pelos",
+    "pelas",
+    "para",
+    "com",
+    "sem",
+    "ao",
+    "aos",
+    "sobre",
+    "entre",
+    "ate",
+    "contra",
+    "desde",
+    "apos",
+    "antes",
+    "depois",
+    "durante",
+    "que",
+    "se",
+    "e",
+    "ou",
+    "mas",
+    "como",
+    "quando",
+    "onde",
+    "porque",
+    "pois",
+    "tambem",
+    "ja",
+    "nao",
+    "sim",
+    "mais",
+    "menos",
+    "muito",
+    "pouco",
+    "so",
+    "entao",
+    "cada",
+    "outro",
+    "outra",
+    "outros",
+    "outras",
+    "todo",
+    "toda",
+    "todos",
+    "todas",
+    "este",
+    "esta",
+    "estes",
+    "estas",
+    "esse",
+    "essa",
+    "esses",
+    "essas",
+    "isso",
+    "isto",
+    "aquilo",
+    "ele",
+    "ela",
+    "eles",
+    "elas",
+    "eu",
+    "voce",
+    "seu",
+    "sua",
+    "seus",
+    "suas",
+    "ser",
+    "sao",
+    "estao",
+    "estava",
+    "foi",
+    "eram",
+    "tem",
+    "tinha",
+    "ha",
+    "havia",
+    "pode",
+    "podem",
+    "deve",
+    "devem",
+    "faz",
+    "fazem",
+    "usa",
+    "usam",
+    "usado",
+    "usada",
+    "ocorre",
+    "ocorrem",
+    "fica",
+    "ficam",
+    "principal",
+    "primeiro",
+    "segundo",
+    "maior",
+    "menor",
+    "novo",
+    "nova",
+    "forma",
+    "parte",
+    "tipo",
+    "caso",
+    "vez",
+    "exemplo",
+    "dentro",
+    "fora",
+    "ainda",
+];
+
+/// Determinantes e preposicoes que anunciam um sintagma nominal.
+const CANDIDATE_DETERMINERS: &[&str] = &[
+    "o", "a", "os", "as", "um", "uma", "do", "da", "dos", "das", "no", "na", "nos", "nas", "pelo",
+    "pela", "pelos", "pelas", "de", "em", "com", "para", "sobre", "entre", "ao", "aos",
+];
+
+/// Nomes que apresentam outro termo.
+///
+/// `enzima rubisco` e `teorema CAP` sao o padrao que a regra quer pegar: o
+/// nome comum apresenta o termo que precisa de definicao. Vale mais que o
+/// determinante, porque `a fixacao` e ruido e `enzima rubisco` e o alvo.
+const CANDIDATE_HEAD_NOUNS: &[&str] = &[
+    "enzima",
+    "proteina",
+    "teorema",
+    "principio",
+    "filtro",
+    "sistema",
+    "modelo",
+    "algoritmo",
+    "estrutura",
+    "processo",
+    "mecanismo",
+    "grandeza",
+    "funcao",
+];
+
+fn is_candidate_stopword(word: &str) -> bool {
+    CANDIDATE_STOPWORDS.contains(&word)
+}
+
+/// Uma sigla tem 2 a 8 letras e ou e toda maiuscula (`ATP`, `NADPH`, `CO2`) ou
+/// segue a notacao cientifica (`pH`, `mRNA`).
+fn looks_like_acronym(word: &str) -> bool {
+    let letters: Vec<char> = word.chars().filter(|c| c.is_alphabetic()).collect();
+    if letters.len() < 2 || letters.len() > 8 {
+        return false;
+    }
+    if word.chars().any(|c| c.is_lowercase()) {
+        let mut chars = word.chars();
+        let first = chars.next().unwrap_or(' ');
+        first.is_lowercase() && chars.all(|c| c.is_uppercase())
+    } else {
+        letters.iter().filter(|c| c.is_uppercase()).count() >= 2
+    }
+}
+
+/// Extrai os termos que o modelo deve **julgar**, nao os que ele deve achar.
+///
+/// A rodada 5 mostrou que o gargalo e geracao: 18 dos 25 ausentes nunca foram
+/// propostos. Pedir "ache os termos" de novo nao muda o que o modelo de 7B
+/// enxerga; dar a ele uma lista de candidatos muda a pergunta de "quais sao os
+/// termos?" para "qual destes precisa de definicao?" - que e a pergunta que ele
+/// ja responde bem quando o termo esta nomeado.
+///
+/// As regras sao mecanicas de proposito, nao tentam entender a nota: sigla,
+/// nome proprio no meio da frase, palavra longa e termo depois de um
+/// determinante ou de um nome que o apresenta. A lista e um lembrete, nao um
+/// gabarito: o modelo pode ignorar candidato ruim e propor termo que nao esta
+/// nela. Termo que o dicionario ja explica nao entra.
+fn candidate_terms(markdown: &str, known_terms: &[String]) -> Vec<String> {
+    use crate::review::calibrated::improvements::normalize_term;
+
+    let mut candidates: Vec<(String, u32, usize)> = Vec::new();
+    let mut previous: Option<String> = None;
+    let mut sentence_start = true;
+    for line in markdown.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            sentence_start = true;
+            previous = None;
+            continue;
+        }
+        for raw in trimmed.split_whitespace() {
+            let word = raw.trim_matches(|c: char| !c.is_alphanumeric() && c != '-');
+            if word.is_empty() {
+                continue;
+            }
+            let normalized = normalize_term(word);
+            let ends_sentence = matches!(
+                raw.chars().last(),
+                Some('.') | Some('!') | Some('?') | Some(':') | Some(';')
+            );
+            let after_determiner = previous
+                .as_deref()
+                .is_some_and(|head| CANDIDATE_DETERMINERS.contains(&head));
+            let after_head_noun = previous
+                .as_deref()
+                .is_some_and(|head| CANDIDATE_HEAD_NOUNS.contains(&head));
+            let acronym = looks_like_acronym(word);
+            let capitalized = word
+                .chars()
+                .next()
+                .is_some_and(|first| first.is_uppercase())
+                && !sentence_start
+                && !acronym;
+            let long = normalized.chars().count() >= 9;
+            let wanted = !is_candidate_stopword(&normalized)
+                && normalized.chars().count() >= 3
+                && (acronym || capitalized || long || after_determiner || after_head_noun);
+            if wanted
+                && !known_terms
+                    .iter()
+                    .any(|known| crate::dictionary::same_knowledge(known, word))
+            {
+                let score = if acronym {
+                    100
+                } else if after_head_noun {
+                    60
+                } else if capitalized {
+                    50
+                } else if after_determiner {
+                    20
+                } else {
+                    5
+                } + if long { 3 } else { 0 };
+                match candidates
+                    .iter_mut()
+                    .find(|(term, _, _)| normalize_term(term) == normalized)
+                {
+                    Some((_, current, _)) => *current += score,
+                    None => {
+                        let position = candidates.len();
+                        candidates.push((word.to_string(), score, position));
+                    }
+                }
+            }
+            previous = if ends_sentence {
+                None
+            } else {
+                Some(normalized)
+            };
+            sentence_start = ends_sentence;
+        }
+    }
+    candidates.sort_by(|left, right| right.1.cmp(&left.1).then(left.2.cmp(&right.2)));
+    candidates
+        .into_iter()
+        .take(CANDIDATE_LIMIT)
+        .map(|(term, _, _)| term)
+        .collect()
+}
+
 /// O pedido ao provider, com a lista de termos que o dicionario ja cobre.
 ///
 /// A lista entra no pedido para o modelo nao gastar proposta com o que o
 /// usuario ja registrou. A garantia, porem, e deterministica: `known_terms`
 /// tambem filtra as propostas depois da resposta.
-fn user_content(markdown: &str, scope: ImprovementScope, known_terms: &[String]) -> String {
+fn user_content(
+    markdown: &str,
+    scope: ImprovementScope,
+    known_terms: &[String],
+    candidates: &[String],
+) -> String {
     let task = match scope {
         ImprovementScope::Expansions => "Expanda os trechos que o aluno escreveu apressado.",
         ImprovementScope::Definitions => "Escreva as definicoes dos termos que faltam.",
@@ -430,6 +716,15 @@ fn user_content(markdown: &str, scope: ImprovementScope, known_terms: &[String])
         }
     };
     let mut content = format!("Nota (fonte de verdade):\n---\n{markdown}\n---\n\n{task}");
+    if scope != ImprovementScope::Expansions && !candidates.is_empty() {
+        content.push_str(&format!(
+            "\n\nTermos extraidos mecanicamente da nota (candidatos, nao obrigatorios): {}.\n\
+             Percorra a lista e decida, um por um, se um leitor que nao conhece o assunto \
+             precisa da definicao. Descarte nome de pessoa, palavra comum e o assunto da \
+             nota. A lista nao e um teto: se a nota usa um termo que ela nao tem, inclua.",
+            candidates.join(", ")
+        ));
+    }
     if scope != ImprovementScope::Expansions && !known_terms.is_empty() {
         content.push_str(&format!(
             "\n\nO dicionario do Vault ja explica estes termos que aparecem na nota \
@@ -464,12 +759,19 @@ pub fn propose_improvements(
             .cloned()
             .collect()
     };
+    // A lista de candidatos e o que transforma "ache os termos" em "julgue
+    // estes termos". Ela so faz sentido quando ha nota: sem markdown, vazia.
+    let candidates: Vec<String> = if scope == ImprovementScope::Expansions {
+        Vec::new()
+    } else {
+        candidate_terms(markdown, known_terms)
+    };
     // A falha do provider e real e sobe: um provider fora do ar nao e a mesma
     // coisa que "esta nota nao tem nada a sugerir".
     let response = provider.generate_structured(ProviderRequest {
         system_instructions: system_instructions(scope),
         source_markdown: markdown.to_string(),
-        user_content: user_content(markdown, scope, &known_relevant),
+        user_content: user_content(markdown, scope, &known_relevant, &candidates),
         response_schema: proposal_response_schema(),
     })?;
 
@@ -571,7 +873,7 @@ pub fn propose_improvements(
             .map(|proposal| proposal.term.clone())
             .chain(rejected.iter().map(|problem| problem.term.clone()))
             .collect();
-        match request_coverage(provider, markdown, &already, &known_relevant) {
+        match request_coverage(provider, markdown, &already, &known_relevant, &candidates) {
             Ok(extra) => {
                 coverage_proposals = extra.len();
                 accept_raw_proposals(
@@ -608,6 +910,7 @@ fn request_coverage(
     markdown: &str,
     already: &[String],
     known_terms: &[String],
+    candidates: &[String],
 ) -> Result<Vec<RawProposal>, ProviderFailure> {
     let mut content = format!(
         "Nota (fonte de verdade):\n---\n{markdown}\n---\n\n\
@@ -619,6 +922,13 @@ fn request_coverage(
             already.join(", ")
         }
     );
+    if !candidates.is_empty() {
+        content.push_str(&format!(
+            "\nCandidatos extraidos da nota que ainda nao foram propostos: {}.\n\
+             Percorra a lista: algum deles precisa de definicao?",
+            candidates.join(", ")
+        ));
+    }
     if !known_terms.is_empty() {
         content.push_str(&format!(
             "\nO dicionario do Vault ja explica (nao proponha): {}.",
@@ -1206,6 +1516,76 @@ mod tests {
              de uma definicao a mais e menor que o de uma premissa sem \
              explicacao"
         );
+    }
+
+    #[test]
+    fn os_candidatos_incluem_sigla_nome_proprio_e_o_termo_que_o_nome_apresenta() {
+        // A lista existe para o modelo julgar, nao para ele achar. `rubisco`
+        // so aparece uma vez e em minuscula: sem a regra do nome que o
+        // apresenta (`enzima rubisco`), ele nunca entraria.
+        let nota = "# Fotossintese\n\nA fixacao usa a enzima rubisco e consome ATP.\n\nO teorema CAP vale para o sistema isolado.\n";
+        let found = candidate_terms(nota, &[]);
+        assert!(found.iter().any(|term| term == "rubisco"), "{found:?}");
+        assert!(found.iter().any(|term| term == "ATP"), "{found:?}");
+        assert!(found.iter().any(|term| term == "CAP"), "{found:?}");
+    }
+
+    #[test]
+    fn o_titulo_e_as_palavras_funcionais_nao_viram_candidatos() {
+        let nota = "# Termodinamica\n\nA energia se conserva em um sistema fechado.\n";
+        let found = candidate_terms(nota, &[]);
+        assert!(
+            !found.iter().any(|term| term == "Termodinamica"),
+            "{found:?}"
+        );
+        assert!(!found.iter().any(|term| term == "se"), "{found:?}");
+    }
+
+    #[test]
+    fn o_termo_repetido_vem_antes_do_que_aparece_uma_vez() {
+        let nota = "# Ciclo\n\nA glicose vem da glicose e a glicose alimenta a celula. O estroma guarda tudo.\n";
+        let found = candidate_terms(nota, &[]);
+        let glicose = found.iter().position(|term| term == "glicose");
+        let estroma = found.iter().position(|term| term == "estroma");
+        assert!(glicose.is_some(), "{found:?}");
+        assert!(estroma.is_some(), "{found:?}");
+        assert!(glicose < estroma, "{found:?}");
+    }
+
+    #[test]
+    fn candidato_que_o_dicionario_ja_explica_nao_entra() {
+        let nota = "# Ciclo\n\nA fixacao ocorre no estroma e consome ATP.\n";
+        let found = candidate_terms(nota, &["estroma".to_string()]);
+        assert!(!found.iter().any(|term| term == "estroma"), "{found:?}");
+        assert!(found.iter().any(|term| term == "ATP"), "{found:?}");
+    }
+
+    #[test]
+    fn o_pedido_cita_os_candidatos_e_nao_os_impoe() {
+        let content = user_content(
+            NOTA,
+            ImprovementScope::Definitions,
+            &[],
+            &["estroma".to_string(), "ATP".to_string()],
+        );
+        assert!(content.contains("estroma, ATP"));
+        assert!(content.contains("candidatos, nao obrigatorios"));
+        assert!(content.contains("A lista nao e um teto"));
+    }
+
+    #[test]
+    fn os_cinco_termos_que_a_rodada_5_perdeu_no_ciclo_de_calvin_estao_na_lista() {
+        // O caso que expos o gargalo: a nota tem cinco paragrafos e o motor
+        // propos tres termos. A lista mecanica tem de conter os cinco que
+        // faltaram, senao ela nao resolve o problema que a criou.
+        let nota = "# Ciclo de Calvin\n\nA glicose e o principal produto da fase escura do ciclo de Calvin.\n\nEssa fase ocorre no estroma dos cloroplastos e nao na membrana tilacoidal.\n\nA fixacao de carbono usa a enzima rubisco, que adiciona CO2 a uma molecula de ribulose-1,5-bisfosfato.\n\nCada molecula de CO2 fixado consome 3 ATP e 2 NADPH produzidos na fase clara.\n\nA fotofosforilacao transloca protons para dentro do tilacoide, criando um gradiente que alimenta a sintese de ATP.\n";
+        let found = candidate_terms(nota, &[]);
+        for term in ["estroma", "rubisco", "ATP", "NADPH", "fotofosforilacao"] {
+            assert!(
+                found.iter().any(|candidate| candidate == term),
+                "{term} fora de {found:?}"
+            );
+        }
     }
 
     #[test]
