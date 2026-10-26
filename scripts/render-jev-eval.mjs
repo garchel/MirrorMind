@@ -143,6 +143,12 @@ function definitionRecallSection(report) {
     `| Casos medidos | ${recall.casesMeasured} de ${recall.casesWithGroundTruth} com ground truth |`,
     `| Termos extras | ${recall.extraTerms ?? 0} (a lista do revisor pode estar incompleta) |`,
   ]
+  if (recall.recallTolerant !== undefined && recall.recallTolerant !== null) {
+    rows.push(
+      `| Termos encontrados (nome tolerante) | ${recall.foundTermsTolerant} de ${recall.expectedTerms} (${pct(recall.recallTolerant)}) |`,
+      `| Termos extras (nome tolerante) | ${recall.extraTermsTolerant ?? 0} |`,
+    )
+  }
   const raw = recall.rawProposals
   if (raw !== undefined && raw !== null) {
     const coverage = recall.coverageProposals ?? 0

@@ -396,13 +396,22 @@ struct DefinitionRecallSummary {
     cases_measured: usize,
     /// Termos que o revisor disse que melhorariam a nota.
     expected_terms: usize,
-    /// Termos que o pipeline encontrou.
+    /// Termos que o pipeline encontrou, por **nome exato**.
     found_terms: usize,
+    /// Termos que o pipeline encontrou quando o nome pode variar.
+    ///
+    /// `capacidade de suporte do meio` e `capacidade de suporte` sao o mesmo
+    /// conhecimento que falta; contar so a igualdade penaliza o motor duas
+    /// vezes (perde no recall e vira "extra" na mesma rodada). O numero exato
+    /// continua ao lado para a serie historica seguir comparavel.
+    found_terms_tolerant: usize,
     /// Termos que o pipeline propose e o revisor nao listou.
     ///
     /// **Nao e falso positivo**: a lista do revisor pode estar incompleta.
     /// E um numero de contexto.
     extra_terms: usize,
+    /// Os mesmos extras, com o casamento tolerante a variacao de nome.
+    extra_terms_tolerant: usize,
     /// Os casos em que o pipeline nao achou nenhum termo esperado.
     missed_cases: Vec<String>,
     failures: Vec<String>,
@@ -465,6 +474,14 @@ impl DefinitionRecallSummary {
             return None;
         }
         Some(self.found_terms as f64 / self.expected_terms as f64)
+    }
+
+    /// O recall quando o nome do termo pode variar (prefixo/sufixo).
+    fn recall_tolerant(&self) -> Option<f64> {
+        if self.expected_terms == 0 {
+            return None;
+        }
+        Some(self.found_terms_tolerant as f64 / self.expected_terms as f64)
     }
 
     /// A dimensao foi medida?
@@ -718,13 +735,19 @@ fn measure_improvements(
         let mut missed = Vec::new();
         for expected_term in expected {
             summary.expected_terms += 1;
-            let matched = found
+            if found
                 .iter()
-                .any(|term| normalize_term(term) == normalize_term(&expected_term.term));
-            if matched {
+                .any(|term| normalize_term(term) == normalize_term(&expected_term.term))
+            {
                 summary.found_terms += 1;
             } else {
                 missed.push(expected_term.term.clone());
+            }
+            if found
+                .iter()
+                .any(|term| terms_match(term, &expected_term.term))
+            {
+                summary.found_terms_tolerant += 1;
             }
         }
         // Extras sao os termos **aceitos** que nao casam com nenhum esperado.
@@ -740,6 +763,14 @@ fn measure_improvements(
                 !expected.iter().any(|expected_term| {
                     normalize_term(&expected_term.term) == normalize_term(term)
                 })
+            })
+            .count();
+        summary.extra_terms_tolerant += found
+            .iter()
+            .filter(|term| {
+                !expected
+                    .iter()
+                    .any(|expected_term| terms_match(term, &expected_term.term))
             })
             .count();
         if !missed.is_empty() {
@@ -759,6 +790,62 @@ fn normalize_term(text: &str) -> String {
         .nfd()
         .filter(|c| !matches!(c, '\u{0300}'..='\u{036f}'))
         .collect()
+}
+
+/// Casa dois termos quando um e prefixo ou sufixo do outro.
+///
+/// E o caso de `capacidade de suporte do meio` contra `capacidade de suporte`
+/// (prefixo) e de `adiabatico` contra `recipiente adiabatico` (sufixo): o
+/// conhecimento que falta e o mesmo, e a igualdade de nome penaliza duas
+/// vezes — perde no recall e conta como extra.
+///
+/// Prefixo/sufixo e nao substring livre porque substring casaria `atp` dentro
+/// de `adaptador`. O piso de 5 caracteres protege siglas: `ATP` so casa com
+/// `ATP`.
+fn terms_match(left: &str, right: &str) -> bool {
+    let left = normalize_term(left);
+    let right = normalize_term(right);
+    if left == right {
+        return true;
+    }
+    let (shorter, longer) = if left.chars().count() <= right.chars().count() {
+        (left.as_str(), right.as_str())
+    } else {
+        (right.as_str(), left.as_str())
+    };
+    if shorter.chars().count() < 5 {
+        return false;
+    }
+    longer.starts_with(shorter) || longer.ends_with(shorter)
+}
+
+#[cfg(test)]
+mod terms_match_tests {
+    use super::terms_match;
+
+    #[test]
+    fn uma_variacao_de_nome_e_o_mesmo_termo() {
+        assert!(terms_match(
+            "capacidade de suporte do meio",
+            "capacidade de suporte"
+        ));
+        assert!(terms_match("adiabatico", "recipiente adiabatico"));
+        assert!(terms_match("Ciclo de Calvin", "ciclo de calvin"));
+    }
+
+    #[test]
+    fn uma_sigla_curta_nao_casa_por_contencao() {
+        assert!(terms_match("ATP", "ATP"));
+        assert!(!terms_match("ATP", "3 ATP por molecula"));
+        assert!(!terms_match("ATP", "adaptador"));
+    }
+
+    #[test]
+    fn termos_diferentes_nao_casam() {
+        assert!(!terms_match("estroma", "citoplasma"));
+        assert!(!terms_match("fase escura", "fase clara"));
+        assert!(!terms_match("protease", "pepsina"));
+    }
 }
 
 #[test]
@@ -911,6 +998,15 @@ fn jev_is_measured_against_the_legacy_path() {
             }
         }
     }
+    if let Some(tolerant) = definition_recall.recall_tolerant() {
+        eprintln!(
+            "  recall tolerante a variacao de nome: {}/{} ({:.1}%) | {} extras",
+            definition_recall.found_terms_tolerant,
+            definition_recall.expected_terms,
+            tolerant * 100.0,
+            definition_recall.extra_terms_tolerant
+        );
+    }
     for failure in &definition_recall.failures {
         eprintln!("  falha: {failure}");
     }
@@ -1003,6 +1099,10 @@ fn jev_is_measured_against_the_legacy_path() {
     payload["definitionRecall"] =
         serde_json::to_value(definition_recall).expect("serializa o recall de definicoes");
     payload["definitionRecall"]["recall"] = match definition_recall.recall() {
+        Some(recall) => serde_json::Value::from(recall),
+        None => serde_json::Value::Null,
+    };
+    payload["definitionRecall"]["recallTolerant"] = match definition_recall.recall_tolerant() {
         Some(recall) => serde_json::Value::from(recall),
         None => serde_json::Value::Null,
     };
