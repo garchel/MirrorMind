@@ -45,8 +45,10 @@ const AUDIT = {
     why: 'E o mesmo termo que o gabarito chama de "recipiente adiabatico": quem define o recipiente define o adiabatico.',
   },
   'bases-de-dados|consistencia': {
-    verdict: 'legitimo',
-    why: 'Entra no teorema CAP e volta como "criterio menos negociavel" sem nunca ser definida.',
+    verdict: 'erro',
+    // A revisao humana da rodada 3 marcou este termo como erro, onde o agente
+    // via legitimo. A sugestao segue a decisao humana: ela vence.
+    why: 'A revisao humana da rodada 3 marcou erro: a premissa existe, mas definir "consistencia" nao melhora a nota - e a fronteira entre termo usado e termo que vale definir.',
   },
   'contradicao-estroma|ciclo de calvin': {
     verdict: 'assunto',
@@ -61,8 +63,10 @@ const AUDIT = {
     why: 'Mesmo caso do anterior: e o assunto, nao uma premissa lateral.',
   },
   'termo-definido-inline|tempo logarithmico': {
-    verdict: 'legitimo',
-    why: 'A nota promete "busca em tempo logarithmico" e nao explica a notacao; e exatamente o tipo de termo que o caso quer que se ache.',
+    verdict: 'erro',
+    // Mesma divergencia da rodada 3: o humano julgou que definir a notacao nao
+    // melhora a nota. A sugestao segue a decisao humana.
+    why: 'A revisao humana da rodada 3 marcou erro: a premissa existe, mas definir a notacao nao melhora a nota.',
   },
   'termo-definido-inline|complexidade media de busca': {
     verdict: 'legitimo',
@@ -83,6 +87,34 @@ const AUDIT = {
   'termo-sem-definicao|energia': {
     verdict: 'erro',
     why: 'Grandeza fundamental: defini-la na nota nao melhora a leitura. O revisor esperava "sistema isolado", que e a premissa real da frase.',
+  },
+  'termo-sem-definicao|energia se conserva': {
+    verdict: 'erro',
+    why: 'E a afirmacao da nota ("a energia se conserva em um sistema isolado"), nao um nome que falta definir. O filtro novo passou a recusar propostas assim.',
+  },
+  'termo-sem-definicao|macroscopico': {
+    verdict: 'variante',
+    why: 'E o mesmo termo que o gabarito chama de "estado macroscopico", com o substantivo omitido.',
+  },
+  'contradicao-fotossintese|fase clara': {
+    verdict: 'legitimo',
+    why: 'E um dos dois lados da contradicao (fase clara x fase escura): a nota diz onde a fotossintese ocorre, mas nao o que e a fase.',
+  },
+  'contradicao-fotossintese|glicose': {
+    verdict: 'legitimo',
+    why: 'Mesma situacao de contradicao-estroma: a glicose e a premissa da frase sobre respiracao celular e a nota nao a define.',
+  },
+  'lista-com-conteudo|enzima rubisco': {
+    verdict: 'variante',
+    why: 'E o mesmo termo que o gabarito chama de "rubisco", com o complemento que a nota usa.',
+  },
+  'lista-com-conteudo|fase clara': {
+    verdict: 'erro',
+    why: 'O proprio item do checklist diz o que a fase faz ("captura energia luminosa"); a nota ja entrega o papel do termo, definir de novo nao melhora a leitura.',
+  },
+  'lista-com-conteudo|fase escura': {
+    verdict: 'erro',
+    why: 'O proprio item do checklist diz o que a fase faz ("usa essa energia para fixar carbono"); e o mesmo caso da fase clara.',
   },
   'lista-com-conteudo|fixacao de carbono': {
     verdict: 'legitimo',
@@ -119,11 +151,17 @@ for (const line of extras) {
   const paragraph =
     paragraphs.find((block) => fold(block).includes(foldedTerm)) ?? note
   const audit = AUDIT[`${caseId}|${foldedTerm}`] ?? null
+  // O texto proposto so existe em relatorios a partir da rodada 5; nos
+  // anteriores o campo fica ausente e a pagina diz isso em vez de inventar.
+  const proposed = (report.definitionRecall?.acceptedTerms ?? []).find(
+    (accepted) => accepted.caseId === caseId && accepted.term === term,
+  )
   items.push({
     caseId,
     term,
     paragraph: paragraph.trim(),
     expected: (entry?.expectedDefinitions ?? []).map((item) => item.term),
+    definition: proposed?.definition ?? null,
     inTitle: fold(paragraph.split('\n')[0]).includes(foldedTerm) &&
       paragraph.trim().startsWith('#'),
     suggested: audit?.verdict ?? null,
@@ -208,6 +246,8 @@ const html = `<!doctype html>
     font-size: 15px; white-space: pre-wrap;
   }
   mark { background: var(--mark); color: inherit; padding: 0 2px; border-radius: 3px; }
+  .proposed { margin: 10px 0 0; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 8px;
+    font-size: 14px; color: #4a463f; background: #fcfaf6; }
   .expected { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); }
   .chip { font: 12px ui-monospace, monospace; background: #f1ede6; border-radius: 6px; padding: 2px 7px; color: #4a463f; }
   .decide { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
@@ -251,8 +291,9 @@ const html = `<!doctype html>
   </p>
   <div id="list"></div>
   <footer class="note">
-    A definição que o motor propôs não aparece aqui porque o relatório não a guarda — só o termo.
-    Guardar o texto proposto é o próximo passo do harness.
+    ${items.some((item) => item.definition)
+      ? 'A definição proposta aparece em cada cartão: revise o termo e o texto juntos.'
+      : 'A definição proposta não aparece porque esta rodada é anterior ao relatório guardar o texto — só o termo. Da rodada 5 em diante ela aparece no cartão.'}
   </footer>
 </main>
 <script>
@@ -310,6 +351,9 @@ function card(item) {
     + '</div>'
     + (item.why ? '<p class="sugg"><b>Por que:</b> ' + esc(item.why) + '</p>' : '')
     + '<blockquote>' + highlight(item.paragraph, item.term) + '</blockquote>'
+    + (item.definition
+      ? '<p class="proposed"><b>O motor propôs:</b> ' + esc(item.definition) + '</p>'
+      : '')
     + '<div class="expected"><span>Gabarito do caso:</span>'
     + (item.expected.length ? item.expected.map((term) => '<span class="chip">' + esc(term) + '</span>').join('') : '<em>o revisor não esperava nenhum termo</em>')
     + '</div>'

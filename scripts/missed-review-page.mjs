@@ -196,14 +196,6 @@ const data = {
   items,
 }
 
-function escapeHtml(text) {
-  return String(text)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-}
-
 const html = `<!doctype html>
 <html lang="pt-BR">
 <head>

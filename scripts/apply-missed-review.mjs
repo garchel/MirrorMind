@@ -15,7 +15,7 @@
  *   node scripts/apply-missed-review.mjs <review.json> [--dry-run]
  */
 import { readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 
 const reviewPath = process.argv[2]
 const dryRun = process.argv.includes('--dry-run')
