@@ -445,6 +445,13 @@ struct DefinitionRecallSummary {
     filtered_out_terms: usize,
     /// As recusas do filtro, agrupadas por motivo.
     filtered_out_by_reason: std::collections::BTreeMap<String, usize>,
+    /// As recusas do filtro **com o termo e o motivo**, para auditoria.
+    ///
+    /// A contagem por motivo diz que 5 propostas caíram em "a definicao ja
+    /// aparece na nota"; nao diz **quais**. Sem os nomes nao ha como auditar
+    /// se o filtro esta certo — e um filtro que recusa demais custa recall
+    /// exatamente como uma geracao que propoe de menos.
+    rejected_by_filter: Vec<String>,
 }
 
 impl DefinitionRecallSummary {
@@ -701,6 +708,10 @@ fn measure_improvements(
                 .filtered_out_by_reason
                 .entry(problem.reason.clone())
                 .or_insert(0) += 1;
+            summary.rejected_by_filter.push(format!(
+                "{}: {} ({})",
+                case.id, problem.term, problem.reason
+            ));
         }
 
         summary.cases_measured += 1;
@@ -930,6 +941,9 @@ fn jev_is_measured_against_the_legacy_path() {
     }
     for (reason, count) in &definition_recall.filtered_out_by_reason {
         eprintln!("  recusada pelo filtro ({count}x): {reason}");
+    }
+    for rejected in &definition_recall.rejected_by_filter {
+        eprintln!("  recusada pelo filtro: {rejected}");
     }
     eprintln!(
         "  expansoes, em todos os {} casos: {} oferecidas -> {} aceitas na ancora \

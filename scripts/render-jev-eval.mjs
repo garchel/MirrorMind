@@ -172,6 +172,10 @@ function definitionRecallSection(report) {
     if (unmatched.length > 0) {
       rows.push(`\n**Aceitas que nao casaram com o esperado** (sinonimo ou extra — revisar): ${unmatched.join('; ')}`)
     }
+    const filteredNames = recall.rejectedByFilter ?? []
+    if (filteredNames.length > 0) {
+      rows.push(`\n**Recusadas pelo filtro** (termo e motivo): ${filteredNames.join('; ')}`)
+    }
   }
   return rows.join('\n')
 }
