@@ -3809,3 +3809,111 @@ cortava a cauda antes de o filtro poder trabalhar.
 1. Rodada 5 (~26 min) com a política nova e os consertos determinísticos.
 2. Revisar extras e ausentes com os números novos.
 3. Crescer o conjunto para 30 casos e ligar `extract_factual_claims`.
+### 15.45 Rodada 5: o teto maior nao comprou recall, e o ECE piorou
+
+A rodada 5 e a primeira com a politica do leitor leigo, o teto de 8 propostas e
+a pergunta nova do JEV. Run `1793031660`, 23 de 23 casos pontuados, sem falha de
+provider.
+
+| Medida | Rodada 4 | Rodada 5 |
+| --- | ---: | ---: |
+| Recall exato | 27/54 (50,0%) | **29/54 (53,7%)** |
+| Recall tolerante | 31/54 (57,4%) | **33/54 (61,1%)** |
+| Extras exatos | 15 | **18** |
+| Extras tolerantes | 11 | **15** |
+| ECE pior | 0,120 | **0,150** |
+| Prontidao | 21/23 (91,3%) | 21/23 (91,3%) |
+
+O funil: **70 oferecidas** (65 na primeira passada + 5 na cobertura) -> 3
+repetidas -> 7 recusadas pelo filtro -> 60 ao motor -> 13 recusadas por ele ->
+**29 encontradas**, 47 aceitas. As expansoes ficaram estaveis: 47 oferecidas, 44
+aceitas (93,6%).
+
+#### O teto de 8 mudou o funil de lugar, nao de tamanho
+
+A rodada 4 tinha 47 propostas na primeira passada e 20 na cobertura. A rodada 5
+tem 65 na primeira e 5 na cobertura. O total e o mesmo (67 contra 70): o teto
+maior fez o modelo falar mais cedo, e a passada de cobertura — que so roda
+abaixo de `COVERAGE_MIN_PROPOSALS = 3` — deixou de ser chamada. O volume nao
+cresceu; mudou de etapa.
+
+Isso explica o resultado: **a proporcao de acerto caiu** (29 de 47 aceitas =
+61,7%, contra 27 de 42 = 64,3% na rodada 4). O modelo nao passou a achar mais
+termos; passou a gastar as vagas nos mesmos termos mais cedo.
+
+#### O gargalo continua na geracao
+
+Dos 25 termos que faltaram, **18 nunca foram propostos** — exatamente o mesmo
+numero da rodada 4. O `ciclo-calvin` e o retrato: a nota tem cinco paragrafos e
+o motor propôs tres termos (`fase escura`, `fase clara`, `tilacoide`), deixando
+`estroma`, `rubisco`, `ATP`, `NADPH` e `fotofosforilacao` de fora. Nao e o
+julgamento: se o termo nao e proposto, o JEV nunca o ve.
+
+Os consertos deterministicos da rodada 4 funcionaram nos alvos deles — as
+recusas por filtro cairam de 2 para 1 no mesmo conjunto de casos — mas os alvos
+eram poucos. O filtro nao era o gargalo; a enumeracao e.
+
+#### As recusas por "o termo nao aparece" sao flexao, nao ruido
+
+Cinco das sete recusas do filtro sao variantes morfologicas:
+
+| Proposta | Nota |
+| --- | --- |
+| `cloroplasto` | `cloroplastos` |
+| `tabela hash` | `Tabelas hash` |
+| `árvore balanceada` | `Árvores balanceadas` |
+| `ribulose-1,5-bisfosfato` | o termo aparece quebrado pela quebra de linha da nota |
+| `fervura` | nao aparece em lugar nenhum (esta e recusa correta) |
+
+A recusa esta **certa** do ponto de vista do produto: o dicionario casa palavra
+inteira, entao registrar `cloroplasto` num texto que escreve `cloroplastos` nao
+faria o hover aparecer. Mas isso mostra que o problema nao e o filtro ser
+rigoroso — e o modelo devolver a forma do dicionario, nao a forma da nota. A
+instrucao de autoconferencia ja pede a grafia exata; o modelo nao obedece.
+
+E ha um efeito colateral na metrica: `tabela hash` e `árvore balanceada` sao
+termos **esperados** (nas formas plurais), e `same_knowledge` nao liga singular
+a plural. Ou seja, mesmo se passassem pelo filtro, cairiam em extras. A regra de
+variacao de nome resolvencidencia de sufixo, nao flexao de numero.
+
+#### ECE: 0,150, e o numero e instavel
+
+As tres repeticoes deram **0,150 / 0,097 / 0,132**. O gate decide pelo pior, e o
+pior ficou acima do limite de 0,10. Mas a leitura honesta e que, com 23 casos, a
+diferenca entre passar e nao passar esta dentro da variacao entre repeticoes: a
+rodada 4 media 0,120 com o mesmo motor e os mesmos casos.
+
+A faixa que puxa o ECE e a de **0,5 a 0,6**: tres casos, um acerto (33%). Sao
+`termodinamica` (0,56 dizendo `ambiguous`, esperado `ready`) e
+`lista-com-conteudo` (0,55 dizendo `ready`, esperado `insufficient`) — os dois
+erros de prontidao que ja existiam. Fora dessa faixa o motor esta conservador:
+confianca media 0,819 contra acuracia 0,913, e as 11 respostas acima de 0,9
+acertaram todas.
+
+Nao mexi em temperatura de novo. O caminho para o gate e **mais casos** (a
+variacao de 0,05 entre repeticoes e ruido de amostra) e a analise por faixa que
+ja existe no relatorio.
+
+#### O que a rodada 5 decide
+
+1. **A politica do leitor leigo fica** — por argumento de produto, nao por
+   medicao: o custo de uma definicao a mais e uma sugestao ignorada. Mas ela
+   **nao** comprou recall: +2 exatos e +4 extras tolerantes. O ganho tem que vir
+   de outro lugar.
+2. **O teto de 8 fica**, com a cobertura como esta: o volume total e o mesmo, e
+   menos chamadas e mais barato.
+3. **O proximo experimento e enumeracao deterministica**, nao prompt: extrair
+   candidatos da nota por regra (siglas, termos capitalizados, repeticao) e
+   pedir ao modelo que julgue e defina cada candidato. A tarefa deixa de ser
+   "ache os termos" (que o modelo de 7B faz mal) e vira "diga se este termo
+   precisa de definicao" (que ele ja faz no JEV).
+
+#### Pendente
+
+- **Revisar os 18 extras** desta rodada na mesma pagina de revisao. Sem isso,
+  "18 extras" e concordancia com uma lista que pode estar incompleta — a revisao
+  da rodada 4 mostrou que 7 de 15 eram gabarito faltando.
+- **Revisar os 27 ausentes** da rodada 4, ainda sem resposta.
+- **Decidir a flexao de numero**: aceitar plural no `same_knowledge` (e no
+  dicionario) ou manter a recusa. Hoje a segunda opcao e a coerente com o hover,
+  mas ela custa dois termos esperados.

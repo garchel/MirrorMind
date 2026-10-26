@@ -4,7 +4,7 @@ _Gerado por `scripts/render-jev-eval.mjs` a partir de `docs/jev-eval-report.json
 
 ## Veredito
 
-**Confianca NAO acionavel (pior ECE 0.120 acima de 0.10): nao exibir numeros de confianca na UI.**
+**Confianca NAO acionavel (pior ECE 0.150 acima de 0.10): nao exibir numeros de confianca na UI.**
 
 | | |
 | --- | --- |
@@ -13,15 +13,15 @@ _Gerado por `scripts/render-jev-eval.mjs` a partir de `docs/jev-eval-report.json
 | Curvas se cruzam | não |
 | Confiança é acionável | não |
 | Rótulos revisados por alguém | sim |
-| ECE por repetição | 0.120, 0.105, 0.109 |
+| ECE por repetição | 0.150, 0.097, 0.132 |
 
 ## Gate do §11
 
 | Critério | Medida | | Leitura |
 | --- | --- | :-: | --- |
-| ECE <= 0.10 (calibracao) | 0.120 (pior de 3 repeticoes) | ✗ | O gate decide pelo **pior** de varias repeticoes. A acuracia do motor e estavel entre elas; o que varia e a confianca que ele anexa as respostas, e o ECE e penalizado por excesso de confianca. Com uma unica rodada, a decisao era uma moeda. |
+| ECE <= 0.10 (calibracao) | 0.150 (pior de 3 repeticoes) | ✗ | O gate decide pelo **pior** de varias repeticoes. A acuracia do motor e estavel entre elas; o que varia e a confianca que ele anexa as respostas, e o ECE e penalizado por excesso de confianca. Com uma unica rodada, a decisao era uma moeda. |
 | Acuracia seletiva no limiar de operacao | 91.3% sobre 23 respondidos | ✓ | Estavel em todas as rodadas. E a metrica que responde a pergunta do produto: quando o motor diz que esta seguro, ele acerta? |
-| Cobertura no limiar de operacao | 87.0% | ✓ | O preco da seguranca: quantos casos sao respondidos quando se exige confianca alta. |
+| Cobertura no limiar de operacao | 95.7% | ✓ | O preco da seguranca: quantos casos sao respondidos quando se exige confianca alta. |
 | Dominancia sobre o legado | 91.3% contra 61.1% | ✓ | O candidato e melhor ou igual em toda a curva de limiar. |
 | Vies de ordem (D12) | 0.0% de divergencia em 2 casos | ✓ | Opcao favorecida: remembered (2). |
 | band_agreement (C5, sintese) | nao medido | — | A medicao existe mas nao entra na rodada. |
@@ -48,31 +48,38 @@ leitor não percebe. Por isso o relatório diz "não medido" em vez de "0%".
 
 ### Recall das sugestões de definição (C12)
 
-| Termos encontrados | 27 de 54 (50.0%) |
+| Termos encontrados | 29 de 54 (53.7%) |
 | Casos medidos | 15 de 23 com ground truth |
-| Termos extras | 15 (a lista do revisor pode estar incompleta) |
-| Termos encontrados (nome tolerante) | 31 de 54 (57.4%) |
-| Termos extras (nome tolerante) | 11 |
-| Funil, etapa 1: provider ofereceu | 67 definicoes (47 na 1a passada + 20 na cobertura) |
-| Funil, etapa 2: repetidas descartadas | 1 |
-| Funil, etapa 3: filtro deterministico recusou | 12 (17.9%) |
-| Funil, etapa 4: chegaram ao motor | 54 |
-| Funil, etapa 5: motor recusou | 12 |
-| Funil, etapa 6: encontradas no ground truth | 27 |
-| Recusa do filtro (2x) | a citacao enviada nao aparece na nota |
-| Recusa do filtro (4x) | a definicao ja aparece na nota |
-| Recusa do filtro (1x) | o termo e curto demais para ser um termo |
+| Termos extras | 18 (a lista do revisor pode estar incompleta) |
+| Termos encontrados (nome tolerante) | 33 de 54 (61.1%) |
+| Termos extras (nome tolerante) | 15 |
+| Funil, etapa 1: provider ofereceu | 70 definicoes (65 na 1a passada + 5 na cobertura) |
+| Funil, etapa 2: repetidas descartadas | 3 |
+| Funil, etapa 3: filtro deterministico recusou | 7 (10.0%) |
+| Funil, etapa 4: chegaram ao motor | 60 |
+| Funil, etapa 5: motor recusou | 13 |
+| Funil, etapa 6: encontradas no ground truth | 29 |
+
+**Onde morreram os termos ausentes (nome exato)**
+
+| Etapa | Termos | Conserto |
+| --- | ---: | --- |
+| nunca proposto | 18 | prompt/cobertura |
+| recusado pelo motor | 2 | julgamento do JEV |
+| recusado pelo filtro | 1 | citacao/ancora |
+| variacao de nome | 4 | metrica |
+| Recusa do filtro (2x) | a definicao ja aparece na nota |
 | Recusa do filtro (5x) | o termo nao aparece na nota |
 
-**Aceitas que nao casaram com o esperado** (sinonimo ou extra — revisar): contradicao-fotossintese: fase clara; contradicao-fotossintese: glicose; termodinamica: adiabatico; bases-de-dados: consistencia; contradicao-estroma: ciclo de Calvin; referencia-indefinida: ciclo de Calvin; termo-definido-inline: tempo logarithmico; contexto-implicito: ciclo de Calvin; termo-sem-definicao: energia se conserva; termo-sem-definicao: energia; termo-sem-definicao: macroscópico; lista-com-conteudo: fase clara; lista-com-conteudo: fase escura; lista-com-conteudo: enzima rubisco; exemplo-numerico: capacidade de suporte do meio
+**Aceitas que nao casaram com o esperado** (sinonimo ou extra — revisar): ciclo-calvin: tilacoide; contradicao-fotossintese: glicose; contradicao-fotossintese: atmosfera terrestre; termodinamica: adiabatico; bases-de-dados: consistencia; bases-de-dados: disponibilidade; termo-definido-inline: busca por chave; termo-definido-inline: tempo logarithmico; contradicao-quantidade: cloroplasto; promessa-vazia: unidades de resposta; termo-sem-definicao: energia; contradicao-maior: pH ótimo; contradicao-maior: pâncreas; contradicao-maior: intestino delgado; contradicao-maior: alcalino; lista-com-conteudo: fase escura; lista-com-conteudo: enzima rubisco; exemplo-numerico: capacidade de suporte do meio
 
-**Recusadas pelo filtro** (termo e motivo): ciclo-calvin: tilacóide (a citacao enviada nao aparece na nota); ciclo-calvin: rubisco (a citacao enviada nao aparece na nota); ciclo-calvin: ribulose-1,5-bisfosfato (o termo nao aparece na nota); contradicao-fotossintese: fervura (o termo nao aparece na nota); bases-de-dados: chave primaria (a definicao ja aparece na nota); bases-de-dados: chave estrangeira (a definicao ja aparece na nota); bases-de-dados: indice (a definicao ja aparece na nota); termo-definido-inline: índice (a definicao ja aparece na nota); termo-definido-inline: árvore balanceada (o termo nao aparece na nota); termo-definido-inline: tabela hash (o termo nao aparece na nota); contradicao-quantidade: fixação de carbono (o termo nao aparece na nota); contradicao-maior: pH (o termo e curto demais para ser um termo)
+**Recusadas pelo filtro** (termo e motivo): ciclo-calvin: ribulose-1,5-bisfosfato (o termo nao aparece na nota); contradicao-fotossintese: cloroplasto (o termo nao aparece na nota); contradicao-fotossintese: fervura (o termo nao aparece na nota); termodinamica: extensiva (a definicao ja aparece na nota); termo-definido-inline: índice (a definicao ja aparece na nota); termo-definido-inline: árvore balanceada (o termo nao aparece na nota); termo-definido-inline: tabela hash (o termo nao aparece na nota)
 
 ### Expansões de trecho (C12 ampliada)
 
-| Expansoes oferecidas | 41 |
-| Aceitas na ancora | 40 (97.6%) |
-| Recusadas pelas checagens | 1 |
+| Expansoes oferecidas | 47 |
+| Aceitas na ancora | 44 (93.6%) |
+| Recusadas pelas checagens | 3 |
 | Casos medidos | 23 de 23 |
 
 _A expansao nao tem ground truth. O numero acima mede a ancora, nao a qualidade do texto._
@@ -93,11 +100,11 @@ de cada grupo, somada, dá o ECE.
 
 | Confiança | Casos | Acertou | Disse que ia acertar | Diferença |
 | --- | ---: | ---: | ---: | ---: |
-| 0.5–0.6 | 4 | 75.0% | 54.0% | 21.0% |
-| 0.6–0.7 | 2 | 50.0% | 63.0% | 13.0% |
-| 0.7–0.8 | 1 | 100.0% | 75.0% | 25.0% |
-| 0.8–0.9 | 6 | 100.0% | 85.5% | 14.5% |
-| 0.9–1.0 | 10 | 100.0% | 94.6% | 5.4% |
+| 0.5–0.6 | 3 | 33.3% | 54.7% | 21.3% |
+| 0.6–0.7 | 3 | 100.0% | 61.0% | 39.0% |
+| 0.7–0.8 | 1 | 100.0% | 73.0% | 27.0% |
+| 0.8–0.9 | 5 | 100.0% | 85.6% | 14.4% |
+| 0.9–1.0 | 11 | 100.0% | 94.1% | 5.9% |
 
 ## Comparação lado a lado
 
@@ -110,10 +117,10 @@ de cada grupo, somada, dá o ECE.
 | Casos pontuados na métrica | 23 | 18 |
 | Acurácia | 91.3% | 61.1% |
 | Risco | 8.7% | 38.9% |
-| ECE | 0.120 | 0.611 |
-| Brier | 0.0542 | — |
-| Latência p50 | 0 ms | 10289 ms |
-| Latência p95 | 0 ms | 15563 ms |
+| ECE | 0.150 | 0.611 |
+| Brier | 0.0512 | — |
+| Latência p50 | 0 ms | 8565 ms |
+| Latência p95 | 0 ms | 20274 ms |
 | Custo total | US$ 0.000000 | US$ 0.000000 |
 
 > O **ECE do legado é 0.611** porque o
@@ -127,29 +134,29 @@ de cada grupo, somada, dá o ECE.
 
 | Caso | Esperado | Previsto | | Confiança | Distribuição |
 | --- | --- | --- | :-: | ---: | --- |
-| `ciclo-calvin` | ready | ready | ✓ | 0.750 | ambiguous 25%, insufficient 0%, ready 75% |
+| `ciclo-calvin` | ready | ready | ✓ | 0.730 | ambiguous 27%, insufficient 0%, ready 73% |
 | `somente-titulos` | insufficient | insufficient | ✓ | 0.990 | ambiguous 1%, insufficient 99%, ready 0% |
-| `contradicao-fotossintese` | ambiguous | ambiguous | ✓ | 0.890 | ambiguous 89%, insufficient 0%, ready 11% |
-| `termodinamica` | ready | ambiguous | ✗ | 0.600 | ambiguous 60%, insufficient 3%, ready 37% |
-| `bases-de-dados` | ready | ready | ✓ | 0.900 | ambiguous 10%, insufficient 0%, ready 90% |
-| `sistema-imunologico-limite` | insufficient | insufficient | ✓ | 0.920 | ambiguous 7%, insufficient 92%, ready 1% |
-| `contradicao-estroma` | ambiguous | ambiguous | ✓ | 0.960 | ambiguous 96%, insufficient 0%, ready 4% |
-| `referencia-indefinida` | ambiguous | ambiguous | ✓ | 0.880 | ambiguous 88%, insufficient 1%, ready 11% |
-| `passa-baixa-fronteira` | ambiguous | ambiguous | ✓ | 0.530 | ambiguous 53%, insufficient 1%, ready 46% |
-| `termo-definido-inline` | ready | ready | ✓ | 0.920 | ambiguous 7%, insufficient 1%, ready 92% |
-| `somente-listas` | insufficient | insufficient | ✓ | 0.520 | ambiguous 44%, insufficient 52%, ready 4% |
+| `contradicao-fotossintese` | ambiguous | ambiguous | ✓ | 0.900 | ambiguous 90%, insufficient 0%, ready 10% |
+| `termodinamica` | ready | ambiguous | ✗ | 0.560 | ambiguous 56%, insufficient 3%, ready 41% |
+| `bases-de-dados` | ready | ready | ✓ | 0.910 | ambiguous 9%, insufficient 0%, ready 91% |
+| `sistema-imunologico-limite` | insufficient | insufficient | ✓ | 0.940 | ambiguous 6%, insufficient 94%, ready 0% |
+| `contradicao-estroma` | ambiguous | ambiguous | ✓ | 0.970 | ambiguous 97%, insufficient 0%, ready 3% |
+| `referencia-indefinida` | ambiguous | ambiguous | ✓ | 0.840 | ambiguous 84%, insufficient 1%, ready 15% |
+| `passa-baixa-fronteira` | ambiguous | ambiguous | ✓ | 0.600 | ambiguous 60%, insufficient 1%, ready 39% |
+| `termo-definido-inline` | ready | ready | ✓ | 0.900 | ambiguous 9%, insufficient 1%, ready 90% |
+| `somente-listas` | insufficient | insufficient | ✓ | 0.530 | ambiguous 42%, insufficient 53%, ready 5% |
 | `contexto-implicito` | ready | ready | ✓ | 0.980 | ambiguous 2%, insufficient 0%, ready 98% |
 | `contradicao-quantidade` | ambiguous | ambiguous | ✓ | 0.980 | ambiguous 98%, insufficient 0%, ready 2% |
-| `promessa-vazia` | ready | ready | ✓ | 0.590 | ambiguous 37%, insufficient 4%, ready 59% |
-| `termo-sem-definicao` | ambiguous | ambiguous | ✓ | 0.830 | ambiguous 83%, insufficient 1%, ready 16% |
-| `duas-afirmacoes` | ready | ready | ✓ | 0.950 | ambiguous 2%, insufficient 3%, ready 95% |
-| `contradicao-maior` | ready | ready | ✓ | 0.800 | ambiguous 8%, insufficient 12%, ready 80% |
-| `sem-sujeito` | insufficient | insufficient | ✓ | 0.660 | ambiguous 32%, insufficient 66%, ready 2% |
+| `promessa-vazia` | ready | ready | ✓ | 0.600 | ambiguous 37%, insufficient 3%, ready 60% |
+| `termo-sem-definicao` | ambiguous | ambiguous | ✓ | 0.850 | ambiguous 85%, insufficient 1%, ready 14% |
+| `duas-afirmacoes` | ready | ready | ✓ | 0.940 | ambiguous 2%, insufficient 4%, ready 94% |
+| `contradicao-maior` | ready | ready | ✓ | 0.870 | ambiguous 6%, insufficient 7%, ready 87% |
+| `sem-sujeito` | insufficient | insufficient | ✓ | 0.630 | ambiguous 34%, insufficient 63%, ready 3% |
 | `apenas-imagens` | insufficient | insufficient | ✓ | 0.920 | ambiguous 8%, insufficient 92%, ready 0% |
-| `lista-com-conteudo` | insufficient | ambiguous | ✗ | 0.520 | ambiguous 36%, insufficient 12%, ready 52% |
-| `conceito-isolado` | ready | ready | ✓ | 0.940 | ambiguous 2%, insufficient 4%, ready 94% |
-| `contrato-implicito` | ready | ready | ✓ | 0.850 | ambiguous 3%, insufficient 12%, ready 85% |
-| `exemplo-numerico` | ready | ready | ✓ | 0.880 | ambiguous 11%, insufficient 1%, ready 88% |
+| `lista-com-conteudo` | insufficient | ready | ✗ | 0.550 | ambiguous 33%, insufficient 12%, ready 55% |
+| `conceito-isolado` | ready | ready | ✓ | 0.920 | ambiguous 3%, insufficient 5%, ready 92% |
+| `contrato-implicito` | ready | ready | ✓ | 0.830 | ambiguous 4%, insufficient 13%, ready 83% |
+| `exemplo-numerico` | ready | ready | ✓ | 0.890 | ambiguous 10%, insufficient 1%, ready 89% |
 
 ## Caso a caso (baseline)
 
@@ -178,12 +185,12 @@ de cada grupo, somada, dá o ECE.
 
 | Limiar | Pontuados | Acurácia | Risco | Abstention | ECE | Brier | Conf. média |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0.00 | 23 de 23 | 91.3% | 8.7% | 0.0% | 0.120 | 0.0542 | 0.816 |
-| 0.30 | 23 de 23 | 91.3% | 8.7% | 0.0% | 0.120 | 0.0542 | 0.816 |
-| 0.50 | 23 de 23 | 91.3% | 8.7% | 0.0% | 0.120 | 0.0542 | 0.816 |
-| 0.70 | 17 de 23 | 100.0% | 0.0% | 26.1% | 0.120 | 0.0542 | 0.902 |
-| 0.85 | 14 de 23 | 100.0% | 0.0% | 39.1% | 0.120 | 0.0542 | 0.926 |
-| 1.10 | 0 de 23 | — | — | 100.0% | 0.120 | 0.0542 | — |
+| 0.00 | 23 de 23 | 91.3% | 8.7% | 0.0% | 0.150 | 0.0512 | 0.819 |
+| 0.30 | 23 de 23 | 91.3% | 8.7% | 0.0% | 0.150 | 0.0512 | 0.819 |
+| 0.50 | 23 de 23 | 91.3% | 8.7% | 0.0% | 0.150 | 0.0512 | 0.819 |
+| 0.70 | 17 de 23 | 100.0% | 0.0% | 26.1% | 0.150 | 0.0512 | 0.904 |
+| 0.85 | 14 de 23 | 100.0% | 0.0% | 39.1% | 0.150 | 0.0512 | 0.926 |
+| 1.10 | 0 de 23 | — | — | 100.0% | 0.150 | 0.0512 | — |
 
 ## Fronteira de cobertura (candidato)
 
@@ -197,7 +204,7 @@ de cada grupo, somada, dá o ECE.
 | 0.30 | 100.0% | 91.3% |
 | 0.35 | 100.0% | 91.3% |
 | 0.40 | 100.0% | 91.3% |
-| 0.55 | 87.0% | 95.0% |
+| 0.55 | 95.7% | 90.9% |
 | 0.60 | 78.3% | 100.0% |
 | 0.70 | 73.9% | 100.0% |
 | 0.80 | 69.6% | 100.0% |
