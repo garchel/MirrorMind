@@ -2050,6 +2050,7 @@ function App() {
       endUtf16: suggestion.startUtf16,
       insert: `\n\n${suggestion.definition.trim()}\n\n`,
       message: `Definicao de ${suggestion.term}`,
+      ops: null,
     }
     const nextContent = applyStructuralAuditEdit(draftContent, edit)
     if (nextContent === null) {

@@ -99,6 +99,7 @@ const improvementReportSchema = z.object({
   expansions: z.array(improvementExpansionSchema).max(20),
   suggestions: z.array(improvementSuggestionSchema).max(20),
   rejected: z.number().int().nonnegative(),
+  alreadyKnown: z.array(z.string().min(1)).max(200),
   invalid: z.boolean(),
 }).strict()
 
@@ -107,21 +108,32 @@ export type NoteImprovementSuggestion = z.infer<typeof improvementSuggestionSche
 export type NoteImprovementReport = z.infer<typeof improvementReportSchema>
 
 /**
+ * O que o usuario pediu ao painel.
+ *
+ * As duas tarefas tem botoes proprios: "Completar nota" expande os trechos
+ * apressados, e "Sugerir definicoes" busca os termos que faltam. Uma chamada
+ * por vez mantem o pedido pequeno e o resultado legivel.
+ */
+export type ImprovementScope = 'expansions' | 'definitions' | 'both'
+
+/**
  * Pede sugestoes de melhoria para a nota.
  *
- * O provider generativo propoe (expansoes e definicoes) e o motor
- * calibrado confirma as definicoes. A estrategia do Vault decide se o motor
- * calibrado participa.
+ * O provider generativo propoe e o motor calibrado confirma as definicoes. A
+ * estrategia do Vault decide se o motor calibrado participa. O `scope` escolhe
+ * qual das duas tarefas roda.
  */
 export async function proposeNoteImprovements(
   vaultPath: string,
   relativePath: string,
   provider: ReviewAiProvider,
+  scope: ImprovementScope,
 ): Promise<NoteImprovementReport> {
   const payload = await invoke('propose_note_improvements', {
     path: vaultPath,
     relativePath,
     provider,
+    scope,
   })
   return improvementReportSchema.parse(payload)
 }
