@@ -3550,9 +3550,10 @@ com `reviewer: "human"` — o que o agente achou nao vira ground truth sozinho.
 A atualizacao e por cartao, nao por lista inteira, para nao perder o foco de
 quem navega por teclado; a observacao livre e salva sem redesenhar nada.
 
-O relatorio **nao guarda o texto da definicao proposta**, so o termo - por isso
-a pagina nao mostra o que o motor escreveria. Guardar esse texto e o proximo
-passo do harness: sem ele, a revisao julga o termo, nao a definicao.
+Na epoca, o relatorio nao guardava o texto da definicao proposta, so o termo -
+por isso a pagina nao mostrava o que o motor escreveria. A partir da rodada 5 o
+relatorio carrega `acceptedTerms` com o termo **e o texto** (implementado na
+§15.43); a pagina passa a mostrar os dois no mesmo cartao.
 
 ### 15.42 A revisao humana chegou: 13 de 15, e o gabarito vai a 54 termos
 
@@ -3604,8 +3605,9 @@ de forma sistematica, mas os 3 erros mostram que a fronteira existe.
 1. **Confirmar a remografia com chamadas reais.** A rodada 4 e a primeira com
    o gabarito de 54 termos e com a nota `contradicao-estroma` limpa; e ela que
    transforma a projecao em medida.
-2. **Guardar o texto da definicao proposta.** Sem ele, a revisao julga o
-   termo, nao a definicao - e a qualidade textual continua sem ground truth.
+2. **Guardar o texto da definicao proposta** - feito na §15.43. O relatorio
+   passa a carregar `acceptedTerms`; a revisao pode julgar o texto, nao so o
+   termo.
 3. **O prompt do redator**, agora sim: enumerar termos em vez de pre-julgar
    quais merecem definicao, e remover a instrucao "e melhor nao sugerir nada
    do que sugerir coisa errada" - ela empurra o modelo para o silencio, e o
@@ -3614,5 +3616,107 @@ de forma sistematica, mas os 3 erros mostram que a fronteira existe.
 O alvo "47 de 47" esta encerrado como criterio. A partir daqui o conjunto
 mede duas coisas separadas: **concordancia com a lista revisada** e
 **defensabilidade do que o motor aceitou**.
+
+### 15.43 Rodada 4: o prompt fala mais e acerta quase igual
+
+A rodada 4 e a primeira com o gabarito de 54 termos, com a nota
+`contradicao-estroma` limpa e com o prompt que enumera candidatos antes de
+julgar. O harness a publicou como baseline: run `1793027470`, 23 de 23 casos
+pontuados. A primeira tentativa (`incomplete-1793025884`) caiu num caso com
+resposta fora do contrato da TypeSafe e ficou arquivada, nao publicada.
+
+| Medida | Rodada 3 (47 termos) | Rodada 3 relida (54) | Rodada 4 (54) |
+| --- | ---: | ---: | ---: |
+| Recall exato | 19/47 (40,4%) | 26/54 (48,1%) | **27/54 (50,0%)** |
+| Recall tolerante | 21/47 (44,7%) | 28/54 (51,9%) | **31/54 (57,4%)** |
+| Extras exatos | 15 | 8 | **15** |
+| Extras tolerantes | 13 | 6 | **11** |
+| ECE pior | 0,153 | - | **0,120** |
+| Prontidao | 21/23 (91,3%) | - | 21/23 (91,3%), 23 pontuados |
+
+O funil: 67 oferecidas (47 + 20 na cobertura), 1 repetida, 12 recusadas pelo
+filtro, 54 ao motor, 12 recusadas por ele, **42 aceitas**. Comparado a rodada 3
+relida (34 aceitas), o prompt novo comprou **+1 termo exato e +3 tolerantes** e
+trouxe **+7 aceitas fora da lista**.
+
+O veredito honesto: a enumeracao aumentou o volume e quase nao mudou o acerto.
+Isso **nao** quer dizer que os 7 extras sao ruido - a revisao dos 15 anteriores
+mostrou que 7 eram gabarito incompleto -, mas a proporcao piorou. A decisao
+sobre manter a parte do prompt que diz "nao pule um termo que o leitor ja
+conhece" fica para depois da revisao dos 15 extras desta rodada. A remocao do
+"melhor nao sugerir nada" fica: ela nao empurra volume, so tira o incentivo ao
+silencio.
+
+#### Onde os 27 ausentes morreram
+
+O diagnostico usa o proprio relatorio (os nomes recusados ja estavam la) e
+separa o que antes era um numero unico:
+
+| Etapa | Termos | Exemplos |
+| --- | ---: | --- |
+| Nunca proposto | **18** | `estroma` (3 casos), `ATP`/`NADPH` (2 casos), `sistema isolado`, `Tabelas hash` |
+| Recusado pelo motor | **3** | `teorema CAP`, `fotofosforilacao`, `pepsina` |
+| Recusado pelo filtro | **2** | `rubisco` (citacao), `pH` (curto demais) |
+| Variacao de nome | **4** | `adiabatico`, `capacidade de suporte do meio`, `enzima rubisco`, `macroscopico` |
+
+Os 4 ultimos ja entram no recall tolerante. Dos 23 restantes, **18 nunca
+chegaram a ser oferecidos**: o gargalo e geracao, nao julgamento. Dois dos
+cinco que morreram depois da geracao eram **bug do filtro**, encontrados por
+este diagnostico:
+
+- `rubisco` foi recusado porque a nota tem `rubisco,` com virgula. A ancora
+  comparava palavra a palavra sem tirar a pontuacao, entao o termo nao casava
+  nem com a linha onde ele proprio estava;
+- `pH` foi recusado por "curto demais": a regra contava bytes e exigia 3
+  caracteres. `pH` tem 2, e e notacao quimica, nao ruido.
+
+#### O que entrou no codigo
+
+- **filtro de proposicao**: `energia se conserva` e a afirmacao da nota, nao um
+  termo. Pronome/conectivo e teto de 6 palavras recusam a frase; `pH`,
+  `capacidade de suporte do meio` e `teorema CAP` continuam passando;
+- **dedup por conhecimento**: `energia` e `energia se conserva` (ou `estroma` e
+  `estroma dos cloroplastos`) viram uma proposta so. Prefixo/sufixo com piso de
+  5 caracteres, a mesma regra da metrica, mas aplicada na entrada;
+- **ancora ignora pontuacao**: `rubisco,` casa com `rubisco`;
+- **termo de 2 caracteres com maiuscula passa**: `pH` entra, `de` continua fora;
+- **o relatorio guarda o texto**: `acceptedTerms` traz caso, termo, definicao e
+  se casou com o esperado. A revisao passa a julgar a definicao, nao so o termo;
+- **funil classifica os ausentes**: `missedTerms` (e os quatro contadores) dizem
+  em que etapa cada termo morreu. Na rodada 4 a classificacao veio do script
+  porque o binario era anterior a instrumentacao; da rodada 5 em diante ela sai
+  do proprio harness.
+
+#### A revisao dos ausentes
+
+`docs/jev-missed-review.html` (gerado por `node scripts/missed-review-page.mjs`)
+mostra os 27 termos um por um, com a frase onde aparecem, a etapa em que
+morreram e o gabarito do caso. As perguntas sao ao contrario da revisao dos
+extras:
+
+- **Precisa** - o motor errou; o gabarito esta certo;
+- **Nao precisa** - o gabarito exigiu demais; o termo sai
+  (`scripts/apply-missed-review.mjs`);
+- **E variante** - o motor achou com outro nome; a metrica resolve.
+
+Sem essa revisao, "50%" continua sendo concordancia com uma lista que pode
+estar cobrando demais. Foi o que a revisao dos extras mostrou: a lista era
+amostra, nao censo.
+
+#### ECE: ainda no gate
+
+O pior ECE caiu de 0,153 para 0,120, mas o limite e 0,10. Nao mexi em
+temperatura: o ganho dela nao reproduziu na rodada 3, e perseguir o numero com
+um ajuste instavel seria calibrar o relatorio, nao o motor. O caminho e mais
+casos (23 ainda e pouco para ECE estavel) e analise por faixa; enquanto isso, a
+UI continua sem mostrar confianca - que e o comportamento correto.
+
+#### Proximo passo
+
+1. Revisar os 27 ausentes na pagina e aplicar os `nao precisa`.
+2. Rodada 5 com os quatro consertos deterministicos (ancora, pH, frase, dedup)
+   e o gabarito possivelmente menor.
+3. Decidir o prompt pela proporcao de extras legitimos, nao pelo volume.
+4. Crescer o conjunto para 30 casos e ligar `extract_factual_claims`.
 
 
