@@ -1,3 +1,4 @@
+use super::calibrated::proposals::ImprovementScope;
 use super::calibrated::typesafe::TYPESAFE_ENDPOINT;
 use super::calibrated::{CalibratedProvider, TypeSafeProvider};
 use super::calibration::{load_calibration_config, set_calibration_strategy, CalibrationStrategy};
@@ -331,7 +332,7 @@ pub struct CalibrationConfiguration {
     /// Consentimento de egresso concedido no dialogo do sistema operacional.
     pub typesafe_consent: bool,
     /// O harness de F1 ja validou a calibracao? Enquanto `false`, a UI nao
-    /// exibe numeros de confianca — numero nao validado e teatro, e theater
+    /// exibe numeros de confianca - numero nao validado e teatro, e theater
     /// exibido como verdade e pior que a ausencia dele.
     pub calibration_validated: bool,
     /// Endpoint, so para a UI mostrar a quem os dados saem. Nao configuravel.
@@ -388,7 +389,7 @@ pub(crate) fn get_calibration_configuration(
 /// Sem isto, `vault_root` seria um caminho arbitrário vindo da interface: os
 /// comandos abaixo gravam e leem `.mirmind/` a partir dele, e uma interface
 /// comprometida conseguiria escrever um arquivo de configuração fora do Vault
-/// autorizado — ou ler um `.mirmind/review-calibration.json` de um Vault que o
+/// autorizado - ou ler um `.mirmind/review-calibration.json` de um Vault que o
 /// usuário não abriu.
 ///
 /// Os outros 38 pontos deste arquivo já faziam isso; estes três foram escritos
@@ -463,7 +464,7 @@ pub(crate) fn set_calibration_strategy_for_vault(
 /// construir o cliente, para que a chave existir no cofre nunca seja tratada
 /// como autorização de envio.
 ///
-/// `Ok(None)` quando a estratégia é `off` — nenhum outro caminho chama
+/// `Ok(None)` quando a estratégia é `off` - nenhum outro caminho chama
 /// `CalibratedProvider`, e um cliente HTTP a mais seria recurso gasto sem uso.
 pub(crate) fn calibrated_provider_for(
     strategy: CalibrationStrategy,
@@ -749,7 +750,7 @@ pub async fn run_provider_comparability() -> Result<DivergenceReport, String> {
 /// O caminho e escolhido pela estrategia do Vault: em `off` roda o legado
 /// intacto; em `jev` extrai as afirmacoes com o provider generativo e
 /// classifica com o motor calibrado. A reserva de orcamento acontece uma vez
-/// por caminho — no calibrado, a extracao e a classificacao sao duas chamadas
+/// por caminho - no calibrado, a extracao e a classificacao sao duas chamadas
 /// de motores diferentes e por isso custam como duas.
 #[tauri::command]
 pub(crate) async fn verify_note_facts(
@@ -863,7 +864,7 @@ pub struct CalibrationComparison {
     pub divergence_rate: Option<f64>,
     /// As divergencias, mais recentes primeiro.
     pub recent: Vec<CalibrationDivergence>,
-    /// `true` quando o modo `Dual` esta ligado — o que e a condicao para o
+    /// `true` quando o modo `Dual` esta ligado - o que e a condicao para o
     /// sidecar existir.
     pub collecting: bool,
 }
@@ -1015,6 +1016,10 @@ pub struct NoteImprovementReport {
     /// O numero e diagnostico: se quase tudo e recusado, o provider esta
     /// propondo mal; se quase nada e recusado, o filtro nao esta filtrando.
     pub rejected: usize,
+    /// Termos que o dicionario do Vault ja explica e por isso nao viraram
+    /// sugestao. Fica separado de `rejected` porque nao e proposta ruim: e
+    /// proposta desnecessaria.
+    pub already_known: Vec<String>,
     /// `true` quando o provider nao respondeu no contrato.
     pub invalid: bool,
 }
@@ -1035,6 +1040,7 @@ pub(crate) async fn propose_note_improvements(
     path: String,
     relative_path: String,
     provider: AiProviderSelection,
+    scope: super::calibrated::proposals::ImprovementScope,
     authorized_paths: State<'_, crate::AuthorizedPaths>,
 ) -> Result<NoteImprovementReport, String> {
     let root =
@@ -1054,15 +1060,34 @@ pub(crate) async fn propose_note_improvements(
             .map_err(|error| error.to_string())?
             .strategy;
 
+        // O dicionario do Vault entra no pedido: o que ja tem verbete nao
+        // precisa de sugestao. Um dicionario ilegivel nao pode derrubar a
+        // sugestao - o filtro deterministico continua valendo, so sem a lista.
+        let known_terms: Vec<String> = if scope == ImprovementScope::Expansions {
+            Vec::new()
+        } else {
+            crate::dictionary::load_dictionary(&root)
+                .unwrap_or_default()
+                .entries
+                .into_iter()
+                .map(|entry| entry.term)
+                .collect()
+        };
+
         // 1. O provider generativo propoe.
-        let outcome =
-            super::calibrated::proposals::propose_improvements(provider.as_ref(), &markdown)
-                .map_err(|failure| failure.message)?;
+        let outcome = super::calibrated::proposals::propose_improvements(
+            provider.as_ref(),
+            &markdown,
+            scope,
+            &known_terms,
+        )
+        .map_err(|failure| failure.message)?;
         if outcome.invalid {
             return Ok(NoteImprovementReport {
                 expansions: Vec::new(),
                 suggestions: Vec::new(),
                 rejected: outcome.rejected.len(),
+                already_known: outcome.already_known,
                 invalid: true,
             });
         }
@@ -1121,6 +1146,7 @@ pub(crate) async fn propose_note_improvements(
             expansions,
             suggestions,
             rejected: outcome.rejected.len(),
+            already_known: outcome.already_known,
             invalid: false,
         })
     })
@@ -1181,7 +1207,7 @@ pub(crate) async fn assess_note_synthesis(
         // equivalentes, entao "concordar" nao e o mesmo que "errar junto".
         //
         // Contra a revisao independente (19 casos, `golden-review-gemini.json`),
-        // o legado acerta 23 de 32 dimensoes e o JEV 19 de 32 — o legado erra
+        // o legado acerta 23 de 32 dimensoes e o JEV 19 de 32 - o legado erra
         // menos, sobretudo em `application` (6/8 contra 3/8). Trocar a sintese
         // para o JEV pioraria o que o usuario ve.
         //
@@ -1281,7 +1307,7 @@ pub(crate) async fn assess_note_readiness(
         let now = current_unix_ms().map_err(|error| error.to_string())?;
         // O trecho calibrado vive em `calibrated::dispatch` para ser testavel
         // de ponta a ponta. Um caminho de producao sem teste e o tipo de
-        // coisa que esconde um bug ate o usuario avaliar a primeira nota — a
+        // coisa que esconde um bug ate o usuario avaliar a primeira nota - a
         // sintese esteve quebrada assim.
         let assessment = super::calibrated::dispatch::assess_with_calibration(
             super::calibrated::dispatch::CalibratedInput {
@@ -1314,7 +1340,7 @@ pub(crate) async fn assess_note_readiness(
 
 /// Auditoria estrutural deterministica da nota (sem IA): usa a regra de
 /// segmentacao por secoes para propor melhorias de estrutura que encaixem a
-/// nota na categorizacao de revisao. Leitura pura — nao altera nada.
+/// nota na categorizacao de revisao. Leitura pura - nao altera nada.
 #[tauri::command]
 pub(crate) async fn audit_note_structure(
     path: String,
@@ -1421,7 +1447,7 @@ pub(crate) async fn start_note_review_session(
 /// Plano estimado de uma sessao antes de iniciar: quantas unidades serao
 /// cobertas, a fracao da nota, a duracao estimada e quantas sessoes seriam
 /// necessarias para cobrir tudo com o orcamento atual. Deterministico e sem
-/// IA — usa exatamente a mesma selecao de cobertura da sessao real, entao o
+/// IA - usa exatamente a mesma selecao de cobertura da sessao real, entao o
 /// que o usuario ve na preparacao e o que a sessao executara.
 #[tauri::command]
 pub(crate) async fn preview_review_session_plan(
@@ -1507,7 +1533,7 @@ pub(crate) async fn continue_note_review_conversation(
         // A conversa continua com o subset das unidades-alvo (cobertura
         // adaptativa), para os turnos nunca sairem do escopo da sessao.
         //
-        // C6: com motor calibrado, sao ate DUAS chamadas neste caminho — a
+        // C6: com motor calibrado, sao ate DUAS chamadas neste caminho - a
         // decisao de encerrar e a pergunta. Isso encarece o turno mais sensivel
         // de latencia da UX, entao a reserva de orcamento e feita duas vezes e
         // o caminho sem JEV continua sendo exatamente o legado.
@@ -1971,7 +1997,7 @@ pub(crate) async fn export_unrecoverable_learning_document(
     .map_err(|_| "Nao foi possivel exportar o arquivo irrecuperavel.".to_string())?
 }
 
-/// Isola (quarentena) o documento irrecuperavel — principal e backups — para
+/// Isola (quarentena) o documento irrecuperavel - principal e backups - para
 /// que a nota possa ser reavaliada e o aprendizado recomecar do zero. Deve ser
 /// usado somente depois que o usuario exportou o arquivo.
 #[tauri::command]

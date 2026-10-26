@@ -1,4 +1,4 @@
-//! C12 — "Melhorar a nota": diagnostico semantico com ancora propria.
+//! C12 - "Melhorar a nota": diagnostico semantico com ancora propria.
 //!
 //! ## O que resolve
 //!
@@ -40,13 +40,13 @@
 //!   0,82).
 //!
 //! **A pergunta binária não discrimina.** Em qualquer nota técnica algum termo
-//! é usado sem definição inline — é o que faz a nota ser técnica. "Sim" é a
+//! é usado sem definição inline - é o que faz a nota ser técnica. "Sim" é a
 //! resposta padrão, e a confiança não separa os casos certos dos errados
 //! (0,98 no caso certo e 0,90 no caso errado).
 //!
 //! ## O que a limitação revela
 //!
-//! O `ChoiceAnswer` da API é `{type, choice, confidence, probabilities}` —
+//! O `ChoiceAnswer` da API é `{type, choice, confidence, probabilities}` -
 //! **não há texto livre**. O motor sabe *que* algo falta, mas não *o quê* nem
 //! *por quê*. E uma pergunta que não pode pedir o defeito específico não
 //! discrimina.
@@ -82,7 +82,7 @@ pub struct DefinitionCandidate {
 ///
 /// ## O motor **nao** diz qual termo falta
 ///
-/// O `ChoiceAnswer` da API e `{type, choice, confidence, probabilities}` — nao
+/// O `ChoiceAnswer` da API e `{type, choice, confidence, probabilities}` - nao
 /// ha campo de texto livre. O motor sabe **que** a secao precisa de uma
 /// definicao e **quao confiante** esta, mas nao sabe **qual** termo e nem
 /// **por que**. Isso vem do provider generativo, que le a secao e escreve o
@@ -153,7 +153,7 @@ pub fn definition_candidates(
     }
     // Nota curta demais para ser segmentada: e uma unica unidade, e a
     // definicao que falta pode estar em qualquer parte dela. Sem este
-    // fallback, as notas curtas — que sao a maioria do conjunto — nunca
+    // fallback, as notas curtas - que sao a maioria do conjunto - nunca
     // seriam examinadas.
     if markdown.trim().is_empty() {
         return Vec::new();
@@ -208,7 +208,7 @@ pub struct ProposalProblem {
 ///
 /// Nenhuma delas usa modelo: sao o filtro barato que vem antes da chamada
 /// cara. Cada uma existe porque um falso positivo aqui vira uma sugestão
-/// irrelevante na tela — e suggestions irrelevantes fazem o usuario parar de
+/// irrelevante na tela - e suggestions irrelevantes fazem o usuario parar de
 /// ler as Suggestions.
 pub fn validate_proposal(
     markdown: &str,
@@ -258,7 +258,7 @@ pub fn validate_proposal(
         });
     }
     // O termo precisa aparecer na nota, e **antes** de onde a definicao sera
-    // inserida — senao a definicao chega depois do uso.
+    // inserida - senao a definicao chega depois do uso.
     let first_use = first_use_offset(markdown, term);
     let Some(first_use) = first_use else {
         return Err(ProposalProblem {
@@ -412,7 +412,7 @@ const MAX_TERM_WORDS: usize = 6;
 /// `energia se conserva` foi aceito e virou sugestao irrelevante: o leitor nao
 /// precisa que alguem defina "energia se conserva", porque isso e a propria
 /// afirmacao da nota. Verbo conjugado nao da para detectar sem analise
-/// morfologica, mas pronome e conectivo dao — e cobrem o caso real medido.
+/// morfologica, mas pronome e conectivo dao - e cobrem o caso real medido.
 const PHRASE_MARKERS: [&str; 6] = [
     " se ", " que ", " isso ", " quando ", " porque ", " existe ",
 ];
@@ -420,8 +420,8 @@ const PHRASE_MARKERS: [&str; 6] = [
 /// O termo e curto demais para ser um termo?
 ///
 /// Dois caracteres so passam quando ha maiuscula: `pH` e notacao quimica, `de`
-/// e palavra funcional. A regra antiga contava bytes e recusava `pH` — um
-/// termo do gabarito — com a mensagem de "curto demais".
+/// e palavra funcional. A regra antiga contava bytes e recusava `pH` - um
+/// termo do gabarito - com a mensagem de "curto demais".
 fn is_too_short_to_be_a_term(term: &str) -> bool {
     match term.chars().count() {
         0 | 1 => true,
@@ -496,17 +496,23 @@ fn definition_question_id(index: usize) -> String {
 }
 
 /// Pergunta se um termo nomeado e mesmo uma premissa sem definicao.
+///
+/// O alvo e o leitor **que nao conhece o assunto**: a definicao ajuda quem
+/// chegou na nota sem saber o tema. Por isso o criterio nao e "um leitor da
+/// materia ja saberia", que era restritivo demais - e que rejeitava termos que
+/// o dicionario do Vault deveria registrar. A unica recusa dura e a nota ja
+/// definir o termo antes do primeiro uso.
 fn proposal_question(proposal: &DefinitionProposal) -> QuestionSpec {
     super::questions::rotate_question_options(
         QuestionSpec::Choice {
             instructions: instructions_object(
                 &format!(
-                    "Na nota abaixo, o termo `{term}` e usado como premissa **sem que a \
-                     nota o defina antes**? Isto e: um leitor que so tem este texto \
-                     precisaria saber o que e `{term}` para aproveitar a secao?\n\
-                     Se a nota define `{term}` em algum momento antes de usa-lo, ou se \
-                     `{term}` nao precisa ser definido para a secao fazer sentido, a \
-                     resposta e `no`.",
+                    "Um leitor que **nao conhece o assunto** da nota precisa saber o que \
+                     e `{term}` para acompanhar este texto? Responda `yes` quando a \
+                     definicao ajudaria esse leitor, mesmo que o termo pareca basico para \
+                     quem ja estudou o assunto. Responda `no` somente quando a propria \
+                     nota ja define `{term}` antes do primeiro uso, ou quando `{term}` e o \
+                     assunto da nota e nao uma premissa lateral.",
                     term = proposal.term,
                 ),
                 &json!({
@@ -514,10 +520,13 @@ fn proposal_question(proposal: &DefinitionProposal) -> QuestionSpec {
                 }),
             ),
             options: options_from_pairs([
-                ("no", "Nao: o termo nao e uma premissa sem definicao."),
+                (
+                    "no",
+                    "Nao: a nota ja define o termo, ou ele e o assunto da nota.",
+                ),
                 (
                     "yes",
-                    "Sim: o termo e usado como premissa e a nota nao o define antes.",
+                    "Sim: a definicao ajuda um leitor que nao conhece o assunto.",
                 ),
             ]),
         },
@@ -712,7 +721,7 @@ mod tests {
     #[test]
     fn um_termo_de_varias_palavras_encontra_a_primeira_ocorrencia() {
         // A primeira versao comparava uma unica palavra contra o termo
-        // inteiro, e recusava todo termo com mais de uma palavra — o que
+        // inteiro, e recusava todo termo com mais de uma palavra - o que
         // descartava "fase clara", "pH otimo" e "sistema isolado", que sao
         // exatamente os termos que precisavam de definicao.
         let note = "A fixacao ocorre no estroma.\n\nA fase clara captura a luz.";

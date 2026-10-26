@@ -25,7 +25,7 @@ use mirrormind_lib::review::calibrated::eval::golden::{
 use mirrormind_lib::review::calibrated::eval::metrics::{Prediction, ScoredCase};
 use mirrormind_lib::review::calibrated::eval::{ComparisonReport, DEFAULT_THRESHOLDS};
 use mirrormind_lib::review::calibrated::improvements::confirm_definition_proposals;
-use mirrormind_lib::review::calibrated::proposals::propose_improvements;
+use mirrormind_lib::review::calibrated::proposals::{propose_improvements, ImprovementScope};
 use mirrormind_lib::review::calibrated::questions::{
     instructions, options_from_pairs, QuestionSpec,
 };
@@ -700,15 +700,16 @@ fn measure_improvements(
         }
 
         let markdown = note_of(&case.note);
-        let proposals = match propose_improvements(legacy_provider, &markdown) {
-            Ok(outcome) => outcome,
-            Err(failure) => {
-                let message = format!("{}: {}", case.id, failure.message);
-                measurement.definitions.failures.push(message.clone());
-                measurement.expansions.failures.push(message);
-                continue;
-            }
-        };
+        let proposals =
+            match propose_improvements(legacy_provider, &markdown, ImprovementScope::Both, &[]) {
+                Ok(outcome) => outcome,
+                Err(failure) => {
+                    let message = format!("{}: {}", case.id, failure.message);
+                    measurement.definitions.failures.push(message.clone());
+                    measurement.expansions.failures.push(message);
+                    continue;
+                }
+            };
         // O funil das expansoes vale para **todo** caso com proposta.
         measurement.expansions.cases_measured += 1;
         measurement.expansions.raw_expansions += proposals.raw_expansions;

@@ -118,7 +118,12 @@ impl Dictionary {
                 entry.concept.chars().count()
             );
         }
-        if self.entries.len() >= MAX_ENTRIES && !self.entries.iter().any(|item| item.key() == key) {
+        if self.entries.len() >= MAX_ENTRIES
+            && !self
+                .entries
+                .iter()
+                .any(|item| same_knowledge(&item.term, &entry.term))
+        {
             anyhow::bail!("O dicionario ja tem {MAX_ENTRIES} verbetes; o limite e por Vault.");
         }
 
@@ -126,7 +131,16 @@ impl Dictionary {
         stored.term = stored.term.trim().to_string();
         stored.concept = stored.concept.trim().to_string();
 
-        match self.entries.iter_mut().find(|item| item.key() == key) {
+        // O casamento e por **conhecimento**, nao por chave exata: `energia` e
+        // `energia se conserva` sao a mesma entrada. Sem isto, o usuario
+        // registraria a mesma coisa duas vezes e o hover competiria consigo
+        // mesmo. O termo ja registrado e preservado (so o conceito muda), para
+        // nao quebrar as notas que ja destacam a forma original.
+        match self
+            .entries
+            .iter_mut()
+            .find(|item| same_knowledge(&item.term, &stored.term))
+        {
             Some(existing) => {
                 let created_at = existing.created_at_unix_ms;
                 existing.concept = stored.concept;
@@ -169,6 +183,34 @@ pub fn normalize_term(text: &str) -> String {
         .nfd()
         .filter(|c| !matches!(c, '\u{0300}'..='\u{036f}'))
         .collect()
+}
+
+/// Dois termos carregam o mesmo conhecimento quando um e prefixo ou sufixo do
+/// outro, com pelo menos 5 caracteres no menor.
+///
+/// `energia` e `energia se conserva`, `estroma` e `estroma dos cloroplastos`
+/// sao a mesma proposta partida ao meio. Prefixo/sufixo e nao substring livre
+/// porque `atp` dentro de `adaptador` nao e o mesmo termo, e o piso protege
+/// siglas (`ATP` so casa com `ATP`).
+///
+/// A regra e a mesma da metrica do golden set e do filtro de propostas; ela
+/// vive aqui porque o dicionario tambem precisa dela: registrar uma variante
+/// nao pode criar um segundo verbete.
+pub fn same_knowledge(left: &str, right: &str) -> bool {
+    let left = normalize_term(left);
+    let right = normalize_term(right);
+    if left == right {
+        return true;
+    }
+    let (shorter, longer) = if left.chars().count() <= right.chars().count() {
+        (left.as_str(), right.as_str())
+    } else {
+        (right.as_str(), left.as_str())
+    };
+    if shorter.chars().count() < 5 {
+        return false;
+    }
+    longer.starts_with(shorter) || longer.ends_with(shorter)
 }
 
 /// O caminho do arquivo do dicionario.
@@ -271,6 +313,55 @@ mod tests {
             .expect("atualiza");
         assert_eq!(dictionary.entries.len(), 1);
         assert_eq!(dictionary.entries[0].concept, "Segunda definicao.");
+    }
+
+    #[test]
+    fn registering_a_variant_updates_the_existing_entry() {
+        // `estroma` e `estroma dos cloroplastos` sao o mesmo conhecimento: o
+        // segundo registro nao pode criar um verbete que compete com o
+        // primeiro no hover.
+        let mut dictionary = Dictionary::default();
+        dictionary
+            .upsert(entry("estroma", "O fluido interno."))
+            .expect("insere");
+        dictionary
+            .upsert(entry(
+                "estroma dos cloroplastos",
+                "O fluido interno do cloroplasto.",
+            ))
+            .expect("atualiza a variante");
+        assert_eq!(dictionary.entries.len(), 1);
+        assert_eq!(dictionary.entries[0].term, "estroma");
+        assert_eq!(
+            dictionary.entries[0].concept,
+            "O fluido interno do cloroplasto."
+        );
+    }
+
+    #[test]
+    fn two_different_terms_stay_two_entries() {
+        let mut dictionary = Dictionary::default();
+        dictionary
+            .upsert(entry("fase clara", "Captura luz."))
+            .expect("insere");
+        dictionary
+            .upsert(entry("fase escura", "Fixa carbono."))
+            .expect("insere");
+        assert_eq!(dictionary.entries.len(), 2);
+    }
+
+    #[test]
+    fn the_variant_rule_matches_the_one_the_pipeline_uses() {
+        assert!(same_knowledge("energia", "energia se conserva"));
+        assert!(same_knowledge(
+            "capacidade de suporte",
+            "capacidade de suporte do meio"
+        ));
+        assert!(same_knowledge("adiabatico", "recipiente adiabatico"));
+        assert!(same_knowledge("ATP", "ATP"));
+        assert!(!same_knowledge("ATP", "adaptador"));
+        assert!(!same_knowledge("fase clara", "fase escura"));
+        assert!(!same_knowledge("estroma", "citoplasma"));
     }
 
     #[test]
