@@ -3379,7 +3379,9 @@ harness:
 A cobertura funcionou no sentido literal — 21 propostas novas, 14 chegaram ao
 motor, 8 foram aceitas — mas so **3** eram termos do ground truth
 (`propriedade extensiva`, `ATP`, `NADPH`). As outras 5 sao extras. Em outras
-palavras: 21 ofertas a mais compraram 3 termos certos e 5 ruidosos.
+palavras: 21 ofertas a mais compraram 3 termos certos e 5 extras. A auditoria
+da §15.40 mostrou que "extra" nao e sinonimo de "ruido": 11 dos 15 extras sao
+termos legitimos ou variantes do gabarito.
 
 Duas explicacoes, ambas medidas:
 
@@ -3443,5 +3445,71 @@ guarda as quatro rodadas desta sessao.
 - **Recall tolerante a variacao de nome**: o piso de 19/47 e o que a metrica
   atual mede.
 - **C5/C9/C10**: inalterados.
+
+### 15.40 A auditoria dos 15 extras: o gabarito era uma amostra
+
+Antes de mexer no prompt, os 15 termos que o motor aceitou fora do gabarito
+foram lidos um a um, contra a nota e a lista do revisor
+(`docs/jev-extras-audit.md`, reproducible com `node scripts/audit-extras.mjs`).
+A classificacao e do **agente**, nao de um revisor humano — por isso ainda nao
+entra no golden set.
+
+| Veredito | Quantos | Conserto |
+| --- | ---: | --- |
+| Variante do termo esperado | **2** | a metrica, nao o modelo |
+| Extra legitimo (gabarito incompleto) | **9** | o gabarito, nao o modelo |
+| Assunto da nota (baixo valor) | **3** | nada urgente |
+| Falso positivo | **1** | o motor |
+
+As duas variantes sao `adiabatico` (esperado `recipiente adiabatico`) e
+`capacidade de suporte do meio` (esperado `capacidade de suporte`): o
+conhecimento que falta e o mesmo, e a igualdade de nome cobra duas vezes —
+uma no recall, outra nos extras.
+
+Os nove legitimos sao termos que a nota usa como premissa e nunca define,
+como `consistencia`, `Membranas tilacoidais` e `tempo logarithmico`. A lista
+do revisor escolheu **alguns** dos termos que faltam, nao todos — que e o que
+uma lista humana faz.
+
+O unico falso positivo e `energia`: grandeza fundamental, defini-la na nota
+nao ajuda quem le.
+
+#### Os numeros corrigidos
+
+| Medida | Publicado na §15.39 | Correto |
+| --- | ---: | ---: |
+| Recall por nome exato | 19/47 | 19/47 (inalterado) |
+| Recall com variante | nao medido | **21/47 (44,7%)** |
+| Aceitas defensaveis | nao medido | **30 de 34 (88%)** |
+| Extras que sao erro | 15 | **1** |
+
+A §15.39 leu o resultado da cobertura como "3 termos certos e 5 ruidosos".
+O ruido, em 11 dos 15 casos, era o gabarito incompleto. O motor nao esta
+aceitando demais: esta achando termos que a lista nao previu.
+
+#### O que isso muda na fila
+
+- **A metrica vem antes do prompt.** Casar por contencao recupera 2 termos com
+  zero mudanca de modelo.
+- **47 deixa de ser censo.** "Recall de 47" mede a concordancia com a selecao
+  de um revisor, nao a cobertura do que importa. A dupla honesta passa a ser
+  concordancia com a lista + defensabilidade auditada do que foi aceito.
+- **A enumeracao do redator continua valendo**, mas com risco de spray menor
+  do que a §15.39 supos.
+- **Os 9 legitimos e os 3 do assunto vao para revisao humana.** Se confirmados,
+  o gabarito cresce de 47 para 56-59 termos sem rodada nova.
+
+#### Defeito de dados corrigido
+
+A nota `contradicao-estroma` dizia "na molecula de **Accepted** glicose" —
+residuo de uma importacao de revisao, presente tambem em dois `sourceQuote`
+do golden set. Corrigido na nota e nas duas citacoes. Nenhum termo esperado
+mudou, mas o texto que o motor le mudou: a proxima rodada e a primeira com a
+nota limpa.
+
+O funil tambem passou a gravar **o nome e o motivo** de cada recusa do filtro
+(`rejectedByFilter`). A contagem por motivo dizia que 5 propostas cairam em
+"a definicao ja aparece na nota" sem dizer quais — e um filtro que recusa
+demais custa recall tanto quanto uma geracao que propoe de menos.
 
 
