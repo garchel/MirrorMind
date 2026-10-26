@@ -3550,8 +3550,69 @@ com `reviewer: "human"` — o que o agente achou nao vira ground truth sozinho.
 A atualizacao e por cartao, nao por lista inteira, para nao perder o foco de
 quem navega por teclado; a observacao livre e salva sem redesenhar nada.
 
-O relatorio **nao guarda o texto da definicao proposta**, so o termo — por isso
+O relatorio **nao guarda o texto da definicao proposta**, so o termo - por isso
 a pagina nao mostra o que o motor escreveria. Guardar esse texto e o proximo
 passo do harness: sem ele, a revisao julga o termo, nao a definicao.
+
+### 15.42 A revisao humana chegou: 13 de 15, e o gabarito vai a 54 termos
+
+O revisor humano respondeu os 15 cartoes da pagina (7 legitimo, 3 assunto,
+3 erro, 2 variante), transcritos em
+`docs/jev-extras-review-1792786835.json`. **13 dos 15** coincidem com a
+auditoria do agente. As duas divergencias vao no mesmo sentido - o agente foi
+mais generoso que o revisor:
+
+| Caso | Termo | Agente | Humano |
+| --- | --- | --- | --- |
+| `bases-de-dados` | `consistencia` | legitimo | **erro** |
+| `termo-definido-inline` | `tempo logarithmico` | legitimo | **erro** |
+
+Nao e uma discordancia aleatoria: e a fronteira entre "termo usado como
+premissa" e "termo que vale definir". O agente le a primeira; o revisor julga
+a segunda. Nenhum dos dois erra o fato - eles respondem perguntas diferentes,
+e a pergunta do produto e a do revisor.
+
+#### O que entrou no gabarito
+
+`scripts/apply-extras-review.mjs` aplicou so os `legitimo` (o unico veredito
+que muda o gabarito). A `sourceQuote` de cada termo e extraida da propria
+nota, nunca digitada: uma citacao escrita a mao pode nao existir no texto, e
+o harness usa a citacao para ancorar a definicao. Resultado: **47 -> 54
+termos**, 23 de 23 casos com ground truth, `golden_integrity` com 18 testes
+verdes e diff de 28 insercoes no `golden.json`.
+
+#### O numero que muda, e o que ele nao e
+
+Os 7 termos confirmados ja tinham sido **aceitos** pelo motor na rodada 3 -
+era justamente por isso que eram extras. Remografar a mesma rodada contra o
+gabarito novo da o numero abaixo, e ele **nao e uma medicao nova**: e o mesmo
+resultado lido contra um gabarito menos incompleto, sem chamada de modelo.
+
+| Medida | Rodada 3 (47 termos) | Remografia (54 termos) |
+| --- | ---: | ---: |
+| Recall exato | 19/47 (40,4%) | **26/54 (48,1%)** |
+| Recall tolerante | 21/47 (44,7%) | **28/54 (51,9%)** |
+| Extras exatos | 15 | **8** |
+| Extras tolerantes | 13 | **6** |
+
+Dos 8 extras que restam (nome exato): 2 variantes, 3 assuntos e **3 erros**.
+A aceitacao defensavel e 31 de 34 (91%) - o motor nao esta aceitando demais
+de forma sistematica, mas os 3 erros mostram que a fronteira existe.
+
+#### O que fica para a proxima rodada
+
+1. **Confirmar a remografia com chamadas reais.** A rodada 4 e a primeira com
+   o gabarito de 54 termos e com a nota `contradicao-estroma` limpa; e ela que
+   transforma a projecao em medida.
+2. **Guardar o texto da definicao proposta.** Sem ele, a revisao julga o
+   termo, nao a definicao - e a qualidade textual continua sem ground truth.
+3. **O prompt do redator**, agora sim: enumerar termos em vez de pre-julgar
+   quais merecem definicao, e remover a instrucao "e melhor nao sugerir nada
+   do que sugerir coisa errada" - ela empurra o modelo para o silencio, e o
+   recall de 48% mostra que o custo do silencio e maior que o do excesso.
+
+O alvo "47 de 47" esta encerrado como criterio. A partir daqui o conjunto
+mede duas coisas separadas: **concordancia com a lista revisada** e
+**defensabilidade do que o motor aceitou**.
 
 
