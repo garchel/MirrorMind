@@ -3509,7 +3509,49 @@ nota limpa.
 
 O funil tambem passou a gravar **o nome e o motivo** de cada recusa do filtro
 (`rejectedByFilter`). A contagem por motivo dizia que 5 propostas cairam em
-"a definicao ja aparece na nota" sem dizer quais — e um filtro que recusa
+"a definicao ja aparece na nota" sem dizer quais - e um filtro que recusa
 demais custa recall tanto quanto uma geracao que propoe de menos.
+
+### 15.41 Medir nome tolerante e revisar numa pagina
+
+Duas coisas sairam da auditoria da §15.40: uma correcao de metrica e uma
+ferramenta para a revisao humana.
+
+#### O recall com nome tolerante
+
+`terms_match` casa dois termos quando um e **prefixo ou sufixo** do outro,
+depois de normalizar caixa e acentos, exigindo 5 caracteres no menor. E o caso
+de `capacidade de suporte do meio` contra `capacidade de suporte` (prefixo) e
+de `adiabatico` contra `recipiente adiabatico` (sufixo). Prefixo/sufixo e nao
+substring livre porque substring casaria `atp` dentro de `adaptador`; o piso de
+5 caracteres protege siglas (`ATP` so casa com `ATP`).
+
+O relatorio passa a carregar as duas medidas lado a lado:
+
+| Medida | Campo | Rodada 3 |
+| --- | --- | ---: |
+| Recall por nome exato | `recall` | 19/47 (40,4%) |
+| Recall com nome tolerante | `recallTolerant` | **21/47 (44,7%)** |
+| Extras por nome exato | `extraTerms` | 15 |
+| Extras com nome tolerante | `extraTermsTolerant` | **13** |
+
+O numero exato **nao foi trocado**: ele e o que compara com a serie historica.
+O tolerante entra ao lado, e a diferenca entre os dois e a medida do quanto o
+gabarito depende de uma grafia especifica.
+
+#### A pagina de revisao
+
+`docs/jev-extras-review.html` (gerada por `node scripts/extras-review-page.mjs`)
+mostra cada extra com a frase onde ele aparece destacada, o gabarito do caso e
+a sugestao da auditoria. Quatro botoes por termo: legitimo, assunto da nota,
+erro do motor, variante. As decisoes ficam no `localStorage` e saem em JSON,
+com `reviewer: "human"` — o que o agente achou nao vira ground truth sozinho.
+
+A atualizacao e por cartao, nao por lista inteira, para nao perder o foco de
+quem navega por teclado; a observacao livre e salva sem redesenhar nada.
+
+O relatorio **nao guarda o texto da definicao proposta**, so o termo — por isso
+a pagina nao mostra o que o motor escreveria. Guardar esse texto e o proximo
+passo do harness: sem ele, a revisao julga o termo, nao a definicao.
 
 

@@ -100,6 +100,14 @@ não está aceitando demais: **está acertando coisas que a lista não previu**.
    Se ele confirmar, o gabarito cresce de 47 para 56-59 termos sem nenhuma
    rodada nova, e o recall passa a medir o que se pretendia medir.
 
+## Como revisar
+
+`docs/jev-extras-review.html` mostra os 15 termos um por um, com a frase onde
+cada um aparece, o gabarito do caso e a sugestão da auditoria. As decisões
+ficam no navegador e saem em JSON no botão de download. A página é gerada por
+`node scripts/extras-review-page.mjs` a partir do relatório da rodada — na
+próxima rodada, basta gerar de novo.
+
 ## Defeito de dados encontrado
 
 A nota `contradicao-estroma` continha a frase:
