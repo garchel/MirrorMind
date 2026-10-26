@@ -64,15 +64,20 @@ provavel e siga em frente — o usuario revisa. Reescreva a frase no tom do \
 original, preenchendo o que faltou para ela fazer sentido por si so. Se a nota \
 esta completa e bem escrita, nao ha expansao a fazer: a lista de expansoes fica \
 vazia.\n\
-TAREFA 2 — DEFINICOES. Ache TODOS os termos que a nota usa como premissa sem \
-nunca definir, e escreva a definicao que faltou a cada um. Uma nota quase sempre \
-tem mais de um termo assim: procure em cada paragrafo, e nao pare no primeiro \
-que encontrar. Use so a propria nota como fonte: a definicao tem de ser sustentada \
-pelo que a nota ja diz.\n\
-Se a nota nao tem nenhum termo assim, responda com uma lista de definicoes \
-vazia. E melhor nao sugerir nada do que sugerir coisa errada.\n\
-A definicao tem de ser um paragrafo curto, no mesmo tom da nota, e util para quem \
-le a nota pela primeira vez. Nao repita a frase da nota: escreva o que falta.\n\
+TAREFA 2 — DEFINICOES. Antes de escrever, faca a enumeracao de cada paragrafo: \
+liste mentalmente os termos de dominio que a nota emprega como premissa sem \
+explicar — nome de processo, de estrutura, de grandeza, de algoritmo, de \
+mecanismo. A enumeracao vem antes do julgamento: primeiro ache os candidatos, \
+depois escreva a definicao de cada um. Nao pule um termo so porque voce supoe \
+que o leitor ja o conhece: o criterio e ser premissa para entender a frase. Nao \
+proponha, porem, o assunto que da nome a nota — definir o tema inteiro nao ajuda \
+quem ja esta lendo sobre ele. Se houver mais de 5 candidatos, escolha os 5 que \
+mais impedem a leitura.\n\
+Uma lista vazia so e correta quando a nota nao usa nenhum termo de dominio sem \
+explicar. O custo de uma definicao a mais e uma sugestao que o usuario ignora; o \
+custo de uma a menos e a nota continuar sem o que faltava.\n\
+Use so a propria nota como fonte: a definicao tem de ser sustentada pelo que a \
+nota ja diz.\n\
 FORMATO OBRIGATORIO: responda somente com um objeto JSON, sem Markdown e sem texto \
 adicional. Use exatamente as chaves expansions e proposals, ambas listas de no \
 maximo 5 itens. Um item de expansions usa as chaves sourceQuote e expanded: \
@@ -262,9 +267,9 @@ pub struct ProposalOutcome {
     pub raw_proposals: usize,
     /// Quantas definicoes a passada de cobertura ofereceu.
     ///
-    /// A primeira passada pede "todos os termos", mas o modelo entrega ~1,6
-    /// por nota. A segunda passada pergunta o que ficou de fora, e este numero
-    /// diz se ela trouxe algo.
+    /// A primeira passada pede a enumeracao dos candidatos de cada paragrafo,
+    /// mas o modelo entregava ~1,6 termo por nota. A segunda passada pergunta
+    /// o que ficou de fora, e este numero diz se ela trouxe algo.
     pub coverage_proposals: usize,
     /// Propostas repetidas descartadas no merge das duas passadas.
     pub duplicates_dropped: usize,
@@ -327,12 +332,14 @@ const COVERAGE_MIN_PROPOSALS: usize = 3;
 /// A segunda pergunta: o que ficou de fora da primeira lista.
 const COVERAGE_INSTRUCTIONS: &str = "\
 Voce ja leu esta nota e propos definir alguns termos. Sua tarefa agora e \
-**cobertura**: percorra a nota paragrafo por paragrafo e ache os termos que \
-**ainda faltam**, sem repetir os que ja foram propostos. Nao proponha \
-expansoes: deixe a lista de expansoes vazia.\n\
-Use so a propria nota como fonte: a definicao tem de ser sustentada pelo que a \
-nota ja diz. Se nao houver nenhum termo novo, responda com as duas listas \
-vazias. E melhor nao sugerir nada do que sugerir coisa errada.\n\
+**cobertura**: percorra a nota paragrafo por paragrafo e, em cada um, enumere os \
+termos de dominio que ainda faltam antes de decidir — nome de processo, de \
+estrutura, de grandeza, de algoritmo, de mecanismo. Nao repita os que ja foram \
+propostos e nao proponha o assunto que da nome a nota. Nao proponha expansoes: \
+deixe a lista de expansoes vazia.\n\
+Uma lista de definicoes vazia so e correta quando a nota nao usa nenhum termo de \
+dominio sem explicar. Use so a propria nota como fonte: a definicao tem de ser \
+sustentada pelo que a nota ja diz.\n\
 FORMATO OBRIGATORIO: responda somente com um objeto JSON com as chaves \
 expansions e proposals. expansions fica vazia. Um item de proposals usa as \
 chaves term, definition e sourceQuote, com a citacao literal copiada da nota.";
@@ -425,9 +432,10 @@ pub fn propose_improvements(
         &mut duplicates_dropped,
     );
 
-    // Passada de cobertura: a primeira pergunta pede "todos os termos", mas o
-    // modelo entrega ~1,6 por nota (a media do ground truth e 3,1). Abaixo do
-    // minimo, pergunta de novo — explicitamente pelo que faltou. A segunda
+    // Passada de cobertura: a primeira pergunta pede a enumeracao dos
+    // candidatos, mas o modelo entrega ~1,6 por nota (a media do ground truth
+    // e 3,1). Abaixo do minimo, pergunta de novo — explicitamente pelo que
+    // faltou. A segunda
     // chamada e best-effort: se ela falhar, a primeira lista continua valendo,
     // porque perder as propostas boas por causa da segunda seria pior.
     let mut coverage_proposals = 0usize;
@@ -769,9 +777,9 @@ mod tests {
 
     #[test]
     fn a_passada_de_cobertura_acrescenta_o_que_a_primeira_esqueceu() {
-        // A primeira passada pede "todos os termos" e entrega um. A segunda
-        // pergunta o que faltou e traz o outro — que e exatamente o buraco
-        // medido no funil (1,6 proposta por nota contra 3,1 esperados).
+        // A primeira passada pede a enumeracao dos candidatos e entrega um. A
+        // segunda pergunta o que faltou e traz o outro — que e exatamente o
+        // buraco medido no funil (1,6 proposta por nota contra 3,1 esperados).
         let provider = Sequence::new(vec![
             json!({
                 "proposals": [{
@@ -860,9 +868,16 @@ mod tests {
             "o prompt nao menciona o mesmo limite do schema"
         );
         assert!(
-            PROPOSAL_INSTRUCTIONS.contains("TODOS os termos"),
-            "o prompt precisa pedir todos os termos, nao um: a nota quase \
-             sempre tem mais de um termo sem definicao"
+            PROPOSAL_INSTRUCTIONS.contains("faca a enumeracao"),
+            "o prompt precisa pedir a enumeracao dos candidatos antes de \
+             julgar quais merecem definicao: e a enumeracao que sustenta o \
+             recall, nao o julgamento caso a caso"
+        );
+        assert!(
+            !PROPOSAL_INSTRUCTIONS.contains("E melhor nao sugerir nada"),
+            "a instrucao que empurra para o silencio sai do prompt: o custo \
+             de uma definicao a mais e menor que o de uma premissa sem \
+             explicacao"
         );
     }
 
