@@ -1783,6 +1783,52 @@ mod tests {
         );
     }
 
+    #[test]
+    fn os_candidatos_carregam_o_termo_que_o_modelo_nao_propos() {
+        // A rodada 6 mediu 9 termos esperados que o provider nunca propos. A
+        // pergunta que decide o proximo passo e **onde** eles morreram: o
+        // extrator nao os viu, ou o modelo os viu e descartou?
+        //
+        // Este teste responde para 6 dos 9 lendo as notas do golden set com o
+        // extrator de verdade. Eles estavam na lista, entao a perda e de
+        // julgamento, nao de extracao. Os outros 3 (`fase clara` e `fase
+        // escura`, esta em duas notas) sao compostos: o extrator ve `fase` e
+        // perde o resto.
+        let casos: [(&str, &[&str]); 4] = [
+            ("ciclo-calvin", &["estroma", "glicose"]),
+            ("referencia-indefinida", &["estroma"]),
+            ("contradicao-estroma", &["glicose"]),
+            ("contradicao-maior", &["pepsina", "protease"]),
+        ];
+        for (case_id, esperados) in casos {
+            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/jev-golden/cases")
+                .join(format!("{case_id}.md"));
+            let markdown = std::fs::read_to_string(&path).expect("nota do golden set");
+            let candidates = candidate_terms(&markdown, &[]);
+            for termo in esperados {
+                assert!(
+                    candidates
+                        .iter()
+                        .any(|candidate| candidate.as_str() == *termo),
+                    "`{termo}` nao esta nos candidatos de `{case_id}`: {candidates:?}"
+                );
+            }
+        }
+        // O composto perdido: a lista tem a cabeca, nao o termo.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/jev-golden/cases")
+            .join("contradicao-quantidade.md");
+        let markdown = std::fs::read_to_string(&path).expect("nota do golden set");
+        let candidates = candidate_terms(&markdown, &[]);
+        assert!(candidates
+            .iter()
+            .any(|candidate| candidate.as_str() == "fase"));
+        assert!(!candidates
+            .iter()
+            .any(|candidate| candidate.as_str() == "fase escura"));
+    }
+
     /// Recorta um texto por unidades UTF-16 (o mesmo espaco que o `String::slice`
     /// do JavaScript usa).
     fn utf16_slice(text: &str, start_utf16: u64, end_utf16: u64) -> String {
