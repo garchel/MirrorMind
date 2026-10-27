@@ -199,12 +199,28 @@
  * "Termo" ja mostra o que sera gravado, e o conceito vem da IA. */
 
 .dictionary-selection-dialog {
-  max-width: 520px;
+  /* Largura da base (560). A versao de 520 cortava o kicker em duas linhas
+   * assim que o modal ganhou padding. */
+  padding: 18px 20px 16px;
+  /* O ritmo do app (line-height alto, para leitura de nota) vaza para campos
+   * de formulario: com `font: inherit`, o input herdava 27px de entrelinha. */
+  line-height: 1.5;
+}
+
+.dictionary-selection-dialog .modal-header {
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+/* O kicker tem 10px de fonte; herdando a entrelinha do corpo ele ocupava uma
+ * caixa de 27px — o "espaco errado" acima do titulo. */
+.dictionary-selection-dialog .modal-header .card-kicker {
+  line-height: 1.4;
 }
 
 .dictionary-selection-intro {
   margin: 0 0 12px;
-  font-size: 0.85rem;
+  font-size: var(--font-size-small);
   line-height: 1.5;
   color: var(--muted);
 }
@@ -255,7 +271,7 @@
   flex-direction: column;
   gap: 5px;
   margin-bottom: 12px;
-  font-size: 0.85rem;
+  font-size: var(--font-size-caption);
   color: var(--muted);
 }
 
@@ -266,7 +282,9 @@
   border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--text);
-  font: inherit;
+  /* Mesma densidade dos outros formularios de modal (metas, politica):
+   * o `font: inherit` herdava a entrelinha de leitura da nota. */
+  font: var(--font-size-small) / 1.5 var(--sans);
   resize: vertical;
 }
 

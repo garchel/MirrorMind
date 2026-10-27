@@ -86,6 +86,17 @@
   color: var(--text);
 }
 
+/* A geometria do X tambem precisa vencer `.workspace-shell .secondary-button`
+ * (0,2,0), que aplica `padding: 0 8px` e `min-height: 26px` dentro do shell e
+ * espremia o glifo de 16px num alvo de 32px. */
+.modal .modal-header .modal-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  padding: 0;
+}
+
 /* Tema escuro: borda e ícone acompanham a superfície do modal. */
 [data-theme='dark'] .modal .modal-close {
   border-color: rgb(232 230 221 / 18%);
