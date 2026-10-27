@@ -24,6 +24,7 @@ export function Modal({
   children,
   dismissable = true,
   builderName,
+  busy = false,
 }: {
   open: boolean
   onClose: () => void
@@ -37,6 +38,9 @@ export function Modal({
   /** Repassado como `data-builder-name` ao `<dialog>` (modo construtor
    * identifica o componente sob o mouse por esse atributo). */
   builderName?: string
+  /** `true` enquanto o conteúdo está sendo preparado (ex.: pedido à IA):
+   * expõe `aria-busy` para leitores de tela. */
+  busy?: boolean
 }) {
   const dialogRef = useRef<HTMLDialogElement | null>(null)
 
@@ -100,6 +104,7 @@ export function Modal({
       data-builder-name={builderName}
       aria-labelledby={labelledBy}
       aria-label={labelledBy ? undefined : label}
+      aria-busy={busy ? true : undefined}
       onClose={onClose}
       onCancel={(event) => event.preventDefault()}
       onMouseDown={(event) => {

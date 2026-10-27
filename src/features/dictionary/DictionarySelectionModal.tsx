@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BookMarked, RefreshCw } from 'lucide-react'
+import { Loader2, BookMarked, RefreshCw } from 'lucide-react'
 import { Modal, ModalHeader } from '../../components/Modal'
 import { Button } from '../../components/ui/Button'
 import { normalizeTerm } from './dictionarySchema'
@@ -12,26 +12,17 @@ const MAX_TERM_CHARS = 120
 const MAX_CONCEPT_CHARS = 2000
 
 /**
- * O termo que o formulario mostra.
+ * O termo que o formulario mostra: sempre o trecho selecionado.
  *
- * Quando o usuario seleciona **uma palavra**, o verbete e essa palavra. O
- * modelo recebe a nota inteira como contexto e pode devolver o assunto dela no
- * lugar do trecho (selecionar `glicose` numa nota sobre fotossintese e receber
- * `Fotossintese`); deixar a sugestao vencer aqui gravaria o verbete errado.
- *
- * Quando o trecho e uma frase, o nome central e uma escolha de redacao e a
- * sugestao do modelo vale — o usuario revisa antes de gravar. A mesma regra
- * vale no backend, que e quem decide o "ja existe": as duas pontas precisam
- * concordar sobre qual termo sera gravado.
+ * A IA escreve o conceito; ela nao escolhe o verbete. Quando escolhia,
+ * selecionar `fase clara` numa nota sobre fotossintese voltava como
+ * `Fase Escura` — o assunto que o modelo tinha em mente, nao o que o usuario
+ * selecionou. A mesma regra vale no backend (`term_for_selection`), que decide
+ * o "ja existe" sobre o termo que sera gravado: as duas pontas precisam
+ * concordar.
  */
-function termFromSelection(
-  selection: string,
-  suggestion: DictionaryConceptSuggestion | null,
-): string {
-  const trimmed = selection.trim()
-  const singleWord = trimmed.length > 0 && !/\s/.test(trimmed)
-  const chosen = singleWord ? trimmed : (suggestion?.term ?? trimmed)
-  return chosen.slice(0, MAX_TERM_CHARS)
+function termFromSelection(selection: string): string {
+  return selection.trim().slice(0, MAX_TERM_CHARS)
 }
 
 /**
@@ -43,12 +34,13 @@ function termFromSelection(
  * biologia e na fisica nao e a mesma coisa. A IA le a nota e propoe; quem
  * registra e o usuario. Por isso o termo e o conceito sao editaveis.
  *
- * O termo, porem, nao e escolha da IA quando o trecho e uma palavra: o verbete
- * e o que o usuario selecionou (ver `termFromSelection`).
+ * O termo, porem, nunca e escolha da IA: o verbete e o que o usuario
+ * selecionou (ver `termFromSelection`). A IA so escreve o conceito.
  *
  * ## O que a tela mostra em cada estado
  *
- * - carregando: o pedido esta em andamento;
+ * - carregando: o termo ja mostra a selecao e um aviso com spinner diz que a
+ *   IA esta preparando o conceito;
  * - sugestao valida: termo e conceito preenchidos;
  * - resposta fora do formato: o trecho volta no termo, o conceito fica vazio
  *   e o usuario pode escrever ou tentar de novo;
@@ -90,7 +82,7 @@ export function DictionarySelectionModal({
       setSaveError('')
       return
     }
-    setTerm(termFromSelection(selection, suggestion))
+    setTerm(termFromSelection(selection))
     setConcept(suggestion?.concept ?? '')
     setSaveError('')
   }, [open, selection, suggestion])
@@ -128,6 +120,7 @@ export function DictionarySelectionModal({
       onClose={onClose}
       labelledBy="dictionary-selection-title"
       className="dictionary-selection-dialog"
+      busy={loading}
     >
       <ModalHeader
         titleId="dictionary-selection-title"
@@ -138,13 +131,18 @@ export function DictionarySelectionModal({
       />
 
       <p className="dictionary-selection-intro">
-        A IA leu o trecho e a nota para sugerir um conceito. Revise e edite antes
+        A IA lê o trecho e a nota para sugerir o conceito. Revise e edite antes
         de registrar.
       </p>
 
       {loading ? (
-        <p className="dictionary-selection-status" role="status">
-          Lendo o contexto da nota e sugerindo o conceito…
+        <p className="dictionary-selection-status" role="status" aria-live="polite">
+          <Loader2
+            className="dictionary-selection-spinner"
+            size={14}
+            aria-hidden="true"
+          />
+          <span>Preparando o conceito…</span>
         </p>
       ) : null}
 
@@ -208,7 +206,11 @@ export function DictionarySelectionModal({
           rows={3}
           maxLength={MAX_CONCEPT_CHARS}
           disabled={loading || saving}
-          placeholder="A definição que aparece ao passar o mouse sobre o termo."
+          placeholder={
+            loading
+              ? 'A IA está escrevendo a definição…'
+              : 'A definição que aparece ao passar o mouse sobre o termo.'
+          }
           onChange={(event) => setConcept(event.target.value)}
         />
       </label>

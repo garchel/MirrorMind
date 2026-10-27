@@ -34,6 +34,18 @@ Depois de registrado, o termo passa a ter o balão de conceito no hover de
 **qualquer** nota do Vault. Não precisa reescrever a definição em cada nota
 que falar do assunto.
 
+## Selecionar um trecho e pedir o conceito
+
+Selecione uma palavra ou uma frase curta na nota e use **Adicionar seleção ao
+dicionário** na barra que aparece sobre a seleção. O modal abre com o **termo
+já preenchido com o que você selecionou** e, enquanto a IA escreve a definição,
+mostra **"Preparando o conceito…"**.
+
+A IA escreve o **conceito**, não o verbete. Ela lê o trecho e os parágrafos ao
+redor (não o Vault inteiro) e propõe a definição; o termo continua sendo o que
+você selecionou, com a grafia da nota. Os dois campos ficam editáveis: se a
+definição não servir, corrija ou peça de novo antes de gravar.
+
 ## Onde fica guardado
 
 `.mirmind/dictionary.json`, dentro do Vault. O dicionário é **por Vault**:

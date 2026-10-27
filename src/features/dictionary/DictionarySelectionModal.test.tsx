@@ -49,12 +49,12 @@ function renderModal(overrides: Partial<{
 }
 
 describe('DictionarySelectionModal', () => {
-  it('mostra o termo e o conceito sugeridos, sem bloco com a nota', () => {
+  it('mostra o termo selecionado e o conceito sugerido, sem bloco com a nota', () => {
     renderModal()
     // O trecho longo nao vira um bloco proprio: era ele que virava painel
     // rolavel. O campo "Termo" ja mostra o que sera gravado.
     expect(screen.queryByText(/“estroma dos cloroplastos”/)).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Termo')).toHaveValue('estroma')
+    expect(screen.getByLabelText('Termo')).toHaveValue('estroma dos cloroplastos')
     expect(screen.getByLabelText('Conceito')).toHaveValue(
       'O fluido interno do cloroplasto.',
     )
@@ -79,9 +79,34 @@ describe('DictionarySelectionModal', () => {
     )
   })
 
-  it('avisa enquanto a IA esta lendo o contexto', () => {
+  it('nao troca o trecho de duas palavras pelo termo que a IA devolveu', () => {
+    // O relato: na nota sobre fotossintese, selecionou "fase clara" e o campo
+    // Termo apareceu como "Fase Escura", a secao vizinha da nota.
+    renderModal({
+      selection: 'fase clara',
+      suggestion: {
+        term: 'Fase Escura',
+        concept: 'A etapa em que nao ha luz.',
+        existing: null,
+        invalid: false,
+      },
+    })
+
+    expect(screen.getByLabelText('Termo')).toHaveValue('fase clara')
+  })
+
+  it('avisa, com spinner, enquanto a IA prepara o conceito', () => {
     renderModal({ loading: true, suggestion: null })
-    expect(screen.getByRole('status')).toHaveTextContent(/Lendo o contexto/)
+
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent(/Preparando o conceito/)
+    // A selecao aparece de imediato: o termo nao depende da resposta da IA.
+    expect(screen.getByLabelText('Termo')).toHaveValue('estroma dos cloroplastos')
+    expect(screen.getByLabelText('Conceito')).toHaveAttribute(
+      'placeholder',
+      'A IA está escrevendo a definição…',
+    )
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('button', { name: /Adicionar ao dicionário/ })).toBeDisabled()
   })
 
@@ -95,7 +120,10 @@ describe('DictionarySelectionModal', () => {
     await user.click(screen.getByRole('button', { name: /Adicionar ao dicionário/ }))
 
     await waitFor(() =>
-      expect(onSave).toHaveBeenCalledWith('estroma', 'A fase líquida do cloroplasto.'),
+      expect(onSave).toHaveBeenCalledWith(
+        'estroma dos cloroplastos',
+        'A fase líquida do cloroplasto.',
+      ),
     )
     expect(onClose).toHaveBeenCalled()
   })
@@ -141,7 +169,7 @@ describe('DictionarySelectionModal', () => {
     })
 
     expect(screen.getByRole('alert')).toHaveTextContent(/não respondeu no formato/)
-    expect(screen.getByLabelText('Termo')).toHaveValue('estroma')
+    expect(screen.getByLabelText('Termo')).toHaveValue('estroma dos cloroplastos')
     expect(screen.getByLabelText('Conceito')).toHaveValue('')
 
     await user.click(screen.getByRole('button', { name: /Tentar de novo/ }))
@@ -150,7 +178,10 @@ describe('DictionarySelectionModal', () => {
     await user.type(screen.getByLabelText('Conceito'), 'O fluido interno.')
     await user.click(screen.getByRole('button', { name: /Adicionar ao dicionário/ }))
     await waitFor(() =>
-      expect(onSave).toHaveBeenCalledWith('estroma', 'O fluido interno.'),
+      expect(onSave).toHaveBeenCalledWith(
+        'estroma dos cloroplastos',
+        'O fluido interno.',
+      ),
     )
   })
 

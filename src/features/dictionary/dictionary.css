@@ -226,9 +226,36 @@
 }
 
 .dictionary-selection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0 0 12px;
-  font-size: 0.85rem;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: var(--font-size-small);
   color: var(--muted);
+}
+
+/* O giro e o sinal de que o pedido esta em andamento; o texto sozinho era
+ * discreto demais e o modal parecia travado com os campos desabilitados. */
+.dictionary-selection-spinner {
+  flex: none;
+  color: var(--accent);
+  animation: dictionary-selection-spin 900ms linear infinite;
+}
+
+@keyframes dictionary-selection-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dictionary-selection-spinner {
+    animation: none;
+  }
 }
 
 .dictionary-selection-failure {
