@@ -11,8 +11,14 @@ afterEach(() => {
 const SUGESTAO: DictionaryConceptSuggestion = {
   term: 'estroma',
   concept: 'O fluido interno do cloroplasto.',
+  context: 'Na nota, a fixação de carbono acontece no estroma.',
   existing: null,
   invalid: false,
+}
+
+const SUGESTAO_SEM_CONTEXTO: DictionaryConceptSuggestion = {
+  ...SUGESTAO,
+  context: '',
 }
 
 const EXISTENTE = {
@@ -49,12 +55,53 @@ function renderModal(overrides: Partial<{
 }
 
 describe('DictionarySelectionModal', () => {
-  it('mostra o termo selecionado e o conceito sugerido, sem bloco com a nota', () => {
+  it('mostra o termo selecionado e o conceito, sem bloco com o trecho', () => {
     renderModal()
     // O trecho longo nao vira um bloco proprio: era ele que virava painel
     // rolavel. O campo "Termo" ja mostra o que sera gravado.
     expect(screen.queryByText(/“estroma dos cloroplastos”/)).not.toBeInTheDocument()
     expect(screen.getByLabelText('Termo')).toHaveValue('estroma dos cloroplastos')
+    expect(screen.getByLabelText('Conceito')).toHaveValue(
+      'O fluido interno do cloroplasto.',
+    )
+    expect(screen.getByText('Nesta nota')).toBeInTheDocument()
+  })
+
+  it('grava so a definicao: o papel do termo na nota fica na tela', async () => {
+    // O caso do `eletrons`: a primeira resposta descrevia o papel do eletron na
+    // fotossintese. Isso e util para conferir, mas o verbete tem de ser a
+    // definicao do termo.
+    const user = userEvent.setup()
+    const { onSave } = renderModal({
+      selection: 'elétrons',
+      suggestion: {
+        term: 'elétrons',
+        concept: 'Partículas subatômicas com carga elétrica negativa.',
+        context: 'Na fotólise da água, os elétrons liberados seguem para a cadeia transportadora.',
+        existing: null,
+        invalid: false,
+      },
+    })
+
+    expect(screen.getByText('Nesta nota')).toBeInTheDocument()
+    expect(
+      screen.getByText(/seguem para a cadeia transportadora/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Não é salvo no dicionário/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Adicionar ao dicionário/ }))
+
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(
+        'elétrons',
+        'Partículas subatômicas com carga elétrica negativa.',
+      ),
+    )
+  })
+
+  it('nao mostra a secao "Nesta nota" quando a IA nao devolveu contexto', () => {
+    renderModal({ suggestion: SUGESTAO_SEM_CONTEXTO })
+    expect(screen.queryByText('Nesta nota')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Conceito')).toHaveValue(
       'O fluido interno do cloroplasto.',
     )
@@ -68,6 +115,7 @@ describe('DictionarySelectionModal', () => {
       suggestion: {
         term: 'Fotossíntese',
         concept: 'O processo em que a planta produz glicose.',
+        context: '',
         existing: null,
         invalid: false,
       },
@@ -87,6 +135,7 @@ describe('DictionarySelectionModal', () => {
       suggestion: {
         term: 'Fase Escura',
         concept: 'A etapa em que nao ha luz.',
+        context: '',
         existing: null,
         invalid: false,
       },
@@ -211,7 +260,7 @@ describe('DictionarySelectionModal', () => {
   it('deixa o usuario escrever o conceito quando a IA nao respondeu no formato', async () => {
     const user = userEvent.setup()
     const { onSave, onRetry } = renderModal({
-      suggestion: { term: 'estroma', concept: '', existing: null, invalid: true },
+      suggestion: { term: 'estroma', concept: '', context: '', existing: null, invalid: true },
     })
 
     expect(screen.getByRole('alert')).toHaveTextContent(/não respondeu no formato/)

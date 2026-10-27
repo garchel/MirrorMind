@@ -6,6 +6,10 @@ import { dictionaryEntrySchema, type DictionaryEntry } from './dictionarySchema'
 /**
  * O conceito sugerido para um trecho selecionado na nota.
  *
+ * `concept` e a definicao geral (vai para o Dicionario); `context` e o papel
+ * do termo nesta nota (fica so na tela). Separar as duas evita gravar um
+ * verbete que so faz sentido dentro de uma nota.
+ *
  * O backend devolve `existing` porque a comparacao de variantes e a mesma do
  * `upsert` (`estroma` cobre `estroma dos cloroplastos`). Reimplementar a regra
  * na interface faria a tela dizer "novo" para um termo que o dicionario ja
@@ -14,6 +18,7 @@ import { dictionaryEntrySchema, type DictionaryEntry } from './dictionarySchema'
 const conceptSuggestionSchema = z.object({
   term: z.string(),
   concept: z.string(),
+  context: z.string(),
   existing: dictionaryEntrySchema.nullable(),
   invalid: z.boolean(),
 }).strict()

@@ -370,6 +370,39 @@
   overflow-wrap: anywhere;
 }
 
+/* O papel do termo nesta nota: e leitura, nao edicao. Fica num cartao proprio
+ * para nao se confundir com o conceito, que e o que sera gravado. */
+.dictionary-selection-context {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.dictionary-selection-context-label {
+  margin: 0 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dictionary-selection-context-body {
+  margin: 0;
+  font-size: var(--font-size-small);
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.dictionary-selection-context-note {
+  margin: 6px 0 0;
+  font-size: var(--font-size-caption);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
 .dictionary-selection-label {
   display: flex;
   flex-direction: column;

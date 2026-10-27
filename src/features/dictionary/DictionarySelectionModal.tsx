@@ -41,7 +41,8 @@ function termFromSelection(selection: string): string {
  *
  * - carregando: o termo ja mostra a selecao (e pode ser editado) e um aviso
  *   com spinner, contador de segundos e esqueleto no campo do conceito;
- * - sugestao valida: termo e conceito preenchidos;
+ * - sugestao valida: termo, conceito (o que sera gravado) e o papel do termo
+ *   nesta nota (que nao e gravado);
  * - resposta fora do formato: o trecho volta no termo, o conceito fica vazio
  *   e o usuario pode escrever ou tentar de novo;
  * - falha do provider: a mensagem real e o botao de tentar de novo;
@@ -115,6 +116,7 @@ export function DictionarySelectionModal({
 
   const invalid = suggestion?.invalid ?? false
   const existing = suggestion?.existing ?? null
+  const context = suggestion?.context.trim() ?? ''
   // O aviso so vale enquanto o termo editado ainda e o que o backend comparou:
   // trocar o termo a mao torna o "ja existe" uma afirmacao sobre outro verbete.
   const existingApplies = existing !== null
@@ -155,8 +157,8 @@ export function DictionarySelectionModal({
       />
 
       <p className="dictionary-selection-intro">
-        A IA lê o trecho e a nota para sugerir o conceito. Revise e edite antes
-        de registrar.
+        A IA escreve a definição do termo e o papel dele nesta nota. Só a
+        definição vai para o dicionário.
       </p>
 
       {loading ? (
@@ -255,6 +257,16 @@ export function DictionarySelectionModal({
           ) : null}
         </div>
       </label>
+
+      {context ? (
+        <div className="dictionary-selection-context">
+          <p className="dictionary-selection-context-label">Nesta nota</p>
+          <p className="dictionary-selection-context-body">{context}</p>
+          <p className="dictionary-selection-context-note">
+            Não é salvo no dicionário.
+          </p>
+        </div>
+      ) : null}
 
       {saveError ? <p className="field-error" role="alert">{saveError}</p> : null}
 

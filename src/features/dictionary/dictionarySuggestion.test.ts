@@ -12,6 +12,7 @@ afterEach(() => {
 const SUGESTAO = {
   term: 'estroma',
   concept: 'O fluido interno do cloroplasto.',
+  context: 'Na nota, a fixacao de carbono acontece no estroma.',
   existing: null,
   invalid: false,
 }

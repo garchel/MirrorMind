@@ -42,10 +42,17 @@ já preenchido com o que você selecionou** e, enquanto a IA escreve a definiç�
 mostra **"Preparando o conceito…"**, o tempo decorrido e um esqueleto no lugar
 da definição. Nessa espera o termo já pode ser editado.
 
-A IA escreve o **conceito**, não o verbete. Ela lê o trecho e os parágrafos ao
-redor (não o Vault inteiro) e propõe a definição; o termo continua sendo o que
-você selecionou, com a grafia da nota. Os dois campos ficam editáveis: se a
-definição não servir, corrija ou peça de novo antes de gravar.
+A IA responde com duas coisas:
+
+- **Conceito** — a definição do termo, escrita para valer fora desta nota. É o
+  que vai para o dicionário e aparece no hover.
+- **Nesta nota** — o papel do termo no trecho e na nota. Fica só na tela, para
+  você conferir; **não** é salvo.
+
+Ela lê o trecho e os parágrafos ao redor (não o Vault inteiro). O termo continua
+sendo o que você selecionou, com a grafia da nota, e tanto ele quanto o conceito
+ficam editáveis: se a definição não servir, corrija ou peça de novo antes de
+gravar.
 
 ## Onde fica guardado
 

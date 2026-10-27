@@ -1187,8 +1187,11 @@ pub(crate) async fn propose_note_improvements(
 pub struct DictionaryConceptSuggestion {
     /// O verbete sugerido (editavel na tela).
     pub term: String,
-    /// A definicao sugerida (editavel na tela).
+    /// A definicao sugerida (editavel na tela). E o que sera gravado.
     pub concept: String,
+    /// O papel do termo nesta nota. **Nao** e gravado: ajuda o usuario a
+    /// conferir a definicao no contexto em que ele pediu.
+    pub context: String,
     /// O verbete que ja cobre este termo no Dicionario do Vault, se houver.
     ///
     /// Vem do backend porque a comparacao de variantes (`estroma` e `estroma
@@ -1267,6 +1270,7 @@ pub(crate) async fn suggest_dictionary_concept(
         Ok(DictionaryConceptSuggestion {
             term: suggestion.term,
             concept: suggestion.concept,
+            context: suggestion.context,
             existing,
             invalid: suggestion.invalid,
         })
