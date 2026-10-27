@@ -170,11 +170,18 @@ function definitionRecallSection(report) {
         `| Passada de cobertura falhou | ${recall.coverageFailedCases} caso(s) — a 1a passada valeu sozinha |`,
       )
     }
+    if (recall.casesFailed > 0) {
+      rows.push(
+        `| Casos com ground truth nao medidos | ${recall.casesFailed} de ${recall.casesWithGroundTruth} — os termos continuam no denominador |`,
+      )
+    }
     const stages = [
       ['nunca proposto', recall.missedNeverProposed, 'prompt/cobertura'],
       ['recusado pelo motor', recall.missedRejectedByEngine, 'julgamento do JEV'],
       ['recusado pelo filtro', recall.missedRejectedByFilter, 'citacao/ancora'],
       ['variacao de nome', recall.missedNameVariant, 'metrica'],
+      ['caso nao medido (provider)', recall.missedCaseFailed, 'contrato do provider'],
+      ['caso nao medido (motor)', recall.missedJudgeFailed, 'contrato do motor'],
     ]
     if (stages.some(([, count]) => typeof count === 'number')) {
       rows.push(
