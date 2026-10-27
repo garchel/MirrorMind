@@ -192,29 +192,21 @@
   overflow-wrap: anywhere;
 }
 
-/* Modal de adicionar o trecho selecionado ao dicionario. */
+/* Modal de adicionar o trecho selecionado ao dicionario.
+ *
+ * O trecho **nao** aparece num bloco proprio: um trecho longo (ou uma nota
+ * inteira selecionada) transformava o modal num painel rolavel. O campo
+ * "Termo" ja mostra o que sera gravado, e o conceito vem da IA. */
 
 .dictionary-selection-dialog {
   max-width: 520px;
 }
 
 .dictionary-selection-intro {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   font-size: 0.85rem;
   line-height: 1.5;
   color: var(--muted);
-}
-
-.dictionary-selection-quote {
-  margin: 0 0 14px;
-  padding: 8px 12px;
-  border-left: 3px solid var(--accent);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 0.9rem;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
 }
 
 .dictionary-selection-status {

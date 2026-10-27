@@ -12,6 +12,29 @@ const MAX_TERM_CHARS = 120
 const MAX_CONCEPT_CHARS = 2000
 
 /**
+ * O termo que o formulario mostra.
+ *
+ * Quando o usuario seleciona **uma palavra**, o verbete e essa palavra. O
+ * modelo recebe a nota inteira como contexto e pode devolver o assunto dela no
+ * lugar do trecho (selecionar `glicose` numa nota sobre fotossintese e receber
+ * `Fotossintese`); deixar a sugestao vencer aqui gravaria o verbete errado.
+ *
+ * Quando o trecho e uma frase, o nome central e uma escolha de redacao e a
+ * sugestao do modelo vale — o usuario revisa antes de gravar. A mesma regra
+ * vale no backend, que e quem decide o "ja existe": as duas pontas precisam
+ * concordar sobre qual termo sera gravado.
+ */
+function termFromSelection(
+  selection: string,
+  suggestion: DictionaryConceptSuggestion | null,
+): string {
+  const trimmed = selection.trim()
+  const singleWord = trimmed.length > 0 && !/\s/.test(trimmed)
+  const chosen = singleWord ? trimmed : (suggestion?.term ?? trimmed)
+  return chosen.slice(0, MAX_TERM_CHARS)
+}
+
+/**
  * O modal de "adicionar o trecho selecionado ao dicionario".
  *
  * ## Por que a IA sugere, mas o usuario decide
@@ -19,6 +42,9 @@ const MAX_CONCEPT_CHARS = 2000
  * O dicionario e **por Vault** e o conceito depende do assunto: "rubisco" na
  * biologia e na fisica nao e a mesma coisa. A IA le a nota e propoe; quem
  * registra e o usuario. Por isso o termo e o conceito sao editaveis.
+ *
+ * O termo, porem, nao e escolha da IA quando o trecho e uma palavra: o verbete
+ * e o que o usuario selecionou (ver `termFromSelection`).
  *
  * ## O que a tela mostra em cada estado
  *
@@ -64,7 +90,7 @@ export function DictionarySelectionModal({
       setSaveError('')
       return
     }
-    setTerm(suggestion?.term ?? selection)
+    setTerm(termFromSelection(selection, suggestion))
     setConcept(suggestion?.concept ?? '')
     setSaveError('')
   }, [open, selection, suggestion])
@@ -115,8 +141,6 @@ export function DictionarySelectionModal({
         A IA leu o trecho e a nota para sugerir um conceito. Revise e edite antes
         de registrar.
       </p>
-
-      <blockquote className="dictionary-selection-quote">“{selection.trim()}”</blockquote>
 
       {loading ? (
         <p className="dictionary-selection-status" role="status">
@@ -181,7 +205,7 @@ export function DictionarySelectionModal({
         <span>Conceito</span>
         <textarea
           value={concept}
-          rows={4}
+          rows={3}
           maxLength={MAX_CONCEPT_CHARS}
           disabled={loading || saving}
           placeholder="A definição que aparece ao passar o mouse sobre o termo."

@@ -49,12 +49,33 @@ function renderModal(overrides: Partial<{
 }
 
 describe('DictionarySelectionModal', () => {
-  it('mostra o trecho selecionado, o termo e o conceito sugeridos', () => {
+  it('mostra o termo e o conceito sugeridos, sem bloco com a nota', () => {
     renderModal()
-    expect(screen.getByText(/estroma dos cloroplastos/)).toBeInTheDocument()
+    // O trecho longo nao vira um bloco proprio: era ele que virava painel
+    // rolavel. O campo "Termo" ja mostra o que sera gravado.
+    expect(screen.queryByText(/“estroma dos cloroplastos”/)).not.toBeInTheDocument()
     expect(screen.getByLabelText('Termo')).toHaveValue('estroma')
     expect(screen.getByLabelText('Conceito')).toHaveValue(
       'O fluido interno do cloroplasto.',
+    )
+  })
+
+  it('grava a palavra selecionada, nao o assunto que a IA devolveu', () => {
+    // O caso real: nota sobre fotossintese, selecao `glicose`, e a IA devolve
+    // `Fotossintese` como verbete. O campo Termo tem de mostrar a selecao.
+    renderModal({
+      selection: 'glicose',
+      suggestion: {
+        term: 'Fotossíntese',
+        concept: 'O processo em que a planta produz glicose.',
+        existing: null,
+        invalid: false,
+      },
+    })
+
+    expect(screen.getByLabelText('Termo')).toHaveValue('glicose')
+    expect(screen.getByLabelText('Conceito')).toHaveValue(
+      'O processo em que a planta produz glicose.',
     )
   })
 
