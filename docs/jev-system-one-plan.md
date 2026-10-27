@@ -3917,3 +3917,175 @@ ja existe no relatorio.
 - **Decidir a flexao de numero**: aceitar plural no `same_knowledge` (e no
   dicionario) ou manter a recusa. Hoje a segunda opcao e a coerente com o hover,
   mas ela custa dois termos esperados.
+
+### 15.46 Rodada 6: a extração deixou de ser o gargalo, e o julgamento não segurou
+
+A rodada 6 é o experimento que o §15.45 pediu: em vez de perguntar ao modelo
+"quais termos faltam", a nota é varrida por regra — sigla, nome próprio, palavra
+longa, termo depois de um determinante ou de um nome que o apresenta — e o
+modelo **julga** cada candidato. Run `1793037505`, 23 casos com ground truth
+revisado.
+
+| Medida | Rodada 5 | Rodada 6 |
+| --- | ---: | ---: |
+| Termos esperados no denominador | 54 | **46** |
+| Recall exato | 29/54 (53,7%) | **25/46 (54,3%)** |
+| Recall tolerante | 33/54 (61,1%) | **34/46 (73,9%)** |
+| Extras exatos | 18 | **49** |
+| Extras tolerantes | 15 | **38** |
+| Precisão (esperados / aceitos) | 29/47 (61,7%) | **25/74 (33,8%)** |
+| ECE pior | 0,150 | **0,116** |
+| Prontidão (acertos) | 21/23 (91,3%) | 20/23 (87,0%) |
+| Expansões aceitas | 44/47 (93,6%) | 47/50 (94,0%) |
+
+O denominador mudou, e isso vem antes de qualquer conclusão: duas chamadas ao
+provider falharam e levaram com elas os 8 termos esperados de
+`termo-definido-inline` (3) e `contexto-implicito` (5). Os 46 do denominador não
+são os 54 da rodada 5, então nenhuma linha da tabela é maçã-com-maçã.
+
+#### O funil ficou de uma passada só
+
+84 oferecidas (84 na primeira passada + **0** na cobertura) → 0 repetidas → 3
+recusadas pelo filtro → 81 ao motor → 7 recusadas por ele → 74 aceitas → **25
+encontradas**.
+
+As três recusas do filtro são grafia: duas "o termo não aparece na nota" e uma
+"a citação enviada não aparece na nota" (`Butterworth`). Das sete recusas do
+motor, duas são termos esperados (`rubisco`, `fotofosforilacao`); as outras cinco
+(`termodinamico`, `banco`, `entropia`, `crescimento`, `população`) são palavras
+comuns que o gerador propôs e o JEV barrou — o filtro do motor fazendo o
+trabalho dele.
+
+A cobertura **não foi acionada**: com os candidatos enchendo a primeira
+passada, não sobrou nada para a segunda pergunta achar. O teto de 8 continua, mas
+o volume subiu de 60 para 81 propostas. Isso não é só economia: a cobertura era
+a rede que pegava o que a primeira passada esquecia, e agora o funil tem o
+tamanho da primeira resposta.
+
+#### A taxa exata ficou parada e a precisão caiu
+
+54,3% contra 53,7%: a varredura mecânica não mexeu no recall exato. Em números
+absolutos o modelo achou 4 termos esperados a menos, num denominador 8 menor. O
+tolerante subiu de 61,1% para 73,9%, mas 34 contra 33 é **um** acerto a mais; o
+resto é denominador.
+
+O custo apareceu do outro lado: 74 aceitas para 25 esperadas. O usuário recebe
+49 sugestões que o gabarito não lista, contra 18 na rodada 5. O número sozinho
+não condena a rodada — a revisão da rodada 4 mostrou que 7 de 15 extras eram
+gabarito faltando —, mas ele derruba a promessa implícita do experimento: "o
+modelo só precisa julgar, então a precisão sobe". Não subiu.
+
+#### Seis dos nove "nunca propostos" estavam na lista de candidatos
+
+Esta era a pergunta que decidia o próximo passo: os termos que nunca viraram
+proposta morreram na extração ou no julgamento? O teste
+`os_candidatos_carregam_o_termo_que_o_modelo_nao_propos` roda o extrator de
+verdade sobre as notas do golden set e responde:
+
+| Termo esperado | Nota | Na lista de candidatos? |
+| --- | --- | :-: |
+| `estroma` | `ciclo-calvin`, `referencia-indefinida` | sim |
+| `glicose` | `ciclo-calvin`, `contradicao-estroma` | sim |
+| `teorema CAP` | `bases-de-dados` | sim, partido (`CAP`, `teorema`) |
+| `pepsina`, `protease` | `contradicao-maior` | sim |
+| `fase clara`, `fase escura` | `ciclo-calvin`, `contradicao-quantidade` | não (3 termos): a lista tem `fase` |
+
+Seis de nove chegaram ao modelo e voltaram sem proposta. A extração deixou de
+ser o gargalo; o que falha agora é a **política**: `estroma`, `glicose` e
+`pepsina` estavam na lista, e o modelo não propôs nenhum — para ele, um leitor
+que não conhece o assunto não precisa da definição. É a mesma política que a
+rodada 5 manteve por argumento de produto, e ela está errada no ponto que
+importa.
+
+Os três restantes são um defeito do extrator, não do modelo: `fase clara` e
+`fase escura` são compostos, e a regra só enxerga `fase`. Mais candidatos não
+resolvem isso — o que resolve é o composto virar candidato inteiro.
+
+A consequência prática é que aumentar a lista não compra nada. O próximo
+experimento é mudar **quem julga**: entregar os candidatos ao JEV
+(`needs_definition`) e deixar o provider generativo só escrever a definição dos
+que o motor aceitar. Isso é a tese do System One levada até o fim — o JEV julga,
+o provider escreve — e é o único caminho que não depende de o modelo de 7B
+acertar a política por conta própria.
+
+#### As nove variações de nome são o modelo encurtando o termo
+
+Nenhuma das nove é ruído do casamento: em todas o provider devolveu a cabeça ou
+o modificador no lugar do termo.
+
+| Esperado | Proposto |
+| --- | --- |
+| `ciclo de Calvin` | `Calvin` |
+| `recipiente adiabatico` | `adiabatico` |
+| `tolerancia a particionamento` | `particionamento` |
+| `glicólise aeróbica` | `glicólise` |
+| `curva de demanda` | `demanda` |
+| `sistema isolado` | `isolado` |
+| `estado macroscópico` | `macroscópico` |
+| `princípio da mínima entropia` | `princípio` |
+| `elástica` | **`inelástica`** |
+
+A última não é encurtamento: é o **antônimo**. E o recall tolerante conta como
+acerto, porque `terms_match` usa prefixo/sufixo com piso de 5 e `inelastica`
+termina com `elastica`. Ou seja, os 34/46 tolerantes incluem pelo menos um falso
+positivo, e o `same_knowledge` — que usa a mesma regra — suprimiria uma sugestão
+de `inelástica` num Vault que já tem `elástica`. Prefixo de negação (`in-`,
+`des-`, `im-`, `não`) quebra a regra nos dois sentidos: na métrica, inflando o
+recall; no produto, escondendo o termo.
+
+#### Os dois casos que caíram do denominador
+
+O modo da medição é `ImprovementScope::Both`, que é **uma** chamada com as duas
+tarefas na mesma resposta: uma resposta fora do schema zera expansões e
+definições juntas. É por isso que os mesmos dois casos aparecem nas duas falhas
+e que o funil de expansões mediu 21 de 23 casos. A rodada 5 não teve nenhuma
+falha de contrato; o pedido cresceu com os candidatos.
+
+Não está medido se foi o tamanho do pedido que derrubou o contrato — o que está
+medido é o acoplamento: uma resposta malformada custa dois números. O painel não
+tem esse acoplamento (dois botões, duas chamadas); o harness tem.
+
+#### ECE: 0,116, e o gate continua reprovando
+
+As três repetições deram **0,097 / 0,099 / 0,116**. O pior segue acima do limite
+de 0,10, então o veredito não mudou: confiança não acionável, não exibir número
+de confiança na UI. A rodada 5 tinha 0,150; a rodada 4, 0,120. Mesmo motor,
+mesmos casos, mesma faixa de 0,05 entre repetições — com 23 casos, passar ou não
+passar o gate está dentro do ruído amostral.
+
+A acurácia caiu de 91,3% para 87,0% por **um** caso: `promessa-vazia` passou de
+`ready` (certo) para `ambiguous` (errado). O caminho de prontidão não mudou nesta
+rodada; é variação do provider, não regressão de código.
+
+#### O que a rodada 6 decide
+
+1. **Os candidatos mecânicos ficam**, mas não como validação da política: eles
+   não movem o recall exato e custam precisão. O valor medido deles é outro —
+   provaram que o gargalo saiu da extração e está no julgamento.
+2. **O próximo experimento é o JEV julgando os candidatos.** O gerador deixa de
+   escolher o que merece definição; ele só escreve a definição depois do
+   `needs_definition` do motor. Mais candidato não resolve política errada.
+3. **Separar as duas tarefas na medição.** Enquanto o harness medir as duas numa
+   chamada só, uma resposta malformada apaga dois números. O painel já trabalha
+   separado.
+4. **Corrigir o prefixo de negação** em `same_knowledge` e `terms_match` antes de
+   usar o recall tolerante como número de decisão.
+5. **Mais casos** (23 → 30) para o ECE, como no §15.45: a variação entre
+   repetições é maior que a distância até o limite.
+
+#### Pendente
+
+- **Revisar os 49 extras** desta rodada. Sem isso, "precisão de 33,8%" é
+  concordância com uma lista que pode estar incompleta — a rodada 4 mostrou que
+  7 de 15 extras eram gabarito faltando.
+- **Revisar os 27 ausentes** da rodada 4, ainda sem resposta.
+- **Corrigir `inelástica` × `elástica`** no casamento por contenção (métrica e
+  dicionário).
+- **Gravar a lista de candidatos no JSON do run**, para a classificação dos
+  "nunca propostos" não depender de um teste unitário.
+- **Compostos no extrator**: `fase clara` e `fase escura` precisam virar
+  candidato inteiro; hoje só `fase` chega ao modelo.
+- **Claims (22)** continuam sem pontuação: `extract_factual_claims` segue código
+  morto.
+- **Golden set 23 de 30** casos, e a qualidade textual das definições continua
+  sem ground truth ("não medido", não aprovado).
