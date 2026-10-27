@@ -500,8 +500,11 @@ fn definition_question_id(index: usize) -> String {
 /// O alvo e o leitor **que nao conhece o assunto**: a definicao ajuda quem
 /// chegou na nota sem saber o tema. Por isso o criterio nao e "um leitor da
 /// materia ja saberia", que era restritivo demais - e que rejeitava termos que
-/// o dicionario do Vault deveria registrar. A unica recusa dura e a nota ja
-/// definir o termo antes do primeiro uso.
+/// o dicionario do Vault deveria registrar. Duas recusas duras: a nota ja
+/// definir o termo no lugar em que ele aparece, e o "termo" nao ser conceito
+/// nenhum - palavra comum, verbo, adverbio ou pedaco de uma expressao maior.
+/// A segunda e o que a rodada 7 mostrou: o motor aceitava `fortemente`,
+/// `isolado` e `fixacao` como se fossem verbetes.
 fn proposal_question(proposal: &DefinitionProposal) -> QuestionSpec {
     super::questions::rotate_question_options(
         QuestionSpec::Choice {
@@ -510,9 +513,13 @@ fn proposal_question(proposal: &DefinitionProposal) -> QuestionSpec {
                     "Um leitor que **nao conhece o assunto** da nota precisa saber o que \
                      e `{term}` para acompanhar este texto? Responda `yes` quando a \
                      definicao ajudaria esse leitor, mesmo que o termo pareca basico para \
-                     quem ja estudou o assunto. Responda `no` somente quando a propria \
-                     nota ja define `{term}` antes do primeiro uso, ou quando `{term}` e o \
-                     assunto da nota e nao uma premissa lateral.",
+                     quem ja estudou o assunto. Responda `no` tambem quando `{term}` nao \
+                     for um conceito: uma palavra comum, um verbo, um adverbio, um \
+                     adjetivo solto ou um pedaco de uma expressao maior que a nota usa \
+                     (por exemplo `fixacao` quando a nota fala de `fixacao de carbono`). \
+                     Responda `no` ainda quando a propria nota ja define `{term}` no \
+                     lugar em que ele aparece, ou quando `{term}` e o assunto da nota e \
+                     nao uma premissa lateral.",
                     term = proposal.term,
                 ),
                 &json!({
@@ -522,7 +529,8 @@ fn proposal_question(proposal: &DefinitionProposal) -> QuestionSpec {
             options: options_from_pairs([
                 (
                     "no",
-                    "Nao: a nota ja define o termo, ou ele e o assunto da nota.",
+                    "Nao: o termo nao e um conceito, a nota ja o define no lugar em que \
+                     aparece, ou ele e o assunto da nota.",
                 ),
                 (
                     "yes",
@@ -817,6 +825,28 @@ mod tests {
         let question = proposal_question(&proposal("estroma", "Uma organela.", 0));
         let rendered = serde_json::to_string(&question).expect("serializa");
         assert!(rendered.contains("estroma"), "{rendered}");
+    }
+
+    #[test]
+    fn a_pergunta_recusa_o_que_nao_e_conceito() {
+        // A rodada 7 aceitou `fortemente`, `isolado` e `fixacao`: a pergunta so
+        // recusava "a nota ja define" e "e o assunto". Sem esta clausula, o
+        // motor trata palavra comum e pedaco de expressao como verbete.
+        let question = proposal_question(&proposal("fixacao", "Ato de fixar.", 0));
+        let rendered = serde_json::to_string(&question).expect("serializa");
+        assert!(
+            rendered.contains("nao for um conceito"),
+            "a pergunta precisa recusar o que nao e conceito: {rendered}"
+        );
+        assert!(
+            rendered.contains("nao e um conceito"),
+            "a opcao `no` precisa nomear a recusa, senao o criterio nao chega \
+             ao motor: {rendered}"
+        );
+        assert!(
+            rendered.contains("fixacao de carbono"),
+            "a pergunta precisa dar o exemplo do pedaco de expressao: {rendered}"
+        );
     }
 
     #[test]
