@@ -20,6 +20,7 @@ Status: proposta · Autor: análise técnica · Referência externa: [TypeSafe �
 | D10 | **Confiança é exibida desde a primeira implementação e sempre registrada em log local.** A decisão de mantê-la na tela é tomada com dado próprio, não com promessa de fornecedor. | Decisão do usuário. O número já vem na resposta do JEV; registrá-lo custa zero. Esconder até provar desperdiça o sinal mais valioso da proposta. |
 | D11 | **O teste de resistência à injeção é informativo, não bloqueante.** C7/C8 entra em `Jev` mesmo se o teste falhar. | Decisão do usuário, com verificação de arquitetura: o vetor contra empresa/servidor é nulo (sem SQL, sem execução de código, caminhos de arquivo não derivam de texto, egress só para provedores autorizados). Autosabotagem é escolha do usuário. |
 | D12 | **Viés de ordem em `choice` é medido antes de qualquer decisão.** Teste de 3 rodadas com rotação, reportando direção e magnitude. | Decisão do usuário. A doc do JEV admite o viés sem quantificar. Ele ataca diretamente a medida de progresso (§15.4). Rotacionar sempre é mitigação; medir é o que falta. |
+| D13 | **O gerador de produção deve trocar por um modelo mais forte; o JEV continua julgando.** O 7B local fica como opção offline. | Medido no §15.47: recall exato 46,3% → 90,7%. O modelo compra recall; a precisão (38,6%) continua sendo decisão do JEV e da política. |
 
 ---
 
@@ -3928,9 +3929,9 @@ revisado.
 
 | Medida | Rodada 5 | Rodada 6 |
 | --- | ---: | ---: |
-| Termos esperados no denominador | 54 | **46** |
-| Recall exato | 29/54 (53,7%) | **25/46 (54,3%)** |
-| Recall tolerante | 33/54 (61,1%) | **34/46 (73,9%)** |
+| Termos esperados no denominador | 54 | **54** (o run gravou 46; ver correção) |
+| Recall exato | 29/54 (53,7%) | **25/54 (46,3%)** |
+| Recall tolerante | 33/54 (61,1%) | **34/54 (63,0%)** |
 | Extras exatos | 18 | **49** |
 | Extras tolerantes | 15 | **38** |
 | Precisão (esperados / aceitos) | 29/47 (61,7%) | **25/74 (33,8%)** |
@@ -3938,10 +3939,13 @@ revisado.
 | Prontidão (acertos) | 21/23 (91,3%) | 20/23 (87,0%) |
 | Expansões aceitas | 44/47 (93,6%) | 47/50 (94,0%) |
 
-O denominador mudou, e isso vem antes de qualquer conclusão: duas chamadas ao
-provider falharam e levaram com elas os 8 termos esperados de
-`termo-definido-inline` (3) e `contexto-implicito` (5). Os 46 do denominador não
-são os 54 da rodada 5, então nenhuma linha da tabela é maçã-com-maçã.
+O denominador **não** mudou: são os mesmos 54 da rodada 5. Duas chamadas ao
+provider falharam e o harness antigo tirou da conta os 8 termos esperados de
+`termo-definido-inline` (3) e `contexto-implicito` (5) — o run gravou 46 e
+reportou 25/46 (54,3%). Isso é um defeito do harness, corrigido no §15.47: uma
+falha não pode encolher o denominador. O número honesto é **25/54 (46,3%)**
+exato e **34/54 (63,0%)** tolerante. A precisão não muda, porque o numerador
+também é o mesmo: 25/74 (33,8%).
 
 #### O funil ficou de uma passada só
 
@@ -3964,10 +3968,10 @@ tamanho da primeira resposta.
 
 #### A taxa exata ficou parada e a precisão caiu
 
-54,3% contra 53,7%: a varredura mecânica não mexeu no recall exato. Em números
-absolutos o modelo achou 4 termos esperados a menos, num denominador 8 menor. O
-tolerante subiu de 61,1% para 73,9%, mas 34 contra 33 é **um** acerto a mais; o
-resto é denominador.
+46,3% contra 53,7%: a varredura mecânica não mexeu no recall exato — ela o
+**reduziu**. Em números absolutos o modelo achou 4 termos esperados a menos: 25
+contra 29. O tolerante subiu de 61,1% para 63,0%, mas 34 contra 33 é **um**
+acerto a mais; o resto é o denominador honesto.
 
 O custo apareceu do outro lado: 74 aceitas para 25 esperadas. O usuário recebe
 49 sugestões que o gabarito não lista, contra 18 na rodada 5. O número sozinho
@@ -4027,7 +4031,7 @@ o modificador no lugar do termo.
 
 A última não é encurtamento: é o **antônimo**. E o recall tolerante conta como
 acerto, porque `terms_match` usa prefixo/sufixo com piso de 5 e `inelastica`
-termina com `elastica`. Ou seja, os 34/46 tolerantes incluem pelo menos um falso
+termina com `elastica`. Ou seja, os 34/54 tolerantes incluem pelo menos um falso
 positivo, e o `same_knowledge` — que usa a mesma regra — suprimiria uma sugestão
 de `inelástica` num Vault que já tem `elástica`. Prefixo de negação (`in-`,
 `des-`, `im-`, `não`) quebra a regra nos dois sentidos: na métrica, inflando o
@@ -4089,3 +4093,129 @@ rodada; é variação do provider, não regressão de código.
   morto.
 - **Golden set 23 de 30** casos, e a qualidade textual das definições continua
   sem ground truth ("não medido", não aprovado).
+
+### 15.47 O modelo era o gargalo do recall — a precisão é política
+
+O §15.46 terminou com uma pergunta estreita: os termos que nunca viravam
+proposta morriam na extração ou no julgamento? A varredura mecânica respondeu
+"no julgamento" e propôs o próximo experimento — entregar os candidatos ao JEV.
+Faltava testar a hipótese anterior a essa: **um modelo maior, com a mesma
+política e os mesmos candidatos, recupera o que o 7B não recuperou?** Este
+experimento troca só o julgador.
+
+#### Método cego
+
+- As 23 notas do golden set foram embaralhadas com semente fixa e renomeadas
+  para `N01`…`N23`. O mapa ficou fora do material enviado.
+- Oito lotes (2–3 notas por chamada) receberam **apenas** a nota, a lista de
+  candidatos mecânicos real e o texto da tarefa de definições — nenhum lote viu
+  `golden.json`, o gabarito ou o nome real do caso.
+- A pontuação é mecânica, com a mesma normalização e o mesmo `terms_match` do
+  harness (igualdade, ou prefixo/sufixo com piso de 5), e aplica o filtro real
+  "o termo precisa aparecer na nota". Deram 127 propostas, **0** recusadas pelo
+  filtro.
+
+O teste mede **recall de propostas**. Qualidade da definição não foi medida.
+
+#### Resultado
+
+| Medida | 7B (rodada 6) | Modelo forte |
+| --- | ---: | ---: |
+| Propostas | 84 | **127** |
+| Aceitas pelo filtro | 74 | **127** |
+| Recall exato (54 termos) | 25 (46,3%) | **49 (90,7%)** |
+| Recall tolerante (54 termos) | 34 (63,0%) | **50 (92,6%)** |
+| Mesmo denominador da rodada 6 (46) | 25 (54,3%) | **42 (91,3%)** |
+| Extras | 49 | **76** |
+| Precisão (esperados / aceitas) | 25/74 (33,8%) | **49/127 (38,6%)** |
+
+O recall exato quase dobrou: 25 → 49, com o **mesmo** denominador de 54. A linha
+de 42/46 existe só para isolar o efeito das duas falhas de contrato da rodada 6,
+e mostra a mesma coisa: 91,3% quando o denominador é o que o pipeline conseguiu
+processar. A conclusão do §15.46 estava certa e agora tem o outro lado: o que
+faltava era julgamento, e um modelo melhor julga.
+
+#### Oito dos nove "nunca propostos" voltaram
+
+Dos termos que a rodada 6 nunca propôs, oito apareceram nesta rodada:
+`estroma` nas duas notas, `glicose`, `teorema CAP`, `pepsina`, `protease` e
+`fase escura`. Só `fase clara` no `ciclo-calvin` continuou de fora.
+
+Quatro termos esperados ainda faltaram:
+
+| Termo | Nota | Por quê |
+| --- | --- | --- |
+| `fotofosforilação` | `ciclo-calvin` | a nota **explica** o termo na própria frase; o modelo pulou por política |
+| `fotofosforação` | `lista-com-conteudo` | só é citado ("Reler a seção sobre..."), não explicado: falha real |
+| `fase clara` | `ciclo-calvin` | usado sem explicação ("produzidos na fase clara"): falha real |
+| `pH` | `contradicao-maior` | falha real de detecção |
+
+A política confirmada pelo usuário resolve o primeiro: **termo que a própria
+nota explica, no lugar em que aparece, não precisa de verbete**. Sob essa
+política, o rótulo `fotofosforilação` do `ciclo-calvin` está errado no gabarito,
+e o denominador justo seria 53: **49/53 (92,5%)** exato e **50/53 (94,3%)**
+tolerante. O `golden.json` **não** foi editado ainda: mudar o rótulo sem re-rodar
+deixaria o relatório contando um termo que o produto não deve captar. O número
+medido contra o gabarito atual continua sendo 49/54.
+
+#### Os extras subiram, e isso não é falta de potência
+
+As 127 propostas incluem **76 extras** — 27 a mais que a rodada 6. Dezoito estão
+em quatro notas cujo ground truth é vazio (`duas-afirmacoes` 5,
+`contrato-implicito` 6, `conceito-isolado` 4, `sistema-imunologico-limite` 3): o
+revisor olhou e disse "nada a definir"; o modelo propôs.
+
+Isso não é o modelo forte errando mais: é o modelo forte **obedecendo melhor** a
+mesma política generosa. A precisão de 38,6% é a política, não a capacidade. Um
+modelo maior compra recall; não compra a decisão de o que o usuário deve ver. É
+por isso que o desenho de produção não é "trocar o modelo e pronto":
+
+> **modelo forte propõe largo → JEV julga → usuário vê pouco.**
+
+O 7B não dava recall para o JEV ter o que julgar. O modelo forte dá. O JEV é quem
+tem de cortar os 76 extras sem derrubar os 49 acertos — e esse número ainda não
+foi medido.
+
+#### O que este teste não prova
+
+- **Uma rodada, 23 casos.** Cego por instrução, não criptograficamente.
+- **Sem o JEV.** 90,7% é limite superior: o motor recusava ~9% das propostas do
+  7B, e uma recusa parecida levaria o número para ~82–84%.
+- **Sem a checagem de `sourceQuote`.** Só o filtro "termo aparece na nota" foi
+  aplicado.
+- **`Definitions`-only e 3 notas por chamada**, contra `Both` e 1 nota por
+  chamada na rodada 6. A comparação isola o julgador, mas não é o mesmo payload.
+- **Custo, latência e privacidade não medidos.** O Ollama roda local e de graça;
+  um modelo de frontier manda o texto do Vault para fora. Para um app
+  local-first, isso é decisão de produto, não detalhe.
+
+#### O que esta rodada muda no código
+
+1. **O denominador honesto (P1).** Um caso que falha não sai da conta: os termos
+   esperados continuam no denominador e entram no funil como `caseFailed` ou
+   `judgeFailed`. O teste
+   `uma_falha_do_provider_nao_melhora_o_recall` trava a regra. A rodada 6 passa a
+   ser lida como 25/54 (46,3%) e 34/54 (63,0%); o JSON bruto continua com 46 até
+   a próxima medição, e o renderer agora mostra "casos com ground truth não
+   medidos".
+2. **Prefixo de negação.** `same_knowledge` e `terms_match` não casam mais
+   `elastica` com `inelastica`, `possivel` com `impossivel` ou `organizado` com
+   `desorganizado`. O recall tolerante da rodada 6 tinha pelo menos um falso
+   positivo, e o dicionário esconderia o verbete que falta.
+3. **Termo explicado na nota.** O prompt de definições passou a pedir
+   explicitamente para não propor o termo que a própria nota explica onde ele
+   aparece. O teste
+   `o_prompt_pede_para_pular_o_termo_que_a_nota_ja_explica` trava a instrução.
+
+#### Pendente
+
+- **Rodar o JEV sobre as 127 propostas.** É o número que falta: quantos dos 76
+  extras ele corta e quanto recall preserva.
+- **Revisar os 76 extras.** Sem isso, "precisão de 38,6%" é concordância com uma
+  lista que pode estar incompleta.
+- **Editar o rótulo `fotofosforilação` do `ciclo-calvin`** e re-rodar; a política
+  já foi decidida, a edição não.
+- **Checar `sourceQuote` no experimento de modelo**, não só "o termo aparece".
+- **Custo, latência e privacidade** do modelo de produção.
+- **Golden set 23 → 30 casos** e ground truth de **qualidade** das definições:
+  recall de 91% com definição ruim não é resultado.
