@@ -168,7 +168,13 @@ export function useFormatToolbar(deps: UseFormatToolbarDeps) {
    */
   function addSelectionToDictionary() {
     const selection = editorMode === 'read' ? null : editorRef.current.getSelection()
-    const term = selection?.value.trim() ?? ''
+    // `value` e o documento inteiro, nao o trecho: os offsets sao quem
+    // delimita a selecao. Usar `value` direto mandava o frontmatter da nota
+    // (com os post-its) como termo do verbete.
+    const selected = selection
+      ? selection.value.slice(selection.selectionStart, selection.selectionEnd)
+      : ''
+    const term = selected.trim()
     if (!term) return
     setSelectionPopover(null)
     addSelectionToDictionaryRef.current(term)

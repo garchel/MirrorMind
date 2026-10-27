@@ -6,6 +6,14 @@ afterEach(() => {
   cleanup()
 })
 
+/** A mesma forma que o editor devolve: `value` e o documento inteiro e os
+ * offsets delimitam a selecao (ver `MarkdownCodeEditor.getSelection`). */
+function selectionOf(doc: string, text: string) {
+  const selectionStart = doc.indexOf(text)
+  if (selectionStart < 0) throw new Error(`trecho fora do documento: ${text}`)
+  return { value: doc, selectionStart, selectionEnd: selectionStart + text.length }
+}
+
 function renderToolbar(overrides: Partial<UseFormatToolbarDeps> = {}) {
   const onAddSelectionToDictionary = vi.fn()
   const deps: UseFormatToolbarDeps = {
@@ -15,7 +23,8 @@ function renderToolbar(overrides: Partial<UseFormatToolbarDeps> = {}) {
     setDraftContent: vi.fn(),
     focusEditor: vi.fn(),
     editor: {
-      getSelection: () => ({ value: '  estroma dos cloroplastos  ', selectionStart: 2, selectionEnd: 29 }),
+      getSelection: () =>
+        selectionOf('# Nota\n\n  estroma dos cloroplastos  \n', '  estroma dos cloroplastos  '),
       getSelectionRect: () => null,
       editorContent: () => null,
     },
@@ -33,6 +42,35 @@ describe('useFormatToolbar', () => {
     act(() => result.current.addSelectionToDictionary())
 
     expect(onAddSelectionToDictionary).toHaveBeenCalledWith('estroma dos cloroplastos')
+  })
+
+  it('entrega so a selecao, nunca o frontmatter da nota', () => {
+    // O relato: selecionar `eletrons` abria o modal com o frontmatter (post-its
+    // e tudo) no campo Termo. O editor devolve o documento inteiro em `value`;
+    // quem recorta o trecho sao os offsets.
+    const doc = [
+      '---',
+      'postits:',
+      '  - id: postit-20260921235004-l0osxr',
+      '    anchorText: Processo autotrofico realizado por plantas',
+      '---',
+      '',
+      '# Fotossintese',
+      '',
+      'A fase clara gera ATP e os eletrons seguem para a cadeia transportadora.',
+      '',
+    ].join('\n')
+    const { result, onAddSelectionToDictionary } = renderToolbar({
+      editor: {
+        getSelection: () => selectionOf(doc, 'eletrons'),
+        getSelectionRect: () => null,
+        editorContent: () => null,
+      },
+    })
+
+    act(() => result.current.addSelectionToDictionary())
+
+    expect(onAddSelectionToDictionary).toHaveBeenCalledWith('eletrons')
   })
 
   it('nao abre o dicionario sem selecao real', () => {
