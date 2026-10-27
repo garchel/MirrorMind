@@ -85,6 +85,9 @@ use std::{
 use tauri::{Emitter, State};
 
 const MAX_NOTE_BYTES: u64 = 2 * 1024 * 1024;
+/// Um trecho selecionado e uma palavra ou uma frase, nao a nota colada a mao.
+/// O limite e validado antes de qualquer chamada ao provider.
+const MAX_SELECTION_CHARS: usize = 2_000;
 static NEXT_REVIEW_SESSION_ID: AtomicU64 = AtomicU64::new(1);
 const MAX_ACTIVE_REVIEW_SESSIONS: usize = 128;
 const ACTIVE_REVIEW_SESSION_TTL_MS: u64 = 24 * 60 * 60 * 1_000;
@@ -1152,6 +1155,100 @@ pub(crate) async fn propose_note_improvements(
     })
     .await
     .map_err(|_| "Nao foi possivel sugerir melhorias para a nota.".to_string())?
+}
+
+/// O conceito sugerido para um trecho selecionado.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DictionaryConceptSuggestion {
+    /// O verbete sugerido (editavel na tela).
+    pub term: String,
+    /// A definicao sugerida (editavel na tela).
+    pub concept: String,
+    /// O verbete que ja cobre este termo no Dicionario do Vault, se houver.
+    ///
+    /// Vem do backend porque a comparacao de variantes (`estroma` e `estroma
+    /// dos cloroplastos`) e a mesma do `upsert`, e a interface nao deve
+    /// reimplementar essa regra.
+    pub existing: Option<crate::dictionary::DictionaryEntry>,
+    /// `true` quando a IA nao respondeu no contrato.
+    pub invalid: bool,
+}
+
+/// Sugere o conceito de UM trecho que o usuario selecionou na nota.
+///
+/// ## Por que a nota vem do chamador
+///
+/// As outras operacoes de melhoria leem a nota do disco porque trabalham na
+/// nota inteira e o usuario pode salvar antes. Aqui o pedido nasce de uma
+/// **selecao no rascunho**: com o autosave desligado (o padrao), ler o disco
+/// daria ao modelo um contexto que o usuario ja mudou. O tamanho e validado
+/// antes de qualquer custo, e o conteudo continua sendo dado nao confiavel
+/// no prompt.
+///
+/// A reserva de orcamento usa o contexto **recortado** que vai ao provider,
+/// e nao a nota inteira: uma nota de 2 MB nao deve ser cobrada como se toda
+/// ela saisse do Vault.
+#[tauri::command]
+pub(crate) async fn suggest_dictionary_concept(
+    path: String,
+    term: String,
+    markdown: String,
+    provider: AiProviderSelection,
+    authorized_paths: State<'_, crate::AuthorizedPaths>,
+) -> Result<DictionaryConceptSuggestion, String> {
+    let root =
+        crate::canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .ensure_authorized_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+
+    let selection = term.trim().to_string();
+    if selection.is_empty() {
+        return Err("O trecho selecionado esta vazio.".to_string());
+    }
+    if selection.chars().count() > MAX_SELECTION_CHARS {
+        return Err(format!(
+            "O trecho selecionado tem mais de {MAX_SELECTION_CHARS} caracteres. \
+             Selecione uma palavra ou uma frase curta."
+        ));
+    }
+    if markdown.trim().is_empty() {
+        return Err("A nota esta vazia: nao ha contexto para sugerir o conceito.".to_string());
+    }
+    if markdown.len() as u64 > MAX_NOTE_BYTES {
+        return Err("A nota e grande demais para sugerir um conceito.".to_string());
+    }
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let provider = provider_for_selection(provider)?;
+        let context = super::calibrated::term_concept::concept_context(&markdown, &selection);
+        reserve_ai_call(&root, provider.as_ref(), context.len() + selection.len())?;
+        let suggestion = super::calibrated::term_concept::suggest_concept_with_context(
+            provider.as_ref(),
+            &selection,
+            &context,
+        )
+        .map_err(|failure| failure.message)?;
+
+        // O dicionario e por Vault e a variante e decidida pela mesma regra do
+        // `upsert`: registrar `estroma` nao pode criar um segundo verbete
+        // quando ja existe `estroma dos cloroplastos`.
+        let existing = crate::dictionary::load_dictionary(&root)
+            .unwrap_or_default()
+            .entries
+            .into_iter()
+            .find(|entry| crate::dictionary::same_knowledge(&entry.term, &suggestion.term));
+
+        Ok(DictionaryConceptSuggestion {
+            term: suggestion.term,
+            concept: suggestion.concept,
+            existing,
+            invalid: suggestion.invalid,
+        })
+    })
+    .await
+    .map_err(|_| "Nao foi possivel sugerir o conceito do trecho.".to_string())?
 }
 
 #[tauri::command]

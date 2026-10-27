@@ -6370,6 +6370,7 @@ pub fn run() {
             review::ipc::get_calibration_comparison,
             review::ipc::get_note_calibration_divergence,
             review::ipc::propose_note_improvements,
+            review::ipc::suggest_dictionary_concept,
             review::ipc::set_calibration_strategy_for_vault,
             dictionary::ipc::list_dictionary_entries,
             dictionary::ipc::save_dictionary_entry,
