@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Bold,
+  BookMarked,
   Code2,
   Italic,
   Link,
@@ -38,6 +39,8 @@ export type FormatToolbarProps = {
   onScheduleCloseSubmenu: (submenu: 'highlight' | 'postit') => void
   onApplyFormat: (format: MarkdownFormat) => void
   onOpenPostit: (color: PostitColor) => void
+  /** Abre o modal que sugere o conceito para o trecho selecionado. */
+  onAddToDictionary: () => void
 }
 
 /** Evita que o mousedown nos botoes roube o foco/selecao do editor. */
@@ -57,6 +60,7 @@ export function FormatToolbar({
   onScheduleCloseSubmenu,
   onApplyFormat,
   onOpenPostit,
+  onAddToDictionary,
 }: FormatToolbarProps) {
   if (!popover) return null
   return (
@@ -145,6 +149,16 @@ export function FormatToolbar({
           </div>
         ) : null}
       </div>
+      <span className="hl-separator" aria-hidden="true" />
+      <button
+        type="button"
+        onMouseDown={preserveEditorSelection}
+        onClick={onAddToDictionary}
+        title="Adicionar ao dicionário"
+        aria-label="Adicionar seleção ao dicionário"
+      >
+        <BookMarked size={15} strokeWidth={1.8} aria-hidden="true" />
+      </button>
     </div>
   )
 }

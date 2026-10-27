@@ -128,7 +128,9 @@ import { TabStrip, WorkspaceRail, WorkspaceTopbar, type WorkspacePage } from './
 import { TrashPage } from './features/trash/TrashPage'
 import { DictionaryPage } from './features/dictionary/DictionaryPage'
 import { DictionaryTooltip } from './features/dictionary/DictionaryTooltip'
+import { DictionarySelectionModal } from './features/dictionary/DictionarySelectionModal'
 import { useDictionary } from './features/dictionary/useDictionary'
+import { suggestDictionaryConcept, type DictionaryConceptSuggestion } from './features/dictionary/dictionarySuggestion'
 import type { DictionaryEntry } from './features/dictionary/dictionarySchema'
 import { useSettingsNav, type SettingsSectionId } from './features/settings/useSettingsNav'
 import { buildGraphSvg, downloadPng, downloadSvg, graphNodeExportColor } from './lib/graphExport'
@@ -462,6 +464,15 @@ function App() {
   // estrutural.
   const [improvementOpen, setImprovementOpen] = useState(false)
   const [improvementError, setImprovementError] = useState<string | null>(null)
+  // "Adicionar ao dicionario" a partir da selecao do editor: o trecho
+  // selecionado e a sugestao da IA vivem aqui porque o modal e renderizado
+  // pelo App, longe da toolbar.
+  const [dictionarySelection, setDictionarySelection] = useState<{
+    selection: string
+    loading: boolean
+    suggestion: DictionaryConceptSuggestion | null
+    error: string
+  } | null>(null)
   const [notificationLastCheck, setNotificationLastCheck] = useState<ReviewNotificationCheck | null>(null)
   // Acoes do cabecalho escondidas no menu "Mais acoes" (medicao via
   // ResizeObserver; em ordem de prioridade, da ultima para a primeira).
@@ -2083,6 +2094,53 @@ function App() {
   }
 
   /**
+   * Abre o modal do dicionario para um trecho selecionado e pede o conceito.
+   *
+   * O pedido leva o **rascunho atual**, nao o arquivo no disco: o trecho foi
+   * selecionado no que o usuario esta vendo, e com o autosave desligado o
+   * disco pode estar atrasado. O backend recorta a janela ao redor do trecho.
+   */
+  async function requestDictionaryConcept(selection: string) {
+    if (!vault) return
+    setDictionarySelection({ selection, loading: true, suggestion: null, error: '' })
+    try {
+      const suggestion = await suggestDictionaryConcept(
+        vault.path,
+        selection,
+        draftContentRef.current,
+        reviewProvider,
+      )
+      setDictionarySelection({ selection, loading: false, suggestion, error: '' })
+    } catch (failure) {
+      setDictionarySelection({
+        selection,
+        loading: false,
+        suggestion: null,
+        error: errorMessage(failure, 'Não foi possível sugerir o conceito.'),
+      })
+    }
+  }
+
+  /** Repete o pedido do modal com o mesmo trecho e o mesmo rascunho. */
+  function retryDictionaryConcept() {
+    const selection = dictionarySelection?.selection
+    if (selection) void requestDictionaryConcept(selection)
+  }
+
+  /**
+   * Grava o verbete que o usuario confirmou no modal.
+   *
+   * Diferente de `handleSaveToDictionary`, **lanca** a falha: o modal mostra
+   * o erro no proprio formulario, onde o usuario pode corrigir e tentar de
+   * novo, em vez de mandar a mensagem para o painel de melhorias.
+   */
+  async function saveDictionarySelection(term: string, concept: string) {
+    if (!vault) throw new Error('Nenhum Vault aberto.')
+    await saveDictionaryEntry(term, concept)
+    setStatus(`Conceito de "${term}" registrado no dicionário.`)
+  }
+
+  /**
    * Abre a pagina "melhorar a nota".
    *
    * Nao chama a IA aqui: o painel so pede as sugestoes quando o usuario
@@ -2103,6 +2161,7 @@ function App() {
     setFactCheck(null)
     setFactCheckError(null)
     setImprovementOpen(false)
+    setDictionarySelection(null)
   }, [activeNote?.relativePath])
 
   useEffect(() => {
@@ -3949,6 +4008,9 @@ function App() {
       getSelection: () => markdownCodeEditorRef.current?.getSelection() ?? null,
       getSelectionRect: () => markdownCodeEditorRef.current?.getSelectionRect() ?? null,
       editorContent: () => editorContentRef.current,
+    },
+    onAddSelectionToDictionary: (selection) => {
+      void requestDictionaryConcept(selection)
     },
   })
   const { applyMarkdownFormat, hideSelectionPopover } = format
@@ -5912,6 +5974,16 @@ function App() {
               </div>
           </Modal>
         ) : null}
+        <DictionarySelectionModal
+          open={dictionarySelection !== null}
+          selection={dictionarySelection?.selection ?? ''}
+          loading={dictionarySelection?.loading ?? false}
+          suggestion={dictionarySelection?.suggestion ?? null}
+          error={dictionarySelection?.error ?? ''}
+          onClose={() => setDictionarySelection(null)}
+          onRetry={retryDictionaryConcept}
+          onSave={saveDictionarySelection}
+        />
         <BuilderModeControl enabled={isBuilderModeEnabled} onEnabledChange={setBuilderModeEnabled} />
         <UpdateBanner
           updater={appUpdater}

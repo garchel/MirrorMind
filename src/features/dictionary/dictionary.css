@@ -191,3 +191,101 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Modal de adicionar o trecho selecionado ao dicionario. */
+
+.dictionary-selection-dialog {
+  max-width: 520px;
+}
+
+.dictionary-selection-intro {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.dictionary-selection-quote {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.dictionary-selection-status {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.dictionary-selection-failure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.dictionary-selection-warning {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--danger);
+}
+
+.dictionary-selection-existing {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.dictionary-selection-existing p {
+  margin: 0;
+}
+
+.dictionary-selection-existing-concept {
+  margin-top: 4px !important;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.dictionary-selection-label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.dictionary-selection-label input,
+.dictionary-selection-label textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.dictionary-selection-label input:focus-visible,
+.dictionary-selection-label textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.dictionary-selection-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

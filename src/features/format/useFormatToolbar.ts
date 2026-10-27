@@ -23,6 +23,8 @@ export type UseFormatToolbarDeps = {
   setDraftContent: React.Dispatch<React.SetStateAction<string>>
   focusEditor: () => void
   editor: FormatToolbarEditorAccess
+  /** Entrega o trecho selecionado ao fluxo do dicionario (modal no App). */
+  onAddSelectionToDictionary: (selection: string) => void
 }
 
 /** Toolbar de formatacao da selecao (extraida do App): popover ancorado a
@@ -35,6 +37,8 @@ export function useFormatToolbar(deps: UseFormatToolbarDeps) {
   editorRef.current = deps.editor
   const focusEditorRef = useRef(deps.focusEditor)
   focusEditorRef.current = deps.focusEditor
+  const addSelectionToDictionaryRef = useRef(deps.onAddSelectionToDictionary)
+  addSelectionToDictionaryRef.current = deps.onAddSelectionToDictionary
 
   const [selectionPopover, setSelectionPopover] = useState<SelectionPopoverState | null>(null)
   const selectionPopoverRef = useRef<HTMLDivElement | null>(null)
@@ -155,6 +159,21 @@ export function useFormatToolbar(deps: UseFormatToolbarDeps) {
     setSelectionPopover(null)
   }
 
+  /**
+   * Fecha a toolbar e entrega o trecho selecionado ao fluxo do dicionario.
+   *
+   * O popover fecha antes do modal abrir: deixar os dois visiveis ao mesmo
+   * tempo colocaria a toolbar atras do dialogo e daria a impressao de que a
+   * acao nao respondeu.
+   */
+  function addSelectionToDictionary() {
+    const selection = editorMode === 'read' ? null : editorRef.current.getSelection()
+    const term = selection?.value.trim() ?? ''
+    if (!term) return
+    setSelectionPopover(null)
+    addSelectionToDictionaryRef.current(term)
+  }
+
   return {
     selectionPopover,
     selectionPopoverRef,
@@ -165,5 +184,6 @@ export function useFormatToolbar(deps: UseFormatToolbarDeps) {
     cancelFormatSubmenuClose,
     applyMarkdownFormat,
     hideSelectionPopover,
+    addSelectionToDictionary,
   }
 }

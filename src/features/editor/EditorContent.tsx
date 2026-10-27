@@ -128,6 +128,7 @@ export type EditorContentProps = {
     | 'openFormatSubmenu'
     | 'scheduleFormatSubmenuClose'
     | 'applyMarkdownFormat'
+    | 'addSelectionToDictionary'
   >
   postits: Pick<
     ReturnType<typeof usePostitPopover>,
@@ -229,6 +230,7 @@ export function EditorContent({
     openFormatSubmenu,
     scheduleFormatSubmenuClose,
     applyMarkdownFormat,
+    addSelectionToDictionary,
   } = format
   const {
     postitData,
@@ -394,6 +396,7 @@ export function EditorContent({
         onScheduleCloseSubmenu={scheduleFormatSubmenuClose}
         onApplyFormat={applyMarkdownFormat}
         onOpenPostit={(color) => openPostitPopoverAtSelection(color)}
+        onAddToDictionary={addSelectionToDictionary}
       />
     ) : null}
     {postitPopover && editorMode !== 'edit' ? (
