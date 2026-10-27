@@ -422,6 +422,13 @@ struct DefinitionRecallSummary {
     coverage_proposals: usize,
     /// Propostas repetidas descartadas no merge das duas passadas.
     duplicates_dropped: usize,
+    /// Propostas que o modelo ofereceu acima do limite e foram cortadas.
+    ///
+    /// Truncar e o preco de nao recusar a resposta inteira quando o modelo
+    /// estoura o pedido. Se este numero crescer, o limite do prompt esta
+    /// apertado demais para o modelo - e o recall medido e o do limite, nao o
+    /// da capacidade dele.
+    truncated_proposals: usize,
     /// Casos em que a passada de cobertura falhou (a primeira valeu sozinha).
     coverage_failed_cases: usize,
     /// Termos que o motor aceitou e que **nao** casaram com nenhum esperado.
@@ -731,6 +738,7 @@ fn measure_improvements(
         measurement.expansions.raw_expansions += proposals.raw_expansions;
         measurement.expansions.expansions_accepted += proposals.expansions.len();
         measurement.expansions.expansions_rejected += proposals.expansions_rejected;
+        measurement.definitions.truncated_proposals += proposals.truncated_proposals;
 
         let expected = match expected {
             Some(expected) => expected,
@@ -1211,7 +1219,7 @@ fn jev_is_measured_against_the_legacy_path() {
     eprintln!(
         "  funil das definicoes: {} oferecidas ({} na 1a passada + {} na cobertura) \
          -> {} repetidas -> {} recusadas pelo filtro -> {} chegaram ao motor -> \
-         {} recusadas pelo motor -> {} encontradas",
+         {} recusadas pelo motor -> {} encontradas | {} cortadas pelo limite",
         definition_recall.raw_proposals + definition_recall.coverage_proposals,
         definition_recall.raw_proposals,
         definition_recall.coverage_proposals,
@@ -1219,7 +1227,8 @@ fn jev_is_measured_against_the_legacy_path() {
         definition_recall.filtered_out_terms,
         definition_recall.proposed_terms,
         definition_recall.rejected_by_engine.len(),
-        definition_recall.found_terms
+        definition_recall.found_terms,
+        definition_recall.truncated_proposals
     );
     if definition_recall.coverage_failed_cases > 0 {
         eprintln!(
@@ -1474,4 +1483,47 @@ fn uma_falha_do_provider_nao_melhora_o_recall() {
         summary.expected_terms,
         "encontrados + ausentes != esperados"
     );
+}
+
+/// Diagnostico: as notas em que o 7B devolve um relatorio fora do contrato.
+///
+/// O harness so imprime a mensagem ("nao corresponde ao contrato"), que nao
+/// diz *qual* regra do schema falhou. Este teste imprime os erros de validacao
+/// e o comeco da resposta bruta - o que falta para consertar o prompt.
+///
+/// Roda so com `MIRRORMIND_JEV_EVAL=1`, como o resto do arquivo: chama o
+/// modelo de verdade.
+#[test]
+#[ignore = "chama o modelo real; rode com MIRRORMIND_JEV_EVAL=1"]
+fn diagnostico_das_notas_que_quebram_o_contrato() {
+    if std::env::var_os(ENV_EVAL).is_none() {
+        return;
+    }
+    let provider = OllamaProvider::new().expect("Ollama local");
+    let notas: Vec<String> = std::env::var("MIRRORMIND_JEV_EVAL_NOTES")
+        .unwrap_or_else(|_| "termo-definido-inline.md,contexto-implicito.md".to_string())
+        .split(',')
+        .map(|note| note.trim().to_string())
+        .collect();
+    for note in notas {
+        let markdown = note_of(&note);
+        match propose_improvements(&provider, &markdown, ImprovementScope::Both, &[]) {
+            Ok(outcome) => println!(
+                "{note}: ok (invalid={}, propostas={}, expansoes={})",
+                outcome.invalid,
+                outcome.proposals.len(),
+                outcome.expansions.len()
+            ),
+            Err(failure) => {
+                println!("{note}: {}", failure.message);
+                for error in &failure.validation_errors {
+                    println!("  erro: {error}");
+                }
+                if let Some(raw) = &failure.raw_response {
+                    let inicio: String = raw.chars().take(2000).collect();
+                    println!("  bruto ({} bytes): {inicio}", raw.len());
+                }
+            }
+        }
+    }
 }

@@ -99,50 +99,54 @@ consegue copiar o trecho exato, omita o item - um item omitido custa uma \
 sugestao, um item inventado custa a confianca do usuario.";
 
 /// O contrato de formato, que muda com o escopo.
-fn format_instructions(scope: ImprovementScope) -> &'static str {
+fn format_instructions(scope: ImprovementScope) -> String {
+    let limite = MAX_DEFINITION_PROPOSALS;
     match scope {
-        ImprovementScope::Expansions => {
-            "\
+        ImprovementScope::Expansions => "\
 FORMATO OBRIGATORIO: responda somente com um objeto JSON, sem Markdown e sem texto \
 adicional. Use exatamente as chaves expansions e proposals. Preencha expansions (no \
 maximo 5 itens) e deixe proposals vazio. Um item de expansions usa as chaves \
 sourceQuote e expanded: sourceQuote e a citacao literal do trecho original da nota, \
 e expanded e a frase completa que o aluno quis dizer. Nao use chaves alternativas."
-        }
+            .to_string(),
         ImprovementScope::Definitions => {
-            "\
+            format!(
+                "\
 FORMATO OBRIGATORIO: responda somente com um objeto JSON, sem Markdown e sem texto \
 adicional. Use exatamente as chaves expansions e proposals. Deixe expansions vazio \
-e preencha proposals (no maximo 8 itens). Um item de proposals usa as chaves term, \
+e preencha proposals (no maximo {limite} itens). Um item de proposals usa as chaves term, \
 definition e sourceQuote: term e o termo exato como aparece na nota, definition e a \
 definicao proposta, e sourceQuote e a citacao literal da nota onde o termo e usado \
 sem definicao. Nao use chaves alternativas."
+            )
         }
         ImprovementScope::Both => {
-            "\
+            format!(
+                "\
 FORMATO OBRIGATORIO: responda somente com um objeto JSON, sem Markdown e sem texto \
 adicional. Use exatamente as chaves expansions e proposals, ambas listas (no maximo \
-5 expansoes e 8 propostas). Um item de expansions usa as chaves sourceQuote e \
+5 expansoes e {limite} propostas). Um item de expansions usa as chaves sourceQuote e \
 expanded: sourceQuote e a citacao literal do trecho original da nota, e expanded e a \
 frase completa que o aluno quis dizer. Um item de proposals usa as chaves term, \
 definition e sourceQuote: term e o termo exato como aparece na nota, definition e a \
 definicao proposta, e sourceQuote e a citacao literal da nota onde o termo e usado \
 sem definicao. Nao use chaves alternativas."
+            )
         }
     }
 }
 
 /// Monta as instrucoes do escopo pedido.
 fn system_instructions(scope: ImprovementScope) -> String {
-    let mut parts = vec![UNTRUSTED_NOTE];
+    let mut parts = vec![UNTRUSTED_NOTE.to_string()];
     if scope != ImprovementScope::Definitions {
-        parts.push(EXPANSION_TASK);
+        parts.push(EXPANSION_TASK.to_string());
     }
     if scope != ImprovementScope::Expansions {
-        parts.push(DEFINITION_TASK);
+        parts.push(DEFINITION_TASK.to_string());
     }
     parts.push(format_instructions(scope));
-    parts.push(AUTOCONFERENCE);
+    parts.push(AUTOCONFERENCE.to_string());
     parts.join("\n")
 }
 
@@ -238,6 +242,22 @@ fn utf16_len(text: &str) -> u64 {
         .sum()
 }
 
+/// Quantas propostas o produto aceita por nota.
+///
+/// O prompt pede este numero; o schema aceita mais de proposito. Um modelo que
+/// estoura o pedido nao pode perder a resposta inteira: na rodada 7 o 7B
+/// devolveu 11 propostas em duas notas e o schema (`maxItems: 8`) recusou o
+/// relatorio completo - as expansoes daquelas notas morreram junto, e dois
+/// casos ficaram sem medicao. O excedente e truncado com contagem, nao
+/// recusado.
+const MAX_DEFINITION_PROPOSALS: usize = 24;
+
+/// Teto do schema, acima do que o prompt pede.
+///
+/// Serve para limitar o tamanho da resposta sem transformar "o modelo falou
+/// demais" em "o modelo nao respondeu".
+const SCHEMA_MAX_PROPOSALS: usize = 64;
+
 /// O schema da resposta, para o provider com saida estruturada.
 ///
 /// As duas listas sao **independentes**: uma nota pode ter expansoes e nao ter
@@ -262,7 +282,7 @@ fn proposal_response_schema() -> serde_json::Value {
             },
             "proposals": {
                 "type": "array",
-                "maxItems": 8,
+                "maxItems": SCHEMA_MAX_PROPOSALS,
                 "items": {
                     "type": "object",
                     "properties": {
@@ -333,6 +353,11 @@ pub struct ProposalOutcome {
     pub coverage_proposals: usize,
     /// Propostas repetidas descartadas no merge das duas passadas.
     pub duplicates_dropped: usize,
+    /// Propostas que o modelo ofereceu acima do limite e foram cortadas.
+    ///
+    /// Truncar e diferente de recusar: o excedente se perde, mas a resposta (e
+    /// as expansoes) sobrevive. O numero existe para o corte nao ser silencioso.
+    pub truncated_proposals: usize,
     /// `true` quando a passada de cobertura falhou (a primeira valeu sozinha).
     pub coverage_failed: bool,
     /// Termos que o dicionario do Vault ja explica e por isso nao viraram
@@ -777,7 +802,7 @@ pub fn propose_improvements(
         response_schema: proposal_response_schema(),
     })?;
 
-    let raw: RawProposalReport = match serde_json::from_value(response.structured) {
+    let mut raw: RawProposalReport = match serde_json::from_value(response.structured) {
         Ok(raw) => raw,
         Err(_) => {
             return Ok(ProposalOutcome {
@@ -792,9 +817,17 @@ pub fn propose_improvements(
                 duplicates_dropped: 0,
                 coverage_failed: false,
                 already_known: Vec::new(),
+                truncated_proposals: 0,
             })
         }
     };
+
+    // O modelo falou demais: fica com os primeiros `MAX_DEFINITION_PROPOSALS`
+    // e **conta** o excedente. Recusar a resposta inteira por causa do tamanho
+    // custa as expansoes e o caso todo - foi o que aconteceu com duas notas na
+    // rodada 7. Truncar custa, no maximo, as propostas que sobraram.
+    let truncated_proposals = raw.proposals.len().saturating_sub(MAX_DEFINITION_PROPOSALS);
+    raw.proposals.truncate(MAX_DEFINITION_PROPOSALS);
 
     // O provider falou: quantas expansoes e quantas definicoes ele ofereceu.
     // E o inicio do funil, e sem ele nao ha como dizer onde a perda foi. Cada
@@ -903,6 +936,7 @@ pub fn propose_improvements(
         duplicates_dropped,
         coverage_failed,
         already_known,
+        truncated_proposals,
     })
 }
 
@@ -1485,26 +1519,35 @@ mod tests {
     }
 
     #[test]
-    fn o_prompt_e_o_schema_pedem_o_mesmo_numero_de_termos() {
+    fn o_prompt_pede_menos_propostas_do_que_o_schema_tolera() {
         // O prompt diz quantos termos quer; o schema limita quantos aceita.
-        // Se os dois divergirem, o provider ou viola o schema ou para no
-        // limite - e a medicao de recall mede o limite, nao a feature.
+        // Os dois **nao** sao o mesmo numero de proposito: se o schema tivesse
+        // o mesmo teto do pedido, um modelo que estourasse por uma proposta
+        // perderia a resposta inteira - foi o que aconteceu na rodada 7, em
+        // que o 7B devolveu 11 e as duas notas ficaram sem medicao.
         //
-        // A divergencia ja aconteceu: o prompt pedia UM termo, o schema
-        // aceitava 3, e o ground truth revisado tem 1 a 5 por nota (media
-        // 2,6). Com o prompt pedindo um, o pipeline entregava o termo mais
-        // obvio e a recall media 2% - que mediava duas grandezas
-        // diferentes.
-        const LIMITE: usize = 8;
+        // A divergencia de antes era outra: o prompt pedia UM termo, o schema
+        // aceitava 3, e o ground truth tem 1 a 5 por nota. Com o prompt pedindo
+        // um, a recall media 2% - mediava duas grandezas diferentes.
         let schema = proposal_response_schema();
         let max_items = schema["properties"]["proposals"]["maxItems"]
             .as_u64()
             .expect("maxItems no schema") as usize;
-        assert_eq!(max_items, LIMITE, "o schema limita a outro numero");
+        assert_eq!(
+            max_items, SCHEMA_MAX_PROPOSALS,
+            "o schema limita a outro numero"
+        );
+        assert!(
+            max_items > MAX_DEFINITION_PROPOSALS,
+            "o schema precisa tolerar mais do que o prompt pede, senao o \
+             excedente derruba a resposta inteira"
+        );
         let instrucoes = system_instructions(ImprovementScope::Both);
         assert!(
-            instrucoes.contains(&format!("no maximo 5 expansoes e {LIMITE} propostas")),
-            "o prompt nao menciona o mesmo limite do schema"
+            instrucoes.contains(&format!(
+                "no maximo 5 expansoes e {MAX_DEFINITION_PROPOSALS} propostas"
+            )),
+            "o prompt nao menciona o limite do produto: {instrucoes}"
         );
         assert!(
             instrucoes.contains("faca a enumeracao"),
@@ -1517,6 +1560,78 @@ mod tests {
             "a instrucao que empurra para o silencio sai do prompt: o custo \
              de uma definicao a mais e menor que o de uma premissa sem \
              explicacao"
+        );
+    }
+
+    #[test]
+    fn proposta_alem_do_limite_e_truncada_e_contada_em_vez_de_recusar_a_resposta() {
+        // Onze propostas numa nota nao podem custar o caso inteiro. As
+        // expansoes da mesma resposta sobrevivem ao corte, e o corte fica
+        // registrado: truncar em silencio seria o mesmo defeito com outra
+        // roupa.
+        let termos = [
+            "estroma",
+            "tilacoide",
+            "granum",
+            "lumen",
+            "clorofila",
+            "carotenoide",
+            "fotossistema",
+            "ferredoxina",
+            "plastoquinona",
+            "plastocianina",
+            "carboxilase",
+            "oxigenase",
+            "ribulose",
+            "fosfoglicerato",
+            "gliceraldeido",
+            "frutose",
+            "sacarose",
+            "amido",
+            "celulose",
+            "pectina",
+            "lignina",
+            "quitina",
+            "glicogenio",
+            "lipidio",
+            "proteina",
+            "aminoacido",
+            "nucleotideo",
+        ];
+        let nota = format!(
+            "# Ciclo de Calvin\n\n{}\n\nA fixacao de carbono ocorre no estroma dos cloroplastos.\n",
+            termos.join(", ")
+        );
+        let propostas: Vec<_> = termos
+            .iter()
+            .map(|termo| {
+                json!({
+                    "term": termo,
+                    "definition": "Uma definicao qualquer.",
+                    "sourceQuote": "A fixacao de carbono ocorre no estroma dos cloroplastos."
+                })
+            })
+            .collect();
+        let provider = Sequence::failing_after(
+            vec![json!({
+                "expansions": [{
+                    "sourceQuote": "A fixacao de carbono ocorre no estroma",
+                    "expanded": "A fixacao de carbono ocorre no estroma dos cloroplastos."
+                }],
+                "proposals": propostas,
+            })],
+            1,
+        );
+        let outcome = propose(&provider, &nota).expect("propoe");
+        assert_eq!(
+            outcome.truncated_proposals,
+            termos.len() - MAX_DEFINITION_PROPOSALS
+        );
+        assert_eq!(outcome.proposals.len(), MAX_DEFINITION_PROPOSALS);
+        assert_eq!(
+            outcome.expansions.len(),
+            1,
+            "as expansoes da resposta sobrevivem ao corte das propostas"
         );
     }
 
