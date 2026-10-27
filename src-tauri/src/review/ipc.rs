@@ -41,7 +41,8 @@ use super::policy_config::{
     VaultReviewDefaultsInput, VaultReviewDefaultsPreview, VaultReviewPolicyConfigView,
 };
 use super::provider::{
-    OllamaProvider, OpenAiCompatibleProvider, StructuredAiProvider, OLLAMA_ENDPOINT, OLLAMA_MODEL,
+    OllamaProvider, OpenAiCompatibleProvider, ProviderKind, StructuredAiProvider, OLLAMA_ENDPOINT,
+    OLLAMA_MODEL,
 };
 use super::queue::{list_due_reviews, list_upcoming_reviews, DueReviewItem, UpcomingReviewQueue};
 use super::reports::{
@@ -239,6 +240,23 @@ pub(crate) fn reserve_ai_call(
         return Ok(());
     }
     super::usage::check_and_record_call(vault_root, provider.kind(), input_chars)
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
+/// Reserva a chamada ao motor calibrado.
+///
+/// O `usage` modela os provedores generativos e nao tem o preco da TypeSafe.
+/// `OpenAiCompatible` e a estimativa de nuvem conservadora. O que nao se pode
+/// repetir e cobrar uma chamada de nuvem como se fosse Ollama local: antes, a
+/// confirmacao do JEV usava o `kind()` do provider generativo, entao um Vault
+/// com Ollama registrava a chamada do JEV a custo zero e o teto mensal nao a
+/// via.
+pub(crate) fn reserve_calibrated_call(vault_root: &Path, input_chars: usize) -> Result<(), String> {
+    if std::env::var_os("MIRRORMIND_E2E_MOCK_AI").is_some() {
+        return Ok(());
+    }
+    super::usage::check_and_record_call(vault_root, ProviderKind::OpenAiCompatible, input_chars)
         .map(|_| ())
         .map_err(|error| error.to_string())
 }
@@ -1101,13 +1119,19 @@ pub(crate) async fn propose_note_improvements(
         let mut suggestions = Vec::new();
         match calibrated_provider_for(strategy)? {
             Some(calibrated) => {
-                reserve_ai_call(&root, provider.as_ref(), markdown.len())?;
-                let verdicts = super::calibrated::improvements::confirm_definition_proposals(
-                    calibrated.as_ref(),
-                    &markdown,
-                    &outcome.proposals,
-                )
-                .map_err(|failure| failure.message)?;
+                // Sem propostas nao ha pergunta: nao reserve uma chamada que
+                // `confirm_definition_proposals` nem faria.
+                let verdicts = if outcome.proposals.is_empty() {
+                    Vec::new()
+                } else {
+                    reserve_calibrated_call(&root, markdown.len())?;
+                    super::calibrated::improvements::confirm_definition_proposals(
+                        calibrated.as_ref(),
+                        &markdown,
+                        &outcome.proposals,
+                    )
+                    .map_err(|failure| failure.message)?
+                };
                 for (proposal, verdict) in outcome.proposals.iter().zip(verdicts) {
                     if !verdict.needs_definition {
                         continue;
@@ -2910,5 +2934,28 @@ mod tests {
         }
 
         assert!(read_bounded_markdown(&root, &link).is_err());
+    }
+
+    #[test]
+    fn a_chamada_do_jev_e_cobrada_como_nuvem_e_nao_como_ollama() {
+        let temporary = tempdir().expect("temp dir");
+        let root = temporary.path();
+        super::reserve_calibrated_call(root, 4_000).expect("reserva");
+        let status = crate::review::usage::usage_status(root).expect("status");
+        let calls: Vec<(&str, u32)> = status
+            .provider_calls
+            .iter()
+            .map(|entry| (entry.provider.as_str(), entry.calls))
+            .collect();
+        assert!(
+            calls
+                .iter()
+                .any(|(provider, calls)| *provider == "openAiCompatible" && *calls == 1),
+            "{calls:?}"
+        );
+        assert!(
+            !calls.iter().any(|(provider, _)| *provider == "ollama"),
+            "{calls:?}"
+        );
     }
 }
