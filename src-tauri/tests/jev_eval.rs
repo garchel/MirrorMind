@@ -645,6 +645,10 @@ fn mark_case_unmeasured(
     expected_terms: &[ExpectedDefinition],
 ) {
     summary.cases_failed += 1;
+    match stage {
+        "judgeFailed" => summary.missed_judge_failed += expected_terms.len(),
+        _ => summary.missed_case_failed += expected_terms.len(),
+    }
     for term in expected_terms {
         summary.missed_terms.push(MissedTerm {
             case_id: case_id.to_string(),
@@ -1160,12 +1164,44 @@ fn jev_is_measured_against_the_legacy_path() {
     // esta linha "faltaram 23" nao diz o que fazer.
     eprintln!(
         "  ausentes no nome exato por etapa: {} variacao de nome | {} recusados pelo motor | \
-         {} recusados pelo filtro | {} nunca propostos",
+         {} recusados pelo filtro | {} nunca propostos | {} caso sem medicao | \
+         {} motor sem medicao",
         definition_recall.missed_name_variant,
         definition_recall.missed_rejected_by_engine,
         definition_recall.missed_rejected_by_filter,
-        definition_recall.missed_never_proposed
+        definition_recall.missed_never_proposed,
+        definition_recall.missed_case_failed,
+        definition_recall.missed_judge_failed
     );
+    // A soma das etapas tem de fechar com os ausentes, e os ausentes com o
+    // denominador. Na rodada 7 os contadores de falha nunca foram
+    // incrementados: 8 termos `caseFailed` ficaram fora de toda etapa e o
+    // relatorio explicava 41 de 49 ausentes sem avisar. Zero silencioso nao e
+    // resultado.
+    let soma_etapas = definition_recall.missed_name_variant
+        + definition_recall.missed_rejected_by_engine
+        + definition_recall.missed_rejected_by_filter
+        + definition_recall.missed_never_proposed
+        + definition_recall.missed_case_failed
+        + definition_recall.missed_judge_failed;
+    if soma_etapas != definition_recall.missed_terms.len() {
+        eprintln!(
+            "  AVISO: as etapas somam {soma_etapas}, mas ha {} termo(s) ausente(s) - \
+             alguma etapa nao esta sendo contada",
+            definition_recall.missed_terms.len()
+        );
+    }
+    if definition_recall.found_terms + definition_recall.missed_terms.len()
+        != definition_recall.expected_terms
+    {
+        eprintln!(
+            "  AVISO: encontrados ({}) + ausentes ({}) != esperados ({}) - o denominador \
+             nao fecha",
+            definition_recall.found_terms,
+            definition_recall.missed_terms.len(),
+            definition_recall.expected_terms
+        );
+    }
     for failure in &definition_recall.failures {
         eprintln!("  falha: {failure}");
     }
@@ -1411,9 +1447,31 @@ fn uma_falha_do_provider_nao_melhora_o_recall() {
     assert_eq!(summary.cases_failed, 1);
     assert_eq!(summary.cases_measured, 0);
     assert_eq!(summary.missed_terms.len(), 2);
+    assert_eq!(
+        summary.missed_case_failed, 2,
+        "a etapa `caseFailed` precisa contar os termos, senao o relatorio explica \
+         menos ausentes do que o denominador"
+    );
     assert!(summary
         .missed_terms
         .iter()
         .all(|term| term.stage == "caseFailed"));
     assert_eq!(summary.recall(), Some(0.0));
+
+    // A soma dos contadores tem de fechar com a lista de ausentes, e a lista
+    // com o denominador. Sem esta trava, um contador morto passa despercebido.
+    count_expected_terms(&mut summary, &esperados);
+    mark_case_unmeasured(&mut summary, "outro-caso", "judgeFailed", &esperados);
+    let soma = summary.missed_name_variant
+        + summary.missed_rejected_by_engine
+        + summary.missed_rejected_by_filter
+        + summary.missed_never_proposed
+        + summary.missed_case_failed
+        + summary.missed_judge_failed;
+    assert_eq!(soma, summary.missed_terms.len(), "etapas != ausentes");
+    assert_eq!(
+        summary.found_terms + summary.missed_terms.len(),
+        summary.expected_terms,
+        "encontrados + ausentes != esperados"
+    );
 }
