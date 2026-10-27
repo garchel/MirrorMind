@@ -4156,7 +4156,9 @@ política, o rótulo `fotofosforilação` do `ciclo-calvin` está errado no gaba
 e o denominador justo seria 53: **49/53 (92,5%)** exato e **50/53 (94,3%)**
 tolerante. O `golden.json` **não** foi editado ainda: mudar o rótulo sem re-rodar
 deixaria o relatório contando um termo que o produto não deve captar. O número
-medido contra o gabarito atual continua sendo 49/54.
+medido contra o gabarito atual continua sendo 49/54. Esse ajuste é o da
+política **antes** do JEV; a seção seguinte mostra que o motor recusa mais quatro
+termos da mesma classe.
 
 #### Os extras subiram, e isso não é falta de potência
 
@@ -4173,8 +4175,7 @@ por isso que o desenho de produção não é "trocar o modelo e pronto":
 > **modelo forte propõe largo → JEV julga → usuário vê pouco.**
 
 O 7B não dava recall para o JEV ter o que julgar. O modelo forte dá. O JEV é quem
-tem de cortar os 76 extras sem derrubar os 49 acertos — e esse número ainda não
-foi medido.
+tem de cortar os 76 extras sem derrubar os 49 acertos — e o número vem a seguir.
 
 #### O JEV sobre as 127 propostas
 
@@ -4189,7 +4190,7 @@ caso. Cinco rodadas, porque uma não é estável — a escolha varia, como o ECE
 | Recall tolerante (54) | 50 (92,6%) | 45–46 (83,3–85,2%) |
 | Extras aceitos | 76 | 61–64 |
 | Extras cortados | 0 | **12–15 de 76** |
-| Precisão exata | 49/127 (38,6%) | 44/110–45/107 (40,0–42,1%) |
+| Precisão exata | 49/127 (38,6%) | 44/110–45/109 (40,0–41,3%) |
 
 O JEV corta 12–15 extras e derruba 4 a 5 termos esperados. A troca parece ruim
 até olhar **quais** termos ele recusa: `rubisco` no `ciclo-calvin`, `teorema CAP`,
