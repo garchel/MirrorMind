@@ -20,7 +20,7 @@ Status: proposta · Autor: análise técnica · Referência externa: [TypeSafe �
 | D10 | **Confiança é exibida desde a primeira implementação e sempre registrada em log local.** A decisão de mantê-la na tela é tomada com dado próprio, não com promessa de fornecedor. | Decisão do usuário. O número já vem na resposta do JEV; registrá-lo custa zero. Esconder até provar desperdiça o sinal mais valioso da proposta. |
 | D11 | **O teste de resistência à injeção é informativo, não bloqueante.** C7/C8 entra em `Jev` mesmo se o teste falhar. | Decisão do usuário, com verificação de arquitetura: o vetor contra empresa/servidor é nulo (sem SQL, sem execução de código, caminhos de arquivo não derivam de texto, egress só para provedores autorizados). Autosabotagem é escolha do usuário. |
 | D12 | **Viés de ordem em `choice` é medido antes de qualquer decisão.** Teste de 3 rodadas com rotação, reportando direção e magnitude. | Decisão do usuário. A doc do JEV admite o viés sem quantificar. Ele ataca diretamente a medida de progresso (§15.4). Rotacionar sempre é mitigação; medir é o que falta. |
-| D13 | **O gerador de produção deve trocar por um modelo mais forte; o JEV continua julgando.** O 7B local fica como opção offline. | Medido no §15.47: recall exato 46,3% → 90,7%. O modelo compra recall; a precisão (38,6%) continua sendo decisão do JEV e da política. |
+| D13 | **O gerador de produção deve trocar por um modelo mais forte; o JEV continua julgando.** O 7B local fica como opção offline. | Medido no §15.47, no gabarito de 49: recall exato 51,0% → 91,8%. O modelo compra recall; a precisão (35,4%, e ~41% depois do JEV) continua sendo decisão do JEV e da política. |
 
 ---
 
@@ -3947,6 +3947,12 @@ falha não pode encolher o denominador. O número honesto é **25/54 (46,3%)**
 exato e **34/54 (63,0%)** tolerante. A precisão não muda, porque o numerador
 também é o mesmo: 25/74 (33,8%).
 
+> **Gabarito desde então.** O §15.47 removeu cinco rótulos que a política nova
+> invalida (termo explicado na própria nota não precisa de verbete), e o
+> denominador passou a **49**. Os números desta seção são os da medição original
+> em 54; recalculados sobre os 49, dão 25/49 (51,0%) exato e 33/49 (67,3%)
+> tolerante. Rodada medida se registra como foi medida.
+
 #### O funil ficou de uma passada só
 
 84 oferecidas (84 na primeira passada + **0** na cobertura) → 0 repetidas → 3
@@ -4123,17 +4129,24 @@ O teste mede **recall de propostas**. Qualidade da definição não foi medida.
 | --- | ---: | ---: |
 | Propostas | 84 | **127** |
 | Aceitas pelo filtro | 74 | **127** |
-| Recall exato (54 termos) | 25 (46,3%) | **49 (90,7%)** |
-| Recall tolerante (54 termos) | 34 (63,0%) | **50 (92,6%)** |
-| Mesmo denominador da rodada 6 (46) | 25 (54,3%) | **42 (91,3%)** |
-| Extras | 49 | **76** |
-| Precisão (esperados / aceitas) | 25/74 (33,8%) | **49/127 (38,6%)** |
+| Recall exato (49 termos) | 25 (51,0%) | **45 (91,8%)** |
+| Recall tolerante (49 termos) | 33 (67,3%) | **46 (93,9%)** |
+| Extras | 49 | **80** |
+| Precisão (esperados / aceitas) | 25/74 (33,8%) | **45/127 (35,4%)** |
 
-O recall exato quase dobrou: 25 → 49, com o **mesmo** denominador de 54. A linha
-de 42/46 existe só para isolar o efeito das duas falhas de contrato da rodada 6,
-e mostra a mesma coisa: 91,3% quando o denominador é o que o pipeline conseguiu
-processar. A conclusão do §15.46 estava certa e agora tem o outro lado: o que
-faltava era julgamento, e um modelo melhor julga.
+As duas colunas estão no gabarito de **49 termos**, o mesmo depois da correção
+descrita abaixo. A rodada 6 foi medida em 54 (25/54 e 34/54); o recálculo
+mecânico sobre os 49 dá 25/49 e 33/49 — um tolerante a menos, porque um dos cinco
+rótulos removidos era casado por semelhança. Recálculo não é rodada: o número
+formal da rodada 6 continua no §15.46, e a rodada 7 (§15.48) é a primeira medição
+feita já contra o gabarito novo — ela mediu **21/49 (42,9%)** com o 7B, o que não
+muda a comparação: o modelo forte, na mesma política e com os mesmos candidatos,
+encontra mais que o dobro no nome exato.
+
+O recall exato vai de 25/49 para **45/49** — de 51% para 92%. A conclusão do
+§15.46 estava certa e agora tem o outro lado: o que faltava era julgamento, e um
+modelo melhor julga. A precisão quase não se moveu (33,8% → 35,4%): o modelo
+forte não trouxe só os termos que faltavam, trouxe 31 extras a mais.
 
 #### Oito dos nove "nunca propostos" voltaram
 
@@ -4141,41 +4154,43 @@ Dos termos que a rodada 6 nunca propôs, oito apareceram nesta rodada:
 `estroma` nas duas notas, `glicose`, `teorema CAP`, `pepsina`, `protease` e
 `fase escura`. Só `fase clara` no `ciclo-calvin` continuou de fora.
 
-Quatro termos esperados ainda faltaram:
+Três termos esperados continuaram faltando, mais um que só casou por
+similaridade:
 
 | Termo | Nota | Por quê |
 | --- | --- | --- |
-| `fotofosforilação` | `ciclo-calvin` | a nota **explica** o termo na própria frase; o modelo pulou por política |
 | `fotofosforação` | `lista-com-conteudo` | só é citado ("Reler a seção sobre..."), não explicado: falha real |
 | `fase clara` | `ciclo-calvin` | usado sem explicação ("produzidos na fase clara"): falha real |
 | `pH` | `contradicao-maior` | falha real de detecção |
+| `complexidade média de busca` | `termo-definido-inline` | só tolerante: o modelo propôs `complexidade` |
 
-A política confirmada pelo usuário resolve o primeiro: **termo que a própria
-nota explica, no lugar em que aparece, não precisa de verbete**. Sob essa
-política, o rótulo `fotofosforilação` do `ciclo-calvin` está errado no gabarito,
-e o denominador justo seria 53: **49/53 (92,5%)** exato e **50/53 (94,3%)**
-tolerante. O `golden.json` **não** foi editado ainda: mudar o rótulo sem re-rodar
-deixaria o relatório contando um termo que o produto não deve captar. O número
-medido contra o gabarito atual continua sendo 49/54. Esse ajuste é o da
-política **antes** do JEV; a seção seguinte mostra que o motor recusa mais quatro
-termos da mesma classe.
+`fotofosforilação` no `ciclo-calvin` saiu desta tabela: a nota explica o termo na
+própria frase e o modelo pulou por política. A política confirmada pelo usuário —
+**termo que a própria nota explica, no lugar em que aparece, não precisa de
+verbete** — foi aplicada ao gabarito: cinco rótulos removidos (`rubisco` e
+`fotofosforilação` no `ciclo-calvin`, `teorema CAP`, `princípio da mínima
+entropia` e `pepsina`), denominador **54 → 49**. Os números da tabela acima já são
+contra os 49; antes da edição o mesmo experimento media 49/54 (90,7%) exato e
+50/54 (92,6%) tolerante. O que mudou foi o denominador, não o que o modelo achou.
+Esse ajuste é o da política **antes** do JEV; a seção seguinte mostra que o motor
+recusa exatamente os mesmos termos da mesma classe.
 
 #### Os extras subiram, e isso não é falta de potência
 
-As 127 propostas incluem **76 extras** — 27 a mais que a rodada 6. Dezoito estão
+As 127 propostas incluem **80 extras** — 31 a mais que a rodada 6. Dezoito estão
 em quatro notas cujo ground truth é vazio (`duas-afirmacoes` 5,
 `contrato-implicito` 6, `conceito-isolado` 4, `sistema-imunologico-limite` 3): o
 revisor olhou e disse "nada a definir"; o modelo propôs.
 
 Isso não é o modelo forte errando mais: é o modelo forte **obedecendo melhor** a
-mesma política generosa. A precisão de 38,6% é a política, não a capacidade. Um
+mesma política generosa. A precisão de 35,4% é a política, não a capacidade. Um
 modelo maior compra recall; não compra a decisão de o que o usuário deve ver. É
 por isso que o desenho de produção não é "trocar o modelo e pronto":
 
 > **modelo forte propõe largo → JEV julga → usuário vê pouco.**
 
 O 7B não dava recall para o JEV ter o que julgar. O modelo forte dá. O JEV é quem
-tem de cortar os 76 extras sem derrubar os 49 acertos — e o número vem a seguir.
+tem de cortar os 80 extras sem derrubar os 45 acertos — e o número vem a seguir.
 
 #### O JEV sobre as 127 propostas
 
@@ -4183,31 +4198,27 @@ Faltava o número que decide se o desenho de produção fecha. Rodei o motor de
 produção (`confirm_definition_proposals`) sobre os 127 termos, com a nota de cada
 caso. Cinco rodadas, porque uma não é estável — a escolha varia, como o ECE:
 
-| Medida | Antes do JEV | Depois (5 rodadas) |
+| Medida | Antes do JEV | Depois (6 rodadas) |
 | --- | ---: | ---: |
 | Propostas aceitas | 127 | 107–110 |
-| Recall exato (54) | 49 (90,7%) | 44–45 (81,5–83,3%) |
-| Recall tolerante (54) | 50 (92,6%) | 45–46 (83,3–85,2%) |
-| Extras aceitos | 76 | 61–64 |
-| Extras cortados | 0 | **12–15 de 76** |
-| Precisão exata | 49/127 (38,6%) | 44/110–45/109 (40,0–41,3%) |
+| Recall exato (49) | 45 (91,8%) | 44–45 (89,8–91,8%) |
+| Recall tolerante (49) | 46 (93,9%) | 45–46 (91,8–93,9%) |
+| Extras aceitos | 80 | 60–63 |
+| Extras cortados | 0 | **17–20 de 80** |
+| Precisão exata | 45/127 (35,4%) | 40,4–41,3% |
 
-O JEV corta 12–15 extras e derruba 4 a 5 termos esperados. A troca parece ruim
-até olhar **quais** termos ele recusa: `rubisco` no `ciclo-calvin`, `teorema CAP`,
-`princípio da mínima entropia` e `pepsina`. Nos quatro, a nota diz o que o termo
-é ou o que ele faz no lugar em que aparece — "a enzima rubisco, que adiciona
-CO2...", "O teorema CAP diz que...", "A pepsina, enzima do estômago...". Pela
-política confirmada, os quatro são **rótulos errados**, não recall perdido.
-
-Corrigidos os cinco rótulos dessa classe (os quatro mais `fotofosforilação` no
-`ciclo-calvin`, que o modelo nem propôs), o denominador justo é 49. Nas rodadas
-de melhor resultado o JEV entrega **45/49 (91,8%) exatos** e **46/49 (93,9%)
-tolerantes**, cortando **17 dos 80 extras**. O `golden.json` continua sem a
-edição; o número medido contra o gabarito atual é o da tabela.
+O JEV corta 17 a 20 extras — um quinto do ruído — e **não derruba nenhum termo
+esperado** sob a política corrigida. Antes de corrigir o gabarito a tabela parecia
+uma troca ruim (4 a 5 esperados perdidos), mas os termos que ele recusa são
+exatamente os que a nota explica no lugar em que aparecem: `rubisco` no
+`ciclo-calvin`, `teorema CAP`, `princípio da mínima entropia` e `pepsina` — "a
+enzima rubisco, que adiciona CO2...", "O teorema CAP diz que...", "A pepsina,
+enzima do estômago...". Não era recall perdido: eram rótulos errados, e os cinco
+saíram do gabarito.
 
 A leitura honesta é dupla. O JEV **não** é o filtro que resolve a precisão: ele
-corta ~17% dos extras e a precisão fica em ~41%. E parte do que ele corta é
-exatamente o que a política nova manda cortar. O gargalo que sobra não é o motor
+corta ~23% dos extras e a precisão fica em ~41%. E o que ele corta é, em boa
+parte, o que a política nova já mandava cortar. O gargalo que sobra não é o motor
 nem o modelo: é a **definição de "precisa de verbete"** e o quanto o usuário vê.
 
 #### O que estas duas medições não provam
@@ -4239,16 +4250,23 @@ nem o modelo: é a **definição de "precisa de verbete"** e o quanto o usuário
    explicitamente para não propor o termo que a própria nota explica onde ele
    aparece. O teste
    `o_prompt_pede_para_pular_o_termo_que_a_nota_ja_explica` trava a instrução.
+   O gabarito foi corrigido na mesma direção: cinco rótulos removidos,
+   denominador 54 → 49.
+4. **A chamada do JEV é cobrada como nuvem.** `reserve_calibrated_call` registra a
+   confirmação do JEV como `openAiCompatible`, não com o `kind()` do provider
+   generativo. Antes, um Vault com Ollama registrava o julgamento do JEV a custo
+   zero e o teto mensal não o via. O teste
+   `a_chamada_do_jev_e_cobrada_como_nuvem_e_nao_como_ollama` trava a regra, e
+   propostas vazias não reservam chamada que não aconteceria.
 
 #### Pendente
 
-- **Revisar os extras que sobraram.** O JEV cortou 12–15 de 76; os 61–64 aceitos
+- **Revisar os extras que sobraram.** O JEV cortou 17–20 de 80; os 60–63 aceitos
   continuam sem revisão. Sem isso, "precisão de ~41%" é concordância com uma
   lista que pode estar incompleta.
-- **Editar os cinco rótulos** que a política invalida (`rubisco` no
-  `ciclo-calvin`, `teorema CAP`, `princípio da mínima entropia`, `pepsina` e
-  `fotofosforilação` no `ciclo-calvin`) e re-rodar; a política já foi decidida, a
-  edição não.
+- **Confirmar o gabarito de 49 com uma rodada formal.** Feito no §15.48: a
+  rodada 7 mediu 21/49 (42,9%) com o 7B. O recorte do §15.48 também corrigiu o
+  contador de casos sem medição, que zerava 8 termos em silêncio.
 - **Checar `sourceQuote` e a definição completa** no experimento de modelo, não
   só "o termo aparece".
 - **Medir a variabilidade do JEV** com mais repetições: 3 propostas de diferença
@@ -4256,3 +4274,89 @@ nem o modelo: é a **definição de "precisa de verbete"** e o quanto o usuário
 - **Custo, latência e privacidade** do modelo de produção.
 - **Golden set 23 → 30 casos** e ground truth de **qualidade** das definições:
   recall de 91% com definição ruim não é resultado.
+### 15.48 Rodada 7: o gabarito de 49 medido, e um contador que mentia
+
+A rodada 7 é a primeira medição feita já contra o gabarito de 49 (§15.47), com o
+prompt que manda pular o termo que a nota explica no lugar em que aparece e com
+o denominador honesto (P1). Run `1793118137`, 23 casos, Ollama `qwen2.5:7b`,
+1556s.
+
+| Medida | Rodada 6 (gabarito 54) | Rodada 7 (gabarito 49) |
+| --- | ---: | ---: |
+| Termos esperados | 54 | **49** |
+| Casos com ground truth medidos | 13 de 23 | 13 de 23 |
+| Casos que falharam no contrato | 2 | **2 (os mesmos)** |
+| Oferecidas pelo provider | 84 | 86 |
+| Recusadas pelo filtro | 3 | 3 |
+| Recusadas pelo motor | 7 | 8 |
+| Aceitas | 74 | 75 |
+| Recall exato | 25/54 (46,3%) | **21/49 (42,9%)** |
+| Recall tolerante | 34/54 (63,0%) | **30/49 (61,2%)** |
+| Extras exatos | 49 | 54 |
+| Precisão | 25/74 (33,8%) | **21/75 (28,0%)** |
+| ECE pior | 0,116 | **0,162** |
+| Expansões aceitas | 47/50 (94,0%) | 49/52 (94,2%) |
+
+O funil completo: 86 oferecidas → 3 recusadas pelo filtro → 83 ao motor → 8
+recusadas → 75 aceitas → 21 esperadas encontradas. Os ausentes, por etapa: 9
+variação de nome, 0 recusados pelo motor, 1 recusado pelo filtro, 10 nunca
+propostos e **8 em dois casos que o provider não conseguiu processar**.
+
+#### A queda de 4 termos não é a política comendo recall
+
+Nos 41 termos que as duas rodadas efetivamente mediram (49 menos os 8 dos dois
+casos que falharam), a rodada 6 acertou 25/41 (61,0%) e a rodada 7, 21/41
+(51,2%); no tolerante, 33/41 (80,5%) contra 30/41 (73,2%). Dos 25 acertos da
+rodada 6, seis não voltaram: `respiração celular`, `membrana tilacoidal`, `pH`,
+`fotofosforação`, `fixação de carbono` e `capacidade de suporte`; dois voltaram
+sem estar na rodada 6: `glicose` no `contradicao-estroma` e `glicólise aeróbica`
+no `referencia-indefinida`.
+
+Nenhum dos seis perdidos é da classe que o prompt novo manda pular — nenhum é
+explicado inline na nota. Isso descarta a leitura fácil de que a política comeu o
+recall. Com n=41 e p≈0,6, a diferença de 4 termos está a ~1,3 desvio padrão de
+uma binomial: **não separa regressão de ruído**. O que se pode afirmar é menos:
+uma rodada não isola o efeito do prompt do ruído do 7B. Para isso seria preciso
+repetir com o prompt antigo, e o custo é outra rodada de 26 minutos — fica
+registrado como pendência, não como conclusão.
+
+O recorte que importa para o produto não mudou: o 7B continua sendo o piso
+offline, e o desenho de produção é modelo forte propondo + JEV julgando (§15.47),
+onde o recall medido é 45/49. O que esta rodada acrescenta é o piso: 21/49 com o
+7B, e o pedaço desse número que é falha de contrato e não de capacidade.
+
+#### O JEV concordou com a política outra vez
+
+Das 83 propostas que chegaram ao motor, ele recusou 8: `rubisco`,
+`fotofosforilação` e `pepsina` — três dos cinco rótulos que a política removeu do
+gabarito —, mais `termodinâmico`, `banco`, `crescimento exponencial` e
+`crescimento logístico`, que são recusas defensáveis. Uma recusa é perda real:
+`ciclo de Calvin` no `referencia-indefinida`, que o revisor espera e o motor
+julgou dispensável. O JEV cortou 8 de 83 (9,6%) aqui, contra 12–20 de 127 no
+experimento do §15.47: com o provider propondo menos, sobra menos para cortar.
+
+#### O contador que mentia
+
+O relatório da rodada 7 saiu com `missedCaseFailed: 0` e `missedJudgeFailed: 0` —
+mas os 8 termos dos dois casos que falharam estavam em `missedTerms` com a etapa
+`caseFailed`. Os campos existiam desde o P1 e **nunca eram incrementados**: as
+etapas impressas somavam 20 de 28 ausentes, e o denominador fechava 41 de 49 sem
+avisar. É o mesmo defeito que o P1 queria matar, um andar acima.
+
+Consertado em `mark_case_unmeasured`, que agora conta os termos na etapa certa;
+o teste `uma_falha_do_provider_nao_melhora_o_recall` passou a exigir que
+`encontrados + ausentes = esperados` e que a soma das etapas seja igual à lista
+de ausentes; e o harness imprime um `AVISO` se qualquer uma das duas contas não
+fechar. O relatório arquivado foi corrigido a partir dos próprios `missedTerms`
+da rodada (`missedCaseFailed: 8`) e o `.md` foi regerado: 21 + 28 = 49.
+
+#### Pendente
+
+- **As duas falhas de contrato são as mesmas duas notas nas duas rodadas**
+  (`termo-definido-inline`, `contexto-implicito`): 2 de 23 casos, 8,7%. Não é
+  ruído de rede — é o 7B devolvendo um relatório fora do contrato nessas notas.
+  O gate pede 0 inválidos em 500 chamadas; hoje a taxa é essa.
+- **Repetir a rodada com o prompt antigo** para separar o efeito da política do
+  ruído do 7B nos 4 termos.
+- **Revisar os 54 extras** aceitos: sem isso, "precisão de 28%" é concordância
+  com uma lista amostral.

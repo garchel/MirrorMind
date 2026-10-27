@@ -89,7 +89,7 @@
     "foundTolerant": 46,
     "extrasTotal": 80,
     "extrasCut": 17,
-    "note": "os cinco rotulos sao termos que a propria nota explica no lugar em que aparecem; a politica confirmada diz que nao precisam de verbete. O golden.json ainda nao foi editado.",
+    "note": "os cinco rotulos sao termos que a propria nota explica no lugar em que aparecem; a politica confirmada diz que nao precisam de verbete. O golden.json foi editado para remover os cinco (denominador 54 -> 49).",
     "foundExactRange": [
       44,
       45
@@ -103,7 +103,17 @@
       20
     ],
     "bestExact": 45,
-    "bestTolerant": 46
+    "bestTolerant": 46,
+    "proposalsExact": 45,
+    "proposalsTolerant": 46,
+    "proposalsAccepted": 127,
+    "proposalsPrecision": 0.354,
+    "jevBestAccepted": 110,
+    "jevBestPrecision": 0.409,
+    "jevAcceptedRange": [
+      107,
+      110
+    ]
   },
   "sampleRun": {
     "accepted": 109,
