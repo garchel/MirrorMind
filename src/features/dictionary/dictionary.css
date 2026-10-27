@@ -228,13 +228,39 @@
 .dictionary-selection-status {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 0 0 12px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
+  color: var(--muted);
+}
+
+.dictionary-selection-status-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.dictionary-selection-status-title {
+  margin: 0;
   font-size: var(--font-size-small);
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.dictionary-selection-status-hint {
+  margin: 2px 0 0;
+  font-size: var(--font-size-caption);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.dictionary-selection-elapsed {
+  flex: none;
+  align-self: flex-start;
+  font-size: var(--font-size-caption);
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
 
@@ -252,9 +278,60 @@
   }
 }
 
+/* Esqueleto do conceito: mostra onde o texto vai aparecer, em vez de deixar um
+ * campo vazio que parece defeito. */
+.dictionary-selection-concept {
+  position: relative;
+}
+
+.dictionary-selection-skeleton {
+  position: absolute;
+  inset: 1px;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  pointer-events: none;
+}
+
+.dictionary-selection-skeleton span {
+  height: 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 30%, transparent);
+  animation: dictionary-selection-pulse 1.6s ease-in-out infinite;
+}
+
+.dictionary-selection-skeleton span:nth-child(2) {
+  width: 94%;
+  animation-delay: 120ms;
+}
+
+.dictionary-selection-skeleton span:nth-child(3) {
+  width: 62%;
+  animation-delay: 240ms;
+}
+
+@keyframes dictionary-selection-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dictionary-selection-spinner {
     animation: none;
+  }
+
+  .dictionary-selection-skeleton span {
+    animation: none;
+    opacity: 0.75;
   }
 }
 
@@ -304,6 +381,7 @@
 
 .dictionary-selection-label input,
 .dictionary-selection-label textarea {
+  width: 100%;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -313,6 +391,13 @@
    * o `font: inherit` herdava a entrelinha de leitura da nota. */
   font: var(--font-size-small) / 1.5 var(--sans);
   resize: vertical;
+}
+
+/* O textarea agora vive dentro de `.dictionary-selection-concept` (para o
+ * esqueleto ficar por cima), entao nao herda mais o `stretch` da coluna: sem
+ * isto ele volta a largura intrinseca e o esqueleto fica maior que o campo. */
+.dictionary-selection-concept textarea {
+  display: block;
 }
 
 .dictionary-selection-label input:focus-visible,

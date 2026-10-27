@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DictionarySelectionModal } from './DictionarySelectionModal'
@@ -95,19 +95,65 @@ describe('DictionarySelectionModal', () => {
     expect(screen.getByLabelText('Termo')).toHaveValue('fase clara')
   })
 
-  it('avisa, com spinner, enquanto a IA prepara o conceito', () => {
+  it('avisa, com spinner e esqueleto, enquanto a IA prepara o conceito', () => {
     renderModal({ loading: true, suggestion: null })
 
     const status = screen.getByRole('status')
     expect(status).toHaveTextContent(/Preparando o conceito/)
-    // A selecao aparece de imediato: o termo nao depende da resposta da IA.
+    expect(status).toHaveTextContent(/ajustar o termo enquanto espera/)
+    // A selecao aparece de imediato e pode ser editada: o termo nao depende
+    // da resposta da IA.
     expect(screen.getByLabelText('Termo')).toHaveValue('estroma dos cloroplastos')
-    expect(screen.getByLabelText('Conceito')).toHaveAttribute(
-      'placeholder',
-      'A IA está escrevendo a definição…',
-    )
+    expect(screen.getByLabelText('Termo')).toBeEnabled()
+    expect(screen.getByLabelText('Conceito')).toBeDisabled()
+    expect(document.querySelector('.dictionary-selection-skeleton')).not.toBeNull()
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('button', { name: /Adicionar ao dicionário/ })).toBeDisabled()
+  })
+
+  it('conta os segundos para o usuario saber que o pedido esta vivo', () => {
+    vi.useFakeTimers()
+    try {
+      renderModal({ loading: true, suggestion: null })
+      // Nos primeiros segundos o contador nao aparece: so quando a espera
+      // passa do que parece instantaneo.
+      expect(screen.queryByText(/\d+ s/)).not.toBeInTheDocument()
+
+      act(() => {
+        vi.advanceTimersByTime(5000)
+      })
+
+      expect(screen.getByText('5 s')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('preserva o termo editado quando a sugestao chega', async () => {
+    const user = userEvent.setup()
+    const { view } = renderModal({ loading: true, suggestion: null })
+
+    const termo = screen.getByLabelText('Termo')
+    await user.clear(termo)
+    await user.type(termo, 'fase clara (fotossíntese)')
+
+    view.rerender(
+      <DictionarySelectionModal
+        open
+        selection="estroma dos cloroplastos"
+        loading={false}
+        suggestion={SUGESTAO}
+        error=""
+        onClose={vi.fn()}
+        onRetry={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText('Termo')).toHaveValue('fase clara (fotossíntese)')
+    expect(screen.getByLabelText('Conceito')).toHaveValue(
+      'O fluido interno do cloroplasto.',
+    )
   })
 
   it('grava o termo e o conceito revisados e fecha', async () => {

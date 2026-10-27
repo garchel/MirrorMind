@@ -39,8 +39,8 @@ function termFromSelection(selection: string): string {
  *
  * ## O que a tela mostra em cada estado
  *
- * - carregando: o termo ja mostra a selecao e um aviso com spinner diz que a
- *   IA esta preparando o conceito;
+ * - carregando: o termo ja mostra a selecao (e pode ser editado) e um aviso
+ *   com spinner, contador de segundos e esqueleto no campo do conceito;
  * - sugestao valida: termo e conceito preenchidos;
  * - resposta fora do formato: o trecho volta no termo, o conceito fica vazio
  *   e o usuario pode escrever ou tentar de novo;
@@ -73,7 +73,11 @@ export function DictionarySelectionModal({
   const [concept, setConcept] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
+  // O termo nao depende da IA: muda quando o modal abre ou quando a selecao
+  // muda. Separar do conceito deixa o usuario ajustar o termo enquanto espera
+  // sem que a resposta chegando sobrescreva o que ele escreveu.
   useEffect(() => {
     if (!open) {
       setTerm('')
@@ -83,9 +87,29 @@ export function DictionarySelectionModal({
       return
     }
     setTerm(termFromSelection(selection))
-    setConcept(suggestion?.concept ?? '')
     setSaveError('')
-  }, [open, selection, suggestion])
+  }, [open, selection])
+
+  // O conceito e a unica parte que chega depois (ou de uma nova tentativa).
+  useEffect(() => {
+    if (!open) return
+    setConcept(suggestion?.concept ?? '')
+  }, [open, suggestion])
+
+  // O provider local leva dezenas de segundos; o contador mostra que o pedido
+  // esta vivo. Fica `aria-hidden`: um numero que muda a cada segundo nao deve
+  // ser anunciado por leitor de tela.
+  useEffect(() => {
+    if (!loading) {
+      setElapsedSeconds(0)
+      return
+    }
+    const startedAt = Date.now()
+    const timer = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [loading])
 
   if (!open) return null
 
@@ -136,14 +160,26 @@ export function DictionarySelectionModal({
       </p>
 
       {loading ? (
-        <p className="dictionary-selection-status" role="status" aria-live="polite">
+        <div className="dictionary-selection-status" role="status">
           <Loader2
             className="dictionary-selection-spinner"
-            size={14}
+            size={16}
             aria-hidden="true"
           />
-          <span>Preparando o conceito…</span>
-        </p>
+          <div className="dictionary-selection-status-text">
+            <p className="dictionary-selection-status-title">
+              Preparando o conceito…
+            </p>
+            <p className="dictionary-selection-status-hint">
+              Você pode ajustar o termo enquanto espera.
+            </p>
+          </div>
+          {elapsedSeconds >= 4 ? (
+            <span className="dictionary-selection-elapsed" aria-hidden="true">
+              {elapsedSeconds} s
+            </span>
+          ) : null}
+        </div>
       ) : null}
 
       {error ? (
@@ -194,25 +230,30 @@ export function DictionarySelectionModal({
           type="text"
           value={term}
           maxLength={MAX_TERM_CHARS}
-          disabled={loading || saving}
+          disabled={saving}
           onChange={(event) => setTerm(event.target.value)}
         />
       </label>
 
       <label className="dictionary-selection-label">
         <span>Conceito</span>
-        <textarea
-          value={concept}
-          rows={3}
-          maxLength={MAX_CONCEPT_CHARS}
-          disabled={loading || saving}
-          placeholder={
-            loading
-              ? 'A IA está escrevendo a definição…'
-              : 'A definição que aparece ao passar o mouse sobre o termo.'
-          }
-          onChange={(event) => setConcept(event.target.value)}
-        />
+        <div className="dictionary-selection-concept">
+          <textarea
+            value={concept}
+            rows={3}
+            maxLength={MAX_CONCEPT_CHARS}
+            disabled={loading || saving}
+            placeholder="A definição que aparece ao passar o mouse sobre o termo."
+            onChange={(event) => setConcept(event.target.value)}
+          />
+          {loading ? (
+            <div className="dictionary-selection-skeleton" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+          ) : null}
+        </div>
       </label>
 
       {saveError ? <p className="field-error" role="alert">{saveError}</p> : null}

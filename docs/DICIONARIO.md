@@ -39,7 +39,8 @@ que falar do assunto.
 Selecione uma palavra ou uma frase curta na nota e use **Adicionar seleção ao
 dicionário** na barra que aparece sobre a seleção. O modal abre com o **termo
 já preenchido com o que você selecionou** e, enquanto a IA escreve a definição,
-mostra **"Preparando o conceito…"**.
+mostra **"Preparando o conceito…"**, o tempo decorrido e um esqueleto no lugar
+da definição. Nessa espera o termo já pode ser editado.
 
 A IA escreve o **conceito**, não o verbete. Ela lê o trecho e os parágrafos ao
 redor (não o Vault inteiro) e propõe a definição; o termo continua sendo o que
