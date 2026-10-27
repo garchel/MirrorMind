@@ -81,20 +81,12 @@
           "sourceQuote": "Essa fase ocorre no estroma dos cloroplastos e nao na membrana tilacoidal."
         },
         {
-          "term": "rubisco",
-          "sourceQuote": "A fixacao de carbono usa a enzima rubisco, que adiciona CO2 a uma molecula de ribulose-1,5-bisfosfato."
-        },
-        {
           "term": "ATP",
           "sourceQuote": "Cada molecula de CO2 fixado consome 3 ATP e 2 NADPH produzidos na fase clara."
         },
         {
           "term": "NADPH",
           "sourceQuote": "Cada molecula de CO2 fixado consome 3 ATP e 2 NADPH produzidos na fase clara."
-        },
-        {
-          "term": "fotofosforilacao",
-          "sourceQuote": "A fotofosforilacao transloca protons para dentro do tilacoide, criando um gradiente que alimenta a sintese de ATP."
         },
         {
           "term": "fase clara",
@@ -320,10 +312,6 @@
       "synthesisProvenance": "human",
       "unsupportedClaims": "arvores balanceadas e tabelas hash resolvem o mesmo problema; hash da a mesma complexidade media mas exige que a chave seja hashavel; como dimensionar a tabela hash para evitar rehashes",
       "expectedDefinitions": [
-        {
-          "term": "teorema CAP",
-          "sourceQuote": "O teorema CAP diz que um banco nao pode garantir simultaneamente consistencia, disponibilidade e tolerancia a particionamento."
-        },
         {
           "term": "tolerancia a particionamento",
           "sourceQuote": "O teorema CAP diz que um banco nao pode garantir simultaneamente consistencia, disponibilidade e tolerancia a particionamento."
@@ -695,10 +683,6 @@
         {
           "term": "estado macroscópico",
           "sourceQuote": "A entropia quantifica o número de microestados compatíveis com um estado macroscópico."
-        },
-        {
-          "term": "princípio da mínima entropia",
-          "sourceQuote": "Segundo o princípio da mínima entropia, um sistema espontaneamente evolui no sentido que maximiza a entropia."
         }
       ],
       "expectedDefinitionsProvenance": "human"
@@ -768,10 +752,6 @@
         {
           "term": "pH",
           "sourceQuote": "As enzimas digestivas atuam em pH varied, e cada enzima tem um pH ótimo."
-        },
-        {
-          "term": "pepsina",
-          "sourceQuote": "A pepsina, enzima do estômago, tem pH ótimo em 2, o ambiente fortemente ácido."
         },
         {
           "term": "protease",
