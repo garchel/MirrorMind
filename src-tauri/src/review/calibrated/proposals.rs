@@ -80,6 +80,8 @@ depois escreva a definicao de cada um.\n\
 Nao pule um termo so porque voce supoe que um leitor ja iniciado na materia o \
 conhece: o alvo e quem nao conhece. Nao proponha, porem, o assunto que da nome a \
 nota - definir o tema inteiro nao ajuda quem ja esta lendo sobre ele. Nao proponha \
+termo que a propria nota ja explica onde ele aparece: se o texto diz o que o termo \
+e ou o que ele faz ali, o leitor ja tem o que precisa. Nao proponha \
 termo que o dicionario do Vault ja explica: a lista dos que ja tem verbete vai no \
 pedido.\n\
 Uma lista vazia so e correta quando a nota nao usa nenhum termo de dominio sem \
@@ -1558,6 +1560,18 @@ mod tests {
         let found = candidate_terms(nota, &["estroma".to_string()]);
         assert!(!found.iter().any(|term| term == "estroma"), "{found:?}");
         assert!(found.iter().any(|term| term == "ATP"), "{found:?}");
+    }
+
+    #[test]
+    fn o_prompt_pede_para_pular_o_termo_que_a_nota_ja_explica() {
+        // A politica do produto: termo que a propria nota explica no lugar em
+        // que aparece nao precisa de verbete. Sem essa instrucao, o modelo
+        // propoe de novo o que o leitor ja leu, e o custo e uma sugestao inutil.
+        let instrucoes = system_instructions(ImprovementScope::Definitions);
+        assert!(
+            instrucoes.contains("a propria nota ja explica"),
+            "o prompt nao pede para pular o termo explicado na nota"
+        );
     }
 
     #[test]
