@@ -4176,13 +4176,45 @@ O 7B não dava recall para o JEV ter o que julgar. O modelo forte dá. O JEV é 
 tem de cortar os 76 extras sem derrubar os 49 acertos — e esse número ainda não
 foi medido.
 
-#### O que este teste não prova
+#### O JEV sobre as 127 propostas
 
-- **Uma rodada, 23 casos.** Cego por instrução, não criptograficamente.
-- **Sem o JEV.** 90,7% é limite superior: o motor recusava ~9% das propostas do
-  7B, e uma recusa parecida levaria o número para ~82–84%.
-- **Sem a checagem de `sourceQuote`.** Só o filtro "termo aparece na nota" foi
-  aplicado.
+Faltava o número que decide se o desenho de produção fecha. Rodei o motor de
+produção (`confirm_definition_proposals`) sobre os 127 termos, com a nota de cada
+caso. Cinco rodadas, porque uma não é estável — a escolha varia, como o ECE:
+
+| Medida | Antes do JEV | Depois (5 rodadas) |
+| --- | ---: | ---: |
+| Propostas aceitas | 127 | 107–110 |
+| Recall exato (54) | 49 (90,7%) | 44–45 (81,5–83,3%) |
+| Recall tolerante (54) | 50 (92,6%) | 45–46 (83,3–85,2%) |
+| Extras aceitos | 76 | 61–64 |
+| Extras cortados | 0 | **12–15 de 76** |
+| Precisão exata | 49/127 (38,6%) | 44/110–45/107 (40,0–42,1%) |
+
+O JEV corta 12–15 extras e derruba 4 a 5 termos esperados. A troca parece ruim
+até olhar **quais** termos ele recusa: `rubisco` no `ciclo-calvin`, `teorema CAP`,
+`princípio da mínima entropia` e `pepsina`. Nos quatro, a nota diz o que o termo
+é ou o que ele faz no lugar em que aparece — "a enzima rubisco, que adiciona
+CO2...", "O teorema CAP diz que...", "A pepsina, enzima do estômago...". Pela
+política confirmada, os quatro são **rótulos errados**, não recall perdido.
+
+Corrigidos os cinco rótulos dessa classe (os quatro mais `fotofosforilação` no
+`ciclo-calvin`, que o modelo nem propôs), o denominador justo é 49. Nas rodadas
+de melhor resultado o JEV entrega **45/49 (91,8%) exatos** e **46/49 (93,9%)
+tolerantes**, cortando **17 dos 80 extras**. O `golden.json` continua sem a
+edição; o número medido contra o gabarito atual é o da tabela.
+
+A leitura honesta é dupla. O JEV **não** é o filtro que resolve a precisão: ele
+corta ~17% dos extras e a precisão fica em ~41%. E parte do que ele corta é
+exatamente o que a política nova manda cortar. O gargalo que sobra não é o motor
+nem o modelo: é a **definição de "precisa de verbete"** e o quanto o usuário vê.
+
+#### O que estas duas medições não provam
+
+- **Cegueira por instrução, não criptográfica**, e uma rodada de propostas (23
+  casos). O JEV foi repetido 5 vezes e variou 3 propostas entre rodadas.
+- **O JEV julgou termos, não definições completas.** O `sourceQuote` não foi
+  checado e a qualidade textual da definição não foi medida.
 - **`Definitions`-only e 3 notas por chamada**, contra `Both` e 1 nota por
   chamada na rodada 6. A comparação isola o julgador, mas não é o mesmo payload.
 - **Custo, latência e privacidade não medidos.** O Ollama roda local e de graça;
@@ -4209,13 +4241,17 @@ foi medido.
 
 #### Pendente
 
-- **Rodar o JEV sobre as 127 propostas.** É o número que falta: quantos dos 76
-  extras ele corta e quanto recall preserva.
-- **Revisar os 76 extras.** Sem isso, "precisão de 38,6%" é concordância com uma
+- **Revisar os extras que sobraram.** O JEV cortou 12–15 de 76; os 61–64 aceitos
+  continuam sem revisão. Sem isso, "precisão de ~41%" é concordância com uma
   lista que pode estar incompleta.
-- **Editar o rótulo `fotofosforilação` do `ciclo-calvin`** e re-rodar; a política
-  já foi decidida, a edição não.
-- **Checar `sourceQuote` no experimento de modelo**, não só "o termo aparece".
+- **Editar os cinco rótulos** que a política invalida (`rubisco` no
+  `ciclo-calvin`, `teorema CAP`, `princípio da mínima entropia`, `pepsina` e
+  `fotofosforilação` no `ciclo-calvin`) e re-rodar; a política já foi decidida, a
+  edição não.
+- **Checar `sourceQuote` e a definição completa** no experimento de modelo, não
+  só "o termo aparece".
+- **Medir a variabilidade do JEV** com mais repetições: 3 propostas de diferença
+  entre rodadas é ruído suficiente para mudar a decisão de um caso de fronteira.
 - **Custo, latência e privacidade** do modelo de produção.
 - **Golden set 23 → 30 casos** e ground truth de **qualidade** das definições:
   recall de 91% com definição ruim não é resultado.

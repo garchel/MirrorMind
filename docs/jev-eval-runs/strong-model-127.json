@@ -1,0 +1,876 @@
+{
+  "date": "2026-10-27",
+  "method": "modelo forte cego: 23 notas embaralhadas (N01-N23), 8 lotes, prompt de definicoes, candidatos mecanicos reais; JEV roda depois sobre os 127 termos propostos",
+  "notes": 23,
+  "proposals": 127,
+  "filteredByTermInNote": 0,
+  "jevRuns": [
+    {
+      "accepted": 110,
+      "rejected": 17,
+      "exact": 44,
+      "tolerant": 45,
+      "extrasAccepted": 64,
+      "extrasRejected": 12
+    },
+    {
+      "accepted": 108,
+      "rejected": 19,
+      "exact": 44,
+      "tolerant": 45,
+      "extrasAccepted": 62,
+      "extrasRejected": 14
+    },
+    {
+      "accepted": 110,
+      "rejected": 17,
+      "exact": 45,
+      "tolerant": 46,
+      "extrasAccepted": 63,
+      "extrasRejected": 13
+    },
+    {
+      "accepted": 110,
+      "rejected": 17,
+      "exact": 45,
+      "tolerant": 46,
+      "extrasAccepted": 63,
+      "extrasRejected": 13
+    },
+    {
+      "accepted": 109,
+      "rejected": 18,
+      "exact": 45,
+      "tolerant": 46,
+      "extrasAccepted": 62,
+      "extrasRejected": 14
+    },
+    {
+      "accepted": 107,
+      "rejected": 20,
+      "exact": 44,
+      "tolerant": 45,
+      "extrasAccepted": 61,
+      "extrasRejected": 15
+    }
+  ],
+  "range": {
+    "accepted": [
+      107,
+      110
+    ],
+    "rejected": [
+      17,
+      20
+    ],
+    "exact": [
+      44,
+      45
+    ],
+    "tolerant": [
+      45,
+      46
+    ],
+    "extrasCut": [
+      12,
+      15
+    ]
+  },
+  "policyAdjusted": {
+    "removedLabels": [
+      "ciclo-calvin|rubisco",
+      "ciclo-calvin|fotofosforilacao",
+      "bases-de-dados|teorema CAP",
+      "termo-sem-definicao|principio da minima entropia",
+      "contradicao-maior|pepsina"
+    ],
+    "denominator": 49,
+    "foundExact": 45,
+    "foundTolerant": 46,
+    "extrasTotal": 80,
+    "extrasCut": 17,
+    "note": "os cinco rotulos sao termos que a propria nota explica no lugar em que aparecem; a politica confirmada diz que nao precisam de verbete. O golden.json ainda nao foi editado."
+  },
+  "sampleRun": {
+    "accepted": 109,
+    "rejected": 18,
+    "exact": 45,
+    "tolerant": 46,
+    "extrasAccepted": 62,
+    "extrasRejected": 14,
+    "rejectedExpected": [
+      "ciclo-calvin|rubisco",
+      "ciclo-calvin|fotofosforilacao",
+      "ciclo-calvin|fase clara",
+      "bases-de-dados|teorema CAP",
+      "termo-sem-definicao|princípio da mínima entropia",
+      "contradicao-maior|pH",
+      "contradicao-maior|pepsina",
+      "lista-com-conteudo|fotofosforação"
+    ],
+    "verdicts": [
+      {
+        "case": "ciclo-calvin",
+        "confidence": 0.42,
+        "needsDefinition": true,
+        "term": "fase escura"
+      },
+      {
+        "case": "ciclo-calvin",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "estroma"
+      },
+      {
+        "case": "ciclo-calvin",
+        "confidence": 0.2,
+        "needsDefinition": false,
+        "term": "rubisco"
+      },
+      {
+        "case": "ciclo-calvin",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "ribulose-1,5-bisfosfato"
+      },
+      {
+        "case": "ciclo-calvin",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "ATP"
+      },
+      {
+        "case": "ciclo-calvin",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "NADPH"
+      },
+      {
+        "case": "ciclo-calvin",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "tilacoide"
+      },
+      {
+        "case": "ciclo-calvin",
+        "confidence": 0.8,
+        "needsDefinition": true,
+        "term": "gradiente"
+      },
+      {
+        "case": "contradicao-fotossintese",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "fase clara"
+      },
+      {
+        "case": "contradicao-fotossintese",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "tilacoides"
+      },
+      {
+        "case": "contradicao-fotossintese",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "ciclo de Calvin"
+      },
+      {
+        "case": "contradicao-fotossintese",
+        "confidence": 0.94,
+        "needsDefinition": true,
+        "term": "clorofila"
+      },
+      {
+        "case": "contradicao-fotossintese",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "espectro"
+      },
+      {
+        "case": "contradicao-fotossintese",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "energia quimica"
+      },
+      {
+        "case": "contradicao-fotossintese",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "glicose"
+      },
+      {
+        "case": "contradicao-fotossintese",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "respiracao celular"
+      },
+      {
+        "case": "termodinamica",
+        "confidence": 0.76,
+        "needsDefinition": true,
+        "term": "sistema termodinamico"
+      },
+      {
+        "case": "termodinamica",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "calor"
+      },
+      {
+        "case": "termodinamica",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "propriedade extensiva"
+      },
+      {
+        "case": "termodinamica",
+        "confidence": 0.98,
+        "needsDefinition": false,
+        "term": "entropia"
+      },
+      {
+        "case": "termodinamica",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "recipiente adiabatico"
+      },
+      {
+        "case": "bases-de-dados",
+        "confidence": 0.98,
+        "needsDefinition": false,
+        "term": "chave primaria"
+      },
+      {
+        "case": "bases-de-dados",
+        "confidence": 0.98,
+        "needsDefinition": false,
+        "term": "chave estrangeira"
+      },
+      {
+        "case": "bases-de-dados",
+        "confidence": 0.9,
+        "needsDefinition": false,
+        "term": "indice"
+      },
+      {
+        "case": "bases-de-dados",
+        "confidence": 0.94,
+        "needsDefinition": false,
+        "term": "transacao"
+      },
+      {
+        "case": "bases-de-dados",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "consistencia"
+      },
+      {
+        "case": "bases-de-dados",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "disponibilidade"
+      },
+      {
+        "case": "bases-de-dados",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "tolerancia a particionamento"
+      },
+      {
+        "case": "bases-de-dados",
+        "confidence": 0.86,
+        "needsDefinition": false,
+        "term": "teorema CAP"
+      },
+      {
+        "case": "sistema-imunologico-limite",
+        "confidence": 0.96,
+        "needsDefinition": true,
+        "term": "Controle geral"
+      },
+      {
+        "case": "sistema-imunologico-limite",
+        "confidence": 0.94,
+        "needsDefinition": true,
+        "term": "Controle especifico"
+      },
+      {
+        "case": "sistema-imunologico-limite",
+        "confidence": 0.84,
+        "needsDefinition": true,
+        "term": "Subdivisoes"
+      },
+      {
+        "case": "contradicao-estroma",
+        "confidence": 0.66,
+        "needsDefinition": true,
+        "term": "rubisco"
+      },
+      {
+        "case": "contradicao-estroma",
+        "confidence": 0.96,
+        "needsDefinition": true,
+        "term": "estroma"
+      },
+      {
+        "case": "contradicao-estroma",
+        "confidence": 0.96,
+        "needsDefinition": true,
+        "term": "cloroplastos"
+      },
+      {
+        "case": "contradicao-estroma",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "membrana tilacoidal"
+      },
+      {
+        "case": "contradicao-estroma",
+        "confidence": 0.28,
+        "needsDefinition": false,
+        "term": "ciclo de Calvin"
+      },
+      {
+        "case": "contradicao-estroma",
+        "confidence": 0.32,
+        "needsDefinition": true,
+        "term": "fixação de carbono"
+      },
+      {
+        "case": "contradicao-estroma",
+        "confidence": 0.94,
+        "needsDefinition": true,
+        "term": "glicose"
+      },
+      {
+        "case": "contradicao-estroma",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "citoplasma"
+      },
+      {
+        "case": "referencia-indefinida",
+        "confidence": 0.34,
+        "needsDefinition": false,
+        "term": "ciclo de Calvin"
+      },
+      {
+        "case": "referencia-indefinida",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "estroma"
+      },
+      {
+        "case": "referencia-indefinida",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "cloroplastos"
+      },
+      {
+        "case": "referencia-indefinida",
+        "confidence": 0.68,
+        "needsDefinition": true,
+        "term": "fixação de carbono"
+      },
+      {
+        "case": "referencia-indefinida",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "glicólise aeróbica"
+      },
+      {
+        "case": "referencia-indefinida",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "ATP"
+      },
+      {
+        "case": "referencia-indefinida",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "NADPH"
+      },
+      {
+        "case": "referencia-indefinida",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "CO2"
+      },
+      {
+        "case": "passa-baixa-fronteira",
+        "confidence": 0.7,
+        "needsDefinition": true,
+        "term": "frequência de corte"
+      },
+      {
+        "case": "passa-baixa-fronteira",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "unity"
+      },
+      {
+        "case": "passa-baixa-fronteira",
+        "confidence": 0.18,
+        "needsDefinition": true,
+        "term": "ordem do filtro"
+      },
+      {
+        "case": "passa-baixa-fronteira",
+        "confidence": 0.92,
+        "needsDefinition": true,
+        "term": "inclinação"
+      },
+      {
+        "case": "passa-baixa-fronteira",
+        "confidence": 0.64,
+        "needsDefinition": true,
+        "term": "Butterworth"
+      },
+      {
+        "case": "passa-baixa-fronteira",
+        "confidence": 0.54,
+        "needsDefinition": true,
+        "term": "Chebyshev"
+      },
+      {
+        "case": "passa-baixa-fronteira",
+        "confidence": 0.96,
+        "needsDefinition": true,
+        "term": "banda de passagem"
+      },
+      {
+        "case": "passa-baixa-fronteira",
+        "confidence": 0.64,
+        "needsDefinition": false,
+        "term": "passa-alta"
+      },
+      {
+        "case": "termo-definido-inline",
+        "confidence": 0.72,
+        "needsDefinition": true,
+        "term": "chaves"
+      },
+      {
+        "case": "termo-definido-inline",
+        "confidence": 0.28,
+        "needsDefinition": true,
+        "term": "Árvores balanceadas"
+      },
+      {
+        "case": "termo-definido-inline",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "rebalanceamento"
+      },
+      {
+        "case": "termo-definido-inline",
+        "confidence": 0.52,
+        "needsDefinition": true,
+        "term": "Tabelas hash"
+      },
+      {
+        "case": "termo-definido-inline",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "complexidade média"
+      },
+      {
+        "case": "somente-listas",
+        "confidence": 0.94,
+        "needsDefinition": true,
+        "term": "anexo"
+      },
+      {
+        "case": "somente-listas",
+        "confidence": 0.94,
+        "needsDefinition": true,
+        "term": "apêndice"
+      },
+      {
+        "case": "contexto-implicito",
+        "confidence": 0.12,
+        "needsDefinition": false,
+        "term": "fase escura"
+      },
+      {
+        "case": "contexto-implicito",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "fase clara"
+      },
+      {
+        "case": "contexto-implicito",
+        "confidence": 0.78,
+        "needsDefinition": true,
+        "term": "cloroplasto"
+      },
+      {
+        "case": "contexto-implicito",
+        "confidence": 0.86,
+        "needsDefinition": true,
+        "term": "rubisco"
+      },
+      {
+        "case": "contexto-implicito",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "ATP"
+      },
+      {
+        "case": "contexto-implicito",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "NADPH"
+      },
+      {
+        "case": "contexto-implicito",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "fotofosforação"
+      },
+      {
+        "case": "contexto-implicito",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "membranas tilacoidais"
+      },
+      {
+        "case": "contradicao-quantidade",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "CO2"
+      },
+      {
+        "case": "contradicao-quantidade",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "ATP"
+      },
+      {
+        "case": "contradicao-quantidade",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "NADPH"
+      },
+      {
+        "case": "contradicao-quantidade",
+        "confidence": 0.9,
+        "needsDefinition": true,
+        "term": "fase escura"
+      },
+      {
+        "case": "contradicao-quantidade",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "fixada"
+      },
+      {
+        "case": "contradicao-quantidade",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "cloroplasto"
+      },
+      {
+        "case": "contradicao-quantidade",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "citoplasma"
+      },
+      {
+        "case": "contradicao-quantidade",
+        "confidence": 0.92,
+        "needsDefinition": true,
+        "term": "glicose"
+      },
+      {
+        "case": "promessa-vazia",
+        "confidence": 0.96,
+        "needsDefinition": true,
+        "term": "demanda"
+      },
+      {
+        "case": "promessa-vazia",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "quantidade demandada"
+      },
+      {
+        "case": "promessa-vazia",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "curva de demanda"
+      },
+      {
+        "case": "promessa-vazia",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "derivada"
+      },
+      {
+        "case": "promessa-vazia",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "bens"
+      },
+      {
+        "case": "promessa-vazia",
+        "confidence": 0.82,
+        "needsDefinition": true,
+        "term": "elástica"
+      },
+      {
+        "case": "promessa-vazia",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "inelástica"
+      },
+      {
+        "case": "termo-sem-definicao",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "sistema isolado"
+      },
+      {
+        "case": "termo-sem-definicao",
+        "confidence": 0.96,
+        "needsDefinition": true,
+        "term": "energia"
+      },
+      {
+        "case": "termo-sem-definicao",
+        "confidence": 0.7,
+        "needsDefinition": true,
+        "term": "microestados"
+      },
+      {
+        "case": "termo-sem-definicao",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "estado macroscópico"
+      },
+      {
+        "case": "termo-sem-definicao",
+        "confidence": 0.4,
+        "needsDefinition": false,
+        "term": "princípio da mínima entropia"
+      },
+      {
+        "case": "duas-afirmacoes",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "carga"
+      },
+      {
+        "case": "duas-afirmacoes",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "condutor"
+      },
+      {
+        "case": "duas-afirmacoes",
+        "confidence": 0.78,
+        "needsDefinition": true,
+        "term": "diferença de potencial"
+      },
+      {
+        "case": "duas-afirmacoes",
+        "confidence": 0.76,
+        "needsDefinition": true,
+        "term": "fluxo"
+      },
+      {
+        "case": "duas-afirmacoes",
+        "confidence": 0.4,
+        "needsDefinition": true,
+        "term": "razão"
+      },
+      {
+        "case": "contradicao-maior",
+        "confidence": 0.9,
+        "needsDefinition": true,
+        "term": "pH ótimo"
+      },
+      {
+        "case": "contradicao-maior",
+        "confidence": 0.82,
+        "needsDefinition": false,
+        "term": "pepsina"
+      },
+      {
+        "case": "contradicao-maior",
+        "confidence": 0.88,
+        "needsDefinition": true,
+        "term": "protease"
+      },
+      {
+        "case": "contradicao-maior",
+        "confidence": 0.9,
+        "needsDefinition": true,
+        "term": "estômago"
+      },
+      {
+        "case": "contradicao-maior",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "pâncreas"
+      },
+      {
+        "case": "contradicao-maior",
+        "confidence": 0.96,
+        "needsDefinition": true,
+        "term": "intestino delgado"
+      },
+      {
+        "case": "contradicao-maior",
+        "confidence": 0.96,
+        "needsDefinition": true,
+        "term": "meio alcalino"
+      },
+      {
+        "case": "contradicao-maior",
+        "confidence": 0.38,
+        "needsDefinition": false,
+        "term": "enzimas digestivas"
+      },
+      {
+        "case": "sem-sujeito",
+        "confidence": 0.94,
+        "needsDefinition": true,
+        "term": "seminário"
+      },
+      {
+        "case": "lista-com-conteudo",
+        "confidence": 0.18,
+        "needsDefinition": false,
+        "term": "fase clara"
+      },
+      {
+        "case": "lista-com-conteudo",
+        "confidence": 0.2,
+        "needsDefinition": true,
+        "term": "fase escura"
+      },
+      {
+        "case": "lista-com-conteudo",
+        "confidence": 0.82,
+        "needsDefinition": true,
+        "term": "fixação de carbono"
+      },
+      {
+        "case": "lista-com-conteudo",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "estroma"
+      },
+      {
+        "case": "lista-com-conteudo",
+        "confidence": 0.82,
+        "needsDefinition": true,
+        "term": "rubisco"
+      },
+      {
+        "case": "lista-com-conteudo",
+        "confidence": 1,
+        "needsDefinition": true,
+        "term": "catalisada"
+      },
+      {
+        "case": "conceito-isolado",
+        "confidence": 0.94,
+        "needsDefinition": true,
+        "term": "objeto"
+      },
+      {
+        "case": "conceito-isolado",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "comportamento"
+      },
+      {
+        "case": "conceito-isolado",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "estado interno"
+      },
+      {
+        "case": "conceito-isolado",
+        "confidence": 0.96,
+        "needsDefinition": true,
+        "term": "tipo"
+      },
+      {
+        "case": "contrato-implicito",
+        "confidence": 0.58,
+        "needsDefinition": true,
+        "term": "API"
+      },
+      {
+        "case": "contrato-implicito",
+        "confidence": 0.96,
+        "needsDefinition": true,
+        "term": "operacao"
+      },
+      {
+        "case": "contrato-implicito",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "consumidor"
+      },
+      {
+        "case": "contrato-implicito",
+        "confidence": 0.98,
+        "needsDefinition": true,
+        "term": "produtor"
+      },
+      {
+        "case": "contrato-implicito",
+        "confidence": 0.62,
+        "needsDefinition": true,
+        "term": "entradas"
+      },
+      {
+        "case": "contrato-implicito",
+        "confidence": 0.36,
+        "needsDefinition": true,
+        "term": "saidas"
+      },
+      {
+        "case": "exemplo-numerico",
+        "confidence": 0.92,
+        "needsDefinition": false,
+        "term": "crescimento exponencial"
+      },
+      {
+        "case": "exemplo-numerico",
+        "confidence": 0.04,
+        "needsDefinition": false,
+        "term": "taxa de incremento"
+      },
+      {
+        "case": "exemplo-numerico",
+        "confidence": 0.92,
+        "needsDefinition": true,
+        "term": "dobra"
+      },
+      {
+        "case": "exemplo-numerico",
+        "confidence": 0.66,
+        "needsDefinition": false,
+        "term": "crescimento logistico"
+      },
+      {
+        "case": "exemplo-numerico",
+        "confidence": 0.94,
+        "needsDefinition": true,
+        "term": "capacidade de suporte"
+      },
+      {
+        "case": "exemplo-numerico",
+        "confidence": 0.88,
+        "needsDefinition": true,
+        "term": "meio"
+      }
+    ]
+  }
+}
