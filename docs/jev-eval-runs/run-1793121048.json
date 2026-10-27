@@ -1,0 +1,1852 @@
+{
+  "baseline": {
+    "bins": [
+      {
+        "accuracy": 0.6111111111111112,
+        "count": 18,
+        "meanConfidence": 0.0,
+        "range": [
+          0.0,
+          0.1
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "expected": "ready",
+        "id": "ciclo-calvin",
+        "note": "Revisado: A nota contém cinco parágrafos autocontidos e nenhuma contradição evidente.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 11808
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
+        "id": "contradicao-fotossintese",
+        "note": "Revisado: A nota afirma que a fotossíntese 'ocorre na fase escura' e, logo a seguir, que 'ocorre na fase clara', apresentando duas afirmações mutuamente exclusivas sobre o mesmo objeto.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 12722
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "termodinamica",
+        "note": "Revisado: Possui uma ideia central (Termodinâmica), mais de três parágrafos com frases próprias e não apresenta contradições.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 7725
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "bases-de-dados",
+        "note": "Revisado: A nota apresenta seis parágrafos autocontidos com conceitos independentes, sem premissas vazias ou contradições.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 11868
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
+        "id": "referencia-indefinida",
+        "note": "Revisado: O texto utiliza o termo 'glicólise aeróbica' como premissa na frase 'Como vimos antes, a fixação de carbono segue exatamente o mesmo caminho da glicólise aeróbica.' sem definição prévia do termo.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 8215
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
+        "id": "passa-baixa-fronteira",
+        "note": "Revisado: A nota utiliza o termo estrangeiro e indefinido 'unity' ('...a resposta tende a unity.') atuando como premissa não explicada para a leitura.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 9046
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "termo-definido-inline",
+        "note": "Revisado: A nota possui ideia central identificável e três parágrafos de frase própria, onde o termo ('índice') é definido na própria frase: 'Um índice é uma estrutura de dados...'.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 9017
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "contexto-implicito",
+        "note": "Revisado: Possui três parágrafos, ideia central explícita no título, e define contexto essencial ('a energia acumulada na fase clara') na própria frase.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 8819
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
+        "id": "contradicao-quantidade",
+        "note": "Revisado: A nota declara que consome '3 ATP e 2 NADPH' no primeiro parágrafo e '5 ATP e 3 NADPH' no segundo. Duas afirmações exclusivas.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 8643
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "promessa-vazia",
+        "note": "Revisado: Contém a definição do conceito central no primeiro parágrafo ('A elasticidade mede...'), seguido de três parágrafos formatados corretamente com frases próprias.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 7263
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
+        "id": "termo-sem-definicao",
+        "note": "Revisado: O terceiro parágrafo utiliza o 'princípio da mínima entropia' como suporte causal ('Segundo o princípio...') sem ter definido o que é o princípio nos parágrafos anteriores.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 10716
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "duas-afirmacoes",
+        "note": "Revisado: Apresenta três afirmações precisas ('A corrente elétrica é...', 'A tensão elétrica é...', 'A resistência... é...') que se sustentam de forma contínua.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 8255
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "contradicao-maior",
+        "note": "Revisado: Três parágrafos avaliáveis com ideia central bem delineada. O termo 'pH varied' é apenas um erro ortográfico, não impedindo a compreensão da afirmação.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 8453
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "insufficient",
+        "id": "sem-sujeito",
+        "note": "Revisado: As sentenças são apenas tarefas diretivas em formato de prosa ('Continuar no capítulo 5.', 'Reler o material...'), sem nenhuma afirmação avaliável.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 4801
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "insufficient",
+        "id": "lista-com-conteudo",
+        "note": "Revisado: Sendo uma nota estruturada majoritariamente como tarefas (checkboxes) e contendo um lembrete no final ('Anotar: o professor pediu...'), a nota recai em 'só listas, tarefas... Nenhuma afirmação avaliável' em forma de parágrafo estruturado convencional.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 7729
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "conceito-isolado",
+        "note": "Revisado: Três parágrafos que definem propriedades, encapsulamento e herança independentemente, unificados sob o tema identificável.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 7447
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "contrato-implicito",
+        "note": "Revisado: A nota apresenta três parágrafos ('Um contrato de API declara...', 'Compatibilidade de entrada exige...', 'Compatibilidade de saida exige...'), todos baseados em definições diretas sem contradições.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 6497
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "exemplo-numerico",
+        "note": "Revisado: Possui ideia central explícita ('Crescimento populacional') e três parágrafos com frases próprias. O exemplo numérico 'leva cerca de 180 anos para crescer mil vezes' sustenta o contexto anterior sem causar contradições ou carecer de definição adicional.",
+        "prediction": {
+          "confidence": null,
+          "distribution": {},
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 8324
+        },
+        "provenance": "human"
+      }
+    ],
+    "engine": "legacy",
+    "failures": [
+      {
+        "caseId": "somente-titulos",
+        "dimension": "readiness",
+        "message": "avaliacao invalida: o parse ou o grounding falhou"
+      },
+      {
+        "caseId": "sistema-imunologico-limite",
+        "dimension": "readiness",
+        "message": "avaliacao invalida: o parse ou o grounding falhou"
+      },
+      {
+        "caseId": "contradicao-estroma",
+        "dimension": "readiness",
+        "message": "avaliacao invalida: o parse ou o grounding falhou"
+      },
+      {
+        "caseId": "somente-listas",
+        "dimension": "readiness",
+        "message": "avaliacao invalida: o parse ou o grounding falhou"
+      },
+      {
+        "caseId": "apenas-imagens",
+        "dimension": "readiness",
+        "message": "avaliacao invalida: o parse ou o grounding falhou"
+      }
+    ],
+    "frontier": [
+      {
+        "accuracy": 0.6111111111111112,
+        "coverage": 1.0,
+        "threshold": 0.0
+      }
+    ],
+    "metrics": {
+      "0.00": {
+        "abstentionRate": 0.0,
+        "accuracy": 0.6111111111111112,
+        "accuracyAnsweredOnly": 0.6111111111111112,
+        "brierScore": null,
+        "casesScored": 18,
+        "casesTotal": 18,
+        "expectedCalibrationError": 0.6111111111111112,
+        "latencyP50Ms": 8388,
+        "latencyP95Ms": 12722,
+        "meanConfidence": 0.0,
+        "meanCostUsd": 0.0,
+        "risk": 0.38888888888888884,
+        "totalCostUsd": 0.0
+      },
+      "0.30": {
+        "abstentionRate": 1.0,
+        "accuracy": null,
+        "accuracyAnsweredOnly": 0.6111111111111112,
+        "brierScore": null,
+        "casesScored": 0,
+        "casesTotal": 18,
+        "expectedCalibrationError": 0.6111111111111112,
+        "latencyP50Ms": 8388,
+        "latencyP95Ms": 12722,
+        "meanConfidence": null,
+        "meanCostUsd": 0.0,
+        "risk": null,
+        "totalCostUsd": 0.0
+      },
+      "0.50": {
+        "abstentionRate": 1.0,
+        "accuracy": null,
+        "accuracyAnsweredOnly": 0.6111111111111112,
+        "brierScore": null,
+        "casesScored": 0,
+        "casesTotal": 18,
+        "expectedCalibrationError": 0.6111111111111112,
+        "latencyP50Ms": 8388,
+        "latencyP95Ms": 12722,
+        "meanConfidence": null,
+        "meanCostUsd": 0.0,
+        "risk": null,
+        "totalCostUsd": 0.0
+      },
+      "0.70": {
+        "abstentionRate": 1.0,
+        "accuracy": null,
+        "accuracyAnsweredOnly": 0.6111111111111112,
+        "brierScore": null,
+        "casesScored": 0,
+        "casesTotal": 18,
+        "expectedCalibrationError": 0.6111111111111112,
+        "latencyP50Ms": 8388,
+        "latencyP95Ms": 12722,
+        "meanConfidence": null,
+        "meanCostUsd": 0.0,
+        "risk": null,
+        "totalCostUsd": 0.0
+      },
+      "0.85": {
+        "abstentionRate": 1.0,
+        "accuracy": null,
+        "accuracyAnsweredOnly": 0.6111111111111112,
+        "brierScore": null,
+        "casesScored": 0,
+        "casesTotal": 18,
+        "expectedCalibrationError": 0.6111111111111112,
+        "latencyP50Ms": 8388,
+        "latencyP95Ms": 12722,
+        "meanConfidence": null,
+        "meanCostUsd": 0.0,
+        "risk": null,
+        "totalCostUsd": 0.0
+      },
+      "1.10": {
+        "abstentionRate": 1.0,
+        "accuracy": null,
+        "accuracyAnsweredOnly": 0.6111111111111112,
+        "brierScore": null,
+        "casesScored": 0,
+        "casesTotal": 18,
+        "expectedCalibrationError": 0.6111111111111112,
+        "latencyP50Ms": 8388,
+        "latencyP95Ms": 12722,
+        "meanConfidence": null,
+        "meanCostUsd": 0.0,
+        "risk": null,
+        "totalCostUsd": 0.0
+      }
+    },
+    "model": "qwen2.5:7b",
+    "thresholds": [
+      0.0,
+      0.3,
+      0.5,
+      0.7,
+      0.85,
+      1.1
+    ],
+    "totalCostUsd": 0.0,
+    "totalLatencyMs": 157348
+  },
+  "candidate": {
+    "bins": [
+      {
+        "accuracy": 0.6,
+        "count": 5,
+        "meanConfidence": 0.556,
+        "range": [
+          0.5,
+          0.6
+        ]
+      },
+      {
+        "accuracy": 1.0,
+        "count": 1,
+        "meanConfidence": 0.69,
+        "range": [
+          0.6,
+          0.7
+        ]
+      },
+      {
+        "accuracy": 1.0,
+        "count": 2,
+        "meanConfidence": 0.765,
+        "range": [
+          0.7,
+          0.8
+        ]
+      },
+      {
+        "accuracy": 1.0,
+        "count": 7,
+        "meanConfidence": 0.8628571428571428,
+        "range": [
+          0.8,
+          0.9
+        ]
+      },
+      {
+        "accuracy": 1.0,
+        "count": 8,
+        "meanConfidence": 0.9550000000000001,
+        "range": [
+          0.9,
+          1.0
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "expected": "ready",
+        "id": "ciclo-calvin",
+        "note": "Revisado: A nota contém cinco parágrafos autocontidos e nenhuma contradição evidente.",
+        "prediction": {
+          "confidence": 0.75,
+          "distribution": {
+            "ambiguous": 0.25,
+            "insufficient": 0.0,
+            "ready": 0.75
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "insufficient",
+        "id": "somente-titulos",
+        "note": "Revisado: A nota contém apenas uma lista de títulos e uma remissão ('[[Notas relacionadas]]').",
+        "prediction": {
+          "confidence": 0.99,
+          "distribution": {
+            "ambiguous": 0.01,
+            "insufficient": 0.99,
+            "ready": 0.0
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "insufficient",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
+        "id": "contradicao-fotossintese",
+        "note": "Revisado: A nota afirma que a fotossíntese 'ocorre na fase escura' e, logo a seguir, que 'ocorre na fase clara', apresentando duas afirmações mutuamente exclusivas sobre o mesmo objeto.",
+        "prediction": {
+          "confidence": 0.89,
+          "distribution": {
+            "ambiguous": 0.89,
+            "insufficient": 0.0,
+            "ready": 0.11
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ambiguous",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "termodinamica",
+        "note": "Revisado: Possui uma ideia central (Termodinâmica), mais de três parágrafos com frases próprias e não apresenta contradições.",
+        "prediction": {
+          "confidence": 0.58,
+          "distribution": {
+            "ambiguous": 0.58,
+            "insufficient": 0.03,
+            "ready": 0.39
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ambiguous",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "bases-de-dados",
+        "note": "Revisado: A nota apresenta seis parágrafos autocontidos com conceitos independentes, sem premissas vazias ou contradições.",
+        "prediction": {
+          "confidence": 0.89,
+          "distribution": {
+            "ambiguous": 0.11,
+            "insufficient": 0.0,
+            "ready": 0.89
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "insufficient",
+        "id": "sistema-imunologico-limite",
+        "note": "Revisado: A nota possui títulos estruturados, o que poderia sugerir organização, mas não frases próprias suficientes.",
+        "prediction": {
+          "confidence": 0.95,
+          "distribution": {
+            "ambiguous": 0.05,
+            "insufficient": 0.95,
+            "ready": 0.0
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "insufficient",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
+        "id": "contradicao-estroma",
+        "note": "Revisado: O primeiro parágrafo afirma que a fixação ocorre 'no estroma dos cloroplastos' e o segundo afirma que é realizada 'exclusivamente na membrana tilacoidal, nunca no estroma'. Duas afirmações exclusivas.",
+        "prediction": {
+          "confidence": 0.97,
+          "distribution": {
+            "ambiguous": 0.97,
+            "insufficient": 0.0,
+            "ready": 0.03
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ambiguous",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
+        "id": "referencia-indefinida",
+        "note": "Revisado: O texto utiliza o termo 'glicólise aeróbica' como premissa na frase 'Como vimos antes, a fixação de carbono segue exatamente o mesmo caminho da glicólise aeróbica.' sem definição prévia do termo.",
+        "prediction": {
+          "confidence": 0.85,
+          "distribution": {
+            "ambiguous": 0.85,
+            "insufficient": 0.01,
+            "ready": 0.14
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ambiguous",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
+        "id": "passa-baixa-fronteira",
+        "note": "Revisado: A nota utiliza o termo estrangeiro e indefinido 'unity' ('...a resposta tende a unity.') atuando como premissa não explicada para a leitura.",
+        "prediction": {
+          "confidence": 0.54,
+          "distribution": {
+            "ambiguous": 0.54,
+            "insufficient": 0.01,
+            "ready": 0.45
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ambiguous",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "termo-definido-inline",
+        "note": "Revisado: A nota possui ideia central identificável e três parágrafos de frase própria, onde o termo ('índice') é definido na própria frase: 'Um índice é uma estrutura de dados...'.",
+        "prediction": {
+          "confidence": 0.86,
+          "distribution": {
+            "ambiguous": 0.13,
+            "insufficient": 0.01,
+            "ready": 0.86
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "insufficient",
+        "id": "somente-listas",
+        "note": "Revisado: A nota contém apenas itens de checklist (tarefas) e remissões a anexos ('![diagrama](anexo-diagrama.png)').",
+        "prediction": {
+          "confidence": 0.53,
+          "distribution": {
+            "ambiguous": 0.42,
+            "insufficient": 0.53,
+            "ready": 0.05
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "insufficient",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "contexto-implicito",
+        "note": "Revisado: Possui três parágrafos, ideia central explícita no título, e define contexto essencial ('a energia acumulada na fase clara') na própria frase.",
+        "prediction": {
+          "confidence": 0.98,
+          "distribution": {
+            "ambiguous": 0.02,
+            "insufficient": 0.0,
+            "ready": 0.98
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
+        "id": "contradicao-quantidade",
+        "note": "Revisado: A nota declara que consome '3 ATP e 2 NADPH' no primeiro parágrafo e '5 ATP e 3 NADPH' no segundo. Duas afirmações exclusivas.",
+        "prediction": {
+          "confidence": 0.97,
+          "distribution": {
+            "ambiguous": 0.97,
+            "insufficient": 0.0,
+            "ready": 0.03
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ambiguous",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "promessa-vazia",
+        "note": "Revisado: Contém a definição do conceito central no primeiro parágrafo ('A elasticidade mede...'), seguido de três parágrafos formatados corretamente com frases próprias.",
+        "prediction": {
+          "confidence": 0.55,
+          "distribution": {
+            "ambiguous": 0.41,
+            "insufficient": 0.04,
+            "ready": 0.55
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ambiguous",
+        "id": "termo-sem-definicao",
+        "note": "Revisado: O terceiro parágrafo utiliza o 'princípio da mínima entropia' como suporte causal ('Segundo o princípio...') sem ter definido o que é o princípio nos parágrafos anteriores.",
+        "prediction": {
+          "confidence": 0.83,
+          "distribution": {
+            "ambiguous": 0.83,
+            "insufficient": 0.02,
+            "ready": 0.15
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ambiguous",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "duas-afirmacoes",
+        "note": "Revisado: Apresenta três afirmações precisas ('A corrente elétrica é...', 'A tensão elétrica é...', 'A resistência... é...') que se sustentam de forma contínua.",
+        "prediction": {
+          "confidence": 0.95,
+          "distribution": {
+            "ambiguous": 0.01,
+            "insufficient": 0.04,
+            "ready": 0.95
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "contradicao-maior",
+        "note": "Revisado: Três parágrafos avaliáveis com ideia central bem delineada. O termo 'pH varied' é apenas um erro ortográfico, não impedindo a compreensão da afirmação.",
+        "prediction": {
+          "confidence": 0.85,
+          "distribution": {
+            "ambiguous": 0.07,
+            "insufficient": 0.08,
+            "ready": 0.85
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "insufficient",
+        "id": "sem-sujeito",
+        "note": "Revisado: As sentenças são apenas tarefas diretivas em formato de prosa ('Continuar no capítulo 5.', 'Reler o material...'), sem nenhuma afirmação avaliável.",
+        "prediction": {
+          "confidence": 0.69,
+          "distribution": {
+            "ambiguous": 0.28,
+            "insufficient": 0.69,
+            "ready": 0.03
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "insufficient",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "insufficient",
+        "id": "apenas-imagens",
+        "note": "Revisado: A nota é composta exclusivamente por vínculos de imagens/anexos ('![diagrama do ciclo](anexo-ciclo.png)').",
+        "prediction": {
+          "confidence": 0.91,
+          "distribution": {
+            "ambiguous": 0.09,
+            "insufficient": 0.91,
+            "ready": 0.0
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "insufficient",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "insufficient",
+        "id": "lista-com-conteudo",
+        "note": "Revisado: Sendo uma nota estruturada majoritariamente como tarefas (checkboxes) e contendo um lembrete no final ('Anotar: o professor pediu...'), a nota recai em 'só listas, tarefas... Nenhuma afirmação avaliável' em forma de parágrafo estruturado convencional.",
+        "prediction": {
+          "confidence": 0.58,
+          "distribution": {
+            "ambiguous": 0.32,
+            "insufficient": 0.1,
+            "ready": 0.58
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "conceito-isolado",
+        "note": "Revisado: Três parágrafos que definem propriedades, encapsulamento e herança independentemente, unificados sob o tema identificável.",
+        "prediction": {
+          "confidence": 0.92,
+          "distribution": {
+            "ambiguous": 0.03,
+            "insufficient": 0.05,
+            "ready": 0.92
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "contrato-implicito",
+        "note": "Revisado: A nota apresenta três parágrafos ('Um contrato de API declara...', 'Compatibilidade de entrada exige...', 'Compatibilidade de saida exige...'), todos baseados em definições diretas sem contradições.",
+        "prediction": {
+          "confidence": 0.78,
+          "distribution": {
+            "ambiguous": 0.04,
+            "insufficient": 0.18,
+            "ready": 0.78
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      },
+      {
+        "expected": "ready",
+        "id": "exemplo-numerico",
+        "note": "Revisado: Possui ideia central explícita ('Crescimento populacional') e três parágrafos com frases próprias. O exemplo numérico 'leva cerca de 180 anos para crescer mil vezes' sustenta o contexto anterior sem causar contradições ou carecer de definição adicional.",
+        "prediction": {
+          "confidence": 0.87,
+          "distribution": {
+            "ambiguous": 0.12,
+            "insufficient": 0.01,
+            "ready": 0.87
+          },
+          "estimatedCostUsd": 0.0,
+          "label": "ready",
+          "latencyMs": 0
+        },
+        "provenance": "human"
+      }
+    ],
+    "engine": "jev",
+    "failures": [],
+    "frontier": [
+      {
+        "accuracy": 0.9130434782608695,
+        "coverage": 1.0,
+        "threshold": 0.0
+      },
+      {
+        "accuracy": 0.9130434782608695,
+        "coverage": 1.0,
+        "threshold": 0.05
+      },
+      {
+        "accuracy": 0.9130434782608695,
+        "coverage": 1.0,
+        "threshold": 0.1
+      },
+      {
+        "accuracy": 0.9130434782608695,
+        "coverage": 1.0,
+        "threshold": 0.15000000000000002
+      },
+      {
+        "accuracy": 0.9130434782608695,
+        "coverage": 1.0,
+        "threshold": 0.2
+      },
+      {
+        "accuracy": 0.9130434782608695,
+        "coverage": 1.0,
+        "threshold": 0.25
+      },
+      {
+        "accuracy": 0.9130434782608695,
+        "coverage": 1.0,
+        "threshold": 0.30000000000000004
+      },
+      {
+        "accuracy": 0.9130434782608695,
+        "coverage": 1.0,
+        "threshold": 0.35000000000000003
+      },
+      {
+        "accuracy": 0.9130434782608695,
+        "coverage": 1.0,
+        "threshold": 0.4
+      },
+      {
+        "accuracy": 0.9130434782608695,
+        "coverage": 1.0,
+        "threshold": 0.45
+      },
+      {
+        "accuracy": 0.9130434782608695,
+        "coverage": 1.0,
+        "threshold": 0.5
+      },
+      {
+        "accuracy": 0.9047619047619048,
+        "coverage": 0.9130434782608695,
+        "threshold": 0.55
+      },
+      {
+        "accuracy": 1.0,
+        "coverage": 0.782608695652174,
+        "threshold": 0.6000000000000001
+      },
+      {
+        "accuracy": 1.0,
+        "coverage": 0.782608695652174,
+        "threshold": 0.65
+      },
+      {
+        "accuracy": 1.0,
+        "coverage": 0.7391304347826086,
+        "threshold": 0.7000000000000001
+      },
+      {
+        "accuracy": 1.0,
+        "coverage": 0.7391304347826086,
+        "threshold": 0.75
+      },
+      {
+        "accuracy": 1.0,
+        "coverage": 0.6521739130434783,
+        "threshold": 0.8
+      },
+      {
+        "accuracy": 1.0,
+        "coverage": 0.5217391304347826,
+        "threshold": 0.8500000000000001
+      },
+      {
+        "accuracy": 1.0,
+        "coverage": 0.34782608695652173,
+        "threshold": 0.9
+      },
+      {
+        "accuracy": 1.0,
+        "coverage": 0.17391304347826086,
+        "threshold": 0.9500000000000001
+      }
+    ],
+    "metrics": {
+      "0.00": {
+        "abstentionRate": 0.0,
+        "accuracy": 0.9130434782608695,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.05523478260869565,
+        "casesScored": 23,
+        "casesTotal": 23,
+        "expectedCalibrationError": 0.1008695652173913,
+        "latencyP50Ms": 0,
+        "latencyP95Ms": 0,
+        "meanConfidence": 0.8121739130434784,
+        "meanCostUsd": 0.0,
+        "risk": 0.08695652173913049,
+        "totalCostUsd": 0.0
+      },
+      "0.30": {
+        "abstentionRate": 0.0,
+        "accuracy": 0.9130434782608695,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.05523478260869565,
+        "casesScored": 23,
+        "casesTotal": 23,
+        "expectedCalibrationError": 0.1008695652173913,
+        "latencyP50Ms": 0,
+        "latencyP95Ms": 0,
+        "meanConfidence": 0.8121739130434784,
+        "meanCostUsd": 0.0,
+        "risk": 0.08695652173913049,
+        "totalCostUsd": 0.0
+      },
+      "0.50": {
+        "abstentionRate": 0.0,
+        "accuracy": 0.9130434782608695,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.05523478260869565,
+        "casesScored": 23,
+        "casesTotal": 23,
+        "expectedCalibrationError": 0.1008695652173913,
+        "latencyP50Ms": 0,
+        "latencyP95Ms": 0,
+        "meanConfidence": 0.8121739130434784,
+        "meanCostUsd": 0.0,
+        "risk": 0.08695652173913049,
+        "totalCostUsd": 0.0
+      },
+      "0.70": {
+        "abstentionRate": 0.26086956521739135,
+        "accuracy": 1.0,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.05523478260869565,
+        "casesScored": 17,
+        "casesTotal": 23,
+        "expectedCalibrationError": 0.1008695652173913,
+        "latencyP50Ms": 0,
+        "latencyP95Ms": 0,
+        "meanConfidence": 0.894705882352941,
+        "meanCostUsd": 0.0,
+        "risk": 0.0,
+        "totalCostUsd": 0.0
+      },
+      "0.85": {
+        "abstentionRate": 0.3913043478260869,
+        "accuracy": 1.0,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.05523478260869565,
+        "casesScored": 14,
+        "casesTotal": 23,
+        "expectedCalibrationError": 0.1008695652173913,
+        "latencyP50Ms": 0,
+        "latencyP95Ms": 0,
+        "meanConfidence": 0.9178571428571427,
+        "meanCostUsd": 0.0,
+        "risk": 0.0,
+        "totalCostUsd": 0.0
+      },
+      "1.10": {
+        "abstentionRate": 1.0,
+        "accuracy": null,
+        "accuracyAnsweredOnly": 0.9130434782608695,
+        "brierScore": 0.05523478260869565,
+        "casesScored": 0,
+        "casesTotal": 23,
+        "expectedCalibrationError": 0.1008695652173913,
+        "latencyP50Ms": 0,
+        "latencyP95Ms": 0,
+        "meanConfidence": null,
+        "meanCostUsd": 0.0,
+        "risk": null,
+        "totalCostUsd": 0.0
+      }
+    },
+    "model": "jev-latest",
+    "thresholds": [
+      0.0,
+      0.3,
+      0.5,
+      0.7,
+      0.85,
+      1.1
+    ],
+    "totalCostUsd": 0.0,
+    "totalLatencyMs": 0
+  },
+  "candidateDominatesBaseline": true,
+  "complete": true,
+  "confidenceIsActionable": false,
+  "curvesCross": false,
+  "definitionRecall": {
+    "acceptedTerms": [
+      {
+        "caseId": "ciclo-calvin",
+        "definition": "Adenosina trifosfato, uma molécula de energia celular que fornece energia para diversas reações bioquímicas, incluindo a síntese de moléculas complexas.",
+        "matchedExpected": true,
+        "term": "ATP"
+      },
+      {
+        "caseId": "ciclo-calvin",
+        "definition": "Redutase de nicotinamida adenina dinucleótida fosfatidada, uma molécula que fornece eletrônicos e energia para a redução de moléculas durante a fotossíntese.",
+        "matchedExpected": true,
+        "term": "NADPH"
+      },
+      {
+        "caseId": "ciclo-calvin",
+        "definition": "Dióxido de carbono, um gás inorgânico que desempenha um papel crucial na fotossíntese, sendo fixado pela enzima rubisco.",
+        "matchedExpected": false,
+        "term": "CO2"
+      },
+      {
+        "caseId": "ciclo-calvin",
+        "definition": "Parte interna do cloroplasto, onde ocorre a fotofosforilação e a síntese de ATP.",
+        "matchedExpected": false,
+        "term": "tilacoide"
+      },
+      {
+        "caseId": "ciclo-calvin",
+        "definition": "Diferença de concentração de protons entre o interstício e o interior do tilacóide, que é criada pela fotofosforilação e é responsável pela síntese de ATP.",
+        "matchedExpected": false,
+        "term": "gradiente"
+      },
+      {
+        "caseId": "contradicao-fotossintese",
+        "definition": "Tilacoides são estruturas membranosas encontradas nas células das plantas, que são responsáveis por realizar as reações da fase clara da fotossíntese.",
+        "matchedExpected": true,
+        "term": "tilacoides"
+      },
+      {
+        "caseId": "contradicao-fotossintese",
+        "definition": "Celsius é um sistema de unidade de temperatura, onde 100 graus Celsius é a temperatura a qual a água ferve a nível do mar sob pressão de 1 atmosfera.",
+        "matchedExpected": false,
+        "term": "Celsius"
+      },
+      {
+        "caseId": "contradicao-fotossintese",
+        "definition": "Espectro é a gama completa de frequências de luz visível, que inclui as bandas azul e vermelha, que são as principais que a clorofila absorve.",
+        "matchedExpected": false,
+        "term": "espectro"
+      },
+      {
+        "caseId": "contradicao-fotossintese",
+        "definition": "Respiração celular é o processo pelo qual as células obtêm energia a partir da glicose, que é produzida durante a fotossíntese.",
+        "matchedExpected": true,
+        "term": "respiracao celular"
+      },
+      {
+        "caseId": "contradicao-fotossintese",
+        "definition": "Atmosfera é a camada de gases que envolve a Terra, que contém cerca de 21% de oxigênio molecular.",
+        "matchedExpected": false,
+        "term": "atmosfera"
+      },
+      {
+        "caseId": "contradicao-fotossintese",
+        "definition": "Oxigênio molecular é um composto químico formado por dois átomos de oxigênio unidos, que é um dos componentes principais da atmosfera terrestre.",
+        "matchedExpected": false,
+        "term": "oxigenio molecular"
+      },
+      {
+        "caseId": "termodinamica",
+        "definition": "Uma propriedade que depende do tamanho ou quantidade de matéria de um sistema, sendo proporcional ao tamanho do sistema.",
+        "matchedExpected": true,
+        "term": "propriedade extensiva"
+      },
+      {
+        "caseId": "termodinamica",
+        "definition": "Relativo a um sistema que não troca calor com seu ambiente, mantendo a temperatura constante durante processos.",
+        "matchedExpected": true,
+        "term": "adiabatico"
+      },
+      {
+        "caseId": "bases-de-dados",
+        "definition": "Linhas de dados em uma tabela de banco de dados, representando entidades individuais ou informações específicas.",
+        "matchedExpected": false,
+        "term": "registros"
+      },
+      {
+        "caseId": "bases-de-dados",
+        "definition": "A divisão de um banco de dados em partes menores, cada uma armazenada em um servidor separado, para melhorar a escalabilidade e a disponibilidade.",
+        "matchedExpected": true,
+        "term": "particionamento"
+      },
+      {
+        "caseId": "bases-de-dados",
+        "definition": "Um princípio ou proposição que é provado ou aceito como verdadeira, servindo como base para a dedução de outras verdades ou conclusões.",
+        "matchedExpected": false,
+        "term": "teorema"
+      },
+      {
+        "caseId": "bases-de-dados",
+        "definition": "Um critério é uma regra ou padrão usado para avaliar ou decidir sobre algo.",
+        "matchedExpected": false,
+        "term": "criterio"
+      },
+      {
+        "caseId": "contradicao-estroma",
+        "definition": "Rubisco é uma enzima crucial na fotossíntese, responsável pela fixação do dióxido de carbono (CO2) em moléculas orgânicas.",
+        "matchedExpected": true,
+        "term": "rubisco"
+      },
+      {
+        "caseId": "contradicao-estroma",
+        "definition": "Estroma é o espaço interno dos cloroplastos, onde ocorrem muitas reações bioquímicas importantes, incluindo a segunda fase do ciclo de Calvin.",
+        "matchedExpected": true,
+        "term": "estroma"
+      },
+      {
+        "caseId": "contradicao-estroma",
+        "definition": "Carbono refere-se ao dióxido de carbono (CO2), um gás presente na atmosfera que é fixado durante a fotossíntese.",
+        "matchedExpected": false,
+        "term": "carbono"
+      },
+      {
+        "caseId": "contradicao-estroma",
+        "definition": "Glicose é uma molécula orgânica simples, um açúcar, que é produzida durante a fotossíntese e pode ser convertida em amido ou usada na respiração celular.",
+        "matchedExpected": true,
+        "term": "glicose"
+      },
+      {
+        "caseId": "contradicao-estroma",
+        "definition": "Cloroplastos são organelas encontradas nas células verdes das plantas, onde ocorre a fotossíntese.",
+        "matchedExpected": false,
+        "term": "cloroplastos"
+      },
+      {
+        "caseId": "contradicao-estroma",
+        "definition": "Citoplasma é a substância gelatinosa que preenche a célula e contém organelas como cloroplastos e mitocôndrias.",
+        "matchedExpected": true,
+        "term": "citoplasma"
+      },
+      {
+        "caseId": "contradicao-estroma",
+        "definition": "Respiração é o processo pelo qual as células obtêm energia a partir da queima de açúcares, como a glicose, em presença de oxigênio.",
+        "matchedExpected": false,
+        "term": "respiração"
+      },
+      {
+        "caseId": "contradicao-estroma",
+        "definition": "Membrana tilacoidal é uma estrutura na superfície interna dos cloroplastos, envolvida na fotossíntese e na fixação de carbono.",
+        "matchedExpected": true,
+        "term": "membrana tilacoidal"
+      },
+      {
+        "caseId": "contradicao-estroma",
+        "definition": "Amido é uma polissacarídeos, uma forma de armazenamento de energia na planta, formado a partir da glicose.",
+        "matchedExpected": false,
+        "term": "amido"
+      },
+      {
+        "caseId": "referencia-indefinida",
+        "definition": "Calvin refere-se ao ciclo de Calvin, um processo bioquímico que ocorre nos cloroplastos das plantas e é responsável pela fixação do dióxido de carbono (CO2) em moléculas orgânicas.",
+        "matchedExpected": false,
+        "term": "Calvin"
+      },
+      {
+        "caseId": "referencia-indefinida",
+        "definition": "Cloroplastos são organelas encontradas nas células das plantas e algas verdes, onde ocorrem processos como a fotossíntese.",
+        "matchedExpected": false,
+        "term": "cloroplastos"
+      },
+      {
+        "caseId": "referencia-indefinida",
+        "definition": "Glicólise é o processo bioquímico que ocorre na citoplasma das células e que transforma glicose em piruvato, liberando energia no processo.",
+        "matchedExpected": true,
+        "term": "glicólise"
+      },
+      {
+        "caseId": "referencia-indefinida",
+        "definition": "ATP (adenosina trifosfato) é uma molécula energética que fornece energia para muitos processos bioquímicos nas células.",
+        "matchedExpected": true,
+        "term": "ATP"
+      },
+      {
+        "caseId": "referencia-indefinida",
+        "definition": "NADPH (reduzido de nicotinamida adenina dinucleótido hidroxilado) é uma molécula que transporta elétrons e hidrogênio nas células, sendo importante para a síntese de moléculas orgânicas.",
+        "matchedExpected": true,
+        "term": "NADPH"
+      },
+      {
+        "caseId": "passa-baixa-fronteira",
+        "definition": "Um valor de 1, que representa o nível máximo de resposta em um filtro.",
+        "matchedExpected": false,
+        "term": "unity"
+      },
+      {
+        "caseId": "passa-baixa-fronteira",
+        "definition": "Um tipo de filtro que apresenta ondulações na banda de passagem.",
+        "matchedExpected": true,
+        "term": "Chebyshev"
+      },
+      {
+        "caseId": "passa-baixa-fronteira",
+        "definition": "A frequência limite acima da qual as frequências são atenuadas pelo filtro.",
+        "matchedExpected": true,
+        "term": "frequência de corte"
+      },
+      {
+        "caseId": "termo-definido-inline",
+        "definition": "O processo de ajustar a estrutura de uma árvore balanceada para manter suas propriedades de equilíbrio após a inserção ou exclusão de elementos.",
+        "matchedExpected": false,
+        "term": "rebalanceamento"
+      },
+      {
+        "caseId": "termo-definido-inline",
+        "definition": "Um conjunto de elementos ou itens que podem ser manipulados como um único grupo.",
+        "matchedExpected": false,
+        "term": "coleção"
+      },
+      {
+        "caseId": "termo-definido-inline",
+        "definition": "O processo de adicionar um novo elemento a uma estrutura de dados.",
+        "matchedExpected": false,
+        "term": "inserção"
+      },
+      {
+        "caseId": "termo-definido-inline",
+        "definition": "Estruturas de dados que mantêm uma distribuição equilibrada de elementos para garantir operações eficientes, como busca e inserção.",
+        "matchedExpected": true,
+        "term": "balanceadas"
+      },
+      {
+        "caseId": "termo-definido-inline",
+        "definition": "Relativo ao logaritmo, descrevendo um crescimento ou tempo que aumenta em proporção ao logaritmo do tamanho da entrada.",
+        "matchedExpected": false,
+        "term": "logarithmico"
+      },
+      {
+        "caseId": "termo-definido-inline",
+        "definition": "A dificuldade ou quantidade de recursos necessária para realizar uma operação, geralmente medida em termos de tempo e espaço.",
+        "matchedExpected": true,
+        "term": "complexidade"
+      },
+      {
+        "caseId": "contexto-implicito",
+        "definition": "Adenosina trifosfato, uma molécula que armazena e transmite energia na célula.",
+        "matchedExpected": true,
+        "term": "ATP"
+      },
+      {
+        "caseId": "contexto-implicito",
+        "definition": "Redutase de nicotinamida adenina dinucleótida fosfato, uma molécula que transporta elétrons e hidrogênio na célula.",
+        "matchedExpected": true,
+        "term": "NADPH"
+      },
+      {
+        "caseId": "contexto-implicito",
+        "definition": "Enzima responsável pela carboxilação do dióxido de carbono durante a fotossíntese.",
+        "matchedExpected": true,
+        "term": "rubisco"
+      },
+      {
+        "caseId": "contexto-implicito",
+        "definition": "Etapa ou estágio de um processo.",
+        "matchedExpected": false,
+        "term": "fase"
+      },
+      {
+        "caseId": "contexto-implicito",
+        "definition": "Organelo encontrado nas plantas e algas verdes, onde ocorre a fotossíntese.",
+        "matchedExpected": false,
+        "term": "cloroplasto"
+      },
+      {
+        "caseId": "contexto-implicito",
+        "definition": "Processo que produz ATP e NADPH durante a fotossíntese, fornecendo energia para a fixação de carbono.",
+        "matchedExpected": true,
+        "term": "fotofosforação"
+      },
+      {
+        "caseId": "contexto-implicito",
+        "definition": "Membranas internas do cloroplasto onde ocorre a fotofosforação.",
+        "matchedExpected": true,
+        "term": "membranas tilacoidais"
+      },
+      {
+        "caseId": "contexto-implicito",
+        "definition": "Processo de incorporar ou reter um elemento ou substância.",
+        "matchedExpected": false,
+        "term": "fixar"
+      },
+      {
+        "caseId": "contexto-implicito",
+        "definition": "Proteína que acelera a reação química sem ser consumida.",
+        "matchedExpected": false,
+        "term": "enzima"
+      },
+      {
+        "caseId": "contradicao-quantidade",
+        "definition": "Dióxido de carbono, um gás inorgânico que desempenha um papel crucial na fotossíntese, sendo fixado pelas plantas para produzir açúcares.",
+        "matchedExpected": false,
+        "term": "CO2"
+      },
+      {
+        "caseId": "contradicao-quantidade",
+        "definition": "Adenosina trifosfato, uma molécula que armazena energia na forma de fosfato e é crucial para a fotossíntese, fornecendo energia para a fixação de CO2.",
+        "matchedExpected": true,
+        "term": "ATP"
+      },
+      {
+        "caseId": "contradicao-quantidade",
+        "definition": "Reduzido de nicotinamida adenina dinucleotídeo, uma molécula que transporta elétrons e é essencial para a fotossíntese, fornecendo reduzentes para a fixação de CO2.",
+        "matchedExpected": true,
+        "term": "NADPH"
+      },
+      {
+        "caseId": "contradicao-quantidade",
+        "definition": "Etapa ou estágio de um processo, no caso da fotossíntese, refere-se às duas fases principais: a fase clorofilosa (fase da luz) e a fase escura (fase do ciclo de Calvin).",
+        "matchedExpected": false,
+        "term": "fase"
+      },
+      {
+        "caseId": "contradicao-quantidade",
+        "definition": "Organelo encontrado nas células das plantas e algas verdes, onde ocorre a fotossíntese, contendo pigmentos como clorofila.",
+        "matchedExpected": false,
+        "term": "cloroplasto"
+      },
+      {
+        "caseId": "contradicao-quantidade",
+        "definition": "Matriz gelatinosa que preenche a célula e contém organelos, líquidos e substâncias solúveis, onde ocorrem muitas reações metabólicas.",
+        "matchedExpected": true,
+        "term": "citoplasma"
+      },
+      {
+        "caseId": "contradicao-quantidade",
+        "definition": "Unidade básica de uma substância química, composta por átomos ligados juntos, que pode ser um átomo, um íon ou um composto.",
+        "matchedExpected": false,
+        "term": "molécula"
+      },
+      {
+        "caseId": "contradicao-quantidade",
+        "definition": "Açúcar simples, um polissacarídeo que é um dos produtos finais da fotossíntese, formado a partir da fixação de CO2.",
+        "matchedExpected": false,
+        "term": "glicose"
+      },
+      {
+        "caseId": "promessa-vazia",
+        "definition": "A demanda é a quantidade de um bem ou serviço que os consumidores estão dispostos e capazes de comprar a um determinado preço.",
+        "matchedExpected": true,
+        "term": "demanda"
+      },
+      {
+        "caseId": "promessa-vazia",
+        "definition": "A curva é uma representação gráfica que mostra a relação entre duas variáveis, neste caso, a quantidade demandada e o preço.",
+        "matchedExpected": true,
+        "term": "curva"
+      },
+      {
+        "caseId": "promessa-vazia",
+        "definition": "Bens são objetos ou recursos que podem ser usados para satisfazer as necessidades ou desejos humanos.",
+        "matchedExpected": false,
+        "term": "bens"
+      },
+      {
+        "caseId": "promessa-vazia",
+        "definition": "O sinal é um indicador ou marca que representa uma direção ou estado, neste caso, se a demanda é elástica ou inelástica.",
+        "matchedExpected": false,
+        "term": "sinal"
+      },
+      {
+        "caseId": "termo-sem-definicao",
+        "definition": "Um sistema isolado é um sistema que não interage com o ambiente externo, ou seja, não há transferência de energia, matéria ou calor entre o sistema e o seu exterior.",
+        "matchedExpected": true,
+        "term": "isolado"
+      },
+      {
+        "caseId": "termo-sem-definicao",
+        "definition": "Microestados são estados microscópicos de um sistema, que são os detalhes microscópicos de como as partículas do sistema estão distribuídas em energia, posição e momento.",
+        "matchedExpected": true,
+        "term": "microestados"
+      },
+      {
+        "caseId": "termo-sem-definicao",
+        "definition": "Princípio é uma regra fundamental ou princípio geral que serve como base para a compreensão ou explicação de um fenômeno ou sistema.",
+        "matchedExpected": false,
+        "term": "princípio"
+      },
+      {
+        "caseId": "termo-sem-definicao",
+        "definition": "Macroscópico refere-se a características ou propriedades que podem ser observadas ou medidas em um sistema a partir de uma perspectiva macro, ou seja, a escala que pode ser percebida pelos sentidos humanos ou por instrumentos de medição.",
+        "matchedExpected": true,
+        "term": "macroscópico"
+      },
+      {
+        "caseId": "contradicao-maior",
+        "definition": "Proteínas biológicas que aceleram reações químicas no organismo sem serem consumidas no processo.",
+        "matchedExpected": false,
+        "term": "enzimas"
+      },
+      {
+        "caseId": "contradicao-maior",
+        "definition": "Órgão localizado atrás do estômago que produz enzimas digestivas e hormônios.",
+        "matchedExpected": false,
+        "term": "pâncreas"
+      },
+      {
+        "caseId": "contradicao-maior",
+        "definition": "Parte do trato gastrointestinal que se estende do estômago ao reto, responsável pela absorção de nutrientes.",
+        "matchedExpected": false,
+        "term": "intestino delgado"
+      },
+      {
+        "caseId": "contradicao-maior",
+        "definition": "Descreve um ambiente com pH alto, caracterizado por uma baixa concentração de íons hidrogênio.",
+        "matchedExpected": false,
+        "term": "alcalino"
+      },
+      {
+        "caseId": "lista-com-conteudo",
+        "definition": "Rubisco é a enzima responsável pela fixação de carbono durante a fotossíntese, catalisando a reação de incorporação de dióxido de carbono (CO2) em moléculas orgânicas.",
+        "matchedExpected": true,
+        "term": "rubisco"
+      },
+      {
+        "caseId": "lista-com-conteudo",
+        "definition": "Fixar carbono significa incorporar dióxido de carbono (CO2) em moléculas orgânicas, um processo crucial para a produção de açúcares durante a fotossíntese.",
+        "matchedExpected": false,
+        "term": "fixar"
+      },
+      {
+        "caseId": "lista-com-conteudo",
+        "definition": "Carbono refere-se ao dióxido de carbono (CO2), uma substância essencial para a fotossíntese, que é incorporado em moléculas orgânicas durante o processo de fixação de carbono.",
+        "matchedExpected": true,
+        "term": "carbono"
+      },
+      {
+        "caseId": "lista-com-conteudo",
+        "definition": "Estroma é o espaço interno dos cloroplastos onde ocorrem vários processos fotossintéticos, incluindo a fixação de carbono catalisada pela enzima rubisco.",
+        "matchedExpected": true,
+        "term": "estroma"
+      },
+      {
+        "caseId": "exemplo-numerico",
+        "definition": "O limite máximo de indivíduos que um ambiente pode sustentar sem sofrer danos significativos.",
+        "matchedExpected": true,
+        "term": "capacidade de suporte do meio"
+      },
+      {
+        "caseId": "exemplo-numerico",
+        "definition": "A proporção em que um valor aumenta ou diminui em um determinado período de tempo.",
+        "matchedExpected": false,
+        "term": "taxa de incremento"
+      }
+    ],
+    "acceptedUnmatchedTerms": [
+      "ciclo-calvin: CO2",
+      "ciclo-calvin: tilacoide",
+      "ciclo-calvin: gradiente",
+      "contradicao-fotossintese: Celsius",
+      "contradicao-fotossintese: espectro",
+      "contradicao-fotossintese: atmosfera",
+      "contradicao-fotossintese: oxigenio molecular",
+      "termodinamica: adiabatico",
+      "bases-de-dados: registros",
+      "bases-de-dados: particionamento",
+      "bases-de-dados: teorema",
+      "bases-de-dados: criterio",
+      "contradicao-estroma: carbono",
+      "contradicao-estroma: cloroplastos",
+      "contradicao-estroma: respiração",
+      "contradicao-estroma: amido",
+      "referencia-indefinida: Calvin",
+      "referencia-indefinida: cloroplastos",
+      "referencia-indefinida: glicólise",
+      "passa-baixa-fronteira: unity",
+      "termo-definido-inline: rebalanceamento",
+      "termo-definido-inline: coleção",
+      "termo-definido-inline: inserção",
+      "termo-definido-inline: balanceadas",
+      "termo-definido-inline: logarithmico",
+      "termo-definido-inline: complexidade",
+      "contexto-implicito: fase",
+      "contexto-implicito: cloroplasto",
+      "contexto-implicito: fixar",
+      "contexto-implicito: enzima",
+      "contradicao-quantidade: CO2",
+      "contradicao-quantidade: fase",
+      "contradicao-quantidade: cloroplasto",
+      "contradicao-quantidade: molécula",
+      "contradicao-quantidade: glicose",
+      "promessa-vazia: demanda",
+      "promessa-vazia: curva",
+      "promessa-vazia: bens",
+      "promessa-vazia: sinal",
+      "termo-sem-definicao: isolado",
+      "termo-sem-definicao: princípio",
+      "termo-sem-definicao: macroscópico",
+      "contradicao-maior: enzimas",
+      "contradicao-maior: pâncreas",
+      "contradicao-maior: intestino delgado",
+      "contradicao-maior: alcalino",
+      "lista-com-conteudo: fixar",
+      "lista-com-conteudo: carbono",
+      "exemplo-numerico: capacidade de suporte do meio",
+      "exemplo-numerico: taxa de incremento"
+    ],
+    "casesFailed": 0,
+    "casesMeasured": 15,
+    "casesTotal": 23,
+    "casesWithGroundTruth": 23,
+    "coverageFailedCases": 0,
+    "coverageProposals": 0,
+    "duplicatesDropped": 0,
+    "expectedTerms": 49,
+    "extraTerms": 50,
+    "extraTermsTolerant": 39,
+    "failures": [],
+    "filteredOutByReason": {
+      "a citacao enviada nao aparece na nota": 1,
+      "o termo nao aparece na nota": 2
+    },
+    "filteredOutTerms": 3,
+    "foundTerms": 25,
+    "foundTermsTolerant": 35,
+    "measured": true,
+    "missedCaseFailed": 0,
+    "missedCases": [
+      "ciclo-calvin: estroma, fase clara, fase escura",
+      "contradicao-fotossintese: ciclo de Calvin, clorofila",
+      "termodinamica: recipiente adiabatico",
+      "bases-de-dados: tolerancia a particionamento",
+      "referencia-indefinida: estroma, glicólise aeróbica",
+      "passa-baixa-fronteira: Butterworth",
+      "termo-definido-inline: Árvores balanceadas, Tabelas hash, complexidade média de busca",
+      "contradicao-quantidade: fase escura",
+      "promessa-vazia: curva de demanda, elástica, inelástica",
+      "termo-sem-definicao: sistema isolado, estado macroscópico",
+      "contradicao-maior: pH, protease",
+      "lista-com-conteudo: fotofosforação, fixação de carbono",
+      "exemplo-numerico: capacidade de suporte"
+    ],
+    "missedJudgeFailed": 0,
+    "missedNameVariant": 10,
+    "missedNeverProposed": 12,
+    "missedRejectedByEngine": 1,
+    "missedRejectedByFilter": 1,
+    "missedTerms": [
+      {
+        "caseId": "ciclo-calvin",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "estroma"
+      },
+      {
+        "caseId": "ciclo-calvin",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "fase clara"
+      },
+      {
+        "caseId": "ciclo-calvin",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "fase escura"
+      },
+      {
+        "caseId": "contradicao-fotossintese",
+        "proposedAs": "Calvin",
+        "stage": "rejectedByEngine",
+        "term": "ciclo de Calvin"
+      },
+      {
+        "caseId": "contradicao-fotossintese",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "clorofila"
+      },
+      {
+        "caseId": "termodinamica",
+        "proposedAs": "adiabatico",
+        "stage": "nameVariant",
+        "term": "recipiente adiabatico"
+      },
+      {
+        "caseId": "bases-de-dados",
+        "proposedAs": "particionamento",
+        "stage": "nameVariant",
+        "term": "tolerancia a particionamento"
+      },
+      {
+        "caseId": "referencia-indefinida",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "estroma"
+      },
+      {
+        "caseId": "referencia-indefinida",
+        "proposedAs": "glicólise",
+        "stage": "nameVariant",
+        "term": "glicólise aeróbica"
+      },
+      {
+        "caseId": "passa-baixa-fronteira",
+        "proposedAs": "Butterworth",
+        "stage": "rejectedByFilter",
+        "term": "Butterworth"
+      },
+      {
+        "caseId": "termo-definido-inline",
+        "proposedAs": "balanceadas",
+        "stage": "nameVariant",
+        "term": "Árvores balanceadas"
+      },
+      {
+        "caseId": "termo-definido-inline",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "Tabelas hash"
+      },
+      {
+        "caseId": "termo-definido-inline",
+        "proposedAs": "complexidade",
+        "stage": "nameVariant",
+        "term": "complexidade média de busca"
+      },
+      {
+        "caseId": "contradicao-quantidade",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "fase escura"
+      },
+      {
+        "caseId": "promessa-vazia",
+        "proposedAs": "demanda",
+        "stage": "nameVariant",
+        "term": "curva de demanda"
+      },
+      {
+        "caseId": "promessa-vazia",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "elástica"
+      },
+      {
+        "caseId": "promessa-vazia",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "inelástica"
+      },
+      {
+        "caseId": "termo-sem-definicao",
+        "proposedAs": "isolado",
+        "stage": "nameVariant",
+        "term": "sistema isolado"
+      },
+      {
+        "caseId": "termo-sem-definicao",
+        "proposedAs": "macroscópico",
+        "stage": "nameVariant",
+        "term": "estado macroscópico"
+      },
+      {
+        "caseId": "contradicao-maior",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "pH"
+      },
+      {
+        "caseId": "contradicao-maior",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "protease"
+      },
+      {
+        "caseId": "lista-com-conteudo",
+        "proposedAs": null,
+        "stage": "neverProposed",
+        "term": "fotofosforação"
+      },
+      {
+        "caseId": "lista-com-conteudo",
+        "proposedAs": "carbono",
+        "stage": "nameVariant",
+        "term": "fixação de carbono"
+      },
+      {
+        "caseId": "exemplo-numerico",
+        "proposedAs": "capacidade de suporte do meio",
+        "stage": "nameVariant",
+        "term": "capacidade de suporte"
+      }
+    ],
+    "proposedTerms": 120,
+    "rawProposals": 123,
+    "recall": 0.5102040816326531,
+    "recallTolerant": 0.7142857142857143,
+    "rejectedByEngine": [
+      "ciclo-calvin: rubisco",
+      "ciclo-calvin: fotofosforilacao",
+      "contradicao-fotossintese: Calvin",
+      "termodinamica: termodinamico",
+      "bases-de-dados: banco",
+      "contradicao-estroma: Calvin",
+      "referencia-indefinida: fixação",
+      "passa-baixa-fronteira: ordem do filtro",
+      "termo-definido-inline: tempo",
+      "termo-definido-inline: estrutura",
+      "termo-definido-inline: índice",
+      "termo-definido-inline: dados",
+      "termo-definido-inline: valores",
+      "termo-definido-inline: tamanho",
+      "termo-definido-inline: custo",
+      "termo-definido-inline: busca",
+      "termo-definido-inline: permitindo",
+      "termo-definido-inline: occasional",
+      "termo-definido-inline: sacrificam",
+      "contexto-implicito: vêm",
+      "contexto-implicito: Calvin",
+      "contexto-implicito: ciclo",
+      "contexto-implicito: energia",
+      "contexto-implicito: fixação",
+      "contexto-implicito: estroma",
+      "contexto-implicito: fluido",
+      "contexto-implicito: primeira",
+      "contexto-implicito: acumulada",
+      "contexto-implicito: consumidos",
+      "contradicao-quantidade: contagem",
+      "contradicao-quantidade: corrigida",
+      "contradicao-quantidade: exportada",
+      "promessa-vazia: preço",
+      "promessa-vazia: quantidade",
+      "promessa-vazia: variação",
+      "promessa-vazia: resposta",
+      "promessa-vazia: maioria",
+      "contradicao-maior: pepsina",
+      "contradicao-maior: estômago",
+      "contradicao-maior: ambiente",
+      "contradicao-maior: fortemente ácido",
+      "lista-com-conteudo: fixação",
+      "exemplo-numerico: crescimento exponencial",
+      "exemplo-numerico: crescimento logístico",
+      "exemplo-numerico: relação"
+    ],
+    "rejectedByFilter": [
+      "ciclo-calvin: ribulose-1,5-bisfosfato (o termo nao aparece na nota)",
+      "contradicao-fotossintese: materia-prima (o termo nao aparece na nota)",
+      "passa-baixa-fronteira: Butterworth (a citacao enviada nao aparece na nota)"
+    ]
+  },
+  "dimensionCoverage": [
+    {
+      "dimension": "readiness",
+      "measured": 23,
+      "total": 23,
+      "unit": "casos"
+    },
+    {
+      "dimension": "claims",
+      "measured": 22,
+      "total": 22,
+      "unit": "afirmacoes"
+    },
+    {
+      "dimension": "exchanges",
+      "measured": 5,
+      "total": 5,
+      "unit": "trocas"
+    },
+    {
+      "dimension": "definitions",
+      "measured": 23,
+      "total": 23,
+      "unit": "casos"
+    }
+  ],
+  "eceByRun": [
+    0.09130434782608697,
+    0.0969565217391305,
+    0.1008695652173913
+  ],
+  "exchangeAccuracy": {
+    "accuracy": 1.0,
+    "casesMeasured": 2,
+    "casesTotal": 23,
+    "exchangesCorrect": 5,
+    "exchangesTotal": 5,
+    "failures": [],
+    "misses": []
+  },
+  "expansionFunnel": {
+    "acceptanceRate": 0.9491525423728814,
+    "casesMeasured": 23,
+    "casesTotal": 23,
+    "expansionsAccepted": 56,
+    "expansionsRejected": 3,
+    "failures": [],
+    "rawExpansions": 59
+  },
+  "goldenSetSize": 23,
+  "labelsReviewed": true,
+  "orderBias": {
+    "casesMeasured": 2,
+    "failures": [],
+    "favouredOptions": {
+      "remembered": 2
+    },
+    "meanDisagreementRate": 0.0
+  },
+  "runId": 1793121048,
+  "unscoreable": [],
+  "verdict": "Confianca NAO acionavel (pior ECE 0.101 acima de 0.10): nao exibir numeros de confianca na UI."
+}

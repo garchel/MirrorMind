@@ -4360,3 +4360,102 @@ da rodada (`missedCaseFailed: 8`) e o `.md` foi regerado: 21 + 28 = 49.
   ruído do 7B nos 4 termos.
 - **Revisar os 54 extras** aceitos: sem isso, "precisão de 28%" é concordância
   com uma lista amostral.
+
+### 15.49 Rodada 8: o contrato consertado e o juiz endurecido
+
+A rodada 7 deixou dois defeitos nomeados: duas notas que o provider não conseguia
+responder no contrato, e um motor que aceitava `fortemente`, `isolado` e
+`fixação` como se fossem verbetes. Os dois foram consertados, e esta rodada mede
+o efeito. Run `1793121048`, 23 casos, Ollama `qwen2.5:7b`, 1559s.
+
+#### O contrato: estourar o pedido não pode custar o caso
+
+O diagnóstico (§15.48) mostrou o erro de validação exato: `/proposals: tamanho
+acima de maxItems`. O prompt pedia 8 propostas, o schema aceitava 8, e o 7B
+devolveu 11 e 12 nas duas notas — o schema recusava o **relatório inteiro**, e as
+expansões daquelas notas morriam junto.
+
+Duas mudanças, nesta ordem:
+
+1. O schema passou a tolerar 64 propostas (`SCHEMA_MAX_PROPOSALS`) e o prompt
+   pede 24 (`MAX_DEFINITION_PROPOSALS`). O teto do schema ser **maior** que o
+   pedido é o que impede "o modelo falou demais" de virar "o modelo não
+   respondeu".
+2. O excedente é truncado no parser, com contagem (`truncated_proposals`), e o
+   corte aparece no funil. Truncar sem contar seria o mesmo defeito com outra
+   roupa.
+
+O diagnóstico depois da correção: 17 e 19 propostas aceitas nas mesmas duas
+notas, zero falhas de contrato na rodada. Os dois casos entraram na medição pela
+primeira vez e contribuíram **5 termos exatos e 2 tolerantes** dos seus 8 (o
+restante é `Tabelas hash`, nunca proposto).
+
+#### O juiz: recusar o que não é conceito
+
+A pergunta do JEV só recusava "a nota já define" e "é o assunto da nota". Passou
+a recusar também o que não é conceito: palavra comum, verbo, advérbio, adjetivo
+solto ou pedaço de uma expressão maior (`fixação` quando a nota fala de `fixação
+de carbono`). A opção `no` nomeia a recusa, para o critério chegar ao motor.
+
+| Medida | Rodada 7 | Rodada 8 |
+| --- | ---: | ---: |
+| Casos com ground truth medidos | 13 de 23 | **15 de 23** |
+| Casos sem medição (contrato) | 2 | **0** |
+| Oferecidas pelo provider | 86 | 123 |
+| Recusadas pelo filtro | 3 | 3 |
+| Chegaram ao motor | 83 | 120 |
+| **Recusadas pelo motor** | 8 (9,6%) | **45 (37,5%)** |
+| Aceitas | 75 | 75 |
+| Recall exato (49) | 21 (42,9%) | **25 (51,0%)** |
+| Recall tolerante (49) | 30 (61,2%) | **35 (71,4%)** |
+| Extras aceitos | 54 | **50** |
+| Precisão (esperados / aceitas) | 21/75 (28,0%) | **25/75 (33,3%)** |
+| ECE (3 repetições) | 0,102 / 0,162 / 0,099 | **0,091 / 0,097 / 0,101** |
+| Expansões aceitas | 49/52 (94,2%) | 56/59 (95,0%) |
+
+**Sobre os mesmos 41 termos** medidos nas duas rodadas, o recall **não subiu**:
+21 exatos na rodada 7, 20 na rodada 8 (tolerante: 30 e 28). Três termos que a
+rodada 7 acertou sumiram — `clorofila` e `inelástica` nunca foram propostos, e
+`glicólise aeróbica` virou `glicólise` (variação de nome) — e dois entraram
+(`respiracao celular`, `membrana tilacoidal`). **Nenhuma das perdas foi recusa do
+juiz.** O ganho de 4 no total de 49 é cobertura de medição (5 termos dos dois
+casos que a rodada 7 não conseguiu medir): o juiz endurecido comprou precisão,
+não recall. Chamar isso de melhoria de recall seria contar dois denominadores
+diferentes.
+
+O número que decide o desenho: **das 45 recusas do motor, nenhuma era termo
+esperado**. Sem o juiz, as 120 propostas teriam ido ao usuário (precisão 20,8%);
+com ele, 75 chegam e a precisão é 33,3%. O JEV cortou 45 extras — quatro vezes
+mais que na rodada 7 — sem custar um único acerto.
+
+Isso fecha a hipótese do §15.47 pelo lado que faltava. O JEV não é um filtro
+fraco: com o critério certo, ele corta um terço do ruído e não toca no recall. O
+que ele não faz é adivinhar o que o revisor não listou — os 50 extras restantes
+continuam sendo, em boa parte, termos plausíveis que o gabarito amostral não tem.
+
+#### A calibração continua reprovando, e por 0,0009
+
+O ECE caiu de 0,162 para 0,101 — em parte porque os dois casos que faltavam
+entraram na conta (a acurácia foi de 87,0% para 91,3%) —, mas o gate exige
+**0,10** e decide pelo pior de três repetições. Duas
+passam (0,091 e 0,097); a terceira não (0,101). O veredito do harness é o mesmo:
+confiança **não acionável**, e a UI continua sem mostrar número de confiança.
+
+Um reajuste monotônico da confiança (temperatura `T = 0,39`, ou encolhimento
+`k = 1,24`) levaria o ECE a ~0,05 em ajuste **na mesma amostra**. Isso é o teto
+do que uma camada de calibração poderia fazer, não uma medida: são 23 pontos, um
+parâmetro e a mesma amostra para ajustar e avaliar. Não foi embarcado. Para
+validar, precisa de ground truth humano em 30 casos, com ajuste em uma metade e
+avaliação na outra — e o golden set tem 23.
+
+#### O que esta rodada não prova
+
+- **Uma rodada.** A variabilidade do JEV já apareceu no §15.47 (3 propostas entre
+  repetições); 45 recusas sem perda de recall é resultado de uma execução.
+- **Extras sem revisão humana.** Os 50 aceitos e as 45 recusas continuam sem
+  veredito de revisor. A página de revisão foi regerada para esta rodada.
+- **Qualidade textual e `sourceQuote`** seguem sem ground truth.
+- **A lacuna entre a rodada 6 e esta rodada** no mesmo conjunto de 41 termos
+  agora está medida: são 5 termos (25 → 20), e os cinco são variação de propostas
+  (`neverProposed`/`nameVariant`), não recusa do juiz. O que continua sem
+  explicação é a causa da variação: prompt, amostragem do modelo ou os dois.
