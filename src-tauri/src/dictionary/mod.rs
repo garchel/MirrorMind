@@ -210,7 +210,30 @@ pub fn same_knowledge(left: &str, right: &str) -> bool {
     if shorter.chars().count() < 5 {
         return false;
     }
+    if negates(shorter, longer) {
+        return false;
+    }
     longer.starts_with(shorter) || longer.ends_with(shorter)
+}
+
+/// Prefixos que invertem o sentido do termo.
+///
+/// `inelastica` termina com `elastica`, e a regra de prefixo/sufixo diria que
+/// sao o mesmo conhecimento. Nao sao: um e a negacao do outro. Juntar os dois
+/// no dicionario esconde o verbete que falta, e a metrica que os junta conta um
+/// acerto que nao houve.
+const NEGATION_PREFIXES: &[&str] = &["in", "im", "i", "des", "anti", "nao", "sem"];
+
+/// O pedaco que sobra e exatamente um prefixo de negacao?
+fn negates(shorter: &str, longer: &str) -> bool {
+    NEGATION_PREFIXES.iter().any(|prefix| {
+        longer
+            .strip_suffix(shorter)
+            .is_some_and(|head| head == *prefix)
+            || longer
+                .strip_prefix(shorter)
+                .is_some_and(|tail| tail == *prefix)
+    })
 }
 
 /// O caminho do arquivo do dicionario.
@@ -362,6 +385,19 @@ mod tests {
         assert!(!same_knowledge("ATP", "adaptador"));
         assert!(!same_knowledge("fase clara", "fase escura"));
         assert!(!same_knowledge("estroma", "citoplasma"));
+    }
+
+    #[test]
+    fn a_negacao_do_termo_nao_e_o_mesmo_conhecimento() {
+        // `inelastica` termina com `elastica`, e a regra de prefixo/sufixo
+        // diria que e o mesmo verbete. E o oposto: juntar os dois esconde do
+        // usuario o termo que falta.
+        assert!(!same_knowledge("elastica", "inelastica"));
+        assert!(!same_knowledge("possivel", "impossivel"));
+        assert!(!same_knowledge("organizado", "desorganizado"));
+        // E a variacao legitima continua valendo.
+        assert!(same_knowledge("estroma", "estroma dos cloroplastos"));
+        assert!(same_knowledge("recipiente adiabatico", "adiabatico"));
     }
 
     #[test]
