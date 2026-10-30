@@ -19,7 +19,7 @@ Ele complementa os documentos existentes:
 | Área | Estado | Observação |
 | --- | --- | --- |
 | Build desktop | ✅ Pronto | Tauri 2, NSIS + MSI, ícones, CSP, janela sem decoração com controles customizados |
-| CI | ✅ Pronto | Lint, typecheck, 762 testes frontend, 496 test fns Rust, build, E2E desktop Windows (9 jornadas), bundle + smoke, cobertura |
+| CI | ✅ Pronto | Lint, typecheck, 1.204 testes frontend, 889 testes Rust (`cargo test --lib`), build, E2E desktop Windows (11 jornadas), bundle + smoke, cobertura |
 | E2E Linux smoke | ✅ Pronto | Job dedicado no CI (`linux-e2e-smoke`) |
 | Gate de release (checklist) | ❌ Nunca executado | `docs/releases/` não existe; nenhuma candidata validada em máquina real |
 | Assinatura de código | ❌ Ausente | Instalador gerado sem Authenticode; SmartScreen bloqueia instalação limpa |
@@ -31,6 +31,24 @@ Ele complementa os documentos existentes:
 | Documentação de usuário | 🟡 Parcial | `docs/user-guide.md` + `docs/obsidian-migration-guide.md` criados e linkados da página de download; falta revisão de conteúdo por quem conhece o produto ponta a ponta |
 | Suporte / comunidade | ✅ Pronto (2026-08-31) | Templates de issue (*Report de bug* / *Sugestão*) + **GitHub Discussions habilitado** no repositório |
 | Telemetria de falhas (crash reporting) | ❌ Sem decisão | Filosofia local-first sugere "não ter", mas a decisão não está registrada nem justificada |
+
+### Correções de abertura e fechamento (2026-10-29)
+
+Três defeitos encontrados na auditoria do app, corrigidos antes do beta:
+
+| Correção | O que mudou | Como foi medido |
+| --- | --- | --- |
+| Idioma e título do documento | `index.html` passou de `lang="en"`/`<title>bootstrap</title>` para `lang="pt-BR"`/`MirrorMind` | `dist/index.html` gerado |
+| Peso de inicialização | `rehype-katex` e `katex` saíram do `modulepreload`; preload caiu de 2.761 kB (826 kB gzip) para 2.211 kB (663 kB gzip) | `npm run build`, somando os `modulepreload` + CSS de entrada |
+| Guarda de fechamento | Fechar a janela com rascunho não salvo agora pergunta **Salvar e sair / Descartar e sair / Cancelar** (`onCloseRequested`; `beforeunload` só no shell web) | Testes de `unsavedDraftPaths`, do diálogo e 4 de integração no `App.regression`; falta a passada manual no app instalado |
+
+### Contagem da suíte (correção de medição, 2026-10-29)
+
+`npx vitest run` contava também os testes do checkout vizinho em
+`.worktrees/` (código velho, 102 arquivos): os 2.205/2.221 anteriores somavam
+o worktree e não descreviam este código. Com `exclude` em `vite.config.ts`, a
+suíte deste repositório é **1.204 testes em 120 arquivos**, todos passando.
+Detalhe em `docs/testing-flakiness.md`.
 
 ## Princípios
 
