@@ -18,17 +18,101 @@ import { POSTIT_COLOR_HEX, type NotePostit } from '../lib/postits'
 import { ObsidianPdfEmbed } from './ObsidianPdfEmbed'
 import { ObsidianPluginBlock } from './ObsidianPluginBlock'
 
-import katex from 'katex'
+// KaTeX carregado sob demanda (ver abaixo).
+
+/** API minima do KaTeX que o preview usa (o modulo real traz muito mais). */
+type KatexRenderer = {
+  renderToString: (source: string, options?: Record<string, unknown>) => string
+}
+
+/** KaTeX carregado sob demanda. O preview inline e sincrono, entao a formula
+ *  renderizada antes do modulo chegar vira um placeholder com o fonte e e
+ *  substituida na hidratacao (mesmo DOM do caminho sincrono).
+ *
+ *  Motivo: `katex` (258 kB, 77 kB gzip) entrava no chunk de entrada porque
+ *  este modulo e importado pelo editor no App — toda abertura do app pagava
+ *  o peso, mesmo em notas sem nenhuma formula. */
+let katexRenderer: KatexRenderer | null = null
+let katexLoad: Promise<void> | null = null
+/** Containers (widget de formula, tabela, celula) com formula pendente. */
+const pendingMathElements = new Set<HTMLElement>()
+/** Ultima view que criou um widget com formula: `requestMeasure` depois da
+ *  hidratacao, para o CodeMirror remedir a altura trocada. */
+let lastMathView: EditorView | null = null
+
+function ensureKatexLoaded(): void {
+  if (katexRenderer || katexLoad) return
+  // O CSS do KaTeX acompanha o modulo: fora do `modulepreload` de abertura ele
+  // so entra quando a primeira formula aparece.
+  katexLoad = Promise.all([import('katex'), import('katex/dist/katex.min.css')])
+    .then(([module]) => {
+      const loaded = (module as { default?: KatexRenderer }).default
+      katexRenderer = loaded ?? (module as unknown as KatexRenderer)
+      mathHtmlCache.clear()
+      hydratePendingMath()
+    })
+    .catch(() => {
+      // Sem KaTeX: o placeholder continua mostrando o fonte da formula, e a
+      // proxima renderizacao tenta carregar de novo.
+    })
+    .finally(() => {
+      katexLoad = null
+    })
+}
+
+/** Fonte da formula em atributo (seguro para `innerHTML`). */
+function escapeAttribute(text: string) {
+  return escapeHtml(text).replace(/'/g, '&#39;')
+}
+
+/** Placeholder exibido enquanto o KaTeX nao chega: o proprio `$...$` cru. */
+function mathPlaceholderHtml(source: string, displayMode: boolean): string {
+  const visible = displayMode ? `$$${escapeHtml(source)}$$` : `$${escapeHtml(source)}$`
+  return `<span class="cm-live-math-pending" data-math-source="${escapeAttribute(source)}" data-math-display="${displayMode ? '1' : '0'}">${visible}</span>`
+}
+
+/** Troca os placeholders de um container pelo HTML real do KaTeX. */
+function hydrateMathContainer(container: HTMLElement): boolean {
+  let hydrated = false
+  for (const placeholder of Array.from(container.querySelectorAll<HTMLElement>('[data-math-source]'))) {
+    const source = placeholder.getAttribute('data-math-source') ?? ''
+    const displayMode = placeholder.getAttribute('data-math-display') === '1'
+    const template = document.createElement('template')
+    template.innerHTML = renderMathHtml(source, displayMode)
+    placeholder.replaceWith(template.content)
+    hydrated = true
+  }
+  return hydrated
+}
+
+function hydratePendingMath(): void {
+  let hydrated = false
+  for (const element of pendingMathElements) {
+    if (!element.isConnected) continue
+    if (hydrateMathContainer(element)) hydrated = true
+  }
+  pendingMathElements.clear()
+  if (hydrated) lastMathView?.requestMeasure()
+}
+
+/** Marca o container para hidratacao quando a formula saiu como placeholder. */
+function trackPendingMath(container: HTMLElement): void {
+  if (!katexRenderer) pendingMathElements.add(container)
+}
 
 /** HTML de formulas memoizado por fonte+modo (o widget recria a instancia a
- * cada passada, mas `eq()` reaproveita o DOM das inalteradas). */
+ *  cada passada, mas `eq()` reaproveita o DOM das inalteradas). */
 const mathHtmlCache = new Map<string, string>()
 const MATH_HTML_CACHE_LIMIT = 200
 function renderMathHtml(source: string, displayMode: boolean): string {
   const key = `${displayMode ? '1' : '0'}:${source}`
   const cached = mathHtmlCache.get(key)
   if (cached !== undefined) return cached
-  const html = katex.renderToString(source, {
+  if (!katexRenderer) {
+    ensureKatexLoaded()
+    return mathPlaceholderHtml(source, displayMode)
+  }
+  const html = katexRenderer.renderToString(source, {
     displayMode,
     output: 'html',
     throwOnError: false,
@@ -430,10 +514,12 @@ class MathWidget extends WidgetType {
 
   eq(other: MathWidget) { return other.source === this.source && other.displayMode === this.displayMode }
 
-  toDOM() {
+  toDOM(view: EditorView) {
+    lastMathView = view
     const span = document.createElement('span')
     span.className = `cm-live-math${this.displayMode ? ' cm-live-math-display' : ''}`
     span.innerHTML = renderMathHtml(this.source, this.displayMode)
+    trackPendingMath(span)
     return span
   }
 
@@ -913,11 +999,13 @@ class TableWidget extends WidgetType {
     this.readOnly = view.state.readOnly
     ;(dom as unknown as { __liveTableWidget: TableWidget }).__liveTableWidget = this
     this.syncCells(dom)
+    trackPendingMath(dom)
     return true
   }
 
   toDOM(view: EditorView) {
     this.view = view
+    lastMathView = view
     this.readOnly = view.state.readOnly
     const wrap = document.createElement('div')
     wrap.className = 'cm-live-table-wrap'
@@ -929,6 +1017,7 @@ class TableWidget extends WidgetType {
     wrap.addEventListener('input', (event) => this.onInput(event as InputEvent))
     wrap.addEventListener('keydown', (event) => this.onKeyDown(event as KeyboardEvent))
     this.buildTable(wrap)
+    trackPendingMath(wrap)
     return wrap
   }
 
@@ -965,6 +1054,7 @@ class TableWidget extends WidgetType {
     el.contentEditable = 'false'
     if (cell.align) el.style.textAlign = cell.align
     el.innerHTML = renderCellHtml(cell.text)
+    trackPendingMath(el)
     return el
   }
 
@@ -990,7 +1080,10 @@ class TableWidget extends WidgetType {
         if (this.cellSourceText(el) !== cell.text) this.renderEditContent(el, cell.text)
       } else {
         const html = renderCellHtml(cell.text)
-        if (el.innerHTML !== html) el.innerHTML = html
+        if (el.innerHTML !== html) {
+          el.innerHTML = html
+          trackPendingMath(el)
+        }
       }
       if (cell.align) el.style.textAlign = cell.align
     })
@@ -1030,6 +1123,7 @@ class TableWidget extends WidgetType {
     span.innerHTML = token.kind === 'math'
       ? renderMathHtml(token.inner, false)
       : escapeHtml(token.inner)
+    if (token.kind === 'math') trackPendingMath(span)
     return span
   }
 
@@ -1095,7 +1189,10 @@ class TableWidget extends WidgetType {
     cell.dataset.raw = 'false'
     cell.contentEditable = 'false'
     cell.classList.remove('is-editing')
-    if (tableCell) cell.innerHTML = renderCellHtml(tableCell.text)
+    if (tableCell) {
+      cell.innerHTML = renderCellHtml(tableCell.text)
+      trackPendingMath(cell)
+    }
   }
 
   private onMouseDown(event: MouseEvent) {

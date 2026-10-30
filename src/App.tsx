@@ -13,7 +13,6 @@ import { CheckCircle2, ClipboardList, Folder, FolderOpen, Star, X } from 'lucide
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Bookmark02Icon, File02Icon } from '@hugeicons/core-free-icons'
 import { RiFocus2Fill, RiFocus2Line } from '@remixicon/react'
-import 'katex/dist/katex.min.css'
 import { BuilderModeControl } from './components/BuilderModeControl'
 import { TitleBar } from './components/TitleBar'
 import type { FrontmatterPanelData, FrontmatterRow, LinkTarget } from './components/markdownLivePreview'

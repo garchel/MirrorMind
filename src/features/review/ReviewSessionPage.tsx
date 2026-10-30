@@ -11,6 +11,7 @@ import {
   type SynthesisAttempt,
 } from './ai'
 import ReactMarkdown from 'react-markdown'
+import 'katex/dist/katex.min.css'
 import rehypeKatex from 'rehype-katex'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'

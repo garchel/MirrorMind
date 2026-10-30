@@ -2,12 +2,24 @@ import { AlertTriangle, CalendarCheck2, ChartColumnBig, Check, Download, RotateC
 import { HugeiconsIcon } from '@hugeicons/react'
 import { StructureCheckIcon } from '@hugeicons/core-free-icons'
 import type { ReactNode } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Button } from '../../components/ui/Button'
 import type { NoteReviewState } from './ai'
 import { useNoteReadiness, type ReviewStartInfo } from './useNoteReadiness'
-import { NoteReadinessReport } from './NoteReadinessReport'
 import { Modal } from '../../components/Modal'
 import './review-ai.css'
+
+/** O relatorio de prontidao carrega sob demanda: ele traz `rehype-katex` e
+ *  `remark-math` (~260 kB, 78 kB gzip) e so aparece quando o usuario abre uma
+ *  avaliacao. Mantido estatico, esse peso entrava no `modulepreload` de toda
+ *  abertura do app mesmo quando a pessoa nunca avalia uma nota. */
+function loadReadinessReport() {
+  return import('./NoteReadinessReport')
+}
+
+const NoteReadinessReport = lazy(() =>
+  loadReadinessReport().then((module) => ({ default: module.NoteReadinessReport })),
+)
 
 export type { ReviewStartInfo } from './useNoteReadiness'
 
@@ -116,6 +128,12 @@ export function NoteReadinessControl({
     onSaveFirst,
   })
 
+  // Abrir o menu de revisao ja baixa o relatorio: quem chegou ate aqui vai
+  // avalia-lo, e assim o chunk chega antes do primeiro "Avaliar nota".
+  useEffect(() => {
+    void loadReadinessReport().catch(() => undefined)
+  }, [])
+
   const startActionBlocked = (isDirty && !onSaveFirst) || !reviewState || reviewState.readiness !== 'ready'
   const showStartHint = !disabled && !busy && !enrollmentBusy && startActionBlocked
   const startHintText = (isDirty && !onSaveFirst)
@@ -123,14 +141,22 @@ export function NoteReadinessControl({
     : 'Avalie a nota para liberar a revisão.'
 
   return reportOpen && attempt ? (
-    <NoteReadinessReport
-      attempt={attempt}
-      isStaleReport={reviewState?.readiness === 'modified'}
-      error={error}
-      busy={busy}
-      onClose={closeReport}
-      onRetry={() => void runAssessment(true)}
-    />
+    <Suspense
+      fallback={(
+        <p className="review-ai-stale-report" role="status">
+          Abrindo relatório…
+        </p>
+      )}
+    >
+      <NoteReadinessReport
+        attempt={attempt}
+        isStaleReport={reviewState?.readiness === 'modified'}
+        error={error}
+        busy={busy}
+        onClose={closeReport}
+        onRetry={() => void runAssessment(true)}
+      />
+    </Suspense>
   ) : (
     <>
       {/* Cabecalho: titulo a esquerda, status a direita; o cartao reaproveita

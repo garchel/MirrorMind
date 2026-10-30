@@ -98,7 +98,9 @@ describe('markdownLivePreview render (jsdom)', () => {
     const value = 'Introducao\n\n| Conceito | Formula |\n|---|---|\n| **Energia** | $E=mc^2$ |'
     const container = await renderLive(value)
     await waitFor(() => expect(table(container)).not.toBeNull())
-    expect(container.querySelector('.cm-live-table-wrap .katex')).not.toBeNull()
+    // O KaTeX chega sob demanda: a formula da celula hidrata no mesmo tick da
+    // importacao dinamica, por isso a espera (antes era render sincrono).
+    await waitFor(() => expect(container.querySelector('.cm-live-table-wrap .katex')).not.toBeNull())
     const cells = container.querySelectorAll('.cm-live-table-wrap td')
     expect(cells[0]?.querySelector('strong')?.textContent).toBe('Energia')
     expect(cells[1]?.querySelector('.katex')).not.toBeNull()

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NoteReadinessControl } from './NoteReadinessControl'
 import { prepareReportMarkdown } from './readinessReportMarkdown'
 import type { NoteReviewState, ReadinessAttempt } from './ai'
@@ -102,6 +102,13 @@ function control(props?: Partial<React.ComponentProps<typeof NoteReadinessContro
 }
 
 describe('NoteReadinessControl', () => {
+  // O relatorio de prontidao e um chunk carregado sob demanda. Pre-carregar
+  // aqui tira o tempo de transform do vitest da conta das assercoes: o
+  // `Suspense` resolve no primeiro tick, como no app depois do preload do menu.
+  beforeAll(async () => {
+    await import('./NoteReadinessReport')
+  })
+
   beforeEach(() => {
     window.localStorage.clear()
     assessNoteReadinessMock.mockReset()
