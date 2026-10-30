@@ -36,6 +36,8 @@ import { isAutoUpdateEnabled, setAutoUpdateEnabled, useAppUpdater } from './lib/
 import { useEscapeToClose } from './lib/escapeStack'
 import { UpdateBanner } from './components/UpdateBanner'
 import { Modal } from './components/Modal'
+import { UnsavedChangesDialog } from './components/UnsavedChangesDialog'
+import { hasUnsavedNewNote, unsavedDraftPaths } from './lib/unsavedDrafts'
 import { PageSkeleton } from './components/PageSkeleton'
 import { type GraphMode } from './components/GraphToolbar'
 import { useGraphSettings } from './lib/useGraphSettings'
@@ -318,6 +320,13 @@ function App() {
   const tagFilterDropdownRef = useRef<HTMLDivElement | null>(null)
   const suppressNoteClickRef = useRef(false)
   const saveInFlightRef = useRef(false)
+  /** Espelho de `isNewNoteDraft` para o listener de fechamento (registrado uma
+   *  vez e sem estado atualizado a cada render). */
+  const isNewNoteDraftRef = useRef(false)
+  /** Libera o fechamento depois da decisao do usuario (evita reentrada). */
+  const allowCloseRef = useRef(false)
+  /** Resumo do que se perde ao fechar, mantido fora do render. */
+  const unsavedForCloseRef = useRef<{ paths: string[]; newNote: boolean }>({ paths: [], newNote: false })
   const activeNoteRef = useRef<NoteDocument | null>(null)
   const notesRef = useRef<NotePreview[]>([])
   const foldersRef = useRef<string[]>([])
@@ -785,6 +794,10 @@ function App() {
   const [wikilinkIndexCancelled, setWikilinkIndexCancelled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [autoSaveState, setAutoSaveState] = useState<'idle' | 'pending' | 'saving' | 'saved'>('idle')
+  // Guarda de fechamento: o resumo do que seria perdido ao fechar a janela.
+  const [closeGuard, setCloseGuard] = useState<{ paths: string[]; newNote: boolean } | null>(null)
+  const [closeGuardBusy, setCloseGuardBusy] = useState(false)
+  const [closeGuardError, setCloseGuardError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState('Escolha um vault existente ou crie um do zero.')
   // Lixeira extraída para lib/useTrashItems — mesmos comandos e mensagens.
@@ -1517,6 +1530,62 @@ function App() {
     isNewNoteDraft,
     saving,
   ])
+
+  // Guarda de fechamento: o autosave cobre o caso comum, mas com ele desligado
+  // (ou entre a digitacao e o debounce) fechar a janela descartava o rascunho
+  // em silencio. O resumo do que se perde vive num ref porque o listener do
+  // Tauri e registrado uma vez e nao ve estado novo a cada render.
+  useEffect(() => {
+    isNewNoteDraftRef.current = isNewNoteDraft
+    unsavedForCloseRef.current = {
+      paths: unsavedDraftPaths({
+        activePath: activeNote?.relativePath ?? null,
+        activeContent: draftContent,
+        draftsByPath,
+        baseByPath: draftBaseByPathRef.current,
+      }),
+      newNote: hasUnsavedNewNote({ isNewNoteDraft, activeContent: draftContent }),
+    }
+  }, [activeNote, draftContent, draftsByPath, isNewNoteDraft])
+
+  useEffect(() => {
+    // Shell web (Vite no navegador, sem Tauri): o `beforeunload` e a unica
+    // rede. Dentro do app desktop quem manda e o `onCloseRequested`, e manter
+    // os dois ativos poderia pedir a mesma confirmacao duas vezes.
+    if (!isTauriRuntime()) {
+      const onBeforeUnload = (event: BeforeUnloadEvent) => {
+        if (allowCloseRef.current) return
+        const { paths, newNote } = unsavedForCloseRef.current
+        if (paths.length === 0 && !newNote) return
+        event.preventDefault()
+        event.returnValue = ''
+      }
+      window.addEventListener('beforeunload', onBeforeUnload)
+      return () => window.removeEventListener('beforeunload', onBeforeUnload)
+    }
+
+    let disposed = false
+    let unlisten: (() => void) | undefined
+    void getCurrentWindow().onCloseRequested((event) => {
+      if (allowCloseRef.current) return
+      const { paths, newNote } = unsavedForCloseRef.current
+      if (paths.length === 0 && !newNote) return
+      // `preventDefault` precisa ser sincrono: o Tauri decide o fechamento
+      // quando o handler retorna.
+      event.preventDefault()
+      setCloseGuardError(null)
+      setCloseGuard({ paths, newNote })
+    })
+      .then((stop) => {
+        if (disposed) stop()
+        else unlisten = stop
+      })
+      .catch(() => undefined)
+    return () => {
+      disposed = true
+      unlisten?.()
+    }
+  }, [])
 
   // Progresso da (re)construcao do indice de wikilinks durante uma
   // renomeacao/movimentacao (eventos emitidos pelo backend).
@@ -3654,6 +3723,80 @@ function App() {
     }
   }
 
+  /** Espera um salvamento em voo terminar: fechar durante o autosave nao pode
+   *  ser lido como "falhou ao salvar". */
+  async function waitForSaveIdle() {
+    const deadline = Date.now() + 4000
+    while (saveInFlightRef.current && Date.now() < deadline) {
+      await new Promise((resolve) => window.setTimeout(resolve, 40))
+    }
+  }
+
+  /** Fecha a janela pulando a guarda (decisao ja tomada pelo usuario).
+   *  `close()` reemite o `onCloseRequested`; o handler ve a permissao e deixa
+   *  o fechamento seguir — sem precisar da permissao `window:allow-destroy`. */
+  async function quitWindow() {
+    allowCloseRef.current = true
+    try {
+      if (isTauriRuntime()) await getCurrentWindow().close()
+      else window.close()
+    } catch (caughtError) {
+      allowCloseRef.current = false
+      setCloseGuardError(errorMessage(caughtError, 'Não foi possível fechar a janela.'))
+    }
+  }
+
+  function cancelCloseGuard() {
+    setCloseGuard(null)
+    setCloseGuardError(null)
+  }
+
+  /** "Salvar e sair": grava a nota ativa (inclusive nota nova) e os rascunhos
+   *  das outras abas. Se qualquer gravacao falhar, a janela continua aberta e
+   *  o motivo aparece no dialogo — fechar mesmo assim perderia texto. */
+  async function saveDraftsAndClose() {
+    if (!vault || closeGuardBusy) return
+    setCloseGuardBusy(true)
+    setCloseGuardError(null)
+    try {
+      await waitForSaveIdle()
+      const activePath = activeNoteRef.current?.relativePath ?? null
+      const pending = unsavedDraftPaths({
+        activePath,
+        activeContent: draftContentRef.current,
+        draftsByPath: draftsByPathRef.current,
+        baseByPath: draftBaseByPathRef.current,
+      })
+      const newNotePending = hasUnsavedNewNote({
+        isNewNoteDraft: isNewNoteDraftRef.current,
+        activeContent: draftContentRef.current,
+      })
+      if (activePath !== null && (pending.includes(activePath) || newNotePending)) {
+        const saved = await saveActiveNote(false)
+        if (!saved) {
+          setCloseGuardError('Não foi possível salvar a nota aberta. Resolva o conflito e tente de novo.')
+          return
+        }
+      }
+      const otherPaths = pending.filter((path) => path !== activePath)
+      if (otherPaths.length > 0) {
+        try {
+          await Promise.all(otherPaths.map((relativePath) => invoke('save_note', {
+            path: vault.path,
+            relativePath,
+            content: draftsByPathRef.current[relativePath],
+          })))
+        } catch (caughtError) {
+          setCloseGuardError(errorMessage(caughtError, 'Não foi possível salvar um dos rascunhos.'))
+          return
+        }
+      }
+      await quitWindow()
+    } finally {
+      setCloseGuardBusy(false)
+    }
+  }
+
   /** Rele a nota `path` e reescreve a secao gerada (se for indexadora) ou a
    *  remove (se a flag saiu). Nao sobrescreve um rascunho mais novo quando
    *  `skipIfDirtyOf` e o proprio caminho. Atualiza os indices em memoria. */
@@ -5591,6 +5734,16 @@ function App() {
         {/* O balao do dicionario: vive fora da arvore do editor porque o
             editor tem `overflow` proprio, que cortaria o balao. */}
         <DictionaryTooltip entry={dictionaryHover} rect={dictionaryHoverRect} />
+        <UnsavedChangesDialog
+          open={closeGuard !== null}
+          paths={closeGuard?.paths ?? []}
+          newNote={closeGuard?.newNote ?? false}
+          saving={closeGuardBusy}
+          error={closeGuardError}
+          onSaveAndQuit={() => void saveDraftsAndClose()}
+          onDiscardAndQuit={() => void quitWindow()}
+          onCancel={cancelCloseGuard}
+        />
         <SyncConflictsDialog
           open={showSyncConflicts}
           copies={syncConflictCopies}

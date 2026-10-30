@@ -2,21 +2,32 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { invokeMock, listenMock, onDragDropEventMock, getCurrentWindowMock } = vi.hoisted(() => {
-  // Janela mockada o suficiente para o App (drag-and-drop nativo) e a barra de
-  // titulo customizada (minimizar/maximizar/restaurar/fechar + estado max).
+const {
+  invokeMock,
+  listenMock,
+  onDragDropEventMock,
+  onCloseRequestedMock,
+  closeMock,
+  getCurrentWindowMock,
+} = vi.hoisted(() => {
+  // Janela mockada o suficiente para o App (drag-and-drop nativo, pedido de
+  // fechamento) e a barra de titulo customizada (minimizar/maximizar/restaurar/
+  // fechar + estado max).
   const windowMock = () => ({
     onDragDropEvent: onDragDropEventMock,
+    onCloseRequested: onCloseRequestedMock,
     isMaximized: vi.fn(async () => false),
     onResized: vi.fn(async () => () => undefined),
     minimize: vi.fn(async () => undefined),
     toggleMaximize: vi.fn(async () => undefined),
-    close: vi.fn(async () => undefined),
+    close: closeMock,
   })
   return {
     invokeMock: vi.fn(),
     listenMock: vi.fn(),
     onDragDropEventMock: vi.fn(),
+    onCloseRequestedMock: vi.fn(),
+    closeMock: vi.fn(async () => undefined),
     getCurrentWindowMock: vi.fn(windowMock),
   }
 })
@@ -336,6 +347,18 @@ async function openTestVault(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByRole('button', { name: 'Abrir nota inicial' })
 }
 
+/** Simula o pedido de fechamento da janela nativa: devolve o `preventDefault`
+ *  que o handler chamou (ou nao). */
+async function requestWindowClose() {
+  await waitFor(() => expect(onCloseRequestedMock).toHaveBeenCalled())
+  const handler = onCloseRequestedMock.mock.calls.at(-1)?.[0] as
+    | ((event: { preventDefault: () => void }) => void)
+    | undefined
+  const preventDefault = vi.fn()
+  handler?.({ preventDefault })
+  return preventDefault
+}
+
 describe('Regressao do editor no workspace', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -347,14 +370,18 @@ describe('Regressao do editor no workspace', () => {
     listenMock.mockResolvedValue(() => undefined)
     onDragDropEventMock.mockReset()
     onDragDropEventMock.mockResolvedValue(() => undefined)
+    onCloseRequestedMock.mockReset()
+    onCloseRequestedMock.mockResolvedValue(() => undefined)
+    closeMock.mockClear()
     getCurrentWindowMock.mockReset()
     getCurrentWindowMock.mockImplementation(() => ({
       onDragDropEvent: onDragDropEventMock,
+      onCloseRequested: onCloseRequestedMock,
       isMaximized: vi.fn(async () => false),
       onResized: vi.fn(async () => () => undefined),
       minimize: vi.fn(async () => undefined),
       toggleMaximize: vi.fn(async () => undefined),
-      close: vi.fn(async () => undefined),
+      close: closeMock,
     }))
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
       configurable: true,
@@ -405,6 +432,8 @@ describe('Regressao do editor no workspace', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    // Alguns testes ligam o runtime Tauri para exercitar o caminho desktop.
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
     cleanup()
   })
 
@@ -640,6 +669,72 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.getByRole('radio', { name: 'Leitura' })).toHaveAttribute('aria-checked', 'true')
     await user.keyboard('{Control>}m{/Control}')
     expect(screen.getByRole('radio', { name: 'Misto' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  /** Abre o vault no caminho desktop, com autosave desligado e uma alteracao
+   *  aplicada ao rascunho pela auditoria estrutural: o estado exato em que
+   *  fechar a janela perderia texto. */
+  async function openVaultWithUnsavedDraft() {
+    const user = userEvent.setup()
+    ;(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {}
+    localStorage.setItem('mirrormind.auto-save', 'false')
+    createTauriHarness()
+    await openTestVault(user)
+    await user.click(screen.getByRole('button', { name: 'Avaliação e revisão da nota' }))
+    await user.click(await screen.findByRole('button', { name: 'Avaliar estrutura da nota' }))
+    await user.click(await screen.findByRole('button', { name: 'Aplicar no rascunho' }))
+    return user
+  }
+
+  it('[fechamento] pergunta antes de sair quando ha rascunho nao salvo', async () => {
+    const user = await openVaultWithUnsavedDraft()
+
+    const preventDefault = await requestWindowClose()
+
+    expect(preventDefault).toHaveBeenCalledTimes(1)
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Uma nota tem alterações não salvas')).toBeInTheDocument()
+    expect(within(dialog).getByText('inicial')).toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Descartar e sair' }))
+    await waitFor(() => expect(closeMock).toHaveBeenCalledTimes(1))
+  })
+
+  it('[fechamento] salvar e sair grava a nota antes de fechar', async () => {
+    const user = await openVaultWithUnsavedDraft()
+
+    await requestWindowClose()
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Salvar e sair' }))
+
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('save_note', expect.objectContaining({
+      relativePath: 'inicial.md',
+      content: expect.stringContaining('## Introducao'),
+    })))
+    await waitFor(() => expect(closeMock).toHaveBeenCalledTimes(1))
+  })
+
+  it('[fechamento] cancelar mantem a janela aberta', async () => {
+    const user = await openVaultWithUnsavedDraft()
+
+    await requestWindowClose()
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(closeMock).not.toHaveBeenCalled()
+  })
+
+  it('[fechamento] nao pergunta quando nada foi alterado', async () => {
+    const user = userEvent.setup()
+    ;(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {}
+    createTauriHarness()
+    await openTestVault(user)
+
+    const preventDefault = await requestWindowClose()
+
+    expect(preventDefault).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('[atalhos] alterna o modo pelo atalho Ctrl+M no Misto', async () => {

@@ -2850,6 +2850,28 @@
   line-height: 1.5;
 }
 
+/* Guarda de fechamento: lista curta de notas com alteracao nao salva. */
+.unsaved-changes-list {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: var(--mm-ink-850-19);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
+.unsaved-changes-more {
+  list-style: none;
+  color: var(--mm-ink-800-4);
+}
+
+.unsaved-changes-error {
+  margin: 10px 0 0;
+  color: var(--mm-brick-850-2);
+  font-size: var(--font-size-small);
+}
+
 .recovered-note-path-field {
   display: grid;
   gap: 6px;
