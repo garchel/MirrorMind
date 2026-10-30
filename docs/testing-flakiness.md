@@ -50,9 +50,33 @@ ls .gitattributes 2>/dev/null || echo "sem .gitattributes (risco)"
 git show HEAD:<fixture.md> | head -c 20 | xxd | head -1   # LF = 0a
 ```
 
-Fix provavel (nao aplicado aqui: mexe em todo o checkout do repo e nao foi
-pedido): adicionar `.gitattributes` com `* text=auto eol=lf` para os
-fixtures, ou tornar as regex tolerantes a CRLF.
+Fix aplicado (`a1f7a93`): `.gitattributes` com `* text=auto eol=lf` para o
+repositorio inteiro. Nao repetir a investigacao de "teste intermitente" nesse
+sintoma: se a falha aparece sempre no mesmo teste e so em worktree novo, o
+suspeito e fim de linha, nao aleatoriedade.
+
+## Armadilha de medicao: a suite roda os testes do worktree vizinho
+
+**Nao e flakiness: e escopo.** Ate 2026-10-29 o `vite.config.ts` nao tinha
+`test.exclude` para `.worktrees/`. O `npx vitest run` do diretorio principal
+varria o repositorio inteiro, encontrava os testes do checkout de outro agente
+em `.worktrees/mm2/src/` e rodava os dois conjuntos.
+
+Consequencias medidas no diretorio principal:
+
+| | sem exclude | com `**/.worktrees/**` |
+|---|---:|---:|
+| arquivos | 221 | 120 |
+| testes | 2.225 | 1.204 |
+| falhas | 1 (do worktree, `ReviewQueuePage.test.tsx`) | 0 |
+
+O numero documentado antes (2.205/2.221) somava o worktree e nao descrevia
+este codigo. O CI nunca viu isso porque nao tem worktrees; a medicao local e
+que estava errada.
+
+Fix: `exclude: [...configDefaults.exclude, '**/.worktrees/**']` no bloco
+`test` do `vite.config.ts`. Ao comparar contagens de suite com numeros
+antigos, confira se o `.worktrees/` existia na epoca.
 
 ## Regra do gate
 

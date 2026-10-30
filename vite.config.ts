@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 // Divisao de dependencias em chunks estaveis por familia (code splitting):
@@ -54,6 +54,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: './src/vitest.setup.ts',
+    // `.worktrees/` guarda checkouts de outros agentes: sem o exclude a suite
+    // deste checkout tambem roda os testes de la (codigo velho), inflando a
+    // contagem e falhando por motivos que nao existem neste codigo.
+    exclude: [...configDefaults.exclude, '**/.worktrees/**'],
     // App.regression/ReviewSession renderizam o app inteiro; sob carga de
     // paralelismo (CI ou suite cheia) ultrapassavam o default de 5s como
     // flakiness, nao como regressao. 15s cobre o pior caso observado (~10s)
