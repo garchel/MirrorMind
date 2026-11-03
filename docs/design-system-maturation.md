@@ -1,7 +1,9 @@
 # Design system — amadurecimento da camada 1
 
-Estado: branch `design-system-maturation`, apos `93a8a75` (as 3 camadas
-+ os 4 gates). A estrutura esta pronta; o que falta e **maturidade**.
+Estado: branch `staging`, medicao de botoes refeita em 2026-10-30. A
+estrutura das 3 camadas + os 4 gates esta pronta; o que falta e
+**maturidade**. A revisao visual da onda de botoes esta em
+`docs/button-migration-review.html` (previews com o CSS real do app).
 
 ## Progresso
 
@@ -42,26 +44,41 @@ tamanhos token a token contra o baseline.
 
 ## Pendencias conhecidas
 
-Medido em `camada3-primitivos` (2026-09-29), nao estimado.
+Medido em `camada3-primitivos` (2026-09-29), com os numeros de botao
+refeitos em 2026-10-30; nada aqui e estimativa.
 
 ### A camada 3 esta pela metade, e isso e um numero
 
 | primitivo | uso real | tokens que le |
 |---|---:|---|
-| `<Button>` | 152 | `--button-*` |
+| `<Button>` | 286 | `--button-*` |
 | `<Field>` | 22 | `--field-*` |
 | `<Card>` | 2 | `--card-*` |
 | `<Badge>` | 1 | `--chip-*` |
 
-Tokens de componente consumidos: **19 -> 77 referencias**. Dos 68
-tokens de componente definidos, **49 tem consumidor e 19 sao orfaos**.
+`<Button>` remedido em 2026-10-30 (286 tags `<Button>` em `src/**/*.tsx`);
+os outros tres sao da medicao de 2026-09-29 e nao foram remedidos.
+
+Tokens de componente consumidos: **19 -> 77 referencias** (medido em
+2026-09-29). Dos 68 tokens de componente definidos, **49 tinham
+consumidor e 19 eram orfaos**. Os 19 orfaos foram removidos depois:
+`--button-height*`, `--button-padding-x*`, `--button-font`, `--notice-*`,
+`--tab-*` e `--panel-border-radius`/`--panel-inset-radius`. Em
+2026-10-30 so restam os comentarios que registram a remocao em
+`src/styles/tokens/component.css`; nenhum token orfao desses grupos
+continua definido.
 
 ### O que falta, em ordem de tamanho
 
-1. **83 `<button>` crus sem className** (de 183). As 100 que tinham
-   classe de contexto foram migradas em `d2a` — agora 252 `<Button>`.
-   As 83 restantes dependem do seletor de tag; ver a secao "Por que os
-   183 `<button>` restantes nao foram migrados" abaixo.
+1. **73 `<button>` crus de produto sem className** (82 contando os 9 de
+   teste, de 97 tags `<button>`). As 100 que tinham classe de contexto
+   foram migradas — agora sao 286 `<Button>`. A premissa antiga de que
+   migrar quebraria o seletor de tag estava **errada**: `<Button>`
+   renderiza um `<button>` com classes a mais, entao os 83 seletores que
+   ja usam `:where(button, .ui-button)` continuam casando e os 15 que
+   dependem so da tag tambem. O que falta e a onda 0 de CSS e a
+   migracao dos 73; ver "Por que os 73 `<button>` restantes ainda nao
+   foram migrados" abaixo.
 
 2. **112 campos crus** (93 `<input>`, 10 `<select>`, 9 `<textarea>`).
    A migracao pegou os 25 que tinham classe; o resto herdava o reset
@@ -76,18 +93,12 @@ tokens de componente definidos, **49 tem consumidor e 19 sao orfaos**.
    que fica no `className`. Reduzir isso exige decisao de design sobre
    quantas densidades o app deve ter — nao e refatoracao.
 
-4. **19 tokens orfaos** em tres grupos:
-   - botao (5): `--button-height`, `--button-height-sm`,
-     `--button-padding-x`, `--button-padding-x-sm`, `--button-font`.
-     Declarados como 46px e 32px, que **nao batem com nenhuma altura
-     real** do app. Estao orfaos porque o `.ui-button` hardcodes a
-     geometria em `--button-size-{xs,sm,md}-*`. Sao tokens que
-     contradizem a medicao: devem ser removidos ou corrigidos.
-   - aviso (5): `--notice-*`. O app tem `.error-banner` e
-     `.special-files-limit-notice`, que nao leem nenhum token.
-   - tab (9): `--tab-*`. O app tem `.tab-strip`, `.tab-chip`,
-     `.tab-select`, `.tab-close`, todos com CSS proprio.
-   - panel (2): `--panel-border-radius`, `--panel-inset-radius`.
+4. ~~**19 tokens orfaos**~~ ✅ removidos. Os tres grupos eram botao
+   (`--button-height*`, `--button-padding-x*`, `--button-font`), aviso
+   (`--notice-*`), tab (`--tab-*`) e painel
+   (`--panel-border-radius`/`--panel-inset-radius`). Em 2026-10-30 so
+   restam os comentarios de remocao em `component.css`; nenhum deles
+   continua definido.
 
 ### Fora do escopo (pre-existente)
 
@@ -191,9 +202,9 @@ antes/depois.
    para o risco em cor de acao. Ultimo.
 5. **Tipografia — feita.** 29 literais viraram 10 papeis
    (`404f35c`), com `small = 13px` e `caption = 12px` decididos.
-6. **Camada 3 — ondas 1 e 2 feitas.** `<Button>` criado e 150 botoes
-   migrados. Faltam `<Input>`, `<Card>` e `<Chip>`, que tem token mas
-   nenhum primitivo os usa.
+6. **Camada 3 — ondas 1 e 2 feitas.** `<Button>` criado e 286 usos
+   (medido em 2026-10-30). Faltam `<Input>`, `<Card>` e `<Chip>`, que
+   tem token mas nenhum primitivo os usa.
 
 ## Regra de decisao
 
@@ -208,54 +219,54 @@ cada familia so e aplicada depois de:
 Se um passo falhar o terceiro ponto, o hex volta. O ganho de 39% nao
 vale um pixel de texto pior.
 
-### Por que os 183 `<button>` restantes nao foram migrados (medido)
+### Por que os 73 `<button>` restantes ainda nao foram migrados (medido em 2026-10-30)
 
 A camada 3 fechou em **49 tokens de componente, zero orfaos**. O que
-falta e adocao, e a barreira e concreta:
+falta e adocao. A premissa antiga — "se `<button>` virar `<Button>`, o
+elemento deixa de casar com o seletor de tag" — esta **errada** e foi
+medida contra o CSS real:
 
-**As 100 classes contextuais** (`.modal-close`, `.tab-close`,
-`.tree-note`, `.tag-filter-chip`...) nao usam seletor de tag, entao
-foram migradas: nenhuma variante nem densidade foi inventada, o
-`<Button>` entra so com `ui-button` + a classe original, e a
-especificidade do CSS permanece a mesma.
+- `<Button>` renderiza um `<button>` (`src/components/ui/Button.tsx:92`)
+  com classes a mais. O elemento continua sendo `button`.
+- Dos **98 itens de seletor** que citam a tag, **83 ja usam
+  `:where(button, .ui-button)`** e continuam casando. Os **15 que
+  dependem so da tag** tambem casam, porque o elemento e o mesmo.
+- Nao ha, portanto, "58 regras para reescrever". Ha **9 seletores de
+  contexto** que merecem virar `:where` por consistencia (foco e
+  contexto), e uma preparacao de **onda 0** de duas linhas por contexto.
 
-**As 83 sem className** nao sao caso. A auditoria achou **58 regras CSS
-cujo seletor contem a tag `button`** e que declaram `min-height`. As
-principais:
+O que **de fato** muda o pixel ao migrar, medido no navegador com o CSS
+real (previews em `docs/button-migration-review.html`):
 
-```text
-31x  .workspace-shell ... button
- 4x  .tag-management-page ... button
- 2x  .ui-popover-content ... button
- 2x  .goals-page ... button
- 1x  .modal ... button
- 1x  .graph-export-popover ... button
-```
+| armadilha | mecanismo | correcao |
+|---|---|---|
+| `size="xs"` em botao com texto | `.ui-button--xs:not(:has(.ui-button__icon + :not(:empty)))` tem especificidade **0,3,0** (o `:not(:empty)` conta como classe) e zera o padding; texto puro nao conta como elemento | usar `size="sm"` em linha com texto; `xs` so para glifo |
+| fonte 15px vira 12px | contexto nao declara `font-size`; a classe de tamanho injeta 12px | `font: inherit` no contexto (5 contextos) |
+| conteudo centraliza | `.ui-button` injeta `justify-content: center`; contexto nao reseta | `justify-content: normal` no contexto (9 contextos) |
+| 46px vira 34/40px | o botao cru herda `button { min-height: 46px }` do `base.css`; a classe de tamanho vence | correcao intencional: alinha com os `<Button>` da mesma barra |
 
-Exemplo real, em `editor.css`:
+O `justify-content: normal` e o valor inicial (stretch no grid,
+flex-start no flex): e no-op para o botao cru e neutraliza o `center`
+injetado. `start` tambem neutraliza, mas encolhe a faixa do grid para
+`max-content` e muda a quebra de linha — ou seja, cria a regressao que a
+onda 0 existe para evitar.
 
-```css
-.workspace-shell .selection-format-popover button {
-  display: grid; width: 28px; min-height: 28px; padding: 0; ...
-}
-```
+O caminho continua em dois passos, mas o passo 1 e menor do que o doc
+antigo dizia:
 
-Se `<button>` virar `<Button>`, o elemento deixa de casar com o
-seletor de tag e herda o `button { }` global de `base.css`
-(`min-height: 46px`, `border-radius: 999px`). Os 83 botões de toolbar
-do editor ficariam com 46px de altura em vez de 28px.
+1. **onda 0** — 9 seletores de contexto para `:where(button, .ui-button)`,
+   9 contextos de linha/menu com `justify-content: normal`, 5 com
+   `font: inherit`. Um commit so, sem migrar `.tsx`; nenhuma mudanca
+   visual (medido: os 6 previews ficam identicos, exceto modal/vault, que
+   encurtam de proposito).
+2. **onda 1** — os 73 crus de produto viram `<Button variant size>`,
+   com a variante declarada em cada grupo de
+   `docs/button-migration-review.html`; depois os 14 que ja tem classe
+   dinamica, preservando a classe.
 
-Migrar isso exige reescrever as 58 regras de `button` para
-`.ui-button` (ou equivalente) — o que toca o shell inteiro, 20 arquivos de
-TSX e toda a cascata de workspace. E o que os tokens
-`--button-size-xs-*` (28px) foram feitos para expressar, mas a
-aplicacao e umaonda por si so, com E2E.
-
-Restam as 83, e o caminho e em dois passos:
-
-1. reescrever as 58 regras de seletor-de-tag para seletor-de-classe,
-   em um commit so, **sem migrar nenhum .tsx** — isso prepara o terreno
-   e nao muda nada visualmente, porque a especificidade se mantem;
-2. so entao os 83 sem classe, que passariam a poder usar `<Button>`.
-
-O passo 1 e o que destrava o resto, e ainda e seguro.
+A medicao que sustenta os numeros: `scan-buttons.mjs` (97 tags, 82 sem
+classe, 73 de produto), `scan-tag-rules.mjs` (98 seletores, 83 com
+`.ui-button`, 15 so tag), `scan-button-props.mjs` (286 `<Button>`, 153
+com classe manual) e `scan-context-rules.mjs` (16 regras com `display`
+sem `justify-content`). Os quatro rodam sobre `src/`, sem dependencia
+nova.

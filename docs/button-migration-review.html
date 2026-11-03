@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Botões — o que muda, como fica e de onde vem | MirrorMind</title>
+
+<!-- O CSS real do app entra aqui, por caminho relativo. Os previews desta
+     pagina sao o app renderizando, nao uma maquete: as regras de contexto
+     (`.workspace-shell .selection-format-popover :where(button, .ui-button)`
+     etc.) valem exatamente como no produto. -->
+<link rel="stylesheet" href="../src/index.css">
+<!-- base.css entra via App.css no app real; aqui entra direto para o
+     `button { min-height: 46px; padding: 0 18px }` global existir. -->
+<link rel="stylesheet" href="../src/styles/base.css">
+<link rel="stylesheet" href="../src/features/shell/workspace-chrome.css">
+<link rel="stylesheet" href="../src/features/editor/editor.css">
+<link rel="stylesheet" href="../src/components/NoteTagPicker.css">
+<link rel="stylesheet" href="../src/features/tags/tag-management.css">
+
+<style>
+  /* --- Onda 0, aplicada só nesta página ---------------------------------
+     As duas linhas que a onda 0 acrescenta aos contextos de linha/menu,
+     para o preview "depois" refletir o alvo e não a centralização que o
+     `.ui-button` injeta. São no-op para o botão cru: o `button` do
+     base.css já tem `font: inherit`, e `justify-content: normal` é o
+     valor inicial (stretch no grid, flex-start no flex).
+     A lista completa e a contagem estão na seção "O CSS". */
+  .favorite-notes :where(button, .ui-button),
+  .command-palette-results :where(button, .ui-button),
+  .review-policy-presets :where(button, .ui-button),
+  .vault-review-policy-presets :where(button, .ui-button),
+  .settings-nav :where(button, .ui-button),
+  .note-search-results :where(button, .ui-button),
+  .explorer-context-menu :where(button, .ui-button),
+  .move-destination-list :where(button, .ui-button),
+  .tag-presets :where(button, .ui-button) {
+    justify-content: normal;
+  }
+  .note-search-results :where(button, .ui-button),
+  .settings-nav :where(button, .ui-button),
+  .tag-presets :where(button, .ui-button),
+  .review-policy-presets :where(button, .ui-button),
+  .vault-review-policy-presets :where(button, .ui-button) {
+    font: inherit;
+  }
+
+  /* --- Chrome da pagina de revisao (nao e CSS do app) ------------------ */
+  body.doc-page {
+    margin: 0;
+    background: var(--mm-gold-100, #f3efe4);
+    color: var(--text);
+    font-size: 15px;
+  }
+  .doc {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 48px 28px 96px;
+  }
+  .doc-head { border-bottom: 1px solid var(--border); padding-bottom: 28px; }
+  .eyebrow {
+    margin: 0 0 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .doc-title {
+    margin: 0;
+    max-width: 22ch;
+    font-size: clamp(2rem, 4.4vw, 3.2rem);
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    color: var(--text-h);
+  }
+  .doc-lede {
+    max-width: 68ch;
+    margin: 16px 0 0;
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .meta-chip {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .meta-chip strong { color: var(--text-h); font-weight: 700; }
+
+  .doc h2 {
+    margin: 0 0 10px;
+    font-size: 1.45rem;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--text-h);
+  }
+  .doc h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+    line-height: 1.3;
+    color: var(--text-h);
+  }
+  .doc section { margin-top: 56px; }
+  .doc p { margin: 0 0 12px; line-height: 1.6; }
+  .doc p:last-child { margin-bottom: 0; }
+  .doc a { color: var(--accent-strong); }
+  .doc code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(39, 47, 51, 0.07);
+    color: var(--text-h);
+  }
+  .doc .section-lede { max-width: 72ch; color: var(--muted); }
+
+  /* --- Cartoes de numero ---------------------------------------------- */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-top: 22px;
+  }
+  .stat-card {
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.56);
+  }
+  .stat-card.is-alert { border-color: rgba(154, 59, 35, 0.35); background: rgba(154, 59, 35, 0.05); }
+  .stat-number {
+    display: block;
+    font-size: 2.1rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--text-h);
+  }
+  .stat-card.is-alert .stat-number { color: var(--danger); }
+  .stat-label { display: block; margin-top: 8px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+
+  /* --- Veredito -------------------------------------------------------- */
+  .verdict {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: 24px;
+    margin-top: 36px;
+    padding: 24px;
+    border: 1px solid rgba(94, 128, 255, 0.3);
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(94, 128, 255, 0.07), rgba(255, 255, 255, 0.55));
+  }
+  .verdict h2 { font-size: 1.3rem; }
+  .verdict-facts { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .verdict-facts li {
+    position: relative;
+    padding-left: 22px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text);
+  }
+  .verdict-facts li::before {
+    content: '';
+    position: absolute;
+    left: 4px; top: 7px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  /* --- Previews -------------------------------------------------------- */
+  .preview-card {
+    margin-top: 22px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.5);
+    overflow: hidden;
+  }
+  .preview-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 14px;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .preview-head h3 { margin: 0; }
+  .preview-origin {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .preview-note { margin: 0; padding: 0 18px 14px; font-size: 12px; color: var(--muted); }
+  .preview-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border-top: 1px solid var(--border);
+  }
+  .preview-pane { padding: 18px; min-width: 0; }
+  .preview-pane + .preview-pane { border-left: 1px solid var(--border); }
+  .preview-tag {
+    display: inline-block;
+    margin-bottom: 12px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .preview-tag.is-before { background: rgba(154, 59, 35, 0.1); color: var(--danger); }
+  .preview-tag.is-after { background: rgba(63, 107, 78, 0.12); color: var(--mm-sage-800, #3f6b4e); }
+  .preview-code {
+    margin: 0;
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    background: rgba(39, 47, 51, 0.045);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .preview-code b { color: var(--accent-strong); font-weight: 700; }
+
+  /* Overrides para os previews: o shell real e uma grade de tela cheia. */
+  .preview-workspace {
+    display: block;
+    grid-template-columns: none;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 16px;
+    border-radius: 10px;
+    overflow: visible;
+  }
+  .preview-workspace.is-vault { display: block; padding: 18px; }
+  /* Recorte do card: a altura total do `.action-card` (min-height 270px) não
+     é o objeto; sem isso o botão estica para preencher a grade e a altura
+     medida vira ruído. As cores do contexto do vault continuam valendo. */
+  .preview-workspace.is-vault .action-card { min-height: 0; align-content: start; }
+  .preview-static { position: static !important; transform: none !important; }
+  .preview-popover { display: inline-flex; }
+  .pv-glyph {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .pv-row-label { font-size: 12px; color: var(--muted); }
+
+  /* --- Tabelas --------------------------------------------------------- */
+  .doc-table-wrap { overflow-x: auto; margin-top: 18px; }
+  table.doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  table.doc-table th {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border-strong);
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  table.doc-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  table.doc-table tr:last-child td { border-bottom: 0; }
+  table.doc-table code { white-space: nowrap; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag-pill {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 600;
+    background: rgba(39, 47, 51, 0.07);
+    color: var(--text-h);
+    white-space: nowrap;
+  }
+  .tag-pill.is-primary { background: rgba(39, 47, 51, 0.88); color: var(--mm-gold-50, #f7f4ea); }
+  .tag-pill.is-bare { background: transparent; border: 1px solid var(--border-strong); }
+  .tag-pill.is-out { background: rgba(154, 59, 35, 0.1); color: var(--danger); }
+
+  /* --- Ondas ----------------------------------------------------------- */
+  .wave-list { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+  .wave {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 16px;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.45);
+  }
+  .wave-index {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .wave p { margin: 4px 0 0; font-size: 13px; color: var(--text); }
+  .wave small { display: block; margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+
+  .callout {
+    margin-top: 18px;
+    padding: 16px 18px;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 10px 10px 0;
+    background: rgba(94, 128, 255, 0.06);
+    font-size: 13.5px;
+  }
+  .callout.is-warn { border-left-color: var(--danger); background: rgba(154, 59, 35, 0.06); }
+  .callout strong { color: var(--text-h); }
+
+  .doc-footer {
+    margin-top: 64px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 760px) {
+    .doc { padding: 32px 18px 72px; }
+    .verdict { grid-template-columns: 1fr; }
+    .preview-pair { grid-template-columns: 1fr; }
+    .preview-pane + .preview-pane { border-left: 0; border-top: 1px solid var(--border); }
+    .wave { grid-template-columns: 1fr; gap: 6px; }
+  }
+</style>
+</head>
+<body class="doc-page">
+<div class="doc">
+
+  <header class="doc-head">
+    <p class="eyebrow">Design system · camada 3 · onda 1</p>
+    <h1 class="doc-title">Botões: o que muda, como fica e de onde vem</h1>
+    <p class="doc-lede">
+      O app tem <strong>97 tags <code>&lt;button&gt;</code></strong> e
+      <strong>286 <code>&lt;Button&gt;</code></strong>. Esta página mostra quais
+      ainda são botão cru, qual regra de CSS já governa o visual de cada um, e
+      como o código fica depois de padronizado — seguindo
+      <code>docs/design-system-maturation.md</code>.
+    </p>
+    <div class="meta-row">
+      <span class="meta-chip">medido em <strong>2026-10-30</strong></span>
+      <span class="meta-chip">branch <strong>staging</strong> @ <strong>1e9105b</strong></span>
+      <span class="meta-chip">fonte: <strong>scan dos .tsx e .css</strong></span>
+      <span class="meta-chip">previews: <strong>CSS real do app</strong></span>
+    </div>
+  </header>
+
+  <section class="verdict" aria-labelledby="veredito">
+    <div>
+      <h2 id="veredito">O veredito: quase nenhum pixel muda — e o que muda é correção</h2>
+      <p>
+        O doc antigo dizia que migrar os botões crus quebraria o CSS, porque o
+        elemento deixaria de casar com os seletores de tag. <strong>Isso não
+        acontece:</strong> <code>&lt;Button&gt;</code> renderiza um
+        <code>&lt;button&gt;</code> com classes a mais. O elemento continua
+        sendo <code>button</code>, e os 83 seletores que já usam
+        <code>:where(button, .ui-button)</code> continuam valendo.
+      </p>
+      <p>
+        O que muda é o <em>código</em>: de tag crua para
+        <code>&lt;Button variant size&gt;</code>. Mas medir no navegador, com o
+        CSS real, mostrou <strong>quatro coisas</strong> que a leitura do doc
+        não mostrava: o tamanho <code>xs</code> zera o padding de botão com
+        texto; linhas de texto herdam a fonte de 15px e o <code>size</code> a
+        reduz para 12px; o <code>.ui-button</code> injeta
+        <code>justify-content: center</code> e centraliza linha/menu que era
+        alinhado à esquerda; e o botão cru de modal/vault herda o pill de 46px
+        do <code>base.css</code>, ficando mais alto que o “Cancelar” que já é
+        <code>&lt;Button&gt;</code>. A terceira é a mais perigosa porque não
+        muda altura nem padding — só o lugar do texto. As três últimas são
+        <strong>correções</strong>, não regressões, mas precisam ser declaradas.
+      </p>
+    </div>
+    <ul class="verdict-facts">
+      <li><strong>83</strong> seletores de CSS já aceitam <code>.ui-button</code>.</li>
+      <li><strong>73</strong> botões de produto não têm classe nenhuma.</li>
+      <li><strong>153</strong> <code>&lt;Button&gt;</code> ainda passam <code>ui-button--*</code> na mão.</li>
+      <li><strong>2</strong> grupos de glifo ficam idênticos com <code>size="xs"</code>.</li>
+      <li><strong>2</strong> grupos de linha ficam idênticos com <code>size="sm"</code> + 2 linhas de CSS.</li>
+      <li><strong>2</strong> grupos de ação encurtam de 46px para 34/40px de propósito.</li>
+      <li><strong>9</strong> contextos de linha/menu precisam de <code>justify-content: normal</code> na onda 0.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="numeros">
+    <h2 id="numeros">Os números, medidos</h2>
+    <p class="section-lede">
+      Contagem feita lendo cada tag de abertura com controle de chaves e
+      strings (para não confundir <code>=&gt;</code> com o fim da tag), e cada
+      regra de CSS com o seletor quebrado por vírgula respeitando parênteses
+      (para não partir <code>:where(button, .ui-button)</code> ao meio).
+    </p>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <span class="stat-number">97</span>
+        <span class="stat-label">tags <code>&lt;button&gt;</code> em <code>.tsx</code></span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">73</span>
+        <span class="stat-label">botões de produto sem <code>className</code></span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">286</span>
+        <span class="stat-label">usos de <code>&lt;Button&gt;</code> já migrados</span>
+      </div>
+      <div class="stat-card is-alert">
+        <span class="stat-number">153</span>
+        <span class="stat-label"><code>&lt;Button&gt;</code> que ainda passam <code>ui-button--*</code> à mão</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">38</span>
+        <span class="stat-label"><code>&lt;Button&gt;</code> que usam <code>variant=</code></span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">5</span>
+        <span class="stat-label"><code>&lt;Button&gt;</code> que usam <code>size=</code></span>
+      </div>
+    </div>
+    <div class="callout is-warn">
+      <strong>O doc estava defasado, e a correção importa.</strong>
+      <code>design-system-maturation.md</code> fala em “83 <code>&lt;button&gt;</code>
+      restantes” e “58 regras com seletor de tag”. A medição de hoje dá
+      <strong>73 de produto</strong> (82 contando os 9 de teste) e
+      <strong>98 seletores</strong> que citam a tag, dos quais
+      <strong>83 já aceitam <code>.ui-button</code></strong>. As 58 regras já
+      foram reescritas. O que sobrou não é um bloqueio de seletor de tag — é
+      dívida de TSX mais uma preparação de CSS pequena e mensurável (onda 0:
+      9 contextos com <code>justify-content</code>, 5 com
+      <code>font: inherit</code>). O documento foi corrigido no mesmo passo
+      desta página.
+    </div>
+  </section>
+
+  <section aria-labelledby="mecanica">
+    <h2 id="mecanica">O que o <code>&lt;Button&gt;</code> injeta</h2>
+    <p class="section-lede">
+      Entender o default é o que evita a regressão. O primitivo
+      (<code>src/components/ui/Button.tsx</code>) sempre emite três coisas:
+    </p>
+    <div class="doc-table-wrap">
+      <table class="doc-table">
+        <thead>
+          <tr><th>Prop</th><th>Default</th><th>Classes emitidas</th><th>Efeito quando não há regra de contexto</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>variant</code></td>
+            <td><code>secondary</code></td>
+            <td><code>ui-button--secondary</code> + <code>secondary-button</code></td>
+            <td>contorno e fundo de botão secundário</td>
+          </tr>
+          <tr>
+            <td><code>size</code></td>
+            <td><code>md</code></td>
+            <td><code>ui-button--md</code></td>
+            <td>40px de altura e padding de 16px</td>
+          </tr>
+          <tr>
+            <td><code>type</code></td>
+            <td><code>button</code></td>
+            <td>—</td>
+            <td>evita submit acidental (já é o caso em quase todos)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:14px">
+      A regra de contexto com classes reais (ex.: <code>.workspace-shell
+      .selection-format-popover :where(button, .ui-button)</code>) tem
+      especificidade <strong>0,2,0</strong>; a classe de tamanho injetada tem
+      <strong>0,1,0</strong>. Então onde existe contexto, o contexto vence a
+      geometria e o pixel não muda. Mas o global do workspace é
+      <code>:where(.workspace-shell) :where(button, .ui-button)</code> —
+      <strong>0,0,0</strong>, porque <code>:where()</code> zera a
+      especificidade. Ele perde até para o <code>button</code> do
+      <code>base.css</code> (<strong>0,0,1</strong>): é por isso que o botão cru
+      de modal herda 46px, e não os 30px que o global parece prometer.
+    </p>
+
+    <div class="callout is-warn">
+      <strong>As quatro armadilhas, medidas no navegador.</strong>
+      <ol style="margin:10px 0 0;padding-left:20px;line-height:1.55">
+        <li>
+          <code>.ui-button--xs</code> tem uma regra de “glifo solto” que zera o
+          padding quando não encontra <code>.ui-button__icon + elemento</code>.
+          Texto puro não conta como elemento — então <code>size="xs"</code>
+          serve para botão só-ícone, nunca para linha com texto. E a regra tem
+          especificidade <strong>0,3,0</strong> (o <code>:not(:empty)</code>
+          dentro do <code>:has()</code> conta como classe), então ela vence até
+          a regra de contexto de <strong>0,2,0</strong>.
+        </li>
+        <li>
+          Onde o contexto não declara <code>font-size</code>, o botão cru herda
+          15px do container e o <code>size="sm"</code> injeta 12px. A linha
+          encolhe de 85px para 63px. A correção é uma linha de CSS:
+          <code>font: inherit</code> no seletor de contexto.
+        </li>
+        <li>
+          <code>.ui-button</code> injeta <code>justify-content: center</code>, e
+          as regras de contexto não o resetam. Em linha/menu de largura cheia, o
+          texto sai do canto esquerdo e vai para o centro — sem mudar altura nem
+          padding, então a captura de tela “parece certa” até alguém ler a
+          linha. A correção é <code>justify-content: normal</code>, que é o
+          valor inicial e não altera o botão cru.
+        </li>
+        <li>
+          O botão cru de modal e de seleção de vault é um pill de 46px do
+          <code>base.css</code>; o <code>&lt;Button&gt;</code> usa a escala
+          (34px em <code>sm</code>, 40px em <code>md</code>). Migrar
+          <em>encurta</em> — e alinha com os botões que já eram
+          <code>&lt;Button&gt;</code> na mesma barra.
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section aria-labelledby="previews">
+    <h2 id="previews">Como ficam: antes e depois</h2>
+    <p class="section-lede">
+      Cada par abaixo é renderizado com o CSS real do app (esta página linka
+      <code>src/index.css</code> e as folhas de cada feature). À esquerda, a tag
+      crua de hoje; à direita, exatamente o markup que
+      <code>&lt;Button&gt;</code> emite. Se os dois lados parecem iguais, é
+      porque são.
+    </p>
+
+    <!-- 1. Popover de formatacao -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Popover de formatação</h3>
+        <span class="preview-origin">src/features/format/FormatToolbar.tsx:74–161 · 16 botões</span>
+      </div>
+      <p class="preview-note">
+        Glifos de 28px dentro de <code>.selection-format-popover</code>. Regra:
+        <code>editor.css:875</code>. Alvo: <code>variant="bare" size="xs"</code>.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="selection-format-popover preview-static preview-popover" role="toolbar" aria-label="Formatar seleção">
+              <button type="button" title="Negrito" aria-label="Negrito (seleção)"><span class="pv-glyph">B</span></button>
+              <button type="button" title="Itálico" aria-label="Itálico (seleção)"><span class="pv-glyph">I</span></button>
+              <button type="button" title="Riscado" aria-label="Riscado (seleção)"><span class="pv-glyph">S</span></button>
+              <button type="button" title="Código" aria-label="Código (seleção)"><span class="pv-glyph">&lt;/&gt;</span></button>
+              <button type="button" title="Link" aria-label="Link (seleção)"><span class="pv-glyph">↗</span></button>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="selection-format-popover preview-static preview-popover" role="toolbar" aria-label="Formatar seleção">
+              <button type="button" class="ui-button ui-button--bare ui-button--xs" title="Negrito" aria-label="Negrito (seleção)"><span class="pv-glyph">B</span></button>
+              <button type="button" class="ui-button ui-button--bare ui-button--xs" title="Itálico" aria-label="Itálico (seleção)"><span class="pv-glyph">I</span></button>
+              <button type="button" class="ui-button ui-button--bare ui-button--xs" title="Riscado" aria-label="Riscado (seleção)"><span class="pv-glyph">S</span></button>
+              <button type="button" class="ui-button ui-button--bare ui-button--xs" title="Código" aria-label="Código (seleção)"><span class="pv-glyph">&lt;/&gt;</span></button>
+              <button type="button" class="ui-button ui-button--bare ui-button--xs" title="Link" aria-label="Link (seleção)"><span class="pv-glyph">↗</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button type="button" onMouseDown={preserveEditorSelection}
+          onClick={() => onApplyFormat('bold')}
+          title="Negrito" aria-label="Negrito (seleção)"&gt;
+    &lt;Bold size={15} strokeWidth={1.8} aria-hidden="true" /&gt;
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button variant="bare" size="xs"
+          onMouseDown={preserveEditorSelection}
+          onClick={() => onApplyFormat('bold')}
+          title="Negrito" aria-label="Negrito (seleção)"&gt;
+    &lt;Bold size={15} strokeWidth={1.8} aria-hidden="true" /&gt;
+  &lt;/Button&gt;</pre>
+    </article>
+
+    <!-- 2. Barra flutuante -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Barra flutuante de Markdown</h3>
+        <span class="preview-origin">src/features/editor/EditorContent.tsx:444–474 · 21 botões</span>
+      </div>
+      <p class="preview-note">
+        Glifos de 30px dentro de <code>.floating-markdown-toolbar</code>. Regra:
+        <code>editor.css:826</code>. Alvo: <code>variant="bare" size="xs"</code>.
+        Os dois botões de arrastar/orientação já são <code>&lt;Button&gt;</code>.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="floating-markdown-toolbar preview-static" role="toolbar" aria-label="Ferramentas de Markdown">
+              <div class="markdown-toolbar-group" aria-label="Títulos">
+                <button type="button" title="Título 1" aria-label="Título 1"><span class="pv-glyph">H1</span></button>
+                <button type="button" title="Título 2" aria-label="Título 2"><span class="pv-glyph">H2</span></button>
+                <button type="button" title="Título 3" aria-label="Título 3"><span class="pv-glyph">H3</span></button>
+              </div>
+              <div class="markdown-toolbar-group" aria-label="Texto">
+                <button type="button" title="Negrito" aria-label="Negrito"><span class="pv-glyph">B</span></button>
+                <button type="button" title="Itálico" aria-label="Itálico"><span class="pv-glyph">I</span></button>
+                <button type="button" title="Link" aria-label="Link"><span class="pv-glyph">↗</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="floating-markdown-toolbar preview-static" role="toolbar" aria-label="Ferramentas de Markdown">
+              <div class="markdown-toolbar-group" aria-label="Títulos">
+                <button type="button" class="ui-button ui-button--bare ui-button--xs" title="Título 1" aria-label="Título 1"><span class="pv-glyph">H1</span></button>
+                <button type="button" class="ui-button ui-button--bare ui-button--xs" title="Título 2" aria-label="Título 2"><span class="pv-glyph">H2</span></button>
+                <button type="button" class="ui-button ui-button--bare ui-button--xs" title="Título 3" aria-label="Título 3"><span class="pv-glyph">H3</span></button>
+              </div>
+              <div class="markdown-toolbar-group" aria-label="Texto">
+                <button type="button" class="ui-button ui-button--bare ui-button--xs" title="Negrito" aria-label="Negrito"><span class="pv-glyph">B</span></button>
+                <button type="button" class="ui-button ui-button--bare ui-button--xs" title="Itálico" aria-label="Itálico"><span class="pv-glyph">I</span></button>
+                <button type="button" class="ui-button ui-button--bare ui-button--xs" title="Link" aria-label="Link"><span class="pv-glyph">↗</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button type="button" onMouseDown={preserveEditorSelection}
+          onClick={() => selectMarkdownTool('heading1')}
+          title="Título 1" aria-label="Título 1"&gt;
+    &lt;Heading1 size={16} /&gt;
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button variant="bare" size="xs"
+          onMouseDown={preserveEditorSelection}
+          onClick={() => selectMarkdownTool('heading1')}
+          title="Título 1" aria-label="Título 1"&gt;
+    &lt;Heading1 size={16} /&gt;
+  &lt;/Button&gt;</pre>
+    </article>
+
+    <!-- 3. Linhas de lista -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Linhas de lista (busca, paleta, sugestões)</h3>
+        <span class="preview-origin">App.tsx:5844, 5939, 5980, 6003, 6023 · 5 botões</span>
+      </div>
+      <p class="preview-note">
+        O botão <em>é</em> a linha: sem fundo, sem borda, alinhado à esquerda.
+        Regras: <code>editor.css:2917</code> (paleta) e
+        <code>workspace-chrome.css:863</code> (busca de notas). Alvo:
+        <code>variant="bare" size="sm"</code> — <strong>não</strong>
+        <code>xs</code>, que zera o padding da linha. A onda 0 acrescenta
+        <code>font: inherit</code> e <code>justify-content: normal</code> ao
+        contexto; as duas já estão aplicadas nesta página. Medido:
+        85×443 contra 85×442 (1px de subpixel), mesmo padding, fonte e
+        alinhamento.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="note-search-results">
+              <button type="button"><span>Fotossíntese</span><small>biologia/fotossíntese.md</small><small>O estroma é o fluido interno…</small></button>
+              <button type="button"><span>Respiração celular</span><small>biologia/respiração.md</small><small>A mitocôndria produz ATP…</small></button>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="note-search-results">
+              <button type="button" class="ui-button ui-button--bare ui-button--sm"><span>Fotossíntese</span><small>biologia/fotossíntese.md</small><small>O estroma é o fluido interno…</small></button>
+              <button type="button" class="ui-button ui-button--bare ui-button--sm"><span>Respiração celular</span><small>biologia/respiração.md</small><small>A mitocôndria produz ATP…</small></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button key={note.relativePath} type="button" onClick={…}&gt;
+    &lt;span&gt;{note.name}&lt;/span&gt;
+    &lt;small&gt;{note.relativePath}&lt;/small&gt;
+    &lt;small&gt;{note.excerpt}&lt;/small&gt;
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button key={note.relativePath} variant="bare" size="sm" onClick={…}&gt;
+    &lt;span&gt;{note.name}&lt;/span&gt;
+    &lt;small&gt;{note.relativePath}&lt;/small&gt;
+    &lt;small&gt;{note.excerpt}&lt;/small&gt;
+  &lt;/Button&gt;</pre>
+    </article>
+
+    <!-- 4. Menu de contexto -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Menu de contexto do explorador</h3>
+        <span class="preview-origin">ExplorerSidebar.tsx:341–367 · 5 botões</span>
+      </div>
+      <p class="preview-note">
+        Linhas de 30px com ícone. Regra: <code>workspace-chrome.css:1975</code>.
+        Alvo: <code>variant="bare" size="sm"</code> — <code>xs</code> zeraria o
+        padding por causa da regra do glifo solto. A onda 0 acrescenta
+        <code>justify-content: normal</code>; o ícone continua como filho, sem
+        o wrapper <code>.ui-button__icon</code>, para não trocar 14px por
+        16px. Mantém <code>role="menuitem"</code> e as classes dinâmicas
+        (<code>indexadora-menu-item</code>, <code>is-danger</code>). Medido:
+        30×431 contra 30×430, padding <code>0 8px</code> e alinhamento
+        idênticos.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="explorer-context-menu preview-static" role="menu" aria-label="Ações para nota">
+              <button type="button" role="menuitem"><span class="pv-glyph">★</span> Favoritar nota</button>
+              <button type="button" role="menuitem"><span class="pv-glyph">✎</span> Renomear</button>
+              <button type="button" role="menuitem" class="is-danger"><span class="pv-glyph">⌫</span> Mover para lixeira</button>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="explorer-context-menu preview-static" role="menu" aria-label="Ações para nota">
+              <button type="button" class="ui-button ui-button--bare ui-button--sm" role="menuitem"><span class="pv-glyph">★</span> Favoritar nota</button>
+              <button type="button" class="ui-button ui-button--bare ui-button--sm" role="menuitem"><span class="pv-glyph">✎</span> Renomear</button>
+              <button type="button" class="ui-button ui-button--bare ui-button--sm is-danger" role="menuitem"><span class="pv-glyph">⌫</span> Mover para lixeira</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button type="button" role="menuitem" onClick={…}&gt;
+    &lt;Star size={14} /&gt; Favoritar nota
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button variant="bare" size="sm" role="menuitem" onClick={…}&gt;
+    &lt;Star size={14} /&gt; Favoritar nota
+  &lt;/Button&gt;</pre>
+    </article>
+
+    <!-- 5. Acoes de modal -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Ações de modal</h3>
+        <span class="preview-origin">App.tsx:5807, 5835, 5989, 6044, 6058, 6082, 6118 · 7 botões</span>
+      </div>
+      <p class="preview-note">
+        O rodapé <code>.folder-dialog-actions</code> não tem regra própria. O
+        global <code>:where(.workspace-shell) :where(button, .ui-button)</code>
+        (<code>workspace-chrome.css:114</code>) tem especificidade
+        <strong>0,0,0</strong> e perde para o <code>button</code> do
+        <code>base.css</code> (<strong>0,0,1</strong>): por isso o botão cru
+        mede <strong>46px</strong>, e não 30px. Hoje o confirmar é cru e o
+        “Cancelar” já é <code>&lt;Button&gt;</code> (34px). Alvo:
+        <code>primary</code> + <code>secondary</code>, ambos
+        <code>size="sm"</code>. Medido: <strong>46→34px</strong>, padding
+        18→14px, fonte 15→12px — a mudança é a correção do desalinhamento.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="folder-dialog-actions">
+              <button type="button" class="ui-button ui-button--secondary ui-button--sm secondary-button">Cancelar</button>
+              <button type="button">Aplicar filtro</button>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="folder-dialog-actions">
+              <button type="button" class="ui-button ui-button--secondary ui-button--sm secondary-button">Cancelar</button>
+              <button type="button" class="ui-button ui-button--primary ui-button--sm primary-button">Aplicar filtro</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button type="button" onClick={() => setShowTagFilterDialog(false)}&gt;
+    Aplicar filtro
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button variant="primary" size="sm"
+          onClick={() => setShowTagFilterDialog(false)}&gt;
+    Aplicar filtro
+  &lt;/Button&gt;</pre>
+    </article>
+
+    <!-- 6. Selecao de vault -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Seleção de vault</h3>
+        <span class="preview-origin">VaultSelection.tsx:87, 123, 158 · 3 botões</span>
+      </div>
+      <p class="preview-note">
+        Ação principal da tela, sobre papel claro. Regra:
+        <code>workspace-chrome.css:1148</code> (fundo escuro, texto dourado).
+        Alvo: <code>variant="primary" size="md"</code> — nunca o default
+        <code>secondary</code>, que viraria contorno transparente. Medido:
+        <strong>46→40px</strong>, padding 18→16px, fonte 15→14px. O preview
+        recorta o card (<code>min-height: 0</code>) para medir o botão, não a
+        altura total; as cores do contexto continuam as do app.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="vault-selection-shell preview-workspace is-vault">
+            <div class="action-card" style="padding:16px">
+              <h2 style="font-size:1.1rem;margin-bottom:8px">Abrir vault existente</h2>
+              <button type="button">Escolher pasta</button>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="vault-selection-shell preview-workspace is-vault">
+            <div class="action-card" style="padding:16px">
+              <h2 style="font-size:1.1rem;margin-bottom:8px">Abrir vault existente</h2>
+              <button type="button" class="ui-button ui-button--primary ui-button--md primary-button">Escolher pasta</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button type="button" onClick={chooseExistingVault} disabled={loading}&gt;
+    Escolher pasta
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button variant="primary" size="md"
+          onClick={chooseExistingVault} disabled={loading}&gt;
+    Escolher pasta
+  &lt;/Button&gt;</pre>
+    </article>
+  </section>
+
+  <section aria-labelledby="inventario">
+    <h2 id="inventario">O inventário: de onde vem cada botão</h2>
+    <p class="section-lede">
+      Os 73 botões de produto sem classe, agrupados por contexto. “Regra que
+      manda” é o seletor que já decide altura, raio e cor hoje — e que continua
+      decidindo depois, porque <code>&lt;Button&gt;</code> também é
+      <code>button</code>.
+    </p>
+    <div class="doc-table-wrap">
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>Onde</th>
+            <th class="num">Qtd.</th>
+            <th>Linhas</th>
+            <th>Alvo</th>
+            <th>Regra que manda no visual</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>features/format/FormatToolbar.tsx</code></td>
+            <td class="num">16</td>
+            <td><code>74–83, 90, 104, 123, 137, 148, 153</code></td>
+            <td><span class="tag-pill is-bare">bare</span> <span class="tag-pill">xs</span></td>
+            <td><code>editor.css:875</code> · 28px</td>
+          </tr>
+          <tr>
+            <td><code>features/editor/EditorContent.tsx</code></td>
+            <td class="num">21</td>
+            <td><code>444–446, 449–452, 455–458, 461–464, 467–469, 472–474</code></td>
+            <td><span class="tag-pill is-bare">bare</span> <span class="tag-pill">xs</span></td>
+            <td><code>editor.css:826</code> · 30px</td>
+          </tr>
+          <tr>
+            <td><code>App.tsx</code> — paleta de comandos</td>
+            <td class="num">1</td>
+            <td><code>5844</code></td>
+            <td><span class="tag-pill is-bare">bare</span> <span class="tag-pill">sm</span></td>
+            <td><code>editor.css:2917</code> · linha</td>
+          </tr>
+          <tr>
+            <td><code>App.tsx</code> — busca, link e conexão</td>
+            <td class="num">3</td>
+            <td><code>5939, 6003, 6023</code></td>
+            <td><span class="tag-pill is-bare">bare</span> <span class="tag-pill">sm</span></td>
+            <td><code>workspace-chrome.css:863</code> · linha</td>
+          </tr>
+          <tr>
+            <td><code>App.tsx</code> — sugestões de tag</td>
+            <td class="num">1</td>
+            <td><code>5980</code></td>
+            <td><span class="tag-pill is-bare">bare</span> <span class="tag-pill">sm</span></td>
+            <td><code>workspace-chrome.css:1832</code> · 25px</td>
+          </tr>
+          <tr>
+            <td><code>App.tsx</code> — destinos de mover</td>
+            <td class="num">1</td>
+            <td><code>6100</code> <span class="tag-pill">já tem classe</span></td>
+            <td><span class="tag-pill is-bare">bare</span> <span class="tag-pill">sm</span></td>
+            <td><code>workspace-chrome.css:2050</code> · 32px</td>
+          </tr>
+          <tr>
+            <td><code>App.tsx</code> — ações de modal</td>
+            <td class="num">7</td>
+            <td><code>5807, 5835, 5989, 6044, 6058, 6082, 6118</code></td>
+            <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">sm</span></td>
+            <td><code>base.css:125</code> · 46px (o global 0,0,0 perde)</td>
+          </tr>
+          <tr>
+            <td><code>features/explorer/ExplorerSidebar.tsx</code></td>
+            <td class="num">5</td>
+            <td><code>230, 285, 341, 346, 351</code></td>
+            <td><span class="tag-pill is-bare">bare</span> <span class="tag-pill">sm</span></td>
+            <td><code>workspace-chrome.css:1975</code> · 30px<br><code>editor.css:555</code> · 27px</td>
+          </tr>
+          <tr>
+            <td><code>features/vault/VaultSelection.tsx</code></td>
+            <td class="num">3</td>
+            <td><code>87, 123, 158</code></td>
+            <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">md</span></td>
+            <td><code>workspace-chrome.css:1148</code></td>
+          </tr>
+          <tr>
+            <td><code>components/NoteTagPicker.tsx</code></td>
+            <td class="num">2</td>
+            <td><code>114, 149</code></td>
+            <td><span class="tag-pill is-bare">bare</span> 114 · <span class="tag-pill is-primary">primary</span> 149 · <span class="tag-pill">sm</span></td>
+            <td><code>NoteTagPicker.css:65</code></td>
+          </tr>
+          <tr>
+            <td><code>components/NoteTagRow.tsx</code></td>
+            <td class="num">1</td>
+            <td><code>116</code></td>
+            <td><span class="tag-pill is-bare">bare</span> <span class="tag-pill">sm</span></td>
+            <td><code>editor.css:2193</code></td>
+          </tr>
+          <tr>
+            <td><code>components/ObsidianPdfEmbed.tsx</code></td>
+            <td class="num">2</td>
+            <td><code>138, 139</code></td>
+            <td><span class="tag-pill">secondary</span> <span class="tag-pill">sm</span></td>
+            <td><code>editor.css:2735</code></td>
+          </tr>
+          <tr>
+            <td><code>features/review/ReviewAiSettings.tsx</code></td>
+            <td class="num">2</td>
+            <td><code>230, 307</code></td>
+            <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">sm</span></td>
+            <td><code>base.css:125</code> · 46px (o global 0,0,0 perde)</td>
+          </tr>
+          <tr>
+            <td><code>features/review/ReviewCalibrationSettings.tsx</code></td>
+            <td class="num">1</td>
+            <td><code>147</code></td>
+            <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">sm</span></td>
+            <td><code>base.css:125</code> · 46px (o global 0,0,0 perde)</td>
+          </tr>
+          <tr>
+            <td><code>features/review/VaultReviewPolicySettings.tsx</code></td>
+            <td class="num">2</td>
+            <td><code>245, 250</code></td>
+            <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">sm</span></td>
+            <td><code>base.css:125</code> · 46px (o global 0,0,0 perde)</td>
+          </tr>
+          <tr>
+            <td><code>features/review/ReviewDashboardPage.tsx</code></td>
+            <td class="num">1</td>
+            <td><code>219</code></td>
+            <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">sm</span></td>
+            <td><code>base.css:125</code> · 46px (o global 0,0,0 perde)</td>
+          </tr>
+          <tr>
+            <td><code>features/review/SegmentationSettings.tsx</code></td>
+            <td class="num">1</td>
+            <td><code>192</code></td>
+            <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">sm</span></td>
+            <td><code>base.css:125</code> · 46px (o global 0,0,0 perde)</td>
+          </tr>
+          <tr>
+            <td><code>features/tags/TagManagementPage.tsx</code></td>
+            <td class="num">2</td>
+            <td><code>676, 823</code></td>
+            <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">sm</span></td>
+            <td><code>tag-management.css:930</code> · 34px</td>
+          </tr>
+          <tr>
+            <td><code>features/settings/AccountSettings.tsx</code></td>
+            <td class="num">1</td>
+            <td><code>116</code></td>
+            <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">sm</span></td>
+            <td><code>base.css:125</code> · 46px (o global 0,0,0 perde)</td>
+          </tr>
+          <tr>
+            <td><code>components/RootErrorBoundary.tsx</code></td>
+            <td class="num">1</td>
+            <td><code>61</code></td>
+            <td><span class="tag-pill is-out">fora da onda</span></td>
+            <td>estilo inline (<code>padding: 8px 18px</code>) — exige decisão</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:14px;font-size:12.5px;color:var(--muted)">
+      Somam 73 botões sem classe. Além deles, <strong>14 botões de produto já têm
+      <code>className</code></strong> (App 6100; Explorer 356, 367; GraphToolbar
+      198, 199; EditorHeader 347, 358, 369; NoteReviewPolicyControl 380;
+      SettingsPage 151, 186, 205, 214) — entram na mesma onda preservando a
+      classe. O 15º é o <code>&lt;button&gt;</code> interno do próprio
+      <code>Button.tsx:92</code>, que não se toca. Os outros 9 são de teste.
+    </p>
+  </section>
+
+  <section aria-labelledby="css">
+    <h2 id="css">O CSS: 98 seletores citam a tag, nenhum quebra</h2>
+    <p class="section-lede">
+      A varredura quebrou cada lista de seletores por vírgula respeitando
+      parênteses (senão <code>:where(button, .ui-button)</code> vira dois
+      seletores falsos). Resultado: <strong>83 já aceitam
+      <code>.ui-button</code></strong> e <strong>15 dependem só da tag</strong>.
+      Como o primitivo renderiza <code>&lt;button&gt;</code>, os 15 continuam
+      casando — mas 9 deles são específicos de contexto e merecem virar
+      <code>:where(button, .ui-button)</code> por consistência.
+    </p>
+    <div class="doc-table-wrap">
+      <table class="doc-table">
+        <thead>
+          <tr><th>Arquivo:linha</th><th>Seletor</th><th>Situação</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>Modal.css:109</code></td><td><code>.modal button:focus-visible</code></td><td>foco genérico — continua valendo</td></tr>
+          <tr><td><code>NoteTagPicker.css:63</code></td><td><code>.workspace-shell .note-tag-picker-menu button</code></td><td>contexto — migrar para <code>:where</code></td></tr>
+          <tr><td><code>NoteTagPicker.css:75</code></td><td><code>… button:hover</code> / <code>:focus-visible</code></td><td>contexto — migrar para <code>:where</code></td></tr>
+          <tr><td><code>goals.css:736</code></td><td><code>.goals-page button:focus-visible</code></td><td>foco genérico — continua valendo</td></tr>
+          <tr><td><code>review-policy.css:118</code></td><td><code>.review-policy-presets button</code></td><td>contexto — migrar para <code>:where</code></td></tr>
+          <tr><td><code>workspace-chrome.css:1292</code></td><td><code>:is(button, input, …):focus-visible</code></td><td>foco genérico — continua valendo</td></tr>
+          <tr><td><code>workspace-chrome.css:1995</code></td><td><code>… button.indexadora-menu-item.is-active</code></td><td>contexto — migrar para <code>:where</code></td></tr>
+          <tr><td><code>workspace-chrome.css:2063</code></td><td><code>.move-destination-list button:hover</code></td><td>contexto — migrar para <code>:where</code></td></tr>
+          <tr><td><code>tag-management.css:592</code></td><td><code>.tag-presets button small</code></td><td>contexto — migrar para <code>:where</code></td></tr>
+          <tr><td><code>base.css:123, 140, 144</code></td><td><code>button</code>, <code>button:hover</code>, <code>button:disabled</code></td><td>global intencional — fica</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:30px">Onda 0: o que o CSS precisa antes de migrar</h3>
+    <p class="section-lede">
+      A varredura de contexto achou <strong>16 regras</strong> que declaram
+      <code>display: flex/grid</code> e <strong>não</strong> declaram
+      <code>justify-content</code>. O <code>.ui-button</code> injeta
+      <code>center</code>, então o conteúdo de uma linha de largura cheia sai do
+      canto esquerdo. Quatro são glifo (o centro é o alvo) e três são grupos de
+      ação de largura própria (o centro não muda nada); as <strong>nove</strong>
+      abaixo são linha/menu e precisam de <code>justify-content: normal</code>.
+      Cinco delas também não declaram <code>font-size</code> e precisam de
+      <code>font: inherit</code>, senão o <code>size</code> injeta 12px onde o
+      container usa 15px.
+    </p>
+    <div class="doc-table-wrap">
+      <table class="doc-table">
+        <thead>
+          <tr><th>Contexto</th><th>Arquivo:linha</th><th>Precisa de</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>.favorite-notes</code></td><td><code>editor.css:555</code></td><td><code>justify-content: normal</code></td></tr>
+          <tr><td><code>.command-palette-results</code></td><td><code>editor.css:2917</code></td><td><code>justify-content: normal</code></td></tr>
+          <tr><td><code>.review-policy-presets</code></td><td><code>review-policy.css:129</code></td><td><code>justify-content: normal</code> + <code>font: inherit</code></td></tr>
+          <tr><td><code>.vault-review-policy-presets</code></td><td><code>vault-review-policy.css:17</code></td><td><code>justify-content: normal</code> + <code>font: inherit</code></td></tr>
+          <tr><td><code>.settings-nav</code></td><td><code>workspace-chrome.css:595</code></td><td><code>justify-content: normal</code> + <code>font: inherit</code></td></tr>
+          <tr><td><code>.note-search-results</code></td><td><code>workspace-chrome.css:863</code></td><td><code>justify-content: normal</code> + <code>font: inherit</code></td></tr>
+          <tr><td><code>.explorer-context-menu</code></td><td><code>workspace-chrome.css:1975</code></td><td><code>justify-content: normal</code></td></tr>
+          <tr><td><code>.move-destination-list</code></td><td><code>workspace-chrome.css:2050</code></td><td><code>justify-content: normal</code></td></tr>
+          <tr><td><code>.tag-presets</code></td><td><code>tag-management.css:693</code></td><td><code>justify-content: normal</code> + <code>font: inherit</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <strong>Por que <code>normal</code> e não <code>start</code>.</strong>
+      <code>justify-content: normal</code> é o valor inicial: no grid ele
+      estica a faixa, no flex ele alinha ao início. É no-op para o botão cru e
+      neutraliza o <code>center</code> injetado. <code>start</code> também
+      neutraliza, mas encolhe a faixa do grid para <code>max-content</code> e
+      muda a quebra de linha do texto — ou seja, criaria a regressão que a onda
+      0 existe para evitar.
+    </div>
+  </section>
+
+  <section aria-labelledby="divida">
+    <h2 id="divida">A maior dívida: 153 <code>&lt;Button&gt;</code> com classes na mão</h2>
+    <p class="section-lede">
+      O componente existe, mas a maioria ainda fala com ele pela classe:
+      <code>className="ui-button ui-button--secondary ui-button--sm"</code> em
+      vez de <code>variant="secondary" size="sm"</code>. O resultado é idêntico
+      (as classes são exatamente as que as props emitem), mas a intenção some:
+      quem lê o código não sabe se aquele botão é secundário porque é uma ação
+      comum ou porque alguém copiou a string.
+    </p>
+    <div class="callout">
+      <strong>Por que esta é a onda de menor risco.</strong>
+      Trocar <code>className="ui-button ui-button--secondary ui-button--sm"</code>
+      por <code>variant="secondary" size="sm"</code> emite o mesmo conjunto de
+      classes, na mesma ordem de especificidade. Não há decisão de design
+      envolvida — só a passagem da string para as props. É o único grupo em que
+      “não muda pixel” pode ser verificado por comparação de DOM, não por olho.
+    </div>
+  </section>
+
+  <section aria-labelledby="plano">
+    <h2 id="plano">O plano, em ondas</h2>
+    <ol class="wave-list">
+      <li class="wave">
+        <span class="wave-index">Onda 0</span>
+        <div>
+          <h3>Preparar o CSS (sem tocar em TSX)</h3>
+          <p>Os 9 seletores de contexto que ainda dependem só da tag viram <code>:where(button, .ui-button)</code>; os 9 contextos de linha/menu ganham <code>justify-content: normal</code>; os 5 que não declaram fonte ganham <code>font: inherit</code>.</p>
+          <small>Nenhuma mudança visual: <code>:where</code> tem especificidade zero, <code>normal</code> é o valor inicial e <code>font: inherit</code> é o que o <code>button</code> do <code>base.css</code> já faz. Commit isolado, sem migrar componente; a verificação é a suíte de render + medição dos 6 contextos.</small>
+        </div>
+      </li>
+      <li class="wave">
+        <span class="wave-index">Onda 1</span>
+        <div>
+          <h3>Os 73 botões crus de produto</h3>
+          <p>Vira <code>&lt;Button variant size&gt;</code> com a variante declarada em cada grupo da tabela.</p>
+          <small>Validação: <code>tsc -b</code>, suíte completa, e um E2E por contexto (popover de formatação, barra flutuante, busca de notas, menu do explorador, ações de modal, seleção de vault).</small>
+        </div>
+      </li>
+      <li class="wave">
+        <span class="wave-index">Onda 2</span>
+        <div>
+          <h3>Os 14 botões com classe dinâmica</h3>
+          <p>Mesma troca, preservando <code>className</code> (<code>is-selected</code>, <code>indexadora-menu-item</code>, <code>is-danger</code>).</p>
+          <small>Estes dependem de estado; a classe continua sendo o canal do estado, não da aparência.</small>
+        </div>
+      </li>
+      <li class="wave">
+        <span class="wave-index">Onda 3</span>
+        <div>
+          <h3>As 153 classes manuais em <code>&lt;Button&gt;</code></h3>
+          <p><code>className="ui-button ui-button--secondary ui-button--sm"</code> vira <code>variant="secondary" size="sm"</code>.</p>
+          <small>Zero risco visual por construção. Pode ser feito por arquivo, com o teste do arquivo como rede.</small>
+        </div>
+      </li>
+      <li class="wave">
+        <span class="wave-index">Fora</span>
+        <div>
+          <h3><code>RootErrorBoundary</code></h3>
+          <p>Um botão com estilo inline, fora do workspace. Migrar exige decidir se o boundary de erro usa o design system ou continua autônomo.</p>
+          <small>Não entra nesta frente: o boundary precisa funcionar mesmo se o CSS do app falhar.</small>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="reproduzir">
+    <h2 id="reproduzir">Como os números foram obtidos</h2>
+    <p>
+      Três scripts locais, sem dependência nova. O primeiro lê cada
+      <code>.tsx</code> e encontra a tag de abertura com controle de chaves,
+      strings e templates (para não terminar a tag no <code>&gt;</code> de uma
+      arrow function). O segundo lê cada <code>.css</code>, remove comentários
+      preservando linhas, e quebra a lista de seletores por vírgula em
+      profundidade zero de parênteses. O terceiro acha as regras de contexto que
+      declaram <code>display</code> sem <code>justify-content</code>.
+    </p>
+    <pre class="preview-code" style="border:1px solid var(--border);border-radius:10px;margin-top:14px">node scan-buttons.mjs . buttons.json       # 97 tags, 82 sem classe, 73 de produto
+node scan-tag-rules.mjs . tag-rules.json   # 98 seletores, 83 com .ui-button, 15 só tag
+node scan-button-props.mjs . props.json    # 286 Button, 153 com classe manual
+node scan-context-rules.mjs . context.json # 16 regras com display sem justify-content</pre>
+    <p style="margin-top:14px">
+      O que <strong>não</strong> foi medido: tempo de execução da migração e
+      custo de revisão humana. Os previews mostram o resultado esperado; a
+      confirmação de “nenhum pixel” na onda 1 é por E2E e captura de tela, não
+      por esta página.
+    </p>
+  </section>
+
+  <footer class="doc-footer">
+    MirrorMind · revisão de design system · 2026-10-30 ·
+    <code>docs/design-system-maturation.md</code> corrigido no mesmo commit ·
+    previews com o CSS real de <code>src/</code>
+  </footer>
+</div>
+</body>
+</html>
