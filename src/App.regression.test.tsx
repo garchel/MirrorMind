@@ -2445,7 +2445,7 @@ describe('Regressao do editor no workspace', () => {
     expect(document.querySelector('.postit-anchor-widget')).toBeNull()
   })
 
-  it('[postit] orfaos aparecem no chip, abrem e excluem pelo dialogo', async () => {
+  it('[postit] orfaos aparecem no menu, abrem e excluem no mesmo popover', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
     notes.set('inicial.md', {
@@ -2455,25 +2455,28 @@ describe('Regressao do editor no workspace', () => {
     })
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: '1 post-it sem âncora' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Post-its sem âncora' })
-    expect(dialog).toHaveTextContent('lembrete-orfao')
+    // Sem chip separado: o trigger mostra a contagem e o menu lista os
+    // ancorados e os orfaos (secao "Sem ancora" no fim).
+    const trigger = screen.getByRole('button', { name: 'Post-its da nota (0 ancorados, 1 sem âncora)' })
+    await user.click(trigger)
+    const menu = await screen.findByRole('group', { name: 'Post-its da nota' })
+    expect(menu).toHaveTextContent('lembrete-orfao')
+    expect(menu).toHaveTextContent('Sem âncora')
+    expect(menu).toHaveTextContent('sem âncora')
 
     // Abrir posiciona o popover (re-ancoravel pelo fluxo normal).
-    await user.click(within(dialog).getByRole('button', { name: 'Abrir' }))
+    await user.click(within(menu).getByRole('button', { name: 'Abrir post-it: lembrete-orfao' }))
     await screen.findByRole('dialog', { name: 'Editar post-it' })
     fireEvent.keyDown(window, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Editar post-it' })).not.toBeInTheDocument())
 
-    // Excluir em dois cliques remove do frontmatter e apaga o chip.
-    await user.click(screen.getByRole('button', { name: '1 post-it sem âncora' }))
-    const reopened = await screen.findByRole('dialog', { name: 'Post-its sem âncora' })
-    await user.click(within(reopened).getByRole('button', { name: 'Excluir' }))
-    await user.click(within(reopened).getByRole('button', { name: 'Excluir?' }))
+    // Excluir em dois cliques remove do frontmatter e apaga o trigger.
+    await user.click(screen.getByRole('button', { name: 'Post-its da nota (0 ancorados, 1 sem âncora)' }))
+    const reopened = await screen.findByRole('group', { name: 'Post-its da nota' })
+    await user.click(within(reopened).getByRole('button', { name: 'Excluir post-it: lembrete-orfao' }))
+    await user.click(within(reopened).getByRole('button', { name: 'Confirmar exclusão de lembrete-orfao' }))
     await waitFor(() => expect(notes.get('inicial.md')?.content).not.toContain('lembrete-orfao'))
-    expect(screen.queryByRole('button', { name: '1 post-it sem âncora' })).not.toBeInTheDocument()
-    // Lista zerada fecha o dialogo sozinho.
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Post-its sem âncora' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /Post-its da nota/ })).not.toBeInTheDocument()
   })
 
   it('[sync] copias de conflito listam, abrem e promovem a copia', async () => {
@@ -2520,10 +2523,16 @@ describe('Regressao do editor no workspace', () => {
     })
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Post-its da nota (2)' }))
-    const item = await screen.findByRole('button', { name: 'Post-it: orfao-teste' })
-    expect(item).toHaveTextContent('sem âncora')
-    await user.click(await screen.findByRole('button', { name: 'Post-it: lembrete' }))
+    // Ancorados primeiro (ordem do documento), orfaos na secao final.
+    await user.click(screen.getByRole('button', { name: 'Post-its da nota (1 ancorado, 1 sem âncora)' }))
+    const menu = await screen.findByRole('group', { name: 'Post-its da nota' })
+    const lembrete = within(menu).getByRole('button', { name: 'Abrir post-it: lembrete' })
+    const orfao = within(menu).getByRole('button', { name: 'Abrir post-it: orfao-teste' })
+    expect(menu).toHaveTextContent('Sem âncora')
+    expect(menu.textContent?.indexOf('lembrete')).toBeLessThan(menu.textContent?.indexOf('orfao-teste'))
+    expect(orfao).toHaveTextContent('sem âncora')
+    expect(lembrete).not.toHaveTextContent('sem âncora')
+    await user.click(lembrete)
     await screen.findByRole('dialog', { name: 'Editar post-it' })
     expect(notes.get('inicial.md')?.content).toContain('orfao-teste')
   })

@@ -823,7 +823,6 @@ function App() {
   const [explorerContextMenu, setExplorerContextMenu] = useState<ExplorerContextMenu | null>(null)
   const [showTagDialog, setShowTagDialog] = useState(false)
   const [tagName, setTagName] = useState('')
-  const [showPostitOrphans, setShowPostitOrphans] = useState(false)
   const [historyStatus, setHistoryStatus] = useState<HistoryStatus>({ canUndo: false, canRedo: false })
   const [loading, setLoading] = useState(false)
   const [wikilinkIndexProgress, setWikilinkIndexProgress] = useState<{ processed: number; total: number } | null>(null)
@@ -5515,8 +5514,6 @@ function App() {
                     removeTag,
                   }}
                   postits={postits}
-                  showPostitOrphans={showPostitOrphans}
-                  setShowPostitOrphans={setShowPostitOrphans}
                   history={{
                     actionsRef: headerActionsRef,
                     preserveSelection: preserveEditorSelection,

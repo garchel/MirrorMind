@@ -14,7 +14,6 @@ import { NoteTagRow } from '../../components/NoteTagRow'
 import { FrontmatterPanelForm } from '../../components/FrontmatterPanelForm'
 import type { FrontmatterPanelData, FrontmatterRow } from '../../components/markdownLivePreview'
 import { PostitMenu } from '../postits/PostitMenu'
-import { PostitOrphansDialog } from '../postits/PostitOrphansDialog'
 import type { usePostitPopover } from '../postits/usePostitPopover'
 import { formatNoteTitleAsPath, type CreateNoteForm, type TagSummary } from '../../lib/vault'
 import type { ReviewGapMode } from '../settings/SettingsPage'
@@ -94,10 +93,8 @@ export type EditorHeaderProps = {
   tags: HeaderTags
   postits: Pick<
     ReturnType<typeof usePostitPopover>,
-    'notePostits' | 'postitMenuItems' | 'orphans' | 'handlePostitWidgetClick' | 'deletePostitById'
+    'notePostits' | 'postitMenuItems' | 'handlePostitWidgetClick' | 'deletePostitById'
   >
-  showPostitOrphans: boolean
-  setShowPostitOrphans: (show: boolean) => void
   history: HeaderHistory
   isAutoSaveEnabled: boolean
   autoSaveState: 'idle' | 'pending' | 'saving' | 'saved'
@@ -130,8 +127,6 @@ export function EditorHeader({
     removeTag,
   },
   postits,
-  showPostitOrphans,
-  setShowPostitOrphans,
   history: {
     actionsRef: headerActionsRef,
     preserveSelection: preserveEditorSelection,
@@ -167,7 +162,6 @@ export function EditorHeader({
   const {
     notePostits,
     postitMenuItems,
-    orphans: postitOrphans,
     handlePostitWidgetClick,
     deletePostitById,
   } = postits
@@ -229,35 +223,17 @@ export function EditorHeader({
           onApplyTag={applyExistingTag}
           onRemoveTag={removeTag}
         />
-        {postitOrphans.length > 0 || notePostits.length > 0 ? (
+        {/* Post-its da nota: popover unico — navegacao (ordenada pelo texto),
+            exclusao em dois cliques e secao "Sem ancora" no mesmo lugar. */}
+        {notePostits.length > 0 ? (
           <div className="note-header-postits">
-            {notePostits.length > 0 ? (
-              <PostitMenu items={postitMenuItems} onOpen={handlePostitWidgetClick} />
-            ) : null}
-            {postitOrphans.length > 0 ? (
-              <Button
-                type="button"
-                className="ui-button postit-orphans-chip"
-                onClick={() => setShowPostitOrphans(true)}
-                title="Post-its cuja âncora sumiu da nota"
-              >
-                {postitOrphans.length === 1
-                  ? '1 post-it sem âncora'
-                  : `${postitOrphans.length} post-its sem âncora`}
-              </Button>
-            ) : null}
+            <PostitMenu
+              items={postitMenuItems}
+              onOpen={(postitId) => handlePostitWidgetClick(postitId, false, true)}
+              onDelete={deletePostitById}
+            />
           </div>
         ) : null}
-        <PostitOrphansDialog
-          open={showPostitOrphans}
-          orphans={postitOrphans}
-          onClose={() => setShowPostitOrphans(false)}
-          onOpen={(postitId) => {
-            setShowPostitOrphans(false)
-            handlePostitWidgetClick(postitId)
-          }}
-          onDelete={deletePostitById}
-        />
       </div>
       <div className="editor-actions" ref={headerActionsRef}>
         <div className="history-actions" aria-label="Histórico de edição">

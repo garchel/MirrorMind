@@ -1162,7 +1162,7 @@
   gap: 8px;
 }
 
-/* Linha de post-its do header (menu + chip de orfaos). */
+/* Linha de post-its do header. */
 .workspace-shell .note-header-postits {
   display: flex;
   flex-wrap: wrap;
@@ -1172,8 +1172,12 @@
   max-width: min(100%, 620px);
 }
 
-/* Botao do menu de post-its: chip neutro como o toggle de tags. */
+/* Botao do menu de post-its: chip neutro como o toggle de tags, com o
+ * icone para casa com o visual dos pinos e do popover de criacao. */
 .workspace-shell .postit-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 3px 10px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-xs);
@@ -1183,14 +1187,33 @@
   cursor: pointer;
 }
 
+.workspace-shell .postit-menu-trigger svg {
+  flex: none;
+}
+
 .workspace-shell .postit-menu-trigger:hover {
   border-color: var(--mm-ink-550-3);
   background: rgb(28 36 39 / 4%);
 }
 
+/* Badge de orfaos dentro do trigger: aviso discreto em ambar, no mesmo
+ * lugar do que os itens "sem ancora" mostram dentro do menu. */
+.workspace-shell .postit-menu-orphans-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border: 1px solid rgba(138, 90, 42, 0.4);
+  border-radius: var(--radius-xs);
+  background: rgb(196 106 43 / 12%);
+  color: var(--mm-clay-850-12);
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  line-height: 18px;
+}
+
 /* Popover do menu: portalado fora do shell (mesmo escopo do popover de tags). */
 .ui-popover-content.postit-menu-popover {
-  width: 264px;
+  width: 300px;
   min-width: 0;
   padding: 6px;
 }
@@ -1198,17 +1221,38 @@
 .ui-popover-content.postit-menu-popover .postit-menu-list {
   display: grid;
   gap: 2px;
-  max-height: 240px;
+  max-height: 280px;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* Secao "Sem ancora": mesma lista, separada por um rotulo curto. */
+.ui-popover-content.postit-menu-popover .postit-menu-section {
+  padding: 8px 8px 4px;
+  border-top: 1px solid var(--mm-ink-250-2);
+  margin-top: 4px;
+  color: var(--mm-ink-650-4);
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
 }
 
 .ui-popover-content.postit-menu-popover .postit-menu-item {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
   min-width: 0;
-  padding: 6px 8px;
+  padding: 7px 8px;
   border: 0;
   border-radius: var(--radius-xs);
   background: transparent;
@@ -1232,73 +1276,72 @@
   border: 1px solid rgba(45, 44, 39, 0.3);
 }
 
-.ui-popover-content.postit-menu-popover .postit-menu-text {
+.ui-popover-content.postit-menu-popover .postit-menu-copy {
+  display: grid;
+  gap: 1px;
   flex: 1;
+  min-width: 0;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Sem entrelinha própria herda os 27px do ritmo de leitura da nota (o
+   * texto de 12px ganha 27px e o item fica com cara de caixa de texto). */
+  line-height: 1.35;
 }
 
 .ui-popover-content.postit-menu-popover .postit-menu-detail {
-  flex: none;
-  max-width: 45%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--mm-ink-700);
   font-size: var(--font-size-caption);
+  line-height: 1.3;
 }
 
-/* Chip de post-its sem ancora (abaixo das tags): aviso discreto em ambar. */
-.workspace-shell .postit-orphans-chip {
-  padding: 3px 10px;
-  border: 1px solid rgba(138, 90, 42, 0.4);
-  border-radius: var(--radius-xs);
-  background: rgb(196 106 43 / 8%);
+.ui-popover-content.postit-menu-popover .postit-menu-detail.is-orphan {
   color: var(--mm-clay-850-12);
-  font-size: var(--font-size-caption);
+  font-weight: 600;
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-delete {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  /* O `button` do base.css impoe `min-height: 46px`; sem este zero a
+   * lixeira fica mais alta que a linha do item. */
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--mm-ink-650-4);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.workspace-shell .postit-orphans-chip:hover {
+.ui-popover-content.postit-menu-popover .postit-menu-delete:hover {
+  background: rgb(196 106 43 / 14%);
+  color: var(--mm-brick-850-2);
+}
+
+.ui-popover-content.postit-menu-popover .postit-menu-delete.is-armed {
+  width: auto;
+  padding: 0 6px;
   background: rgb(196 106 43 / 16%);
+  color: var(--mm-brick-850-2);
 }
 
-/* Dialogo de orfaos: lista com dot da cor, texto e acoes. */
-.postit-orphans-list {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.postit-orphans-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.postit-orphans-dot {
-  flex: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(45, 44, 39, 0.3);
-}
-
-.postit-orphans-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-}
-
-.postit-orphans-error {
+.ui-popover-content.postit-menu-popover .postit-menu-error {
+  margin: 6px 8px 2px;
   color: var(--mm-brick-850-2);
   font-size: 12px;
 }

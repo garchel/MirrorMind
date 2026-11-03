@@ -386,8 +386,12 @@ export function usePostitPopover(deps: UsePostitPopoverDeps) {
   /** Clique em um pino ou na bolinha da frase (ou peek por hover): abre o
    * popover de edicao. A faixa (quando resolvida) posiciona o popover sobre
    * a frase; sem ela, cai para o paragrafo (pino/legado). Peek abre sem
-   * roubar o foco e semeia o snapshot para o fechamento nao gravar nada. */
-  function handlePostitWidgetClick(postitId: string, peek = false) {
+   * roubar o foco e semeia o snapshot para o fechamento nao gravar nada.
+   *
+   * `scrollToAnchor` rola o editor ate a ancora antes de posicionar: abrir
+   * um post-it pela lista do header sem rolar deixava o popover fora da
+   * tela em notas longas. */
+  function handlePostitWidgetClick(postitId: string, peek = false, scrollToAnchor = false) {
     if (postitPeekCloseTimerRef.current !== null) {
       window.clearTimeout(postitPeekCloseTimerRef.current)
       postitPeekCloseTimerRef.current = null
@@ -399,6 +403,18 @@ export function usePostitPopover(deps: UsePostitPopoverDeps) {
     if (!postit) return
     const anchor = postitData?.anchored.find((item) => item.postit.id === postitId)
     const position = anchor?.range?.from ?? anchor?.from ?? null
+    if (scrollToAnchor && position !== null) {
+      // Rola ate a ancora (a faixa ancorada; para pino legado, o pino do
+      // paragrafo) antes de calcular o retangulo — as coordenadas tem de
+      // ser as de depois da rolagem, nao as de antes.
+      const selector = anchor?.range
+        ? `[data-postit-range-id="${CSS.escape(postitId)}"]`
+        : `.postit-anchor-widget[data-postit-id="${CSS.escape(postitId)}"]`
+      const target = document.querySelector(selector)
+      if (target && typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ block: 'center' })
+      }
+    }
     const rect = position !== null ? getPostitAnchorRect(position) : null
     const containerRect = container.getBoundingClientRect()
     const x = rect ? Math.max(80, Math.min(rect.left - containerRect.left, containerRect.width - 80)) : containerRect.width / 2
@@ -507,18 +523,37 @@ export function usePostitPopover(deps: UsePostitPopoverDeps) {
   }
 
   /** Itens do menu de postits da nota (navegacao): texto + detalhe da area
-   * (citacao) ou estado (sem ancora). */
-  const postitMenuItems = useMemo(() => notePostits.map((postit) => {
-    const anchored = postitData?.anchored.find((item) => item.postit.id === postit.id)
-    const quote = postit.range?.quote ?? ''
-    return {
-      id: postit.id,
-      color: postit.color,
-      text: postit.text.trim() ? postit.text.trim() : 'Post-it vazio',
-      detail: !anchored ? 'sem âncora' : quote ? `“${quote.length > 40 ? `${quote.slice(0, 40)}…` : quote}”` : null,
-      orphan: !anchored,
+   * (citacao) ou estado (sem ancora).
+   *
+   * A ordem e a do documento (topo -> fim) para os ancorados — a lista e
+   * uma navegacao, e a posicao no texto e a ordem que o olho le — com os
+   * orfaos no fim, na ordem do frontmatter. */
+  const postitMenuItems = useMemo(() => {
+    const positionOf = new Map<string, number>()
+    for (const entry of postitData?.anchored ?? []) {
+      positionOf.set(entry.postit.id, entry.from)
     }
-  }), [notePostits, postitData])
+    const sorted = [...notePostits].sort((left, right) => {
+      const leftFrom = positionOf.get(left.id)
+      const rightFrom = positionOf.get(right.id)
+      const leftOrphan = leftFrom === undefined
+      const rightOrphan = rightFrom === undefined
+      if (leftOrphan !== rightOrphan) return leftOrphan ? 1 : -1
+      if (leftFrom !== undefined && rightFrom !== undefined) return leftFrom - rightFrom
+      return 0
+    })
+    return sorted.map((postit) => {
+      const anchored = postitData?.anchored.find((item) => item.postit.id === postit.id)
+      const quote = postit.range?.quote ?? ''
+      return {
+        id: postit.id,
+        color: postit.color,
+        text: postit.text.trim() ? postit.text.trim() : 'Post-it vazio',
+        detail: !anchored ? 'sem âncora' : quote ? `“${quote.length > 80 ? `${quote.slice(0, 80)}…` : quote}”` : null,
+        orphan: !anchored,
+      }
+    })
+  }, [notePostits, postitData])
 
   return {
     postitPopover,
