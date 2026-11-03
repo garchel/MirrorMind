@@ -222,12 +222,17 @@ export function TagsSkeleton() {
   )
 }
 
-/** Dicionario: busca + barra A-Z + lista de termos a esquerda + cartao de
- * detalhe a direita. Espelha as duas colunas da pagina, entao o layout nao
+/** Dicionario: cabecalho + busca + barra A-Z + lista de termos a esquerda +
+ * cartao de detalhe a direita. Espelha a pagina inteira, entao o layout nao
  * "salta" quando o dicionario abre. */
 export function DictionarySkeleton() {
   return (
     <StatusShell message="Lendo o dicionário...">
+      <div className="sk-page-head">
+        <Skeleton width={110} height={11} />
+        <Skeleton width="38%" height={28} radius={8} />
+        <Skeleton width="55%" height={13} />
+      </div>
       <div className="sk-toolbar">
         <Skeleton width="42%" height={34} radius={8} />
         <Skeleton width={90} height={11} />

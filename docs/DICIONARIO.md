@@ -30,9 +30,9 @@ A página tem duas colunas:
 - **À direita, o conceito escolhido**: você clica num termo da lista e o
   verbete aparece ali, com as ações de editar e remover.
 
-Enquanto o dicionário carrega, a página mostra um esqueleto no formato
-dessas duas colunas (busca, barra A–Z, lista e cartão de detalhe) em vez de
-um estado vazio que ainda não é verdade.
+Enquanto o dicionário carrega, a página mostra um esqueleto em vez de
+estado vazio ou lista antiga: ele desenha o cabeçalho, a busca, a barra
+A–Z, a lista de termos e o cartão de detalhe.
 
 Abaixo do campo de busca, uma **barra A–Z** filtra a lista pela inicial do
 termo. Ela junta a busca: toda letra funciona, mesmo sem nenhum termo (nesse

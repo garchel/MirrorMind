@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   createDictionaryEngine,
   readableDictionaryFailure,
@@ -41,7 +41,9 @@ const defaultDictionaryEngine = createDictionaryEngine()
  * cada render (o que acontece com um default parameter que chama uma
  * fabrica), o efeito rodaria sem parar — e cada ciclo dispararia uma
  * leitura do dicionário. Por isso a enginepadrao vive **fora** do
- * componente, e a mudanca de Vault e o que dispara a recarga.
+ * componente, e a mudanca de Vault e o que dispara a recarga. A releitura e
+ * incondicional: o cleanup marca a rodada anterior como obsoleta, e so a
+ * rodada mais recente aplica o resultado.
  */
 export function useDictionary(
   vaultPath: string | undefined,
@@ -57,19 +59,19 @@ export function useDictionary(
   // diferentes, e juntar as duas mostraria a mesma mensagem duas vezes.
   const [loadError, setLoadError] = useState('')
   const [busy, setBusy] = useState(false)
-  // Guarda o Vault da última carga. Trocar de Vault precisa recarregar, e
-  // sem isso a página mostraria o dicionário do Vault anterior.
-  const loadedFor = useRef<string | null>(null)
 
+  // Cada rodada do efeito le o dicionario do Vault aberto. Nao ha
+  // "ja li este Vault" para pular: o cleanup marca a rodada obsoleta
+  // (`cancelled`) e e ela quem descarta a resposta velha. Um guard manual
+  // aqui prende a pagina no esqueleto sob StrictMode — a primeira passada
+  // e cancelada pelo cleanup e a segunda entrava achando que ja estava
+  // carregada, e `loading` nunca voltava a false.
   useEffect(() => {
     if (!vaultPath) {
-      loadedFor.current = null
       setEntries([])
       setLoading(false)
       return
     }
-    if (loadedFor.current === vaultPath) return
-    loadedFor.current = vaultPath
     let cancelled = false
     // Trocar de Vault precisa voltar ao esqueleto: a lista antiga ficaria
     // visível com o dicionário do Vault anterior enquanto o novo carrega.

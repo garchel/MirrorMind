@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DictionaryPage } from './DictionaryPage'
 import type { DictionaryEntry, DictionarySnapshot } from './dictionarySchema'
@@ -52,6 +53,23 @@ describe('DictionaryPage', () => {
 
   afterEach(() => {
     cleanup()
+  })
+
+  it('carrega o dicionario mesmo sob StrictMode', async () => {
+    // O main.tsx envolve o app em StrictMode: o efeito de leitura roda duas
+    // vezes, e a leitura da primeira passada e descartada. O dicionario tem
+    // de abrir apesar disso — o esqueleto nao pode virar permanente.
+    entriesMock.mockResolvedValue(
+      snapshot([entry('rubisco', 'Enzima que fixa carbono.')]),
+    )
+    render(
+      <StrictMode>
+        <DictionaryPage vaultPath={VAULT_PATH} />
+      </StrictMode>,
+    )
+    await waitFor(() => {
+      expect(within(detailPane()).getByRole('heading', { name: 'rubisco' })).toBeTruthy()
+    })
   })
 
   it('mostra o esqueleto enquanto o dicionario carrega', () => {

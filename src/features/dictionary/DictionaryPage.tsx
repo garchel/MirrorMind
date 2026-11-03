@@ -179,7 +179,18 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
   }
 
   return (
-    <section className="workspace-page dictionary-page" aria-labelledby="dictionary-page-title">
+    <section
+      className="workspace-page dictionary-page"
+      // Durante o carregamento o esqueleto desenha a pagina inteira,
+      // incluindo o cabecalho: o `aria-labelledby` apontaria para um
+      // elemento que ainda nao existe.
+      aria-labelledby={loading ? undefined : 'dictionary-page-title'}
+      aria-busy={loading || undefined}
+    >
+      {loading ? (
+        <DictionarySkeleton />
+      ) : (
+        <>
       <PageHeader
         kicker="Dicionário"
         title="Conceitos registrados"
@@ -192,11 +203,6 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
           mostra so a falha de **carregar** o dicionario — uma falha de
           leitura e diferente de uma falha de gravacao. */}
       {error && !formError ? <ErrorState message={error} /> : null}
-
-      {loading ? (
-        <DictionarySkeleton />
-      ) : (
-        <>
       <div className="dictionary-filters">
         <div className="dictionary-toolbar">
           <label className="dictionary-search">
