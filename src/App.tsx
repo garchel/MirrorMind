@@ -255,6 +255,22 @@ const COMPATIBILITY_NOTES: Record<string, string> = {
   'plugin-inline': 'Comandos de plugins no meio do texto aparecem como texto comum — nada é executado.',
 }
 
+/**
+ * Um pedido de definição e o aviso que o conta.
+ *
+ * Cada pedido tem o seu aviso: o usuário pode selecionar outro trecho
+ * enquanto o primeiro ainda espera, e o aviso novo entra **acima** do antigo.
+ * O `id` é o que liga o aviso ao pedido quando a resposta chega — sem ele,
+ * duas buscas ao mesmo tempo sobrescreveriam uma à outra.
+ */
+type DictionarySearchEntry = {
+  id: number
+  selection: string
+  status: DictionarySearchStatus
+  suggestion: DictionaryConceptSuggestion | null
+  error: string
+}
+
 function App() {
   const { provider: reviewProvider } = useReviewAiSettings()
   const [vault, setVault] = useState<VaultSummary | null>(null)
@@ -484,16 +500,23 @@ function App() {
   // (DictionarySearchToast). O modal so abre quando o usuario clica em
   // "Abrir": antes ele abria na hora e prendia a tela durante os 5-35 s do
   // provider local.
-  const [dictionarySearch, setDictionarySearch] = useState<{
-    selection: string
-    status: DictionarySearchStatus
-    suggestion: DictionaryConceptSuggestion | null
-    error: string
-  } | null>(null)
-  const [dictionaryModalOpen, setDictionaryModalOpen] = useState(false)
-  // Duas buscas seguidas passaram a ser possiveis (o modal nao bloqueia mais a
-  // tela): o id descarta a resposta antiga que chegaria depois da nova.
+  //
+  // Cada pedido tem o seu aviso, empilhado com o mais novo em cima: selecionar
+  // outro trecho enquanto o primeiro busca nao substitui o aviso anterior.
+  const [dictionarySearches, setDictionarySearches] = useState<DictionarySearchEntry[]>([])
+  // Qual aviso esta aberto no modal. Ha um modal so; os outros avisos
+  // continuam na tela e podem ser abertos depois.
+  const [dictionaryModalSearchId, setDictionaryModalSearchId] = useState<number | null>(null)
+  // Gera os ids dos pedidos. A resposta carrega o id e atualiza **aquele**
+  // aviso, entao uma resposta que chega fora de ordem nao pisa na outra.
   const dictionarySearchIdRef = useRef(0)
+  const activeDictionarySearch =
+    dictionarySearches.find((search) => search.id === dictionaryModalSearchId) ?? null
+  // O aviso do pedido aberto no modal sai da pilha: o modal ja mostra a espera
+  // e o resultado. Os demais continuam visiveis.
+  const visibleDictionarySearches = dictionarySearches.filter(
+    (search) => search.id !== dictionaryModalSearchId,
+  )
   const [notificationLastCheck, setNotificationLastCheck] = useState<ReviewNotificationCheck | null>(null)
   // Acoes do cabecalho escondidas no menu "Mais acoes" (medicao via
   // ResizeObserver; em ordem de prioridade, da ultima para a primeira).
@@ -2185,15 +2208,32 @@ function App() {
    * janela ja esta aberta e deve continuar mostrando a espera. Vindo da
    * toolbar, o modal fica fechado e o usuario so o abre quando o resultado
    * chega — que e o ponto de nao prender a tela durante a busca.
+   *
+   * `entryId` reaproveita o aviso existente na repeticao. Sem ele, tentar de
+   * novo criaria um segundo aviso para o mesmo trecho e o antigo voltaria
+   * para a tela quando o modal fechasse.
    */
   async function requestDictionaryConcept(
     selection: string,
-    options?: { keepModalOpen?: boolean },
+    options?: { keepModalOpen?: boolean; entryId?: number },
   ) {
     if (!vault) return
-    const requestId = ++dictionarySearchIdRef.current
-    setDictionarySearch({ selection, status: 'searching', suggestion: null, error: '' })
-    setDictionaryModalOpen(options?.keepModalOpen ?? false)
+    const entryId = options?.entryId ?? ++dictionarySearchIdRef.current
+    const entry: DictionarySearchEntry = {
+      id: entryId,
+      selection,
+      status: 'searching',
+      suggestion: null,
+      error: '',
+    }
+    // O aviso novo entra no comeco da lista, que e o topo da pilha. Reusar um
+    // id so troca o estado, sem mudar a posicao do aviso.
+    setDictionarySearches((current) =>
+      current.some((search) => search.id === entryId)
+        ? current.map((search) => (search.id === entryId ? entry : search))
+        : [entry, ...current],
+    )
+    setDictionaryModalSearchId(options?.keepModalOpen ? entryId : null)
     try {
       const suggestion = await suggestDictionaryConcept(
         vault.path,
@@ -2201,25 +2241,46 @@ function App() {
         draftContentRef.current,
         reviewProvider,
       )
-      // Uma segunda busca pode ter comecado enquanto esta esperava: a resposta
-      // velha nao pode sobrescrever o aviso da nova.
-      if (dictionarySearchIdRef.current !== requestId) return
-      setDictionarySearch({ selection, status: 'ready', suggestion, error: '' })
+      // Atualiza o aviso deste pedido, e so ele: uma segunda busca pode ter
+      // comecado enquanto esta esperava.
+      setDictionarySearches((current) =>
+        current.map((search) =>
+          search.id === entryId
+            ? { ...search, status: 'ready', suggestion, error: '' }
+            : search,
+        ),
+      )
     } catch (failure) {
-      if (dictionarySearchIdRef.current !== requestId) return
-      setDictionarySearch({
-        selection,
-        status: 'error',
-        suggestion: null,
-        error: errorMessage(failure, 'Não foi possível sugerir o conceito.'),
-      })
+      setDictionarySearches((current) =>
+        current.map((search) =>
+          search.id === entryId
+            ? {
+                ...search,
+                status: 'error',
+                suggestion: null,
+                error: errorMessage(failure, 'Não foi possível sugerir o conceito.'),
+              }
+            : search,
+        ),
+      )
     }
   }
 
   /** Repete o pedido do modal com o mesmo trecho e o mesmo rascunho. */
   function retryDictionaryConcept() {
-    const selection = dictionarySearch?.selection
-    if (selection) void requestDictionaryConcept(selection, { keepModalOpen: true })
+    const active = activeDictionarySearch
+    if (active) {
+      void requestDictionaryConcept(active.selection, {
+        keepModalOpen: true,
+        entryId: active.id,
+      })
+    }
+  }
+
+  /** Fecha o aviso de um pedido sem tocar nos outros. */
+  function dismissDictionarySearch(id: number) {
+    setDictionarySearches((current) => current.filter((search) => search.id !== id))
+    setDictionaryModalSearchId((current) => (current === id ? null : current))
   }
 
   /**
@@ -2234,8 +2295,12 @@ function App() {
     await saveDictionaryEntry(term, concept)
     setStatus(`Conceito de "${term}" registrado no dicionário.`)
     // O aviso cumpriu o papel: sem isto o botao "Abrir" continuaria na tela
-    // apontando para um verbete ja gravado.
-    setDictionarySearch(null)
+    // apontando para um verbete ja gravado. Os avisos dos outros pedidos
+    // ficam onde estao.
+    setDictionarySearches((current) =>
+      current.filter((search) => search.id !== dictionaryModalSearchId),
+    )
+    setDictionaryModalSearchId(null)
   }
 
   /**
@@ -2259,8 +2324,8 @@ function App() {
     setFactCheck(null)
     setFactCheckError(null)
     setImprovementOpen(false)
-    setDictionarySearch(null)
-    setDictionaryModalOpen(false)
+    setDictionarySearches([])
+    setDictionaryModalSearchId(null)
   }, [activeNote?.relativePath])
 
   useEffect(() => {
@@ -6158,26 +6223,28 @@ function App() {
           </Modal>
         ) : null}
         <DictionarySelectionModal
-          open={dictionaryModalOpen && dictionarySearch !== null}
-          selection={dictionarySearch?.selection ?? ''}
-          loading={dictionarySearch?.status === 'searching'}
-          suggestion={dictionarySearch?.suggestion ?? null}
-          error={dictionarySearch?.error ?? ''}
-          onClose={() => setDictionaryModalOpen(false)}
+          open={activeDictionarySearch !== null}
+          selection={activeDictionarySearch?.selection ?? ''}
+          loading={activeDictionarySearch?.status === 'searching'}
+          suggestion={activeDictionarySearch?.suggestion ?? null}
+          error={activeDictionarySearch?.error ?? ''}
+          onClose={() => setDictionaryModalSearchId(null)}
           onRetry={retryDictionaryConcept}
           onSave={saveDictionarySelection}
         />
-        {dictionarySearch && !dictionaryModalOpen ? (
-          <DictionarySearchToast
-            term={dictionarySearch.selection}
-            status={dictionarySearch.status}
-            error={dictionarySearch.error}
-            onOpen={() => setDictionaryModalOpen(true)}
-            onDismiss={() => {
-              setDictionarySearch(null)
-              setDictionaryModalOpen(false)
-            }}
-          />
+        {visibleDictionarySearches.length > 0 ? (
+          <div className="dictionary-search-toasts">
+            {visibleDictionarySearches.map((search) => (
+              <DictionarySearchToast
+                key={search.id}
+                term={search.selection}
+                status={search.status}
+                error={search.error}
+                onOpen={() => setDictionaryModalSearchId(search.id)}
+                onDismiss={() => dismissDictionarySearch(search.id)}
+              />
+            ))}
+          </div>
         ) : null}
         <BuilderModeControl enabled={isBuilderModeEnabled} onEnabledChange={setBuilderModeEnabled} />
         <UpdateBanner

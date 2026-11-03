@@ -37,10 +37,18 @@ que falar do assunto.
 ## Selecionar um trecho e pedir o conceito
 
 Selecione uma palavra ou uma frase curta na nota e use **Adicionar seleção ao
-dicionário** na barra que aparece sobre a seleção. O modal abre com o **termo
-já preenchido com o que você selecionou** e, enquanto a IA escreve a definição,
-mostra **"Preparando o conceito…"**, o tempo decorrido e um esqueleto no lugar
-da definição. Nessa espera o termo já pode ser editado.
+dicionário** na barra que aparece sobre a seleção. A busca roda em segundo
+plano: um aviso aparece no rodapé central, você continua lendo a nota e o
+botão **Abrir** entra no aviso quando a definição está pronta. O modal abre
+com o **termo já preenchido com o que você selecionou** e, enquanto a IA
+escreve, mostra **"Preparando o conceito…"**, o tempo decorrido e um esqueleto
+no lugar da definição. Nessa espera o termo já pode ser editado.
+
+Se você selecionar outro trecho antes da primeira busca terminar, cada pedido
+ganha o seu próprio aviso: o novo entra **acima** do que já estava buscando, e
+os dois seguem em paralelo. Abrir ou dispensar um aviso não mexe nos outros, e
+o aviso não some sozinho: ele sai da tela quando você abre o resultado (e volta
+se o modal for fechado sem gravar) ou quando você o dispensa.
 
 A IA responde com duas coisas:
 

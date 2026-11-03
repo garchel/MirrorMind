@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { BookMarked, Loader2, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import './dictionary.css'
@@ -22,6 +21,13 @@ export type DictionarySearchStatus = 'searching' | 'ready' | 'error'
  * Um aviso que some depois de alguns segundos levaria o botão junto: o
  * usuário voltaria da leitura e não teria como reabrir o resultado. Ele só
  * sai quando o usuário abre o resultado ou dispensa o aviso.
+ *
+ * ## Por que não há contador de segundos
+ *
+ * O aviso pode dividir a tela com outros (um por trecho selecionado) e um
+ * número mudando a cada segundo chamaria mais atenção que a própria busca.
+ * O giro do ícone já diz que o pedido está vivo; o tempo exato só interessa
+ * dentro do modal, onde há espaço para ele.
  */
 export function DictionarySearchToast({
   term,
@@ -38,23 +44,6 @@ export function DictionarySearchToast({
   onOpen: () => void
   onDismiss: () => void
 }) {
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
-
-  // Mesmo contador do modal: a espera longa precisa de um sinal de vida. Fica
-  // `aria-hidden` porque um número que muda a cada segundo dentro de uma região
-  // viva faria o leitor de tela repetir o aviso inteiro.
-  useEffect(() => {
-    if (status !== 'searching') {
-      setElapsedSeconds(0)
-      return
-    }
-    const startedAt = Date.now()
-    const timer = window.setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000))
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [status])
-
   const searching = status === 'searching'
   const failed = status === 'error'
   // O trecho pode ser um paragrafo inteiro: o aviso mostra o comeco do que foi
@@ -92,11 +81,6 @@ export function DictionarySearchToast({
                 ? <>Não foi possível buscar a definição de “{label}”.</>
                 : <>A definição de “{label}” está pronta.</>}
           </p>
-          {searching && elapsedSeconds >= 4 ? (
-            <span className="dictionary-search-toast-elapsed" aria-hidden="true">
-              {elapsedSeconds} s
-            </span>
-          ) : null}
         </div>
         <p className="dictionary-search-toast-hint">
           {searching

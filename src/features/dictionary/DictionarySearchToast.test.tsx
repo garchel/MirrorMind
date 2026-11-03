@@ -73,6 +73,20 @@ describe('DictionarySearchToast', () => {
     expect(props.onOpen).not.toHaveBeenCalled()
   })
 
+  it('nao mostra contador de segundos: o giro do icone ja diz que a busca vive', () => {
+    vi.useFakeTimers()
+    try {
+      renderToast()
+      vi.advanceTimersByTime(12_000)
+
+      const toast = screen.getByRole('status')
+      expect(toast.querySelector('.dictionary-search-toast-elapsed')).toBeNull()
+      expect(toast).not.toHaveTextContent(/\d+\s*s/)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('encurta um trecho longo para o aviso nao virar um painel', () => {
     const longSelection = 'A fixação de carbono acontece no estroma do cloroplasto e depende da luz'
     renderToast({ term: longSelection })

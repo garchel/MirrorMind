@@ -563,6 +563,44 @@ describe('Regressao do editor no workspace', () => {
     expect(within(dialog).getByDisplayValue(/Definição de/)).toBeInTheDocument()
   })
 
+  it('[dicionário] empilha um aviso por trecho, com o mais novo em cima', async () => {
+    const user = userEvent.setup()
+    // As duas buscas esperam o mesmo portao: o teste ve os dois avisos no
+    // estado "buscando" antes de qualquer resposta.
+    let release: () => void = () => undefined
+    dictionarySuggestionGate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
+    const editor = document.querySelector('.cm-content')!
+    await user.click(editor)
+    await user.keyboard('{Shift>}{ArrowRight}{/Shift}')
+    await user.click(await screen.findByRole('button', { name: 'Adicionar seleção ao dicionário' }))
+
+    // Segunda selecao enquanto a primeira busca: o aviso novo nao substitui o
+    // antigo, entra acima dele.
+    await user.click(editor)
+    await user.keyboard('{Control>}{End}{/Control}{Control>}{Shift>}{ArrowLeft}{/Shift}{/Control}')
+    await user.click(await screen.findByRole('button', { name: 'Adicionar seleção ao dicionário' }))
+
+    expect(await screen.findAllByText(/Buscando a definição/)).toHaveLength(2)
+    const toasts = Array.from(document.querySelectorAll('.dictionary-search-toast'))
+    expect(toasts).toHaveLength(2)
+    // O primeiro no DOM e o topo da pilha: e o pedido mais recente.
+    expect(toasts[0].textContent).not.toBe(toasts[1].textContent)
+
+    release()
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Abrir' })).toHaveLength(2))
+
+    await user.click(screen.getAllByRole('button', { name: 'Abrir' })[0])
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    // So o aviso do pedido aberto sai da pilha; o outro continua na tela.
+    expect(screen.getAllByRole('button', { name: 'Abrir' })).toHaveLength(1)
+  })
+
   it('[verificação factual] abre o painel, lista os achados e não altera a nota', async () => {
     const user = userEvent.setup()
     createTauriHarness()

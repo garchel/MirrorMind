@@ -450,23 +450,38 @@
  * A busca roda em segundo plano (o provider local leva dezenas de segundos) e
  * o modal so abre quando o usuario clica em "Abrir". O aviso fica no rodape
  * central para nao competir com o banner de atualizacao, que mora no canto
- * inferior direito. */
-.dictionary-search-toast {
+ * inferior direito.
+ *
+ * A pilha cresce para cima: cada trecho selecionado ganha o seu aviso, e o
+ * mais novo entra acima do que ja estava buscando. Os vaos entre os avisos
+ * nao capturam clique (`pointer-events`), para a nota continuar utilizavel. */
+.dictionary-search-toasts {
   position: fixed;
   left: 50%;
   bottom: 24px;
   transform: translateX(-50%);
   z-index: 110;
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.dictionary-search-toast {
+  display: flex;
   align-items: flex-start;
   gap: 12px;
-  width: min(460px, calc(100vw - 32px));
+  width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--panel);
   box-shadow: var(--panel-shadow);
   color: var(--text);
+  pointer-events: auto;
 }
 
 .dictionary-search-toast-body {
@@ -494,14 +509,6 @@
   line-height: 1.4;
   color: var(--muted);
   overflow-wrap: anywhere;
-}
-
-.dictionary-search-toast-elapsed {
-  flex: none;
-  margin-left: auto;
-  font-size: var(--font-size-caption);
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
 }
 
 .dictionary-search-toast-spinner {
