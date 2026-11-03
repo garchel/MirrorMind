@@ -542,6 +542,9 @@
   place-items: center;
   width: 24px;
   height: 24px;
+  /* O `button` do base.css impõe `min-height: 46px`; sem este zero o X fica
+   * 24 de largura por 46 de altura — um retângulo em pé. */
+  min-height: 0;
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
