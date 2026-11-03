@@ -55,6 +55,17 @@ O que **não** saiu, e por quê:
 Licença, Authenticode, gate M1 e 1ª tag (updater UI + secrets CI prontos).
 Ver `docs/launch-roadmap.md`.
 
+## Adiado por decisão
+
+- **Suporte e diagnóstico (item 8, 2026-10-30).** O app já tem um
+  `VaultDiagnosticsBanner` no explorador (`ExplorerSidebar.tsx`), mas ele
+  cobre só o scan do vault. Amadurecer suporte/diagnóstico — relatório
+  exportável, coleta de ambiente, caminho de reprodução, estado do índice
+  do grafo e dos gates — fica **adiado por decisão**, não esquecido.
+  Retomar quando o beta abrir para usuários externos, porque é aí que o
+  custo de um relatório ruim aparece. Até lá, o banner atual continua
+  sendo o canal.
+
 ## Decisões travadas
 
 - `ai.ts`: contratos zod ficam (fronteira de confiança, parte profunda).
