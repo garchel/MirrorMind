@@ -444,3 +444,117 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* Aviso da busca do conceito.
+ *
+ * A busca roda em segundo plano (o provider local leva dezenas de segundos) e
+ * o modal so abre quando o usuario clica em "Abrir". O aviso fica no rodape
+ * central para nao competir com o banner de atualizacao, que mora no canto
+ * inferior direito. */
+.dictionary-search-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 110;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(460px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+  color: var(--text);
+}
+
+.dictionary-search-toast-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.dictionary-search-toast-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dictionary-search-toast-title {
+  margin: 0;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.dictionary-search-toast-hint {
+  margin: 3px 0 0;
+  font-size: var(--font-size-caption);
+  line-height: 1.4;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.dictionary-search-toast-elapsed {
+  flex: none;
+  margin-left: auto;
+  font-size: var(--font-size-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.dictionary-search-toast-spinner {
+  flex: none;
+  color: var(--accent);
+  animation: dictionary-selection-spin 900ms linear infinite;
+}
+
+.dictionary-search-toast-icon {
+  flex: none;
+  color: var(--accent);
+}
+
+.dictionary-search-toast.is-error {
+  border-color: var(--danger);
+}
+
+.dictionary-search-toast.is-error .dictionary-search-toast-icon {
+  color: var(--danger);
+}
+
+.dictionary-search-toast-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.dictionary-search-toast-close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.dictionary-search-toast-close:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.dictionary-search-toast-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dictionary-search-toast-spinner {
+    animation: none;
+  }
+}

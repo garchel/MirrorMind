@@ -40,6 +40,9 @@ let inventorySyncConflictCopies: unknown[] | undefined = undefined
 /** Regras de tag do vault para o onboarding de perfil de revisao (o default e
  *  sem regras; testes do fluxo de adocao definem os tres perfis padrao). */
 let vaultReviewTagRules: Array<Record<string, unknown>> = []
+/** Portao da sugestao do dicionario: quando definido, `suggest_dictionary_concept`
+ *  espera ele resolver. E o que deixa o teste ver o aviso "buscando". */
+let dictionarySuggestionGate: Promise<void> | null = null
 
 vi.mock('@tauri-apps/api/core', () => ({
   convertFileSrc: (path: string) => `asset://${path}`,
@@ -236,6 +239,22 @@ function createTauriHarness(
         notes.set(relativePath, saved)
         return saved
       }
+      // Dicionario de conceitos: a lista vem vazia e a sugestao e deterministica.
+      // O portao (`dictionarySuggestionGate`) deixa o teste observar o estado
+      // "buscando" antes de a resposta chegar.
+      case 'list_dictionary_entries':
+        return { entries: [] }
+      case 'suggest_dictionary_concept': {
+        if (dictionarySuggestionGate) await dictionarySuggestionGate
+        const term = String((args as { term?: string } | undefined)?.term ?? '')
+        return {
+          term,
+          concept: `Definição de ${term}.`,
+          context: 'Papel do termo nesta nota.',
+          existing: null,
+          invalid: false,
+        }
+      }
       case 'delete_vault_item': {
         // Fidelidade ao backend: arquivo sumido some do proximo scan.
         const relativePath = args?.relativePath ?? ''
@@ -365,6 +384,7 @@ describe('Regressao do editor no workspace', () => {
     inventoryDiagnostics = undefined
     inventorySyncConflictCopies = undefined
     vaultReviewTagRules = []
+    dictionarySuggestionGate = null
     invokeMock.mockReset()
     listenMock.mockReset()
     listenMock.mockResolvedValue(() => undefined)
@@ -511,6 +531,36 @@ describe('Regressao do editor no workspace', () => {
 
     await user.click(screen.getByRole('radio', { name: 'Edição' }))
     expect(screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })).toHaveTextContent('## Introducao')
+  })
+
+  it('[dicionário] busca o conceito em segundo plano e só abre o modal pelo aviso', async () => {
+    const user = userEvent.setup()
+    // Portao fechado: a resposta so chega quando o teste liberar, o que deixa
+    // observar o estado de espera sem depender de tempo.
+    let release: () => void = () => undefined
+    dictionarySuggestionGate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
+    await user.click(document.querySelector('.cm-content')!)
+    await user.keyboard('{Shift>}{ArrowRight}{/Shift}')
+    await user.click(await screen.findByRole('button', { name: 'Adicionar seleção ao dicionário' }))
+
+    // O ponto da mudanca: a tela nao fica presa num modal durante os 5-35 s
+    // do provider local. O aviso conta o andamento e o botao vem depois.
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(await screen.findByText(/Buscando a definição/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Abrir' })).toBeNull()
+
+    release()
+    await user.click(await screen.findByRole('button', { name: 'Abrir' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: 'Adicionar ao dicionário' })).toBeInTheDocument()
+    expect(within(dialog).getByDisplayValue(/Definição de/)).toBeInTheDocument()
   })
 
   it('[verificação factual] abre o painel, lista os achados e não altera a nota', async () => {

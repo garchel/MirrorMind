@@ -130,6 +130,10 @@ import { TrashPage } from './features/trash/TrashPage'
 import { DictionaryPage } from './features/dictionary/DictionaryPage'
 import { DictionaryTooltip } from './features/dictionary/DictionaryTooltip'
 import { DictionarySelectionModal } from './features/dictionary/DictionarySelectionModal'
+import {
+  DictionarySearchToast,
+  type DictionarySearchStatus,
+} from './features/dictionary/DictionarySearchToast'
 import { useDictionary } from './features/dictionary/useDictionary'
 import { suggestDictionaryConcept, type DictionaryConceptSuggestion } from './features/dictionary/dictionarySuggestion'
 import type { DictionaryEntry } from './features/dictionary/dictionarySchema'
@@ -475,12 +479,21 @@ function App() {
   // "Adicionar ao dicionario" a partir da selecao do editor: o trecho
   // selecionado e a sugestao da IA vivem aqui porque o modal e renderizado
   // pelo App, longe da toolbar.
-  const [dictionarySelection, setDictionarySelection] = useState<{
+  //
+  // O pedido roda em segundo plano e quem conta o andamento e o aviso
+  // (DictionarySearchToast). O modal so abre quando o usuario clica em
+  // "Abrir": antes ele abria na hora e prendia a tela durante os 5-35 s do
+  // provider local.
+  const [dictionarySearch, setDictionarySearch] = useState<{
     selection: string
-    loading: boolean
+    status: DictionarySearchStatus
     suggestion: DictionaryConceptSuggestion | null
     error: string
   } | null>(null)
+  const [dictionaryModalOpen, setDictionaryModalOpen] = useState(false)
+  // Duas buscas seguidas passaram a ser possiveis (o modal nao bloqueia mais a
+  // tela): o id descarta a resposta antiga que chegaria depois da nova.
+  const dictionarySearchIdRef = useRef(0)
   const [notificationLastCheck, setNotificationLastCheck] = useState<ReviewNotificationCheck | null>(null)
   // Acoes do cabecalho escondidas no menu "Mais acoes" (medicao via
   // ResizeObserver; em ordem de prioridade, da ultima para a primeira).
@@ -2162,15 +2175,25 @@ function App() {
   }
 
   /**
-   * Abre o modal do dicionario para um trecho selecionado e pede o conceito.
+   * Pede o conceito do trecho selecionado e acompanha o pedido pelo aviso.
    *
    * O pedido leva o **rascunho atual**, nao o arquivo no disco: o trecho foi
    * selecionado no que o usuario esta vendo, e com o autosave desligado o
    * disco pode estar atrasado. O backend recorta a janela ao redor do trecho.
+   *
+   * `keepModalOpen` existe para o "Tentar de novo" **dentro** do modal: ali a
+   * janela ja esta aberta e deve continuar mostrando a espera. Vindo da
+   * toolbar, o modal fica fechado e o usuario so o abre quando o resultado
+   * chega — que e o ponto de nao prender a tela durante a busca.
    */
-  async function requestDictionaryConcept(selection: string) {
+  async function requestDictionaryConcept(
+    selection: string,
+    options?: { keepModalOpen?: boolean },
+  ) {
     if (!vault) return
-    setDictionarySelection({ selection, loading: true, suggestion: null, error: '' })
+    const requestId = ++dictionarySearchIdRef.current
+    setDictionarySearch({ selection, status: 'searching', suggestion: null, error: '' })
+    setDictionaryModalOpen(options?.keepModalOpen ?? false)
     try {
       const suggestion = await suggestDictionaryConcept(
         vault.path,
@@ -2178,11 +2201,15 @@ function App() {
         draftContentRef.current,
         reviewProvider,
       )
-      setDictionarySelection({ selection, loading: false, suggestion, error: '' })
+      // Uma segunda busca pode ter comecado enquanto esta esperava: a resposta
+      // velha nao pode sobrescrever o aviso da nova.
+      if (dictionarySearchIdRef.current !== requestId) return
+      setDictionarySearch({ selection, status: 'ready', suggestion, error: '' })
     } catch (failure) {
-      setDictionarySelection({
+      if (dictionarySearchIdRef.current !== requestId) return
+      setDictionarySearch({
         selection,
-        loading: false,
+        status: 'error',
         suggestion: null,
         error: errorMessage(failure, 'Não foi possível sugerir o conceito.'),
       })
@@ -2191,8 +2218,8 @@ function App() {
 
   /** Repete o pedido do modal com o mesmo trecho e o mesmo rascunho. */
   function retryDictionaryConcept() {
-    const selection = dictionarySelection?.selection
-    if (selection) void requestDictionaryConcept(selection)
+    const selection = dictionarySearch?.selection
+    if (selection) void requestDictionaryConcept(selection, { keepModalOpen: true })
   }
 
   /**
@@ -2206,6 +2233,9 @@ function App() {
     if (!vault) throw new Error('Nenhum Vault aberto.')
     await saveDictionaryEntry(term, concept)
     setStatus(`Conceito de "${term}" registrado no dicionário.`)
+    // O aviso cumpriu o papel: sem isto o botao "Abrir" continuaria na tela
+    // apontando para um verbete ja gravado.
+    setDictionarySearch(null)
   }
 
   /**
@@ -2229,7 +2259,8 @@ function App() {
     setFactCheck(null)
     setFactCheckError(null)
     setImprovementOpen(false)
-    setDictionarySelection(null)
+    setDictionarySearch(null)
+    setDictionaryModalOpen(false)
   }, [activeNote?.relativePath])
 
   useEffect(() => {
@@ -6127,15 +6158,27 @@ function App() {
           </Modal>
         ) : null}
         <DictionarySelectionModal
-          open={dictionarySelection !== null}
-          selection={dictionarySelection?.selection ?? ''}
-          loading={dictionarySelection?.loading ?? false}
-          suggestion={dictionarySelection?.suggestion ?? null}
-          error={dictionarySelection?.error ?? ''}
-          onClose={() => setDictionarySelection(null)}
+          open={dictionaryModalOpen && dictionarySearch !== null}
+          selection={dictionarySearch?.selection ?? ''}
+          loading={dictionarySearch?.status === 'searching'}
+          suggestion={dictionarySearch?.suggestion ?? null}
+          error={dictionarySearch?.error ?? ''}
+          onClose={() => setDictionaryModalOpen(false)}
           onRetry={retryDictionaryConcept}
           onSave={saveDictionarySelection}
         />
+        {dictionarySearch && !dictionaryModalOpen ? (
+          <DictionarySearchToast
+            term={dictionarySearch.selection}
+            status={dictionarySearch.status}
+            error={dictionarySearch.error}
+            onOpen={() => setDictionaryModalOpen(true)}
+            onDismiss={() => {
+              setDictionarySearch(null)
+              setDictionaryModalOpen(false)
+            }}
+          />
+        ) : null}
         <BuilderModeControl enabled={isBuilderModeEnabled} onEnabledChange={setBuilderModeEnabled} />
         <UpdateBanner
           updater={appUpdater}
