@@ -19,6 +19,22 @@ Vault, o conceito aparece acima da palavra.
 Para corrigir um conceito, clique no ícone de lápis ao lado dele. Para
 remover, use a lixeira.
 
+## A página
+
+A página tem duas colunas:
+
+- **À esquerda, a lista de termos salvos**, como a árvore de tags na página de
+  tags: botão **Novo conceito**, a lista rolável dos verbetes (com o
+  indicador do número de notas que guardam contexto naquele termo) e um
+  resumo no rodapé com o total de termos e quantos têm contexto.
+- **À direita, o conceito escolhido**: você clica num termo da lista e o
+  verbete aparece ali, com as ações de editar e remover.
+
+Acima da busca, uma **barra A–Z** filtra a lista pela inicial do termo. Ela
+junta a busca: as letras sem nenhum termo ficam desabilitadas, e o que não
+começa com letra (número ou símbolo) cai no grupo **#**, que só aparece quando
+existe. Clique na letra ativa para limpar o filtro.
+
 ## O atalho: "Melhorar a nota"
 
 A feature "Melhorar a nota" (no menu de avaliação da nota, ao lado de

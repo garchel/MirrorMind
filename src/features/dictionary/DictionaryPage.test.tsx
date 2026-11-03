@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DictionaryPage } from './DictionaryPage'
@@ -30,6 +30,16 @@ function snapshot(entries: DictionaryEntry[]): DictionarySnapshot {
   return { entries }
 }
 
+/** A lista lateral e o painel de detalhe, para os testes nao dependerem de
+ * qual dos dois mostra o termo (os dois mostram). */
+function termsPane() {
+  return screen.getByRole('complementary', { name: 'Termos salvos' })
+}
+
+function detailPane() {
+  return screen.getByRole('main')
+}
+
 describe('DictionaryPage', () => {
   beforeEach(() => {
     entriesMock.mockReset()
@@ -49,17 +59,19 @@ describe('DictionaryPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/Nenhum conceito registrado/)).toBeTruthy()
     })
+    expect(within(termsPane()).getByText('Nenhum termo ainda')).toBeTruthy()
   })
 
-  it('lista os conceitos do vault', async () => {
+  it('lista os conceitos do vault na lateral e mostra o primeiro no detalhe', async () => {
     entriesMock.mockResolvedValue(
       snapshot([entry('rubisco', 'Enzima que fixa carbono na fotossíntese.')]),
     )
     render(<DictionaryPage vaultPath={VAULT_PATH} />)
     await waitFor(() => {
-      expect(screen.getByText('rubisco')).toBeTruthy()
+      expect(within(termsPane()).getByRole('button', { name: 'rubisco' })).toBeTruthy()
     })
-    expect(screen.getByText(/Enzima que fixa carbono/)).toBeTruthy()
+    expect(within(detailPane()).getByRole('heading', { name: 'rubisco' })).toBeTruthy()
+    expect(within(detailPane()).getByText(/Enzima que fixa carbono/)).toBeTruthy()
   })
 
   it('filtra por termo ignorando caixa e acentos', async () => {
@@ -71,13 +83,91 @@ describe('DictionaryPage', () => {
     )
     render(<DictionaryPage vaultPath={VAULT_PATH} />)
     await waitFor(() => {
-      expect(screen.getByText('glicólise')).toBeTruthy()
+      expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
     })
     await userEvent.type(screen.getByPlaceholderText('Buscar por termo'), 'GLICOL')
     await waitFor(() => {
       expect(screen.queryByText('rubisco')).toBeNull()
     })
-    expect(screen.getByText('glicólise')).toBeTruthy()
+    expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
+  })
+
+  it('filtra pela letra e limpa o filtro ao clicar de novo', async () => {
+    entriesMock.mockResolvedValue(
+      snapshot([
+        entry('glicólise', 'Quebra da glicose.'),
+        entry('rubisco', 'Enzima que fixa carbono.'),
+      ]),
+    )
+    render(<DictionaryPage vaultPath={VAULT_PATH} />)
+    await waitFor(() => {
+      expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
+    })
+
+    const letraG = screen.getByRole('button', { name: 'Letra G' })
+    await userEvent.click(letraG)
+    expect(letraG).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByText('rubisco')).toBeNull()
+    expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
+
+    await userEvent.click(letraG)
+    expect(letraG).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getAllByText('rubisco').length).toBeGreaterThan(0)
+  })
+
+  it('combina a busca com a letra escolhida', async () => {
+    entriesMock.mockResolvedValue(
+      snapshot([
+        entry('glicólise', 'Quebra da glicose.'),
+        entry('glicogênio', 'Reserva de glicose.'),
+        entry('rubisco', 'Enzima.'),
+      ]),
+    )
+    render(<DictionaryPage vaultPath={VAULT_PATH} />)
+    await waitFor(() => {
+      expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
+    })
+
+    await userEvent.type(screen.getByPlaceholderText('Buscar por termo'), 'glico')
+    await userEvent.click(screen.getByRole('button', { name: 'Letra G' }))
+    expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('glicogênio').length).toBeGreaterThan(0)
+    expect(screen.queryByText('rubisco')).toBeNull()
+
+    // A letra R nao tem nenhum termo que contenha "glico": o filtro vazio
+    // tem de dizer que nada foi encontrado, nao mostrar um termo antigo.
+    await userEvent.click(screen.getByRole('button', { name: 'Letra R' }))
+    expect(screen.queryByText('glicólise')).toBeNull()
+    expect(screen.queryByText('glicogênio')).toBeNull()
+    expect(screen.getByText('Nenhum conceito encontrado')).toBeTruthy()
+  })
+
+  it('desabilita a letra sem nenhum termo', async () => {
+    entriesMock.mockResolvedValue(snapshot([entry('glicólise', 'Quebra da glicose.')]))
+    render(<DictionaryPage vaultPath={VAULT_PATH} />)
+    await waitFor(() => {
+      expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
+    })
+    expect(screen.getByRole('button', { name: 'Letra G' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Letra Z' })).toBeDisabled()
+  })
+
+  it('troca o conceito mostrado ao escolher um termo na lista', async () => {
+    entriesMock.mockResolvedValue(
+      snapshot([
+        entry('glicólise', 'Quebra da glicose.'),
+        entry('rubisco', 'Enzima que fixa carbono.'),
+      ]),
+    )
+    render(<DictionaryPage vaultPath={VAULT_PATH} />)
+    await waitFor(() => {
+      expect(within(detailPane()).getByRole('heading', { name: 'glicólise' })).toBeTruthy()
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: 'rubisco' }))
+    expect(within(detailPane()).getByRole('heading', { name: 'rubisco' })).toBeTruthy()
+    expect(within(detailPane()).getByText(/Enzima que fixa carbono/)).toBeTruthy()
+    expect(within(detailPane()).queryByText(/Quebra da glicose/)).toBeNull()
   })
 
   it('mostra os contextos do termo por nota, fechados por padrao', async () => {
@@ -113,7 +203,7 @@ describe('DictionaryPage', () => {
     entriesMock.mockResolvedValue(snapshot([entry('rubisco', 'Enzima.')]))
     render(<DictionaryPage vaultPath={VAULT_PATH} />)
     await waitFor(() => {
-      expect(screen.getByText('rubisco')).toBeTruthy()
+      expect(within(detailPane()).getByRole('heading', { name: 'rubisco' })).toBeTruthy()
     })
     expect(screen.queryByText(/Contexto em/)).toBeNull()
     expect(screen.queryByText(/Contextos em/)).toBeNull()
@@ -131,6 +221,33 @@ describe('DictionaryPage', () => {
     await waitFor(() => {
       expect(saveMock).toHaveBeenCalledWith(VAULT_PATH, 'rubisco', 'Enzima que fixa carbono.')
     })
+  })
+
+  it('limpa o filtro quando o termo salvo ficaria escondido', async () => {
+    // A lista esta filtrada por "G"; o termo novo comeca com "R". Sem limpar
+    // o filtro, ele sumiria logo depois de salvo.
+    entriesMock.mockResolvedValue(snapshot([entry('glicólise', 'Quebra da glicose.')]))
+    saveMock.mockResolvedValue(
+      snapshot([entry('glicólise', 'Quebra da glicose.'), entry('rubisco', 'Enzima.')]),
+    )
+    render(<DictionaryPage vaultPath={VAULT_PATH} />)
+    await waitFor(() => {
+      expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Letra G' }))
+    await userEvent.click(screen.getByRole('button', { name: /Novo conceito/ }))
+    await userEvent.type(screen.getByPlaceholderText('ex.: glicólise aeróbica'), 'rubisco')
+    await userEvent.type(screen.getByPlaceholderText(/A definição que aparece/), 'Enzima.')
+    await userEvent.click(screen.getByRole('button', { name: 'Registrar' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Letra G' })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      )
+    })
+    expect(screen.getAllByText('rubisco').length).toBeGreaterThan(0)
   })
 
   it('mostra o erro do backend quando o registro falha', async () => {
@@ -154,7 +271,7 @@ describe('DictionaryPage', () => {
     entriesMock.mockResolvedValue(snapshot([entry('rubisco', 'Primeira definição.')]))
     render(<DictionaryPage vaultPath={VAULT_PATH} />)
     await waitFor(() => {
-      expect(screen.getByText('rubisco')).toBeTruthy()
+      expect(within(detailPane()).getByRole('heading', { name: 'rubisco' })).toBeTruthy()
     })
     await userEvent.click(screen.getByRole('button', { name: 'Editar rubisco' }))
     const campo = screen.getByPlaceholderText(/A definição que aparece/)
@@ -170,7 +287,7 @@ describe('DictionaryPage', () => {
     entriesMock.mockResolvedValue(snapshot([entry('rubisco', 'Enzima.')]))
     render(<DictionaryPage vaultPath={VAULT_PATH} />)
     await waitFor(() => {
-      expect(screen.getByText('rubisco')).toBeTruthy()
+      expect(within(detailPane()).getByRole('heading', { name: 'rubisco' })).toBeTruthy()
     })
     await userEvent.click(screen.getByRole('button', { name: 'Remover rubisco' }))
     await waitFor(() => {

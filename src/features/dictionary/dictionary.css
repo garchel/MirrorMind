@@ -6,7 +6,13 @@
   gap: 16px;
 }
 
-/* Busca e contagem. */
+/* Busca, contagem e barra de letras. */
+
+.dictionary-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .dictionary-toolbar {
   display: flex;
@@ -44,6 +50,63 @@
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+/* A barra A-Z.
+ *
+ * Letras sem nenhum termo ficam desabilitadas: a barra tambem informa o que
+ * existe no dicionario, em vez de levar a um resultado vazio. A letra ativa
+ * e um alvo de 24px — `min-height: 0` vence o `min-height: 46px` que o
+ * `button` do base.css impoe. */
+
+.dictionary-alphabet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
+.dictionary-page .dictionary-letter {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  min-height: 0;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.dictionary-page .dictionary-letter--all {
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dictionary-page .dictionary-letter:hover:not(:disabled) {
+  background: var(--bg);
+  color: var(--text);
+  /* O `button` do base.css sobe 1px no hover; numa linha de letras isso
+   * desalinha a letra das vizinhas. */
+  transform: none;
+}
+
+.dictionary-page .dictionary-letter.is-active,
+.dictionary-page .dictionary-letter.is-active:hover:not(:disabled) {
+  background: var(--accent-strong);
+  color: var(--button-text);
+}
+
+.dictionary-page .dictionary-letter:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 /* Formulario de cadastro e edicao. */
@@ -100,56 +163,222 @@
   gap: 8px;
 }
 
-/* A lista de verbetes. */
+/* Duas colunas: a lista de termos a esquerda, o conceito escolhido a direita.
+ *
+ * A lista e o painel de detalhe ficam soltos na pagina (sem um container
+ * bordado em volta), como na pagina de tags: um divisor entre os dois e o
+ * bastante para separar sem prender o conteudo numa caixa. */
 
-.dictionary-list {
+.dictionary-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.dictionary-terms-pane {
+  display: grid;
+  /* criar / lista (rola sozinha) / rodape de totais */
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 0;
+  padding: 4px 18px 20px 0;
+  border-right: 1px solid var(--border);
+}
+
+/* O botao de criar fica no topo da lista, onde o termo novo vai aparecer.
+ * Linha tracejada, o mesmo peso visual das linhas da lista — sem virar uma
+ * pilula escura no meio da navegacao. */
+.dictionary-page .dictionary-term-create {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  margin: 2px 0 0;
+  padding: 0 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.dictionary-page .dictionary-term-create:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  transform: none;
+}
+
+.dictionary-terms-scroll {
+  min-height: 0;
+  max-height: min(640px, calc(100svh - 320px));
+  overflow: auto;
+  padding: 2px 4px 8px 0;
+  overscroll-behavior: contain;
+}
+
+.dictionary-term-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 1px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.dictionary-item {
+.dictionary-page .dictionary-term-row {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dictionary-page .dictionary-term-row:hover:not(:disabled) {
+  background: var(--bg);
+  transform: none;
+}
+
+.dictionary-page .dictionary-term-row.is-selected {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-strong);
+}
+
+.dictionary-term-icon {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.dictionary-term-row.is-selected .dictionary-term-icon,
+.dictionary-term-row.is-selected .dictionary-term-count {
+  color: inherit;
+}
+
+.dictionary-term-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dictionary-term-count {
+  flex: 0 0 auto;
+  padding-left: 8px;
+  color: var(--muted);
+  font-size: var(--font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.dictionary-terms-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 2px 0;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--font-size-caption);
+}
+
+.dictionary-terms-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.dictionary-terms-empty svg {
+  color: var(--border-strong);
+}
+
+.dictionary-terms-empty strong {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.dictionary-terms-empty p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* A coluna do conceito escolhido. */
+
+.dictionary-detail {
+  min-width: 0;
+  padding: 4px 4px 20px 28px;
+}
+
+.dictionary-detail-card {
+  padding: 18px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--panel);
 }
 
-.dictionary-item-body {
-  flex: 1;
+.dictionary-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dictionary-detail-title {
   min-width: 0;
 }
 
-.dictionary-item-term {
-  margin: 0 0 4px;
-  font-weight: 600;
+.dictionary-detail-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
   color: var(--text-h);
+  overflow-wrap: anywhere;
 }
 
-.dictionary-item-concept {
+.dictionary-detail-title .card-kicker {
+  margin-bottom: 2px;
+}
+
+.dictionary-detail-concept {
   margin: 0;
-  color: var(--muted);
-  line-height: 1.5;
+  color: var(--text);
+  line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 /* Os contextos: onde o termo apareceu, um por nota.
  *
- * Ficam fechados por padrao para a lista continuar legivel: o conceito e o
- * que o usuario procura; o contexto e memoria, e so interessa quando ele
- * quer lembrar em que nota pediu aquele termo. */
+ * Ficam fechados por padrao para o conceito continuar sendo o que salta aos
+ * olhos: o contexto e memoria, e so interessa quando o usuario quer lembrar
+ * em que nota pediu aquele termo. */
 
 .dictionary-item-contexts {
   margin-top: 8px;
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+/* No painel de detalhe os contextos fecham o cartao: um divisor separa a
+ * definicao (o que vale em qualquer nota) da memoria por nota. */
+.dictionary-detail-contexts {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .dictionary-item-contexts summary {
@@ -195,6 +424,40 @@
   display: flex;
   gap: 2px;
   flex-shrink: 0;
+}
+
+/* Em telas estreitas a lista continua acima do conceito: a coluna unica
+ * mantem a leitura de cima para baixo, e o teto de altura da lista evita
+ * que ela empurre o conceito para fora da primeira tela. */
+
+@media (max-width: 980px) {
+  .dictionary-layout {
+    grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+  }
+
+  .dictionary-detail {
+    padding-left: 20px;
+  }
+}
+
+@media (max-width: 720px) {
+  .dictionary-layout {
+    display: block;
+  }
+
+  .dictionary-terms-pane {
+    padding: 0 0 18px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dictionary-terms-scroll {
+    max-height: 240px;
+  }
+
+  .dictionary-detail {
+    padding: 22px 0 0;
+  }
 }
 
 /* A marca da palavra do dicionario no editor.
