@@ -30,7 +30,8 @@ A página tem duas colunas:
 - **À direita, o conceito escolhido**: você clica num termo da lista e o
   verbete aparece ali, com as ações de editar e remover.
 
-Acima da busca, uma **barra A–Z** filtra a lista pela inicial do termo. Ela
+Abaixo do campo de busca, uma **barra A–Z** filtra a lista pela inicial do
+termo. Ela
 junta a busca: as letras sem nenhum termo ficam desabilitadas, e o que não
 começa com letra (número ou símbolo) cai no grupo **#**, que só aparece quando
 existe. Clique na letra ativa para limpar o filtro.
