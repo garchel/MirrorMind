@@ -222,6 +222,60 @@ export function TagsSkeleton() {
   )
 }
 
+/** Dicionario: busca + barra A-Z + lista de termos a esquerda + cartao de
+ * detalhe a direita. Espelha as duas colunas da pagina, entao o layout nao
+ * "salta" quando o dicionario abre. */
+export function DictionarySkeleton() {
+  return (
+    <StatusShell message="Lendo o dicionário...">
+      <div className="sk-toolbar">
+        <Skeleton width="42%" height={34} radius={8} />
+        <Skeleton width={90} height={11} />
+      </div>
+      <div className="sk-chip-row">
+        {Array.from({ length: 26 }).map((_, index) => (
+          <Skeleton key={index} width={24} height={24} radius={6} />
+        ))}
+      </div>
+      <div className="sk-dictionary-columns">
+        <div className="sk-section">
+          <Skeleton width="100%" height={32} radius={6} />
+          {[0, 1, 2, 3, 4, 5].map((index) => (
+            <div className="sk-tree-row" key={index}>
+              <Skeleton width={13} height={13} radius={4} />
+              <Skeleton width={`${68 - (index % 3) * 14}%`} height={13} />
+              <Skeleton width={22} height={16} radius={999} />
+            </div>
+          ))}
+          <div className="sk-meta-row">
+            <Skeleton width={70} height={11} />
+            <Skeleton width={110} height={11} />
+          </div>
+        </div>
+        <div className="sk-goal-card">
+          <div className="sk-goal-head">
+            <div className="sk-row-copy">
+              <Skeleton width="22%" height={11} />
+              <Skeleton width="38%" height={24} />
+            </div>
+            <div className="sk-row-actions">
+              <Skeleton width={32} height={32} radius={6} />
+              <Skeleton width={32} height={32} radius={6} />
+            </div>
+          </div>
+          <Skeleton width="100%" height={11} />
+          <Skeleton width="88%" height={11} />
+          <Skeleton width="64%" height={11} />
+          <div className="sk-meta-row">
+            <Skeleton width={120} height={11} />
+            <Skeleton width={90} height={11} />
+          </div>
+        </div>
+      </div>
+    </StatusShell>
+  )
+}
+
 /** Tabela de notas (Bases): toolbar + cabecalho + linhas. */
 export function BasesSkeleton({ message }: { message?: string }) {
   return (

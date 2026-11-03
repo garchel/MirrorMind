@@ -30,10 +30,14 @@ A página tem duas colunas:
 - **À direita, o conceito escolhido**: você clica num termo da lista e o
   verbete aparece ali, com as ações de editar e remover.
 
+Enquanto o dicionário carrega, a página mostra um esqueleto no formato
+dessas duas colunas (busca, barra A–Z, lista e cartão de detalhe) em vez de
+um estado vazio que ainda não é verdade.
+
 Abaixo do campo de busca, uma **barra A–Z** filtra a lista pela inicial do
-termo. Ela
-junta a busca: as letras sem nenhum termo ficam desabilitadas, e o que não
-começa com letra (número ou símbolo) cai no grupo **#**, que só aparece quando
+termo. Ela junta a busca: toda letra funciona, mesmo sem nenhum termo (nesse
+caso a lista fica vazia e diz que nada foi encontrado), e o que não começa
+com letra (número ou símbolo) cai no grupo **#**, que só aparece quando
 existe. Clique na letra ativa para limpar o filtro.
 
 ## O atalho: "Melhorar a nota"

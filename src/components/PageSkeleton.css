@@ -137,6 +137,15 @@
   gap: 18px;
 }
 
+/* Dicionario: lista de termos estreita a esquerda, cartao de detalhe a
+ * direita — a mesma proportao 240-300px / 1fr do layout real, para o
+ * esqueleto nao "saltar" quando o dicionario abre. */
+.sk-dictionary-columns {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 18px;
+}
+
 .sk-flex-1 {
   min-width: 0;
 }
@@ -253,6 +262,10 @@
 
 @media (max-width: 720px) {
   .sk-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .sk-dictionary-columns {
     grid-template-columns: 1fr;
   }
 

@@ -4,6 +4,7 @@ import { BookMarked, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { EmptyState, ErrorState } from '../../components/ErrorState'
 import { PageHeader } from '../../components/PageHeader'
 import { useDictionary } from './useDictionary'
+import { DictionarySkeleton } from '../../components/PageSkeleton'
 import { normalizeTerm, type DictionaryEntry } from './dictionarySchema'
 import './dictionary.css'
 
@@ -72,12 +73,12 @@ function TermContexts({ entry }: { entry: DictionaryEntry }) {
  * estava vazio.
  *
  * A barra de letras e o atalho para "so os termos que comecam com G": clicar
- * de novo na mesma letra limpa o filtro, e as letras sem nenhum termo ficam
- * desabilitadas. A letra e a busca se somam — "glic" + "G" mostra so o que
- * comeca com G e contem "glic".
+ * de novo na mesma letra limpa o filtro, e as duas se somam ("glic" + "G").
+ * Toda letra funciona sempre — clicar numa letra sem nenhum termo mostra a
+ * lista vazia com a mensagem, em vez de um botao inerte que parece quebrado.
  */
 export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
-  const { entries, save, remove, error, busy } = useDictionary(vaultPath)
+  const { entries, save, remove, error, busy, loading } = useDictionary(vaultPath)
   const [query, setQuery] = useState('')
   const [letter, setLetter] = useState<string | null>(null)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
@@ -96,12 +97,12 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
     })
   }, [entries, query, letter])
 
-  /** As letras que tem pelo menos um termo. As vazias ficam desabilitadas. */
-  const availableLetters = useMemo(() => {
-    const initials = new Set<string>()
-    for (const entry of entries) initials.add(initialOf(entry.term))
-    return initials
-  }, [entries])
+  /** Se existe algum termo que nao comeca com letra (numero, simbolo). O
+   * grupo "#" so aparece nesse caso — 27 botoes, um deles inerte, e ruido. */
+  const hasSymbolTerms = useMemo(
+    () => entries.some((entry) => initialOf(entry.term) === '#'),
+    [entries],
+  )
 
   /**
    * O verbete que a coluna da direita mostra.
@@ -192,6 +193,10 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
           leitura e diferente de uma falha de gravacao. */}
       {error && !formError ? <ErrorState message={error} /> : null}
 
+      {loading ? (
+        <DictionarySkeleton />
+      ) : (
+        <>
       <div className="dictionary-filters">
         <div className="dictionary-toolbar">
           <label className="dictionary-search">
@@ -224,7 +229,6 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
           </Button>
           {ALPHABET.map((value) => {
             const active = letter === value
-            const hasTerms = availableLetters.has(value)
             return (
               <Button
                 key={value}
@@ -234,11 +238,10 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
                 className={`dictionary-letter${active ? ' is-active' : ''}`}
                 aria-label={`Letra ${value}`}
                 aria-pressed={active}
-                disabled={!hasTerms}
                 title={
-                  hasTerms
-                    ? `Termos que começam com ${value}`
-                    : `Nenhum termo começa com ${value}`
+                  active
+                    ? `Limpar o filtro da letra ${value}`
+                    : `Termos que começam com ${value}`
                 }
                 onClick={() => setLetter(active ? null : value)}
               >
@@ -246,7 +249,7 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
               </Button>
             )
           })}
-          {availableLetters.has('#') ? (
+          {hasSymbolTerms ? (
             <Button
               type="button"
               variant="bare"
@@ -438,6 +441,8 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
           )}
         </main>
       </div>
+        </>
+      )}
     </section>
   )
 }

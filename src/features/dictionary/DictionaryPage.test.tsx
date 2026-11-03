@@ -54,6 +54,12 @@ describe('DictionaryPage', () => {
     cleanup()
   })
 
+  it('mostra o esqueleto enquanto o dicionario carrega', () => {
+    entriesMock.mockImplementation(() => new Promise(() => {}))
+    render(<DictionaryPage vaultPath={VAULT_PATH} />)
+    expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'Lendo o dicionário...')
+  })
+
   it('mostra o estado vazio quando nao ha conceito nenhum', async () => {
     render(<DictionaryPage vaultPath={VAULT_PATH} />)
     await waitFor(() => {
@@ -142,14 +148,24 @@ describe('DictionaryPage', () => {
     expect(screen.getByText('Nenhum conceito encontrado')).toBeTruthy()
   })
 
-  it('desabilita a letra sem nenhum termo', async () => {
+  it('permite filtrar por uma letra sem nenhum termo', async () => {
+    // Toda letra ativa o filtro: o clique nunca deve ser um botao inerte.
     entriesMock.mockResolvedValue(snapshot([entry('glicólise', 'Quebra da glicose.')]))
     render(<DictionaryPage vaultPath={VAULT_PATH} />)
     await waitFor(() => {
       expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
     })
-    expect(screen.getByRole('button', { name: 'Letra G' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Letra Z' })).toBeDisabled()
+
+    const letraZ = screen.getByRole('button', { name: 'Letra Z' })
+    expect(letraZ).toBeEnabled()
+    await userEvent.click(letraZ)
+    expect(letraZ).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByText('glicólise')).toBeNull()
+    expect(within(termsPane()).getByText('Nenhum termo encontrado')).toBeTruthy()
+    expect(within(detailPane()).getByText('Nenhum conceito encontrado')).toBeTruthy()
+
+    await userEvent.click(letraZ)
+    expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
   })
 
   it('troca o conceito mostrado ao escolher um termo na lista', async () => {
@@ -211,7 +227,7 @@ describe('DictionaryPage', () => {
 
   it('registra um conceito novo', async () => {
     render(<DictionaryPage vaultPath={VAULT_PATH} />)
-    await userEvent.click(screen.getByRole('button', { name: /Novo conceito/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Novo conceito/ }))
     await userEvent.type(screen.getByPlaceholderText('ex.: glicólise aeróbica'), 'rubisco')
     await userEvent.type(
       screen.getByPlaceholderText(/A definição que aparece/),
@@ -253,7 +269,7 @@ describe('DictionaryPage', () => {
   it('mostra o erro do backend quando o registro falha', async () => {
     saveMock.mockRejectedValue(new Error('O conceito nao pode ser vazio.'))
     render(<DictionaryPage vaultPath={VAULT_PATH} />)
-    await userEvent.click(screen.getByRole('button', { name: /Novo conceito/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Novo conceito/ }))
     await userEvent.type(screen.getByPlaceholderText('ex.: glicólise aeróbica'), 'rubisco')
     await userEvent.type(
       screen.getByPlaceholderText(/A definição que aparece/),
@@ -297,7 +313,7 @@ describe('DictionaryPage', () => {
 
   it('cancela o formulario sem gravar', async () => {
     render(<DictionaryPage vaultPath={VAULT_PATH} />)
-    await userEvent.click(screen.getByRole('button', { name: /Novo conceito/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /Novo conceito/ }))
     await userEvent.type(screen.getByPlaceholderText('ex.: glicólise aeróbica'), 'rubisco')
     await userEvent.click(screen.getByRole('button', { name: /Cancelar/ }))
     expect(saveMock).not.toHaveBeenCalled()

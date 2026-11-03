@@ -46,6 +46,17 @@
   outline: none;
 }
 
+/* Sem este escudo, a regra global `.workspace-shell :is(...input...):focus-visible`
+ * (0,3,0) vence o `.dictionary-search input` e desenha um outline verde
+ * quadrado DENTRO da pilula: a "borda interna" vista ao clicar/Tab.
+ * O anel de foco continua existindo — na propria pilula, no :focus-within. */
+.workspace-shell .dictionary-search input:focus,
+.workspace-shell .dictionary-search input:focus-visible {
+  outline: none;
+  outline-offset: 0;
+  box-shadow: none;
+}
+
 .dictionary-count {
   margin: 0;
   color: var(--muted);
@@ -54,9 +65,14 @@
 
 /* A barra A-Z.
  *
- * Letras sem nenhum termo ficam desabilitadas: a barra tambem informa o que
- * existe no dicionario, em vez de levar a um resultado vazio. A letra ativa
- * e um alvo de 24px — `min-height: 0` vence o `min-height: 46px` que o
+ * Toda letra funciona sempre: existindo termo ou nao, o clique aplica o
+ * filtro (a lista avisa quando nada foi encontrado). Um botao inerte que
+ * parece ativo seria pior.
+ *
+ * Os seletores levam `.workspace-page` para vencer a regra
+ * `.ui-button--xs:not(:has(...))` (0,3,0), que zera o padding e impoe
+ * `min-width` de 28px — as letras ficam 24px com respiro lateral, e o
+ * "Todas" com 44px. `min-height: 0` vence o `min-height: 46px` que o
  * `button` do base.css impoe. */
 
 .dictionary-alphabet {
@@ -66,7 +82,7 @@
   gap: 2px;
 }
 
-.dictionary-page .dictionary-letter {
+.workspace-page.dictionary-page .dictionary-alphabet .dictionary-letter {
   display: grid;
   place-items: center;
   min-width: 24px;
@@ -82,15 +98,15 @@
   line-height: 1;
 }
 
-.dictionary-page .dictionary-letter--all {
+.workspace-page.dictionary-page .dictionary-alphabet .dictionary-letter--all {
   min-width: 0;
-  padding: 0 8px;
+  padding: 0 10px;
   font-size: 0.7rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.dictionary-page .dictionary-letter:hover:not(:disabled) {
+.workspace-page.dictionary-page .dictionary-alphabet .dictionary-letter:hover {
   background: var(--bg);
   color: var(--text);
   /* O `button` do base.css sobe 1px no hover; numa linha de letras isso
@@ -98,15 +114,10 @@
   transform: none;
 }
 
-.dictionary-page .dictionary-letter.is-active,
-.dictionary-page .dictionary-letter.is-active:hover:not(:disabled) {
+.workspace-page.dictionary-page .dictionary-alphabet .dictionary-letter.is-active,
+.workspace-page.dictionary-page .dictionary-alphabet .dictionary-letter.is-active:hover {
   background: var(--accent-strong);
   color: var(--button-text);
-}
-
-.dictionary-page .dictionary-letter:disabled {
-  opacity: 0.3;
-  cursor: default;
 }
 
 /* Formulario de cadastro e edicao. */

@@ -48,6 +48,10 @@ export function useDictionary(
   engine: DictionaryEngine = defaultDictionaryEngine,
 ) {
   const [entries, setEntries] = useState<DictionaryEntry[]>([])
+  // True até a primeira leitura do Vault resolver (ou falhar). A página usa
+  // isto para mostrar um esqueleto em vez de um vazio que ainda não é
+  // verdade — "Nenhum conceito" piscado antes do arquivo abrir mentia.
+  const [loading, setLoading] = useState(true)
   // **Falha de carregar** o dicionário. A falha de gravar é devolvida por
   // exceção ao chamador, e mostrada no formulário: são situações
   // diferentes, e juntar as duas mostraria a mesma mensagem duas vezes.
@@ -61,23 +65,29 @@ export function useDictionary(
     if (!vaultPath) {
       loadedFor.current = null
       setEntries([])
+      setLoading(false)
       return
     }
     if (loadedFor.current === vaultPath) return
     loadedFor.current = vaultPath
     let cancelled = false
+    // Trocar de Vault precisa voltar ao esqueleto: a lista antiga ficaria
+    // visível com o dicionário do Vault anterior enquanto o novo carrega.
+    setLoading(true)
     void engine
       .entries(vaultPath)
       .then((snapshot) => {
         if (!cancelled) {
           setEntries(snapshot.entries)
           setLoadError('')
+          setLoading(false)
         }
       })
       .catch((failure: unknown) => {
         if (!cancelled) {
           setEntries([])
           setLoadError(readableDictionaryFailure(failure))
+          setLoading(false)
         }
       })
     return () => {
@@ -131,7 +141,7 @@ export function useDictionary(
     [vaultPath, engine],
   )
 
-  return { entries, index, find, save, remove, error: loadError, busy }
+  return { entries, index, find, save, remove, error: loadError, busy, loading }
 }
 
 export type UseDictionary = ReturnType<typeof useDictionary>
