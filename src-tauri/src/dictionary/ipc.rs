@@ -11,7 +11,8 @@
 //! interface e escreveria fora do Vault que o usuario abriu.
 
 use crate::dictionary::{
-    load_dictionary, save_dictionary, DictionaryEntry, MAX_CONCEPT_CHARS, MAX_TERM_CHARS,
+    load_dictionary, save_dictionary, DictionaryEntry, TermContext, MAX_CONCEPT_CHARS,
+    MAX_TERM_CHARS,
 };
 use crate::AuthorizedPaths;
 use std::path::{Path, PathBuf};
@@ -43,22 +44,41 @@ pub(crate) fn list_dictionary_entries(
 /// `created_at` e `updated_at` sao decididos **aqui**, e nao pelo
 /// chamador: a interface nao tem relogio confiavel, e um timestamp errado
 /// nao mudaria o comportamento — mas registraria uma mentira no arquivo.
+///
+/// `note_path` e `note_context` sao opcionais porque a pagina do dicionario
+/// salva um verbete a mao, sem nota de origem. Quando vem de uma selecao, os
+/// dois chegam juntos e o contexto fica ligado aquela nota.
 #[tauri::command]
 pub(crate) fn save_dictionary_entry(
     vault_root: String,
     term: String,
     concept: String,
+    note_path: Option<String>,
+    note_context: Option<String>,
     authorized_paths: State<'_, AuthorizedPaths>,
 ) -> Result<DictionarySnapshot, String> {
     let root = authorized_vault_root(&vault_root, &authorized_paths)?;
     let mut dictionary = load_dictionary(&root).map_err(|error| error.to_string())?;
     let now = now_unix_ms();
+    let contexts = match (note_path, note_context) {
+        (Some(note_path), Some(context))
+            if !note_path.trim().is_empty() && !context.trim().is_empty() =>
+        {
+            vec![TermContext {
+                note_path,
+                context,
+                captured_at_unix_ms: now,
+            }]
+        }
+        _ => Vec::new(),
+    };
     dictionary
         .upsert(DictionaryEntry {
             term: term.clone(),
             concept: concept.clone(),
             created_at_unix_ms: now,
             updated_at_unix_ms: now,
+            contexts,
         })
         .map_err(|error| error.to_string())?;
     save_dictionary(&root, &dictionary).map_err(|error| error.to_string())?;
@@ -141,6 +161,7 @@ mod tests {
                 concept: "Enzima.".to_string(),
                 created_at_unix_ms: 0,
                 updated_at_unix_ms: 0,
+                contexts: Vec::new(),
             }],
         };
         let json = serde_json::to_string(&snapshot).expect("serializa");

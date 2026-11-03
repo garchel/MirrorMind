@@ -38,16 +38,22 @@ export function createDictionaryEngine(transport: DictionaryTransport = tauriTra
      * existe (atualiza, não duplica). Por isso os dois comandos de escrita
      * devolvem o dicionário inteiro: a interface não precisa adivinhar o
      * estado depois da gravação.
+     *
+     * `origin` só vem quando o verbete nasceu de uma seleção numa nota: aí o
+     * papel do termo naquela nota é guardado junto, um por nota.
      */
     async save(
       vaultPath: string,
       term: string,
       concept: string,
+      origin?: { notePath: string; context: string },
     ): Promise<DictionarySnapshot> {
       const payload = await transport('save_dictionary_entry', {
         vaultRoot: vaultPath,
         term,
         concept,
+        notePath: origin?.notePath,
+        noteContext: origin?.context,
       })
       return dictionarySnapshotSchema.parse(payload)
     },

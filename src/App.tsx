@@ -2292,7 +2292,13 @@ function App() {
    */
   async function saveDictionarySelection(term: string, concept: string) {
     if (!vault) throw new Error('Nenhum Vault aberto.')
-    await saveDictionaryEntry(term, concept)
+    // O contexto vem do pedido que o modal esta mostrando: e o papel do termo
+    // **nesta** nota. Sem ele (resposta invalida), o verbete e salvo sem
+    // contexto em vez de guardar um texto vazio.
+    await saveDictionaryEntry(term, concept, {
+      notePath: activeNote?.relativePath ?? '',
+      context: activeDictionarySearch?.suggestion?.context ?? '',
+    })
     setStatus(`Conceito de "${term}" registrado no dicionário.`)
     // O aviso cumpriu o papel: sem isto o botao "Abrir" continuaria na tela
     // apontando para um verbete ja gravado. Os avisos dos outros pedidos

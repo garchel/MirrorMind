@@ -157,8 +157,8 @@ export function DictionarySelectionModal({
       />
 
       <p className="dictionary-selection-intro">
-        A IA escreve a definição do termo e o papel dele nesta nota. Só a
-        definição vai para o dicionário.
+        A IA escreve a definição do termo e o papel dele nesta nota. A definição
+        vira o verbete; o papel fica guardado com ele, ligado a esta nota.
       </p>
 
       {loading ? (
@@ -223,6 +223,12 @@ export function DictionarySelectionModal({
             Salvar vai atualizar o conceito.
           </p>
           <p className="dictionary-selection-existing-concept">{existing.concept}</p>
+          {existing.contexts.length > 0 ? (
+            <p className="dictionary-selection-existing-contexts">
+              Já registrado em {existing.contexts.length}{' '}
+              {existing.contexts.length === 1 ? 'nota' : 'notas'} deste Vault.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -263,7 +269,8 @@ export function DictionarySelectionModal({
           <p className="dictionary-selection-context-label">Nesta nota</p>
           <p className="dictionary-selection-context-body">{context}</p>
           <p className="dictionary-selection-context-note">
-            Não é salvo no dicionário.
+            Fica ligado a esta nota no dicionário; a definição continua valendo
+            em qualquer nota do Vault.
           </p>
         </div>
       ) : null}

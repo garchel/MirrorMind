@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  dictionaryEntrySchema,
   indexDictionary,
   normalizeTerm,
   wordAt,
@@ -8,7 +9,7 @@ import {
 import { documentWords, termPositions } from './dictionaryExtension'
 
 function entry(term: string, concept = 'conceito'): DictionaryEntry {
-  return { term, concept, createdAtUnixMs: 0, updatedAtUnixMs: 0 }
+  return { term, concept, createdAtUnixMs: 0, updatedAtUnixMs: 0, contexts: [] }
 }
 
 describe('normalizeTerm', () => {
@@ -122,5 +123,33 @@ describe('termPositions', () => {
   it('devolve lista vazia para um termo vazio', () => {
     const words = documentWords('qualquer coisa')
     expect(termPositions(words, '---')).toHaveLength(0)
+  })
+})
+
+describe('dictionaryEntrySchema', () => {
+  it('aceita um verbete antigo, sem contextos', () => {
+    // O arquivo escrito antes deste campo existir nao pode ser recusado: o
+    // Vault inteiro deixaria de abrir o dicionario.
+    const parsed = dictionaryEntrySchema.parse({
+      term: 'rubisco',
+      concept: 'Enzima.',
+      createdAtUnixMs: 1,
+      updatedAtUnixMs: 1,
+    })
+    expect(parsed.contexts).toEqual([])
+  })
+
+  it('le os contextos ligados as notas', () => {
+    const parsed = dictionaryEntrySchema.parse({
+      term: 'rubisco',
+      concept: 'Enzima.',
+      createdAtUnixMs: 1,
+      updatedAtUnixMs: 1,
+      contexts: [
+        { notePath: 'bio/fotossintese.md', context: 'Fixa o carbono.', capturedAtUnixMs: 2 },
+      ],
+    })
+    expect(parsed.contexts).toHaveLength(1)
+    expect(parsed.contexts[0].notePath).toBe('bio/fotossintese.md')
   })
 })

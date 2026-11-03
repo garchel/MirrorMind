@@ -54,6 +54,30 @@ pub const MAX_CONCEPT_CHARS: usize = 2_000;
 /// Quantos caracteres o termo aceita.
 pub const MAX_TERM_CHARS: usize = 120;
 
+/// Quantos caracteres o contexto de uma nota aceita.
+///
+/// O contexto e uma frase sobre o papel do termo, nao um resumo da nota.
+pub const MAX_CONTEXT_CHARS: usize = 500;
+
+/// Quantas notas guardam contexto por verbete.
+///
+/// O contexto serve para lembrar onde o termo apareceu, nao para reconstruir
+/// o Vault. O teto evita que um verbete muito usado vire um arquivo enorme.
+pub const MAX_CONTEXTS: usize = 50;
+
+/// O papel de um termo numa nota, capturado quando o usuario pediu a definicao.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TermContext {
+    /// Caminho relativo da nota dentro do Vault.
+    pub note_path: String,
+    /// O papel do termo naquela nota (texto da sugestao).
+    pub context: String,
+    /// Quando o contexto foi capturado (epoch em milissegundos).
+    #[serde(default)]
+    pub captured_at_unix_ms: i64,
+}
+
 /// Um termo do dicionario e o conceito registrado para ele.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,6 +92,12 @@ pub struct DictionaryEntry {
     /// Quando o registro foi alterado pela ultima vez.
     #[serde(default)]
     pub updated_at_unix_ms: i64,
+    /// Os papeis que o termo ja teve nas notas deste Vault, um por nota.
+    ///
+    /// `default` mantem legivel o arquivo escrito antes deste campo existir:
+    /// o dicionario antigo abre sem contexto, e o proximo salvamento grava um.
+    #[serde(default)]
+    pub contexts: Vec<TermContext>,
 }
 
 impl DictionaryEntry {
@@ -146,9 +176,15 @@ impl Dictionary {
                 existing.concept = stored.concept;
                 existing.updated_at_unix_ms = stored.updated_at_unix_ms;
                 existing.created_at_unix_ms = created_at;
+                // Salvar de novo pela pagina do dicionario vem sem contexto:
+                // os contextos ja guardados nao podem ser apagados por isso.
+                merge_contexts(&mut existing.contexts, stored.contexts);
                 Ok(existing.clone())
             }
             None => {
+                let mut contexts = Vec::new();
+                merge_contexts(&mut contexts, stored.contexts);
+                stored.contexts = contexts;
                 self.entries.push(stored.clone());
                 // Ordenar por termo deixa o arquivo legivel e a pagina
                 // estavel entre recargas.
@@ -169,6 +205,40 @@ impl Dictionary {
         self.entries.retain(|entry| entry.key() != key);
         self.entries.len() != before
     }
+}
+
+/// Guarda os contextos novos, um por nota, com o mais recente primeiro.
+///
+/// A mesma nota pode ser salva varias vezes: o contexto mais recente
+/// substitui o anterior, porque a nota mudou e o texto antigo mentiria. O
+/// teto (`MAX_CONTEXTS`) corta pela cauda, que sao os registros mais velhos.
+fn merge_contexts(current: &mut Vec<TermContext>, incoming: Vec<TermContext>) {
+    for mut context in incoming {
+        context.note_path = context.note_path.trim().to_string();
+        context.context = truncate_chars(context.context.trim(), MAX_CONTEXT_CHARS);
+        if context.note_path.is_empty() || context.context.is_empty() {
+            continue;
+        }
+        current.retain(|item| item.note_path != context.note_path);
+        current.push(context);
+    }
+    current.sort_by(|left, right| {
+        right
+            .captured_at_unix_ms
+            .cmp(&left.captured_at_unix_ms)
+            .then_with(|| left.note_path.cmp(&right.note_path))
+    });
+    current.truncate(MAX_CONTEXTS);
+}
+
+/// Corta o texto no limite de caracteres, sem quebrar um caractere no meio.
+fn truncate_chars(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        return text.to_string();
+    }
+    let mut truncated: String = text.chars().take(max.saturating_sub(1)).collect();
+    truncated.push('…');
+    truncated
 }
 
 /// Normaliza um termo para comparacao: minusculas, sem acentos, sem
@@ -298,6 +368,15 @@ mod tests {
             concept: concept.to_string(),
             created_at_unix_ms: 0,
             updated_at_unix_ms: 0,
+            contexts: Vec::new(),
+        }
+    }
+
+    fn context(note: &str, text: &str, captured_at_unix_ms: i64) -> TermContext {
+        TermContext {
+            note_path: note.to_string(),
+            context: text.to_string(),
+            captured_at_unix_ms,
         }
     }
 
@@ -453,6 +532,103 @@ mod tests {
             .map(|entry| entry.term.as_str())
             .collect();
         assert_eq!(terms, vec!["alfa", "zeta"]);
+    }
+
+    #[test]
+    fn saving_from_a_note_records_its_context() {
+        let mut dictionary = Dictionary::default();
+        let mut first = entry("rubisco", "Enzima que fixa carbono.");
+        first.contexts = vec![context(
+            "biologia/fotossintese.md",
+            "A enzima que fixa o carbono na fase escura.",
+            10,
+        )];
+        dictionary.upsert(first).expect("insere");
+        assert_eq!(dictionary.entries[0].contexts.len(), 1);
+        assert_eq!(
+            dictionary.entries[0].contexts[0].note_path,
+            "biologia/fotossintese.md"
+        );
+    }
+
+    #[test]
+    fn the_same_note_replaces_its_context_instead_of_duplicating() {
+        // A nota mudou desde a primeira vez: o contexto velho mentiria.
+        let mut dictionary = Dictionary::default();
+        let mut first = entry("rubisco", "Enzima.");
+        first.contexts = vec![context("nota.md", "Texto antigo.", 10)];
+        dictionary.upsert(first).expect("insere");
+        let mut second = entry("rubisco", "Enzima.");
+        second.contexts = vec![context("nota.md", "Texto novo.", 20)];
+        dictionary.upsert(second).expect("atualiza");
+        assert_eq!(dictionary.entries[0].contexts.len(), 1);
+        assert_eq!(dictionary.entries[0].contexts[0].context, "Texto novo.");
+    }
+
+    #[test]
+    fn a_save_without_context_keeps_the_contexts_already_stored() {
+        // A pagina do dicionario salva so termo e conceito. Isso nao pode
+        // apagar o que foi aprendido nas notas.
+        let mut dictionary = Dictionary::default();
+        let mut first = entry("rubisco", "Enzima.");
+        first.contexts = vec![context("nota.md", "Papel na nota.", 10)];
+        dictionary.upsert(first).expect("insere");
+        dictionary
+            .upsert(entry("rubisco", "Definicao revisada."))
+            .expect("atualiza");
+        assert_eq!(dictionary.entries[0].concept, "Definicao revisada.");
+        assert_eq!(dictionary.entries[0].contexts.len(), 1);
+    }
+
+    #[test]
+    fn contexts_are_kept_newest_first() {
+        let mut dictionary = Dictionary::default();
+        let mut first = entry("rubisco", "Enzima.");
+        first.contexts = vec![
+            context("a.md", "Primeira.", 10),
+            context("b.md", "Segunda.", 30),
+            context("c.md", "Terceira.", 20),
+        ];
+        dictionary.upsert(first).expect("insere");
+        let notes: Vec<&str> = dictionary.entries[0]
+            .contexts
+            .iter()
+            .map(|item| item.note_path.as_str())
+            .collect();
+        assert_eq!(notes, vec!["b.md", "c.md", "a.md"]);
+    }
+
+    #[test]
+    fn contexts_are_capped_by_the_oldest() {
+        let mut dictionary = Dictionary::default();
+        let mut first = entry("rubisco", "Enzima.");
+        first.contexts = (0..MAX_CONTEXTS + 5)
+            .map(|index| context(&format!("nota-{index}.md"), "Papel.", index as i64))
+            .collect();
+        dictionary.upsert(first).expect("insere");
+        assert_eq!(dictionary.entries[0].contexts.len(), MAX_CONTEXTS);
+        // O mais recente ficou; os primeiros (mais velhos) foram cortados.
+        assert_eq!(
+            dictionary.entries[0].contexts[0].note_path,
+            format!("nota-{}.md", MAX_CONTEXTS + 4)
+        );
+    }
+
+    #[test]
+    fn an_empty_context_is_ignored() {
+        let mut dictionary = Dictionary::default();
+        let mut first = entry("rubisco", "Enzima.");
+        first.contexts = vec![context("  ", "Papel.", 10), context("nota.md", "  ", 10)];
+        dictionary.upsert(first).expect("insere");
+        assert!(dictionary.entries[0].contexts.is_empty());
+    }
+
+    #[test]
+    fn an_old_dictionary_without_contexts_still_loads() {
+        let json = r#"{"entries":[{"term":"rubisco","concept":"Enzima."}]}"#;
+        let dictionary: Dictionary = serde_json::from_str(json).expect("le o formato antigo");
+        assert_eq!(dictionary.entries.len(), 1);
+        assert!(dictionary.entries[0].contexts.is_empty());
     }
 
     #[test]

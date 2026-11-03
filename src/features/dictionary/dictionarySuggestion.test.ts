@@ -45,6 +45,7 @@ describe('suggestDictionaryConcept', () => {
         concept: 'O fluido onde ocorre a fixação.',
         createdAtUnixMs: 1,
         updatedAtUnixMs: 2,
+        contexts: [],
       },
     })
 

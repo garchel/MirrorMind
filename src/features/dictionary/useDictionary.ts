@@ -95,11 +95,19 @@ export function useDictionary(
 
   /** Registra ou atualiza um verbete. */
   const save = useCallback(
-    async (term: string, concept: string) => {
+    async (
+      term: string,
+      concept: string,
+      origin?: { notePath: string; context: string },
+    ) => {
       if (!vaultPath) return
       setBusy(true)
       try {
-        const snapshot = await engine.save(vaultPath, term, concept)
+        // Sem `origin` a chamada mantém a assinatura de 3 argumentos: a
+        // página do dicionário não tem nota de origem.
+        const snapshot = origin
+          ? await engine.save(vaultPath, term, concept, origin)
+          : await engine.save(vaultPath, term, concept)
         setEntries(snapshot.entries)
       } finally {
         setBusy(false)

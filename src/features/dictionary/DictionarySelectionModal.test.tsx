@@ -26,6 +26,7 @@ const EXISTENTE = {
   concept: 'O fluido onde ocorre a fixação de carbono.',
   createdAtUnixMs: 1,
   updatedAtUnixMs: 1,
+  contexts: [],
 }
 
 /** As props obrigatorias do modal, com o que cada teste muda. */
@@ -67,10 +68,10 @@ describe('DictionarySelectionModal', () => {
     expect(screen.getByText('Nesta nota')).toBeInTheDocument()
   })
 
-  it('grava so a definicao: o papel do termo na nota fica na tela', async () => {
+  it('o papel do termo na nota nao vira o conceito gravado', async () => {
     // O caso do `eletrons`: a primeira resposta descrevia o papel do eletron na
     // fotossintese. Isso e util para conferir, mas o verbete tem de ser a
-    // definicao do termo.
+    // definicao do termo; o papel fica guardado ligado a nota.
     const user = userEvent.setup()
     const { onSave } = renderModal({
       selection: 'elétrons',
@@ -87,7 +88,7 @@ describe('DictionarySelectionModal', () => {
     expect(
       screen.getByText(/seguem para a cadeia transportadora/),
     ).toBeInTheDocument()
-    expect(screen.getByText(/Não é salvo no dicionário/)).toBeInTheDocument()
+    expect(screen.getByText(/Fica ligado a esta nota no dicionário/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Adicionar ao dicionário/ }))
 

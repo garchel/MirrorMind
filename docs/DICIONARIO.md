@@ -54,8 +54,11 @@ A IA responde com duas coisas:
 
 - **Conceito** — a definição do termo, escrita para valer fora desta nota. É o
   que vai para o dicionário e aparece no hover.
-- **Nesta nota** — o papel do termo no trecho e na nota. Fica só na tela, para
-  você conferir; **não** é salvo.
+- **Nesta nota** — o papel do termo no trecho e na nota. Fica guardado com o
+  verbete, **ligado a esta nota**: na página do dicionário, cada termo mostra em
+  quais notas você já pediu aquele conceito e o papel que ele tinha em cada uma.
+  O mesmo termo em outra nota ganha outro contexto, e o mais recente da mesma
+  nota substitui o anterior — a nota mudou, e o texto antigo mentiria.
 
 Ela lê o trecho e os parágrafos ao redor (não o Vault inteiro). O termo continua
 sendo o que você selecionou, com a grafia da nota, e tanto ele quanto o conceito

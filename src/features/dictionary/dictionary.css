@@ -140,6 +140,57 @@
   overflow-wrap: anywhere;
 }
 
+/* Os contextos: onde o termo apareceu, um por nota.
+ *
+ * Ficam fechados por padrao para a lista continuar legivel: o conceito e o
+ * que o usuario procura; o contexto e memoria, e so interessa quando ele
+ * quer lembrar em que nota pediu aquele termo. */
+
+.dictionary-item-contexts {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.dictionary-item-contexts summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--accent-strong);
+}
+
+.dictionary-item-contexts summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dictionary-item-contexts ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dictionary-item-contexts li {
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+}
+
+.dictionary-item-context-note {
+  margin: 0 0 2px;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.dictionary-item-context-body {
+  margin: 0;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .dictionary-item-actions {
   display: flex;
   gap: 2px;
@@ -368,6 +419,12 @@
   margin-top: 4px !important;
   color: var(--muted);
   overflow-wrap: anywhere;
+}
+
+.dictionary-selection-existing-contexts {
+  margin-top: 4px !important;
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 
 /* O papel do termo nesta nota: e leitura, nao edicao. Fica num cartao proprio

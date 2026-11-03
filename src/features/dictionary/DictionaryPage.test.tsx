@@ -23,7 +23,7 @@ vi.mock('./dictionaryEngine', async (importOriginal) => ({
 const VAULT_PATH = 'C:\\Vault'
 
 function entry(term: string, concept: string): DictionaryEntry {
-  return { term, concept, createdAtUnixMs: 1, updatedAtUnixMs: 1 }
+  return { term, concept, createdAtUnixMs: 1, updatedAtUnixMs: 1, contexts: [] }
 }
 
 function snapshot(entries: DictionaryEntry[]): DictionarySnapshot {
@@ -78,6 +78,45 @@ describe('DictionaryPage', () => {
       expect(screen.queryByText('rubisco')).toBeNull()
     })
     expect(screen.getByText('glicólise')).toBeTruthy()
+  })
+
+  it('mostra os contextos do termo por nota, fechados por padrao', async () => {
+    const comContexto: DictionaryEntry = {
+      ...entry('estroma', 'Fluido interno do cloroplasto.'),
+      contexts: [
+        {
+          notePath: 'bio/fotossintese.md',
+          context: 'Onde ocorre a fixacao de carbono.',
+          capturedAtUnixMs: 2,
+        },
+        {
+          notePath: 'bio/respiracao.md',
+          context: 'Espaco interno da mitocondria.',
+          capturedAtUnixMs: 1,
+        },
+      ],
+    }
+    entriesMock.mockResolvedValue(snapshot([comContexto]))
+    render(<DictionaryPage vaultPath={VAULT_PATH} />)
+
+    const summary = await screen.findByText('Contextos em 2 notas')
+    const details = summary.closest('details')
+    expect(details?.open).toBe(false)
+
+    await userEvent.click(summary)
+    expect(details?.open).toBe(true)
+    expect(screen.getByText('bio/fotossintese.md')).toBeTruthy()
+    expect(screen.getByText('Onde ocorre a fixacao de carbono.')).toBeTruthy()
+  })
+
+  it('nao mostra a secao de contextos quando o verbete nao tem nenhum', async () => {
+    entriesMock.mockResolvedValue(snapshot([entry('rubisco', 'Enzima.')]))
+    render(<DictionaryPage vaultPath={VAULT_PATH} />)
+    await waitFor(() => {
+      expect(screen.getByText('rubisco')).toBeTruthy()
+    })
+    expect(screen.queryByText(/Contexto em/)).toBeNull()
+    expect(screen.queryByText(/Contextos em/)).toBeNull()
   })
 
   it('registra um conceito novo', async () => {

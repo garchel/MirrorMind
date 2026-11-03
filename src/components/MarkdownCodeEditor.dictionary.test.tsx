@@ -4,7 +4,7 @@ import { MarkdownCodeEditor } from './MarkdownCodeEditor'
 import type { DictionaryEntry } from '../features/dictionary/dictionarySchema'
 
 function entry(term: string, concept: string): DictionaryEntry {
-  return { term, concept, createdAtUnixMs: 0, updatedAtUnixMs: 0 }
+  return { term, concept, createdAtUnixMs: 0, updatedAtUnixMs: 0, contexts: [] }
 }
 
 /**

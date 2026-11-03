@@ -196,6 +196,23 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
               <div className="dictionary-item-body">
                 <p className="dictionary-item-term">{entry.term}</p>
                 <p className="dictionary-item-concept">{entry.concept}</p>
+                {entry.contexts.length > 0 ? (
+                  <details className="dictionary-item-contexts">
+                    <summary>
+                      {entry.contexts.length === 1
+                        ? 'Contexto em 1 nota'
+                        : `Contextos em ${entry.contexts.length} notas`}
+                    </summary>
+                    <ul>
+                      {entry.contexts.map((context) => (
+                        <li key={context.notePath}>
+                          <p className="dictionary-item-context-note">{context.notePath}</p>
+                          <p className="dictionary-item-context-body">{context.context}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
               </div>
               <div className="dictionary-item-actions">
                 <Button

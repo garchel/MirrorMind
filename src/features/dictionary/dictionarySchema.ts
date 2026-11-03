@@ -1,6 +1,21 @@
 import { z } from 'zod'
 
 /**
+ * O papel de um termo numa nota, no momento em que o usuário pediu a definição.
+ *
+ * O contexto nasce da sugestão da IA e fica ligado à nota de origem: é o que
+ * deixa o verbete lembrar onde o termo apareceu, sem transformar o dicionário
+ * num resumo de todas as notas.
+ */
+export const termContextSchema = z.object({
+  notePath: z.string(),
+  context: z.string(),
+  capturedAtUnixMs: z.number(),
+}).strict()
+
+export type TermContext = z.infer<typeof termContextSchema>
+
+/**
  * O dicionário de conceitos de um Vault.
  *
  * O schema é `.strict()` como o resto do app: uma chave a mais na resposta
@@ -12,6 +27,9 @@ export const dictionaryEntrySchema = z.object({
   concept: z.string(),
   createdAtUnixMs: z.number(),
   updatedAtUnixMs: z.number(),
+  // Arquivos escritos antes deste campo existir não têm contexto. O `default`
+  // mantém o dicionário antigo legível em vez de recusar o Vault inteiro.
+  contexts: z.array(termContextSchema).default([]),
 }).strict()
 
 export type DictionaryEntry = z.infer<typeof dictionaryEntrySchema>
