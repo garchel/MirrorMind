@@ -5910,7 +5910,7 @@ function App() {
             <section className="note-search-modal command-palette" role="dialog" aria-modal="true" aria-label="Command Palette">
               <input autoFocus value={commandQuery} onChange={(event) => setCommandQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setShowCommandPalette(false); if (event.key === 'Enter' && matchingCommands[0] && !matchingCommands[0].disabled) runPaletteCommand(matchingCommands[0]) }} placeholder="Digite um comando..." aria-label="Buscar comando" />
               <div className="command-palette-results">
-                {matchingCommands.map((command) => <button key={command.id} type="button" disabled={command.disabled} onClick={() => runPaletteCommand(command)}><span>{command.label}</span><small>{command.description}</small></button>)}
+                {matchingCommands.map((command) => <Button key={command.id} variant="bare" size="sm" disabled={command.disabled} onClick={() => runPaletteCommand(command)}><span>{command.label}</span><small>{command.description}</small></Button>)}
                 {matchingCommands.length === 0 ? <p>Nenhum comando encontrado.</p> : null}
               </div>
               <div className="folder-dialog-actions"><span className="command-palette-hint">Ctrl+K para abrir</span><Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowCommandPalette(false)}>Fechar</Button></div>
@@ -6005,9 +6005,10 @@ function App() {
               />
               <div className="note-search-results">
                 {noteSearchResults.map((note) => (
-                  <button
+                  <Button
                     key={note.relativePath}
-                    type="button"
+                    variant="bare"
+                    size="sm"
                     onClick={() => {
                       setShowNoteSearch(false)
                       setWorkspacePage('notes')
@@ -6017,7 +6018,7 @@ function App() {
                     <span>{note.name.replace(/\.md$/i, '')}</span>
                     <small>{note.relativePath}</small>
                     <small>{note.excerpt}</small>
-                  </button>
+                  </Button>
                 ))}
                 {noteSearchQuery.trim() && noteSearchResults.length === 0 ? <p>Nenhuma nota encontrada.</p> : null}
               </div>
@@ -6046,9 +6047,9 @@ function App() {
                 </div>
                 <div className="tag-filter-suggestions">
                   {matchingTagSuggestions.slice(0, 8).map((entry) => (
-                    <button key={entry.tag} type="button" onClick={() => { setSelectedTags((tags) => [...tags, entry.tag]); setTagFilterQuery('') }}>
+                    <Button key={entry.tag} variant="bare" size="sm" onClick={() => { setSelectedTags((tags) => [...tags, entry.tag]); setTagFilterQuery('') }}>
                       #{entry.tag} <small>{entry.notePaths.length}</small>
-                    </button>
+                    </Button>
                   ))}
                   {matchingTagSuggestions.length === 0 ? <p>{tagFilterQuery.trim() ? 'Nenhuma tag encontrada.' : 'Digite para buscar tags.'}</p> : null}
                 </div>
@@ -6069,7 +6070,7 @@ function App() {
               <input autoFocus value={noteLinkQuery} onChange={(event) => setNoteLinkQuery(event.target.value)} placeholder="Buscar nota para vincular" aria-label="Buscar nota" />
               <div className="note-search-results">
                 {linkableNotes.map((note) => (
-                  <button key={note.relativePath} type="button" onClick={() => insertInternalLink(note)}>{note.relativePath.replace(/\.md$/i, '')}</button>
+                  <Button key={note.relativePath} variant="bare" size="sm" onClick={() => insertInternalLink(note)}>{note.relativePath.replace(/\.md$/i, '')}</Button>
                 ))}
                 {linkableNotes.length === 0 ? <p>Nenhuma outra nota encontrada.</p> : null}
               </div>
@@ -6089,7 +6090,7 @@ function App() {
               <input autoFocus value={graphConnectQuery} onChange={(event) => setGraphConnectQuery(event.target.value)} placeholder="Buscar nota para conectar" aria-label="Buscar nota para conectar" />
               <div className="note-search-results">
                 {graphConnectNotes.map((note) => (
-                  <button key={note.relativePath} type="button" onClick={() => void createGraphConnection(graphConnectSource, note)}>{note.relativePath.replace(/\.md$/i, '')}</button>
+                  <Button key={note.relativePath} variant="bare" size="sm" onClick={() => void createGraphConnection(graphConnectSource, note)}>{note.relativePath.replace(/\.md$/i, '')}</Button>
                 ))}
                 {graphConnectNotes.length === 0 ? <p>Nenhuma outra nota disponível para conectar.</p> : null}
               </div>

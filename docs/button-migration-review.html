@@ -694,6 +694,12 @@
         contexto; as duas já estão aplicadas nesta página. Medido:
         85×443 contra 85×442 (1px de subpixel), mesmo padding, fonte e
         alinhamento.
+        <strong>Migrado:</strong> as 5 linhas cruas (paleta, busca de notas,
+        sugestões de tag, link para nota e conexão do grafo) já usam o
+        primitivo. Medido: busca de notas 132,5px de altura e sugestões de
+        tag 25px, idênticas; a paleta encurta de 46 para 34px de propósito,
+        porque o botão cru herdava o pill de <code>base.css</code> e o
+        <code>sm</code> alinha com o resto do modal.
       </p>
       <div class="preview-pair">
         <div class="preview-pane">
