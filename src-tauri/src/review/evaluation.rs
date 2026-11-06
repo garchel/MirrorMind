@@ -796,7 +796,6 @@ mod tests {
         let markdown = "# Titulo\n\n## O que a CDN nao resolve\n\n- **Latencia de processamento** pode dominar o custo.\n\nO primeiro usuario de uma regiao paga o cache miss.";
         // IA tirou o `**`, mudou caixa e pontuou diferente.
         let ai_quote = "latência de processamento pode dominar o custo";
-        let ai_quote2 = "O primeiro usuario de uma regiao paga o cache miss.";
         let provider = FakeProvider::success(json!({
             "status":"ready",
             "explanation":"A nota possui tres pontos avaliaveis distintos.",
