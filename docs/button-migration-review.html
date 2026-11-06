@@ -851,6 +851,13 @@
         <strong>46→40px</strong>, padding 18→16px, fonte 15→14px. O preview
         recorta o card (<code>min-height: 0</code>) para medir o botão, não a
         altura total; as cores do contexto continuam as do app.
+        <strong>Migrado:</strong> as duas ações de cartão usam
+        <code>&lt;Button variant="primary" size="md"&gt;</code> (46→40px,
+        padding 18→16px, fonte 15→14px). O “Usar este vault” do modal usa
+        <code>size="sm"</code>: o rodapé é flex com <code>stretch</code> e o
+        <code>md</code> esticaria o “Escolher outro vault” (já
+        <code>secondary sm</code>, 34px) para 40px; com <code>sm</code> os
+        dois ficam em 34px.
       </p>
       <div class="preview-pair">
         <div class="preview-pane">
@@ -963,8 +970,8 @@
             <td><code>features/vault/VaultSelection.tsx</code></td>
             <td class="num">3</td>
             <td><code>87, 123, 158</code></td>
-            <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">md</span></td>
-            <td><code>workspace-chrome.css:1148</code></td>
+            <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">md</span> ×2 · <span class="tag-pill">sm</span> ×1</td>
+            <td><code>workspace-chrome.css:1158</code> · o modal usa <code>sm</code> porque o rodapé é flex com <code>stretch</code></td>
           </tr>
           <tr>
             <td><code>components/NoteTagPicker.tsx</code></td>

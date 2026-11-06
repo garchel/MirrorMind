@@ -84,9 +84,9 @@ export function VaultSelection({
             Selecione uma pasta já existente no computador. O app vai reconhecer notas
             <code>.md</code> e detectar se o vault já veio do Obsidian.
           </p>
-          <button type="button" onClick={chooseExistingVault} disabled={loading}>
+          <Button variant="primary" size="md" onClick={chooseExistingVault} disabled={loading}>
             Escolher pasta
-          </button>
+          </Button>
         </article>
 
         <article className="action-card action-card--accent">
@@ -120,9 +120,9 @@ export function VaultSelection({
             </Button>
             <small>{buildVaultPathPreview(createForm.parentPath, createForm.name)}</small>
           </div>
-          <button type="button" onClick={createVault} disabled={loading}>
+          <Button variant="primary" size="md" onClick={createVault} disabled={loading}>
             Criar vault
-          </button>
+          </Button>
         </article>
       </section>
 
@@ -155,9 +155,9 @@ export function VaultSelection({
               <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void dismissRecentVault()}>
                 Escolher outro vault
               </Button>
-              <button type="button" onClick={() => void confirmRecentVault()}>
+              <Button variant="primary" size="sm" onClick={() => void confirmRecentVault()}>
                 Usar este vault
-              </button>
+              </Button>
             </div>
         </Modal>
       ) : null}

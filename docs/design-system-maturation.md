@@ -296,6 +296,7 @@ antigo dizia:
    | 3 | `App.tsx` (linhas de lista) | 5 | `bare` / `sm` | migrado |
    | 4 | `ExplorerSidebar.tsx` (menu) | 5 | `bare` / `sm` | migrado |
    | 5 | `App.tsx` (acoes de modal) | 7 | `primary` / `sm` | migrado |
+   | 6 | `VaultSelection.tsx` | 3 | `primary` / `md` (2) + `sm` (1) | migrado |
 
    O lote 1 foi medido no preview com o CSS real: o retangulo continua
    28×28, com o mesmo fundo, cor, raio e peso 600; so a fonte (15px → 12px)
@@ -313,7 +314,12 @@ antigo dizia:
    largura varia 1px de subpixel (282,5 contra 283,5), como a medicao
    original ja registrava. O lote 5 alinha o confirmar de cada modal ao
    "Cancelar" que ja era `<Button>`: 46 para 34px, padding 18 para 14px e
-   fonte 15 para 12px. Os 3 botoes do `VaultSelection` continuam pendentes.
+   fonte 15 para 12px. O lote 6 mediu uma excecao ao plano: as duas acoes
+   de cartao viram `primary md` (46 para 40px, padding 18 para 16px, fonte
+   15 para 14px), mas o "Usar este vault" do modal fica `primary sm`. O
+   rodape e flex com `align-items: stretch`: o `md` faria o "Escolher outro
+   vault" (que ja era `secondary sm`, 34px) esticar para 40px. Com `sm` os
+   dois ficam em 34px e o botao ja migrado nao muda.
 
 A medicao que sustenta os numeros: `scan-buttons.mjs` (97 tags, 82 sem
 classe, 73 de produto), `scan-tag-rules.mjs` (98 seletores, 83 com
