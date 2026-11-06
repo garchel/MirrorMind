@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { HighlighterIcon, StickyNote02Icon } from '@hugeicons/core-free-icons'
+import { Button } from '../../components/ui/Button'
 import { POSTIT_COLOR_HEX, POSTIT_COLOR_LABELS, POSTIT_COLORS, type PostitColor } from '../../lib/postits'
 import type { MarkdownFormat } from '../../lib/markdown'
 import type { SelectionPopoverState } from './useFormatToolbar'
@@ -71,24 +72,23 @@ export function FormatToolbar({
       aria-label="Formatar seleção"
       style={{ left: popover.x + popover.shiftX, top: popover.y }}
     >
-      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('bold')} title="Negrito" aria-label="Negrito (seleção)"><Bold size={15} strokeWidth={1.8} aria-hidden="true" /></button>
-      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('italic')} title="Itálico" aria-label="Itálico (seleção)"><Italic size={15} strokeWidth={1.8} aria-hidden="true" /></button>
-      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('strikethrough')} title="Riscado" aria-label="Riscado (seleção)"><Strikethrough size={15} strokeWidth={1.8} aria-hidden="true" /></button>
-      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('code')} title="Código" aria-label="Código (seleção)"><Code2 size={15} strokeWidth={1.8} aria-hidden="true" /></button>
-      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('math')} title="Matemática" aria-label="Matemática (seleção)"><Sigma size={15} strokeWidth={1.8} aria-hidden="true" /></button>
-      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('subscript')} title="Subscrito (fórmula química)" aria-label="Subscrito (seleção)"><Subscript size={15} strokeWidth={1.8} aria-hidden="true" /></button>
-      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('superscript')} title="Sobrescrito (expoente)" aria-label="Sobrescrito (seleção)"><Superscript size={15} strokeWidth={1.8} aria-hidden="true" /></button>
-      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('reactionArrow')} title="Seta de reação com texto acima" aria-label="Seta de reação (seleção)"><ArrowRight size={15} strokeWidth={1.8} aria-hidden="true" /></button>
-      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('reverseReactionArrow')} title="Seta reversa com texto acima" aria-label="Seta reversa (seleção)"><ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /></button>
-      <button type="button" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('link')} title="Link" aria-label="Link (seleção)"><Link size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+      <Button variant="bare" size="xs" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('bold')} title="Negrito" aria-label="Negrito (seleção)"><Bold size={15} strokeWidth={1.8} aria-hidden="true" /></Button>
+      <Button variant="bare" size="xs" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('italic')} title="Itálico" aria-label="Itálico (seleção)"><Italic size={15} strokeWidth={1.8} aria-hidden="true" /></Button>
+      <Button variant="bare" size="xs" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('strikethrough')} title="Riscado" aria-label="Riscado (seleção)"><Strikethrough size={15} strokeWidth={1.8} aria-hidden="true" /></Button>
+      <Button variant="bare" size="xs" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('code')} title="Código" aria-label="Código (seleção)"><Code2 size={15} strokeWidth={1.8} aria-hidden="true" /></Button>
+      <Button variant="bare" size="xs" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('math')} title="Matemática" aria-label="Matemática (seleção)"><Sigma size={15} strokeWidth={1.8} aria-hidden="true" /></Button>
+      <Button variant="bare" size="xs" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('subscript')} title="Subscrito (fórmula química)" aria-label="Subscrito (seleção)"><Subscript size={15} strokeWidth={1.8} aria-hidden="true" /></Button>
+      <Button variant="bare" size="xs" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('superscript')} title="Sobrescrito (expoente)" aria-label="Sobrescrito (seleção)"><Superscript size={15} strokeWidth={1.8} aria-hidden="true" /></Button>
+      <Button variant="bare" size="xs" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('reactionArrow')} title="Seta de reação com texto acima" aria-label="Seta de reação (seleção)"><ArrowRight size={15} strokeWidth={1.8} aria-hidden="true" /></Button>
+      <Button variant="bare" size="xs" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('reverseReactionArrow')} title="Seta reversa com texto acima" aria-label="Seta reversa (seleção)"><ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /></Button>
+      <Button variant="bare" size="xs" onMouseDown={preserveEditorSelection} onClick={() => onApplyFormat('link')} title="Link" aria-label="Link (seleção)"><Link size={15} strokeWidth={1.8} aria-hidden="true" /></Button>
       <span className="hl-separator" aria-hidden="true" />
       <div
         className="format-submenu-wrap"
         onMouseEnter={() => onOpenSubmenu('postit')}
         onMouseLeave={() => onScheduleCloseSubmenu('postit')}
       >
-        <button
-          type="button"
+        <Button variant="bare" size="xs"
           onMouseDown={preserveEditorSelection}
           onClick={() => setSubmenu('postit')}
           onKeyDown={(event) => { if (event.key === 'Escape') setSubmenu(null) }}
@@ -97,20 +97,19 @@ export function FormatToolbar({
           aria-expanded={submenu === 'postit'}
         >
           <HugeiconsIcon icon={StickyNote02Icon} size={16} strokeWidth={1.5} aria-hidden="true" />
-        </button>
+        </Button>
         {submenu === 'postit' ? (
           <div className="format-submenu" role="group" aria-label="Cor do post-it">
             {POSTIT_COLORS.map((color) => (
-              <button
+              <Button variant="bare" size="xs"
                 key={color}
-                type="button"
                 onMouseDown={preserveEditorSelection}
                 onClick={() => { setSubmenu(null); onOpenPostit(color) }}
                 title={`Post-it ${POSTIT_COLOR_LABELS[color].toLowerCase()}`}
                 aria-label={`Criar post-it ${POSTIT_COLOR_LABELS[color].toLowerCase()}`}
               >
                 <span className="hl-dot" style={{ background: POSTIT_COLOR_HEX[color] }} aria-hidden="true" />
-              </button>
+              </Button>
             ))}
           </div>
         ) : null}
@@ -120,8 +119,7 @@ export function FormatToolbar({
         onMouseEnter={() => onOpenSubmenu('highlight')}
         onMouseLeave={() => onScheduleCloseSubmenu('highlight')}
       >
-        <button
-          type="button"
+        <Button variant="bare" size="xs"
           onMouseDown={preserveEditorSelection}
           onClick={() => setSubmenu('highlight')}
           onKeyDown={(event) => { if (event.key === 'Escape') setSubmenu(null) }}
@@ -130,35 +128,33 @@ export function FormatToolbar({
           aria-expanded={submenu === 'highlight'}
         >
           <HugeiconsIcon icon={HighlighterIcon} size={16} strokeWidth={1.5} aria-hidden="true" />
-        </button>
+        </Button>
         {submenu === 'highlight' ? (
           <div className="format-submenu" role="group" aria-label="Cor do marca-texto">
             {HIGHLIGHT_MENU_ITEMS.map((item) => (
-              <button
+              <Button variant="bare" size="xs"
                 key={item.format}
-                type="button"
                 onMouseDown={preserveEditorSelection}
                 onClick={() => { setSubmenu(null); onApplyFormat(item.format) }}
                 title={`Marca-texto ${item.label}`}
                 aria-label={`Marca-texto ${item.label} (seleção)`}
               >
                 <span className={`hl-dot ${item.dotClass}`} aria-hidden="true" />
-              </button>
+              </Button>
             ))}
-            <button type="button" onMouseDown={preserveEditorSelection} onClick={() => { setSubmenu(null); onApplyFormat('highlightNone') }} title="Remover marca-texto" aria-label="Remover marca-texto (seleção)"><span className="hl-dot hl-none" aria-hidden="true" /></button>
+            <Button variant="bare" size="xs" onMouseDown={preserveEditorSelection} onClick={() => { setSubmenu(null); onApplyFormat('highlightNone') }} title="Remover marca-texto" aria-label="Remover marca-texto (seleção)"><span className="hl-dot hl-none" aria-hidden="true" /></Button>
           </div>
         ) : null}
       </div>
       <span className="hl-separator" aria-hidden="true" />
-      <button
-        type="button"
+      <Button variant="bare" size="xs"
         onMouseDown={preserveEditorSelection}
         onClick={onAddToDictionary}
         title="Adicionar ao dicionário"
         aria-label="Adicionar seleção ao dicionário"
       >
         <BookMarked size={15} strokeWidth={1.8} aria-hidden="true" />
-      </button>
+      </Button>
     </div>
   )
 }

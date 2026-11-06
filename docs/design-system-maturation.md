@@ -287,6 +287,19 @@ antigo dizia:
    `docs/button-migration-review.html`; depois os 14 que ja tem classe
    dinamica, preservando a classe.
 
+   Progresso da onda 1 (medido, nao estimado):
+
+   | lote | arquivo | botoes | alvo | estado |
+   |---|---|---|---|---|
+   | 1 | `FormatToolbar.tsx` | 16 | `bare` / `xs` | migrado |
+
+   O lote 1 foi medido no preview com o CSS real: o retangulo continua
+   28×28, com o mesmo fundo, cor, raio e peso 600; so a fonte (15px → 12px)
+   e o `justify-content` mudam, e o grupo e so glifo, entao nao ha mudanca
+   visual. Os lotes seguintes (21 glifos do `EditorContent`, 5 linhas de
+   lista do `App`, 5 do `ExplorerSidebar`, 7 acoes de modal e 3 do
+   `VaultSelection`) continuam pendentes.
+
 A medicao que sustenta os numeros: `scan-buttons.mjs` (97 tags, 82 sem
 classe, 73 de produto), `scan-tag-rules.mjs` (98 seletores, 83 com
 `.ui-button`, 15 so tag), `scan-button-props.mjs` (286 `<Button>`, 153
