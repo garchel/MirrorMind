@@ -338,23 +338,24 @@ export function ExplorerItemMenu({
     <div className="explorer-context-menu-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }} onContextMenu={(event) => event.preventDefault()}>
       <div className="explorer-context-menu" role="menu" aria-label={`Ações para ${menu.target.name}`} style={{ left: menu.x, top: menu.y }}>
         {menu.target.type === 'note' ? (
-          <button type="button" role="menuitem" onClick={() => { void onToggleFavorite(menu.target.path); onClose() }}>
+          <Button variant="bare" size="sm" role="menuitem" onClick={() => { void onToggleFavorite(menu.target.path); onClose() }}>
             <Star size={14} strokeWidth={1.5} fill={favorites.includes(menu.target.path) ? 'currentColor' : 'none'} aria-hidden="true" />
             {favorites.includes(menu.target.path) ? 'Remover dos favoritos' : 'Favoritar nota'}
-          </button>
+          </Button>
         ) : (
-          <button type="button" role="menuitem" onClick={() => { onMoveFolder(menu.target.path, menu.target.name); onClose() }}>
+          <Button variant="bare" size="sm" role="menuitem" onClick={() => { onMoveFolder(menu.target.path, menu.target.name); onClose() }}>
             <FolderInput size={14} strokeWidth={1.5} aria-hidden="true" />
             Mover pasta
-          </button>
+          </Button>
         )}
-        <button type="button" role="menuitem" onClick={() => { onRename(menu.target.path, menu.target.name, menu.target.type); onClose() }}>
+        <Button variant="bare" size="sm" role="menuitem" onClick={() => { onRename(menu.target.path, menu.target.name, menu.target.type); onClose() }}>
           <Pencil size={14} strokeWidth={1.5} aria-hidden="true" />
           Renomear
-        </button>
+        </Button>
         {menu.target.type === 'note' ? (
-          <button
-            type="button"
+          <Button
+            variant="bare"
+            size="sm"
             role="menuitem"
             className={`indexadora-menu-item${indexadoraPaths.includes(menu.target.path) ? ' is-active' : ''}`}
             onClick={() => { void onToggleIndexadora(menu.target.path); onClose() }}
@@ -362,12 +363,12 @@ export function ExplorerItemMenu({
           >
             <BookMarked size={14} strokeWidth={1.5} aria-hidden="true" />
             {indexadoraPaths.includes(menu.target.path) ? 'Remover indexadora' : 'Nota indexadora'}
-          </button>
+          </Button>
         ) : null}
-        <button type="button" role="menuitem" className="is-danger" onClick={() => { onDelete(menu.target); onClose() }}>
+        <Button variant="bare" size="sm" role="menuitem" className="is-danger" onClick={() => { onDelete(menu.target); onClose() }}>
           <Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
           Enviar para lixeira
-        </button>
+        </Button>
       </div>
     </div>
   )
