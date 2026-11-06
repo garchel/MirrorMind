@@ -5873,7 +5873,7 @@ function App() {
               <p>Escolha qual versão deve permanecer no editor. Nenhuma versão será sobrescrita automaticamente.</p>
               <div className="folder-dialog-actions">
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={loadExternalNoteVersion}>Carregar arquivo externo</Button>
-                <button type="button" onClick={keepLocalNoteVersion}>Manter meu rascunho</button>
+                <Button variant="primary" size="sm" onClick={keepLocalNoteVersion}>Manter meu rascunho</Button>
               </div>
           </Modal>
         ) : null}
@@ -5901,7 +5901,7 @@ function App() {
               <div className="folder-dialog-actions external-removed-note-actions">
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeExternallyRemovedNote} disabled={loading}>Fechar aba</Button>
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void saveExternallyRemovedNoteAsNew()} disabled={loading || !recoveredNotePath.trim()}>Salvar como nova</Button>
-                <button type="button" onClick={() => void restoreExternallyRemovedNote()} disabled={loading}>Restaurar arquivo</button>
+                <Button variant="primary" size="sm" onClick={() => void restoreExternallyRemovedNote()} disabled={loading}>Restaurar arquivo</Button>
               </div>
           </Modal>
         ) : null}
@@ -6056,7 +6056,7 @@ function App() {
               </div>
               <div className="folder-dialog-actions">
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setSelectedTags([]); setTagFilterQuery('') }}>Limpar</Button>
-                <button type="button" onClick={() => setShowTagFilterDialog(false)}>Aplicar filtro</button>
+                <Button variant="primary" size="sm" onClick={() => setShowTagFilterDialog(false)}>Aplicar filtro</Button>
               </div>
           </Modal>
         ) : null}
@@ -6111,7 +6111,7 @@ function App() {
               <input autoFocus value={tagName} onChange={(event) => setTagName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') insertTag() }} placeholder="Nome da tag" aria-label="Nome da tag" />
               <div className="folder-dialog-actions">
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowTagDialog(false)}>Cancelar</Button>
-                <button type="button" onClick={insertTag} disabled={!tagName.trim()}>Inserir tag</button>
+                <Button variant="primary" size="sm" onClick={insertTag} disabled={!tagName.trim()}>Inserir tag</Button>
               </div>
           </Modal>
         ) : null}
@@ -6125,7 +6125,7 @@ function App() {
               <input autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void createFolder() }} placeholder="Nome ou caminho da pasta" aria-label="Nome da pasta" />
               <div className="folder-dialog-actions">
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowFolderDialog(false)}>Cancelar</Button>
-                <button type="button" onClick={() => void createFolder()} disabled={!folderName.trim() || loading}>Criar pasta</button>
+                <Button variant="primary" size="sm" onClick={() => void createFolder()} disabled={!folderName.trim() || loading}>Criar pasta</Button>
               </div>
           </Modal>
         ) : null}
@@ -6149,7 +6149,7 @@ function App() {
               ) : null}
               <div className="folder-dialog-actions">
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setRenameTarget(null)}>Cancelar</Button>
-                <button type="button" onClick={() => void renameVaultItem()} disabled={!renameName.trim() || loading}>Renomear</button>
+                <Button variant="primary" size="sm" onClick={() => void renameVaultItem()} disabled={!renameName.trim() || loading}>Renomear</Button>
               </div>
           </Modal>
         ) : null}
@@ -6185,7 +6185,7 @@ function App() {
               ) : null}
               <div className="folder-dialog-actions">
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setMoveTarget(null)}>Cancelar</Button>
-                <button type="button" onClick={() => void moveVaultItem()} disabled={loading}>Mover</button>
+                <Button variant="primary" size="sm" onClick={() => void moveVaultItem()} disabled={loading}>Mover</Button>
               </div>
           </Modal>
         ) : null}
