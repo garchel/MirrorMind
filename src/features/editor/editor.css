@@ -782,9 +782,10 @@
   display: flex;
   gap: 6px;
   max-width: calc(100% - 12px);
-  max-height: calc(100% - 12px);
   padding: 6px;
-  overflow: auto;
+  /* Painel flutuante, nao caixa de rolagem: a barra nunca mostra barra
+   * de rolagem — se faltar espaco, os grupos quebram para o lado. */
+  overflow: visible;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-sm);
   background: var(--mm-gold-50);
@@ -795,12 +796,17 @@
   flex-direction: row;
   align-items: center;
   width: max-content;
+  /* Janelas estreitas quebram em 2 linhas em vez de rolarem de lado. */
+  flex-wrap: wrap;
 }
 
 .workspace-shell .floating-markdown-toolbar.is-vertical {
   flex-direction: column;
   align-items: stretch;
-  width: 42px;
+  /* Se a altura nao couber, os grupos quebram para uma segunda coluna em
+   * vez de abrir rolagem vertical. Largura = a do grupo mais largo. */
+  flex-wrap: wrap;
+  max-height: calc(100% - 12px);
 }
 
 .workspace-shell .floating-markdown-toolbar .markdown-toolbar-group {
@@ -825,9 +831,9 @@
 
 .workspace-shell .floating-markdown-toolbar :where(button, .ui-button) {
   display: grid;
-  width: 30px;
-  min-width: 30px;
-  min-height: 30px;
+  width: 26px;
+  min-width: 26px;
+  min-height: 26px;
   padding: 0;
   place-items: center;
   border: 1px solid var(--mm-ink-350-3);
@@ -1162,53 +1168,43 @@
   gap: 8px;
 }
 
-/* Linha de post-its do header. */
-.workspace-shell .note-header-postits {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  justify-content: flex-start;
-  max-width: min(100%, 620px);
-}
-
-/* Botao do menu de post-its: chip neutro como o toggle de tags, com o
- * icone para casa com o visual dos pinos e do popover de criacao. */
-.workspace-shell .postit-menu-trigger {
+/* Botao de post-its flutuante: canto superior direito da area de texto,
+ * junto do painel de ferramentas. So o glifo e a contagem — o texto
+ * "Post-it" aparece no hover como tooltip nativo (`title`). */
+.workspace-shell .postit-float {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
+  gap: 5px;
+  height: 28px;
+  min-height: 0;
+  padding: 0 8px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-xs);
-  background: transparent;
+  background: var(--mm-gold-50);
   color: var(--mm-ink-800-4);
-  font-size: var(--font-size-caption);
+  font: var(--font-size-caption) var(--sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 4px 10px rgba(45, 44, 39, 0.06);
 }
 
-.workspace-shell .postit-menu-trigger svg {
+.workspace-shell .postit-float:hover:not(:disabled) {
+  border-color: var(--mm-ink-550-3);
+  background: var(--mm-gold-150);
+  transform: none;
+}
+
+.workspace-shell .postit-float svg {
   flex: none;
 }
 
-.workspace-shell .postit-menu-trigger:hover {
-  border-color: var(--mm-ink-550-3);
-  background: rgb(28 36 39 / 4%);
-}
-
-/* Badge de orfaos dentro do trigger: aviso discreto em ambar, no mesmo
- * lugar do que os itens "sem ancora" mostram dentro do menu. */
-.workspace-shell .postit-menu-orphans-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 6px;
-  border: 1px solid rgba(138, 90, 42, 0.4);
-  border-radius: var(--radius-xs);
-  background: rgb(196 106 43 / 12%);
-  color: var(--mm-clay-850-12);
-  font-size: var(--font-size-caption);
-  font-weight: 600;
-  line-height: 18px;
+.workspace-shell .postit-float-count {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Popover do menu: portalado fora do shell (mesmo escopo do popover de tags). */

@@ -66,8 +66,8 @@ function MenuRow({ item, armedId, onOpen, onRequestDelete }: MenuRowProps) {
 }
 
 /**
- * Menu de post-its da nota (abaixo do titulo): navegacao unica, ancoras e
- * orfaos no mesmo popover.
+ * Menu de post-its da nota: um botao flutuante (icone + contagem) no canto
+ * superior direito da area da nota.
  *
  * A lista e ordenada pelo documento (topo -> fim); os sem ancora ficam no
  * fim, numa secao propria — um post-it invisivel no editor continua
@@ -144,24 +144,15 @@ export function PostitMenu({ items, onOpen, onDelete }: PostitMenuProps) {
       <PopoverTrigger asChild>
         <Button
           type="button"
-          className="ui-button postit-menu-trigger"
+          className="ui-button postit-float"
           aria-label={
             `Post-its da nota (${anchored.length} ${anchored.length === 1 ? 'ancorado' : 'ancorados'}` +
             (orphansCount > 0 ? `, ${orphansCount} sem âncora)` : ')')
           }
-          title="Listar post-its da nota"
+          title="Post-it"
         >
-          <StickyNote size={13} aria-hidden="true" />
-          Post-its ({items.length})
-          {orphansCount > 0 ? (
-            <span
-              className="postit-menu-orphans-badge"
-              title={`${orphansCount} ${orphansCount === 1 ? 'post-it sem âncora' : 'post-its sem âncora'}`}
-              aria-hidden="true"
-            >
-              {orphansCount} sem âncora
-            </span>
-          ) : null}
+          <StickyNote size={15} aria-hidden="true" />
+          <span className="postit-float-count" aria-hidden="true">{items.length}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" sideOffset={6} className="postit-menu-popover">

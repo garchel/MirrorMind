@@ -323,7 +323,9 @@ function App() {
   const [frontmatterPanelOpen, setFrontmatterPanelOpen] = useState(false)
   const [isMarkdownToolsOpen, setMarkdownToolsOpen] = useState(false)
   const [markdownToolsOrientation, setMarkdownToolsOrientation] = useState<'horizontal' | 'vertical'>('vertical')
-  const [markdownToolsPosition, setMarkdownToolsPosition] = useState({ x: 24, y: 24 })
+  // O botao de post-its flutua no canto superior direito (top 12, height 28);
+  // a barra de ferramentas comeca logo abaixo dele para nao colidir.
+  const [markdownToolsPosition, setMarkdownToolsPosition] = useState({ x: 24, y: 48 })
   const [noteFindOpen, setNoteFindOpen] = useState(false)
   const [noteFindQuery, setNoteFindQuery] = useState('')
   const [noteFindIndex, setNoteFindIndex] = useState(0)
@@ -5513,7 +5515,6 @@ function App() {
                     applyExistingTag,
                     removeTag,
                   }}
-                  postits={postits}
                   history={{
                     actionsRef: headerActionsRef,
                     preserveSelection: preserveEditorSelection,

@@ -13,8 +13,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/pop
 import { NoteTagRow } from '../../components/NoteTagRow'
 import { FrontmatterPanelForm } from '../../components/FrontmatterPanelForm'
 import type { FrontmatterPanelData, FrontmatterRow } from '../../components/markdownLivePreview'
-import { PostitMenu } from '../postits/PostitMenu'
-import type { usePostitPopover } from '../postits/usePostitPopover'
 import { formatNoteTitleAsPath, type CreateNoteForm, type TagSummary } from '../../lib/vault'
 import type { ReviewGapMode } from '../settings/SettingsPage'
 import type { NoteReviewGap } from '../review/noteReviewGaps'
@@ -91,10 +89,6 @@ export type HeaderFrontmatter = {
 export type EditorHeaderProps = {
   title: HeaderTitle
   tags: HeaderTags
-  postits: Pick<
-    ReturnType<typeof usePostitPopover>,
-    'notePostits' | 'postitMenuItems' | 'handlePostitWidgetClick' | 'deletePostitById'
-  >
   history: HeaderHistory
   isAutoSaveEnabled: boolean
   autoSaveState: 'idle' | 'pending' | 'saving' | 'saved'
@@ -126,7 +120,6 @@ export function EditorHeader({
     applyExistingTag,
     removeTag,
   },
-  postits,
   history: {
     actionsRef: headerActionsRef,
     preserveSelection: preserveEditorSelection,
@@ -159,13 +152,6 @@ export function EditorHeader({
     openNote,
   },
 }: EditorHeaderProps) {
-  const {
-    notePostits,
-    postitMenuItems,
-    handlePostitWidgetClick,
-    deletePostitById,
-  } = postits
-
   return (
     <div className="editor-header" data-builder-name="editor-header">
       <div>
@@ -223,17 +209,6 @@ export function EditorHeader({
           onApplyTag={applyExistingTag}
           onRemoveTag={removeTag}
         />
-        {/* Post-its da nota: popover unico — navegacao (ordenada pelo texto),
-            exclusao em dois cliques e secao "Sem ancora" no mesmo lugar. */}
-        {notePostits.length > 0 ? (
-          <div className="note-header-postits">
-            <PostitMenu
-              items={postitMenuItems}
-              onOpen={(postitId) => handlePostitWidgetClick(postitId, false, true)}
-              onDelete={deletePostitById}
-            />
-          </div>
-        ) : null}
       </div>
       <div className="editor-actions" ref={headerActionsRef}>
         <div className="history-actions" aria-label="Histórico de edição">

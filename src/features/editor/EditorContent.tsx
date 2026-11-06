@@ -42,6 +42,7 @@ import {
 import { FormatToolbar } from '../format/FormatToolbar'
 import type { useFormatToolbar } from '../format/useFormatToolbar'
 import { PostitPopover } from '../postits/PostitPopover'
+import { PostitMenu } from '../postits/PostitMenu'
 import type { usePostitPopover } from '../postits/usePostitPopover'
 import { replaceMarkdownBody, type MarkdownFormat, type MarkdownTableAction } from '../../lib/markdown'
 import type { MarkdownAutocompleteData } from '../../lib/markdown-autocomplete'
@@ -149,6 +150,9 @@ export type EditorContentProps = {
     | 'requestDeletePostit'
     | 'updateDraftText'
     | 'updateDraftColor'
+    | 'notePostits'
+    | 'postitMenuItems'
+    | 'deletePostitById'
   >
   noteWordCount: number
   tools: EditorTools
@@ -250,10 +254,22 @@ export function EditorContent({
     requestDeletePostit,
     updateDraftText,
     updateDraftColor,
+    notePostits,
+    postitMenuItems,
+    deletePostitById,
   } = postits
 
   return (
     <div id="note-editor" className="editor-content" ref={editorContentRef} data-builder-name="editor-content">
+    {/* Botao flutuante de post-its: icone + contagem, no canto superior
+        direito da area do texto, como o painel de ferramentas. */}
+    {notePostits.length > 0 ? (
+      <PostitMenu
+        items={postitMenuItems}
+        onOpen={(postitId) => handlePostitWidgetClick(postitId, false, true)}
+        onDelete={deletePostitById}
+      />
+    ) : null}
     {noteFindOpen ? (
       <div className="note-find-bar" role="search">
         <Search size={13} strokeWidth={1.7} aria-hidden="true" />
