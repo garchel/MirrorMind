@@ -164,6 +164,14 @@ def main():
         # cauda do arquivo sao literais. Registrar a posicao e o que
         # torna a lista verificavel em vez de adivinhada: se o arquivo
         # mudar de novo, a posicao deixa de bater e o gate falha.
+        # Motivo compartilhado pelas 14 declaracoes novas de
+        # review-ai.css: o bloco "Confianca do modelo" (e os paineis de
+        # melhoria e do dicionario) entrou depois do baseline. As 14
+        # ficam no fim do arquivo, na ordem registrada abaixo.
+        motivo_confianca = (
+            '2026-11-06: bloco "Confianca do modelo" e paineis de '
+            'melhoria/dicionario adicionados depois do baseline.')
+
         ADICIONADOS = {
             'src/features/shell/workspace-chrome.css': [
                 # `1.0` nao e um tamanho: e o `- 1px` do
@@ -183,11 +191,62 @@ def main():
                  '2026-09-29: o `- 1px` do calc de min-height que fecha '
                  'a altura da aba com a barra.'),
             ],
+            'src/features/review/review-ai.css': [
+                ('11.0', 48, motivo_confianca),
+                ('15.0', 49, motivo_confianca),
+                ('--font-size-caption', 50, motivo_confianca),
+                ('--font-size-caption', 51, motivo_confianca),
+                ('--font-size-caption', 52, motivo_confianca),
+                ('--font-size-caption', 53, motivo_confianca),
+                ('12.0', 54, motivo_confianca),
+                ('10.0', 55, motivo_confianca),
+                ('--font-size-caption', 56, motivo_confianca),
+                ('--font-size-caption', 57, motivo_confianca),
+                ('--font-size-caption', 58, motivo_confianca),
+                ('13.0', 59, motivo_confianca),
+                ('--font-size-caption', 60, motivo_confianca),
+                ('12.0', 61, motivo_confianca),
+            ],
+            'src/features/editor/editor.css': [
+                # Popover de post-its reescrito em 9780fa4: a secao "Sem
+                # ancora" e a lixeira sao declaracoes novas.
+                ('--font-size-caption', 22,
+                 '2026-11-06: rotulo da secao "Sem ancora" do popover '
+                 'de post-its (9780fa4), declaracao nova.'),
+                ('10.0', 25,
+                 '2026-11-06: glifo da lixeira do popover de post-its '
+                 '(9780fa4), declaracao nova em 10px.'),
+                # Fechar a janela com rascunho nao salvo (39cdfa6): duas
+                # listas novas usam o corpo small.
+                ('--font-size-small', 58,
+                 '2026-11-06: lista de notas nao salvas (39cdfa6), '
+                 'declaracao nova no fim do arquivo.'),
+                ('--font-size-small', 59,
+                 '2026-11-06: erro da guarda de fechamento (39cdfa6), '
+                 'declaracao nova no fim do arquivo.'),
+            ],
+        }
+
+        # Declaracoes que existiam no baseline e sairam do arquivo. Uma
+        # remocao tambem muda a escala, entao precisa da mesma prova que
+        # uma adicao: posicao no baseline, valor e motivo. Sem isso o
+        # `zip` posicional desalinha e acusa o arquivo inteiro.
+        REMOVIDOS = {
+            'src/features/editor/editor.css': [
+                ('11.0', 24,
+                 '2026-11-06: chip de orfaos (11px) saiu com o dialogo '
+                 'de orfaos, absorvido pelo popover unico (9780fa4).'),
+                ('13.0', 25,
+                 '2026-11-06: texto do dialogo de orfaos (13px) saiu '
+                 'com o dialogo, absorvido pelo popover unico '
+                 '(9780fa4).'),
+            ],
         }
 
         novos = ADICIONADOS.get(rel, [])
+        velhos = REMOVIDOS.get(rel, [])
         delta = len(after) - len(before)
-        if delta == len(novos) and novos:
+        if delta == len(novos) - len(velhos) and (novos or velhos):
             # Cada entrada e conferida NA POSICAO que declara.
             #
             # A ordem importa: processar da maior para a menor posicao
@@ -199,28 +258,41 @@ def main():
             # `scan` devolve (px, token): um token novo vem no segundo
             # campo, um literal novo no primeiro. Conferir so o token
             # deixava o literal passar (ou falhar) pela razao errada.
-            restantes = list(after)
+            #
+            # Adicoes sao removidas do estado novo e remocoes do
+            # baseline; o que sobra tem de casar posicao a posicao.
+            restantes_after = list(after)
+            restantes_before = list(before)
             ok = True
-            for valor, pos, motivo in sorted(novos, key=lambda x: -x[1]):
-                i = pos - 1
-                real_px, real_tok = (restantes[i] if 0 <= i < len(restantes)
-                                     else (None, 'FORA DO ARQUIVO'))
-                bate = (real_tok == valor
-                        if valor.startswith('--')
-                        else real_px is not None
-                        and abs(float(real_px) - float(valor)) < 0.01)
-                if not bate:
-                    ok = False
-                    problems.append(
-                        f'{rel}: ADICIONADOS diz que a posicao {pos} e '
-                        f'"{valor}", mas ali esta '
-                        f'px={real_px} tok={real_tok}')
+            for lista, entradas, rotulo, lado in (
+                    (restantes_after, novos, 'ADICIONADOS', 'novo'),
+                    (restantes_before, velhos, 'REMOVIDOS', 'baseline')):
+                for valor, pos, motivo in sorted(entradas,
+                                                 key=lambda x: -x[1]):
+                    i = pos - 1
+                    real_px, real_tok = (
+                        lista[i] if 0 <= i < len(lista)
+                        else (None, 'FORA DO ARQUIVO'))
+                    bate = (real_tok == valor
+                            if valor.startswith('--')
+                            else real_px is not None
+                            and abs(float(real_px) - float(valor)) < 0.01)
+                    if not bate:
+                        ok = False
+                        problems.append(
+                            f'{rel}: {rotulo} diz que a posicao {pos} '
+                            f'({lado}) e "{valor}", mas ali esta '
+                            f'px={real_px} tok={real_tok}')
+                        break
+                    del lista[i]
+                if not ok:
                     break
-                del restantes[i]
             if ok:
-                after = restantes
+                before, after = restantes_before, restantes_after
                 for tok, _pos, motivo in novos:
                     print(f'  [aprovado] {rel}: +{tok}  ({motivo})')
+                for tok, _pos, motivo in velhos:
+                    print(f'  [removido] {rel}: -{tok}  ({motivo})')
             else:
                 bad += 1
                 continue

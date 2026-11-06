@@ -39,8 +39,10 @@ melhorou (4,46 → 4,51). Maior variacao: 0,577 de razao.
 ficaram literais de proposito (+2/+4px em titulo de largura variavel
 aperta a linha, e nenhum gate mede layout). Verificacao visual via
 Playwright: os tokens resolvem no valor decidido e nao ha overflow nem
-texto cortado. Gate: `npm run tokens:verify:type`, que casa 536
-tamanhos token a token contra o baseline.
+texto cortado. Gate: `npm run tokens:verify:type`, que casa 534
+tamanhos token a token contra o baseline. Adicoes e remocoes de
+declaracao sao registradas com posicao, valor e motivo (`ADICIONADOS` /
+`REMOVIDOS` no script): o gate nao aceita nem uma nem outra sem prova.
 
 ## Pendencias conhecidas
 
@@ -122,6 +124,15 @@ continua definido.
 - **`verify-tokenization` reescrito**: casava por posicao (falso positivo
   em 3 pontos) e depois por similaridade gulosa (DeltaE 14 inexistente).
   Agora compara o hex de cada token contra o conjunto de hex do baseline.
+- **Tokens semanticos na Revisao** (`2026-11-06`): os 13 usos de
+  `--mm-*` sem primitiva em `review-ai.css` passaram a apontar para os
+  slots semanticos (`--border`, `--status-*`, `--text`, `--accent`).
+  `verify-tokenization` volta a 0 orfaos.
+- **Aviso Rust que quebrava a cobertura** (`2026-11-06`): a variavel
+  `ai_quote2`, declarada e nao usada no teste de citacao tolerante, era
+  erro sob `-D warnings` (o `setup-rust-toolchain` da CI aplica esse
+  flag). Removida; `cargo check --tests --all-features` com
+  `RUSTFLAGS=-D warnings` passa.
 
 ## O defeito original (para referencia)
 
