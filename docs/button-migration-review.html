@@ -617,9 +617,16 @@
         <span class="preview-origin">src/features/editor/EditorContent.tsx:444–474 · 21 botões</span>
       </div>
       <p class="preview-note">
-        Glifos de 30px dentro de <code>.floating-markdown-toolbar</code>. Regra:
-        <code>editor.css:826</code>. Alvo: <code>variant="bare" size="xs"</code>.
+        Glifos de 26px dentro de <code>.floating-markdown-toolbar</code>. Regra:
+        <code>editor.css:832</code>. Alvo: <code>variant="bare" size="xs"</code>.
         Os dois botões de arrastar/orientação já são <code>&lt;Button&gt;</code>.
+        <strong>Migrado:</strong> os 21 botões crus do bloco já usam o primitivo.
+        Medido: 26×26 antes e depois, mesmo fundo, cor, raio e peso 600; só a
+        fonte (15px → 12px) e o <code>justify-content</code> mudam. O glifo
+        <code>xs</code> do primitivo é um quadrado de 28px (especificidade
+        0,3,0) e venceria o <code>min-width: 26px</code> do contexto (0,2,0);
+        por isso a regra <code>editor.css:850</code> repete a classe de tamanho
+        no seletor e mantém os 26px.
       </p>
       <div class="preview-pair">
         <div class="preview-pane">

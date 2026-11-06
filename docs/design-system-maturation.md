@@ -292,13 +292,18 @@ antigo dizia:
    | lote | arquivo | botoes | alvo | estado |
    |---|---|---|---|---|
    | 1 | `FormatToolbar.tsx` | 16 | `bare` / `xs` | migrado |
+   | 2 | `EditorContent.tsx` | 21 | `bare` / `xs` | migrado |
 
    O lote 1 foi medido no preview com o CSS real: o retangulo continua
    28×28, com o mesmo fundo, cor, raio e peso 600; so a fonte (15px → 12px)
    e o `justify-content` mudam, e o grupo e so glifo, entao nao ha mudanca
-   visual. Os lotes seguintes (21 glifos do `EditorContent`, 5 linhas de
-   lista do `App`, 5 do `ExplorerSidebar`, 7 acoes de modal e 3 do
-   `VaultSelection`) continuam pendentes.
+   visual. O lote 2 tambem ficou identico (26×26), mas precisou de uma
+   linha de CSS: o glifo `xs` do primitivo e um quadrado de 28px com
+   especificidade 0,3,0, e a barra flutuante e mais densa (26px). A regra
+   de contexto tem 0,2,0 e perdia no `min-width`; a classe de tamanho entra
+   no seletor para empatar em 0,3,0 e vencer por ordem. Os lotes seguintes
+   (5 linhas de lista do `App`, 5 do `ExplorerSidebar`, 7 acoes de modal e
+   3 do `VaultSelection`) continuam pendentes.
 
 A medicao que sustenta os numeros: `scan-buttons.mjs` (97 tags, 82 sem
 classe, 73 de produto), `scan-tag-rules.mjs` (98 seletores, 83 com

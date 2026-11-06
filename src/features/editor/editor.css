@@ -842,6 +842,15 @@
   color: var(--mm-ink-900-17);
 }
 
+/* Esta barra e mais densa que o glifo `xs` do primitivo, que e um quadrado
+ * de 28px (`.ui-button--xs:not(:has(...))`, especificidade 0,3,0). A regra
+ * de contexto acima tem 0,2,0 e perde no `min-width`, alargando cada glifo
+ * de 26 para 28px. A classe de tamanho entra no seletor so para empatar em
+ * 0,3,0 e vencer por ordem (editor.css vem depois de component.css). */
+.workspace-shell .floating-markdown-toolbar :where(button, .ui-button).ui-button--xs {
+  min-width: 26px;
+}
+
 .workspace-shell .floating-markdown-toolbar :where(button, .ui-button):hover:not(:disabled) {
   background: var(--mm-moss-250);
 }
