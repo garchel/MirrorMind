@@ -593,7 +593,7 @@
 
 .tag-name-field small,
 .tag-mode-options small,
-.tag-presets button small,
+.tag-presets :where(button, .ui-button) small,
 .tag-review-switch small {
   color: var(--tag-muted);
   font-size: 12px;
@@ -692,8 +692,10 @@
 
 .tag-presets :where(button, .ui-button) {
   display: grid;
+  justify-content: normal;
   gap: 5px;
   padding: 12px;
+  font-size: inherit;
   text-align: left;
 }
 

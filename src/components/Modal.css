@@ -109,7 +109,7 @@
 }
 
 .modal .modal-close:focus-visible,
-.modal button:focus-visible,
+.modal :where(button, .ui-button):focus-visible,
 .modal input:focus-visible,
 .modal textarea:focus-visible,
 .modal select:focus-visible {

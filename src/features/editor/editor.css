@@ -552,7 +552,7 @@
 .workspace-shell .favorite-button.is-active { color: var(--mm-clay-750); background: var(--mm-clay-200-9); }
 .workspace-shell .favorite-notes { display: grid; gap: 2px; margin: 0 2px 8px; padding: 6px; border-bottom: 1px solid var(--mm-ink-250-3); }
 .workspace-shell .favorite-notes > span { color: var(--mm-ink-800-7); font-size: 10px; text-transform: uppercase; }
-.workspace-shell .favorite-notes :where(button, .ui-button) { display: flex; align-items: center; gap: 6px; min-height: 27px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--mm-ink-900-32); font-size: 12px; text-align: left; }
+.workspace-shell .favorite-notes :where(button, .ui-button) { display: flex; align-items: center; justify-content: normal; gap: 6px; min-height: 27px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--mm-ink-900-32); font-size: 12px; text-align: left; }
 .workspace-shell .favorite-notes :where(button, .ui-button):hover { background: var(--mm-clay-200-9); }
 
 .workspace-shell .editor-mode-control {
@@ -2953,7 +2953,7 @@
 .wikilink-index-cancelled { color: var(--mm-clay-800-3); font-size: var(--font-size-caption); }
 
 .command-palette-results { display: grid; max-height: 360px; overflow: auto; padding: 6px; }
-.command-palette-results :where(button, .ui-button) { display: grid; gap: 3px; width: 100%; padding: 10px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--mm-ink-900-17); text-align: left; }
+.command-palette-results :where(button, .ui-button) { display: grid; justify-content: normal; gap: 3px; width: 100%; padding: 10px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--mm-ink-900-17); font-size: inherit; text-align: left; }
 .command-palette-results :where(button, .ui-button):hover:not(:disabled) { background: var(--mm-moss-200); }
 .command-palette-results :where(button, .ui-button):disabled { opacity: .45; }
 .command-palette-results small, .command-palette-results p, .command-palette-hint { color: var(--mm-ink-800-7); font-size: var(--font-size-caption); }

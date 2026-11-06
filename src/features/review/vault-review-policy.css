@@ -16,10 +16,12 @@
 
 .vault-review-policy-presets :where(button, .ui-button) {
   display: grid;
+  justify-content: normal;
   align-content: start;
   gap: 4px;
   min-height: 74px;
   padding: 10px 11px;
+  font-size: inherit;
   text-align: left;
 }
 

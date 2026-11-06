@@ -252,9 +252,21 @@ real (previews em `docs/button-migration-review.html`):
 | armadilha | mecanismo | correcao |
 |---|---|---|
 | `size="xs"` em botao com texto | `.ui-button--xs:not(:has(.ui-button__icon + :not(:empty)))` tem especificidade **0,3,0** (o `:not(:empty)` conta como classe) e zera o padding; texto puro nao conta como elemento | usar `size="sm"` em linha com texto; `xs` so para glifo |
-| fonte 15px vira 12px | contexto nao declara `font-size`; a classe de tamanho injeta 12px | `font: inherit` no contexto (5 contextos) |
+| fonte 15px vira 12px | contexto nao declara `font-size`; a classe de tamanho injeta 12px | `font-size: inherit` no contexto (6 contextos) |
 | conteudo centraliza | `.ui-button` injeta `justify-content: center`; contexto nao reseta | `justify-content: normal` no contexto (9 contextos) |
 | 46px vira 34/40px | o botao cru herda `button { min-height: 46px }` do `base.css`; a classe de tamanho vence | correcao intencional: alinha com os `<Button>` da mesma barra |
+
+A correcao da fonte e `font-size: inherit`, **nao** `font: inherit`. O
+`base.css` aplica `font: inherit` e depois `font-weight: 600`; repetir o
+shorthand no contexto tambem zera o peso (medido no navegador: 600 vira
+400). O `font-size` herdado neutraliza so o 12px injetado e preserva o
+peso do botao cru. A medicao tambem mostrou que o `command-palette-results`
+precisa da mesma linha: sao **6** contextos, nao 5.
+
+O gate `scripts/verify-button-cascade.py` tambem exige `:where` nas duas
+regras de foco generico (`Modal.css` e `goals.css`). Elas foram migradas
+por consistencia na mesma onda; o elemento continua sendo `button`, entao
+o foco do botao cru nao muda.
 
 O `justify-content: normal` e o valor inicial (stretch no grid,
 flex-start no flex): e no-op para o botao cru e neutraliza o `center`
@@ -266,8 +278,8 @@ O caminho continua em dois passos, mas o passo 1 e menor do que o doc
 antigo dizia:
 
 1. **onda 0** — 9 seletores de contexto para `:where(button, .ui-button)`,
-   9 contextos de linha/menu com `justify-content: normal`, 5 com
-   `font: inherit`. Um commit so, sem migrar `.tsx`; nenhuma mudanca
+   9 contextos de linha/menu com `justify-content: normal`, 6 com
+   `font-size: inherit`. Um commit so, sem migrar `.tsx`; nenhuma mudanca
    visual (medido: os 6 previews ficam identicos, exceto modal/vault, que
    encurtam de proposito).
 2. **onda 1** — os 73 crus de produto viram `<Button variant size>`,

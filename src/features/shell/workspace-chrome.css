@@ -589,6 +589,14 @@ label.settings-toggle {
   text-transform: uppercase;
 }
 
+/* Onda 0: `justify-content: normal` neutraliza o `center` que o
+   `.ui-button` injeta; o `font-size` herdado impede o `size` de trocar
+   a fonte do menu. A regra clara abaixo fixa o corpo do menu. */
+.settings-nav :where(button, .ui-button) {
+  justify-content: normal;
+  font-size: inherit;
+}
+
 /* Qualificado ao tema claro: no escuro o bloco [data-theme='dark'] manda.
    Especificidade (0,4,0+) vence a chapa escura global
    `.workspace-shell button` (0,1,1), que empatava e vencia por ordem. */
@@ -862,12 +870,14 @@ label.settings-toggle {
 
 .note-search-results :where(button, .ui-button) {
   display: grid;
+  justify-content: normal;
   gap: 3px;
   min-height: 0;
   padding: 11px 14px;
   border-radius: 0;
   background: transparent;
   color: var(--mm-ink-900-5);
+  font-size: inherit;
   text-align: left;
 }
 
@@ -1975,6 +1985,7 @@ label.settings-toggle {
 .workspace-shell .explorer-context-menu :where(button, .ui-button) {
   display: flex;
   align-items: center;
+  justify-content: normal;
   gap: 8px;
   min-height: 30px;
   padding: 0 8px;
@@ -1997,11 +2008,12 @@ label.settings-toggle {
 /* Item de indexadora no estado "ligado" (a nota JA é indexadora): fundo
  * do proprio menu + peso da fonte. Familiar porque e o mesmo tratamento
  * do `is-active` em outras listas do app, e dispensavel porque o rotulo
- * ja diz "Remover indexadora". Especificidade (0,3,0) vence o `:hover`
- * generico (0,2,0 + :where), entao o destaque nao some ao passar o
- * mouse — igual ao `is-danger`, que tambem nao depende so do hover. */
-.workspace-shell .explorer-context-menu button.indexadora-menu-item.is-active,
-.workspace-shell .explorer-context-menu button.indexadora-menu-item.is-active:hover:not(:disabled) {
+ * ja diz "Remover indexadora". Depois do `:where`, a regra empata com o
+ * `:hover` generico em (0,4,0) e vence por ordem (vem depois); o
+ * `:hover` do proprio item (0,5,0) reforca o destaque. Ele nao some ao
+ * passar do mouse — igual ao `is-danger`. */
+.workspace-shell .explorer-context-menu :where(button, .ui-button).indexadora-menu-item.is-active,
+.workspace-shell .explorer-context-menu :where(button, .ui-button).indexadora-menu-item.is-active:hover:not(:disabled) {
   background: var(--mm-ink-900-13);
   color: var(--mm-lilac-150-2);
   font-weight: 600;
@@ -2050,6 +2062,7 @@ label.settings-toggle {
 .move-destination-list :where(button, .ui-button) {
   display: flex;
   align-items: center;
+  justify-content: normal;
   width: 100%;
   min-height: 32px;
   gap: 8px;
@@ -2062,7 +2075,7 @@ label.settings-toggle {
   text-align: left;
 }
 
-.move-destination-list button:hover,
+.move-destination-list :where(button, .ui-button):hover,
 .move-destination-list :where(button, .ui-button).is-selected {
   background: var(--mm-moss-250);
   color: var(--mm-sage-950);

@@ -117,7 +117,7 @@
   font-size: 12px;
 }
 
-.review-policy-presets button,
+.review-policy-presets :where(button, .ui-button),
 .review-policy-modes label {
   min-width: 0;
   border: 1px solid var(--border, var(--line));
@@ -128,8 +128,10 @@
 
 .review-policy-presets :where(button, .ui-button) {
   display: grid;
+  justify-content: normal;
   gap: 4px;
   padding: 11px;
+  font-size: inherit;
   text-align: left;
   cursor: pointer;
 }

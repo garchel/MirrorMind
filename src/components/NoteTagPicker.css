@@ -62,7 +62,7 @@
   box-shadow: 0 12px 26px rgb(52 51 46 / 0.14);
 }
 
-.workspace-shell .note-tag-picker-menu button,
+.workspace-shell .note-tag-picker-menu :where(button, .ui-button),
 .note-tag-picker-menu :where(button, .ui-button) {
   border: 0;
   padding: 7px 8px;
@@ -74,9 +74,9 @@
   cursor: pointer;
 }
 
-.workspace-shell .note-tag-picker-menu button:hover,
-.workspace-shell .note-tag-picker-menu button:focus-visible,
-.note-tag-picker-menu button:hover,
+.workspace-shell .note-tag-picker-menu :where(button, .ui-button):hover,
+.workspace-shell .note-tag-picker-menu :where(button, .ui-button):focus-visible,
+.note-tag-picker-menu :where(button, .ui-button):hover,
 .note-tag-picker-menu :where(button, .ui-button):focus-visible {
   background: rgba(28, 36, 39, 0.07);
   outline: none;

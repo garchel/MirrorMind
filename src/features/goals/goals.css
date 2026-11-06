@@ -736,7 +736,7 @@
 }
 
 /* Anel de foco visível em todos os controles da página. */
-.goals-page button:focus-visible,
+.goals-page :where(button, .ui-button):focus-visible,
 .goals-page input:focus-visible,
 .goals-page textarea:focus-visible {
   outline: 2px solid var(--accent);

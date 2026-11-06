@@ -22,9 +22,11 @@
   /* --- Onda 0, aplicada só nesta página ---------------------------------
      As duas linhas que a onda 0 acrescenta aos contextos de linha/menu,
      para o preview "depois" refletir o alvo e não a centralização que o
-     `.ui-button` injeta. São no-op para o botão cru: o `button` do
-     base.css já tem `font: inherit`, e `justify-content: normal` é o
+     `.ui-button` injeta. São no-op para o botão cru: o `font-size` já é
+     herdado pelo reset do `base.css`, e `justify-content: normal` é o
      valor inicial (stretch no grid, flex-start no flex).
+     `font-size: inherit` (não `font: inherit`) preserva o
+     `font-weight: 600` que o reset do `base.css` aplica ao botão cru.
      A lista completa e a contagem estão na seção "O CSS". */
   .favorite-notes :where(button, .ui-button),
   .command-palette-results :where(button, .ui-button),
@@ -38,11 +40,12 @@
     justify-content: normal;
   }
   .note-search-results :where(button, .ui-button),
+  .command-palette-results :where(button, .ui-button),
   .settings-nav :where(button, .ui-button),
   .tag-presets :where(button, .ui-button),
   .review-policy-presets :where(button, .ui-button),
   .vault-review-policy-presets :where(button, .ui-button) {
-    font: inherit;
+    font-size: inherit;
   }
 
   /* --- Chrome da pagina de revisao (nao e CSS do app) ------------------ */
@@ -451,8 +454,8 @@
       <strong>83 já aceitam <code>.ui-button</code></strong>. As 58 regras já
       foram reescritas. O que sobrou não é um bloqueio de seletor de tag — é
       dívida de TSX mais uma preparação de CSS pequena e mensurável (onda 0:
-      9 contextos com <code>justify-content</code>, 5 com
-      <code>font: inherit</code>). O documento foi corrigido no mesmo passo
+      9 contextos com <code>justify-content</code>, 6 com
+      <code>font-size: inherit</code>). O documento foi corrigido no mesmo passo
       desta página.
     </div>
   </section>
@@ -519,7 +522,10 @@
           Onde o contexto não declara <code>font-size</code>, o botão cru herda
           15px do container e o <code>size="sm"</code> injeta 12px. A linha
           encolhe de 85px para 63px. A correção é uma linha de CSS:
-          <code>font: inherit</code> no seletor de contexto.
+          <code>font-size: inherit</code> no seletor de contexto. Não use
+          <code>font: inherit</code>: o shorthand também zera o
+          <code>font-weight: 600</code> do <code>base.css</code> (medido:
+          600 vira 400).
         </li>
         <li>
           <code>.ui-button</code> injeta <code>justify-content: center</code>, e
@@ -673,7 +679,7 @@
         <code>workspace-chrome.css:863</code> (busca de notas). Alvo:
         <code>variant="bare" size="sm"</code> — <strong>não</strong>
         <code>xs</code>, que zera o padding da linha. A onda 0 acrescenta
-        <code>font: inherit</code> e <code>justify-content: normal</code> ao
+        <code>font-size: inherit</code> e <code>justify-content: normal</code> ao
         contexto; as duas já estão aplicadas nesta página. Medido:
         85×443 contra 85×442 (1px de subpixel), mesmo padding, fonte e
         alinhamento.
@@ -1032,10 +1038,12 @@
       A varredura quebrou cada lista de seletores por vírgula respeitando
       parênteses (senão <code>:where(button, .ui-button)</code> vira dois
       seletores falsos). Resultado: <strong>83 já aceitam
-      <code>.ui-button</code></strong> e <strong>15 dependem só da tag</strong>.
-      Como o primitivo renderiza <code>&lt;button&gt;</code>, os 15 continuam
-      casando — mas 9 deles são específicos de contexto e merecem virar
-      <code>:where(button, .ui-button)</code> por consistência.
+      <code>.ui-button</code></strong> e <strong>15 dependiam só da tag</strong>.
+      Como o primitivo renderiza <code>&lt;button&gt;</code>, os 15 continuavam
+      casando — mas 9 deles eram específicos de contexto e foram migrados para
+      <code>:where(button, .ui-button)</code> na onda 0; os 2 de foco também,
+      por consistência. Sobram o reset global do <code>base.css</code> e o
+      <code>:is(…)</code> genérico, que já cobre o elemento.
     </p>
     <div class="doc-table-wrap">
       <table class="doc-table">
@@ -1043,16 +1051,16 @@
           <tr><th>Arquivo:linha</th><th>Seletor</th><th>Situação</th></tr>
         </thead>
         <tbody>
-          <tr><td><code>Modal.css:109</code></td><td><code>.modal button:focus-visible</code></td><td>foco genérico — continua valendo</td></tr>
-          <tr><td><code>NoteTagPicker.css:63</code></td><td><code>.workspace-shell .note-tag-picker-menu button</code></td><td>contexto — migrar para <code>:where</code></td></tr>
-          <tr><td><code>NoteTagPicker.css:75</code></td><td><code>… button:hover</code> / <code>:focus-visible</code></td><td>contexto — migrar para <code>:where</code></td></tr>
-          <tr><td><code>goals.css:736</code></td><td><code>.goals-page button:focus-visible</code></td><td>foco genérico — continua valendo</td></tr>
-          <tr><td><code>review-policy.css:118</code></td><td><code>.review-policy-presets button</code></td><td>contexto — migrar para <code>:where</code></td></tr>
-          <tr><td><code>workspace-chrome.css:1292</code></td><td><code>:is(button, input, …):focus-visible</code></td><td>foco genérico — continua valendo</td></tr>
-          <tr><td><code>workspace-chrome.css:1995</code></td><td><code>… button.indexadora-menu-item.is-active</code></td><td>contexto — migrar para <code>:where</code></td></tr>
-          <tr><td><code>workspace-chrome.css:2063</code></td><td><code>.move-destination-list button:hover</code></td><td>contexto — migrar para <code>:where</code></td></tr>
-          <tr><td><code>tag-management.css:592</code></td><td><code>.tag-presets button small</code></td><td>contexto — migrar para <code>:where</code></td></tr>
-          <tr><td><code>base.css:123, 140, 144</code></td><td><code>button</code>, <code>button:hover</code>, <code>button:disabled</code></td><td>global intencional — fica</td></tr>
+          <tr><td><code>Modal.css:112</code></td><td><code>.modal :where(button, .ui-button):focus-visible</code></td><td>foco genérico — migrado por consistência</td></tr>
+          <tr><td><code>NoteTagPicker.css:65</code></td><td><code>.workspace-shell .note-tag-picker-menu :where(button, .ui-button)</code></td><td>contexto — migrado</td></tr>
+          <tr><td><code>NoteTagPicker.css:77</code></td><td><code>… :where(button, .ui-button):hover</code> / <code>:focus-visible</code></td><td>contexto — migrado</td></tr>
+          <tr><td><code>goals.css:739</code></td><td><code>.goals-page :where(button, .ui-button):focus-visible</code></td><td>foco genérico — migrado por consistência</td></tr>
+          <tr><td><code>review-policy.css:120</code></td><td><code>.review-policy-presets :where(button, .ui-button)</code></td><td>contexto — migrado</td></tr>
+          <tr><td><code>workspace-chrome.css:1304</code></td><td><code>:is(button, input, …):focus-visible</code></td><td>foco genérico — já cobre <code>.ui-button</code> (o elemento continua <code>button</code>)</td></tr>
+          <tr><td><code>workspace-chrome.css:2014</code></td><td><code>… :where(button, .ui-button).indexadora-menu-item.is-active</code></td><td>contexto — migrado</td></tr>
+          <tr><td><code>workspace-chrome.css:2077</code></td><td><code>.move-destination-list :where(button, .ui-button):hover</code></td><td>contexto — migrado</td></tr>
+          <tr><td><code>tag-management.css:596</code></td><td><code>.tag-presets :where(button, .ui-button) small</code></td><td>contexto — migrado</td></tr>
+          <tr><td><code>base.css:125, 142, 146</code></td><td><code>button</code>, <code>button:hover</code>, <code>button:disabled</code></td><td>global intencional — fica</td></tr>
         </tbody>
       </table>
     </div>
@@ -1066,9 +1074,12 @@
       canto esquerdo. Quatro são glifo (o centro é o alvo) e três são grupos de
       ação de largura própria (o centro não muda nada); as <strong>nove</strong>
       abaixo são linha/menu e precisam de <code>justify-content: normal</code>.
-      Cinco delas também não declaram <code>font-size</code> e precisam de
-      <code>font: inherit</code>, senão o <code>size</code> injeta 12px onde o
-      container usa 15px.
+      Seis delas também não declaram <code>font-size</code> e precisam de
+      <code>font-size: inherit</code>, senão o <code>size</code> injeta 12px
+      onde o container usa 15px. O <code>font: inherit</code> resolveria o
+      tamanho, mas zeraria o <code>font-weight: 600</code> do
+      <code>base.css</code>; por isso a onda 0 usa só a propriedade de
+      tamanho.
     </p>
     <div class="doc-table-wrap">
       <table class="doc-table">
@@ -1077,14 +1088,14 @@
         </thead>
         <tbody>
           <tr><td><code>.favorite-notes</code></td><td><code>editor.css:555</code></td><td><code>justify-content: normal</code></td></tr>
-          <tr><td><code>.command-palette-results</code></td><td><code>editor.css:2917</code></td><td><code>justify-content: normal</code></td></tr>
-          <tr><td><code>.review-policy-presets</code></td><td><code>review-policy.css:129</code></td><td><code>justify-content: normal</code> + <code>font: inherit</code></td></tr>
-          <tr><td><code>.vault-review-policy-presets</code></td><td><code>vault-review-policy.css:17</code></td><td><code>justify-content: normal</code> + <code>font: inherit</code></td></tr>
-          <tr><td><code>.settings-nav</code></td><td><code>workspace-chrome.css:595</code></td><td><code>justify-content: normal</code> + <code>font: inherit</code></td></tr>
-          <tr><td><code>.note-search-results</code></td><td><code>workspace-chrome.css:863</code></td><td><code>justify-content: normal</code> + <code>font: inherit</code></td></tr>
-          <tr><td><code>.explorer-context-menu</code></td><td><code>workspace-chrome.css:1975</code></td><td><code>justify-content: normal</code></td></tr>
-          <tr><td><code>.move-destination-list</code></td><td><code>workspace-chrome.css:2050</code></td><td><code>justify-content: normal</code></td></tr>
-          <tr><td><code>.tag-presets</code></td><td><code>tag-management.css:693</code></td><td><code>justify-content: normal</code> + <code>font: inherit</code></td></tr>
+          <tr><td><code>.command-palette-results</code></td><td><code>editor.css:2956</code></td><td><code>justify-content: normal</code> + <code>font-size: inherit</code></td></tr>
+          <tr><td><code>.review-policy-presets</code></td><td><code>review-policy.css:129</code></td><td><code>justify-content: normal</code> + <code>font-size: inherit</code></td></tr>
+          <tr><td><code>.vault-review-policy-presets</code></td><td><code>vault-review-policy.css:17</code></td><td><code>justify-content: normal</code> + <code>font-size: inherit</code></td></tr>
+          <tr><td><code>.settings-nav</code></td><td><code>workspace-chrome.css:595</code></td><td><code>justify-content: normal</code> + <code>font-size: inherit</code></td></tr>
+          <tr><td><code>.note-search-results</code></td><td><code>workspace-chrome.css:871</code></td><td><code>justify-content: normal</code> + <code>font-size: inherit</code></td></tr>
+          <tr><td><code>.explorer-context-menu</code></td><td><code>workspace-chrome.css:1985</code></td><td><code>justify-content: normal</code></td></tr>
+          <tr><td><code>.move-destination-list</code></td><td><code>workspace-chrome.css:2061</code></td><td><code>justify-content: normal</code></td></tr>
+          <tr><td><code>.tag-presets</code></td><td><code>tag-management.css:693</code></td><td><code>justify-content: normal</code> + <code>font-size: inherit</code></td></tr>
         </tbody>
       </table>
     </div>
@@ -1126,8 +1137,8 @@
         <span class="wave-index">Onda 0</span>
         <div>
           <h3>Preparar o CSS (sem tocar em TSX)</h3>
-          <p>Os 9 seletores de contexto que ainda dependem só da tag viram <code>:where(button, .ui-button)</code>; os 9 contextos de linha/menu ganham <code>justify-content: normal</code>; os 5 que não declaram fonte ganham <code>font: inherit</code>.</p>
-          <small>Nenhuma mudança visual: <code>:where</code> tem especificidade zero, <code>normal</code> é o valor inicial e <code>font: inherit</code> é o que o <code>button</code> do <code>base.css</code> já faz. Commit isolado, sem migrar componente; a verificação é a suíte de render + medição dos 6 contextos.</small>
+          <p>Os 9 seletores de contexto que ainda dependem só da tag viram <code>:where(button, .ui-button)</code>; os 9 contextos de linha/menu ganham <code>justify-content: normal</code>; os 6 que não declaram fonte ganham <code>font-size: inherit</code>.</p>
+          <small>Nenhuma mudança visual: <code>:where</code> tem especificidade zero, <code>normal</code> é o valor inicial e <code>font-size: inherit</code> preserva o <code>font-weight: 600</code> do <code>base.css</code> (o shorthand <code>font: inherit</code> o zeraria). Commit isolado, sem migrar componente; a verificação é a suíte de render + medição dos 6 contextos.</small>
         </div>
       </li>
       <li class="wave">
