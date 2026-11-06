@@ -295,8 +295,9 @@ export function EditorHeader({
               setReviewGapMode(modes[(currentIndex + direction + modes.length) % modes.length])
             }}
           >
-            <button
-              type="button"
+            <Button
+              variant="bare"
+              size="xs"
               role="radio"
               aria-checked={reviewGapMode === 'off'}
               className={reviewGapMode === 'off' ? 'is-active' : ''}
@@ -305,9 +306,10 @@ export function EditorHeader({
               aria-label="Minhas cores (somente destaques)"
             >
               Minhas cores
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="bare"
+              size="xs"
               role="radio"
               aria-checked={reviewGapMode === 'always'}
               className={reviewGapMode === 'always' ? 'is-active' : ''}
@@ -316,9 +318,10 @@ export function EditorHeader({
               aria-label="Revisão (lacunas sempre visíveis)"
             >
               Revisão
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="bare"
+              size="xs"
               role="radio"
               aria-checked={reviewGapMode === 'hover'}
               className={reviewGapMode === 'hover' ? 'is-active' : ''}
@@ -327,7 +330,7 @@ export function EditorHeader({
               aria-label="Misto (lacunas somente no hover)"
             >
               Misto
-            </button>
+            </Button>
           </div>
         ) : null}
         <Button type="button" variant="bare" className="ui-button" onClick={openNoteFind} title="Buscar na nota (Ctrl+F)" aria-label="Buscar na nota"><Search size={15} strokeWidth={1.5} aria-hidden="true" /></Button>

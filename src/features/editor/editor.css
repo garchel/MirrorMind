@@ -1760,6 +1760,13 @@
   transition: background 120ms ease, color 120ms ease;
 }
 
+/* O controle e mais denso que o glifo `xs` do primitivo, que tem
+ * min-height 28px. A classe de tamanho entra no seletor so para vencer
+ * esse min-height e manter os 26px declarados acima. */
+.workspace-shell .review-gap-mode-control :where(button, .ui-button).ui-button--xs {
+  min-height: 26px;
+}
+
 .workspace-shell .review-gap-mode-control :where(button, .ui-button):hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent, var(--mm-moss-800-2)) 12%, transparent);
 }

@@ -888,12 +888,65 @@
     Escolher pasta
   &lt;/Button&gt;</pre>
     </article>
+
+    <!-- 7. Controle de lacunas da revisao -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Controle de lacunas da revisão</h3>
+        <span class="preview-origin">EditorHeader.tsx:298, 309, 320 · 3 botões</span>
+      </div>
+      <p class="preview-note">
+        Três botões de texto dentro de <code>.review-gap-mode-control</code>
+        (regra <code>editor.css:1749</code>). O contexto declara 26px de
+        altura, mas o reset do <code>base.css</code> impõe
+        <code>min-height: 46px</code> e vencia — o cru mede 46px. Alvo:
+        <code>variant="bare" size="xs"</code>. <strong>Migrado:</strong>
+        <strong>46→26px</strong>, com padding <code>0 10px</code>, fonte
+        12px, peso 600, raio e cores idênticos. O <code>xs</code> do
+        primitivo tem <code>min-height: 28px</code>; a regra
+        <code>editor.css:1766</code> repete a classe de tamanho para vencer
+        esse mínimo e manter os 26px.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="review-gap-mode-control" role="radiogroup" aria-label="Minhas cores, Revisão e Misto (hoje)">
+              <button type="button" role="radio" aria-checked="false">Minhas cores</button>
+              <button type="button" role="radio" aria-checked="true" class="is-active">Revisão</button>
+              <button type="button" role="radio" aria-checked="false">Misto</button>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="review-gap-mode-control" role="radiogroup" aria-label="Minhas cores, Revisão e Misto (depois)">
+              <button type="button" role="radio" aria-checked="false" class="ui-button ui-button--bare ui-button--xs">Minhas cores</button>
+              <button type="button" role="radio" aria-checked="true" class="ui-button ui-button--bare ui-button--xs is-active">Revisão</button>
+              <button type="button" role="radio" aria-checked="false" class="ui-button ui-button--bare ui-button--xs">Misto</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button type="button" role="radio" aria-checked={reviewGapMode === 'off'}
+        className={reviewGapMode === 'off' ? 'is-active' : ''}&gt;
+    Minhas cores
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button variant="bare" size="xs" role="radio"
+        aria-checked={reviewGapMode === 'off'}
+        className={reviewGapMode === 'off' ? 'is-active' : ''}&gt;
+    Minhas cores
+  &lt;/Button&gt;</pre>
+    </article>
   </section>
 
   <section aria-labelledby="inventario">
     <h2 id="inventario">O inventário: de onde vem cada botão</h2>
     <p class="section-lede">
-      Os 73 botões de produto sem classe, agrupados por contexto. “Regra que
+      Os grupos de botões crus, com o inventário original de 73 sem classe
+      mais os que já tinham classe. “Regra que
       manda” é o seletor que já decide altura, raio e cor hoje — e que continua
       decidindo depois, porque <code>&lt;Button&gt;</code> também é
       <code>button</code>.
@@ -972,6 +1025,13 @@
             <td><code>87, 123, 158</code></td>
             <td><span class="tag-pill is-primary">primary</span> <span class="tag-pill">md</span> ×2 · <span class="tag-pill">sm</span> ×1</td>
             <td><code>workspace-chrome.css:1158</code> · o modal usa <code>sm</code> porque o rodapé é flex com <code>stretch</code></td>
+          </tr>
+          <tr>
+            <td><code>features/editor/EditorHeader.tsx</code> <span class="tag-pill">já tem classe</span></td>
+            <td class="num">3</td>
+            <td><code>298, 309, 320</code></td>
+            <td><span class="tag-pill is-bare">bare</span> <span class="tag-pill">xs</span></td>
+            <td><code>editor.css:1749</code> · 46px (o contexto declara 26px, mas o reset vence)</td>
           </tr>
           <tr>
             <td><code>components/NoteTagPicker.tsx</code></td>
@@ -1054,11 +1114,13 @@
       </table>
     </div>
     <p style="margin-top:14px;font-size:12.5px;color:var(--muted)">
-      Somam 73 botões sem classe. Além deles, <strong>14 botões de produto já têm
-      <code>className</code></strong> (App 6100; Explorer 356, 367; GraphToolbar
-      198, 199; EditorHeader 347, 358, 369; NoteReviewPolicyControl 380;
-      SettingsPage 151, 186, 205, 214) — entram na mesma onda preservando a
-      classe. O 15º é o <code>&lt;button&gt;</code> interno do próprio
+      A tabela parte dos 73 botões sem classe do inventário de 2026-10-30 —
+      57 deles já foram migrados nos lotes 1–6. Além deles, <strong>12 botões
+      de produto já têm <code>className</code></strong> (App 6170;
+      GraphToolbar 198, 199; EditorHeader 298, 309, 320;
+      NoteReviewPolicyControl 380; SettingsPage 151, 186, 205, 214;
+      DictionarySearchToast 104) — entram na mesma onda preservando a
+      classe. O 13º é o <code>&lt;button&gt;</code> interno do próprio
       <code>Button.tsx:92</code>, que não se toca. Os outros 9 são de teste.
     </p>
   </section>

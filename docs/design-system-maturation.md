@@ -72,15 +72,15 @@ continua definido.
 
 ### O que falta, em ordem de tamanho
 
-1. **30 `<button>` crus de produto** — o inventario de 2026-10-30 era
-   73 sem classe + 14 com classe = 87, e a onda 1 ja migrou 57 deles em
-   6 grupos. As 100 que tinham classe de contexto foram migradas — agora
+1. **27 `<button>` crus de produto** — o inventario de 2026-10-30 era
+   73 sem classe + 14 com classe = 87, e a onda 1 ja migrou 60 deles em
+   7 grupos. As 100 que tinham classe de contexto foram migradas — agora
    sao 286 `<Button>`. A premissa antiga de que migrar quebraria o
    seletor de tag estava **errada**: `<Button>` renderiza um `<button>`
    com classes a mais, entao os 83 seletores que ja usam
    `:where(button, .ui-button)` continuam casando e os 15 que dependem
-   so da tag tambem. O que falta e a onda 1 nos 30 restantes (a onda 0 de
-   CSS ja foi feita); ver "Por que os 30 `<button>` restantes ainda nao
+   so da tag tambem. O que falta e a onda 1 nos 27 restantes (a onda 0 de
+   CSS ja foi feita); ver "Por que os 27 `<button>` restantes ainda nao
    foram migrados" abaixo.
 
 2. **112 campos crus** (93 `<input>`, 10 `<select>`, 9 `<textarea>`).
@@ -231,7 +231,7 @@ cada familia so e aplicada depois de:
 Se um passo falhar o terceiro ponto, o hex volta. O ganho de 39% nao
 vale um pixel de texto pior.
 
-### Por que os 30 `<button>` restantes ainda nao foram migrados (medido em 2026-11-06)
+### Por que os 27 `<button>` restantes ainda nao foram migrados (medido em 2026-11-06)
 
 A camada 3 fechou em **49 tokens de componente, zero orfaos**. O que
 falta e adocao. A premissa antiga — "se `<button>` virar `<Button>`, o
@@ -248,13 +248,14 @@ medida contra o CSS real:
   contexto), e uma preparacao de **onda 0** de duas linhas por contexto.
 
 O inventario de 2026-10-30 era **73 crus sem classe + 14 com classe = 87**
-de produto. A onda 1 ja migrou 57 (55 sem classe + 2 com classe) nos 6
-grupos do preview. O que resta, medido por `node scripts/scan-buttons.mjs`
-em 2026-11-06, sao **30**: 18 sem classe, 1 com classe estatica
-(`dictionary-search-toast-close`) e 11 com classe dinamica (`is-active`,
-`is-selected`). Eles estao espalhados por 15 arquivos de review,
-settings, graph, tags e editor, cada um com um contexto que ainda nao foi
-medido no navegador — por isso nao entram numa tacada so.
+de produto. A onda 1 ja migrou 60 (57 sem classe + 3 de classe dinamica)
+nos 7 grupos do preview. O que resta, medido por
+`node scripts/scan-buttons.mjs` em 2026-11-06, sao **27**: 18 sem classe,
+1 com classe estatica (`dictionary-search-toast-close`) e 8 com classe
+dinamica (`is-active`, `is-selected`). Eles estao espalhados por 17
+arquivos de review, settings, graph, tags e editor, cada um com um
+contexto que ainda nao foi medido no navegador — por isso nao entram numa
+tacada so.
 
 O que **de fato** muda o pixel ao migrar, medido no navegador com o CSS
 real (previews em `docs/button-migration-review.html`):
@@ -294,7 +295,7 @@ antigo dizia:
    encurtam de proposito).
 2. **onda 1** — os 73 crus de produto viram `<Button variant size>`,
    com a variante declarada em cada grupo de
-   `docs/button-migration-review.html`; depois os 14 que ja tem classe
+   `docs/button-migration-review.html`; depois os que ja tem classe
    dinamica, preservando a classe.
 
    Progresso da onda 1 (medido, nao estimado):
@@ -307,6 +308,7 @@ antigo dizia:
    | 4 | `ExplorerSidebar.tsx` (menu) | 5 | `bare` / `sm` | migrado |
    | 5 | `App.tsx` (acoes de modal) | 7 | `primary` / `sm` | migrado |
    | 6 | `VaultSelection.tsx` | 3 | `primary` / `md` (2) + `sm` (1) | migrado |
+   | 7 | `EditorHeader.tsx` (lacunas) | 3 | `bare` / `xs` | migrado |
 
    O lote 1 foi medido no preview com o CSS real: o retangulo continua
    28×28, com o mesmo fundo, cor, raio e peso 600; so a fonte (15px → 12px)
@@ -329,13 +331,19 @@ antigo dizia:
    15 para 14px), mas o "Usar este vault" do modal fica `primary sm`. O
    rodape e flex com `align-items: stretch`: o `md` faria o "Escolher outro
    vault" (que ja era `secondary sm`, 34px) esticar para 40px. Com `sm` os
-   dois ficam em 34px e o botao ja migrado nao muda.
+   dois ficam em 34px e o botao ja migrado nao muda. O lote 7 media um caso
+   em que o CSS ja declarava 26px mas o reset global de `min-height: 46px`
+   do `base.css` vencia: os tres botoes crus mediam 46px. Com `bare xs`
+   fica em 26px (46 → 26), com padding `0 10px`, fonte 12px, peso 600, raio
+   e cores identicos. O `xs` do primitivo tem `min-height: 28px`; a regra
+   de contexto (`editor.css:1766`) repete a classe de tamanho para vencer
+   esse minimo e manter os 26px declarados.
 
 A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
 
 - `node scripts/scan-buttons.mjs` conta os `<button>` crus de produto
-  (fora de teste e do proprio primitivo). Nesta data: **30** — 18 sem
-  classe, 1 com classe estatica e 11 com classe dinamica.
+  (fora de teste e do proprio primitivo). Nesta data: **27** — 18 sem
+  classe, 1 com classe estatica e 8 com classe dinamica.
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 
