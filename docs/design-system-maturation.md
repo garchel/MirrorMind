@@ -72,14 +72,15 @@ continua definido.
 
 ### O que falta, em ordem de tamanho
 
-1. **73 `<button>` crus de produto sem className** (82 contando os 9 de
-   teste, de 97 tags `<button>`). As 100 que tinham classe de contexto
-   foram migradas — agora sao 286 `<Button>`. A premissa antiga de que
-   migrar quebraria o seletor de tag estava **errada**: `<Button>`
-   renderiza um `<button>` com classes a mais, entao os 83 seletores que
-   ja usam `:where(button, .ui-button)` continuam casando e os 15 que
-   dependem so da tag tambem. O que falta e a onda 0 de CSS e a
-   migracao dos 73; ver "Por que os 73 `<button>` restantes ainda nao
+1. **30 `<button>` crus de produto** — o inventario de 2026-10-30 era
+   73 sem classe + 14 com classe = 87, e a onda 1 ja migrou 57 deles em
+   6 grupos. As 100 que tinham classe de contexto foram migradas — agora
+   sao 286 `<Button>`. A premissa antiga de que migrar quebraria o
+   seletor de tag estava **errada**: `<Button>` renderiza um `<button>`
+   com classes a mais, entao os 83 seletores que ja usam
+   `:where(button, .ui-button)` continuam casando e os 15 que dependem
+   so da tag tambem. O que falta e a onda 1 nos 30 restantes (a onda 0 de
+   CSS ja foi feita); ver "Por que os 30 `<button>` restantes ainda nao
    foram migrados" abaixo.
 
 2. **112 campos crus** (93 `<input>`, 10 `<select>`, 9 `<textarea>`).
@@ -230,7 +231,7 @@ cada familia so e aplicada depois de:
 Se um passo falhar o terceiro ponto, o hex volta. O ganho de 39% nao
 vale um pixel de texto pior.
 
-### Por que os 73 `<button>` restantes ainda nao foram migrados (medido em 2026-10-30)
+### Por que os 30 `<button>` restantes ainda nao foram migrados (medido em 2026-11-06)
 
 A camada 3 fechou em **49 tokens de componente, zero orfaos**. O que
 falta e adocao. A premissa antiga — "se `<button>` virar `<Button>`, o
@@ -245,6 +246,15 @@ medida contra o CSS real:
 - Nao ha, portanto, "58 regras para reescrever". Ha **9 seletores de
   contexto** que merecem virar `:where` por consistencia (foco e
   contexto), e uma preparacao de **onda 0** de duas linhas por contexto.
+
+O inventario de 2026-10-30 era **73 crus sem classe + 14 com classe = 87**
+de produto. A onda 1 ja migrou 57 (55 sem classe + 2 com classe) nos 6
+grupos do preview. O que resta, medido por `node scripts/scan-buttons.mjs`
+em 2026-11-06, sao **30**: 18 sem classe, 1 com classe estatica
+(`dictionary-search-toast-close`) e 11 com classe dinamica (`is-active`,
+`is-selected`). Eles estao espalhados por 15 arquivos de review,
+settings, graph, tags e editor, cada um com um contexto que ainda nao foi
+medido no navegador — por isso nao entram numa tacada so.
 
 O que **de fato** muda o pixel ao migrar, medido no navegador com o CSS
 real (previews em `docs/button-migration-review.html`):
@@ -310,7 +320,7 @@ antigo dizia:
    ficaram identicas, e a paleta de comandos encurtou de 46 para 34px de
    proposito — o botao cru herdava o pill de 46px do `base.css`, e o `sm`
    alinha a linha com o resto do modal. O lote 4 ficou em 30px de altura,
-   com padding <code>0 8px</code>, fonte, peso e alinhamento identicos; a
+   com padding `0 8px`, fonte, peso e alinhamento identicos; a
    largura varia 1px de subpixel (282,5 contra 283,5), como a medicao
    original ja registrava. O lote 5 alinha o confirmar de cada modal ao
    "Cancelar" que ja era `<Button>`: 46 para 34px, padding 18 para 14px e
@@ -321,9 +331,19 @@ antigo dizia:
    vault" (que ja era `secondary sm`, 34px) esticar para 40px. Com `sm` os
    dois ficam em 34px e o botao ja migrado nao muda.
 
-A medicao que sustenta os numeros: `scan-buttons.mjs` (97 tags, 82 sem
-classe, 73 de produto), `scan-tag-rules.mjs` (98 seletores, 83 com
-`.ui-button`, 15 so tag), `scan-button-props.mjs` (286 `<Button>`, 153
-com classe manual) e `scan-context-rules.mjs` (16 regras com `display`
-sem `justify-content`). Os quatro rodam sobre `src/`, sem dependencia
-nova.
+A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
+
+- `node scripts/scan-buttons.mjs` conta os `<button>` crus de produto
+  (fora de teste e do proprio primitivo). Nesta data: **30** — 18 sem
+  classe, 1 com classe estatica e 11 com classe dinamica.
+- `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
+  contexto ainda depende so da tag `button` (37 arquivos `.css`).
+
+Os outros numeros desta secao — **98 itens de seletor, 83 com
+`.ui-button`, 15 so tag**, **286 `<Button>`, 153 com classe manual** e
+**16 regras com `display` sem `justify-content`** — vieram de uma
+medicao pontual em 2026-10-30. Os scripts que os geraram
+(`scan-tag-rules.mjs`, `scan-button-props.mjs`,
+`scan-context-rules.mjs`) nao existem no repo; por isso eles ficam aqui
+como historico, nao como comando que se possa rodar. Recriar os tres e
+trabalho pendente, nao um numero medido.
