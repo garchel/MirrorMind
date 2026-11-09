@@ -28,6 +28,8 @@
 <link rel="stylesheet" href="../src/features/review/segmentation-settings.css">
 <!-- Lote 13: o close do toast de dicionario (classe estatica). -->
 <link rel="stylesheet" href="../src/features/dictionary/dictionary.css">
+<!-- Lote 14: o botao do RootErrorBoundary (tela de erro raiz). -->
+<link rel="stylesheet" href="../src/components/RootErrorBoundary.css">
 <!-- Lote 8: o alternador 2D/3D do grafo. Scoped em `.workspace-shell
      .graph-*`, sem regra global que toque os outros previews. -->
 <link rel="stylesheet" href="../src/features/graph/graph.css">
@@ -1391,6 +1393,58 @@
 <b>−</b> &lt;button type="button" className="dictionary-search-toast-close"&gt;   (toast)
 
 <b>+</b> &lt;Button variant="bare" size="xs" className="dictionary-search-toast-close"&gt;</pre>
+    </article>
+
+    <!-- 14. RootErrorBoundary -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>RootErrorBoundary — o último cru</h3>
+        <span class="preview-origin">RootErrorBoundary.tsx:61 · 1 botão</span>
+      </div>
+      <p class="preview-note">
+        O boundary é desenhado para sobreviver a um CSS quebrado (o contêiner
+        segue inline); só o botão sai do raw. <strong>Migrado:</strong>
+        <code>Button variant="bare" size="sm"</code> +
+        <code>className="root-error-reload"</code>, com a geometria declarada
+        em <code>RootErrorBoundary.css</code> (qualificada pelo contêiner
+        <code>.root-error-boundary</code> — 0,2,0 vence <code>bare</code>/
+        <code>sm</code> por ordem). <strong>Medição:</strong> o inline hoje
+        mede <strong>46px</strong> (o <code>min-height: 46px</code> do reset
+        global vencia o próprio botão) — preservada com
+        <code>min-height: 46px</code> declarada na classe, para a tela de
+        emergência ficar idêntica mesmo depois do `sm` real de 34px.
+        Antes/depois: <strong>46px, <code>8px 18px</code>, sage
+        <code>#5b6f52</code>, branco, 14px/600, raio 6 — idêntico por pixel</strong>;
+        só <code>display: block→inline-flex</code> (invisível com um texto).
+        Inventário fecha em <strong>0 cruz de produto</strong>.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="preview-workspace">
+            <div class="root-error-boundary" style="display:flex;flex-direction:column;align-items:center;gap:12px">
+              <button type="button" style="padding:8px 18px;border:0;border-radius:6px;background:#5b6f52;color:#fff;font-size:14px;font-weight:600;cursor:pointer">Recarregar</button>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="preview-workspace">
+            <div class="root-error-boundary" style="display:flex;flex-direction:column;align-items:center;gap:12px">
+              <button type="button" class="ui-button ui-button--bare ui-button--sm root-error-reload" style="padding:8px 18px;border:0;border-radius:6px;background:#5b6f52;color:#fff;font-size:14px;font-weight:600;cursor:pointer">Recarregar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button type="button" onClick={...}
+        style={{ padding: '8px 18px', background: '#5b6f52', ... }}&gt;
+    Recarregar
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button variant="bare" size="sm" className="root-error-reload"
+        onClick={() =&gt; window.location.reload()}&gt;
+    Recarregar
+  &lt;/Button&gt;   // geometria em RootErrorBoundary.css</pre>
     </article>
   </section>
 

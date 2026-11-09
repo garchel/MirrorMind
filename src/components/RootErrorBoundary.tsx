@@ -1,4 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Button } from './ui/Button'
+import './RootErrorBoundary.css'
 
 type RootErrorBoundaryProps = { children: ReactNode }
 type RootErrorBoundaryState = { error: Error | null }
@@ -25,6 +27,7 @@ export class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErr
       return (
         <div
           role="alert"
+          className="root-error-boundary"
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -58,22 +61,15 @@ export class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErr
           >
             {this.state.error.message}
           </pre>
-          <button
+          <Button
             type="button"
+            variant="bare"
+            size="sm"
+            className="root-error-reload"
             onClick={() => window.location.reload()}
-            style={{
-              padding: '8px 18px',
-              border: '0',
-              borderRadius: '6px',
-              background: '#5b6f52',
-              color: '#fff',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
           >
             Recarregar
-          </button>
+          </Button>
         </div>
       )
     }

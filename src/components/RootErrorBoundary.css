@@ -1,0 +1,23 @@
+/* ==================================================================
+ * RootErrorBoundary.css — tela de erro raiz (fora do design system)
+ *
+ * O boundary é desenhado para sobreviver a um CSS quebrado: o contêiner
+ * segue inline. O botão passa pelo <Button> (onda 1 do inventário) e a
+ * geometria real dele vive AQUI, qualificada pelo contêiner para vencer
+ * `bare` do primitivo (empate 0,2,0 resolvido por ordem — este arquivo
+ * entra depois de component.css no bundle).
+ * ================================================================== */
+.root-error-boundary .root-error-reload {
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: #5b6f52;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  /* Altura medida no inline atual: 46px (o min-height do reset global
+   * vencia o proprio botao). Preservada para a tela de emergencia ficar
+   * idêntica antes e depois. */
+  min-height: 46px;
+}

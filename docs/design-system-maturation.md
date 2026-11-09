@@ -72,17 +72,16 @@ continua definido.
 
 ### O que falta, em ordem de tamanho
 
-1. **1 `<button>` cru de produto** (`RootErrorBoundary`, fora da onda)
-   — o inventario de 2026-10-30 era
-   73 sem classe + 14 com classe = 87, e a onda 1 ja migrou 89 deles em
-   13 grupos. As 100 que tinham classe de contexto foram migradas — agora
-   sao 286+ `<Button>`. A premissa antiga de que migrar quebraria o
-   seletor de tag estava **errada**: `<Button>` renderiza um `<button>`
-   com classes a mais, entao os 83 seletores que ja usam
-   `:where(button, .ui-button)` continuam casando e os 15 que dependem
-   so da tag tambem. Oque falta e decidir o caso do boundary (estilo
-   inline); ver "Por que o `<button>` do `RootErrorBoundary` nao foi
-   migrado (medido em 2026-11-09)" abaixo.
+1. **Nenhum `<button>` cru de produto resta** — o inventario de
+   2026-10-30 era 73 sem classe + 14 com classe = 87, mais a onda
+   de 100 com classe de contexto, e a onda 1 migrou tudo em 14 grupos
+   medidos (o scan exibe 0). As 286+ `<Button>` agora sao a unica fonte.
+   A premissa antiga de que migrar quebraria o seletor de tag estava
+   **errada**: `<Button>` renderiza um `<button>` com classes a mais,
+   entao os 83 seletores que ja usam `:where(button, .ui-button)`
+   continuam casando e os 15 que dependem so da tag tambem. O que ficou
+   medido, grupo a grupo, esta na tabela e no preview. Falta a onda dos
+   campos crus e das alturas (abaixo).
 
 2. **112 campos crus** (93 `<input>`, 10 `<select>`, 9 `<textarea>`).
    A migracao pegou os 25 que tinham classe; o resto herdava o reset
@@ -232,7 +231,7 @@ cada familia so e aplicada depois de:
 Se um passo falhar o terceiro ponto, o hex volta. O ganho de 39% nao
 vale um pixel de texto pior.
 
-### Por que o `<button>` do `RootErrorBoundary` nao foi migrado (medido em 2026-11-09)
+### O `<button>` do `RootErrorBoundary` (lote 14)
 
 A camada 3 fechou em **49 tokens de componente, zero orfaos**. O que
 falta e adocao. A premissa antiga — "se `<button>` virar `<Button>`, o
@@ -249,13 +248,10 @@ medida contra o CSS real:
   contexto), e uma preparacao de **onda 0** de duas linhas por contexto.
 
 O inventario de 2026-10-30 era **73 crus sem classe + 14 com classe = 87**
-de produto. A onda 1 ja migrou 89 (73 sem classe + 16 com classe)
-nos 13 grupos do preview. Resta **1**: o `RootErrorBoundary.tsx:61`,
-que usa estilo inline (escopo do boundary) e exige decisao — fora da
-onda. (Os 5 do lote 13: `ObsidianPdfEmbed` 138/139,
-`ExplorerSidebar` 230/285, `DictionarySearchToast` 104.) Cada um com um
-contexto que ainda nao foi medido no navegador — por isso nao entram numa
-tacada so.
+de produto. A onda 1 migrou os 90 deles (73 sem classe + 17 com classe,
+contando o do boundary)
+em 14 grupos do preview. **Nenhum cru resta** (o scan exibe 0; a unica
+contagem interna e o `<button>` do proprio `Button.tsx`).
 
 O que **de fato** muda o pixel ao migrar, medido no navegador com o CSS
 real (previews em `docs/button-migration-review.html`):
@@ -315,6 +311,7 @@ antigo dizia:
    | 11 | primárias de review/settings (6 arquivos) | 9 | `primary` / `sm` | migrado |
    | 12 | tags (`TagManagementPage`, `NoteTagPicker`, `NoteTagRow`) | 5 | `bare`/`primary` / `sm` | migrado |
    | 13 | `ObsidianPdfEmbed`, `ExplorerSidebar`, `DictionarySearchToast` | 5 | `bare` / `sm`+`xs` | migrado |
+   | 14 | `RootErrorBoundary` (1 cru final) | 1 | `bare` / `sm` + classe | migrado |
 
    O lote 1 foi medido no preview com o CSS real: o retangulo continua
    28×28, com o mesmo fundo, cor, raio e peso 600; so a fonte (15px → 12px)
@@ -377,15 +374,21 @@ antigo dizia:
    fixadas so o padding 18-14px), e o close do toast de dicionario
    migra como `bare xs` com a regra de contexto repetindo o quadrado
    24x24 (dictionary.css, padrao do lote 7) - o glifo `xs` do
-   primitivo despejaria 28px.
+   primitivo despejaria 28px. O lote 14 fecha o inventario: o botao do
+   `RootErrorBoundary` (a tela de emergencia inline) passa por `<Button
+   bare sm>` com a geometria real declarada em `RootErrorBoundary.css`
+   (qualificada pelo contêiner — 0,2,0 vence `bare`/`sm` por ordem).
+   Medicao: o inline hoje mede 46px (o min-height do reset vencia o
+   proprio botao) — preservado com `min-height: 46px` declarado, e o
+   antes/depois e identico por pixel (46px, `8px 18px`, sage, branco,
+   14px/600, raio 6).
 
 A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
 
 - `node scripts/scan-buttons.mjs` conta os `<button>` crus de produto
-  (fora de teste e do proprio primitivo). Nesta data: **1** — o
-  `RootErrorBoundary.tsx:61`, com estilo inline e fora da onda. Os 5
-  fecharam no lote 13 (`ObsidianPdfEmbed`, `ExplorerSidebar`,
-  `DictionarySearchToast`).
+  (fora de teste e do proprio primitivo). Nesta data: **0** — o
+  inventario fechou no lote 14 (o ultimo cru era o do
+  `RootErrorBoundary`).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 
