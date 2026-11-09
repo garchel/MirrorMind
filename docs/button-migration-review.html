@@ -17,6 +17,9 @@
 <link rel="stylesheet" href="../src/features/editor/editor.css">
 <link rel="stylesheet" href="../src/components/NoteTagPicker.css">
 <link rel="stylesheet" href="../src/features/tags/tag-management.css">
+<!-- Lote 8: o alternador 2D/3D do grafo. Scoped em `.workspace-shell
+     .graph-*`, sem regra global que toque os outros previews. -->
+<link rel="stylesheet" href="../src/features/graph/graph.css">
 
 <style>
   /* --- Onda 0, aplicada só nesta página ---------------------------------
@@ -940,6 +943,61 @@
     Minhas cores
   &lt;/Button&gt;</pre>
     </article>
+
+    <!-- 8. Alternador 2D/3D do grafo -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Alternador 2D/3D do grafo</h3>
+        <span class="preview-origin">GraphToolbar.tsx:198, 199 · 2 botões</span>
+      </div>
+      <p class="preview-note">
+        Botões de texto dentro de <code>.graph-dimension-toggle</code> no
+        header imersivo (regra <code>graph.css:918</code> · 28px, que a regra
+        do header <code>graph.css:168</code> afina para 26px). Alvo:
+        <code>variant="bare" size="sm"</code> — o <code>xs</code> zera o
+        padding do botão de texto (a regra do glifo
+        <code>.ui-button--xs:not(:has(...))</code>, 0,3,0, vence o
+        <code>0 11px</code> do contexto, 0,2,0); com <code>sm</code> o
+        contexto volta a vencer por especificidade.
+        <strong>Migrado:</strong> os dois já usam o primitivo. Medido: 27px
+        de altura, <code>0 11px</code> de padding, fonte 12px, peso 600, raio,
+        fundo ativo e sombra idênticos; zero mudança de CSS.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="graph-immersive-header preview-static">
+              <div class="graph-dimension-toggle" role="radiogroup" aria-label="2D e 3D (hoje)">
+                <button type="button" role="radio" aria-checked="true" class="is-active">2D</button>
+                <button type="button" role="radio" aria-checked="false" class="">3D</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="graph-immersive-header preview-static">
+              <div class="graph-dimension-toggle" role="radiogroup" aria-label="2D e 3D (depois)">
+                <button type="button" role="radio" aria-checked="true" class="ui-button ui-button--bare ui-button--sm is-active">2D</button>
+                <button type="button" role="radio" aria-checked="false" class="ui-button ui-button--bare ui-button--sm">3D</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button type="button" role="radio" aria-checked={!graphMode3d}
+        className={!graphMode3d ? 'is-active' : ''}&gt;
+    2D
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button variant="bare" size="sm" role="radio"
+        aria-checked={!graphMode3d}
+        className={!graphMode3d ? 'is-active' : ''}&gt;
+    2D
+  &lt;/Button&gt;</pre>
+    </article>
   </section>
 
   <section aria-labelledby="inventario">
@@ -1034,6 +1092,13 @@
             <td><code>editor.css:1749</code> · 46px (o contexto declara 26px, mas o reset vence)</td>
           </tr>
           <tr>
+            <td><code>components/GraphToolbar.tsx</code> <span class="tag-pill">já tem classe</span></td>
+            <td class="num">2</td>
+            <td><code>198, 199</code></td>
+            <td><span class="tag-pill is-bare">bare</span> <span class="tag-pill">sm</span></td>
+            <td><code>graph.css:918</code> · 28px, afina para 26px no header (<code>graph.css:168</code>)</td>
+          </tr>
+          <tr>
             <td><code>components/NoteTagPicker.tsx</code></td>
             <td class="num">2</td>
             <td><code>114, 149</code></td>
@@ -1115,13 +1180,13 @@
     </div>
     <p style="margin-top:14px;font-size:12.5px;color:var(--muted)">
       A tabela parte dos 73 botões sem classe do inventário de 2026-10-30 —
-      57 deles já foram migrados nos lotes 1–6. Além deles, <strong>12 botões
+      55 deles já foram migrados nos lotes 1–8. Além deles, <strong>7 botões
       de produto já têm <code>className</code></strong> (App 6170;
-      GraphToolbar 198, 199; EditorHeader 298, 309, 320;
       NoteReviewPolicyControl 380; SettingsPage 151, 186, 205, 214;
-      DictionarySearchToast 104) — entram na mesma onda preservando a
-      classe. O 13º é o <code>&lt;button&gt;</code> interno do próprio
-      <code>Button.tsx:92</code>, que não se toca. Os outros 9 são de teste.
+      DictionarySearchToast 104) — entram na
+      mesma onda preservando a classe. O 8º é o <code>&lt;button&gt;</code>
+      interno do próprio <code>Button.tsx:92</code>, que não se toca. Os
+      outros 9 são de teste.
     </p>
   </section>
 

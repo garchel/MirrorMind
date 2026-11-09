@@ -195,8 +195,8 @@ export function GraphToolbar(props: GraphToolbarProps) {
       <h2 className="graph-header-title">Grafo das notas</h2>
       <span className="graph-header-sep" aria-hidden="true" />
       <div className="graph-dimension-toggle" role="radiogroup" aria-label="Dimensao do grafo">
-        <button type="button" role="radio" aria-checked={!graphMode3d} className={!graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(false)} title="Grafo em 2D">2D</button>
-        <button type="button" role="radio" aria-checked={graphMode3d} className={graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(true)} title="Grafo 3D com pulsos eletricos">3D</button>
+        <Button variant="bare" size="sm" role="radio" aria-checked={!graphMode3d} className={!graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(false)} title="Grafo em 2D">2D</Button>
+        <Button variant="bare" size="sm" role="radio" aria-checked={graphMode3d} className={graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(true)} title="Grafo 3D com pulsos eletricos">3D</Button>
       </div>
       <select value={graphMode} onChange={(event) => setGraphMode(event.target.value as GraphMode)} aria-label="Modo do grafo"><option value="global">Grafo global</option><option value="local">Grafo local</option></select>
       {graphMode === 'local' ? (
