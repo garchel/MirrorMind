@@ -17,6 +17,9 @@
 <link rel="stylesheet" href="../src/features/editor/editor.css">
 <link rel="stylesheet" href="../src/components/NoteTagPicker.css">
 <link rel="stylesheet" href="../src/features/tags/tag-management.css">
+<!-- Lote 10: os presets de ritmo da politica de revisão. Component-scoped
+     em .review-policy-* e .modal.review-policy-dialog. -->
+<link rel="stylesheet" href="../src/features/review/review-policy.css">
 <!-- Lote 8: o alternador 2D/3D do grafo. Scoped em `.workspace-shell
      .graph-*`, sem regra global que toque os outros previews. -->
 <link rel="stylesheet" href="../src/features/graph/graph.css">
@@ -1094,6 +1097,93 @@
     {option.label}
   &lt;/Button&gt;</pre>
     </article>
+
+    <!-- 10. Dinamicos restantes: mover destino + presets de ritmo -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Dinâmicos restantes — mover destino e presets de ritmo</h3>
+        <span class="preview-origin">App.tsx:6170 (1) · NoteReviewPolicyControl.tsx:380 (3) · 4 botões</span>
+      </div>
+      <p class="preview-note">
+        Últimos 2 grupos de classe dinâmica. <strong>Destinos de mover</strong>
+        (regra <code>workspace-chrome.css:2062</code> · 32px, <code>0 8px</code>,
+        flex, <code>justify-content: normal</code> da onda 0): migrado
+        <strong>idêntico por pixel</strong> — 32px, padding, fonte 12px, gap 8,
+        raio, fundo do selecionado (moss) e cores iguais. <strong>Presets de
+        ritmo</strong> (regras <code>review-policy.css:120</code> e
+        <code>:129</code> · grid, <code>padding: 11px</code>,
+        <code>font-size: inherit</code>, sem <code>min-height</code>): migrado
+        <strong>idêntico por pixel</strong> — 71px de altura nos dois (o
+        conteúdo de duas linhas vence o <code>min-height</code>, então os
+        46px do reset já eram inertes), padding/grid/texto no mesmo lugar
+        (<code>strong</code> a 12px do topo, <code>span</code> a 43px nos
+        dois). Em ambos o primitivo injeta <code>align-items: center</code>,
+        o contexto do destino declara o <code>align-items</code> e o dos
+        presets não precisa: as linhas têm altura de conteúdo.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="preview-workspace">
+            <dialog class="modal note-search-modal move-item-modal" style="position:static;display:block">
+              <div class="move-destination-list" aria-label="Destinos (hoje)">
+                <button type="button" class="is-selected"><span class="pv-probe-icon"></span>Projetos</button>
+                <button type="button" class=""><span class="pv-probe-icon"></span>Arquivo</button>
+              </div>
+            </dialog>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="preview-workspace">
+            <dialog class="modal note-search-modal move-item-modal" style="position:static;display:block">
+              <div class="move-destination-list" aria-label="Destinos (depois)">
+                <button type="button" class="ui-button ui-button--bare ui-button--sm is-selected"><span class="pv-probe-icon"></span>Projetos</button>
+                <button type="button" class="ui-button ui-button--bare ui-button--sm"><span class="pv-probe-icon"></span>Arquivo</button>
+              </div>
+            </dialog>
+          </div>
+        </div>
+      </div>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="preview-workspace">
+            <dialog class="modal review-policy-dialog" style="position:static;display:block">
+              <div class="review-policy-body">
+                <fieldset class="review-policy-presets" aria-label="Ritmo (hoje)">
+                  <button type="button" class="is-active" aria-pressed="true"><strong>Intensiva</strong><span>Alta retenção e intervalos curtos.</span></button>
+                  <button type="button" class=""><strong>Equilibrada</strong><span>Bom equilíbrio entre retenção e carga.</span></button>
+                </fieldset>
+              </div>
+            </dialog>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="preview-workspace">
+            <dialog class="modal review-policy-dialog" style="position:static;display:block">
+              <div class="review-policy-body">
+                <fieldset class="review-policy-presets" aria-label="Ritmo (depois)">
+                  <button type="button" class="ui-button ui-button--bare ui-button--sm is-active" aria-pressed="true"><strong>Intensiva</strong><span>Alta retenção e intervalos curtos.</span></button>
+                  <button type="button" class="ui-button ui-button--bare ui-button--sm"><strong>Equilibrada</strong><span>Bom equilíbrio entre retenção e carga.</span></button>
+                </fieldset>
+              </div>
+            </dialog>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button type="button" className={moveDestination === folder ? 'is-selected' : ''}
+        onClick={() =&gt; setMoveDestination(folder)}&gt;
+    &lt;Folder /&gt;{folder || 'Raiz do vault'}
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button variant="bare" size="sm"
+        className={moveDestination === folder ? 'is-selected' : ''}
+        onClick={() =&gt; setMoveDestination(folder)}&gt;
+    &lt;Folder /&gt;{folder || 'Raiz do vault'}
+  &lt;/Button&gt;</pre>
+    </article>
   </section>
 
   <section aria-labelledby="inventario">
@@ -1283,12 +1373,13 @@
     </div>
     <p style="margin-top:14px;font-size:12.5px;color:var(--muted)">
       A tabela parte dos 73 botões sem classe do inventário de 2026-10-30 —
-      55 deles já foram migrados nos lotes 1–9. Além deles, restam
-      <strong>3 botões de produto com <code>className</code></strong> (App
-      6170; NoteReviewPolicyControl 380; DictionarySearchToast 104) — entram
-      na mesma onda preservando a classe. O 4º é o <code>&lt;button&gt;</code>
-      interno do próprio <code>Button.tsx:92</code>, que não se toca. Os
-      outros 9 são de teste.
+      55 deles já foram migrados nos lotes 1–9. Restam <strong>3 botões de
+      produto com <code>className</code></strong>: App 6170 e
+      NoteReviewPolicyControl 380 migram no lote 10 preservando a classe
+      dinâmica; DictionarySearchToast 104 tem a classe estática
+      <code>dictionary-search-toast-close</code> e entra junto dos grupos
+      sem classe. O 4º é o <code>&lt;button&gt;</code> interno do próprio
+      <code>Button.tsx:92</code>, que não se toca. Os outros 9 são de teste.
     </p>
   </section>
 

@@ -377,16 +377,17 @@ export function NoteReviewPolicyControl({
                     const presetKey = key as keyof typeof PRESETS
                     const isCurrent = matchedPresetKey === presetKey
                     return (
-                      <button
-                        type="button"
+                      <Button
                         key={key}
+                        variant="bare"
+                        size="sm"
                         className={isCurrent ? 'is-active' : ''}
                         aria-pressed={isCurrent}
                         onClick={() => applyPreset(presetKey)}
                       >
                         <strong>{preset.label}</strong>
                         <span>{preset.description}</span>
-                      </button>
+                      </Button>
                     )
                   })}
                 </fieldset>

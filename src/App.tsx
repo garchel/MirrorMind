@@ -6167,10 +6167,10 @@ function App() {
               <input value={moveDestination} onChange={(event) => setMoveDestination(event.target.value)} placeholder="Raiz do vault ou caminho da pasta" aria-label="Pasta de destino" />
               <div className="move-destination-list" aria-label="Pastas do vault">
                 {moveDestinationOptions.map((folder) => (
-                  <button key={folder || '__root__'} type="button" className={moveDestination === folder ? 'is-selected' : ''} onClick={() => setMoveDestination(folder)}>
+                  <Button key={folder || '__root__'} variant="bare" size="sm" className={moveDestination === folder ? 'is-selected' : ''} onClick={() => setMoveDestination(folder)}>
                     <Folder size={14} strokeWidth={1.5} aria-hidden="true" />
                     {folder || 'Raiz do vault'}
-                  </button>
+                  </Button>
                 ))}
               </div>
               {wikilinkIndexProgress ? (
