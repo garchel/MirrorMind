@@ -242,12 +242,12 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
               <p><strong>{preview.result.affectedNoteCount} notas terão suas datas recalculadas.</strong> Sobrescritas próprias serão preservadas.</p>
               <div>
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={busy} onClick={() => setPreview(null)}>Cancelar</Button>
-                <button type="button" disabled={busy} onClick={() => void applyDefaults(preview.defaults)}>{busy ? 'Aplicando…' : 'Confirmar alteração'}</button>
+                <Button type="button" variant="primary" size="sm" disabled={busy} onClick={() => void applyDefaults(preview.defaults)}>{busy ? 'Aplicando…' : 'Confirmar alteração'}</Button>
               </div>
             </div>
           ) : (
             <div className="review-ai-inline-actions">
-              <button type="button" disabled={busy || !validation?.success} onClick={() => void requestSave()}>{busy ? 'Calculando impacto…' : 'Salvar padrão'}</button>
+              <Button type="button" variant="primary" size="sm" disabled={busy || !validation?.success} onClick={() => void requestSave()}>{busy ? 'Calculando impacto…' : 'Salvar padrão'}</Button>
             </div>
           )}
         </>

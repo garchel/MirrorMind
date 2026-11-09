@@ -189,13 +189,9 @@ export function SegmentationSettings({ vaultPath }: Props) {
             </p>
           ) : null}
           <div className="review-ai-inline-actions">
-            <button
-              type="button"
-              disabled={busy || !draftValid}
-              onClick={() => void requestRecalculate()}
-            >
+            <Button type="button" variant="primary" size="sm" disabled={busy || !draftValid} onClick={() => void requestRecalculate()}>
               {busy ? 'Recalculando…' : 'Recalcular notas'}
-            </button>
+            </Button>
             <span className="segmentation-hint">Recalcular percorre todas as notas e atualiza as que se encaixarem no novo padrão.</span>
           </div>
         </>

@@ -227,9 +227,9 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
                 Remover chave
               </Button>
             ) : null}
-            <button type="button" onClick={() => void saveKey()} disabled={busy || !apiKey.trim()}>
+            <Button type="button" variant="primary" size="sm" onClick={() => void saveKey()} disabled={busy || !apiKey.trim()}>
               Salvar chave
-            </button>
+            </Button>
           </div>
           <small>Modelo gerenciado pelo MirrorMind: {configuration?.geminiModel ?? 'carregando...'}</small>
         </div>
@@ -304,13 +304,9 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
                 Remover servidor
               </Button>
             ) : null}
-            <button
-              type="button"
-              onClick={() => void saveOpenAiCompatible()}
-              disabled={busy || !openAiBaseUrl.trim() || !openAiModel.trim() || !openAiApiKey.trim()}
-            >
+            <Button type="button" variant="primary" size="sm" onClick={() => void saveOpenAiCompatible()} disabled={busy || !openAiBaseUrl.trim() || !openAiModel.trim() || !openAiApiKey.trim()}>
               Salvar servidor
-            </button>
+            </Button>
           </div>
         </div>
       ) : (

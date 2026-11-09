@@ -216,13 +216,15 @@ function DeadlineChangeDialog({ vaultPath, item, onClose, onApplied }: {
           >
             {busy ? 'Calculando…' : 'Ver impacto'}
           </Button>
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
             onClick={() => void confirm()}
             disabled={!item.sourceTag || revision === null || preview === null || !deadlineChanged || busy || applying}
           >
             {applying ? 'Aplicando…' : 'Confirmar alteração'}
-          </button>
+          </Button>
         </div>
       </section>
     </Modal>

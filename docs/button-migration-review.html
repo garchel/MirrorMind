@@ -20,6 +20,12 @@
 <!-- Lote 10: os presets de ritmo da politica de revisão. Component-scoped
      em .review-policy-* e .modal.review-policy-dialog. -->
 <link rel="stylesheet" href="../src/features/review/review-policy.css">
+<!-- Lote 11: acoes primarias de review/settings. Component-scoped em
+     .review-ai-*, .review-dashboard-*, .vault-review-policy-*. -->
+<link rel="stylesheet" href="../src/features/review/review-ai.css">
+<link rel="stylesheet" href="../src/features/review/review-dashboard.css">
+<link rel="stylesheet" href="../src/features/review/vault-review-policy.css">
+<link rel="stylesheet" href="../src/features/review/segmentation-settings.css">
 <!-- Lote 8: o alternador 2D/3D do grafo. Scoped em `.workspace-shell
      .graph-*`, sem regra global que toque os outros previews. -->
 <link rel="stylesheet" href="../src/features/graph/graph.css">
@@ -1183,6 +1189,79 @@
         onClick={() =&gt; setMoveDestination(folder)}&gt;
     &lt;Folder /&gt;{folder || 'Raiz do vault'}
   &lt;/Button&gt;</pre>
+    </article>
+
+    <!-- 11. Acoes primarias de review/settings (9 botoes) -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Ações primárias de review/settings</h3>
+        <span class="preview-origin">ReviewAiSettings 230/307, ReviewCalibrationSettings 147, VaultReviewPolicySettings 245/250, ReviewDashboardPage 219, SegmentationSettings 192, AccountSettings 116 · 9 botões</span>
+      </div>
+      <p class="preview-note">
+        Ações primárias ao lado de um vizinho <code>secondary sm</code>
+        (padrão do lote 5). <strong>Migrado:</strong>
+        <code>variant="primary" size="sm"</code>. Medido nos contextos reais
+        (<code>review-ai.css:66</code>, <code>review-dashboard.css:650</code>,
+        <code>vault-review-policy.css:140</code>, <code>settings-account-actions</code>
+        sem regra): o cru herda do reset do <code>base.css</code> um
+        <strong>pill de 46px com fonte 15px</strong>; no dashboard o contexto
+        já impõe 34px (<code>:last-child</code>), então sobra só o raio. A
+        descoberta da medição: com rótulos longos ("Confirmar alteração"),
+        o cru <strong>quebra em 2 linhas e mede 54px</strong> (linha de
+        27px); o <code>sm</code> volta a 1 linha em 34px de fonte 12px
+        (dashboard: 13px, preservada pela regra de contexto). Asparagus do
+        fundo azul e peso 600 idênticos nos dois. AccountSettings mantém
+        <code>type="submit"</code> explicito (o default do primitivo é
+        <code>"button"</code>).
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="preview-workspace">
+            <div class="review-ai-inline-actions" aria-label="Hoje">
+              <button type="button" class="ui-button ui-button--secondary ui-button--sm">Remover chave</button>
+              <button type="button" class="">Salvar chave</button>
+            </div>
+            <div class="vault-review-policy-confirmation" style="margin-top:10px">
+              <p>3 notas terão suas datas recalculadas.</p>
+              <div>
+                <button type="button" class="ui-button ui-button--secondary ui-button--sm">Cancelar</button>
+                <button type="button" class="">Confirmar alteração</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="preview-workspace">
+            <div class="review-ai-inline-actions" aria-label="Depois">
+              <button type="button" class="ui-button ui-button--secondary ui-button--sm">Remover chave</button>
+              <button type="button" class="ui-button ui-button--primary ui-button--sm">Salvar chave</button>
+            </div>
+            <div class="vault-review-policy-confirmation" style="margin-top:10px">
+              <p>3 notas terão suas datas recalculadas.</p>
+              <div>
+                <button type="button" class="ui-button ui-button--secondary ui-button--sm">Cancelar</button>
+                <button type="button" class="ui-button ui-button--primary ui-button--sm">Confirmar alteração</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button type="button" onClick={() =&gt; void saveKey()}
+        disabled={busy || !apiKey.trim()}&gt;
+    Salvar chave
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button variant="primary" size="sm"
+        onClick={() =&gt; void saveKey()}
+        disabled={busy || !apiKey.trim()}&gt;
+    Salvar chave
+  &lt;/Button&gt;
+
+<b>−</b> &lt;button type="submit"&gt;Entrar&lt;/button&gt;   (AccountSettings)
+
+<b>+</b> &lt;Button type="submit" variant="primary" size="sm"&gt;Entrar&lt;/Button&gt;</pre>
     </article>
   </section>
 

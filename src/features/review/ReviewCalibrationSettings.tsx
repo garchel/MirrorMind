@@ -144,13 +144,9 @@ export function ReviewCalibrationSettings({ vaultPath }: { vaultPath?: string })
             Remover chave
           </Button>
         ) : null}
-        <button
-          type="button"
-          onClick={() => void saveApiKey(apiKey.trim())}
-          disabled={busy || !apiKey.trim()}
-        >
+        <Button type="button" variant="primary" size="sm" onClick={() => void saveApiKey(apiKey.trim())} disabled={busy || !apiKey.trim()}>
           Salvar chave
-        </button>
+        </Button>
       </div>
 
       <label className="review-ai-consent">

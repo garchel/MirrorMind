@@ -113,9 +113,9 @@ export function AccountSettings({ client }: { client: SessionClient }) {
           <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void signInWithGoogle()}>
             Entrar com Google
           </Button>
-          <button type="submit">
+          <Button type="submit" variant="primary" size="sm">
             Entrar
-          </button>
+          </Button>
           <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void signUp(email, password)}>
             Criar conta
           </Button>
