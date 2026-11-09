@@ -894,6 +894,15 @@
   outline-offset: 1px;
 }
 
+/* Onda 1: o close passa por <Button variant="bare" size="xs">, cujas
+ * classes do glifo (.ui-button--xs:not(:has(...)), 0,3,0) impoem 28px de
+ * min-width e min-height. Esta regra (0,3,0, depois no bundle) repete o
+ * quadrado de 24px — o padrao do lote 7 do editor.css. */
+.dictionary-search-toast-actions .dictionary-search-toast-close.ui-button--xs {
+  min-height: 0;
+  min-width: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dictionary-search-toast-spinner {
     animation: none;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { invoke } from '../lib/tauri'
+import { Button } from './ui/Button'
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from 'pdfjs-dist'
 
 type ObsidianPdfEmbedProps = {
@@ -135,8 +136,8 @@ export function ObsidianPdfEmbed({ relativePath, title, vaultPath }: ObsidianPdf
         <canvas ref={canvasRef} role="img" aria-label={`${title}, página ${pageNumber}`}>Pré-visualização da página {pageNumber} do PDF {title}.</canvas>
       </div>
       <nav aria-label="Navegação do PDF">
-        <button type="button" onClick={() => changePage(Math.max(1, pageNumber - 1))} disabled={rendering || pageNumber === 1}>Página anterior</button>
-        <button type="button" onClick={() => changePage(Math.min(pdfState.document.numPages, pageNumber + 1))} disabled={rendering || pageNumber === pdfState.document.numPages}>Próxima página</button>
+        <Button type="button" variant="bare" size="sm" onClick={() => changePage(Math.max(1, pageNumber - 1))} disabled={rendering || pageNumber === 1}>Página anterior</Button>
+        <Button type="button" variant="bare" size="sm" onClick={() => changePage(Math.min(pdfState.document.numPages, pageNumber + 1))} disabled={rendering || pageNumber === pdfState.document.numPages}>Próxima página</Button>
       </nav>
     </section>
   )

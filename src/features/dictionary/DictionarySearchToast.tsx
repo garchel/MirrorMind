@@ -101,14 +101,15 @@ export function DictionarySearchToast({
             Abrir
           </Button>
         )}
-        <button
-          type="button"
+        <Button
+          variant="bare"
+          size="xs"
           className="dictionary-search-toast-close"
           aria-label="Dispensar aviso"
           onClick={onDismiss}
         >
           <X size={14} aria-hidden="true" />
-        </button>
+        </Button>
       </div>
     </div>
   )
