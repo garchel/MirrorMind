@@ -111,9 +111,9 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
           {error ? <p role="alert">Não foi possível carregar os detalhes de revisão.</p> : null}
           {!isLoading && selectableTags.length === 0 ? <p>Nenhuma tag disponível para aplicar.</p> : null}
           {!isLoading && !error ? selectableTags.map((tag) => (
-            <button key={tag} type="button" role="menuitem" onClick={() => { setPendingTag(tag); setOpen(false) }}>
+            <Button key={tag} variant="bare" size="sm" role="menuitem" onClick={() => { setPendingTag(tag); setOpen(false) }}>
               #{tag}
-            </button>
+            </Button>
           )) : null}
         </div>
       ) : null}
@@ -146,7 +146,7 @@ export function NoteTagPicker({ availableTags, onApply, relativePath, tags, vaul
             ) : null}
             <div className="note-tag-impact-actions">
               <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeImpact}>Cancelar</Button>
-              <button type="button" onClick={confirmApply}>Aplicar tag</button>
+              <Button type="button" variant="primary" size="sm" onClick={confirmApply}>Aplicar tag</Button>
             </div>
           </section>
         </Modal>

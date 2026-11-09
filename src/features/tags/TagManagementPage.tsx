@@ -673,9 +673,9 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 {duplicate ? <p className="field-error" role="alert">Esta tag já existe no vault.</p> : null}
                 <div className="tag-form-actions">
                   <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={cancelEditing} disabled={busy}>Cancelar</Button>
-                  <button type="button" onClick={() => void requestSave()} disabled={busy || !validation.success || duplicate}>
+                  <Button type="button" variant="primary" size="sm" onClick={() => void requestSave()} disabled={busy || !validation.success || duplicate}>
                     {busy ? 'Calculando impacto…' : mode === 'create' ? 'Revisar criação' : 'Revisar alterações'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </>
@@ -820,9 +820,9 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
             </div>
             <div className="tag-impact-actions">
               <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setPending(null)} disabled={busy}>Cancelar</Button>
-              <button type="button" onClick={() => confirmPending()} disabled={busy}>
+              <Button type="button" variant="primary" size="sm" onClick={() => confirmPending()} disabled={busy}>
                 {busy ? 'Aplicando…' : 'Confirmar alteração'}
-              </button>
+              </Button>
             </div>
           </>
         ) : null}

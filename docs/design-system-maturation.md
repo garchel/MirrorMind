@@ -72,15 +72,16 @@ continua definido.
 
 ### O que falta, em ordem de tamanho
 
-1. **11 `<button>` crus de produto** — o inventario de 2026-10-30 era
-   73 sem classe + 14 com classe = 87, e a onda 1 ja migrou 79 deles em
-   11 grupos. As 100 que tinham classe de contexto foram migradas — agora
+1. **6 `<button>` crus de produto** (mais o `RootErrorBoundary`, fora da
+   onda) — o inventario de 2026-10-30 era
+   73 sem classe + 14 com classe = 87, e a onda 1 ja migrou 84 deles em
+   12 grupos. As 100 que tinham classe de contexto foram migradas — agora
    sao 286+ `<Button>`. A premissa antiga de que migrar quebraria o
    seletor de tag estava **errada**: `<Button>` renderiza um `<button>`
    com classes a mais, entao os 83 seletores que ja usam
    `:where(button, .ui-button)` continuam casando e os 15 que dependem
-   so da tag tambem. O que falta e a onda 1 nos 11 restantes (a onda 0 de
-   CSS ja foi feita); ver "Por que os 11 `<button>` restantes ainda nao
+   so da tag tambem. O que falta e a onda 1 nos 6 restantes (a onda 0 de
+   CSS ja foi feita); ver "Por que os 6 `<button>` restantes ainda nao
    foram migrados" abaixo.
 
 2. **112 campos crus** (93 `<input>`, 10 `<select>`, 9 `<textarea>`).
@@ -231,7 +232,7 @@ cada familia so e aplicada depois de:
 Se um passo falhar o terceiro ponto, o hex volta. O ganho de 39% nao
 vale um pixel de texto pior.
 
-### Por que os 11 `<button>` restantes ainda nao foram migrados (medido em 2026-11-09)
+### Por que os 6 `<button>` restantes ainda nao foram migrados (medido em 2026-11-09)
 
 A camada 3 fechou em **49 tokens de componente, zero orfaos**. O que
 falta e adocao. A premissa antiga — "se `<button>` virar `<Button>`, o
@@ -248,12 +249,13 @@ medida contra o CSS real:
   contexto), e uma preparacao de **onda 0** de duas linhas por contexto.
 
 O inventario de 2026-10-30 era **73 crus sem classe + 14 com classe = 87**
-de produto. A onda 1 ja migrou 79 (63 sem classe + 16 com classe)
-nos 11 grupos do preview. O que resta, medido por
-`node scripts/scan-buttons.mjs` em 2026-11-09, sao **11**: 10 sem classe
-e 1 com classe estatica (`dictionary-search-toast-close`). Eles estao
-espalhados por 7 arquivos de tags, explorer, pdf, dictionary e o root
-de erro, cada um com um
+de produto. A onda 1 ja migrou 84 (68 sem classe + 16 com classe)
+nos 12 grupos do preview. O que resta, medido por
+`node scripts/scan-buttons.mjs` em 2026-11-09, sao **6**: 5 sem classe
+e 1 com classe estatica (`dictionary-search-toast-close`) — mais o
+`RootErrorBoundary`, que tem estilo inline e fora da onda. (Onde conto
+os 6: `ObsidianPdfEmbed` 138/139, `ExplorerSidebar` 230/285,
+`DictionarySearchToast` 104.) Cada um com um
 contexto que ainda nao foi medido no navegador — por isso nao entram numa
 tacada so.
 
@@ -313,6 +315,7 @@ antigo dizia:
    | 9 | `SettingsPage.tsx` | 4 | `bare` / `sm` | migrado |
    | 10 | `App.tsx` (mover) + `NoteReviewPolicyControl.tsx` (presets) | 4 | `bare` / `sm` | migrado |
    | 11 | primárias de review/settings (6 arquivos) | 9 | `primary` / `sm` | migrado |
+   | 12 | tags (`TagManagementPage`, `NoteTagPicker`, `NoteTagRow`) | 5 | `bare`/`primary` / `sm` | migrado |
 
    O lote 1 foi medido no preview com o CSS real: o retangulo continua
    28×28, com o mesmo fundo, cor, raio e peso 600; so a fonte (15px → 12px)
@@ -366,12 +369,16 @@ antigo dizia:
    999px); descoberta da medicao — com rotulos longos o cru quebra em
    duas linhas e mede 54px, o `sm` volta a 1 linha em 34px de fonte
    12px (dashboard, 13px preservada). `AccountSettings` mantem
-   `type="submit"` explicito.
+   `type="submit"` explicito. O lote 12 (tags) mantem a familia: menu do
+   picker 46-34px (`padding 7px 8px` intacto), linha do frontmatter
+   46-37px (o conteudo de 27px vence o minimo), impacto da tag pill
+   999-8px, e na pagina de tags o contexto de 0,3,1 re-declara tudo e
+   so o padding 18-14px muda.
 
 A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
 
 - `node scripts/scan-buttons.mjs` conta os `<button>` crus de produto
-  (fora de teste e do proprio primitivo). Nesta data: **11** — 10 sem
+  (fora de teste e do proprio primitivo). Nesta data: **6** — 5 sem
   classe e 1 com classe estatica (`dictionary-search-toast-close`).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).

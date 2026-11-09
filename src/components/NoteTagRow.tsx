@@ -113,9 +113,9 @@ export function NoteTagRow({ availableTags, onApplyTag, onRemoveTag, tags }: Not
               {suggestedTags.length > 0 ? (
                 <div className="frontmatter-tag-popover-list">
                   {suggestedTags.map((tag) => (
-                    <button key={tag} type="button" onClick={() => applyTag(tag)}>
+                    <Button key={tag} variant="bare" size="sm" onClick={() => applyTag(tag)}>
                       #{tag}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               ) : null}

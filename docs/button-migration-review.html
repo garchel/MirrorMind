@@ -1263,6 +1263,71 @@
 
 <b>+</b> &lt;Button type="submit" variant="primary" size="sm"&gt;Entrar&lt;/Button&gt;</pre>
     </article>
+
+    <!-- 12. Tags: menu do picker, impacto, linha do frontmatter e pagina de tags -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Tags — menu do picker, impacto, linha do frontmatter e página</h3>
+        <span class="preview-origin">TagManagementPage 676/823, NoteTagPicker 114/149, NoteTagRow 116 · 5 botões</span>
+      </div>
+      <p class="preview-note">
+        <strong>Menu do picker</strong> (<code>NoteTagPicker.css:66</code> ·
+        <code>padding 7px 8px</code>, 13px/400, raio 4 — sem
+        <code>min-height</code>): o cru herdava os <strong>46px</strong> do
+        reset; migrado <code>bare sm</code> → <strong>46→34px</strong>,
+        padding/fonte/peso idênticos (correção do vazamento do
+        <code>base.css</code>, terceiro exemplo da família). <strong>Linha
+        do frontmatter</strong> (<code>editor.css:2248</code> ·
+        <code>padding 5px 8px</code>, 12px/400, nowrap): mesma correção,
+        <strong>46→37px</strong> (o conteúdo em linha de 27px vence o mínimo
+        34 do <code>sm</code>). <strong>Impacto da tag</strong>
+        (<code>NoteTagPicker.css:99</code>): pill 999px/46px/15px →
+        <strong>34px, raio 8, 12px</strong> (padrão do lote 11).
+        <strong>Página de tags</strong> (<code>tag-management.css:932</code>
+        · 0,3,1 impõe 34px, raio 8, tinta escura, 13px/600 nos dois lados):
+        só o <strong>padding 18→14px</strong> muda — o <code>primary sm</code>
+        entra no mesmo visual porque a regra de contexto vence a variante.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="preview-workspace">
+            <div class="note-tag-picker-menu" role="menu" aria-label="Hoje">
+              <button type="button" role="menuitem">#arquivo</button>
+              <button type="button" role="menuitem">#projeto-x</button>
+            </div>
+            <div class="tag-management-page" style="margin-top:10px">
+              <div class="tag-form-actions">
+                <button type="button" class="ui-button ui-button--secondary ui-button--sm">Cancelar</button>
+                <button type="button" class="">Revisar criação</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="preview-workspace">
+            <div class="note-tag-picker-menu" role="menu" aria-label="Depois">
+              <button type="button" role="menuitem" class="ui-button ui-button--bare ui-button--sm">#arquivo</button>
+              <button type="button" role="menuitem" class="ui-button ui-button--bare ui-button--sm">#projeto-x</button>
+            </div>
+            <div class="tag-management-page" style="margin-top:10px">
+              <div class="tag-form-actions">
+                <button type="button" class="ui-button ui-button--secondary ui-button--sm">Cancelar</button>
+                <button type="button" class="ui-button ui-button--primary ui-button--sm">Revisar criação</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button key={tag} type="button" role="menuitem" onClick={...}&gt;#{tag}&lt;/button&gt;   (menu)
+
+<b>+</b> &lt;Button key={tag} variant="bare" size="sm" role="menuitem" onClick={...}&gt;#{tag}&lt;/Button&gt;
+
+<b>−</b> &lt;button type="button" onClick={() =&gt; void requestSave()}&gt;Revisar criação&lt;/button&gt;   (página)
+
+<b>+</b> &lt;Button variant="primary" size="sm" onClick={() =&gt; void requestSave()}&gt;Revisar criação&lt;/Button&gt;</pre>
+    </article>
   </section>
 
   <section aria-labelledby="inventario">
