@@ -148,9 +148,10 @@ export function SettingsPage({
               {SETTINGS_SECTIONS
                 .filter((section) => (group.sections as readonly string[]).includes(section.id))
                 .map((section) => (
-                  <button
+                  <Button
                     key={section.id}
-                    type="button"
+                    variant="bare"
+                    size="sm"
                     className={activeSettingsSection === section.id ? 'is-active' : ''}
                     aria-current={activeSettingsSection === section.id ? 'true' : undefined}
                     onClick={() => onNavigateSettingsSection(section.id)}
@@ -165,7 +166,7 @@ export function SettingsPage({
                   >
                     <section.icon size={15} strokeWidth={1.5} aria-hidden="true" />
                     <span>{section.label}</span>
-                  </button>
+                  </Button>
                 ))}
             </div>
           ))}
@@ -183,16 +184,17 @@ export function SettingsPage({
               </span>
               <div className="settings-segmented" role="radiogroup" aria-label="Tema da interface">
                 {THEME_MODES.map((option) => (
-                  <button
+                  <Button
                     key={option.value}
-                    type="button"
+                    variant="bare"
+                    size="sm"
                     role="radio"
                     aria-checked={themeMode === option.value}
                     className={themeMode === option.value ? 'is-active' : ''}
                     onClick={() => setThemeMode(option.value)}
                   >
                     {option.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -202,24 +204,26 @@ export function SettingsPage({
                 <small>Com espaçamento mantém o respiro padrão em todas as páginas. Largura total ocupa 100% do espaço disponível.</small>
               </span>
               <div className="settings-segmented" role="radiogroup" aria-label="Largura das páginas">
-                <button
-                  type="button"
+                <Button
+                  variant="bare"
+                  size="sm"
                   role="radio"
                   aria-checked={!isPagesFullWidth}
                   className={!isPagesFullWidth ? 'is-active' : ''}
                   onClick={() => setPagesFullWidth(false)}
                 >
                   Com espaçamento
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="bare"
+                  size="sm"
                   role="radio"
                   aria-checked={isPagesFullWidth}
                   className={isPagesFullWidth ? 'is-active' : ''}
                   onClick={() => setPagesFullWidth(true)}
                 >
                   Largura total
-                </button>
+                </Button>
               </div>
             </div>
             <label className="settings-toggle">

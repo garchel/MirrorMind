@@ -72,15 +72,15 @@ continua definido.
 
 ### O que falta, em ordem de tamanho
 
-1. **25 `<button>` crus de produto** — o inventario de 2026-10-30 era
-   73 sem classe + 14 com classe = 87, e a onda 1 ja migrou 62 deles em
-   8 grupos. As 100 que tinham classe de contexto foram migradas — agora
+1. **21 `<button>` crus de produto** — o inventario de 2026-10-30 era
+   73 sem classe + 14 com classe = 87, e a onda 1 ja migrou 66 deles em
+   9 grupos. As 100 que tinham classe de contexto foram migradas — agora
    sao 286 `<Button>`. A premissa antiga de que migrar quebraria o
    seletor de tag estava **errada**: `<Button>` renderiza um `<button>`
    com classes a mais, entao os 83 seletores que ja usam
    `:where(button, .ui-button)` continuam casando e os 15 que dependem
-   so da tag tambem. O que falta e a onda 1 nos 25 restantes (a onda 0 de
-   CSS ja foi feita); ver "Por que os 25 `<button>` restantes ainda nao
+   so da tag tambem. O que falta e a onda 1 nos 21 restantes (a onda 0 de
+   CSS ja foi feita); ver "Por que os 21 `<button>` restantes ainda nao
    foram migrados" abaixo.
 
 2. **112 campos crus** (93 `<input>`, 10 `<select>`, 9 `<textarea>`).
@@ -231,7 +231,7 @@ cada familia so e aplicada depois de:
 Se um passo falhar o terceiro ponto, o hex volta. O ganho de 39% nao
 vale um pixel de texto pior.
 
-### Por que os 25 `<button>` restantes ainda nao foram migrados (medido em 2026-11-09)
+### Por que os 21 `<button>` restantes ainda nao foram migrados (medido em 2026-11-09)
 
 A camada 3 fechou em **49 tokens de componente, zero orfaos**. O que
 falta e adocao. A premissa antiga — "se `<button>` virar `<Button>`, o
@@ -248,11 +248,11 @@ medida contra o CSS real:
   contexto), e uma preparacao de **onda 0** de duas linhas por contexto.
 
 O inventario de 2026-10-30 era **73 crus sem classe + 14 com classe = 87**
-de produto. A onda 1 ja migrou 62 (55 sem classe + 7 com classe)
-nos 8 grupos do preview. O que resta, medido por
-`node scripts/scan-buttons.mjs` em 2026-11-09, sao **25**: 18 sem classe,
-1 com classe estatica (`dictionary-search-toast-close`) e 6 com classe
-dinamica (`is-active`, `is-selected`). Eles estao espalhados por 12
+de produto. A onda 1 ja migrou 66 (55 sem classe + 11 com classe)
+nos 9 grupos do preview. O que resta, medido por
+`node scripts/scan-buttons.mjs` em 2026-11-09, sao **21**: 18 sem classe,
+1 com classe estatica (`dictionary-search-toast-close`) e 2 com classe
+dinamica (`is-active`, `is-selected`). Eles estao espalhados por 15
 arquivos de review, settings, graph, tags e editor, cada um com um
 contexto que ainda nao foi medido no navegador — por isso nao entram numa
 tacada so.
@@ -310,6 +310,7 @@ antigo dizia:
    | 6 | `VaultSelection.tsx` | 3 | `primary` / `md` (2) + `sm` (1) | migrado |
    | 7 | `EditorHeader.tsx` (lacunas) | 3 | `bare` / `xs` | migrado |
    | 8 | `GraphToolbar.tsx` (2D/3D) | 2 | `bare` / `sm` | migrado |
+   | 9 | `SettingsPage.tsx` | 4 | `bare` / `sm` | migrado |
 
    O lote 1 foi medido no preview com o CSS real: o retangulo continua
    28×28, com o mesmo fundo, cor, raio e peso 600; so a fonte (15px → 12px)
@@ -342,13 +343,23 @@ antigo dizia:
    ficou identico: 27px de altura, padding `0 11px`, fonte 12px, peso 600,
    raio, fundo ativo e sombra iguais, sem linha de CSS nova — nele o
    `xs` nao serve, porque a regra do glifo zera o padding do botao de
-   texto, e o `sm` respeita o `0 11px` do contexto.
+   texto, e o `sm` respeita o `0 11px` do contexto. O lote 9 (nav e
+   segmentados das configuracoes) tem metade de cada caso: o botao da
+   `settings-nav` ficou identico (36px, padding `0 11px`, fonte 13px,
+   peso 500/600 ativo, gap 9px, raio, cores e sombra inset iguais,
+   porque a regra de contexto tem especificidade 0,4,0 e cobre tudo o
+   que o primitivo injeta); os segmentados medem uma correcao
+   intencional — o cru herdava `min-height: 46px` e
+   `border-radius: 999px` do reset (o contexto nao declara raio nem
+   altura), e o ativo aparecia como pill: com `sm` mede 46 para 34px,
+   pill 999 para raio 8px, texto topo para centrado; padding `8px 14px`
+   e fonte 13px preservados.
 
 A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
 
 - `node scripts/scan-buttons.mjs` conta os `<button>` crus de produto
-  (fora de teste e do proprio primitivo). Nesta data: **25** — 18 sem
-  classe, 1 com classe estatica e 6 com classe dinamica.
+  (fora de teste e do proprio primitivo). Nesta data: **21** — 18 sem
+  classe, 1 com classe estatica e 2 com classe dinamica.
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

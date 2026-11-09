@@ -264,6 +264,16 @@
     font-weight: 700;
     line-height: 1;
   }
+  /* Icône das seções no preview do nav (o real é um svg de 15px). */
+  .pv-probe-icon {
+    flex: none;
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    border-radius: 4px;
+    background: currentColor;
+    opacity: 0.45;
+  }
   .pv-row-label { font-size: 12px; color: var(--muted); }
 
   /* --- Tabelas --------------------------------------------------------- */
@@ -998,6 +1008,92 @@
     2D
   &lt;/Button&gt;</pre>
     </article>
+
+    <!-- 9. Configuracoes: nav + segmentados -->
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Configurações — nav e segmentados</h3>
+        <span class="preview-origin">SettingsPage.tsx:151 (nav), 186 e 205/214 (segmentados) · 4 botões</span>
+      </div>
+      <p class="preview-note">
+        <strong>Nav de seções</strong> (regra <code>workspace-chrome.css:603</code>
+        · 36px, <code>font: 500 13px</code>; na onda 0 ganhou
+        <code>justify-content: normal</code> e <code>font-size: inherit</code>).
+        <strong>Migrado:</strong> medido idêntico — 36px, padding
+        <code>0 11px</code>, fonte 13px, peso 500/600 ativo, gap 9px, raio,
+        cores e sombra inset do ativo; zero mudança de CSS.
+        <strong>Segmentados de tema e largura</strong> (regra
+        <code>workspace-chrome.css:513</code> · padding <code>8px 14px</code>,
+        <code>font: var(--font-size-small)</code>): o cru herda do reset
+        <code>min-height: 46px</code> e <code>border-radius: 999px</code>, que
+        o contexto não declara — o ativo aparece como pill. <strong>Migrado:</strong>
+        <strong>46→34px</strong>, pill 999→raio 8px e texto topo→centrado
+        (correção intencional, vazamento do <code>base.css</code>); padding
+        <code>8px 14px</code> e fonte 13px mantidos, peso 400 em ambos.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <nav class="settings-nav" aria-label="Seções das configurações (hoje)">
+              <div class="settings-nav-group">
+                <p class="settings-nav-group-label" aria-hidden="true">Workspace</p>
+                <button type="button" class="is-active" aria-current="true"><span class="pv-probe-icon"></span><span>Editor</span></button>
+                <button type="button" class=""><span class="pv-probe-icon"></span><span>Aparência</span></button>
+                <button type="button" class=""><span class="pv-probe-icon"></span><span>Grafo</span></button>
+              </div>
+            </nav>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <nav class="settings-nav" aria-label="Seções das configurações (depois)">
+              <div class="settings-nav-group">
+                <p class="settings-nav-group-label" aria-hidden="true">Workspace</p>
+                <button type="button" class="ui-button ui-button--bare ui-button--sm is-active" aria-current="true"><span class="pv-probe-icon"></span><span>Editor</span></button>
+                <button type="button" class="ui-button ui-button--bare ui-button--sm"><span class="pv-probe-icon"></span><span>Aparência</span></button>
+                <button type="button" class="ui-button ui-button--bare ui-button--sm"><span class="pv-probe-icon"></span><span>Grafo</span></button>
+              </div>
+            </nav>
+          </div>
+        </div>
+      </div>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · &lt;button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="settings-toggle">
+              <div class="settings-segmented" role="radiogroup" aria-label="Tema (hoje)">
+                <button type="button" role="radio" class="is-active" aria-checked="true">Escuro</button>
+                <button type="button" role="radio" class="">Claro</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Button&gt;</span>
+          <div class="workspace-shell preview-workspace">
+            <div class="settings-toggle">
+              <div class="settings-segmented" role="radiogroup" aria-label="Tema (depois)">
+                <button type="button" role="radio" class="ui-button ui-button--bare ui-button--sm is-active" aria-checked="true">Escuro</button>
+                <button type="button" role="radio" class="ui-button ui-button--bare ui-button--sm">Claro</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;button type="button" role="radio" aria-checked={themeMode === option.value}
+        className={themeMode === option.value ? 'is-active' : ''}&gt;
+    {option.label}
+  &lt;/button&gt;
+
+<b>+</b> &lt;Button variant="bare" size="sm" role="radio"
+        aria-checked={themeMode === option.value}
+        className={themeMode === option.value ? 'is-active' : ''}&gt;
+    {option.label}
+  &lt;/Button&gt;</pre>
+    </article>
   </section>
 
   <section aria-labelledby="inventario">
@@ -1099,6 +1195,13 @@
             <td><code>graph.css:918</code> · 28px, afina para 26px no header (<code>graph.css:168</code>)</td>
           </tr>
           <tr>
+            <td><code>features/settings/SettingsPage.tsx</code> <span class="tag-pill">já tem classe</span></td>
+            <td class="num">4</td>
+            <td><code>151, 186, 205, 214</code></td>
+            <td><span class="tag-pill is-bare">bare</span> <span class="tag-pill">sm</span></td>
+            <td><code>workspace-chrome.css:603</code> · 36px (fica idêntico)<br><code>workspace-chrome.css:513</code> · 46→34px (o reset impunha pill de 999px no ativo)</td>
+          </tr>
+          <tr>
             <td><code>components/NoteTagPicker.tsx</code></td>
             <td class="num">2</td>
             <td><code>114, 149</code></td>
@@ -1180,11 +1283,10 @@
     </div>
     <p style="margin-top:14px;font-size:12.5px;color:var(--muted)">
       A tabela parte dos 73 botões sem classe do inventário de 2026-10-30 —
-      55 deles já foram migrados nos lotes 1–8. Além deles, <strong>7 botões
-      de produto já têm <code>className</code></strong> (App 6170;
-      NoteReviewPolicyControl 380; SettingsPage 151, 186, 205, 214;
-      DictionarySearchToast 104) — entram na
-      mesma onda preservando a classe. O 8º é o <code>&lt;button&gt;</code>
+      55 deles já foram migrados nos lotes 1–9. Além deles, restam
+      <strong>3 botões de produto com <code>className</code></strong> (App
+      6170; NoteReviewPolicyControl 380; DictionarySearchToast 104) — entram
+      na mesma onda preservando a classe. O 4º é o <code>&lt;button&gt;</code>
       interno do próprio <code>Button.tsx:92</code>, que não se toca. Os
       outros 9 são de teste.
     </p>
