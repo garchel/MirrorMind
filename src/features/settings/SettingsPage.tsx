@@ -382,13 +382,14 @@ export function SettingsPage({
                   <strong>Criar nova nota</strong>
                   <small>Abre a captura de uma nova nota no explorador.</small>
                 </span>
-                <input
+                <Field
                   value={shortcuts.createNote}
                   onKeyDown={(event) => {
                     event.preventDefault()
                     patchShortcuts({ createNote: formatShortcut(event.nativeEvent) })
                   }}
                   aria-label="Atalho para criar nova nota"
+                  size="sm"
                   readOnly
                 />
               </label>
@@ -397,13 +398,14 @@ export function SettingsPage({
                   <strong>Salvar nota</strong>
                   <small>Salva as alterações da nota aberta.</small>
                 </span>
-                <input
+                <Field
                   value={shortcuts.saveNote}
                   onKeyDown={(event) => {
                     event.preventDefault()
                     patchShortcuts({ saveNote: formatShortcut(event.nativeEvent) })
                   }}
                   aria-label="Atalho para salvar nota"
+                  size="sm"
                   readOnly
                 />
               </label>
@@ -412,13 +414,14 @@ export function SettingsPage({
                   <strong>Alternar modo de visualização</strong>
                   <small>Alterna entre os modos Misto, Edição e Leitura.</small>
                 </span>
-                <input
+                <Field
                   value={shortcuts.cycleNoteViewMode}
                   onKeyDown={(event) => {
                     event.preventDefault()
                     patchShortcuts({ cycleNoteViewMode: formatShortcut(event.nativeEvent) })
                   }}
                   aria-label="Atalho para alternar modo de visualização"
+                  size="sm"
                   readOnly
                 />
               </label>
@@ -427,13 +430,14 @@ export function SettingsPage({
                   <strong>Abrir nota existente</strong>
                   <small>Abre a busca rápida de notas do vault.</small>
                 </span>
-                <input
+                <Field
                   value={shortcuts.openNote}
                   onKeyDown={(event) => {
                     event.preventDefault()
                     patchShortcuts({ openNote: formatShortcut(event.nativeEvent) })
                   }}
                   aria-label="Atalho para abrir nota existente"
+                  size="sm"
                   readOnly
                 />
               </label>
@@ -442,13 +446,14 @@ export function SettingsPage({
                   <strong>Abrir filtro de tags</strong>
                   <small>Abre o filtro completo de tags do explorador.</small>
                 </span>
-                <input
+                <Field
                   value={shortcuts.openTagFilter}
                   onKeyDown={(event) => {
                     event.preventDefault()
                     patchShortcuts({ openTagFilter: formatShortcut(event.nativeEvent) })
                   }}
                   aria-label="Atalho para abrir filtro de tags"
+                  size="sm"
                   readOnly
                 />
               </label>
@@ -457,13 +462,14 @@ export function SettingsPage({
                   <strong>Abrir Command Palette</strong>
                   <small>Abre a busca de comandos do workspace.</small>
                 </span>
-                <input
+                <Field
                   value={shortcuts.openCommandPalette}
                   onKeyDown={(event) => {
                     event.preventDefault()
                     patchShortcuts({ openCommandPalette: formatShortcut(event.nativeEvent) })
                   }}
                   aria-label="Atalho para abrir Command Palette"
+                  size="sm"
                   readOnly
                 />
               </label>

@@ -83,11 +83,21 @@ continua definido.
    medido, grupo a grupo, esta na tabela e no preview. Falta a onda dos
    campos crus e das alturas (abaixo).
 
-2. **112 campos crus** (93 `<input>`, 10 `<select>`, 9 `<textarea>`).
-   A migracao pegou os 25 que tinham classe; o resto herdava o reset
-   global de `base.css`. Migrar exigiria decidir o visual de cada um —
-   hoje nao ha um "campo" no app, ha tres tags com aparencia que
-   depende de onde aparecem.
+2. **114 campos crus** (medido por `node scripts/scan-fields.mjs` em
+   2026-11-09: 96 `<input>`, 10 `<textarea>`, 8 `<select>`, em 25
+   arquivos). Do total, **80 migram** para `<Field>` (a família
+   textual: input de texto/search/password/number/date/email mais
+   select e textarea) e **34 nao migram** — 19 checkbox, 11 radio e
+   4 color: o `<Field>` e campo de texto, e o glifo desses tipos
+   precisa de decisao propria; vira item separado, fora desta onda.
+   Do resto, 111 nao tinham classe (herdavam o reset de `base.css`)
+   e 3 tinham classe estatica de visual proprio completo
+   (`frontmatter-panel-key/value`, `postit-popover-input` — fora da
+   onda). O doc antigo dizia "112 campos crus (93/10/9)": a contagem
+   por tag era estimativa, nao medida — o scanner passa a ser a fonte.
+   A onda migra por lote medido (o mesmo processo dos botões): lote 1
+   fechou os 6 atalhos de `SettingsPage` (38px do contexto preservado,
+   idêntico por pixel; ver `docs/field-migration-review.html`).
 
 3. **15 alturas de botao distintas** no CSS do app (14, 18, 20, 22,
    24, 26, 28, 30, 34, 36, 37, 40px), e o `size` do `<Button>` cobre
@@ -389,6 +399,10 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   (fora de teste e do proprio primitivo). Nesta data: **0** — o
   inventario fechou no lote 14 (o ultimo cru era o do
   `RootErrorBoundary`).
+- `node scripts/scan-fields.mjs` conta os campos crus
+  (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
+  de botões. Nesta data: **108** (após o lote 1 da onda de campos; o
+  inventario inicial era 114).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 
