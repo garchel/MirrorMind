@@ -146,9 +146,12 @@ continua definido.
    que era UA de 21px e adota a densidade dos selects de configuração,
    transição decidida) e lote 19 fechou os 2 da conta, corrigindo a causa
    antes de migrar: `.settings-toggle input` (18×18, pensado para o
-   checkbox) alcançava o formulário de conta, que media 18×18px. Restam 38 crus,
-   todos fora do escopo ou nos próximos lotes; ver
-   `docs/field-migration-review.html`.
+   checkbox) alcançava o formulário de conta, que media 18×18px) e lote 20
+   fechou o nome do vault (48px idêntico; a tela não está no
+   workspace-shell, então o foco UA vira o accent 2px). **Onda textual
+   concluída: 74 dos 77**; os 3 de classe estática (frontmatter e
+   post-it) ficam fora, assim como os 34 checkbox/radio/color. Restam 37
+   crus, todos fora do escopo; ver `docs/field-migration-review.html`.
 
 3. **15 alturas de botao distintas** no CSS do app (14, 18, 20, 22,
    24, 26, 28, 30, 34, 36, 37, 40px), e o `size` do `<Button>` cobre
@@ -452,8 +455,10 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **38** crus — após os
-  lotes 1–19 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **37** crus — após os
+  lotes 1–20 da onda de campos (inventário inicial medido: 111). Os 37 são
+  os 34 checkbox/radio/color e os 3 de classe estática, todos fora do
+  escopo da onda.
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

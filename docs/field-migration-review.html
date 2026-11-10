@@ -223,7 +223,7 @@
     <div class="callout">
       <strong>Placar da onda:</strong> família textual migrável =
       <strong>77</strong> (62 <code>input</code> textual + 10 <code>textarea</code> +
-      5 <code>select</code>). Migrados até agora: <strong>69</strong> (lote 1:
+      5 <code>select</code>). Migrados até agora: <strong>74</strong> (lote 1:
       6 atalhos; lote 2: 18 do grafo; lote 3: 8 da página de tags; lote 4:
       5 das opções avançadas do Vault; lote 5: 4 da revisão com IA; lote 6:
       3 da criação de meta; lote 7: 3 do dicionário; lote 8: 3 da sessão de
@@ -231,7 +231,10 @@
       editor; lote 12: 1 do Explorer; lote 13: 1 do frontmatter; lote 14: 1 do
       dashboard; lote 15: 1 da segmentação; lote 16: 1 da oferta de
       dicionário; lote 17: 2 da seleção de dicionário; lote 18: 2 da
-      calibração; lote 19: 2 da conta). Restam crus: <strong>38</strong>
+      calibração; lote 19: 2 da conta; lote 20: 1 da criação de vault).
+      <strong>Onda textual concluída.</strong> Restam crus:
+      <strong>37</strong>, todos fora do escopo: 34 checkbox/radio/color e 3
+      de classe estática (frontmatter e post-it).
       (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
@@ -1323,10 +1326,51 @@
 <b>−</b> &lt;input type="password" value={password} placeholder="Senha" ... /&gt;
 <b>+</b> &lt;Field size="sm" type="password" value={password} placeholder="Senha" ... /&gt;</pre>
     </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Criação de vault — nome</h3>
+        <span class="preview-origin">VaultSelection 100 · 1 campo · lote 20 (fecha a onda)</span>
+      </div>
+      <p class="preview-note">
+        Um contexto com o CSS real: <code>base.css:110</code> ·
+        <code>.field input</code> (0,1,1) — o campo canônico do app, 48px,
+        <code>padding: 0 14px</code>, raio e borda próprios e
+        <code>font: inherit</code>. A <strong>base é idêntica</strong>:
+        48×420px, fonte 18px/27, padding, raio, borda e fundo iguais. A tela de
+        vault <strong>não</strong> fica dentro de <code>.workspace-shell</code>,
+        então não há regra global de foco: o anel UA <code>auto 1px</code>
+        dourado vira o <code>2px</code> accent do primitivo (decisão, como nos
+        lotes 4–5), junto com a borda accent. O hover escurece a borda para
+        <code>rgba(28 36 39 / 22%)</code> (mesma família neutra) e o placeholder
+        UA passa ao token <code>rgb(94 93 87)</code>.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="vault-selection-shell">
+            <label class="field"><span>Nome do vault</span>
+              <input value="Vault de Aprendizado" placeholder="Ex.: Vault de Aprendizado">
+            </label>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="vault-selection-shell">
+            <label class="field"><span>Nome do vault</span>
+              <input class="ui-field ui-field--md" value="Vault de Aprendizado" placeholder="Ex.: Vault de Aprendizado">
+            </label>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input value={createForm.name} onChange={...} placeholder="Ex.: Vault de Aprendizado" /&gt;
+
+<b>+</b> &lt;Field size="md" value={createForm.name} onChange={...} placeholder="Ex.: Vault de Aprendizado" /&gt;</pre>
+    </article>
   </section>
 
   <footer class="doc-footer">
-    <p>Próximos lotes, um a um com medição prévia: EditorContent, ExplorerSidebar, NoteTagRow, ReviewDashboardPage, SegmentationSettings, DictionaryOfferModal, DictionarySelectionModal, ReviewCalibrationSettings, AccountSettings e VaultSelection. Os 3 campos de classe estática de visual próprio (frontmatter e post-it) ficam fora.</p>
+    <p><strong>Onda concluída:</strong> 74 dos 77 campos textuais migrados, cada um com medição prévia no navegador. Os 3 de classe estática de visual próprio (frontmatter key/value e post-it) ficam fora; os 34 checkbox/radio/color também (não são campo de texto). Próxima onda: as alturas de botão.</p>
   </footer>
 </div>
 </body>

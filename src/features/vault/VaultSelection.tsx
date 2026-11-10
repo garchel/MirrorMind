@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import { TitleBar } from '../../components/TitleBar'
 import { UpdateBanner } from '../../components/UpdateBanner'
 import { Modal } from '../../components/Modal'
@@ -97,7 +98,8 @@ export function VaultSelection({
           <p>Crie um vault novo do zero com a estrutura interna do app pronta para uso.</p>
           <label className="field">
             <span>Nome do vault</span>
-            <input
+            <Field
+              size="md"
               value={createForm.name}
               onChange={(event) =>
                 setCreateForm((currentForm) => ({
