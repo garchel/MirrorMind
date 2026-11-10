@@ -185,7 +185,12 @@ continua definido.
    `var(--button-size-xs-height)` (28px), com `line-height: 1`; medido 28px
    (antes, 29 por herdar a linha de 27). E a estrategia da onda: levar os
    tokens de densidade para dentro dos contextos, sem reescrever 270 usos
-   de JSX.
+   de JSX. **Lote 5 (tokens nos contextos):** as 30 regras que ja declaravam
+   exatamente 28/30/34/40px trocaram o literal por
+   `var(--button-size-{xs,toolbar,sm,md}-height)` — mesmo pixel, mas a
+   escala passa a mover os contextos juntos. Inventario por literal: **53 →
+   22 contextos, 12 valores**; restam as alturas fora da escala (18, 20, 22,
+   24, 25, 26, 27, 32, 36, 37) e as excecoes 46/74.
 
 4. ~~**19 tokens orfaos**~~ ✅ removidos. Os tres grupos eram botao
    (`--button-height*`, `--button-padding-x*`, `--button-font`), aviso
