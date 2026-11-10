@@ -49,17 +49,20 @@ declaracao sao registradas com posicao, valor e motivo (`ADICIONADOS` /
 Medido em `camada3-primitivos` (2026-09-29), com os numeros de botao
 refeitos em 2026-10-30; nada aqui e estimativa.
 
-### A camada 3 esta pela metade, e isso e um numero
+### A camada 3: botoes e campos fechados, o resto sem uso
 
 | primitivo | uso real | tokens que le |
 |---|---:|---|
-| `<Button>` | 286 | `--button-*` |
-| `<Field>` | 22 | `--field-*` |
-| `<Card>` | 2 | `--card-*` |
-| `<Badge>` | 1 | `--chip-*` |
+| `<Button>` | 374 | `--button-*` |
+| `<Field>` | 106 | `--field-*` |
+| `<Card>` | 7 | `--card-*` |
+| `<Badge>` | 9 | `--chip-*` |
 
-`<Button>` remedido em 2026-10-30 (286 tags `<Button>` em `src/**/*.tsx`);
-os outros tres sao da medicao de 2026-09-29 e nao foram remedidos.
+As quatro contagens foram remedidas em 2026-11-10 (tags `<Button>`,
+`<Field>`, `<Card>` e `<Badge>` em `src/**/*.tsx`). A onda dos botoes
+fechou o inventario cru em 0 e a dos campos migrou 74 dos 77 textuais; o
+`<Card>` e o `<Badge>` existem, mas tem uso de vitrine — nao ha onda para
+eles hoje.
 
 Tokens de componente consumidos: **19 -> 77 referencias** (medido em
 2026-09-29). Dos 68 tokens de componente definidos, **49 tinham
@@ -334,9 +337,11 @@ antes/depois.
    para o risco em cor de acao. Ultimo.
 5. **Tipografia — feita.** 29 literais viraram 10 papeis
    (`404f35c`), com `small = 13px` e `caption = 12px` decididos.
-6. **Camada 3 — ondas 1 e 2 feitas.** `<Button>` criado e 286 usos
-   (medido em 2026-10-30). Faltam `<Input>`, `<Card>` e `<Chip>`, que
-   tem token mas nenhum primitivo os usa.
+6. **Camada 3 — ondas 1, 2 e 3 feitas.** `<Button>` fechou os crus em 0 e
+   ganhou 4 densidades (28/30/34/40); `<Field>` migrou 74 dos 77 textuais
+   (os 3 de classe estatica ficam fora, assim como 34 checkbox/radio/color).
+   `<Card>` e `<Badge>` existem com uso de vitrine (7 e 9 tags), sem onda
+   propria hoje.
 
 ## Regra de decisao
 
