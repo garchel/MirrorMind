@@ -84,6 +84,15 @@
   --button-disabled-opacity: 0.6;
   --button-disabled-cursor: not-allowed;
 
+  /* --- Controles nativos de selecao ------------------------------------ */
+  /* Checkbox e radio seguem nativos (acessiveis, sem JSX novo), mas com
+   * um tamanho e uma cor unicos. O swatch de cor tem o tamanho do unico
+   * contexto que ja era desenhado (o popover do grafo). */
+  --check-size: 18px;
+  --check-accent: var(--accent);
+  --check-color-width: 26px;
+  --check-color-height: 22px;
+
   /* --- Campo (input / select / textarea) -------------------------------- */
   --field-height: 48px;
   --field-padding-x: 14px;

@@ -246,13 +246,13 @@
 }
 
 .goals-dialog-form label.goals-dialog-check input {
-  width: 18px;
-  height: 18px;
+  width: var(--check-size);
+  height: var(--check-size);
   min-height: 0;
   min-width: 0;
   flex: none;
   margin-top: 1px;
-  accent-color: var(--accent);
+  accent-color: var(--check-accent);
 }
 
 .goals-dialog-form input,

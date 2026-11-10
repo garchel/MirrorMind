@@ -77,7 +77,7 @@
 
 .vault-review-policy-modes input[type="radio"] {
   margin-top: 2px;
-  accent-color: var(--accent);
+  accent-color: var(--check-accent);
   flex: none;
 }
 

@@ -149,7 +149,7 @@
 
 /* Radios na cor do app (sem isso, azul nativo do navegador). */
 .review-policy-modes input[type="radio"] {
-  accent-color: var(--accent);
+  accent-color: var(--check-accent);
   flex: none;
 }
 

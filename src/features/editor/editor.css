@@ -3023,7 +3023,7 @@
 
 .workspace-shell .markdown-mixed input[type='checkbox'] {
   margin: 0 0.45em 0 0;
-  accent-color: var(--mm-ink-800);
+  accent-color: var(--check-accent);
 }
 
 @media (max-width: 720px) {

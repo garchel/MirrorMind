@@ -122,6 +122,25 @@
   word-break: break-word;
 }
 
+/* Controles nativos de selecao: tamanho e cor unicos. Especificidade
+ * (0,1,1) de proposito — um contexto (0,2,1) ainda pode sobrepor. */
+input[type='checkbox'],
+input[type='radio'] {
+  width: var(--check-size);
+  height: var(--check-size);
+  accent-color: var(--check-accent);
+}
+
+input[type='color'] {
+  width: var(--check-color-width);
+  height: var(--check-color-height);
+  padding: 1px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  cursor: pointer;
+}
+
 button {
   appearance: none;
   border: none;

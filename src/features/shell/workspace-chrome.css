@@ -504,9 +504,9 @@ label.settings-toggle {
  * do toggle — o formulario de conta — nao e glifo: ficaria 18x18. A causa
  * era o seletor amplo; o `:not` tira email/senha/texto do escopo. */
 .settings-toggle input:not([type='email']):not([type='password']):not([type='text']):not([type='search']):not([type='number']):not([type='date']) {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--mm-ink-750);
+  width: var(--check-size);
+  height: var(--check-size);
+  accent-color: var(--check-accent);
 }
 
 /* Formulario de conta: sem regra nenhuma, os campos herdavam o 18x18 do
@@ -1250,9 +1250,9 @@ label.settings-toggle {
 }
 
 .recent-vault-checkbox input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--mm-ink-750);
+  width: var(--check-size);
+  height: var(--check-size);
+  accent-color: var(--check-accent);
 }
 
 .recent-vault-actions {

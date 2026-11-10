@@ -237,6 +237,17 @@ continua definido.
    a autoridade. `Windows required` passa em `Frontend tests`,
    `Design system gates`, `Lint`, `Typecheck` e `Frontend build`.
 
+6. **34 controles nativos de selecao** (19 checkbox, 11 radio, 4 color).
+   Decisao: **normalizar o nativo, sem primitivo novo** — 18px e
+   `accent-color` do app para checkbox/radio, e swatch de cor 26×22.
+   Tokens `--check-size`, `--check-accent`, `--check-color-width/height`
+   em `component.css`; a regra base fica em `base.css` com
+   especificidade (0,1,1), para um contexto (0,2,1) ainda poder
+   sobrepor. Os contextos que divergiam (settings 18, metas 18, cofre
+   recente 16, markdown, radios da revisao, cor do grafo) passaram a
+   ler os tokens. Medido: os 5 contextos de selecao em 18×18 com
+   `rgb(196 106 43)`, e os dois swatches em 26×22.
+
 ## Concluido nesta rodada
 
 - **Contraste AA** (`b44001e`): `--text-muted`, `--faint` e
