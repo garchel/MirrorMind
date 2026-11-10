@@ -1,7 +1,17 @@
-# Escala tipográfica — proposta (não aplicada)
+# Escala tipográfica — aplicada (histórico da proposta)
 
-Hoje o projeto **não tem nenhum token de `font-size`**. Os 29 literais
-distintos abaixo foram medidos por `scripts/type-scale.py`.
+> **Estado em 2026-11-10: aplicada.** A escala abaixo virou os 10 papeis
+> `--font-size-*` em `semantic.css` e foi aplicada em `404f35c` (224
+> tamanhos em 33 arquivos). As duas decisoes que faltavam foram tomadas:
+> `small = 13px` e `caption = 12px`; 22px e 28px ficaram literais de
+> proposito (+2/+4px em titulo de largura variavel aperta a linha, e
+> nenhum gate mede layout). O gate `py -3 scripts/verify-type-scale.py`
+> passou a cobrir tamanho (o `verify-tokenization` so cobre cor). O texto
+> abaixo e o registro de como a proposta foi feita e por que ela esperou.
+
+Na medicao original (antes de `404f35c`), o projeto **nao tinha nenhum
+token de `font-size`**. Os 29 literais distintos abaixo foram medidos por
+`scripts/type-scale.py`.
 
 ## Por que classifyi por papel, não por tamanho
 
@@ -40,10 +50,10 @@ confere se os papéis crescem em tamanho (sanidade: passa, sem inversão).
 (`--font-size-caption`), não por número (`--font-size-12`): o nome por
 função sobrevive a uma revisão de densidade.
 
-## Por que não apliquei
+## Por que a aplicação esperou
 
 A troca é mecânica e **não move pixel** — `12.5px` vira
-`var(--font-size-small)` apontando para `12.5px`. O que impede é outro:
+`var(--font-size-small)` apontando para `12.5px`. O que impedia era outro:
 
 1. **O gate não prova isso.** `verify-tokenization` só conhece cor. Não
    tenho como demonstrar equivalência de tamanho automaticamente.
@@ -55,27 +65,26 @@ A troca é mecânica e **não move pixel** — `12.5px` vira
    ajuste ad-hoc. Antes de tokenizar, alguém precisa decidir: eles
    entram em algum papel, ou somem?
 
-## O que preciso de você
+## As decisoes que destravaram
 
-Para cada papel: **qual tamanho é o certo**. A faixa na tabela é o que o
-app faz hoje, não uma recomendação minha. As decisões que mais mudam
-tela:
+As tres perguntas abaixo foram respondidas antes da aplicacao: `small`
+ficou **13px** (o corpo padrao de painel), `caption` ficou **12px** (o
+degrau mais usado do app) e `body-sm`/`body-md` ficaram **14/16px**.
 
-- `small` está partido entre `12,5px` e `13px` (125 usos). Qual é o
-  corpo padrão de painel?
-- `caption` são 280 usos entre 11 e 12px — o degrau mais usado do app.
-  11px em componente denso é apertado; 12px custa 2 linhas a mais em
-  tabela.
-- `body-sm` vs `body-md` (14px vs 15px) tem um degrau de 1px só. Isso é
-  um degrau ou um ajuste?
+- `small` estava partido entre `12,5px` e `13px` (125 usos). O corpo
+  padrao de painel e 13px.
+- `caption` eram 280 usos entre 11 e 12px; o escolhido foi 12px.
+- `body-sm` vs `body-md` (14px vs 15px) viraram 14 e 16 — o degrau de
+  1px era ruido.
 
-Dado isso, aplico em um commit com os gates rodando — e, se quiser,
-estendo o `verify-tokenization` para checar tamanho também, para o gate
-cobrir o que hoje está descoberto.
+Dado isso, a aplicacao foi feita em um commit com os gates rodando, e o
+`verify-type-scale` foi criado para cobrir tamanho (com adicoes e
+remocoes registradas por posicao, valor e motivo).
 
 ## Comando
 
 ```bash
-python scripts/type-scale.py          # tabela e sanidade
-python scripts/type-scale.py --json   # para processar
+py -3 scripts/type-scale.py          # tabela e sanidade
+py -3 scripts/type-scale.py --json   # para processar
+py -3 scripts/verify-type-scale.py   # gate (tamanho token a token)
 ```

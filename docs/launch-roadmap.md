@@ -30,7 +30,7 @@ Ele complementa os documentos existentes:
 | Auto-updater (atualizações automáticas) | ✅ Pronto (2026-08-31) | Plugin registrado + **UI completa**: verificação automática no início (silenciosa; versão nova vira banner no canto inferior direito dos dois shells), botão "Verificar atualizações" e exibição da versão em Configurações > Aplicativo, download com progresso, salvamento do rascunho ativo antes de instalar (`onBeforeInstall`) e erros amigáveis de rede. Secrets `TAURI_SIGNING_PRIVATE_KEY*` cadastrados no CI (2026-08-31). Restam: primeira tag real + validar o fluxo end-to-end em máquina real (M1) |
 | Documentação de usuário | 🟡 Parcial | `docs/user-guide.md` + `docs/obsidian-migration-guide.md` criados e linkados da página de download; falta revisão de conteúdo por quem conhece o produto ponta a ponta |
 | Suporte / comunidade | ✅ Pronto (2026-08-31) | Templates de issue (*Report de bug* / *Sugestão*) + **GitHub Discussions habilitado** no repositório |
-| Telemetria de falhas (crash reporting) | ❌ Sem decisão | Filosofia local-first sugere "não ter", mas a decisão não está registrada nem justificada |
+| Telemetria de falhas (crash reporting) | ✅ Decidido: zero telemetria (2026-08-31) | Decisão registrada na linha 151 e em `docs/privacy-policy.md` §4 ("Crash reporting"): nenhum relatório automático; o usuário reporta via Issues/Logs locais |
 
 ### Correções de abertura e fechamento (2026-10-29)
 
