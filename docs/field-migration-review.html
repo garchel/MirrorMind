@@ -224,7 +224,7 @@
       5 das opções avançadas do Vault; lote 5: 4 da revisão com IA; lote 6:
       3 da criação de meta; lote 7: 3 do dicionário; lote 8: 3 da sessão de
       revisão; lote 9: 10 do App; lote 10: 1 das Bases; lote 11: 1 do
-      editor). Restam crus: <strong>49</strong>
+      editor; lote 12: 1 do Explorer). Restam crus: <strong>48</strong>
       (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
@@ -946,6 +946,51 @@
       <pre class="preview-code"><b>−</b> &lt;input ref={noteFindInputRef} value={noteFindQuery} placeholder="Buscar na nota" ... /&gt;
 
 <b>+</b> &lt;Field size="xs" ref={noteFindInputRef} value={noteFindQuery} placeholder="Buscar na nota" ... /&gt;</pre>
+    </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Explorer — filtro rápido de tags</h3>
+        <span class="preview-origin">ExplorerSidebar 227 · 1 campo · lote 12</span>
+      </div>
+      <p class="preview-note">
+        O mesmo contexto do lote 9, agora dentro do dropdown do Explorer:
+        <code>workspace-chrome.css:1807</code> ·
+        <code>.workspace-shell .tag-filter-selection input</code> (0,2,1), já
+        com <code>min-height: 0</code> e <code>padding: 1px 2px</code> da
+        correção do lote 9. Medido no dropdown real (230px): campo de 18px e
+        pílula de 30px <strong>idênticos</strong>; foco igual (o contexto zera o
+        outline e o anel da regra global continua onde já estava). O placeholder
+        UA <code>rgb(117 117 117)</code> passa ao token
+        <code>rgb(94 93 87)</code>, a mesma transição decidida dos lotes 7–9.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="workspace-shell">
+            <div class="tag-filter-dropdown" style="position:static">
+              <div class="tag-filter-selection">
+                <button type="button" class="tag-filter-chip">#tag</button>
+                <input value="fisio" placeholder="Buscar tag" aria-label="Buscar tags">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="workspace-shell">
+            <div class="tag-filter-dropdown" style="position:static">
+              <div class="tag-filter-selection">
+                <button type="button" class="tag-filter-chip">#tag</button>
+                <input class="ui-field ui-field--xs" value="fisio" placeholder="Buscar tag" aria-label="Buscar tags">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input autoFocus value={tagFilterQuery} placeholder="Buscar tag" /&gt;
+
+<b>+</b> &lt;Field size="xs" autoFocus value={tagFilterQuery} placeholder="Buscar tag" /&gt;</pre>
     </article>
   </section>
 

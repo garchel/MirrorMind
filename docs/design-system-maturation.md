@@ -131,7 +131,8 @@ continua definido.
    `min-height: 0`, pílula de 30px idêntica e o foco preservado no
    contexto, com o anel na pílula) e lote 11 fechou a busca na nota
    (barra de 30,19px e campo de 20,19px idênticos, com o anel global
-   de foco preservado). Restam 49 crus,
+   de foco preservado) e lote 12 fechou o filtro de tags do Explorer
+   (mesmo contexto do lote 9: 18px e pílula de 30px idênticos). Restam 48 crus,
    todos fora do escopo ou nos próximos lotes; ver
    `docs/field-migration-review.html`.
 
@@ -437,8 +438,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **49** crus — após os
-  lotes 1–11 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **48** crus — após os
+  lotes 1–12 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

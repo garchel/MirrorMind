@@ -1,5 +1,6 @@
 import type { Dispatch, ReactNode, RefObject, SetStateAction } from 'react'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import {
   AlertTriangle,
   ArrowUpDown,
@@ -224,7 +225,7 @@ export function ExplorerSidebar({
                     {selectedTags.map((tag) => (
                       <Button key={tag} type="button" className="ui-button tag-filter-chip" onClick={() => setSelectedTags((tags) => tags.filter((item) => item !== tag))}>#{tag} <X size={11} aria-hidden="true" /></Button>
                     ))}
-                    <input autoFocus value={tagFilterQuery} onChange={(event) => setTagFilterQuery(event.target.value)} placeholder="Buscar tag" aria-label="Buscar tags" />
+                    <Field size="xs" autoFocus value={tagFilterQuery} onChange={(event) => setTagFilterQuery(event.target.value)} placeholder="Buscar tag" aria-label="Buscar tags" />
                   </div>
                   <div className="tag-filter-suggestions">
                     {matchingTagSuggestions.slice(0, 6).map((entry) => <Button key={entry.tag} variant="bare" size="sm" onClick={() => { setSelectedTags((tags) => [...tags, entry.tag]); setTagFilterQuery('') }}>#{entry.tag} <small>{entry.notePaths.length}</small></Button>)}
