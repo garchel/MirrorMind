@@ -223,8 +223,8 @@
       6 atalhos; lote 2: 18 do grafo; lote 3: 8 da página de tags; lote 4:
       5 das opções avançadas do Vault; lote 5: 4 da revisão com IA; lote 6:
       3 da criação de meta; lote 7: 3 do dicionário; lote 8: 3 da sessão de
-      revisão; lote 9: 10 do App; lote 10: 1 das Bases). Restam crus:
-      <strong>50</strong>
+      revisão; lote 9: 10 do App; lote 10: 1 das Bases; lote 11: 1 do
+      editor). Restam crus: <strong>49</strong>
       (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
@@ -905,6 +905,47 @@
       <pre class="preview-code"><b>−</b> &lt;input type="search" value={query} placeholder="Filtrar por nome, caminho ou propriedade..." /&gt;
 
 <b>+</b> &lt;Field size="xs" type="search" value={query} placeholder="Filtrar por nome, caminho ou propriedade..." /&gt;</pre>
+    </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Editor — busca na nota</h3>
+        <span class="preview-origin">EditorContent 276 · 1 campo · lote 11</span>
+      </div>
+      <p class="preview-note">
+        Um contexto com o CSS real: <code>graph.css:1241</code> ·
+        <code>.workspace-shell .note-find-bar input</code> (0,2,1). O cru tem
+        20,19px guiados pelo conteúdo e o primitivo esticaria a barra de
+        30,19px; o contexto ganhou <code>min-height: 0</code> e
+        <code>padding: 1px 2px</code> (o primitivo injeta <code>0 10px</code>) —
+        <strong>barra e campo idênticos</strong> (30,19px e 20,19px), fonte
+        13px/1,4, fundo transparente e borda 0. O <code>::placeholder</code> do
+        contexto (0,2,2) vence o primitivo: cor preservada. O foco é da regra
+        global do workspace (0,3,0): anel <code>2px</code> sage com offset 2px,
+        medido idêntico com clique real; o <code>outline: none</code> do
+        contexto perde para ela nos dois casos, como hoje.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="workspace-shell">
+            <div class="note-find-bar" role="search" style="position:static;display:flex">
+              <input value="fotoss" placeholder="Buscar na nota" aria-label="Buscar na nota">
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="workspace-shell">
+            <div class="note-find-bar" role="search" style="position:static;display:flex">
+              <input class="ui-field ui-field--xs" value="fotoss" placeholder="Buscar na nota" aria-label="Buscar na nota">
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input ref={noteFindInputRef} value={noteFindQuery} placeholder="Buscar na nota" ... /&gt;
+
+<b>+</b> &lt;Field size="xs" ref={noteFindInputRef} value={noteFindQuery} placeholder="Buscar na nota" ... /&gt;</pre>
     </article>
   </section>
 

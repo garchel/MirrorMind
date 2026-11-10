@@ -52,6 +52,7 @@ import type { DictionaryEntry } from '../dictionary/dictionarySchema'
 import type { EditorMode } from './EditorHeader'
 import type { ReviewGapMode } from '../settings/SettingsPage'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 
 /** Corpo do editor (CodeMirror) extraído do `App.tsx`: busca na nota, os
  * três motores (Edição, Leitura, Misto), popover de formatação, popover de
@@ -273,7 +274,8 @@ export function EditorContent({
     {noteFindOpen ? (
       <div className="note-find-bar" role="search">
         <Search size={13} strokeWidth={1.7} aria-hidden="true" />
-        <input
+        <Field
+          size="xs"
           ref={noteFindInputRef}
           value={noteFindQuery}
           onChange={(event) => setNoteFindQuery(event.target.value)}

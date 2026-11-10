@@ -1242,6 +1242,12 @@
   flex: 1;
   min-width: 0;
   width: 150px;
+  /* Onda 2 `<Field>`: o campo nao tem altura propria (20,19px, guiado
+   * pelo conteudo) e o `min-height` do primitivo esticaria a barra de
+   * 28,19px; `min-height: 0` devolve o comportamento medido e o
+   * `padding: 1px 2px` preserva o recuo UA (o primitivo injeta 0 10px). */
+  min-height: 0;
+  padding: 1px 2px;
   border: 0;
   outline: none;
   background: transparent;
