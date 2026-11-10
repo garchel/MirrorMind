@@ -1533,7 +1533,7 @@
   padding: 0;
   background: transparent;
   color: var(--mm-ink-950-11);
-  cursor: text;
+  cursor: var(--text-cursor);
   font: 600 24px/1.2 var(--sans);
   text-align: left;
   text-overflow: ellipsis;

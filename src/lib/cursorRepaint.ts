@@ -12,6 +12,11 @@ import { nudgeCursor } from './nudgeCursor'
  * `color-scheme: light` no `:root` ja garante a variante preta do I-beam;
  * e o compositor que nao redesenha.
  *
+ * A correcao definitiva do I-beam e o `--text-cursor` (index.css): uma
+ * imagem SVG desenhada pelo Chromium, que nao depende do bitmap do SO.
+ * Este vigia continua cobrindo os outros cursores (seta presa depois de
+ * pagina/portal) e e barato.
+ *
  * Por que global
  * --------------
  * O remedio sempre foi o mesmo (`nudgeCursor`, que forca uma troca de

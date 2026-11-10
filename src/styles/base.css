@@ -141,6 +141,14 @@ input[type='color'] {
   cursor: pointer;
 }
 
+/* I-beam do app em toda superficie editavel. O cursor nativo do WebView2
+ * as vezes fica preso na variante branca; a imagem evita depender dele. */
+input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']):not([type='file']):not([type='submit']):not([type='button']):not([type='reset']):not(:disabled),
+textarea:not(:disabled),
+[contenteditable='true'] {
+  cursor: var(--text-cursor);
+}
+
 button {
   appearance: none;
   border: none;

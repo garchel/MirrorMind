@@ -21,6 +21,11 @@
    * (invisivel), e nenhum `cursor:` muda isso (forma, nao cor). O bloco
    * escuro abaixo reescopa para `dark`. */
   color-scheme: light;
+  /* I-beam desenhado pelo app (preto com halo branco). O cursor de texto
+   * nativo do WebView2 as vezes fica preso na variante branca depois de
+   * mudancas de composicao; a imagem e desenhada pelo Chromium, entao nao
+   * depende do bitmap do SO. Hotspot no centro do I (8,8). */
+  --text-cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48cGF0aCBkPSJNNSAyLjVoNk04IDIuNXYxMU01IDEzLjVoNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxwYXRoIGQ9Ik01IDIuNWg2TTggMi41djExTTUgMTMuNWg2IiBmaWxsPSJub25lIiBzdHJva2U9IiMxMTEiIHN0cm9rZS13aWR0aD0iMS42IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=") 8 8, text;
   --text: var(--mm-ink-900-32);
   --text-h: var(--mm-azure-950-4);
   --muted: var(--mm-ink-800-17);
