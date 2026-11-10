@@ -162,8 +162,9 @@ continua definido.
    linha de 27px do corpo (27 + 2 de borda); as duas densidades compactas
    declaram `line-height: 1`, e o token passa a valer. O resto das
    alturas (18, 20, 22, 24, 25, 26, 27, 32, 36, 37, 46 e 74) migra por
-   lote para a densidade mais proxima por papel; 18 (glifo/ponto), 46
-   (base global) e 74 (card de preset) ficam como excecao documentada.
+   lote para a densidade mais proxima por papel. As excecoes finais sao 18
+   e 20 (glifos/pontos), 24 (cluster de zoom), 37 (barra de abas), 46 (base
+   global) e 74 (card de preset).
    A migracao dos contextos corre por lote medido, como a dos campos.
    **Lote 1 dos contextos (pagina de tags):** o `min-height: 30px` do
    `.secondary-button` era **morto** — a regra de 34px
@@ -189,8 +190,8 @@ continua definido.
    exatamente 28/30/34/40px trocaram o literal por
    `var(--button-size-{xs,toolbar,sm,md}-height)` — mesmo pixel, mas a
    escala passa a mover os contextos juntos. Inventario por literal: **53 →
-   22 contextos, 12 valores**; restam as alturas fora da escala (18, 20, 22,
-   24, 25, 26, 27, 32, 36, 37) e as excecoes 46/74. **Lote 6 (grupo de
+   22 contextos, 12 valores**; restavam entao as alturas fora da escala (18,
+   20, 22, 24, 25, 26, 27, 32, 36, 37) e as excecoes 46/74. **Lote 6 (grupo de
    26px):** os 6 contextos de toggle/barra compacta (gap mode do editor,
    barra flutuante, popover de post-it, dimensao do grafo imersivo)
    passaram a `xs` (28px). Dois hacks de `.ui-button--xs` que existiam so
@@ -206,9 +207,14 @@ continua definido.
    do mover passaram a `toolbar` (30); a lista de destino ganhou
    `size="toolbar"` explicito para nao depender da ordem do CSS.
    **Excecoes de layout:** 37px e a altura da barra de abas (`.tab-close`,
-   `.new-tab-button`) e 24px vive no cluster de zoom, cuja altura e
-   influenciada pelo flex do agrupamento — os dois so mudam com medicao no
-   app real, nao no harness.
+   `.new-tab-button`); 24px e o cluster de zoom, um controle segmentado
+   mais denso que o header (medido 24 nos botoes com o estiramento do flex
+   neutralizado — com `align-items: stretch` o harness esticava para 34 e
+   escondia o valor real). **Fecho da onda:** todas as alturas de botao do
+   app estao em 28/30/34/40, exceto as 6 excecoes documentadas — 18 e 20
+   (glifos/pontos), 24 (cluster de zoom), 37 (barra de abas), 46 (base
+   global) e 74 (card de preset). O scanner por seletor ainda lista um 26px
+   que e o `::before` do botao de nova aba, nao um botao.
 
 4. ~~**19 tokens orfaos**~~ ✅ removidos. Os tres grupos eram botao
    (`--button-height*`, `--button-padding-x*`, `--button-font`), aviso
