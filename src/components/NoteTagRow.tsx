@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Button } from './ui/Button'
+import { Field } from './ui/Field'
 import { ChevronDown, Plus, Tag, X } from 'lucide-react'
 import { nudgeCursor } from '../lib/nudgeCursor'
 import { Badge } from './ui/badge'
@@ -95,7 +96,8 @@ export function NoteTagRow({ availableTags, onApplyTag, onRemoveTag, tags }: Not
               </Button>
             </PopoverTrigger>
             <PopoverContent align="start" sideOffset={6} className="frontmatter-tag-popover">
-              <input
+              <Field
+                size="xs"
                 autoFocus
                 value={tagQuery}
                 onChange={(event) => setTagQuery(event.target.value)}

@@ -224,7 +224,8 @@
       5 das opções avançadas do Vault; lote 5: 4 da revisão com IA; lote 6:
       3 da criação de meta; lote 7: 3 do dicionário; lote 8: 3 da sessão de
       revisão; lote 9: 10 do App; lote 10: 1 das Bases; lote 11: 1 do
-      editor; lote 12: 1 do Explorer). Restam crus: <strong>48</strong>
+      editor; lote 12: 1 do Explorer; lote 13: 1 do frontmatter). Restam
+      crus: <strong>47</strong>
       (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
@@ -991,6 +992,47 @@
       <pre class="preview-code"><b>−</b> &lt;input autoFocus value={tagFilterQuery} placeholder="Buscar tag" /&gt;
 
 <b>+</b> &lt;Field size="xs" autoFocus value={tagFilterQuery} placeholder="Buscar tag" /&gt;</pre>
+    </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Frontmatter — popover de nova tag</h3>
+        <span class="preview-origin">NoteTagRow 98 · 1 campo · lote 13</span>
+      </div>
+      <p class="preview-note">
+        Um contexto com o CSS real: <code>editor.css:2222</code> ·
+        <code>.ui-popover-content.frontmatter-tag-popover input</code> (0,2,1)
+        — <code>padding: 6px 8px</code>, raio 6, borda/fundo próprios,
+        <code>font: inherit</code> em 12px. A <strong>base é idêntica</strong>:
+        41px × 220px (conteúdo 27px + 12 de padding + 2 de borda; o
+        <code>min-height</code> 34 do primitivo não manda), fonte, padding,
+        raio, borda e fundo iguais. O <strong>foco já era do contexto</strong>
+        (<code>:2234</code>, <code>input:focus</code> 0,3,1, vence o primitivo
+        0,2,0 e a regra global 0,3,0): medido idêntico com clique real — outline
+        de <code>1px</code> sage <code>rgb(141 155 136)</code> e a mesma borda.
+        O único estado novo é o hover: o primitivo (0,3,0) escurece a borda para
+        o token de tinta <code>rgba(28 36 39 / 22%)</code> — mesma família
+        neutra, aceito por decisão como nos lotes 4–5 e 7. O placeholder UA
+        <code>rgb(117 117 117)</code> passa ao token
+        <code>rgb(94 93 87)</code>.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="ui-popover-content frontmatter-tag-popover">
+            <input value="fisio" placeholder="Digite e Enter para criar" aria-label="Nome da nova tag">
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="ui-popover-content frontmatter-tag-popover">
+            <input class="ui-field ui-field--xs" value="fisio" placeholder="Digite e Enter para criar" aria-label="Nome da nova tag">
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input autoFocus value={tagQuery} placeholder="Digite e Enter para criar" ... /&gt;
+
+<b>+</b> &lt;Field size="xs" autoFocus value={tagQuery} placeholder="Digite e Enter para criar" ... /&gt;</pre>
     </article>
   </section>
 
