@@ -101,8 +101,12 @@ continua definido.
    fechou os 18 do grafo (header 30px, números do popover 26px fixos
    — o contexto precisou declarar `min-height` porque o `height` fixo
    perde para o `min-height: 48px` do primitivo —, exportação 28px,
-   busca do filtro embutida). Restam 87 crus, todos fora do escopo ou
-   nos próximos lotes; ver `docs/field-migration-review.html`.
+   busca do filtro embutida) e lote 3 fechou os 8 da página de tags
+   (busca 36px, nome 40px com padding UA preservado, ritmo 38px fixo
+   que também precisou de `min-height`, e um `:focus-visible` comum
+   para o primitivo não injetar anel onde o cru não tinha). Restam 79
+   crus, todos fora do escopo ou nos próximos lotes; ver
+   `docs/field-migration-review.html`.
 
 3. **15 alturas de botao distintas** no CSS do app (14, 18, 20, 22,
    24, 26, 28, 30, 34, 36, 37, 40px), e o `size` do `<Button>` cobre
@@ -406,8 +410,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **87** crus — após os
-  lotes 1–2 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **79** crus — após os
+  lotes 1–3 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

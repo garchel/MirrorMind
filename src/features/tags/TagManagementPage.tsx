@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import { AlertTriangle, Check, ChevronRight, FileText, Hash, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
 import {
   getVaultReviewPolicyConfig,
@@ -541,7 +542,8 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
           <label className="tag-search">
             <Search size={14} aria-hidden="true" />
             <span className="sr-only">Buscar tags</span>
-            <input
+            <Field
+              size="sm"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Buscar tag"
@@ -598,7 +600,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               <div className="tag-form">
                 <label className="tag-name-field">
                   <span>Nome da tag</span>
-                  <div><Hash size={16} aria-hidden="true" /><input autoFocus aria-label="Nome da tag" value={draft.tag} onChange={(event) => updateDraft({ tag: normalizeTagInput(event.target.value) })} placeholder="materia/biologia" /></div>
+                  <div><Hash size={16} aria-hidden="true" /><Field size="sm" autoFocus aria-label="Nome da tag" value={draft.tag} onChange={(event) => updateDraft({ tag: normalizeTagInput(event.target.value) })} placeholder="materia/biologia" /></div>
                   <small>Use letras, números, hífen, sublinhado e / para criar hierarquia.</small>
                 </label>
 
@@ -642,15 +644,16 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
 
                 <fieldset className="tag-policy-fields">
                   <legend>Ritmo de revisão</legend>
-                  <label><span>Primeira revisão</span><div><input aria-label="Primeira revisão" type="number" min="1" max="3650" value={draft.firstReviewIntervalDays} onChange={(event) => updateDraft({ firstReviewIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
-                  <label><span>Retenção desejada</span><div><input aria-label="Retenção desejada" type="number" min="50" max="99" value={Math.round(draft.targetRetention * 100)} onChange={(event) => updateDraft({ targetRetention: Number(event.target.value) / 100 })} /><small>%</small></div></label>
-                  <label><span>Prioridade na fila</span><div><input aria-label="Prioridade na fila" type="number" min="0.1" max="100" step="0.1" value={draft.priorityWeight} onChange={(event) => updateDraft({ priorityWeight: Number(event.target.value) })} /><small>peso</small></div></label>
-                  <label><span>Intervalo mínimo</span><div><input aria-label="Intervalo mínimo" type="number" min="1" max="3650" value={draft.minIntervalDays} onChange={(event) => updateDraft({ minIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
-                  <label><span>Intervalo máximo</span><div><input aria-label="Intervalo máximo" type="number" min="1" max="36500" value={draft.maxIntervalDays} onChange={(event) => updateDraft({ maxIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
+                  <label><span>Primeira revisão</span><div><Field size="sm" aria-label="Primeira revisão" type="number" min="1" max="3650" value={draft.firstReviewIntervalDays} onChange={(event) => updateDraft({ firstReviewIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
+                  <label><span>Retenção desejada</span><div><Field size="sm" aria-label="Retenção desejada" type="number" min="50" max="99" value={Math.round(draft.targetRetention * 100)} onChange={(event) => updateDraft({ targetRetention: Number(event.target.value) / 100 })} /><small>%</small></div></label>
+                  <label><span>Prioridade na fila</span><div><Field size="sm" aria-label="Prioridade na fila" type="number" min="0.1" max="100" step="0.1" value={draft.priorityWeight} onChange={(event) => updateDraft({ priorityWeight: Number(event.target.value) })} /><small>peso</small></div></label>
+                  <label><span>Intervalo mínimo</span><div><Field size="sm" aria-label="Intervalo mínimo" type="number" min="1" max="3650" value={draft.minIntervalDays} onChange={(event) => updateDraft({ minIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
+                  <label><span>Intervalo máximo</span><div><Field size="sm" aria-label="Intervalo máximo" type="number" min="1" max="36500" value={draft.maxIntervalDays} onChange={(event) => updateDraft({ maxIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
                   <label className="tag-deadline-field">
                     <span>Prazo de estudo</span>
                     <div>
-                      <input
+                      <Field
+                        size="sm"
                         aria-label="Prazo de estudo"
                         type="date"
                         value={deadlineDateValue(draft.deadlineAtUnixMs)}

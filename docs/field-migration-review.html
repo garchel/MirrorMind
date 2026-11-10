@@ -16,6 +16,8 @@
 <!-- Lote 2: o toolbar e os popovers do grafo. -->
 <link rel="stylesheet" href="../src/features/graph/graph.css">
 <link rel="stylesheet" href="../src/components/GraphToolbar.css">
+<!-- Lote 3: busca, nome e ritmo da pagina de tags. -->
+<link rel="stylesheet" href="../src/features/tags/tag-management.css">
 
 <style>
   /* --- Chrome da página (não é CSS do app) ----------------------------- */
@@ -203,9 +205,9 @@
     <div class="callout">
       <strong>Placar da onda:</strong> família textual migrável =
       <strong>77</strong> (62 <code>input</code> textual + 10 <code>textarea</code> +
-      5 <code>select</code>). Migrados até agora: <strong>24</strong> (lote 1:
-      6 atalhos; lote 2: 18 do grafo). Restam crus: <strong>87</strong>
-      (<code>node scripts/scan-fields.mjs</code>).
+      5 <code>select</code>). Migrados até agora: <strong>32</strong> (lote 1:
+      6 atalhos; lote 2: 18 do grafo; lote 3: 8 da página de tags). Restam
+      crus: <strong>79</strong> (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
   <section aria-labelledby="veredito">
@@ -370,10 +372,74 @@
 
 <b>+</b> &lt;Field as="select" size="xs" value={graphExportScale} ...&gt;</pre>
     </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Página de tags — busca, nome e ritmo de revisão</h3>
+        <span class="preview-origin">TagManagementPage 544/601/645–649/653 · 8 campos · lote 3</span>
+      </div>
+      <p class="preview-note">
+        Três contextos com o CSS real. <strong>Busca</strong>
+        (<code>tag-management.css:138</code> · 36px, sem borda, fundo
+        transparente dentro do <code>.tag-search</code>): <strong>idêntico</strong>.
+        <strong>Nome da tag</strong> (<code>:584</code> · 40px dentro da moldura
+        com 12px): idêntico, mas exigiu <code>padding: 1px 2px</code> explícito —
+        o cru usava o padding UA e o primitivo injeta <code>0 12px</code>, que
+        empurraria o texto 10px. <strong>Ritmo</strong> (<code>:727</code> ·
+        38px <em>fixos</em>): o contexto só declara <code>height</code>, então
+        ganhou <code>min-height: 38px</code> — senão o <code>min-height:
+        48px</code> do primitivo esticaria. Os 5 números e a data são o mesmo
+        contexto (idênticos). Correção comum: <code>:focus-visible {
+        outline: 0 }</code> nos três — o primitivo injetaria um anel que o cru
+        não tinha (a busca já desenha o anel no wrapper via
+        <code>:focus-within</code>).
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="tag-management-page">
+            <label class="tag-search">
+              <span class="sr-only">Buscar tags</span>
+              <input value="biologia" placeholder="Buscar tag">
+            </label>
+            <label class="tag-name-field" style="margin-top:12px">
+              <span>Nome da tag</span>
+              <div><input value="materia/biologia"></div>
+            </label>
+            <fieldset class="tag-policy-fields" style="margin-top:12px">
+              <label><span>Primeira revisão</span><div><input type="number" value="3"><small>dias</small></div></label>
+            </fieldset>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="tag-management-page">
+            <label class="tag-search">
+              <span class="sr-only">Buscar tags</span>
+              <input class="ui-field ui-field--sm" value="biologia" placeholder="Buscar tag">
+            </label>
+            <label class="tag-name-field" style="margin-top:12px">
+              <span>Nome da tag</span>
+              <div><input class="ui-field ui-field--sm" value="materia/biologia"></div>
+            </label>
+            <fieldset class="tag-policy-fields" style="margin-top:12px">
+              <label><span>Primeira revisão</span><div><input class="ui-field ui-field--sm" type="number" value="3"><small>dias</small></div></label>
+            </fieldset>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input value={query} onChange={...} placeholder="Buscar tag" /&gt;   (busca)
+
+<b>+</b> &lt;Field size="sm" value={query} onChange={...} placeholder="Buscar tag" /&gt;
+
+<b>−</b> &lt;input aria-label="Primeira revisão" type="number" ... /&gt;   (ritmo, ×5 + data)
+
+<b>+</b> &lt;Field size="sm" aria-label="Primeira revisão" type="number" ... /&gt;</pre>
+    </article>
   </section>
 
   <footer class="doc-footer">
-    <p>Próximos lotes: TagManagementPage (8), VaultReviewPolicySettings (5), ReviewAiSettings (4), GoalsPage (3), DictionaryPage (3), ReviewSessionPage (3), App.tsx (10), e os demais — cada um com medição prévia.</p>
+    <p>Próximos lotes: VaultReviewPolicySettings (5), ReviewAiSettings (4), GoalsPage (3), DictionaryPage (3), ReviewSessionPage (3), App.tsx (10), e os demais — cada um com medição prévia.</p>
   </footer>
 </div>
 </body>

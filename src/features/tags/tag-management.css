@@ -150,6 +150,17 @@
   color: var(--mm-ink-650-4);
 }
 
+/* Onda 2 `<Field>`: o primitivo injeta um outline de foco
+ * (`.ui-field:focus-visible`, 0,2,0) que o cru nao tinha — o
+ * `.tag-search` desenha o anel via `:focus-within` e os campos de
+ * nome/ritmo vivem dentro de uma moldura que ja indica o foco. Esta
+ * regra (0,2,1) preserva o comportamento medido. */
+.tag-search input:focus-visible,
+.tag-name-field input:focus-visible,
+.tag-policy-fields input:focus-visible {
+  outline: 0;
+}
+
 .tag-tree-summary {
   /* Rodape da arvore: fora do caminho (busca -> criar -> lista), aparece
    * como assinatura discreta embaixo. */
@@ -584,6 +595,10 @@
 .tag-name-field input {
   width: 100%;
   min-height: 40px;
+  /* Onda 2 `<Field>`: o cru usava o padding UA (1px 2px) dentro da
+   * moldura que ja tem 12px; o primitivo injeta 0 12px e empurraria o
+   * texto. Preserva o recuo medido. */
+  padding: 1px 2px;
   border: 0;
   outline: 0;
   background: transparent;
@@ -727,6 +742,9 @@
 .tag-policy-fields input {
   width: 100%;
   min-width: 0;
+  /* Onda 2 `<Field>`: o `height: 38px` sozinho perde para o
+   * `min-height: 48px` do primitivo; o min-height explicito re-afirma. */
+  min-height: 38px;
   height: 38px;
   padding: 0 10px;
   border: 0;
