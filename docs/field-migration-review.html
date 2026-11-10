@@ -22,6 +22,8 @@
 <link rel="stylesheet" href="../src/features/review/vault-review-policy.css">
 <!-- Lote 5: campos de chave/endereco da revisao com IA. -->
 <link rel="stylesheet" href="../src/features/review/review-ai.css">
+<!-- Lote 6: formulario de criacao de meta. -->
+<link rel="stylesheet" href="../src/features/goals/goals.css">
 
 <style>
   /* --- Chrome da página (não é CSS do app) ----------------------------- */
@@ -209,10 +211,11 @@
     <div class="callout">
       <strong>Placar da onda:</strong> família textual migrável =
       <strong>77</strong> (62 <code>input</code> textual + 10 <code>textarea</code> +
-      5 <code>select</code>). Migrados até agora: <strong>41</strong> (lote 1:
+      5 <code>select</code>). Migrados até agora: <strong>44</strong> (lote 1:
       6 atalhos; lote 2: 18 do grafo; lote 3: 8 da página de tags; lote 4:
-      5 das opções avançadas do Vault; lote 5: 4 da revisão com IA). Restam
-      crus: <strong>70</strong> (<code>node scripts/scan-fields.mjs</code>).
+      5 das opções avançadas do Vault; lote 5: 4 da revisão com IA; lote 6:
+      3 da criação de meta). Restam crus: <strong>67</strong>
+      (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
   <section aria-labelledby="veredito">
@@ -552,10 +555,73 @@
 
 <b>+</b> &lt;Field size="xs" id="gemini-api-key" type="password" value={apiKey} ... /&gt;</pre>
     </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Criação de meta — título, objetivo e texto-fonte</h3>
+        <span class="preview-origin">GoalsPage 599/612/624 · 3 campos · lote 6</span>
+      </div>
+      <p class="preview-note">
+        Um contexto com o CSS real: <code>goals.css:258</code> ·
+        <code>.goals-dialog-form input, textarea</code> (0,1,1) — 38px,
+        <code>padding: 8px 10px</code>, raio 6, borda e fundo próprios,
+        <code>font: 13px/1.5</code>; e <code>:270</code> ·
+        <code>.goals-dialog-form textarea</code> — <code>min-height: 88px</code>,
+        mono e <code>resize: vertical</code>. O contexto vence as densidades,
+        então a <strong>base é idêntica</strong>: input 38px/472px, textarea
+        88px/472px, fonte 13px/19,5px (mono no textarea), padding, raio, borda,
+        fundo e <code>resize</code> iguais. O <strong>foco já era do
+        contexto</strong> (<code>.goals-page input:focus-visible</code>, 0,2,1,
+        vence o primitivo 0,2,0): <code>2px</code> accent com offset
+        <code>2px</code> idêntico. O único vazamento era o hover: o primitivo
+        (0,3,0) trocaria a borda quente <code>rgb(200 198 190)</code> pelo token
+        de tinta; a regra de hover do contexto preserva a cor medida. O
+        checkbox de IA fica fora (não é <code>&lt;Field&gt;</code>).
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="goals-page">
+            <form class="goals-dialog-form" onsubmit="return false">
+              <label><span>Título da meta</span>
+                <input value="Aprender fotossíntese" placeholder="Ex.: Aprender fotossíntese">
+                <small>0/200</small>
+              </label>
+              <label><span>Objetivo</span>
+                <textarea>Explicar a fotossíntese sem consultar.</textarea>
+                <small>0/4000</small>
+              </label>
+            </form>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="goals-page">
+            <form class="goals-dialog-form" onsubmit="return false">
+              <label><span>Título da meta</span>
+                <input class="ui-field ui-field--xs" value="Aprender fotossíntese" placeholder="Ex.: Aprender fotossíntese">
+                <small>0/200</small>
+              </label>
+              <label><span>Objetivo</span>
+                <textarea class="ui-field ui-field--xs ui-field--textarea">Explicar a fotossíntese sem consultar.</textarea>
+                <small>0/4000</small>
+              </label>
+            </form>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input id="goals-title-input" value={title} ... /&gt;   (título)
+
+<b>+</b> &lt;Field size="xs" id="goals-title-input" value={title} ... /&gt;
+
+<b>−</b> &lt;textarea id="goals-objective-input" ... /&gt;   (objetivo e texto-fonte)
+
+<b>+</b> &lt;Field as="textarea" size="xs" id="goals-objective-input" ... /&gt;</pre>
+    </article>
   </section>
 
   <footer class="doc-footer">
-    <p>Próximos lotes: GoalsPage (3), DictionaryPage (3), ReviewSessionPage (3), App.tsx (10), e os demais — cada um com medição prévia.</p>
+    <p>Próximos lotes: DictionaryPage (3), ReviewSessionPage (3), App.tsx (10), e os demais — cada um com medição prévia.</p>
   </footer>
 </div>
 </body>

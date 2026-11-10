@@ -111,7 +111,10 @@ continua definido.
    vira `2px` accent e a borda escurece no hover) e lote 5 fechou os 4
    campos da revisão com IA (chave do Gemini, endereço, modelo e chave
    OpenAI-compatible; base idêntica em 43px, mesmos estados de
-   interação decididos do lote 4). Restam 70 crus,
+   interação decididos do lote 4) e lote 6 fechou os 3 da criação de
+   meta (título 38px e os dois textareas 88px mono; o foco já era do
+   contexto e o hover precisou de regra própria para não trocar a
+   borda quente pelo token de tinta). Restam 67 crus,
    todos fora do escopo ou nos próximos lotes; ver
    `docs/field-migration-review.html`.
 
@@ -417,8 +420,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **70** crus — após os
-  lotes 1–5 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **67** crus — após os
+  lotes 1–6 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

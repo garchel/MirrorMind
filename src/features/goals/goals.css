@@ -274,6 +274,14 @@
   font-size: var(--font-size-small);
 }
 
+/* Onda 2 `<Field>`: o hover do primitivo (0,3,0) vence a regra de
+ * contexto (0,1,1) e trocaria a borda quente do campo pelo token
+ * generico de tinta; preserva a cor medida. */
+.goals-dialog-form input:hover:not(:disabled),
+.goals-dialog-form textarea:hover:not(:disabled) {
+  border-color: var(--goals-field-line);
+}
+
 .goals-dialog-form small {
   color: var(--goals-muted);
   font-size: 12px;

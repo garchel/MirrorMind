@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import { Check, ChevronDown, ExternalLink, Info, Plus, Target, Trash2, X } from 'lucide-react'
 import { EmptyState, ErrorState } from '../../components/ErrorState'
 import { GoalsSkeleton } from '../../components/PageSkeleton'
@@ -596,7 +597,8 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
           />
           <label htmlFor="goals-title-input">
             <span>Título da meta</span>
-            <input
+            <Field
+              size="xs"
               id="goals-title-input"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
@@ -609,7 +611,9 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
           </label>
           <label htmlFor="goals-objective-input">
             <span>Objetivo — o que você quer ser capaz de fazer</span>
-            <textarea
+            <Field
+              as="textarea"
+              size="xs"
               id="goals-objective-input"
               value={objective}
               onChange={(event) => setObjective(event.target.value)}
@@ -621,7 +625,9 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
           </label>
           <label htmlFor="goals-source-input">
             <span>Texto com os conteúdos (opcional — cole apostila, resumo, tópicos)</span>
-            <textarea
+            <Field
+              as="textarea"
+              size="xs"
               id="goals-source-input"
               value={sourceText}
               onChange={(event) => setSourceText(event.target.value)}
