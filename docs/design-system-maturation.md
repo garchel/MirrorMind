@@ -123,7 +123,11 @@ continua definido.
    177,81px no harness; o foco da resposta já era do contexto e precisou
    de `outline-offset: 0` para o offset do primitivo não vazar; nas
    outras duas o anel vira o accent 2px, e o hover dos três foi
-   preservado por regra de contexto). Restam 61 crus,
+   preservado por regra de contexto) e lote 9 fechou os 10 do `App.tsx`
+   (8 barras de modal idênticas em 48px, com `border-radius: 0` e o
+   foco preservados no contexto; filtro de tags 18px com `min-height: 0`;
+   e o caminho recuperado, que era input UA e adota `size="sm"` por
+   transição decidida). Restam 51 crus,
    todos fora do escopo ou nos próximos lotes; ver
    `docs/field-migration-review.html`.
 
@@ -429,8 +433,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **61** crus — após os
-  lotes 1–8 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **51** crus — após os
+  lotes 1–9 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

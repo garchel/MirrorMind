@@ -28,6 +28,8 @@
 <link rel="stylesheet" href="../src/features/dictionary/dictionary.css">
 <!-- Lote 8: sintese, resposta e diagnostico da sessao de revisao. -->
 <link rel="stylesheet" href="../src/features/review/review-session.css">
+<!-- Lote 9: campos do App (modais, filtro de tags e caminho recuperado). -->
+<link rel="stylesheet" href="../src/features/editor/editor.css">
 
 <style>
   /* --- Chrome da página (não é CSS do app) ----------------------------- */
@@ -215,11 +217,11 @@
     <div class="callout">
       <strong>Placar da onda:</strong> família textual migrável =
       <strong>77</strong> (62 <code>input</code> textual + 10 <code>textarea</code> +
-      5 <code>select</code>). Migrados até agora: <strong>50</strong> (lote 1:
+      5 <code>select</code>). Migrados até agora: <strong>60</strong> (lote 1:
       6 atalhos; lote 2: 18 do grafo; lote 3: 8 da página de tags; lote 4:
       5 das opções avançadas do Vault; lote 5: 4 da revisão com IA; lote 6:
       3 da criação de meta; lote 7: 3 do dicionário; lote 8: 3 da sessão de
-      revisão). Restam crus: <strong>61</strong>
+      revisão; lote 9: 10 do App). Restam crus: <strong>51</strong>
       (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
@@ -768,10 +770,96 @@
 
 <b>+</b> &lt;Field as="textarea" size="xs" id="review-answer" value={answer} rows={8} ... /&gt;</pre>
     </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>App — busca de modal, filtro de tags e caminho recuperado</h3>
+        <span class="preview-origin">App.tsx 5894/5912/5999/6046/6070/6090/6111/6125/6139/6167 · 10 campos · lote 9</span>
+      </div>
+      <p class="preview-note">
+        Três contextos com o CSS real. <strong>Barra do topo dos modais</strong>
+        (<code>workspace-chrome.css:853</code> · <code>.note-search-modal &gt;
+        input</code>, 0,1,1 — 8 campos: command palette, busca de nota, link,
+        conexão do grafo, tag, pasta, renomear e mover): <strong>idêntica</strong>
+        em 48px × 518px, padding <code>0 14px</code>, borda só embaixo, fundo
+        transparente, fonte 14px/1. O primitivo injetaria raio 8; a regra de
+        contexto passou a declarar <code>border-radius: 0</code> para preservar a
+        barra rente medida. O foco também ficou no contexto
+        (<code>:focus-visible { outline: 0 }</code>, 0,2,1): dentro do
+        workspace-shell a regra global (0,3,0) continua desenhando o anel de
+        hoje, e no modal portado da conexão do grafo o campo segue sem anel —
+        o anel do primitivo seria recortado pelo <code>overflow: hidden</code>.
+        <strong>Filtro de tags</strong> (<code>:1807</code> ·
+        <code>.tag-filter-selection input</code>, 0,2,1): o cru não tem altura
+        própria (18px) e o primitivo esticaria a pílula; o contexto ganhou
+        <code>min-height: 0</code> e <code>padding: 1px 2px</code> — 18px e
+        pílula de 30px idênticas. <strong>Caminho recuperado</strong>
+        (<code>editor.css:2938</code> · <code>.recovered-note-path-field
+        input</code>, só largura/box-sizing): o cru era o input UA (21px, Arial
+        13,33px, borda <code>2px inset</code>, raio 0); a <strong>transição é
+        decidida</strong> — o campo não tinha desenho nenhum, então adota
+        <code>size="sm"</code> (36px, raio 8, borda/fundo do app) e
+        <code>font: inherit</code> para herdar o caption do modal (por isso o
+        "antes" deste par já aparece com a fonte herdada: a regra de fonte é
+        parte da mudança). Nos três, o
+        placeholder UA <code>rgb(117 117 117)</code> passa ao token
+        <code>rgb(94 93 87)</code> (decisão da onda) e o hover escurece a borda
+        na mesma família neutra (<code>0.12 → 0.22</code>; na barra do modal, a
+        linha de baixo). Medido também no tema escuro: as três continuam
+        idênticas, porque <code>[data-theme='dark'] .note-search-modal
+        input</code> (0,2,1) vence o primitivo.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="workspace-shell">
+            <div class="note-search-modal" style="width:100%">
+              <input value="digite" placeholder="Digite um comando..." aria-label="Buscar comando">
+              <div class="tag-filter">
+                <div class="tag-filter-selection">
+                  <button type="button" class="tag-filter-chip">#tag</button>
+                  <input value="fisio" placeholder="Digite uma tag" aria-label="Buscar tags">
+                </div>
+              </div>
+              <label class="recovered-note-path-field">
+                <span>Novo caminho</span>
+                <input value="recuperadas/minha-nota.md" aria-label="Novo caminho">
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="workspace-shell">
+            <div class="note-search-modal" style="width:100%">
+              <input class="ui-field ui-field--md" value="digite" placeholder="Digite um comando..." aria-label="Buscar comando">
+              <div class="tag-filter">
+                <div class="tag-filter-selection">
+                  <button type="button" class="tag-filter-chip">#tag</button>
+                  <input class="ui-field ui-field--xs" value="fisio" placeholder="Digite uma tag" aria-label="Buscar tags">
+                </div>
+              </div>
+              <label class="recovered-note-path-field">
+                <span>Novo caminho</span>
+                <input class="ui-field ui-field--sm" value="recuperadas/minha-nota.md" aria-label="Novo caminho">
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input autoFocus value={commandQuery} placeholder="Digite um comando..." /&gt;   (8 barras de modal)
+<b>+</b> &lt;Field size="md" autoFocus value={commandQuery} placeholder="Digite um comando..." /&gt;
+
+<b>−</b> &lt;input autoFocus value={tagFilterQuery} placeholder="Digite uma tag" /&gt;   (filtro de tags)
+<b>+</b> &lt;Field size="xs" autoFocus value={tagFilterQuery} placeholder="Digite uma tag" /&gt;
+
+<b>−</b> &lt;input value={recoveredNotePath} placeholder="recuperadas/minha-nota.md" /&gt;   (caminho recuperado)
+<b>+</b> &lt;Field size="sm" value={recoveredNotePath} placeholder="recuperadas/minha-nota.md" /&gt;</pre>
+    </article>
   </section>
 
   <footer class="doc-footer">
-    <p>Próximos lotes: App.tsx (10), e os demais — cada um com medição prévia.</p>
+    <p>Próximos lotes, um a um com medição prévia: BasesPage, EditorContent, ExplorerSidebar, NoteTagRow, ReviewDashboardPage, SegmentationSettings, DictionaryOfferModal e VaultSelection. Os 3 campos de classe estática de visual próprio (frontmatter e post-it) ficam fora.</p>
   </footer>
 </div>
 </body>

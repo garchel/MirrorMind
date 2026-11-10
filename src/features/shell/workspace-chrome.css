@@ -856,10 +856,23 @@ label.settings-toggle {
   padding: 0 14px;
   border: 0;
   border-bottom: 1px solid var(--mm-ink-350-3);
+  /* Onda 2 `<Field>`: a barra do topo e rente de proposito (sem raio,
+   * so a linha de baixo). O primitivo injeta o raio do campo; esta
+   * regra preserva o desenho medido (0,1,1 vence o .ui-field). */
+  border-radius: 0;
   outline: none;
   background: transparent;
   color: var(--mm-ink-950-11);
   font: 14px/1 var(--sans);
+}
+
+/* O foco tambem e do contexto: o primitivo (0,2,0) desenharia um anel
+ * que o `overflow: hidden` do modal recorta na borda de cima. Dentro do
+ * workspace-shell a regra global de foco (0,3,0) continua desenhando o
+ * anel de hoje; no modal portado da conexao do grafo o campo segue sem
+ * anel, exatamente como o cru. */
+.note-search-modal > input:focus-visible {
+  outline: 0;
 }
 
 .note-search-results {
@@ -1808,6 +1821,12 @@ label.settings-toggle {
   flex: 1 1 88px;
   width: 88px;
   min-width: 0;
+  /* Onda 2 `<Field>`: o campo nao tem altura propria (e guiado pelo
+   * conteudo, 18px) e o `min-height` do primitivo esticaria a pilula;
+   * `min-height: 0` devolve o comportamento medido. O `padding` UA de
+   * 1px 2px tambem e preservado (o primitivo injeta 0 10px). */
+  min-height: 0;
+  padding: 1px 2px;
   border: 0;
   outline: 0;
   background: transparent;

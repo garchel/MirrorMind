@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from './components/ui/Button'
+import { Field } from './components/ui/Field'
 import { createPortal } from 'react-dom'
 import type { CSSProperties, DragEvent, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import type { EditorState } from '@codemirror/state'
@@ -5891,7 +5892,8 @@ function App() {
               <p>Restaure no caminho original, salve o rascunho em uma nova nota ou feche a aba sem recriar o arquivo.</p>
               <label className="recovered-note-path-field">
                 <span>Novo caminho</span>
-                <input
+                <Field
+                  size="sm"
                   value={recoveredNotePath}
                   onChange={(event) => setRecoveredNotePath(event.target.value)}
                   placeholder="recuperadas/minha-nota.md"
@@ -5908,7 +5910,7 @@ function App() {
         {showCommandPalette ? (
           <div className="note-search-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowCommandPalette(false) }}>
             <section className="note-search-modal command-palette" role="dialog" aria-modal="true" aria-label="Command Palette">
-              <input autoFocus value={commandQuery} onChange={(event) => setCommandQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setShowCommandPalette(false); if (event.key === 'Enter' && matchingCommands[0] && !matchingCommands[0].disabled) runPaletteCommand(matchingCommands[0]) }} placeholder="Digite um comando..." aria-label="Buscar comando" />
+              <Field size="md" autoFocus value={commandQuery} onChange={(event) => setCommandQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setShowCommandPalette(false); if (event.key === 'Enter' && matchingCommands[0] && !matchingCommands[0].disabled) runPaletteCommand(matchingCommands[0]) }} placeholder="Digite um comando..." aria-label="Buscar comando" />
               <div className="command-palette-results">
                 {matchingCommands.map((command) => <Button key={command.id} variant="bare" size="sm" disabled={command.disabled} onClick={() => runPaletteCommand(command)}><span>{command.label}</span><small>{command.description}</small></Button>)}
                 {matchingCommands.length === 0 ? <p>Nenhum comando encontrado.</p> : null}
@@ -5996,7 +5998,8 @@ function App() {
             label="Abrir nota existente"
             className="note-search-modal"
           >
-              <input
+              <Field
+                size="md"
                 autoFocus
                 value={noteSearchQuery}
                 onChange={(event) => setNoteSearchQuery(event.target.value)}
@@ -6043,7 +6046,7 @@ function App() {
                       #{tag} <X size={11} strokeWidth={1.5} aria-hidden="true" />
                     </Button>
                   ))}
-                  <input autoFocus value={tagFilterQuery} onChange={(event) => setTagFilterQuery(event.target.value)} placeholder={selectedTags.length ? 'Adicionar tag' : 'Digite uma tag'} aria-label="Buscar tags" />
+                  <Field size="xs" autoFocus value={tagFilterQuery} onChange={(event) => setTagFilterQuery(event.target.value)} placeholder={selectedTags.length ? 'Adicionar tag' : 'Digite uma tag'} aria-label="Buscar tags" />
                 </div>
                 <div className="tag-filter-suggestions">
                   {matchingTagSuggestions.slice(0, 8).map((entry) => (
@@ -6067,7 +6070,7 @@ function App() {
             label="Inserir link para nota"
             className="note-search-modal"
           >
-              <input autoFocus value={noteLinkQuery} onChange={(event) => setNoteLinkQuery(event.target.value)} placeholder="Buscar nota para vincular" aria-label="Buscar nota" />
+              <Field size="md" autoFocus value={noteLinkQuery} onChange={(event) => setNoteLinkQuery(event.target.value)} placeholder="Buscar nota para vincular" aria-label="Buscar nota" />
               <div className="note-search-results">
                 {linkableNotes.map((note) => (
                   <Button key={note.relativePath} variant="bare" size="sm" onClick={() => insertInternalLink(note)}>{note.relativePath.replace(/\.md$/i, '')}</Button>
@@ -6087,7 +6090,7 @@ function App() {
             label="Criar conexão no grafo"
             className="note-search-modal"
           >
-              <input autoFocus value={graphConnectQuery} onChange={(event) => setGraphConnectQuery(event.target.value)} placeholder="Buscar nota para conectar" aria-label="Buscar nota para conectar" />
+              <Field size="md" autoFocus value={graphConnectQuery} onChange={(event) => setGraphConnectQuery(event.target.value)} placeholder="Buscar nota para conectar" aria-label="Buscar nota para conectar" />
               <div className="note-search-results">
                 {graphConnectNotes.map((note) => (
                   <Button key={note.relativePath} variant="bare" size="sm" onClick={() => void createGraphConnection(graphConnectSource, note)}>{note.relativePath.replace(/\.md$/i, '')}</Button>
@@ -6108,7 +6111,7 @@ function App() {
             label="Inserir tag"
             className="note-search-modal"
           >
-              <input autoFocus value={tagName} onChange={(event) => setTagName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') insertTag() }} placeholder="Nome da tag" aria-label="Nome da tag" />
+              <Field size="md" autoFocus value={tagName} onChange={(event) => setTagName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') insertTag() }} placeholder="Nome da tag" aria-label="Nome da tag" />
               <div className="folder-dialog-actions">
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowTagDialog(false)}>Cancelar</Button>
                 <Button variant="primary" size="sm" onClick={insertTag} disabled={!tagName.trim()}>Inserir tag</Button>
@@ -6122,7 +6125,7 @@ function App() {
             label="Criar pasta"
             className="note-search-modal"
           >
-              <input autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void createFolder() }} placeholder="Nome ou caminho da pasta" aria-label="Nome da pasta" />
+              <Field size="md" autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void createFolder() }} placeholder="Nome ou caminho da pasta" aria-label="Nome da pasta" />
               <div className="folder-dialog-actions">
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowFolderDialog(false)}>Cancelar</Button>
                 <Button variant="primary" size="sm" onClick={() => void createFolder()} disabled={!folderName.trim() || loading}>Criar pasta</Button>
@@ -6136,7 +6139,7 @@ function App() {
             label={`Renomear ${renameTarget.type === 'note' ? 'nota' : 'pasta'}`}
             className="note-search-modal"
           >
-              <input autoFocus value={renameName} onChange={(event) => setRenameName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void renameVaultItem() }} placeholder="Novo nome" aria-label="Novo nome" />
+              <Field size="md" autoFocus value={renameName} onChange={(event) => setRenameName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void renameVaultItem() }} placeholder="Novo nome" aria-label="Novo nome" />
               {wikilinkIndexProgress ? (
                 <p className="wikilink-index-progress" role="status">
                   Indexando wikilinks... ({wikilinkIndexProgress.processed} de {wikilinkIndexProgress.total} notas)
@@ -6164,7 +6167,7 @@ function App() {
                 <strong>Mover {moveTarget.type === 'note' ? 'nota' : 'pasta'}: {moveTarget.name.replace(/\.md$/i, '')}</strong>
                 <span>Escolha a pasta de destino.</span>
               </div>
-              <input value={moveDestination} onChange={(event) => setMoveDestination(event.target.value)} placeholder="Raiz do vault ou caminho da pasta" aria-label="Pasta de destino" />
+              <Field size="md" value={moveDestination} onChange={(event) => setMoveDestination(event.target.value)} placeholder="Raiz do vault ou caminho da pasta" aria-label="Pasta de destino" />
               <div className="move-destination-list" aria-label="Pastas do vault">
                 {moveDestinationOptions.map((folder) => (
                   <Button key={folder || '__root__'} variant="bare" size="sm" className={moveDestination === folder ? 'is-selected' : ''} onClick={() => setMoveDestination(folder)}>

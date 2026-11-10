@@ -2938,6 +2938,10 @@
 .recovered-note-path-field input {
   width: 100%;
   box-sizing: border-box;
+  /* Onda 2 `<Field>`: o cru era o input UA (Arial 13,33px, borda inset);
+   * a fonte passa a herdar o rotulo caption do contexto, como o resto
+   * do modal. A altura vem da densidade `sm` (36px). */
+  font: inherit;
 }
 
 .external-removed-note-actions {
