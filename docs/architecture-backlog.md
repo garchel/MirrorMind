@@ -15,8 +15,9 @@ Pós candidatos 1, 2, 3 (vaultIndex), 4. `App.tsx` em 6.176 linhas; full
 3. **Restos do App (abas, explorer)** — soft-delete, palette (~5) e parte do
    explorer ficam (retorno decrescente, ~10 dependências entrelaçadas).
    Só mexer se um bug apontar para lá. Impacto baixo / esforço alto.
-4. **Detalhes visuais** — azul `#79a8ff` do dark ainda pendente de token;
-   nada funcional. Impacto baixo / esforço baixo.
+4. ~~**Detalhes visuais**~~ ✅ feito: o azul `#79a8ff` já é o token
+   `--mm-azure-600` em `primitive.css`; nenhum uso literal restante.
+   Impacto baixo / esforço baixo.
 
 ## Peso de inicialização (medido em 2026-10-29 com `npm run build`)
 

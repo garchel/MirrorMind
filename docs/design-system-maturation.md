@@ -73,7 +73,16 @@ consumidor e 19 eram orfaos**. Os 19 orfaos foram removidos depois:
 `src/styles/tokens/component.css`; nenhum token orfao desses grupos
 continua definido.
 
-### O que falta, em ordem de tamanho
+### As tres ondas da camada 3 (estado)
+
+| onda | estado | medido |
+|---|---|---|
+| 1 — botoes | fechada | 0 crus; 4 densidades (28/30/34/40) + 6 excecoes |
+| 2 — campos | fechada | 74 dos 77 textuais; 37 crus, todos fora do escopo |
+| 3 — controles | fechada | 34 nativos em 18px + accent; swatch 26x22 |
+
+O texto abaixo e o historico de como cada onda foi medida — nao uma
+lista de pendencias.
 
 1. **Nenhum `<button>` cru de produto resta** — o inventario de
    2026-10-30 era 73 sem classe + 14 com classe = 87, mais a onda
@@ -83,8 +92,8 @@ continua definido.
    **errada**: `<Button>` renderiza um `<button>` com classes a mais,
    entao os 83 seletores que ja usam `:where(button, .ui-button)`
    continuam casando e os 15 que dependem so da tag tambem. O que ficou
-   medido, grupo a grupo, esta na tabela e no preview. Falta a onda dos
-   campos crus e das alturas (abaixo).
+   medido, grupo a grupo, esta na tabela e no preview. As duas ondas
+   seguintes fecharam (itens 2 e 3).
 
 2. **111 campos crus** (medido por `node scripts/scan-fields.mjs` em
    2026-11-10: 96 `<input>`, 10 `<textarea>`, 5 `<select>`, em 25
