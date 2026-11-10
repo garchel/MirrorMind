@@ -223,14 +223,15 @@
     <div class="callout">
       <strong>Placar da onda:</strong> família textual migrável =
       <strong>77</strong> (62 <code>input</code> textual + 10 <code>textarea</code> +
-      5 <code>select</code>). Migrados até agora: <strong>61</strong> (lote 1:
+      5 <code>select</code>). Migrados até agora: <strong>69</strong> (lote 1:
       6 atalhos; lote 2: 18 do grafo; lote 3: 8 da página de tags; lote 4:
       5 das opções avançadas do Vault; lote 5: 4 da revisão com IA; lote 6:
       3 da criação de meta; lote 7: 3 do dicionário; lote 8: 3 da sessão de
       revisão; lote 9: 10 do App; lote 10: 1 das Bases; lote 11: 1 do
       editor; lote 12: 1 do Explorer; lote 13: 1 do frontmatter; lote 14: 1 do
       dashboard; lote 15: 1 da segmentação; lote 16: 1 da oferta de
-      dicionário). Restam crus: <strong>44</strong>
+      dicionário; lote 17: 2 da seleção de dicionário). Restam crus:
+      <strong>42</strong>
       (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
@@ -1165,6 +1166,60 @@
       <pre class="preview-code"><b>−</b> &lt;textarea value={conceptOf(suggestion)} rows={3} onChange={...} /&gt;
 
 <b>+</b> &lt;Field as="textarea" size="xs" value={conceptOf(suggestion)} rows={3} onChange={...} /&gt;</pre>
+    </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Dicionário — seleção de termo e conceito</h3>
+        <span class="preview-origin">DictionarySelectionModal 237/249 · 2 campos · lote 17</span>
+      </div>
+      <p class="preview-note">
+        Um contexto com o CSS real: <code>dictionary.css:753</code> ·
+        <code>.dictionary-selection-label input, textarea</code> (0,1,1) — 100%,
+        <code>padding: 8px 10px</code>, raio 6, borda/fundo próprios e
+        <code>font: 13px/1.5</code>. A <strong>base é idêntica sem correção</strong>:
+        input 37,5×460px e textarea 76,5×460px (o <code>min-height</code> 34 e 72
+        do primitivo ficam abaixo do conteúdo), fonte, padding, raio, borda e
+        fundo iguais. O foco é da regra global (0,3,0), que vence o
+        <code>:focus-visible</code> do contexto: anel <code>2px</code> sage
+        medido idêntico com clique real. O hover escurece a borda
+        <code>0.12 → 0.22</code> na mesma família neutra (decisão) e o
+        placeholder do textarea troca o cinza UA <code>rgb(117 117 117)</code>
+        pelo token <code>rgb(94 93 87)</code>.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="workspace-shell">
+            <label class="dictionary-selection-label"><span>Termo</span>
+              <input type="text" value="glicólise">
+            </label>
+            <label class="dictionary-selection-label"><span>Conceito</span>
+              <div class="dictionary-selection-concept">
+                <textarea rows="3" placeholder="A definição que aparece ao passar o mouse.">Quebra da glicose.</textarea>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="workspace-shell">
+            <label class="dictionary-selection-label"><span>Termo</span>
+              <input class="ui-field ui-field--xs" type="text" value="glicólise">
+            </label>
+            <label class="dictionary-selection-label"><span>Conceito</span>
+              <div class="dictionary-selection-concept">
+                <textarea class="ui-field ui-field--xs ui-field--textarea" rows="3" placeholder="A definição que aparece ao passar o mouse.">Quebra da glicose.</textarea>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input type="text" value={term} maxLength={MAX_TERM_CHARS} ... /&gt;
+<b>+</b> &lt;Field size="xs" type="text" value={term} maxLength={MAX_TERM_CHARS} ... /&gt;
+
+<b>−</b> &lt;textarea value={concept} rows={3} maxLength={MAX_CONCEPT_CHARS} ... /&gt;
+<b>+</b> &lt;Field as="textarea" size="xs" value={concept} rows={3} maxLength={MAX_CONCEPT_CHARS} ... /&gt;</pre>
     </article>
   </section>
 

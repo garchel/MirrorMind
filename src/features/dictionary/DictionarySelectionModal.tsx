@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Loader2, BookMarked, RefreshCw } from 'lucide-react'
 import { Modal, ModalHeader } from '../../components/Modal'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import { normalizeTerm } from './dictionarySchema'
 import type { DictionaryConceptSuggestion } from './dictionarySuggestion'
 import './dictionary.css'
@@ -234,7 +235,8 @@ export function DictionarySelectionModal({
 
       <label className="dictionary-selection-label">
         <span>Termo</span>
-        <input
+        <Field
+          size="xs"
           type="text"
           value={term}
           maxLength={MAX_TERM_CHARS}
@@ -246,7 +248,9 @@ export function DictionarySelectionModal({
       <label className="dictionary-selection-label">
         <span>Conceito</span>
         <div className="dictionary-selection-concept">
-          <textarea
+          <Field
+            as="textarea"
+            size="xs"
             value={concept}
             rows={3}
             maxLength={MAX_CONCEPT_CHARS}
