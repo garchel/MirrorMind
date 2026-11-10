@@ -156,79 +156,8 @@
     grid-template-columns: 1fr;
   }
 }
-.vault-tag-policy-settings {
-  display: grid;
-  gap: 12px;
-  border-top: 1px solid var(--border, var(--line));
-  padding-top: 14px;
-}
-
-.vault-tag-policy-list {
-  display: grid;
-  gap: 10px;
-}
-
-.vault-tag-policy-rule {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  margin: 0;
-  border: 1px solid var(--border, var(--line));
-  border-radius: var(--radius-md);
-  padding: 11px;
-}
-
-.vault-tag-policy-rule-heading {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(220px, auto) auto;
-  align-items: end;
-  gap: 10px;
-}
-
-.vault-tag-policy-rule label,
-.vault-tag-policy-fields label {
-  display: grid;
-  gap: 5px;
-  color: var(--muted, var(--mm-ink-800-4));
-  font-size: 12px;
-}
-
-.vault-tag-policy-rule input:not([type='checkbox']) {
-  min-height: 34px;
-  box-sizing: border-box;
-  border: 1px solid var(--border, var(--line));
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  background: var(--surface);
-  color: var(--text, var(--mm-ink-950-11));
-  font: inherit;
-}
-
-.vault-tag-policy-checkbox {
-  display: flex !important;
-  min-height: 34px;
-  align-items: center;
-  grid-auto-flow: column;
-  justify-content: start;
-}
-
-.vault-tag-policy-rule summary {
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.vault-tag-policy-fields {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
-}
 
 @media (max-width: 720px) {
-  .vault-tag-policy-rule-heading,
-  .vault-tag-policy-fields {
-    grid-template-columns: 1fr;
-  }
+  
 }
 

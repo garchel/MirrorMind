@@ -246,6 +246,15 @@ def main():
                  '2026-11-10: regra morta .editor-panel/.editor-preview '
                  'removida na auditoria de CSS.'),
             ],
+            'src/features/review/vault-review-policy.css': [
+                # Auditoria de CSS morto (2026-11-10): o bloco
+                # `.vault-tag-policy-*` nao tem referencia no fonte; as
+                # duas declaracoes de 12px sairam com ele.
+                ('12.0', 6,
+                 '2026-11-10: regras mortas .vault-tag-policy-* removidas.'),
+                ('12.0', 7,
+                 '2026-11-10: regras mortas .vault-tag-policy-* removidas.'),
+            ],
             'src/features/editor/editor.css': [
                 ('11.0', 24,
                  '2026-11-06: chip de orfaos (11px) saiu com o dialogo '
