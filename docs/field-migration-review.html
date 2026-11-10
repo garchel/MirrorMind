@@ -231,7 +231,7 @@
       editor; lote 12: 1 do Explorer; lote 13: 1 do frontmatter; lote 14: 1 do
       dashboard; lote 15: 1 da segmentação; lote 16: 1 da oferta de
       dicionário; lote 17: 2 da seleção de dicionário; lote 18: 2 da
-      calibração). Restam crus: <strong>40</strong>
+      calibração; lote 19: 2 da conta). Restam crus: <strong>38</strong>
       (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
@@ -1273,6 +1273,55 @@
 
 <b>−</b> &lt;select id="calibration-strategy" value={configuration.strategy} ... /&gt;
 <b>+</b> &lt;Field as="select" size="sm" id="calibration-strategy" value={configuration.strategy} ... /&gt;</pre>
+    </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Configurações — conta (e-mail e senha)</h3>
+        <span class="preview-origin">AccountSettings 95/103 · 2 campos · lote 19</span>
+      </div>
+      <p class="preview-note">
+        Este lote corrige uma <strong>causa</strong> antes de migrar:
+        <code>workspace-chrome.css:497</code> aplicava
+        <code>.settings-toggle input { width: 18px; height: 18px }</code> a
+        <em>qualquer</em> input dentro do toggle, pensando no checkbox. O
+        formulário de conta vive dentro de um toggle, então os dois campos
+        mediam <strong>18×18px</strong> hoje. O seletor passou a excluir
+        e-mail/senha/texto/busca/número/data (o <code>.settings-number</code>
+        continua com a própria regra), e o formulário ganhou
+        <code>display: grid; gap: 8px; width: min(280px, 100%)</code>. Com
+        isso, os campos migrados ficam em 36×280px, raio 8, fonte 18px e
+        padding <code>0 12px</code>. O foco é da regra global (0,3,0): anel
+        <code>2px</code> sage, medido idêntico com clique real. O placeholder
+        UA passa ao token <code>rgb(94 93 87)</code> (decisão da onda).
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru (18×18)</span>
+          <div class="settings-toggle">
+            <span><strong>Conta</strong><small>Entre para sincronizar.</small></span>
+            <form class="settings-account-form" onsubmit="return false">
+              <input type="email" placeholder="voce@exemplo.com" aria-label="E-mail da conta">
+              <input type="password" placeholder="Senha" aria-label="Senha da conta">
+            </form>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="settings-toggle">
+            <span><strong>Conta</strong><small>Entre para sincronizar.</small></span>
+            <form class="settings-account-form" onsubmit="return false">
+              <input class="ui-field ui-field--sm" type="email" placeholder="voce@exemplo.com" aria-label="E-mail da conta">
+              <input class="ui-field ui-field--sm" type="password" placeholder="Senha" aria-label="Senha da conta">
+            </form>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input type="email" value={email} placeholder="voce@exemplo.com" ... /&gt;
+<b>+</b> &lt;Field size="sm" type="email" value={email} placeholder="voce@exemplo.com" ... /&gt;
+
+<b>−</b> &lt;input type="password" value={password} placeholder="Senha" ... /&gt;
+<b>+</b> &lt;Field size="sm" type="password" value={password} placeholder="Senha" ... /&gt;</pre>
     </article>
   </section>
 

@@ -92,7 +92,8 @@ export function AccountSettings({ client }: { client: SessionClient }) {
           void signIn(email, password)
         }}
       >
-        <input
+        <Field
+          size="sm"
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
@@ -100,7 +101,8 @@ export function AccountSettings({ client }: { client: SessionClient }) {
           aria-label="E-mail da conta"
           autoComplete="email"
         />
-        <input
+        <Field
+          size="sm"
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}

@@ -144,7 +144,9 @@ continua definido.
    idênticos, sem correção de contexto) e lote 18 fechou os 2 da
    calibração (chave com o contexto do lote 5 e o select de estratégia,
    que era UA de 21px e adota a densidade dos selects de configuração,
-   transição decidida). Restam 40 crus,
+   transição decidida) e lote 19 fechou os 2 da conta, corrigindo a causa
+   antes de migrar: `.settings-toggle input` (18×18, pensado para o
+   checkbox) alcançava o formulário de conta, que media 18×18px. Restam 38 crus,
    todos fora do escopo ou nos próximos lotes; ver
    `docs/field-migration-review.html`.
 
@@ -450,8 +452,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **40** crus — após os
-  lotes 1–18 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **38** crus — após os
+  lotes 1–19 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

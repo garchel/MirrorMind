@@ -494,10 +494,25 @@ label.settings-toggle {
   font-size: 12px;
 }
 
-.settings-toggle input {
+/* O glifo do toggle (checkbox, radio, range) e 18px. Campo de texto dentro
+ * do toggle — o formulario de conta — nao e glifo: ficaria 18x18. A causa
+ * era o seletor amplo; o `:not` tira email/senha/texto do escopo. */
+.settings-toggle input:not([type='email']):not([type='password']):not([type='text']):not([type='search']):not([type='number']):not([type='date']) {
   width: 18px;
   height: 18px;
   accent-color: var(--mm-ink-750);
+}
+
+/* Formulario de conta: sem regra nenhuma, os campos herdavam o 18x18 do
+ * toggle. Onda 2 `<Field>`: duas colunas de campo numa coluna de 280px. */
+.settings-account-form {
+  display: grid;
+  gap: 8px;
+  width: min(280px, 100%);
+}
+
+.settings-account-form input {
+  width: 100%;
 }
 
 /* Controle segmentado das Configuracoes (ex.: tema claro/escuro). */
