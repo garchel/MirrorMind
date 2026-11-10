@@ -177,7 +177,10 @@
  * "linha tracejada" — mesmo peso visual das linhas da arvore, sem virar
  * pílula escura (o escudo generico de :where(button, .ui-button) nao pega: excluido abaixo). */
 .tag-management-page.tag-management-page :where(button, .ui-button).tag-tree-create {
-  min-height: 32px;
+  /* Onda 3: a altura vem da densidade `toolbar` (30px); o 32px local saiu.
+   * O `padding` explicito preserva o recuo de 18px que vinha do `button`
+   * base e que a densidade (0 10) sobrescreveria. */
+  padding: 0 18px;
   margin: 2px 0 6px;
   border: 1px dashed var(--tag-line);
   border-radius: var(--radius-sm);
@@ -962,7 +965,9 @@
 }
 
 .tag-management-page.tag-management-page .secondary-button:not(.danger-button) {
-  min-height: 30px;
+  /* O `min-height: 30px` que vivia aqui era morto: a regra de 34px
+   * (:where(...):not(...):not(...):not(...), 0,5,0) sempre venceu. A
+   * altura efetiva e a densidade `sm` (34px) do proprio botao. */
   padding: 0 12px;
   border: 1px solid var(--tag-line);
   border-radius: var(--radius-md);

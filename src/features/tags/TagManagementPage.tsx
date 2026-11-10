@@ -551,6 +551,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
           </label>
           <Button
             type="button"
+            size="toolbar"
             className="ui-button tag-tree-create"
             onClick={() => startCreate()}
             disabled={busy || loading || atRuleLimit}

@@ -165,6 +165,12 @@ continua definido.
    lote para a densidade mais proxima por papel; 18 (glifo/ponto), 46
    (base global) e 74 (card de preset) ficam como excecao documentada.
    A migracao dos contextos corre por lote medido, como a dos campos.
+   **Lote 1 dos contextos (pagina de tags):** o `min-height: 30px` do
+   `.secondary-button` era **morto** — a regra de 34px
+   (`:where(...):not(...):not(...):not(...)`, 0,5,0) sempre venceu; removido
+   como codigo morto, e a altura efetiva dos secundarios e `sm` (34px). O
+   "Criar tag" (32px) passou a `size="toolbar"` (30px), com `padding: 0 18px`
+   explicito no contexto para preservar o recuo que vinha do `button` base.
 
 4. ~~**19 tokens orfaos**~~ ✅ removidos. Os tres grupos eram botao
    (`--button-height*`, `--button-padding-x*`, `--button-font`), aviso
