@@ -46,17 +46,6 @@ if (!existsSync(input)) {
 
 const raw = readFileSync(input, 'utf8')
 
-function parseJson(text, file) {
-  const clean = text.replace(/^\uFEFF/, '').trim()
-  try {
-    return JSON.parse(clean)
-  } catch (error) {
-    console.error(`nao consegui ler ${file} como JSON: ${error.message}`)
-    console.error('Se o arquivo foi salvo com BOM, salve como UTF-8 sem BOM.')
-    process.exit(1)
-  }
-}
-
 function parsePayload(text) {
   const trimmed = text.trim()
   if (!trimmed) return []
@@ -74,7 +63,6 @@ function parsePayload(text) {
 }
 
 const DIMENSIONS = ['core', 'connections', 'application', 'gaps']
-const ANSWERS = { yes: 'yes', partial: 'partial', no: 'no' }
 
 const cases = parsePayload(raw)
 const imported = []

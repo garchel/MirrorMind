@@ -17,7 +17,7 @@
 // MirrorMind fica sempre no fim do arquivo.
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { resolve } from 'node:path'
 
 const [sectionPath] = process.argv.slice(2)
 if (!sectionPath) {

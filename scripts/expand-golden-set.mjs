@@ -255,7 +255,6 @@ for (const [name, content] of Object.entries(NOTES)) {
 
 const goldenPath = join(root, 'golden.json')
 const golden = JSON.parse(readFileSync(goldenPath, 'utf8'))
-const existing = new Set(golden.cases.map((entry) => entry.id))
 
 const added = []
 const updated = []

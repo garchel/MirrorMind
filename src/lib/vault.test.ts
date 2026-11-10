@@ -131,7 +131,7 @@ describe('vault helpers', () => {
     expect(extractMarkdownTags('[[#Titulo]] #real [[outra#^bloco]]')).toEqual(['real'])
     expect(extractMarkdownTags('Nota [[#subtitulo]] e #tag-livre')).toEqual(['tag-livre'])
     expect(extractMarkdownTags('[[#Titulo|alias]] #corpo')).toEqual(['corpo'])
-    expect(extractMarkdownTags('\[[#Titulo]] #escapado')).toEqual(['escapado'])
+    expect(extractMarkdownTags('[[#Titulo]] #escapado')).toEqual(['escapado'])
   })
 
   it('includes complex Obsidian frontmatter tags in every frontend filter', () => {

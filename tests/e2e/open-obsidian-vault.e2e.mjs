@@ -168,7 +168,7 @@ if (phase === 'open-obsidian-vault') describe('Abrir Vault Obsidian', () => {
 
 if (phase === 'verify-open-obsidian-vault') describe('Reabrir vault Obsidian', () => {
   it('reabre em novo processo com o .obsidian e os arquivos desconhecidos intactos', async () => {
-    const { editedContent, noteRelativePath, protectedSnapshot, vaultName } = JSON.parse(
+    const { editedContent, protectedSnapshot, vaultName } = JSON.parse(
       readFileSync(journeyStatePath, 'utf8'),
     )
     const vaultPath = join(process.env.MIRRORMIND_E2E_VAULT_PARENT, vaultName)
