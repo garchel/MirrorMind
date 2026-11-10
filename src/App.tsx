@@ -5267,7 +5267,7 @@ function App() {
       switch (key) {
         case 'favorite':
           return (
-            <Button key={key} type="button" variant="bare" className={`ui-button favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></Button>
+            <Button key={key} type="button" size="toolbar" variant="bare" className={`ui-button favorite-button${favorites.includes(activeNote.relativePath) ? ' is-active' : ''}`} onClick={() => void toggleActiveFavorite()} title="Fixar nota" aria-label="Fixar nota"><Star size={15} fill={favorites.includes(activeNote.relativePath) ? 'currentColor' : 'none'} aria-hidden="true" /></Button>
           )
         case 'review':
           return (

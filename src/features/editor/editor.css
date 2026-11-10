@@ -149,28 +149,16 @@
   border-right: 1px solid var(--mm-ink-350-3);
 }
 
-.workspace-shell .history-actions .secondary-button {
-  display: grid;
-  width: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  padding: 0;
-  place-items: center;
-}
-
-.workspace-shell .history-actions .secondary-button:disabled {
-  cursor: default;
-}
-
-.workspace-shell .history-actions .secondary-button:not(:disabled) {
-  cursor: pointer;
-}
+/* Onda 3: as regras `.history-actions .secondary-button` eram mortas — os
+ * botoes usam `variant="bare"`, que nao emite `.secondary-button`, entao
+ * mediam 40px (md) e o 28x28 nunca aplicou. Agora a geometria vem de
+ * `size="xs"` (28px, quadrado quando so tem glifo). */
 
 .workspace-shell .editor-actions > .favorite-button {
   display: grid;
   width: 30px;
   min-width: 30px;
-  min-height: 30px;
+  /* Onda 3: a altura vem de `size="toolbar"` (30px). */
   padding: 0;
   place-items: center;
   line-height: 0;

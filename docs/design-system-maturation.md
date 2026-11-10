@@ -171,6 +171,14 @@ continua definido.
    como codigo morto, e a altura efetiva dos secundarios e `sm` (34px). O
    "Criar tag" (32px) passou a `size="toolbar"` (30px), com `padding: 0 18px`
    explicito no contexto para preservar o recuo que vinha do `button` base.
+   **Lote 2 dos contextos (editor):** os botoes de desfazer/refazer mediam
+   40px porque `.history-actions .secondary-button` era morta (o botao usa
+   `variant="bare"`, que nao emite `.secondary-button`); passaram a
+   `size="xs"` (28x28) e as tres regras mortas sairam. O botao de favoritar
+   (30px) passou a `size="toolbar"`, mantendo 30x30. **O scanner por seletor
+   e um piso:** classes sem "button" no nome (`.note-review-menu-trigger`,
+   `.structural-audit-trigger`) nao entram na contagem; a auditoria real e
+   por componente, medindo a cascata.
 
 4. ~~**19 tokens orfaos**~~ ✅ removidos. Os tres grupos eram botao
    (`--button-height*`, `--button-padding-x*`, `--button-font`), aviso

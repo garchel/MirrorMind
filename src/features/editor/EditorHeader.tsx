@@ -212,8 +212,8 @@ export function EditorHeader({
       </div>
       <div className="editor-actions" ref={headerActionsRef}>
         <div className="history-actions" aria-label="Histórico de edição">
-          <Button type="button" variant="bare" className="ui-button" onMouseDown={preserveEditorSelection} onClick={() => void undoLastCommand()} disabled={!canUndoActiveEditor || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
-          <Button type="button" variant="bare" className="ui-button" onMouseDown={preserveEditorSelection} onClick={() => void redoLastCommand()} disabled={!canRedoActiveEditor || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
+          <Button type="button" size="xs" variant="bare" className="ui-button" onMouseDown={preserveEditorSelection} onClick={() => void undoLastCommand()} disabled={!canUndoActiveEditor || loading || saving} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
+          <Button type="button" size="xs" variant="bare" className="ui-button" onMouseDown={preserveEditorSelection} onClick={() => void redoLastCommand()} disabled={!canRedoActiveEditor || loading || saving} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={15} strokeWidth={1.5} aria-hidden="true" /></Button>
         </div>
         {isAutoSaveEnabled && !isNewNoteDraft ? (
           <span className={`autosave-indicator is-${autoSaveState}`} aria-live="polite">
