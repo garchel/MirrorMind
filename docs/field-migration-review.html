@@ -229,7 +229,8 @@
       3 da criação de meta; lote 7: 3 do dicionário; lote 8: 3 da sessão de
       revisão; lote 9: 10 do App; lote 10: 1 das Bases; lote 11: 1 do
       editor; lote 12: 1 do Explorer; lote 13: 1 do frontmatter; lote 14: 1 do
-      dashboard; lote 15: 1 da segmentação). Restam crus: <strong>45</strong>
+      dashboard; lote 15: 1 da segmentação; lote 16: 1 da oferta de
+      dicionário). Restam crus: <strong>44</strong>
       (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
@@ -1122,6 +1123,48 @@
       <pre class="preview-code"><b>−</b> &lt;input type="number" min={WORD_LIMIT_MIN} value={draft} aria-invalid={!draftValid} /&gt;
 
 <b>+</b> &lt;Field size="xs" type="number" min={WORD_LIMIT_MIN} value={draft} aria-invalid={!draftValid} /&gt;</pre>
+    </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Revisão — oferta de dicionário</h3>
+        <span class="preview-origin">DictionaryOfferModal 110 · 1 textarea · lote 16</span>
+      </div>
+      <p class="preview-note">
+        Um contexto com o CSS real: <code>review-ai.css:1297</code> ·
+        <code>.dictionary-offer-label textarea</code> (0,1,1) — 100%,
+        <code>padding: 7px 8px</code>, raio 6, borda e fundo próprios,
+        <code>font: 400 12px/1.5</code> e <code>resize: vertical</code>. O
+        textarea é guiado por <code>rows={3}</code> (70px) e o
+        <code>min-height: 72px</code> do primitivo o esticaria; o contexto ganhou
+        <code>min-height: 0</code> — <strong>70px × 480px idênticos</strong>,
+        fonte, padding, raio, borda, fundo e resize iguais. O foco é da regra
+        global (0,3,0), que vence inclusive o <code>:focus-visible</code> do
+        contexto: anel <code>2px</code> sage medido idêntico com clique real. O
+        hover escurece a borda <code>0.12 → 0.22</code> na mesma família neutra
+        (decisão). O campo não tem placeholder.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="workspace-shell">
+            <label class="dictionary-offer-label">
+              <textarea rows="3">Quebra da glicose em piruvato.</textarea>
+            </label>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="workspace-shell">
+            <label class="dictionary-offer-label">
+              <textarea class="ui-field ui-field--xs ui-field--textarea" rows="3">Quebra da glicose em piruvato.</textarea>
+            </label>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;textarea value={conceptOf(suggestion)} rows={3} onChange={...} /&gt;
+
+<b>+</b> &lt;Field as="textarea" size="xs" value={conceptOf(suggestion)} rows={3} onChange={...} /&gt;</pre>
     </article>
   </section>
 

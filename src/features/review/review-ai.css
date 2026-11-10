@@ -1297,6 +1297,10 @@
 .dictionary-offer-label textarea {
   width: 100%;
   box-sizing: border-box;
+  /* Onda 2 `<Field>`: o textarea e guiado por `rows` (70px com 3 linhas)
+   * e o `min-height` 72 do primitivo o esticaria; `min-height: 0`
+   * devolve a altura medida. */
+  min-height: 0;
   resize: vertical;
   font: 400 12px/1.5 var(--sans);
   padding: 7px 8px;

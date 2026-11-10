@@ -138,7 +138,8 @@ continua definido.
    dashboard (campo de 21,59px e moldura de 39,59px idênticos, com o
    padding UA do input de data preservado) e lote 15 fechou o limite de
    palavras da segmentação (140×41px idênticos, com o min-height 36 do
-   contexto vencendo o do primitivo). Restam 45 crus,
+   contexto vencendo o do primitivo) e lote 16 fechou a oferta de
+   dicionário (textarea de 70px com `min-height: 0`, idêntico). Restam 44 crus,
    todos fora do escopo ou nos próximos lotes; ver
    `docs/field-migration-review.html`.
 
@@ -444,8 +445,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **45** crus — após os
-  lotes 1–15 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **44** crus — após os
+  lotes 1–16 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

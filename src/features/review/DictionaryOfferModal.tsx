@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Modal, ModalHeader } from '../../components/Modal'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import { BookMarked, Check } from 'lucide-react'
 import type { NoteImprovementSuggestion } from './calibrationComparison'
 
@@ -107,7 +108,9 @@ export function DictionaryOfferModal({
               </div>
               <label className="dictionary-offer-label">
                 <span className="visually-hidden">Conceito de {suggestion.term}</span>
-                <textarea
+                <Field
+                  as="textarea"
+                  size="xs"
                   value={conceptOf(suggestion)}
                   rows={3}
                   onChange={(event) =>
