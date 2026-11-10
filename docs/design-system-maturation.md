@@ -104,8 +104,12 @@ continua definido.
    busca do filtro embutida) e lote 3 fechou os 8 da página de tags
    (busca 36px, nome 40px com padding UA preservado, ritmo 38px fixo
    que também precisou de `min-height`, e um `:focus-visible` comum
-   para o primitivo não injetar anel onde o cru não tinha). Restam 79
-   crus, todos fora do escopo ou nos próximos lotes; ver
+   para o primitivo não injetar anel onde o cru não tinha) e lote 4
+   fechou os 5 números das opções avançadas da política do Vault (base
+   idêntica em 41px; os dois estados de interação mudam por decisão,
+   porque o contexto não tinha foco nem hover — o anel UA `auto 1px`
+   vira `2px` accent e a borda escurece no hover). Restam 74 crus,
+   todos fora do escopo ou nos próximos lotes; ver
    `docs/field-migration-review.html`.
 
 3. **15 alturas de botao distintas** no CSS do app (14, 18, 20, 22,
@@ -410,8 +414,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **79** crus — após os
-  lotes 1–3 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **74** crus — após os
+  lotes 1–4 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

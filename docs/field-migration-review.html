@@ -18,6 +18,8 @@
 <link rel="stylesheet" href="../src/components/GraphToolbar.css">
 <!-- Lote 3: busca, nome e ritmo da pagina de tags. -->
 <link rel="stylesheet" href="../src/features/tags/tag-management.css">
+<!-- Lote 4: opcoes avancadas da politica de revisao do Vault. -->
+<link rel="stylesheet" href="../src/features/review/vault-review-policy.css">
 
 <style>
   /* --- Chrome da página (não é CSS do app) ----------------------------- */
@@ -205,9 +207,10 @@
     <div class="callout">
       <strong>Placar da onda:</strong> família textual migrável =
       <strong>77</strong> (62 <code>input</code> textual + 10 <code>textarea</code> +
-      5 <code>select</code>). Migrados até agora: <strong>32</strong> (lote 1:
-      6 atalhos; lote 2: 18 do grafo; lote 3: 8 da página de tags). Restam
-      crus: <strong>79</strong> (<code>node scripts/scan-fields.mjs</code>).
+      5 <code>select</code>). Migrados até agora: <strong>37</strong> (lote 1:
+      6 atalhos; lote 2: 18 do grafo; lote 3: 8 da página de tags; lote 4:
+      5 das opções avançadas do Vault). Restam crus: <strong>74</strong>
+      (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
   <section aria-labelledby="veredito">
@@ -436,10 +439,66 @@
 
 <b>+</b> &lt;Field size="sm" aria-label="Primeira revisão" type="number" ... /&gt;</pre>
     </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Política do Vault — opções avançadas</h3>
+        <span class="preview-origin">VaultReviewPolicySettings 221–225 · 5 campos · lote 4</span>
+      </div>
+      <p class="preview-note">
+        Um contexto com o CSS real: <code>vault-review-policy.css:121</code> ·
+        <code>.vault-review-policy-advanced input</code> (0,1,1) — declara
+        <code>min-height: 34px</code>, <code>padding: 6px 8px</code>, raio 6,
+        borda e fundo próprios, <code>font: inherit</code> (12px herdado do
+        label). O contexto vence todas as densidades do primitivo, então a
+        <strong>base é idêntica</strong>: 41px de altura (o <code>min-height</code>
+        de 34 é menor que o conteúdo 27px + 12 de padding + 2 de borda), 253px
+        de largura na coluna do grid, fonte 12px/27px, padding, raio, borda e
+        fundo idênticos. Dois <strong>estados de interação mudam por
+        decisão</strong> — o contexto não tinha regra de foco nem de hover, e o
+        primitivo traz o tratamento do app: o anel de foco troca o
+        <code>auto 1px</code> do navegador por <code>2px</code> accent
+        (medido: <code>rgb(229 151 0)</code> → <code>rgb(196 106 43)</code>), e
+        a borda escurece no hover (<code>0.12 → 0.22</code> de alfa). Os 2
+        radios do método de revisão ficam fora (checkbox/radio não são
+        <code>&lt;Field&gt;</code>).
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <details class="vault-review-policy-advanced" open>
+            <summary>Opções avançadas</summary>
+            <div>
+              <label>Primeira revisão (dias)<input type="number" min="1" max="3650" value="3"></label>
+              <label>Retenção desejada (%)<input type="number" min="50" max="99" value="90"></label>
+              <label>Peso de prioridade<input type="number" min="0.1" max="100" step="0.1" value="1"></label>
+              <label>Intervalo mínimo (dias)<input type="number" value="1"></label>
+              <label>Intervalo máximo (dias)<input type="number" value="365"></label>
+            </div>
+          </details>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <details class="vault-review-policy-advanced" open>
+            <summary>Opções avançadas</summary>
+            <div>
+              <label>Primeira revisão (dias)<input class="ui-field ui-field--xs" type="number" min="1" max="3650" value="3"></label>
+              <label>Retenção desejada (%)<input class="ui-field ui-field--xs" type="number" min="50" max="99" value="90"></label>
+              <label>Peso de prioridade<input class="ui-field ui-field--xs" type="number" min="0.1" max="100" step="0.1" value="1"></label>
+              <label>Intervalo mínimo (dias)<input class="ui-field ui-field--xs" type="number" value="1"></label>
+              <label>Intervalo máximo (dias)<input class="ui-field ui-field--xs" type="number" value="365"></label>
+            </div>
+          </details>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input type="number" min="1" max="3650" value={form.firstReviewIntervalDays} ... /&gt;   (×5)
+
+<b>+</b> &lt;Field size="xs" type="number" min="1" max="3650" value={form.firstReviewIntervalDays} ... /&gt;</pre>
+    </article>
   </section>
 
   <footer class="doc-footer">
-    <p>Próximos lotes: VaultReviewPolicySettings (5), ReviewAiSettings (4), GoalsPage (3), DictionaryPage (3), ReviewSessionPage (3), App.tsx (10), e os demais — cada um com medição prévia.</p>
+    <p>Próximos lotes: ReviewAiSettings (4), GoalsPage (3), DictionaryPage (3), ReviewSessionPage (3), App.tsx (10), e os demais — cada um com medição prévia.</p>
   </footer>
 </div>
 </body>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import {
   getVaultReviewPolicyConfig,
   previewVaultReviewDefaults,
@@ -218,11 +219,11 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
           <details className="vault-review-policy-advanced">
             <summary>Opções avançadas</summary>
             <div>
-              <label>Primeira revisão (dias)<input type="number" min="1" max="3650" value={form.firstReviewIntervalDays} onChange={(event) => setNumber('firstReviewIntervalDays', Number(event.target.value))} /></label>
-              <label>Retenção desejada (%)<input type="number" min="50" max="99" value={Math.round(form.targetRetention * 100)} onChange={(event) => setNumber('targetRetention', Number(event.target.value) / 100)} /></label>
-              <label>Peso de prioridade<input type="number" min="0.1" max="100" step="0.1" value={form.priorityWeight} onChange={(event) => setNumber('priorityWeight', Number(event.target.value))} /></label>
-              <label>Intervalo mínimo (dias)<input type="number" min="1" max="3650" value={form.minIntervalDays} onChange={(event) => setNumber('minIntervalDays', Number(event.target.value))} /></label>
-              <label>Intervalo máximo (dias)<input type="number" min="1" max="36500" value={form.maxIntervalDays} onChange={(event) => setNumber('maxIntervalDays', Number(event.target.value))} /></label>
+              <label>Primeira revisão (dias)<Field size="xs" type="number" min="1" max="3650" value={form.firstReviewIntervalDays} onChange={(event) => setNumber('firstReviewIntervalDays', Number(event.target.value))} /></label>
+              <label>Retenção desejada (%)<Field size="xs" type="number" min="50" max="99" value={Math.round(form.targetRetention * 100)} onChange={(event) => setNumber('targetRetention', Number(event.target.value) / 100)} /></label>
+              <label>Peso de prioridade<Field size="xs" type="number" min="0.1" max="100" step="0.1" value={form.priorityWeight} onChange={(event) => setNumber('priorityWeight', Number(event.target.value))} /></label>
+              <label>Intervalo mínimo (dias)<Field size="xs" type="number" min="1" max="3650" value={form.minIntervalDays} onChange={(event) => setNumber('minIntervalDays', Number(event.target.value))} /></label>
+              <label>Intervalo máximo (dias)<Field size="xs" type="number" min="1" max="36500" value={form.maxIntervalDays} onChange={(event) => setNumber('maxIntervalDays', Number(event.target.value))} /></label>
             </div>
             {form.maxIntervalDays < form.minIntervalDays ? <p className="field-error" role="alert">O intervalo máximo deve ser igual ou maior que o mínimo.</p> : null}
           </details>
