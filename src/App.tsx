@@ -33,6 +33,7 @@ import { getDueReviewQueue, type DueReviewItem } from './features/review/reviewQ
 import { checkReviewNotifications, type ReviewNotificationCheck } from './features/review/reviewNotifications'
 import { localDayStartUnixMs } from './features/review/reviewDashboard'
 import { nudgeCursor } from './lib/nudgeCursor'
+import { installCursorRepaint } from './lib/cursorRepaint'
 import { isAutoUpdateEnabled, setAutoUpdateEnabled, useAppUpdater } from './lib/useAppUpdater'
 import { useEscapeToClose } from './lib/escapeStack'
 import { UpdateBanner } from './components/UpdateBanner'
@@ -420,6 +421,12 @@ function App() {
   useEffect(() => {
     nudgeCursor()
   }, [workspacePage])
+
+  // Vigia sistemico do cursor branco do WebView2: reemite o cursor quando a
+  // forma muda para/de I-beam e quando um portal (popover, menu, tooltip)
+  // nasce sob o ponteiro. Cobre qualquer componente novo sem remendo local —
+  // os `nudgeCursor` pontuais que ja existiam seguem como redundancia segura.
+  useEffect(() => installCursorRepaint(), [])
 
   // Entrar na superficie do editor (explorador -> editor) troca o cursor para
   // o I-beam — outro gatilho conhecido do cursor branco. Reemite o cursor ao
