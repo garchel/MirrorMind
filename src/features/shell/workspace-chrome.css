@@ -626,7 +626,8 @@ label.settings-toggle {
   align-items: center;
   gap: 9px;
   width: 100%;
-  min-height: 36px;
+  /* Onda 3: 36px -> densidade sm (34px). */
+  min-height: var(--button-size-sm-height);
   padding: 0 11px;
   border: 0;
   border-radius: var(--radius-md);
@@ -1374,7 +1375,8 @@ label.settings-toggle {
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
-  min-height: 36px;
+  /* Onda 3: 36px -> densidade sm (34px). */
+  min-height: var(--button-size-sm-height);
   padding: 0 9px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -2290,7 +2292,8 @@ label.settings-toggle {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  min-height: 36px;
+  /* Onda 3: 36px -> densidade sm (34px). */
+  min-height: var(--button-size-sm-height);
   padding: 0 6px;
   border: 0;
   border-radius: var(--radius-sm);
@@ -2326,9 +2329,10 @@ label.settings-toggle {
 
 .workspace-shell .vault-refresh-button {
   display: grid;
-  width: 36px;
-  min-width: 36px;
-  min-height: 36px;
+  /* Onda 3: 36px -> densidade sm (34px); o quadrado acompanha. */
+  width: var(--button-size-sm-height);
+  min-width: var(--button-size-sm-height);
+  min-height: var(--button-size-sm-height);
   padding: 0;
   place-items: center;
 }

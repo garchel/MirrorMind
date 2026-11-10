@@ -195,6 +195,11 @@ continua definido.
    barra flutuante, popover de post-it, dimensao do grafo imersivo)
    passaram a `xs` (28px). Dois hacks de `.ui-button--xs` que existiam so
    para vencer o default antigo (26) sairam; medido 28 nos quatro.
+   **Lote 7 (grupo de 36px):** navegacao de settings (tema claro), botao do
+   rail, trocar vault e atualizar vault passaram a `sm` (34px), com o
+   quadrado do refresh acompanhando — medido 34 nos quatro. Inventario por
+   literal: **16 → 12 contextos**; restam 9 alturas fora da escala (18, 20,
+   22, 24, 25, 27, 32, 37) e as 3 excecoes (18 glifo, 46 base, 74 preset).
 
 4. ~~**19 tokens orfaos**~~ ✅ removidos. Os tres grupos eram botao
    (`--button-height*`, `--button-padding-x*`, `--button-font`), aviso
