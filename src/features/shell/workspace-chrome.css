@@ -1886,7 +1886,8 @@ label.settings-toggle {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  min-height: 25px;
+  /* Onda 3: 25px -> densidade xs (28px). */
+  min-height: var(--button-size-xs-height);
   padding: 0 6px;
   border: 0;
   border-radius: var(--radius-xs);
@@ -2106,7 +2107,8 @@ label.settings-toggle {
   align-items: center;
   justify-content: normal;
   width: 100%;
-  min-height: 32px;
+  /* Onda 3: 32px -> densidade toolbar (30px). */
+  min-height: var(--button-size-toolbar-height);
   gap: 8px;
   padding: 0 8px;
   border: 0;

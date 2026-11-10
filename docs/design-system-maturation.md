@@ -200,6 +200,15 @@ continua definido.
    quadrado do refresh acompanhando — medido 34 nos quatro. Inventario por
    literal: **16 → 12 contextos**; restam 9 alturas fora da escala (18, 20,
    22, 24, 25, 27, 32, 37) e as 3 excecoes (18 glifo, 46 base, 74 preset).
+   **Lote 8 (compactos):** modo do editor (22), sugestoes de filtro (25) e
+   notas favoritas (27) passaram a `xs` (28); a dica de metas (20) fica como
+   glifo redondo, excecao. **Lote 9 (32px):** nav do PDF e lista de destino
+   do mover passaram a `toolbar` (30); a lista de destino ganhou
+   `size="toolbar"` explicito para nao depender da ordem do CSS.
+   **Excecoes de layout:** 37px e a altura da barra de abas (`.tab-close`,
+   `.new-tab-button`) e 24px vive no cluster de zoom, cuja altura e
+   influenciada pelo flex do agrupamento — os dois so mudam com medicao no
+   app real, nao no harness.
 
 4. ~~**19 tokens orfaos**~~ ✅ removidos. Os tres grupos eram botao
    (`--button-height*`, `--button-padding-x*`, `--button-font`), aviso

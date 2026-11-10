@@ -540,7 +540,7 @@
 .workspace-shell .favorite-button.is-active { color: var(--mm-clay-750); background: var(--mm-clay-200-9); }
 .workspace-shell .favorite-notes { display: grid; gap: 2px; margin: 0 2px 8px; padding: 6px; border-bottom: 1px solid var(--mm-ink-250-3); }
 .workspace-shell .favorite-notes > span { color: var(--mm-ink-800-7); font-size: 10px; text-transform: uppercase; }
-.workspace-shell .favorite-notes :where(button, .ui-button) { display: flex; align-items: center; justify-content: normal; gap: 6px; min-height: 27px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--mm-ink-900-32); font-size: 12px; text-align: left; }
+.workspace-shell .favorite-notes :where(button, .ui-button) { display: flex; align-items: center; justify-content: normal; gap: 6px; min-height: var(--button-size-xs-height); padding: 0 18px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--mm-ink-900-32); font-size: 12px; text-align: left; }
 .workspace-shell .favorite-notes :where(button, .ui-button):hover { background: var(--mm-clay-200-9); }
 
 .workspace-shell .editor-mode-control {
@@ -561,7 +561,8 @@
 }
 
 .workspace-shell .editor-mode-button {
-  min-height: 22px;
+  /* Onda 3: 22px -> densidade xs (28px); o padding 0 10 do contexto fica. */
+  min-height: var(--button-size-xs-height);
   padding: 0 10px;
   border: 0;
   border-radius: var(--radius-xs);
@@ -2769,7 +2770,8 @@
 }
 
 .workspace-shell .obsidian-pdf-embed > nav :where(button, .ui-button) {
-  min-height: 32px;
+  /* Onda 3: 32px -> densidade toolbar (30px). */
+  min-height: var(--button-size-toolbar-height);
   padding: 0 12px;
   border: 1px solid var(--mm-ink-450-6);
   border-radius: var(--radius-sm);
