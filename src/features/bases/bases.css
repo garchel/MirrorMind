@@ -184,12 +184,6 @@
   font-size: 12px;
 }
 
-.bases-loading {
-  margin: 0;
-  color: var(--bases-muted);
-  font-size: 12px;
-}
-
 .bases-empty {
   display: flex;
   flex-direction: column;

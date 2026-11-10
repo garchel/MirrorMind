@@ -332,13 +332,6 @@
   padding-left: 20px;
 }
 
-.review-ai-issue-list blockquote {
-  margin: 7px 0 0;
-  padding: 8px 10px;
-  border-left: 3px solid var(--accent);
-  background: rgb(115 137 121 / 9%);
-}
-
 .review-ai-markdown {
   display: grid;
   gap: 8px;
@@ -387,9 +380,6 @@
     display: none;
   }
 
-  .review-ai-dialog-backdrop {
-    padding: 12px;
-  }
 }
 
 /* ---- Relatorio de prontidao: painel em secoes, nao dump de markdown. ---- */
@@ -1062,7 +1052,6 @@
   color: var(--muted, var(--mm-ink-800-4));
   list-style: disc;
 }
-
 
 /* --- Confianca do modelo no relatorio de prontidao ------------------------
  *

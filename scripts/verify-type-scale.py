@@ -266,6 +266,18 @@ def main():
                 ('12.0', 7,
                  '2026-11-10: regras mortas .vault-tag-policy-* removidas.'),
             ],
+            'src/features/bases/bases.css': [
+                # Auditoria de CSS morto (2026-11-10): `.bases-loading`
+                # nao tem referencia no fonte; o 12px saiu com a regra.
+                ('12.0', 6,
+                 '2026-11-10: regra morta .bases-loading removida.'),
+            ],
+            'src/features/review/review-dashboard.css': [
+                # Auditoria de CSS morto (2026-11-10): `.review-dashboard-status`
+                # nao tem referencia no fonte; o 13.5px saiu com a regra.
+                ('13.5', 2,
+                 '2026-11-10: regra morta .review-dashboard-status removida.'),
+            ],
             'src/features/editor/editor.css': [
                 ('11.0', 24,
                  '2026-11-06: chip de orfaos (11px) saiu com o dialogo '

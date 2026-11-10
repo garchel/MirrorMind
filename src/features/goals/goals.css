@@ -56,8 +56,6 @@
   flex-wrap: wrap;
 }
 
-
-
 /* Botão "Nova meta": cores explícitas nos tokens canônicos do app
  * (nunca herda nem depende da ordem do CSS global). Claro: fundo
  * var(--mm-azure-950-4) + texto var(--mm-clay-150-3). Escuro: fundo var(--mm-gold-200-2) + texto var(--mm-ink-950-11).
@@ -469,12 +467,6 @@
 .goal-step-copy code {
   font-size: var(--font-size-caption);
   overflow-wrap: anywhere;
-}
-
-.goal-step-actions {
-  display: grid;
-  gap: 6px;
-  justify-items: end;
 }
 
 .goal-steps li.is-done .goal-step-order {

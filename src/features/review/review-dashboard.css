@@ -22,15 +22,6 @@
   max-width: 54ch;
 }
 
-.review-dashboard-status {
-  padding: 28px 20px;
-  text-align: center;
-  color: var(--text-muted);
-  border: 1px dashed var(--border, var(--mm-gold-300-2));
-  border-radius: var(--radius-lg);
-  font-size: var(--font-size-body-sm);
-}
-
 .review-dashboard-status.is-error {
   display: flex;
   flex-direction: column;

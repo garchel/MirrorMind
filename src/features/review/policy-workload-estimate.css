@@ -49,11 +49,6 @@
   color: var(--text-strong);
 }
 
-.policy-workload-estimate-sep {
-  color: var(--faint);
-  font-weight: 400;
-}
-
 .policy-workload-estimate-note {
   font-size: var(--font-size-caption);
   line-height: 1.45;
