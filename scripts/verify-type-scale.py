@@ -238,6 +238,14 @@ def main():
         # uma adicao: posicao no baseline, valor e motivo. Sem isso o
         # `zip` posicional desalinha e acusa o arquivo inteiro.
         REMOVIDOS = {
+            'src/styles/base.css': [
+                # Auditoria de CSS morto (2026-11-10): as regras de
+                # `.editor-panel`/`.editor-preview` nao tinham nenhuma
+                # referencia no fonte; a declaracao de 15px saiu junto.
+                ('15.0', 3,
+                 '2026-11-10: regra morta .editor-panel/.editor-preview '
+                 'removida na auditoria de CSS.'),
+            ],
             'src/features/editor/editor.css': [
                 ('11.0', 24,
                  '2026-11-06: chip de orfaos (11px) saiu com o dialogo '
