@@ -134,6 +134,9 @@
 .workspace-shell .graph-immersive-header input[type='text'],
 .workspace-shell .graph-immersive-header > input,
 .workspace-shell .graph-immersive-header select {
+  /* Onda 2 `<Field>`: o primitivo impoe `width: 100%` (0,1,0); o cru
+   * nasce `auto`, que e o que o header flex espera. */
+  width: auto;
   min-height: 30px;
   padding: 0 8px;
   border: 1px solid var(--mm-ink-350-3);
@@ -337,6 +340,10 @@
 .graph-settings-popover .graph-settings-row input {
   flex-shrink: 0;
   width: 68px;
+  /* Onda 2 `<Field>`: sem este min-height, o do primitivo
+   * (`ui-field`, 48px) vence o `height: 26px` fixo (`height` perde
+   * para `min-height` em qualquer especificidade). */
+  min-height: 26px;
   height: 26px;
   padding: 0 6px;
   border: 1px solid var(--mm-ink-350-3);
@@ -430,6 +437,11 @@
 /* Cores dos grupos (pasta ou tag) com override por Vault. */
 .graph-settings-popover .graph-settings-row select {
   flex-shrink: 0;
+  /* Onda 2 `<Field>`: `width: auto` volta ao comportamento do cru
+   * (o primitivo impoe 100%); `min-height: 26px` re-afirma o `height`
+   * fixo contra o min-height de 48px do primitivo. */
+  width: auto;
+  min-height: 26px;
   max-width: 130px;
   height: 26px;
   padding: 0 4px;
@@ -569,6 +581,8 @@
 }
 
 .graph-export-popover .graph-settings-row select {
+  /* Onda 2 `<Field>`: `width: auto` volta ao comportamento do cru. */
+  width: auto;
   min-height: 28px;
   padding: 0 6px;
   border: 1px solid var(--mm-ink-350-3);

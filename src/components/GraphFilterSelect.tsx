@@ -1,5 +1,6 @@
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Button } from './ui/Button'
+import { Field } from './ui/Field'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 
@@ -103,7 +104,7 @@ export function GraphFilterSelect({
         <label className="graph-filter-select-search">
           <Search size={13} strokeWidth={2} aria-hidden="true" />
           <span className="graph-sr-only">Buscar em {label}</span>
-          <input
+          <Field size="sm"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar"

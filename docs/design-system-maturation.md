@@ -83,21 +83,26 @@ continua definido.
    medido, grupo a grupo, esta na tabela e no preview. Falta a onda dos
    campos crus e das alturas (abaixo).
 
-2. **114 campos crus** (medido por `node scripts/scan-fields.mjs` em
-   2026-11-09: 96 `<input>`, 10 `<textarea>`, 8 `<select>`, em 25
-   arquivos). Do total, **80 migram** para `<Field>` (a família
-   textual: input de texto/search/password/number/date/email mais
-   select e textarea) e **34 nao migram** — 19 checkbox, 11 radio e
-   4 color: o `<Field>` e campo de texto, e o glifo desses tipos
-   precisa de decisao propria; vira item separado, fora desta onda.
-   Do resto, 111 nao tinham classe (herdavam o reset de `base.css`)
-   e 3 tinham classe estatica de visual proprio completo
-   (`frontmatter-panel-key/value`, `postit-popover-input` — fora da
-   onda). O doc antigo dizia "112 campos crus (93/10/9)": a contagem
-   por tag era estimativa, nao medida — o scanner passa a ser a fonte.
-   A onda migra por lote medido (o mesmo processo dos botões): lote 1
-   fechou os 6 atalhos de `SettingsPage` (38px do contexto preservado,
-   idêntico por pixel; ver `docs/field-migration-review.html`).
+2. **111 campos crus** (medido por `node scripts/scan-fields.mjs` em
+   2026-11-10: 96 `<input>`, 10 `<textarea>`, 5 `<select>`, em 25
+   arquivos). O scanner ignora comentários — a primeira versão dele
+   contava 3 comentários como campo (114 era ruído); o "112 campos
+   (93/10/9)" do doc antigo era estimativa, não medição. Do total,
+   **77 migram** para `<Field>` (a família textual: 62 inputs de
+   texto/search/password/number/date/email mais 10 textarea e 5
+   select) e **34 não migram** — 19 checkbox, 11 radio e 4 color: o
+   `<Field>` é campo de texto, e o glifo desses tipos precisa de
+   decisão própria; vira item separado, fora desta onda. Dos crus,
+   108 não tinham classe (herdavam o reset de `base.css`) e 3 tinham
+   classe estática de visual próprio completo (`frontmatter-panel-key/
+   value`, `postit-popover-input` — fora da onda). A onda migra por
+   lote medido (o mesmo processo dos botões): lote 1 fechou os 6
+   atalhos de `SettingsPage` (38px do contexto preservado) e lote 2
+   fechou os 18 do grafo (header 30px, números do popover 26px fixos
+   — o contexto precisou declarar `min-height` porque o `height` fixo
+   perde para o `min-height: 48px` do primitivo —, exportação 28px,
+   busca do filtro embutida). Restam 87 crus, todos fora do escopo ou
+   nos próximos lotes; ver `docs/field-migration-review.html`.
 
 3. **15 alturas de botao distintas** no CSS do app (14, 18, 20, 22,
    24, 26, 28, 30, 34, 36, 37, 40px), e o `size` do `<Button>` cobre
@@ -401,8 +406,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões. Nesta data: **108** (após o lote 1 da onda de campos; o
-  inventario inicial era 114).
+  de botões (ignora comentários). Nesta data: **87** crus — após os
+  lotes 1–2 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

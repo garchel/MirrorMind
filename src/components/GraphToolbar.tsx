@@ -1,5 +1,6 @@
 import { useMemo, type Dispatch, type SetStateAction } from 'react'
 import { Button } from './ui/Button'
+import { Field } from './ui/Field'
 import {
   Download,
   Eye,
@@ -198,13 +199,13 @@ export function GraphToolbar(props: GraphToolbarProps) {
         <Button variant="bare" size="sm" role="radio" aria-checked={!graphMode3d} className={!graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(false)} title="Grafo em 2D">2D</Button>
         <Button variant="bare" size="sm" role="radio" aria-checked={graphMode3d} className={graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(true)} title="Grafo 3D com pulsos eletricos">3D</Button>
       </div>
-      <select value={graphMode} onChange={(event) => setGraphMode(event.target.value as GraphMode)} aria-label="Modo do grafo"><option value="global">Grafo global</option><option value="local">Grafo local</option></select>
+      <Field as="select" size="sm" value={graphMode} onChange={(event) => setGraphMode(event.target.value as GraphMode)} aria-label="Modo do grafo"><option value="global">Grafo global</option><option value="local">Grafo local</option></Field>
       {graphMode === 'local' ? (
-        <select value={graphLocalDepth} onChange={(event) => setGraphLocalDepth(Number(event.target.value))} aria-label="Profundidade do grafo local">
+        <Field as="select" size="sm" value={graphLocalDepth} onChange={(event) => setGraphLocalDepth(Number(event.target.value))} aria-label="Profundidade do grafo local">
           <option value={1}>1 salto</option>
           <option value={2}>2 saltos</option>
           <option value={3}>3 saltos</option>
-        </select>
+        </Field>
       ) : null}
       <div className="graph-filter-group" role="group" aria-label="Filtro do grafo por pasta e tag">
         <ListFilter size={14} strokeWidth={1.75} aria-hidden="true" />
@@ -236,7 +237,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
         </span>
       </div>
       <span className="graph-header-sep" aria-hidden="true" />
-      <input value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
+      <Field size="sm" value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
       {!graphMode3d ? (
         <span className="graph-zoom-cluster" aria-label="Zoom do grafo">
           <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.min(2.4, view.scale + 0.15) }))} aria-label="Aproximar grafo">+</Button>
@@ -258,11 +259,11 @@ export function GraphToolbar(props: GraphToolbarProps) {
           <p className="graph-settings-header-title"><Download size={14} strokeWidth={1.75} aria-hidden="true" /><strong>Exportar grafo</strong></p>
           <label className="graph-settings-row">
             <span>Resolucao PNG<small>Multiplicador de pixels</small></span>
-            <select value={graphExportScale} onChange={(event) => setGraphExportScale(Number(event.target.value))} aria-label="Resolução do PNG exportado">
+            <Field as="select" size="xs" value={graphExportScale} onChange={(event) => setGraphExportScale(Number(event.target.value))} aria-label="Resolução do PNG exportado">
               <option value={1}>1x</option>
               <option value={2}>2x</option>
               <option value={3}>3x</option>
-            </select>
+            </Field>
           </label>
           <div className="graph-export-actions">
             <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => handleGraphExport('svg')} aria-label="Exportar grafo como SVG">SVG</Button>
@@ -291,56 +292,56 @@ export function GraphToolbar(props: GraphToolbarProps) {
             <p className="graph-settings-group-title"><Palette size={12} strokeWidth={1.75} aria-hidden="true" /> Visual</p>
             <label className="graph-settings-row">
               <span>Tamanho dos nós<small>Raio base dos orbes</small></span>
-              <input type="number" min={0.2} max={3} step={0.05} value={graph3dNodeSize} onChange={(event) => setGraph3dNodeSize(updateNumberSetting(event.target.value, graph3dNodeSize, 0.2, 3))} aria-label="Tamanho dos nós no grafo 3D" />
+              <Field type="number" size="xs" min={0.2} max={3} step={0.05} value={graph3dNodeSize} onChange={(event) => setGraph3dNodeSize(updateNumberSetting(event.target.value, graph3dNodeSize, 0.2, 3))} aria-label="Tamanho dos nós no grafo 3D" />
             </label>
             <label className="graph-settings-row">
               <span>Aumento por conexão<small>Crescimento do nó por link</small></span>
-              <input type="number" min={0} max={1} step={0.01} value={graph3dDegreeGrowth} onChange={(event) => setGraph3dDegreeGrowth(updateNumberSetting(event.target.value, graph3dDegreeGrowth, 0, 1))} aria-label="Fator de aumento por conexão no grafo 3D" />
+              <Field type="number" size="xs" min={0} max={1} step={0.01} value={graph3dDegreeGrowth} onChange={(event) => setGraph3dDegreeGrowth(updateNumberSetting(event.target.value, graph3dDegreeGrowth, 0, 1))} aria-label="Fator de aumento por conexão no grafo 3D" />
             </label>
           </section>
           <section className="graph-settings-group" aria-label="Órbita dos nós">
             <p className="graph-settings-group-title"><Orbit size={12} strokeWidth={1.75} aria-hidden="true" /> Orbita</p>
             <label className="graph-settings-row">
               <span>Distância entre nós<small>Raio das órbitas ao redor do núcleo</small></span>
-              <input type="number" min={2} max={20} step={0.5} value={graph3dNodeSpacing} onChange={(event) => setGraph3dNodeSpacing(updateNumberSetting(event.target.value, graph3dNodeSpacing, 2, 20))} aria-label="Distância entre nós no grafo 3D" />
+              <Field type="number" size="xs" min={2} max={20} step={0.5} value={graph3dNodeSpacing} onChange={(event) => setGraph3dNodeSpacing(updateNumberSetting(event.target.value, graph3dNodeSpacing, 2, 20))} aria-label="Distância entre nós no grafo 3D" />
             </label>
             <label className="graph-settings-row">
               <span>Velocidade de orbitação<small>Multiplicador do giro orbital</small></span>
-              <input type="number" min={0.1} max={5} step={0.1} value={graph3dOrbitSpeed} onChange={(event) => setGraph3dOrbitSpeed(updateNumberSetting(event.target.value, graph3dOrbitSpeed, 0.1, 5))} aria-label="Velocidade de orbitação no grafo 3D" />
+              <Field type="number" size="xs" min={0.1} max={5} step={0.1} value={graph3dOrbitSpeed} onChange={(event) => setGraph3dOrbitSpeed(updateNumberSetting(event.target.value, graph3dOrbitSpeed, 0.1, 5))} aria-label="Velocidade de orbitação no grafo 3D" />
             </label>
           </section>
           <section className="graph-settings-group" aria-label="Arestas do grafo">
             <p className="graph-settings-group-title"><Link2 size={12} strokeWidth={1.75} aria-hidden="true" /> Arestas</p>
             <label className="graph-settings-row">
               <span>Aresta máxima<small>Limite superior das conexões</small></span>
-              <input type="number" min={4} max={40} step={1} value={graph3dMaxEdgeLength} onChange={(event) => setGraph3dMaxEdgeLength(updateNumberSetting(event.target.value, graph3dMaxEdgeLength, 4, 40))} aria-label="Tamanho máximo das arestas no grafo 3D" />
+              <Field type="number" size="xs" min={4} max={40} step={1} value={graph3dMaxEdgeLength} onChange={(event) => setGraph3dMaxEdgeLength(updateNumberSetting(event.target.value, graph3dMaxEdgeLength, 4, 40))} aria-label="Tamanho máximo das arestas no grafo 3D" />
             </label>
             <label className="graph-settings-row">
               <span>Aresta mínima<small>Distância mínima entre conectados</small></span>
-              <input type="number" min={0} max={30} step={0.5} value={graph3dMinEdgeLength} onChange={(event) => setGraph3dMinEdgeLength(updateNumberSetting(event.target.value, graph3dMinEdgeLength, 0, 30))} aria-label="Tamanho mínimo das arestas no grafo 3D" />
+              <Field type="number" size="xs" min={0} max={30} step={0.5} value={graph3dMinEdgeLength} onChange={(event) => setGraph3dMinEdgeLength(updateNumberSetting(event.target.value, graph3dMinEdgeLength, 0, 30))} aria-label="Tamanho mínimo das arestas no grafo 3D" />
             </label>
           </section>
           <section className="graph-settings-group" aria-label="Forças do grafo 2D">
             <p className="graph-settings-group-title"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Forças (2D)</p>
             <label className="graph-settings-row">
               <span>Repulsão<small>Força entre os nós (1/distância²)</small></span>
-              <input type="number" step={50} value={graph2dRepulsionStrength} onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, -Infinity, Infinity))} aria-label="Força de repulsão dos nós no grafo 2D" />
+              <Field type="number" size="xs" step={50} value={graph2dRepulsionStrength} onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, -Infinity, Infinity))} aria-label="Força de repulsão dos nós no grafo 2D" />
             </label>
             <label className="graph-settings-row">
               <span>Rigidez da mola<small>Força das arestas por unidade de distância</small></span>
-              <input type="number" step={0.1} value={graph2dLinkStiffness} onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, -Infinity, Infinity))} aria-label="Rigidez da mola das arestas no grafo 2D" />
+              <Field type="number" size="xs" step={0.1} value={graph2dLinkStiffness} onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, -Infinity, Infinity))} aria-label="Rigidez da mola das arestas no grafo 2D" />
             </label>
             <label className="graph-settings-row">
               <span>Amortecimento<small>Decaimento de velocidade por segundo</small></span>
-              <input type="number" step={0.05} value={graph2dVelocityDecay} onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, -Infinity, Infinity))} aria-label="Amortecimento da velocidade no grafo 2D" />
+              <Field type="number" size="xs" step={0.05} value={graph2dVelocityDecay} onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, -Infinity, Infinity))} aria-label="Amortecimento da velocidade no grafo 2D" />
             </label>
             <label className="graph-settings-row">
               <span>Distância do link<small>Descanso das molas entre conectados</small></span>
-              <input type="number" step={0.5} value={graph2dLinkDistance} onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, -Infinity, Infinity))} aria-label="Distância do link no grafo 2D" />
+              <Field type="number" size="xs" step={0.5} value={graph2dLinkDistance} onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, -Infinity, Infinity))} aria-label="Distância do link no grafo 2D" />
             </label>
             <label className="graph-settings-row">
               <span>Forca central<small>Atração ao anel no meio do grafo</small></span>
-              <input type="number" step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))} aria-label="Força central do grafo 2D" />
+              <Field type="number" size="xs" step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))} aria-label="Força central do grafo 2D" />
             </label>
           </section>
           <section className="graph-settings-group" aria-label="Exibição do grafo">
@@ -373,7 +374,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
             {graphGroupByTag ? (
               <label className="graph-settings-row">
                 <span>Tag principal<small>Usada para desempatar notas com várias tags</small></span>
-                <select
+                <Field as="select" size="xs"
                   value={graphPrimaryTag}
                   onChange={(event) => setGraphPrimaryTag(event.target.value)}
                   aria-label="Tag principal do agrupamento por tag"
@@ -382,7 +383,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
                   {graphTagIndexRef.current.allTags().map((tag) => (
                     <option key={tag} value={tag}>#{tag}</option>
                   ))}
-                </select>
+                </Field>
               </label>
             ) : null}
             {graphGroupMaps ? (
@@ -425,7 +426,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
             ) : null}
             <label className="graph-settings-row">
               <span>Limite de nós renderizados<small>Acima dele, só o viewport e o contexto aparecem</small></span>
-              <input type="number" min={50} max={10000} step={50} value={graphRenderLimit} onChange={(event) => setGraphRenderLimit(updateNumberSetting(event.target.value, graphRenderLimit, 50, 10000))} aria-label="Limite de nós renderizados no grafo 2D" />
+              <Field type="number" size="xs" min={50} max={10000} step={50} value={graphRenderLimit} onChange={(event) => setGraphRenderLimit(updateNumberSetting(event.target.value, graphRenderLimit, 50, 10000))} aria-label="Limite de nós renderizados no grafo 2D" />
             </label>
           </section>
           <p className="graph-settings-note"><Info size={12} strokeWidth={1.75} aria-hidden="true" /> Sincronizado com a página de Configurações.</p>

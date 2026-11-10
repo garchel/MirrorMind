@@ -13,6 +13,9 @@
 <link rel="stylesheet" href="../src/styles/base.css">
 <!-- Lote 1: os atalhos de SettingsPage (.shortcut-settings). -->
 <link rel="stylesheet" href="../src/features/shell/workspace-chrome.css">
+<!-- Lote 2: o toolbar e os popovers do grafo. -->
+<link rel="stylesheet" href="../src/features/graph/graph.css">
+<link rel="stylesheet" href="../src/components/GraphToolbar.css">
 
 <style>
   /* --- Chrome da página (não é CSS do app) ----------------------------- */
@@ -181,11 +184,11 @@
     </p>
     <div class="stat-grid">
       <div class="stat-card">
-        <span class="stat-number">114</span>
-        <span class="stat-label">campos crus no produto — 96 <code>&lt;input&gt;</code>, 10 <code>&lt;textarea&gt;</code>, 8 <code>&lt;select&gt;</code>, em 25 arquivos.</span>
+        <span class="stat-number">111</span>
+        <span class="stat-label">campos crus no inventário inicial — 96 <code>&lt;input&gt;</code>, 10 <code>&lt;textarea&gt;</code>, 5 <code>&lt;select&gt;</code>, em 25 arquivos. (O scanner ignora comentários; a primeira versão dele contava 3 comentários como campo — 114 era ruído.)</span>
       </div>
       <div class="stat-card">
-        <span class="stat-number">111</span>
+        <span class="stat-number">108</span>
         <span class="stat-label">sem <code>className</code> — herdam o reset global; é o alvo da onda.</span>
       </div>
       <div class="stat-card">
@@ -194,9 +197,15 @@
       </div>
       <div class="stat-card is-alert">
         <span class="stat-number">34</span>
-        <span class="stat-label">checkbox/radio/color (19 + 11 + 4) — <strong>fora do escopo</strong>: o <code>&lt;Field&gt;</code> é campo de texto; o glifo precisa de decisâo própria.</span>
+        <span class="stat-label">checkbox/radio/color (19 + 11 + 4) — <strong>fora do escopo</strong>: o <code>&lt;Field&gt;</code> é campo de texto; o glifo precisa de decisão própria.</span>
       </div>
     </div>
+    <div class="callout">
+      <strong>Placar da onda:</strong> família textual migrável =
+      <strong>77</strong> (62 <code>input</code> textual + 10 <code>textarea</code> +
+      5 <code>select</code>). Migrados até agora: <strong>24</strong> (lote 1:
+      6 atalhos; lote 2: 18 do grafo). Restam crus: <strong>87</strong>
+      (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
   <section aria-labelledby="veredito">
@@ -281,10 +290,90 @@
 
 <b>+</b> &lt;Field value={shortcuts.createNote} onKeyDown={...} aria-label="..." size="sm" readOnly /&gt;</pre>
     </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Grafo — header, popover de configurações e exportação</h3>
+        <span class="preview-origin">GraphToolbar 17 + GraphFilterSelect 1 · lote 2</span>
+      </div>
+      <p class="preview-note">
+        Quatro contextos, medição antes/depois com o CSS real. <strong>Header
+        (3 campos: 2 <code>select</code> + busca)</strong> (
+        <code>graph.css:134</code> · <code>(0,2,1)</code>): 30px,
+        <code>0 8px</code>, raio 6, gold-50, 12px sans — <strong>idêntico</strong>.
+        Correção no contexto: <code>width: auto</code> entrou na própria regra,
+        porque <code>.ui-field</code> impõe <code>width: 100%</code> e o header
+        é flex (o cru nasce <code>auto</code>; sem isso o layout quebra).
+        <strong>Números do popover de configurações</strong> (12 campos,
+        <code>graph.css:337</code>): 26px <em>fixos</em> com fonte mono —
+        <strong>idêntico</strong>, mas aqui a correção era mais séria: o
+        contexto declara só <code>height: 26px</code>, e
+        <code>height</code> perde para <code>min-height</code> em qualquer
+        especificidade — o <code>min-height: 48px</code> do
+        <code>.ui-field</code> esticaria tudo para 48px. O contexto declara
+        <code>min-height: 26px</code>. O <code>select</code> da tag principal
+        ganhou <code>width: auto</code> pelo mesmo motivo do header.
+        <strong>Select de exportação</strong> (<code>graph.css:571</code> ·
+        28px): idêntico; <code>width: auto</code> entrou também.
+        <strong>Busca do filtro</strong> (<code>GraphToolbar.css:91</code>,
+        campo embutido sem borda, <code>flex: 1</code>): idêntico — o
+        <code>flex-basis: 0%</code> do contexto neutraliza o
+        <code>width: 100%</code> do primitivo sem correção extra.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="graph-settings-popover">
+            <label class="graph-settings-row">
+              <span>Tamanho dos nós<small>Raio base dos orbes</small></span>
+              <input type="number" value="1.5">
+            </label>
+            <label class="graph-settings-row">
+              <span>Tag principal<small>Desempate</small></span>
+              <select><option>#arquivo</option></select>
+            </label>
+          </div>
+          <h3 style="margin:14px 0 6px;font-size:12px">Exportação</h3>
+          <div class="graph-export-popover">
+            <label class="graph-settings-row">
+              <span>Resolução PNG<small>Multiplicador</small></span>
+              <select><option>1x</option></select>
+            </label>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="graph-settings-popover">
+            <label class="graph-settings-row">
+              <span>Tamanho dos nós<small>Raio base dos orbes</small></span>
+              <input type="number" value="1.5" class="ui-field ui-field--xs">
+            </label>
+            <label class="graph-settings-row">
+              <span>Tag principal<small>Desempate</small></span>
+              <select class="ui-field ui-field--xs"><option>#arquivo</option></select>
+            </label>
+          </div>
+          <h3 style="margin:14px 0 6px;font-size:12px">Exportação</h3>
+          <div class="graph-export-popover">
+            <label class="graph-settings-row">
+              <span>Resolução PNG<small>Multiplicador</small></span>
+              <select class="ui-field ui-field--xs"><option>1x</option></select>
+            </label>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input type="number" min={0.2} max={3} step={0.05} value={graph3dNodeSize} ... /&gt;   (popover)
+
+<b>+</b> &lt;Field type="number" size="xs" min={0.2} max={3} step={0.05} value={graph3dNodeSize} ... /&gt;
+
+<b>−</b> &lt;select value={graphExportScale} ...&gt;   (popover de exportação)
+
+<b>+</b> &lt;Field as="select" size="xs" value={graphExportScale} ...&gt;</pre>
+    </article>
   </section>
 
   <footer class="doc-footer">
-    <p>Próximos lotes: GraphToolbar (17), TagManagementPage (8), VaultReviewPolicySettings (5), GoalsPage/ReviewAiSettings (4+4), demais — cada um com medição prévia.</p>
+    <p>Próximos lotes: TagManagementPage (8), VaultReviewPolicySettings (5), ReviewAiSettings (4), GoalsPage (3), DictionaryPage (3), ReviewSessionPage (3), App.tsx (10), e os demais — cada um com medição prévia.</p>
   </footer>
 </div>
 </body>

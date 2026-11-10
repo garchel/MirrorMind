@@ -25,6 +25,21 @@ const ROOT = process.cwd()
 const SRC = join(ROOT, 'src')
 const TAG_SET = new Set(['input', 'select', 'textarea'])
 
+/** Tira comentarios JS/JSX antes de procurar tags: o trecho
+ * "Substitui o select nativo" dentro de um comentario nao e campo.
+ * A substituicao preserva o comprimento (espacos + mesma quebra de
+ * linha), entao os numeros de linha continuam sendo os do arquivo. */
+function blankOut(match) {
+  return match.replace(/[\s\S]/g, (ch) => (ch === '\n' ? '\n' : ' '))
+}
+function withoutComments(source) {
+  return source
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, blankOut)
+    .replace(/\/\*[\s\S]*?\*\//g, blankOut)
+    // eslint-disable-next-line no-useless-escape
+    .replace(/(^|[^:])\/\/[^\n]*/g, blankOut)
+}
+
 function walk(dir) {
   const out = []
   for (const entry of readdirSync(dir)) {
@@ -76,7 +91,7 @@ const files = walk(SRC).filter(
 
 const rows = []
 for (const file of files) {
-  const source = readFileSync(file, 'utf8')
+  const source = withoutComments(readFileSync(file, 'utf8'))
   const re = /<(input|select|textarea)\b/g
   let match
   while ((match = re.exec(source)) !== null) {
