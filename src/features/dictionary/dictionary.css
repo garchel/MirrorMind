@@ -39,6 +39,13 @@
 
 .dictionary-search input {
   flex: 1;
+  /* Onda 2 `<Field>`: o campo nao tem altura propria (o cru e guiado
+   * pelo conteudo), e o `min-height` do primitivo esticaria a pilula
+   * de 29px para 34px. `min-height: 0` devolve o comportamento
+   * medido; o `padding: 1px 2px` preserva o recuo UA (o primitivo
+   * injeta `0 10px` e empurraria o texto). */
+  min-height: 0;
+  padding: 1px 2px;
   border: 0;
   background: transparent;
   color: var(--text);

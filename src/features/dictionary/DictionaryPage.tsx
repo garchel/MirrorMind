@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import { BookMarked, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { EmptyState, ErrorState } from '../../components/ErrorState'
 import { PageHeader } from '../../components/PageHeader'
@@ -208,7 +209,8 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
           <label className="dictionary-search">
             <Search size={15} aria-hidden="true" />
             <span className="visually-hidden">Buscar conceito</span>
-            <input
+            <Field
+              size="xs"
               type="search"
               value={query}
               placeholder="Buscar por termo"
@@ -360,7 +362,8 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
               <h3>{editing ? 'Editar conceito' : 'Novo conceito'}</h3>
               <label>
                 <span>Termo</span>
-                <input
+                <Field
+                  size="xs"
                   type="text"
                   value={term}
                   placeholder="ex.: glicólise aeróbica"
@@ -370,7 +373,9 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
               </label>
               <label>
                 <span>Conceito</span>
-                <textarea
+                <Field
+                  as="textarea"
+                  size="xs"
                   value={concept}
                   rows={4}
                   placeholder="A definição que aparece ao passar o mouse sobre a palavra."

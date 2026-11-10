@@ -114,7 +114,11 @@ continua definido.
    interação decididos do lote 4) e lote 6 fechou os 3 da criação de
    meta (título 38px e os dois textareas 88px mono; o foco já era do
    contexto e o hover precisou de regra própria para não trocar a
-   borda quente pelo token de tinta). Restam 67 crus,
+   borda quente pelo token de tinta) e lote 7 fechou os 3 do
+   dicionário (busca embutida na pílula, 29px com `min-height: 0` e
+   padding UA preservado; formulário 45px e textarea 126px; o
+   placeholder passa ao token `--field-placeholder` por decisão, e o
+   hover escurece a borda na mesma matiz). Restam 64 crus,
    todos fora do escopo ou nos próximos lotes; ver
    `docs/field-migration-review.html`.
 
@@ -420,8 +424,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **67** crus — após os
-  lotes 1–6 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **64** crus — após os
+  lotes 1–7 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

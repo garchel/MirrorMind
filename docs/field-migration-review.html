@@ -24,6 +24,8 @@
 <link rel="stylesheet" href="../src/features/review/review-ai.css">
 <!-- Lote 6: formulario de criacao de meta. -->
 <link rel="stylesheet" href="../src/features/goals/goals.css">
+<!-- Lote 7: busca e formulario do dicionario. -->
+<link rel="stylesheet" href="../src/features/dictionary/dictionary.css">
 
 <style>
   /* --- Chrome da página (não é CSS do app) ----------------------------- */
@@ -211,11 +213,11 @@
     <div class="callout">
       <strong>Placar da onda:</strong> família textual migrável =
       <strong>77</strong> (62 <code>input</code> textual + 10 <code>textarea</code> +
-      5 <code>select</code>). Migrados até agora: <strong>44</strong> (lote 1:
+      5 <code>select</code>). Migrados até agora: <strong>47</strong> (lote 1:
       6 atalhos; lote 2: 18 do grafo; lote 3: 8 da página de tags; lote 4:
       5 das opções avançadas do Vault; lote 5: 4 da revisão com IA; lote 6:
-      3 da criação de meta). Restam crus: <strong>67</strong>
-      (<code>node scripts/scan-fields.mjs</code>).
+      3 da criação de meta; lote 7: 3 do dicionário). Restam crus:
+      <strong>64</strong> (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
   <section aria-labelledby="veredito">
@@ -618,10 +620,84 @@
 
 <b>+</b> &lt;Field as="textarea" size="xs" id="goals-objective-input" ... /&gt;</pre>
     </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Dicionário — busca, termo e conceito</h3>
+        <span class="preview-origin">DictionaryPage 211/363/373 · 3 campos · lote 7</span>
+      </div>
+      <p class="preview-note">
+        Dois contextos com o CSS real. <strong>Busca embutida na pílula</strong>
+        (<code>dictionary.css:40</code> · <code>.dictionary-search input</code>,
+        0,1,1): o cru não tem altura própria — é guiado pelo conteúdo (29px) —
+        e o <code>min-height</code> do primitivo esticaria a pílula para 34px;
+        o contexto ganhou <code>min-height: 0</code> e <code>padding: 1px
+        2px</code> (o primitivo injeta <code>0 10px</code> e empurraria o
+        texto). Depois disso, <strong>29px no campo e 45px na pílula,
+        idênticos</strong>. <strong>Formulário</strong> (<code>:148</code> ·
+        <code>.dictionary-form input, textarea</code>, 0,1,1): input 45px/486px
+        e textarea 126px/486px idênticos (o <code>min-height: 72px</code> do
+        primitivo não manda porque o conteúdo já tem 126px), fonte, padding,
+        raio, borda e fundo iguais. O <strong>foco já era do contexto</strong>
+        (<code>:159</code>, 0,2,1, e o escudo da busca 0,3,1): idêntico. Dois
+        <strong>estados mudam por decisão</strong>: o placeholder troca o cinza
+        UA <code>rgb(117 117 117)</code> pelo token
+        <code>rgb(94 93 87)</code> — é o <code>--field-placeholder</code> que a
+        onda leva a todos os campos migrados —, e o hover escurece a borda
+        <code>0.12 → 0.22</code> (mesma matiz, como nos lotes 4–5).
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="dictionary-page">
+            <div class="dictionary-toolbar">
+              <label class="dictionary-search">
+                <span class="visually-hidden">Buscar conceito</span>
+                <input type="search" placeholder="Buscar por termo">
+              </label>
+            </div>
+            <form class="dictionary-form" onsubmit="return false" style="margin-top:12px">
+              <label><span>Termo</span>
+                <input type="text" value="glicólise" placeholder="ex.: glicólise aeróbica">
+              </label>
+              <label><span>Conceito</span>
+                <textarea rows="3" placeholder="A definição que aparece ao passar o mouse.">Quebra da glicose.</textarea>
+              </label>
+            </form>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="dictionary-page">
+            <div class="dictionary-toolbar">
+              <label class="dictionary-search">
+                <span class="visually-hidden">Buscar conceito</span>
+                <input class="ui-field ui-field--xs" type="search" placeholder="Buscar por termo">
+              </label>
+            </div>
+            <form class="dictionary-form" onsubmit="return false" style="margin-top:12px">
+              <label><span>Termo</span>
+                <input class="ui-field ui-field--xs" type="text" value="glicólise" placeholder="ex.: glicólise aeróbica">
+              </label>
+              <label><span>Conceito</span>
+                <textarea class="ui-field ui-field--xs ui-field--textarea" rows="3" placeholder="A definição que aparece ao passar o mouse.">Quebra da glicose.</textarea>
+              </label>
+            </form>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input type="search" value={query} placeholder="Buscar por termo" ... /&gt;   (busca)
+
+<b>+</b> &lt;Field size="xs" type="search" value={query} placeholder="Buscar por termo" ... /&gt;
+
+<b>−</b> &lt;textarea value={concept} rows={4} ... /&gt;   (conceito)
+
+<b>+</b> &lt;Field as="textarea" size="xs" value={concept} rows={4} ... /&gt;</pre>
+    </article>
   </section>
 
   <footer class="doc-footer">
-    <p>Próximos lotes: DictionaryPage (3), ReviewSessionPage (3), App.tsx (10), e os demais — cada um com medição prévia.</p>
+    <p>Próximos lotes: ReviewSessionPage (3), App.tsx (10), e os demais — cada um com medição prévia.</p>
   </footer>
 </div>
 </body>
