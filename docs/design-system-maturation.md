@@ -542,9 +542,12 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   escopo da onda.
 - `node scripts/scan-dead-css.mjs` audita CSS morto por classe, com
   heurística conservadora (busca o nome completo em todo texto de
-  `src`/`tests`, prefixos de template e allowlist de bibliotecas). Nesta
-  data: **1200 classes declaradas, 56 candidatas a mortas e 39 regras
-  inteiramente mortas**. Relatório reproduzível em
+  `src`/`tests`/`src-tauri`, prefixos de template e allowlist de
+  bibliotecas). Nesta data: **1186 classes declaradas, 42 candidatas e 0
+  regras inteiramente mortas** — as 39 regras mortas que o primeiro
+  relatório apontou foram removidas em 4 commits, com build/gates/suite a
+  cada um. As 42 candidatas restantes só aparecem em regras mistas (com
+  classe viva) e não foram tocadas. Relatório reproduzível em
   [`docs/css-dead-code-report.md`](css-dead-code-report.md) — é lista para
   revisão, não remoção automática.
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de

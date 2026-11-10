@@ -49,6 +49,7 @@ function walk(dir, out = []) {
 
 const srcFiles = walk(join(ROOT, 'src'))
 const testFiles = walk(join(ROOT, 'tests'))
+const tauriFiles = walk(join(ROOT, 'src-tauri'))
 const cssFiles = srcFiles.filter((f) => f.endsWith('.css'))
 const sourceFiles = srcFiles
   .filter((f) => /\.(ts|tsx|mjs)$/.test(f))
@@ -63,6 +64,7 @@ const sourceFiles = srcFiles
 const BINARY = /\.(css|png|jpe?g|gif|webp|ico|woff2?|ttf|otf|pdf|map|lock)$/i
 const textFiles = srcFiles
   .concat(testFiles)
+  .concat(tauriFiles)
   .filter((f) => !BINARY.test(f))
   .concat([join(ROOT, 'index.html')])
 
@@ -81,13 +83,23 @@ const declared = new Map() // classe -> [{ file, line, selector }]
 for (const file of cssFiles) {
   const rel = relative(ROOT, file).replace(/\\/g, '/')
   const text = blankComments(readFileSync(file, 'utf8'))
-  for (const match of text.matchAll(/([^{}]+)\{/g)) {
-    const selector = match[1].trim().replace(/\s+/g, ' ')
+  for (const match of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const rawSelector = match[1]
+    const selector = rawSelector.trim().replace(/\s+/g, ' ')
     if (!selector || selector.startsWith('@')) continue
-    const line = text.slice(0, match.index).split('\n').length
+    const leading = rawSelector.length - rawSelector.trimStart().length
+    const start = match.index + leading
+    const line = text.slice(0, start).split('\n').length
     const classes = [...selector.matchAll(CLASS)].map((m) => m[1])
     if (classes.length === 0) continue
-    rules.push({ file: rel, line, selector, classes })
+    rules.push({
+      file: rel,
+      line,
+      start,
+      end: match.index + match[0].length,
+      selector,
+      classes,
+    })
     for (const name of new Set(classes)) {
       if (!declared.has(name)) declared.set(name, [])
       declared.get(name).push({ file: rel, line, selector })
