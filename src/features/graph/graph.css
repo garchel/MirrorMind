@@ -153,7 +153,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 30px;
+  min-height: var(--button-size-toolbar-height);
   min-width: 30px;
   padding: 0 9px;
 }
@@ -602,7 +602,7 @@
 
 .graph-export-popover .graph-export-actions .secondary-button {
   flex: 1;
-  min-height: 30px;
+  min-height: var(--button-size-toolbar-height);
 }
 
 /* Drawer lateral da nota selecionada (coluna a direita). */
@@ -732,7 +732,7 @@
 }
 
 .workspace-shell .graph-note-drawer-actions .secondary-button {
-  min-height: 34px;
+  min-height: var(--button-size-sm-height);
   justify-content: center;
   gap: 6px;
   padding: 0 12px;
@@ -789,7 +789,7 @@
 }
 
 .workspace-shell .graph-note-drawer-actions .secondary-button {
-  min-height: 34px;
+  min-height: var(--button-size-sm-height);
   justify-content: flex-start;
   padding: 0 12px;
   border: 1px solid rgb(28 36 39 / 12%);
@@ -930,7 +930,7 @@
 }
 
 .workspace-shell .graph-dimension-toggle :where(button, .ui-button) {
-  min-height: 28px;
+  min-height: var(--button-size-xs-height);
   padding: 0 11px;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -1204,7 +1204,7 @@
   display: grid;
   width: 28px;
   min-width: 28px;
-  min-height: 28px;
+  min-height: var(--button-size-xs-height);
   padding: 0;
   place-items: center;
 }
@@ -1276,8 +1276,8 @@
   place-items: center;
   width: 28px;
   min-width: 28px;
-  height: 28px;
-  min-height: 28px;
+  height: var(--button-size-xs-height);
+  min-height: var(--button-size-xs-height);
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);

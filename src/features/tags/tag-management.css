@@ -335,7 +335,7 @@
 .tag-icon-button {
   width: 34px;
   min-width: 34px;
-  height: 34px;
+  height: var(--button-size-sm-height);
   padding: 0;
 }
 
@@ -951,7 +951,7 @@
  * escuro até no tema claro. O `.tag-tree-create` (botão Criar tag da
  * árvore) também tem estilo próprio. */
 .tag-management-page.tag-management-page :where(button, .ui-button):not(.modal-close):not(.tag-tree-row):not(.tag-tree-create) {
-  min-height: 34px;
+  min-height: var(--button-size-sm-height);
   border-radius: var(--radius-md);
   background: var(--mm-ink-950-14);
   color: var(--mm-gold-50);
@@ -982,8 +982,8 @@
 .tag-management-page.tag-management-page .tag-icon-button {
   width: 34px;
   min-width: 34px;
-  height: 34px;
-  min-height: 34px;
+  height: var(--button-size-sm-height);
+  min-height: var(--button-size-sm-height);
   padding: 0;
 }
 
@@ -999,7 +999,7 @@
 /* Linhas da arvore de tags nunca devem parecer botao primario (o
    workspace-shell :where(button, .ui-button) vence os empates). */
 .tag-management-page.tag-management-page .tag-tree-row {
-  min-height: 30px;
+  min-height: var(--button-size-toolbar-height);
   padding: 0 8px;
   border: 0;
   border-radius: var(--radius-sm);

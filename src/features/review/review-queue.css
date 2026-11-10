@@ -280,7 +280,7 @@ p.review-queue-upcoming-error {
  * workspace). */
 .review-queue-actions .primary-button,
 .review-queue-actions .secondary-button {
-  min-height: 34px;
+  min-height: var(--button-size-sm-height);
 }
 
 .review-queue-priority {

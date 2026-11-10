@@ -898,7 +898,7 @@
 .modal.review-policy-dialog .secondary-button,
 .modal.review-policy-dialog .primary-button,
 .modal.review-reset-dialog .secondary-button {
-  min-height: 34px;
+  min-height: var(--button-size-sm-height);
   padding: 0 14px;
   border-radius: var(--radius-md);
   font-size: var(--font-size-small);

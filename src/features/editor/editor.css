@@ -180,7 +180,7 @@
   justify-content: center;
   gap: 6px;
   min-width: 30px;
-  min-height: 30px;
+  min-height: var(--button-size-toolbar-height);
   padding: 0 8px;
 }
 
@@ -281,7 +281,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 30px;
+  min-height: var(--button-size-toolbar-height);
   padding: 0 10px;
   text-align: left;
 }
@@ -422,7 +422,7 @@
    de fora. */
 .ui-popover-content.note-review-menu .secondary-button:where(:not(.structural-audit-apply):not(.review-reset-confirm):not(.note-profile-onboarding-options *)),
 .ui-popover-content.note-review-menu .primary-button:where(:not(.structural-audit-apply):not(.review-reset-confirm):not(.note-profile-onboarding-options *)) {
-  min-height: 34px;
+  min-height: var(--button-size-sm-height);
   padding: 0 14px;
   border-radius: var(--radius-md);
   font-size: 12px;
@@ -688,7 +688,7 @@
   display: grid;
   width: 30px;
   min-width: 30px;
-  min-height: 30px;
+  min-height: var(--button-size-toolbar-height);
   padding: 0;
   place-items: center;
   border: 1px solid var(--mm-ink-350-3);
@@ -879,7 +879,7 @@
   display: grid;
   width: 28px;
   min-width: 28px;
-  min-height: 28px;
+  min-height: var(--button-size-xs-height);
   padding: 0;
   place-items: center;
   border: 1px solid var(--mm-ink-350-3);
@@ -2625,7 +2625,7 @@
   display: grid;
   width: 28px;
   min-width: 28px;
-  min-height: 28px;
+  min-height: var(--button-size-xs-height);
   padding: 0;
   place-items: center;
   transform: translateX(-50%);

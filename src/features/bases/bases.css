@@ -124,7 +124,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
+  height: var(--button-size-toolbar-height);
   min-height: 0; /* vence o min-height do `.workspace-shell button` */
   box-sizing: border-box;
   padding: 0 12px;

@@ -112,7 +112,7 @@
    sem precisar de escalacao (fim da classe de bugs "hover/chapa escura"
    vencendo o componente por ordem). */
 :where(.workspace-shell) :where(button, .ui-button) {
-  min-height: 30px;
+  min-height: var(--button-size-toolbar-height);
   border-radius: var(--radius-xs);
   background: var(--mm-lilac-950-11);
   color: var(--workspace-text);
@@ -1583,7 +1583,7 @@ label.settings-toggle {
   display: grid;
   width: 28px;
   min-width: 28px;
-  min-height: 28px;
+  min-height: var(--button-size-xs-height);
   padding: 0;
   place-items: center;
   font-size: 14px;
@@ -1918,7 +1918,7 @@ label.settings-toggle {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 28px;
+  min-height: var(--button-size-xs-height);
   padding: 0 8px;
   color: var(--mm-ink-850-14);
   font-size: 12px;
@@ -2027,7 +2027,7 @@ label.settings-toggle {
   align-items: center;
   justify-content: normal;
   gap: 8px;
-  min-height: 30px;
+  min-height: var(--button-size-toolbar-height);
   padding: 0 8px;
   border: 0;
   border-radius: var(--radius-xs);
@@ -2075,7 +2075,7 @@ label.settings-toggle {
   display: grid;
   width: 28px;
   min-width: 28px;
-  min-height: 28px;
+  min-height: var(--button-size-xs-height);
   padding: 0;
   place-items: center;
   border: 0;

@@ -455,7 +455,7 @@
 /* Revisar, Abrir e Alterar prazo com a mesma altura. */
 .review-dashboard-deadline-actions .primary-button,
 .review-dashboard-deadline-actions .secondary-button {
-  min-height: 34px;
+  min-height: var(--button-size-sm-height);
 }
 
 .review-dashboard-deadline-priority {
@@ -648,13 +648,13 @@
 }
 
 .review-dashboard-dialog-actions .secondary-button {
-  min-height: 34px;
+  min-height: var(--button-size-sm-height);
   padding: 0 12px;
   font-size: var(--font-size-small);
 }
 
 .review-dashboard-dialog-actions :where(button, .ui-button):last-child {
-  min-height: 34px;
+  min-height: var(--button-size-sm-height);
   padding: 0 14px;
   font-size: var(--font-size-small);
 }

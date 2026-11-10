@@ -68,7 +68,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
+  min-height: var(--button-size-md-height);
   padding: 0 16px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
