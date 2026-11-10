@@ -819,9 +819,10 @@
 
 .workspace-shell .floating-markdown-toolbar :where(button, .ui-button) {
   display: grid;
-  width: 26px;
-  min-width: 26px;
-  min-height: 26px;
+  /* Onda 3: 26px -> densidade xs (28px). */
+  width: var(--button-size-xs-height);
+  min-width: var(--button-size-xs-height);
+  min-height: var(--button-size-xs-height);
   padding: 0;
   place-items: center;
   border: 1px solid var(--mm-ink-350-3);
@@ -830,14 +831,8 @@
   color: var(--mm-ink-900-17);
 }
 
-/* Esta barra e mais densa que o glifo `xs` do primitivo, que e um quadrado
- * de 28px (`.ui-button--xs:not(:has(...))`, especificidade 0,3,0). A regra
- * de contexto acima tem 0,2,0 e perde no `min-width`, alargando cada glifo
- * de 26 para 28px. A classe de tamanho entra no seletor so para empatar em
- * 0,3,0 e vencer por ordem (editor.css vem depois de component.css). */
-.workspace-shell .floating-markdown-toolbar :where(button, .ui-button).ui-button--xs {
-  min-width: 26px;
-}
+/* O hack de `min-width: 26px` saiu: a barra agora usa a densidade xs
+ * (28px) de proposito, entao o quadrado do primitivo e o alvo. */
 
 .workspace-shell .floating-markdown-toolbar :where(button, .ui-button):hover:not(:disabled) {
   background: var(--mm-moss-250);
@@ -1401,7 +1396,8 @@
 
 .workspace-shell .postit-popover-range .secondary-button {
   flex: none;
-  min-height: 26px;
+  /* Onda 3: 26px -> densidade xs (28px). */
+  min-height: var(--button-size-xs-height);
   font-size: var(--font-size-caption);
 }
 
@@ -1738,8 +1734,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  /* Onda 3: 26px -> densidade xs (28px); o quadrado acompanha. */
+  width: var(--button-size-xs-height);
+  height: var(--button-size-xs-height);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -1748,12 +1745,8 @@
   transition: background 120ms ease, color 120ms ease;
 }
 
-/* O controle e mais denso que o glifo `xs` do primitivo, que tem
- * min-height 28px. A classe de tamanho entra no seletor so para vencer
- * esse min-height e manter os 26px declarados acima. */
-.workspace-shell .review-gap-mode-control :where(button, .ui-button).ui-button--xs {
-  min-height: 26px;
-}
+/* O hack de `.ui-button--xs { min-height: 26px }` saiu: ele existia so
+ * para vencer o default de 26px do shell, que agora e xs (28). */
 
 .workspace-shell .review-gap-mode-control :where(button, .ui-button):hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent, var(--mm-moss-800-2)) 12%, transparent);
@@ -1768,7 +1761,7 @@
 /* Controle por nome (Minhas cores | Revisão | Misto): botoes de texto. */
 .workspace-shell .review-gap-mode-control :where(button, .ui-button)[role="radio"] {
   width: auto;
-  height: 26px;
+  height: var(--button-size-xs-height);
   padding: 0 10px;
   font-size: 12px;
   font-weight: 600;

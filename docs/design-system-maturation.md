@@ -190,7 +190,11 @@ continua definido.
    `var(--button-size-{xs,toolbar,sm,md}-height)` — mesmo pixel, mas a
    escala passa a mover os contextos juntos. Inventario por literal: **53 →
    22 contextos, 12 valores**; restam as alturas fora da escala (18, 20, 22,
-   24, 25, 26, 27, 32, 36, 37) e as excecoes 46/74.
+   24, 25, 26, 27, 32, 36, 37) e as excecoes 46/74. **Lote 6 (grupo de
+   26px):** os 6 contextos de toggle/barra compacta (gap mode do editor,
+   barra flutuante, popover de post-it, dimensao do grafo imersivo)
+   passaram a `xs` (28px). Dois hacks de `.ui-button--xs` que existiam so
+   para vencer o default antigo (26) sairam; medido 28 nos quatro.
 
 4. ~~**19 tokens orfaos**~~ ✅ removidos. Os tres grupos eram botao
    (`--button-height*`, `--button-padding-x*`, `--button-font`), aviso
