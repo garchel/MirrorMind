@@ -1314,3 +1314,11 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* Onda 2 `<Field>`: o seletor de estratégia não tinha estilo nenhum (input
+ * UA de 19px). Adota a densidade dos selects de configuração (36px, raio 8,
+ * 13px e 30px à direita para a seta nativa), como o `.settings-select`. */
+.review-calibration-consent select {
+  font: var(--font-size-small) var(--sans);
+  padding-right: 30px;
+}

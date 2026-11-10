@@ -230,8 +230,8 @@
       revisão; lote 9: 10 do App; lote 10: 1 das Bases; lote 11: 1 do
       editor; lote 12: 1 do Explorer; lote 13: 1 do frontmatter; lote 14: 1 do
       dashboard; lote 15: 1 da segmentação; lote 16: 1 da oferta de
-      dicionário; lote 17: 2 da seleção de dicionário). Restam crus:
-      <strong>42</strong>
+      dicionário; lote 17: 2 da seleção de dicionário; lote 18: 2 da
+      calibração). Restam crus: <strong>40</strong>
       (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
@@ -1220,6 +1220,59 @@
 
 <b>−</b> &lt;textarea value={concept} rows={3} maxLength={MAX_CONCEPT_CHARS} ... /&gt;
 <b>+</b> &lt;Field as="textarea" size="xs" value={concept} rows={3} maxLength={MAX_CONCEPT_CHARS} ... /&gt;</pre>
+    </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Calibração — chave TypeSafe e estratégia</h3>
+        <span class="preview-origin">ReviewCalibrationSettings 124/172 · 2 campos · lote 18</span>
+      </div>
+      <p class="preview-note">
+        Dois contextos. <strong>Chave</strong> (<code>review-ai.css:61</code> ·
+        <code>.review-ai-key-field input</code>): é o mesmo contexto do lote 5 —
+        43px, padding <code>7px 9px</code>, raio 6, <strong>base idêntica</strong>
+        (o <code>min-height</code> 36 do contexto não manda porque o conteúdo já
+        tem 43px) e os mesmos estados decididos do lote 5 (anel UA →
+        <code>2px</code> accent; hover <code>0.12 → 0.22</code>).
+        <strong>Estratégia</strong> (<code>.review-calibration-consent
+        select</code>): o select não tinha estilo nenhum — era o UA de 21px,
+        Arial 13,33px, borda <code>1px</code> cinza e raio 0. A
+        <strong>transição é decidida</strong>: adota a densidade dos selects de
+        configuração (<code>36px</code>, raio 8, 13px e <code>30px</code> à
+        direita para a seta nativa, como o <code>.settings-select</code>), com
+        fundo/borda do app. O foco é da regra global (0,3,0): anel
+        <code>2px</code> sage medido idêntico; o hover escurece a borda
+        <code>0.12 → 0.22</code>.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="workspace-shell review-ai-settings">
+            <label class="review-ai-key-field"><span>Chave da TypeSafe AI</span>
+              <input type="password" value="sk-cru" placeholder="Cole a chave da API">
+            </label>
+            <label class="review-calibration-consent" style="display:grid;gap:6px;margin-top:12px"><span>Como julgar</span>
+              <select><option>Automático</option><option>Calibrado</option></select>
+            </label>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="workspace-shell review-ai-settings">
+            <label class="review-ai-key-field"><span>Chave da TypeSafe AI</span>
+              <input class="ui-field ui-field--xs" type="password" value="sk-mig" placeholder="Cole a chave da API">
+            </label>
+            <label class="review-calibration-consent" style="display:grid;gap:6px;margin-top:12px"><span>Como julgar</span>
+              <select class="ui-field ui-field--sm"><option>Automático</option><option>Calibrado</option></select>
+            </label>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input id="typesafe-api-key" type="password" value={apiKey} ... /&gt;
+<b>+</b> &lt;Field size="xs" id="typesafe-api-key" type="password" value={apiKey} ... /&gt;
+
+<b>−</b> &lt;select id="calibration-strategy" value={configuration.strategy} ... /&gt;
+<b>+</b> &lt;Field as="select" size="sm" id="calibration-strategy" value={configuration.strategy} ... /&gt;</pre>
     </article>
   </section>
 

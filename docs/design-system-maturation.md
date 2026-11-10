@@ -141,7 +141,10 @@ continua definido.
    contexto vencendo o do primitivo) e lote 16 fechou a oferta de
    dicionário (textarea de 70px com `min-height: 0`, idêntico) e lote 17
    fechou os 2 da seleção de dicionário (input 37,5px e textarea 76,5px
-   idênticos, sem correção de contexto). Restam 42 crus,
+   idênticos, sem correção de contexto) e lote 18 fechou os 2 da
+   calibração (chave com o contexto do lote 5 e o select de estratégia,
+   que era UA de 21px e adota a densidade dos selects de configuração,
+   transição decidida). Restam 40 crus,
    todos fora do escopo ou nos próximos lotes; ver
    `docs/field-migration-review.html`.
 
@@ -447,8 +450,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **42** crus — após os
-  lotes 1–17 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **40** crus — após os
+  lotes 1–18 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

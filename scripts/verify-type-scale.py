@@ -206,6 +206,12 @@ def main():
                 ('13.0', 59, motivo_confianca),
                 ('--font-size-caption', 60, motivo_confianca),
                 ('12.0', 61, motivo_confianca),
+                # Onda 2 `<Field>` (lote 18): o select de estrategia da
+                # calibracao era UA e adota a densidade dos selects de
+                # configuracao; declaracao nova no fim do arquivo.
+                ('--font-size-small', 62,
+                 '2026-11-10: select de estrategia da calibracao (lote 18), '
+                 'declaracao nova no fim do arquivo.'),
             ],
             'src/features/editor/editor.css': [
                 # Popover de post-its reescrito em 9780fa4: a secao "Sem

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import { useCalibration } from './useCalibration'
 import { ReviewCalibrationComparison } from './ReviewCalibrationComparison'
 import { createCalibrationEngine } from './calibrationEngine'
@@ -121,7 +122,8 @@ export function ReviewCalibrationSettings({ vaultPath }: { vaultPath?: string })
 
       <label className="review-ai-key-field" htmlFor="typesafe-api-key">
         <span>Chave da TypeSafe AI</span>
-        <input
+        <Field
+          size="xs"
           id="typesafe-api-key"
           type="password"
           value={apiKey}
@@ -169,7 +171,9 @@ export function ReviewCalibrationSettings({ vaultPath }: { vaultPath?: string })
 
       <label className="review-calibration-consent" htmlFor="calibration-strategy">
         <span>Como julgar</span>
-        <select
+        <Field
+          as="select"
+          size="sm"
           id="calibration-strategy"
           value={configuration.strategy}
           disabled={busy}
@@ -185,7 +189,7 @@ export function ReviewCalibrationSettings({ vaultPath }: { vaultPath?: string })
               {available(strategy.value) ? '' : ` (${missing ?? 'requisito pendente'})`}
             </option>
           ))}
-        </select>
+        </Field>
       </label>
       <p className="review-calibration-hint">
         {STRATEGIES.find((strategy) => strategy.value === configuration.strategy)?.hint}
