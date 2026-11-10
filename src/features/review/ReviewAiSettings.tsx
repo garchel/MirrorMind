@@ -211,7 +211,8 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           </label>
           <label className="review-ai-key-field" htmlFor="gemini-api-key">
             <span>Chave da API Gemini</span>
-            <input
+            <Field
+              size="xs"
               id="gemini-api-key"
               type="password"
               value={apiKey}
@@ -269,7 +270,8 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           ) : null}
           <label className="review-ai-key-field" htmlFor="openai-compatible-base-url">
             <span>Endereço do servidor</span>
-            <input
+            <Field
+              size="xs"
               id="openai-compatible-base-url"
               type="text"
               value={openAiBaseUrl}
@@ -279,7 +281,8 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           </label>
           <label className="review-ai-key-field" htmlFor="openai-compatible-model">
             <span>Modelo</span>
-            <input
+            <Field
+              size="xs"
               id="openai-compatible-model"
               type="text"
               value={openAiModel}
@@ -289,7 +292,8 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           </label>
           <label className="review-ai-key-field" htmlFor="openai-compatible-api-key">
             <span>Chave da API</span>
-            <input
+            <Field
+              size="xs"
               id="openai-compatible-api-key"
               type="password"
               value={openAiApiKey}
