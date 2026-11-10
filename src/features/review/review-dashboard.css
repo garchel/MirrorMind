@@ -583,6 +583,12 @@
 .review-dashboard-dialog-field input {
   flex: 1;
   min-width: 0;
+  /* Onda 2 `<Field>`: o campo de data nao tem altura propria (21,59px,
+   * guiado pelo conteudo) e o `min-height` do primitivo esticaria a
+   * moldura de 39,59px; `min-height: 0` devolve o comportamento medido
+   * e o padding UA do input de data (0 0 0 1px) e preservado. */
+  min-height: 0;
+  padding: 0 0 0 1px;
   border: none;
   outline: none;
   background: transparent;

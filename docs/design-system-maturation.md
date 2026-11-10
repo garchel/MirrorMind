@@ -134,7 +134,9 @@ continua definido.
    de foco preservado) e lote 12 fechou o filtro de tags do Explorer
    (mesmo contexto do lote 9: 18px e pílula de 30px idênticos) e lote 13
    fechou o popover de tag do frontmatter (41px idêntico e o foco de 1px
-   sage preservado no contexto). Restam 47 crus,
+   sage preservado no contexto) e lote 14 fechou a data da prova do
+   dashboard (campo de 21,59px e moldura de 39,59px idênticos, com o
+   padding UA do input de data preservado). Restam 46 crus,
    todos fora do escopo ou nos próximos lotes; ver
    `docs/field-migration-review.html`.
 
@@ -440,8 +442,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **47** crus — após os
-  lotes 1–13 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **46** crus — após os
+  lotes 1–14 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

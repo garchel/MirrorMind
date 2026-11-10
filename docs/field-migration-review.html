@@ -32,6 +32,8 @@
 <link rel="stylesheet" href="../src/features/editor/editor.css">
 <!-- Lote 10: busca da pagina de Bases. -->
 <link rel="stylesheet" href="../src/features/bases/bases.css">
+<!-- Lote 14: data da prova no dashboard de revisao. -->
+<link rel="stylesheet" href="../src/features/review/review-dashboard.css">
 
 <style>
   /* --- Chrome da página (não é CSS do app) ----------------------------- */
@@ -224,8 +226,8 @@
       5 das opções avançadas do Vault; lote 5: 4 da revisão com IA; lote 6:
       3 da criação de meta; lote 7: 3 do dicionário; lote 8: 3 da sessão de
       revisão; lote 9: 10 do App; lote 10: 1 das Bases; lote 11: 1 do
-      editor; lote 12: 1 do Explorer; lote 13: 1 do frontmatter). Restam
-      crus: <strong>47</strong>
+      editor; lote 12: 1 do Explorer; lote 13: 1 do frontmatter; lote 14: 1 do
+      dashboard). Restam crus: <strong>46</strong>
       (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
@@ -1033,6 +1035,48 @@
       <pre class="preview-code"><b>−</b> &lt;input autoFocus value={tagQuery} placeholder="Digite e Enter para criar" ... /&gt;
 
 <b>+</b> &lt;Field size="xs" autoFocus value={tagQuery} placeholder="Digite e Enter para criar" ... /&gt;</pre>
+    </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Dashboard de revisão — nova data da prova</h3>
+        <span class="preview-origin">ReviewDashboardPage 178 · 1 campo · lote 14</span>
+      </div>
+      <p class="preview-note">
+        Um contexto com o CSS real: <code>review-dashboard.css:583</code> ·
+        <code>.review-dashboard-dialog-field input</code> (0,1,1), dentro da
+        moldura de <code>8px 10px</code>. O campo de data não tem altura própria
+        (21,59px) e o primitivo esticaria a moldura de 39,59px; o contexto ganhou
+        <code>min-height: 0</code> e o padding UA do input de data
+        (<code>0 0 0 1px</code>) — <strong>campo e moldura idênticos</strong>
+        (21,59px e 39,59px), fonte 14px/1,4, fundo transparente e borda 0. O
+        foco é da regra global do workspace (0,3,0): anel <code>2px</code> sage
+        com offset 2px, medido idêntico com clique real. O hover do primitivo
+        não aparece (borda 0) e o campo não tem placeholder.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="workspace-shell">
+            <label class="review-dashboard-dialog-field">
+              <span>Nova data da prova</span>
+              <div><input type="date" value="2026-11-20" aria-label="Nova data da prova"></div>
+            </label>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="workspace-shell">
+            <label class="review-dashboard-dialog-field">
+              <span>Nova data da prova</span>
+              <div><input class="ui-field ui-field--xs" type="date" value="2026-11-20" aria-label="Nova data da prova"></div>
+            </label>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input aria-label="Nova data da prova" type="date" value={newDeadline} ... /&gt;
+
+<b>+</b> &lt;Field size="xs" aria-label="Nova data da prova" type="date" value={newDeadline} ... /&gt;</pre>
     </article>
   </section>
 

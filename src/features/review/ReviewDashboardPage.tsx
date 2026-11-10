@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, TimerReset, TrendingUp, X } from 'lucide-react'
 import { ErrorState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
@@ -175,7 +176,8 @@ function DeadlineChangeDialog({ vaultPath, item, onClose, onApplied }: {
           <span>Nova data da prova</span>
           <div>
             <CalendarDays size={16} aria-hidden="true" />
-            <input
+            <Field
+              size="xs"
               aria-label="Nova data da prova"
               type="date"
               value={newDeadline}
