@@ -127,7 +127,9 @@ continua definido.
    (8 barras de modal idênticas em 48px, com `border-radius: 0` e o
    foco preservados no contexto; filtro de tags 18px com `min-height: 0`;
    e o caminho recuperado, que era input UA e adota `size="sm"` por
-   transição decidida). Restam 51 crus,
+   transição decidida) e lote 10 fechou a busca das Bases (campo 18px com
+   `min-height: 0`, pílula de 30px idêntica e o foco preservado no
+   contexto, com o anel na pílula). Restam 50 crus,
    todos fora do escopo ou nos próximos lotes; ver
    `docs/field-migration-review.html`.
 
@@ -433,8 +435,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **51** crus — após os
-  lotes 1–9 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **50** crus — após os
+  lotes 1–10 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

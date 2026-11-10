@@ -67,6 +67,12 @@
 .bases-search input {
   flex: 1;
   min-width: 0;
+  /* Onda 2 `<Field>`: o campo nao tem altura propria (18px, guiado pelo
+   * conteudo) e o `min-height` do primitivo esticaria a pilula de 30px;
+   * `min-height: 0` devolve o comportamento medido e `padding: 1px 2px`
+   * preserva o recuo UA (o primitivo injeta 0 10px). */
+  min-height: 0;
+  padding: 1px 2px;
   border: none;
   outline: none;
   /* type="search" renderiza com aparência nativa (borda/campo internos no

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import { ArrowDown, ArrowUp, Database, Search, Table2 } from 'lucide-react'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '../../lib/tauri'
@@ -191,7 +192,8 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
       <div className="bases-toolbar">
         <label className="bases-search">
           <Search size={14} strokeWidth={1.75} aria-hidden="true" />
-          <input
+          <Field
+            size="xs"
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
