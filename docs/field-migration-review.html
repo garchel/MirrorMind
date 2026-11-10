@@ -34,6 +34,8 @@
 <link rel="stylesheet" href="../src/features/bases/bases.css">
 <!-- Lote 14: data da prova no dashboard de revisao. -->
 <link rel="stylesheet" href="../src/features/review/review-dashboard.css">
+<!-- Lote 15: limite de palavras da segmentacao. -->
+<link rel="stylesheet" href="../src/features/review/segmentation-settings.css">
 
 <style>
   /* --- Chrome da página (não é CSS do app) ----------------------------- */
@@ -227,7 +229,7 @@
       3 da criação de meta; lote 7: 3 do dicionário; lote 8: 3 da sessão de
       revisão; lote 9: 10 do App; lote 10: 1 das Bases; lote 11: 1 do
       editor; lote 12: 1 do Explorer; lote 13: 1 do frontmatter; lote 14: 1 do
-      dashboard). Restam crus: <strong>46</strong>
+      dashboard; lote 15: 1 da segmentação). Restam crus: <strong>45</strong>
       (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
@@ -1077,6 +1079,49 @@
       <pre class="preview-code"><b>−</b> &lt;input aria-label="Nova data da prova" type="date" value={newDeadline} ... /&gt;
 
 <b>+</b> &lt;Field size="xs" aria-label="Nova data da prova" type="date" value={newDeadline} ... /&gt;</pre>
+    </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Segmentação — máximo de palavras por nota</h3>
+        <span class="preview-origin">SegmentationSettings 174 · 1 campo · lote 15</span>
+      </div>
+      <p class="preview-note">
+        Um contexto com o CSS real: <code>segmentation-settings.css:33</code> ·
+        <code>.segmentation-field input</code> (0,1,1) — 140px, <code>min-height:
+        36px</code>, <code>padding: 6px 8px</code>, raio 6, borda/fundo próprios,
+        <code>font: inherit</code>, <code>font-variant-numeric: tabular-nums</code>
+        e <code>text-align: right</code>. A <strong>base é idêntica</strong>:
+        140×41px (o <code>min-height</code> 36 do contexto vence o 34 do
+        primitivo), padding, raio, borda, fundo e alinhamento iguais. O foco é da
+        regra global (0,3,0): anel <code>2px</code> sage, medido idêntico com
+        clique real. O hover escurece a borda <code>0.12 → 0.22</code> (mesma
+        família neutra, decisão como nos lotes 4–5 e 7); o
+        <code>aria-invalid</code> continua estilizado pela regra do contexto.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="workspace-shell">
+            <label class="segmentation-field">
+              <span><strong>Máximo de palavras</strong><small>Até este tamanho.</small></span>
+              <input type="number" value="1200" aria-label="Máximo de palavras">
+            </label>
+          </div>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="workspace-shell">
+            <label class="segmentation-field">
+              <span><strong>Máximo de palavras</strong><small>Até este tamanho.</small></span>
+              <input class="ui-field ui-field--xs" type="number" value="1200" aria-label="Máximo de palavras">
+            </label>
+          </div>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;input type="number" min={WORD_LIMIT_MIN} value={draft} aria-invalid={!draftValid} /&gt;
+
+<b>+</b> &lt;Field size="xs" type="number" min={WORD_LIMIT_MIN} value={draft} aria-invalid={!draftValid} /&gt;</pre>
     </article>
   </section>
 

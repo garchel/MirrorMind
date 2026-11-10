@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import { listen } from '@tauri-apps/api/event'
 import {
   getVaultReviewPolicyConfig,
@@ -171,7 +172,8 @@ export function SegmentationSettings({ vaultPath }: Props) {
               <strong>Máximo de palavras por nota inteira</strong>
               <small>Até este tamanho, a nota é uma única unidade; acima, cada parágrafo vira uma.</small>
             </span>
-            <input
+            <Field
+              size="xs"
               type="number"
               min={WORD_LIMIT_MIN}
               max={WORD_LIMIT_MAX}
