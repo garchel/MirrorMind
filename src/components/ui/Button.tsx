@@ -13,11 +13,11 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
  * -----------
  *   variant  significado. primary e tinta cheia (um por tela).
  *            secondary e o padrao. danger e acao destrutiva.
- *   size     densidade. Vem das 6 alturas realmente em uso no app,
- *            agrupadas em 3 faixas:
- *              xs   24/26/28px  glifo solto (rail, header, menu)
- *              sm   30/34px    compacto (dialog, popover, tag)
- *              md   40px       padrao de pagina
+ *   size     densidade. 4 faixas, medidas do app:
+ *              xs      28px    glifo solto (rail, header, menu)
+ *              toolbar 30px    contexto denso (acoes do editor, Bases)
+ *              sm      34px    compacto (dialog, popover, tag)
+ *              md      40px    padrao de pagina
  *   className  ajuste de contexto. 21 das 42 regras do CSS antigo
  *            eram so geometria por seletor de 3 classes
  *            (`.workspace-shell .history-actions .secondary-button`),
@@ -30,8 +30,8 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
  * vence o `.secondary-button` do workspace". Isso e verdade sobre a
  * cascata e continua verdade depois desta migration: um `size="sm"`
  * genérico sobrescreveria a media-query densa do workspace e o botao
- * estouraria o trilho. Fingir que os 3 tamanhos resolvem tudo seria
- * reescrever 42 regras como se fossem 3.
+ * estouraria o trilho. Fingir que os 4 tamanhos resolvem tudo seria
+ * reescrever 42 regras como se fossem 4.
  */
 /**
  * primary   acao principal da tela, tinta cheia
@@ -42,7 +42,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
  *           aparencia de um.
  */
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'bare'
-export type ButtonSize = 'xs' | 'sm' | 'md'
+export type ButtonSize = 'xs' | 'toolbar' | 'sm' | 'md'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
@@ -61,6 +61,7 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
 
 const SIZE_CLASS: Record<ButtonSize, string> = {
   xs: 'ui-button--xs',
+  toolbar: 'ui-button--toolbar',
   sm: 'ui-button--sm',
   md: 'ui-button--md',
 }

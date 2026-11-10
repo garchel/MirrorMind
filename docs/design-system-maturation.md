@@ -153,12 +153,18 @@ continua definido.
    post-it) ficam fora, assim como os 34 checkbox/radio/color. Restam 37
    crus, todos fora do escopo; ver `docs/field-migration-review.html`.
 
-3. **15 alturas de botao distintas** no CSS do app (14, 18, 20, 22,
-   24, 26, 28, 30, 34, 36, 37, 40px), e o `size` do `<Button>` cobre
-   3 (`xs`/`sm`/`md`). A escala foi medida para os 3 grupos mais
-   frequentes (glifo/compacto/padrao); o resto e ajuste de contexto
-   que fica no `className`. Reduzir isso exige decisao de design sobre
-   quantas densidades o app deve ter — nao e refatoracao.
+3. **Alturas de botao** — decisao tomada (2026-11-10): **4 densidades,
+   `xs` 28px, `toolbar` 30px, `sm` 34px e `md` 40px**. O `toolbar` e
+   novo: 30px e a altura mais repetida nos contextos densos (21 regras —
+   acoes do editor, Bases, toolbar), e sem o degrau 21 regras teriam de
+   subir para 34 ou descer para 28. Medido no navegador depois da
+   mudanca: 28/30/34/40 exatos. O `xs` fechava em 29px porque herdava a
+   linha de 27px do corpo (27 + 2 de borda); as duas densidades compactas
+   declaram `line-height: 1`, e o token passa a valer. O resto das
+   alturas (18, 20, 22, 24, 25, 26, 27, 32, 36, 37, 46 e 74) migra por
+   lote para a densidade mais proxima por papel; 18 (glifo/ponto), 46
+   (base global) e 74 (card de preset) ficam como excecao documentada.
+   A migracao dos contextos corre por lote medido, como a dos campos.
 
 4. ~~**19 tokens orfaos**~~ ✅ removidos. Os tres grupos eram botao
    (`--button-height*`, `--button-padding-x*`, `--button-font`), aviso

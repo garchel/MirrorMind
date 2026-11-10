@@ -44,6 +44,12 @@
   --button-size-xs-height: 28px;
   --button-size-xs-padding: 0 8px;
   --button-size-xs-font: var(--font-size-caption);
+  /* Degrau de 30px: e a altura mais repetida nos contextos densos (acoes
+   * do editor, Bases, toolbar). Sem ele, 21 regras teriam de subir para
+   * 34px ou descer para 28px. */
+  --button-size-toolbar-height: 30px;
+  --button-size-toolbar-padding: 0 10px;
+  --button-size-toolbar-font: var(--font-size-caption);
   --button-size-sm-height: 34px;
   --button-size-sm-padding: 0 14px;
   --button-size-sm-font: var(--font-size-caption);
@@ -200,11 +206,30 @@
   flex: none;
 }
 
-/* --- densidades (as 6 alturas medidas, em 3 faixas) ----------------- */
+/* --- densidades (28 / 30 / 34 / 40px) ------------------------------- */
 .ui-button--xs {
   min-height: var(--button-size-xs-height);
   padding: var(--button-size-xs-padding);
   font-size: var(--button-size-xs-font);
+  /* Sem isto a linha herdada do corpo (27px) faz o botao fechar em 29px
+   * (27 + 2 de borda) e o token de 28 nao vale. */
+  line-height: 1;
+}
+
+.ui-button--toolbar {
+  min-height: var(--button-size-toolbar-height);
+  padding: var(--button-size-toolbar-padding);
+  font-size: var(--button-size-toolbar-font);
+  line-height: 1;
+}
+
+/* Mesma regra do xs, mas qualificada a quem TEM icone: o seletor antigo
+ * (`:not(:has(.ui-button__icon + :not(:empty)))`) tambem casa com botao
+ * so de texto e zera o padding dele. No toolbar isso apagaria o recuo dos
+ * rotulos; aqui o `:has(.ui-button__icon)` restringe ao glifo solto. */
+.ui-button--toolbar:has(.ui-button__icon):not(:has(.ui-button__icon + :not(:empty))) {
+  padding: var(--button-icon-only-padding);
+  min-width: var(--button-size-toolbar-height);
 }
 
 /* Glifo sem rotulo: quadrado, senao o botao de 28px fica largo demais
