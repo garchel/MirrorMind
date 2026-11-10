@@ -540,6 +540,13 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   lotes 1–20 da onda de campos (inventário inicial medido: 111). Os 37 são
   os 34 checkbox/radio/color e os 3 de classe estática, todos fora do
   escopo da onda.
+- `node scripts/scan-dead-css.mjs` audita CSS morto por classe, com
+  heurística conservadora (busca o nome completo em todo texto de
+  `src`/`tests`, prefixos de template e allowlist de bibliotecas). Nesta
+  data: **1200 classes declaradas, 56 candidatas a mortas e 39 regras
+  inteiramente mortas**. Relatório reproduzível em
+  [`docs/css-dead-code-report.md`](css-dead-code-report.md) — é lista para
+  revisão, não remoção automática.
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 
