@@ -126,7 +126,13 @@
 }
 
 .workspace-shell .secondary-button {
-  min-height: 26px;
+  /* Onda 3: o default compacto do shell passa a ser a densidade `xs`
+   * (28px). Era 26px, um valor fora da escala; o botao secundario sem
+   * contexto especifico e este. */
+  min-height: var(--button-size-xs-height);
+  /* Linha 1 para o token de 28 valer: com a linha herdada de 27px o
+   * botao fecharia em 29 (27 + 2 de borda). */
+  line-height: 1;
   padding: 0 8px;
   color: var(--workspace-muted);
   background: transparent;

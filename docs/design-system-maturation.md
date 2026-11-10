@@ -178,7 +178,14 @@ continua definido.
    (30px) passou a `size="toolbar"`, mantendo 30x30. **O scanner por seletor
    e um piso:** classes sem "button" no nome (`.note-review-menu-trigger`,
    `.structural-audit-trigger`) nao entram na contagem; a auditoria real e
-   por componente, medindo a cascata.
+   por componente, medindo a cascata. **Lote 4 (default do shell):** o
+   compacto `.workspace-shell .secondary-button` era 26px, fora da escala,
+   e vencia as classes de densidade (0,2,0 contra 0,1,0) — por isso 270 dos
+   371 `<Button>` (sem `size`) dependem dele. Passou a
+   `var(--button-size-xs-height)` (28px), com `line-height: 1`; medido 28px
+   (antes, 29 por herdar a linha de 27). E a estrategia da onda: levar os
+   tokens de densidade para dentro dos contextos, sem reescrever 270 usos
+   de JSX.
 
 4. ~~**19 tokens orfaos**~~ ✅ removidos. Os tres grupos eram botao
    (`--button-height*`, `--button-padding-x*`, `--button-font`), aviso
