@@ -118,7 +118,12 @@ continua definido.
    dicionário (busca embutida na pílula, 29px com `min-height: 0` e
    padding UA preservado; formulário 45px e textarea 126px; o
    placeholder passa ao token `--field-placeholder` por decisão, e o
-   hover escurece a borda na mesma matiz). Restam 64 crus,
+   hover escurece a borda na mesma matiz) e lote 8 fechou os 3 textareas
+   da sessão de revisão (síntese 322,88px, resposta 199,5px e diagnóstico
+   177,81px no harness; o foco da resposta já era do contexto e precisou
+   de `outline-offset: 0` para o offset do primitivo não vazar; nas
+   outras duas o anel vira o accent 2px, e o hover dos três foi
+   preservado por regra de contexto). Restam 61 crus,
    todos fora do escopo ou nos próximos lotes; ver
    `docs/field-migration-review.html`.
 
@@ -424,8 +429,8 @@ A medicao que sustenta os numeros, hoje, tem duas partes reproduziveis:
   `RootErrorBoundary`).
 - `node scripts/scan-fields.mjs` conta os campos crus
   (`<input>/<select>/<textarea>`) de produto, o mesmo padrão do scanner
-  de botões (ignora comentários). Nesta data: **64** crus — após os
-  lotes 1–7 da onda de campos (inventário inicial medido: 111).
+  de botões (ignora comentários). Nesta data: **61** crus — após os
+  lotes 1–8 da onda de campos (inventário inicial medido: 111).
 - `py -3 scripts/verify-button-cascade.py` confere que nenhuma regra de
   contexto ainda depende so da tag `button` (37 arquivos `.css`).
 

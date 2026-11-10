@@ -115,7 +115,14 @@
 .review-question > .review-option-dont-know.is-selected { border-color:var(--text-muted); background:var(--surface-sunk); box-shadow:0 0 0 3px rgba(138,136,127,.14); }
 .review-question > .review-option-dont-know.is-selected .review-option-letter { background:var(--text-muted); border-color:var(--text-muted); color:var(--mm-ink-50); }
 .review-question textarea, .review-diagnostic textarea { width:100%; resize:vertical; border:1px solid var(--line-strong); border-radius: var(--radius-sm); padding:12px; background:var(--surface-field); color:var(--text-strong); font:14px/1.55 var(--sans); }
-.review-question textarea:focus { border-color:var(--accent); outline:2px solid color-mix(in srgb,var(--accent) 18%,transparent); }
+.review-question textarea:focus { border-color:var(--accent); outline:2px solid color-mix(in srgb,var(--accent) 18%,transparent); outline-offset:0; }
+/* Onda 2 `<Field>`: o hover do primitivo (0,3,0) trocaria a borda
+ * quente pelo token de tinta; preserva a cor medida. O
+ * `outline-offset: 0` acima preserva o anel medido (o primitivo injeta
+ * 1px). */
+.review-synthesis-field textarea:hover:not(:disabled) { border-color:var(--line); }
+.review-question textarea:hover:not(:disabled),
+.review-diagnostic textarea:hover:not(:disabled) { border-color:var(--line-strong); }
 .review-answer-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .review-assistance { display:flex; gap:10px; border-left:3px solid var(--status-warn); padding:11px 13px; background:var(--status-warn-bg-soft); color:var(--status-warn-strong); font-size:12px; line-height:1.55; }
 .review-assistance svg { flex:0 0 auto; margin-top:2px; }

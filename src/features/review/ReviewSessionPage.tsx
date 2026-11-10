@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
 import { ArrowLeft, CheckCircle2, Clock, Info, Lightbulb, MessageCircle, RotateCw } from 'lucide-react'
 import {
   appendKnowledgeSuggestionToNote,
@@ -512,7 +513,9 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             ) : null}
             <label className="review-synthesis-field" htmlFor="review-synthesis-text">
               <span>Sua síntese da nota</span>
-              <textarea
+              <Field
+                as="textarea"
+                size="xs"
                 id="review-synthesis-text"
                 rows={10}
                 value={synthesis}
@@ -816,7 +819,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
         ) : (
           <>
             <label htmlFor="review-answer">{prompt?.kind === 'shortAnswer' ? 'Escreva sua resposta' : 'Sua resposta'}</label>
-            <textarea id="review-answer" value={answer} onChange={(event) => { setAnswer(event.target.value); setDontKnow(false) }} rows={8} autoFocus disabled={busy || diagnostic !== null} />
+            <Field as="textarea" size="xs" id="review-answer" value={answer} onChange={(event) => { setAnswer(event.target.value); setDontKnow(false) }} rows={8} autoFocus disabled={busy || diagnostic !== null} />
           </>
         )}
         {draft.mode === 'exam' ? (
@@ -869,5 +872,5 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
 }
 
 function DiagnosticPanel({ diagnostic, retry, retryLabel, busy }: { diagnostic: Diagnostic; retry: () => void | Promise<void>; retryLabel: string; busy: boolean }) {
-  return <section className="review-diagnostic" role="alert"><strong>{diagnostic.message}</strong>{diagnostic.validationErrors.length > 0 ? <ul>{diagnostic.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul> : null}{diagnostic.rawResponse !== null ? <label>Resposta bruta da IA<textarea readOnly value={diagnostic.rawResponse} rows={7} /></label> : null}<Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void retry()} disabled={busy}><RotateCw size={15} /> {retryLabel}</Button></section>
+  return <section className="review-diagnostic" role="alert"><strong>{diagnostic.message}</strong>{diagnostic.validationErrors.length > 0 ? <ul>{diagnostic.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul> : null}{diagnostic.rawResponse !== null ? <label>Resposta bruta da IA<Field as="textarea" size="xs" readOnly value={diagnostic.rawResponse} rows={7} /></label> : null}<Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void retry()} disabled={busy}><RotateCw size={15} /> {retryLabel}</Button></section>
 }

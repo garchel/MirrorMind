@@ -26,6 +26,8 @@
 <link rel="stylesheet" href="../src/features/goals/goals.css">
 <!-- Lote 7: busca e formulario do dicionario. -->
 <link rel="stylesheet" href="../src/features/dictionary/dictionary.css">
+<!-- Lote 8: sintese, resposta e diagnostico da sessao de revisao. -->
+<link rel="stylesheet" href="../src/features/review/review-session.css">
 
 <style>
   /* --- Chrome da página (não é CSS do app) ----------------------------- */
@@ -213,11 +215,12 @@
     <div class="callout">
       <strong>Placar da onda:</strong> família textual migrável =
       <strong>77</strong> (62 <code>input</code> textual + 10 <code>textarea</code> +
-      5 <code>select</code>). Migrados até agora: <strong>47</strong> (lote 1:
+      5 <code>select</code>). Migrados até agora: <strong>50</strong> (lote 1:
       6 atalhos; lote 2: 18 do grafo; lote 3: 8 da página de tags; lote 4:
       5 das opções avançadas do Vault; lote 5: 4 da revisão com IA; lote 6:
-      3 da criação de meta; lote 7: 3 do dicionário). Restam crus:
-      <strong>64</strong> (<code>node scripts/scan-fields.mjs</code>).
+      3 da criação de meta; lote 7: 3 do dicionário; lote 8: 3 da sessão de
+      revisão). Restam crus: <strong>61</strong>
+      (<code>node scripts/scan-fields.mjs</code>).
   </section>
 
   <section aria-labelledby="veredito">
@@ -694,10 +697,81 @@
 
 <b>+</b> &lt;Field as="textarea" size="xs" value={concept} rows={4} ... /&gt;</pre>
     </article>
+
+    <article class="preview-card">
+      <div class="preview-head">
+        <h3>Sessão de revisão — síntese, resposta e diagnóstico</h3>
+        <span class="preview-origin">ReviewSessionPage 515/819/872 · 3 textareas · lote 8</span>
+      </div>
+      <p class="preview-note">
+        Três contextos com o CSS real. <strong>Síntese</strong>
+        (<code>review-session.css:17</code> · <code>.review-synthesis-field
+        textarea</code>, 0,1,1): <code>min-height: 180px</code>,
+        <code>padding: 12px</code>, raio 8, <code>font: inherit</code> e
+        <code>line-height: 1.65</code> — <strong>idêntico</strong> (322,88px no
+        harness de 520px; a altura absoluta segue a fonte herdada da página).
+        <strong>Resposta</strong> (<code>:117</code> · <code>.review-question
+        textarea</code>): 199,5px, 14px/1,55, padding 12, raio 6 —
+        idêntico. <strong>Diagnóstico</strong> (mesma regra
+        <code>:117</code>): 177,81px — idêntico. O foco da resposta
+        <strong>já era do contexto</strong> (<code>:118</code>, 0,2,1: anel
+        accent 18%): idêntico, mas o <code>outline-offset: 1px</code> do
+        primitivo vazava e o contexto passou a declarar
+        <code>outline-offset: 0</code>. Nas outras duas o contexto não tem
+        regra de foco, então o anel UA <code>auto 1px</code> vira o
+        <code>2px</code> accent do primitivo (decisão, como nos lotes 4–5). O
+        hover trocaria a borda quente pelo token de tinta; regras de hover nos
+        três contextos preservam <code>rgb(216 212 202)</code> na síntese e
+        <code>rgb(203 200 191)</code> nas outras duas.
+      </p>
+      <div class="preview-pair">
+        <div class="preview-pane">
+          <span class="preview-tag is-before">Hoje · cru</span>
+          <div class="review-setup">
+            <label class="review-synthesis-field">
+              <span>Sua síntese da nota</span>
+              <textarea rows="5" placeholder="A ideia central desta nota é…">A ideia central é a glicólise.</textarea>
+            </label>
+          </div>
+          <div class="review-question" style="margin-top:12px">
+            <label>Sua resposta</label>
+            <textarea rows="3">Quebra da glicose em piruvato.</textarea>
+          </div>
+          <section class="review-diagnostic" role="alert" style="margin-top:12px">
+            <strong>Resposta inválida</strong>
+            <label>Resposta bruta da IA<textarea readonly rows="2">{ "answer": "" }</textarea></label>
+          </section>
+        </div>
+        <div class="preview-pane">
+          <span class="preview-tag is-after">Depois · &lt;Field&gt;</span>
+          <div class="review-setup">
+            <label class="review-synthesis-field">
+              <span>Sua síntese da nota</span>
+              <textarea class="ui-field ui-field--xs ui-field--textarea" rows="5" placeholder="A ideia central desta nota é…">A ideia central é a glicólise.</textarea>
+            </label>
+          </div>
+          <div class="review-question" style="margin-top:12px">
+            <label>Sua resposta</label>
+            <textarea class="ui-field ui-field--xs ui-field--textarea" rows="3">Quebra da glicose em piruvato.</textarea>
+          </div>
+          <section class="review-diagnostic" role="alert" style="margin-top:12px">
+            <strong>Resposta inválida</strong>
+            <label>Resposta bruta da IA<textarea class="ui-field ui-field--xs ui-field--textarea" readonly rows="2">{ "answer": "" }</textarea></label>
+          </section>
+        </div>
+      </div>
+      <pre class="preview-code"><b>−</b> &lt;textarea id="review-synthesis-text" rows={10} ... /&gt;   (síntese)
+
+<b>+</b> &lt;Field as="textarea" size="xs" id="review-synthesis-text" rows={10} ... /&gt;
+
+<b>−</b> &lt;textarea id="review-answer" value={answer} rows={8} ... /&gt;   (resposta e diagnóstico)
+
+<b>+</b> &lt;Field as="textarea" size="xs" id="review-answer" value={answer} rows={8} ... /&gt;</pre>
+    </article>
   </section>
 
   <footer class="doc-footer">
-    <p>Próximos lotes: ReviewSessionPage (3), App.tsx (10), e os demais — cada um com medição prévia.</p>
+    <p>Próximos lotes: App.tsx (10), e os demais — cada um com medição prévia.</p>
   </footer>
 </div>
 </body>
