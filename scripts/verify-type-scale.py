@@ -246,6 +246,17 @@ def main():
                  '2026-11-10: regra morta .editor-panel/.editor-preview '
                  'removida na auditoria de CSS.'),
             ],
+            'src/features/shell/workspace-chrome.css': [
+                # Auditoria de CSS morto (2026-11-10): `.workspace-page-loading`
+                # e o bloco `.trash-item*` nao tem referencia no fonte; tres
+                # declaracoes de tamanho sairam com eles (14px e dois 12px).
+                ('14.0', 25,
+                 '2026-11-10: regras mortas .workspace-page-loading/.trash-item*.'),
+                ('12.0', 66,
+                 '2026-11-10: regras mortas .workspace-page-loading/.trash-item*.'),
+                ('12.0', 65,
+                 '2026-11-10: regras mortas .workspace-page-loading/.trash-item*.'),
+            ],
             'src/features/review/vault-review-policy.css': [
                 # Auditoria de CSS morto (2026-11-10): o bloco
                 # `.vault-tag-policy-*` nao tem referencia no fonte; as

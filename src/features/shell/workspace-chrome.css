@@ -739,14 +739,6 @@ label.settings-toggle {
   font: 600 28px/1.1 var(--sans);
 }
 
-.workspace-page-loading {
-  grid-row: 1 / -1;
-  align-self: start;
-  margin: 56px max(40px, 7vw);
-  color: var(--mm-ink-700-2);
-  font: 14px/1.4 var(--sans);
-}
-
 /* Largura total das paginas (Configuracoes > Aparencia): compacta o respiro
  * de TODAS as paginas por igual via `data-pages-width` no workspace-shell.
  * Especificidade (0,3,0) vence a base sem `!important`. */
@@ -2147,40 +2139,6 @@ label.settings-toggle {
   width: 15px;
   height: 15px;
   accent-color: var(--mm-ink-750);
-}
-
-.trash-item-list {
-  display: grid;
-  max-height: 280px;
-  overflow: auto;
-  padding: 6px 12px 12px;
-}
-
-.trash-item-list > p {
-  margin: 12px 0;
-  color: var(--mm-ink-800-7);
-  font-size: 12px;
-}
-
-.trash-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 42px;
-  border-bottom: 1px solid var(--mm-ink-250-3);
-  color: var(--mm-ink-900-32);
-  font-size: 12px;
-}
-
-.trash-item:last-child {
-  border-bottom: 0;
-}
-
-.trash-item > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .workspace-shell .tree-icon {
