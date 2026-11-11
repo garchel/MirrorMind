@@ -1161,13 +1161,14 @@
   gap: 8px;
 }
 
-/* Botao de post-its flutuante: canto superior direito da area de texto,
- * junto do painel de ferramentas. So o glifo e a contagem — o texto
- * "Post-it" aparece no hover como tooltip nativo (`title`). */
+/* Botao de post-its flutuante: canto superior ESQUERDO da area de texto.
+ * O canto direito fica para a barra de busca da nota (`.note-find-bar`).
+ * So o glifo e a contagem — o texto "Post-it" aparece no hover como
+ * tooltip nativo (`title`). */
 .workspace-shell .postit-float {
   position: absolute;
   top: 12px;
-  right: 12px;
+  left: 12px;
   z-index: 3;
   display: inline-flex;
   align-items: center;
