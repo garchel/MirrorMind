@@ -89,9 +89,7 @@ export function TabStrip({
             </div>
           )
         })
-      ) : (
-        <p className="empty-tabs">As notas abertas aparecerão aqui em abas.</p>
-      )}
+      ) : null}
       <Button type="button" variant="bare" className="ui-button new-tab-button" onClick={startNewNote} disabled={loading || saving} title="Nova nota na raiz do vault" aria-label="Nova nota na raiz do vault">
         <Plus size={16} strokeWidth={1.7} aria-hidden="true" />
       </Button>

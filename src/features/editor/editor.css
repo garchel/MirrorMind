@@ -2985,7 +2985,6 @@
 .command-palette-hint { margin-right: auto; }
 
 .workspace-shell .editor-path,
-.workspace-shell .empty-tabs,
 .workspace-shell .empty-sidebar-state,
 .workspace-shell .editor-empty-state {
   color: var(--workspace-muted);

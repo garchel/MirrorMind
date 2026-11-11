@@ -192,13 +192,13 @@ def main():
                  'a altura da aba com a barra.'),
                 # Rodape de perfil (2026-11-10): avatar, nome, plano e item
                 # do menu. As posicoes sao as do arquivo novo.
-                ('11.0', 45,
+                ('11.0', 44,
                  '2026-11-10: avatar do rodape de perfil (font shorthand).'),
-                ('12.0', 46,
+                ('12.0', 45,
                  '2026-11-10: nome do rodape de perfil.'),
-                ('11.0', 47,
+                ('11.0', 46,
                  '2026-11-10: plano do rodape de perfil.'),
-                ('13.0', 48,
+                ('13.0', 47,
                  '2026-11-10: item do menu do perfil.'),
             ],
             'src/features/review/review-panels.css': [
@@ -272,6 +272,10 @@ def main():
                  '2026-11-10: regras mortas .workspace-page-loading/.trash-item*.'),
                 ('12.0', 65,
                  '2026-11-10: regras mortas .workspace-page-loading/.trash-item*.'),
+                # O estado vazio da barra de abas saiu a pedido do usuario
+                # (2026-11-11); a declaracao de 12px saiu junto.
+                ('12.0', 9,
+                 '2026-11-11: texto de estado vazio da barra de abas removido.'),
             ],
             'src/features/review/vault-review-policy.css': [
                 # Auditoria de CSS morto (2026-11-10): o bloco

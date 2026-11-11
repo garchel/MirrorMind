@@ -440,11 +440,6 @@ button:disabled {
   transform: none;
 }
 
-.empty-tabs {
-  margin: 0;
-  color: var(--muted);
-}
-
 .editor-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
