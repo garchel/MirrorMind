@@ -613,7 +613,8 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Verificar fatos da nota' }))
+    await user.click(screen.getByRole('button', { name: 'Avaliação e revisão da nota' }))
+    await user.click(await screen.findByRole('button', { name: 'Verificação factual da nota' }))
 
     expect(await screen.findByText('1 confirmada, 1 divergente, 1 incerta.')).toBeInTheDocument()
     expect(invokeMock).toHaveBeenCalledWith('verify_note_facts', expect.objectContaining({ relativePath: 'inicial.md' }))

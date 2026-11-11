@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarCheck2, ChartColumnBig, Check, Download, RotateCcw, Search, Sparkles, X } from 'lucide-react'
+import { AlertTriangle, CalendarCheck2, ChartColumnBig, Check, CheckCircle2, Download, RotateCcw, Search, Sparkles, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { StructureCheckIcon } from '@hugeicons/core-free-icons'
 import type { ReactNode } from 'react'
@@ -50,6 +50,9 @@ type NoteReadinessControlProps = {
   /** Abre a pagina de avaliacao de estrutura ( auditoria deterministica,
    *  espelho da pagina de avaliacao da nota). */
   onAuditStructure?: () => void
+  /** Abre o painel de verificacao factual (compara afirmacoes com
+   *  conhecimento externo; nao altera a nota). */
+  onFactCheck?: () => void
   /** Abre a pagina "melhorar a nota": expande trechos apressados e sugere as
    *  definicoes que faltam (com IA). */
   onImproveNote?: () => void
@@ -82,6 +85,7 @@ export function NoteReadinessControl({
   onReportOpenChange,
   onSaveFirst,
   onAuditStructure,
+  onFactCheck,
   onImproveNote,
   adjustments,
 }: NoteReadinessControlProps) {
@@ -265,6 +269,19 @@ export function NoteReadinessControl({
         >
           <span aria-hidden="true"><HugeiconsIcon icon={StructureCheckIcon} size={15} strokeWidth={1.5} /></span>
           <span>Avaliar estrutura</span>
+        </Button>
+      ) : null}
+      {onFactCheck ? (
+        <Button
+          type="button"
+          className="ui-button ui-button--secondary ui-button--sm note-structure-trigger"
+          onClick={() => onFactCheck()}
+          disabled={disabled}
+          title="Compara as afirmações da nota com conhecimento externo — não altera a nota nem as revisões"
+          aria-label="Verificação factual da nota"
+        >
+          <CheckCircle2 size={15} strokeWidth={1.5} aria-hidden="true" />
+          <span>Verificação factual</span>
         </Button>
       ) : null}
       {onImproveNote ? (

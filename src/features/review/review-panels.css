@@ -33,15 +33,6 @@
   cursor: default;
 }
 
-/* Botao do header da nota que abre a auditoria estrutural deterministica. */
-.workspace-shell .editor-actions > .structural-audit-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  padding: 0 10px;
-}
-
 /* Painel de auditoria estrutural e verificacao factual (portados para
    document.body pelo Radix). Lista vertical de achados, cada um com
    severidade, mensagem, sugestao, citacao do trecho e acao "Aplicar no
@@ -241,7 +232,15 @@
 
 /* ------------------------------------------------------------------ */
 /* Verificacao factual opcional: painel separado da avaliacao de memoria,
- * usa a base .structural-audit-scope com blocos de achado proprio. */
+ * usa a base .structural-audit-scope com blocos de achado proprio. Agora
+ * vive DENTRO do menu de avaliacao/revisao (nao e mais um popover). */
+.note-review-menu .fact-check-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+
 .ui-popover-content.fact-check-panel {
   min-width: min(420px, calc(100vw - 32px));
 }

@@ -10,7 +10,7 @@ import { errorMessage, invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { CheckCircle2, ClipboardList, Folder, FolderOpen, Star, X } from 'lucide-react'
+import { Folder, FolderOpen, Sparkles, Star, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Bookmark02Icon, File02Icon } from '@hugeicons/core-free-icons'
 import { RiFocus2Fill, RiFocus2Line } from '@remixicon/react'
@@ -5280,7 +5280,10 @@ function App() {
           return (
             <Popover key={key} open={reviewMenuOpen} onOpenChange={(open) => {
               setReviewMenuOpen(open)
-              if (!open) setReviewReportOpen(false)
+              if (!open) {
+                setReviewReportOpen(false)
+                setFactCheckOpen(false)
+              }
             }}>
               <PopoverTrigger asChild>
                 <Button
@@ -5291,11 +5294,66 @@ function App() {
                   title="Avaliação e revisão da nota"
                 >
                   <span className={`note-review-status-dot is-${noteReadiness ?? 'none'}`} aria-hidden="true" />
-                  <ClipboardList size={15} strokeWidth={1.5} aria-hidden="true" />
+                  <span className="note-review-trigger-icon" aria-hidden="true">
+                    <HugeiconsIcon icon={File02Icon} size={15} strokeWidth={1.5} />
+                    <Sparkles size={9} strokeWidth={2} className="note-review-trigger-sparkle" />
+                  </span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="end" sideOffset={6} className="note-review-menu">
-                {auditReportOpen ? (
+                {factCheckOpen ? (
+                  <div className="structural-audit-scope fact-check-panel">
+                    <Button
+                      type="button"
+                      className="ui-button ui-button--secondary ui-button--sm"
+                      onClick={() => setFactCheckOpen(false)}
+                    >
+                      Voltar
+                    </Button>
+                    <header className="structural-audit-header">
+                      <strong>Verificação factual</strong>
+                      <small>Compara as afirmações da nota com conhecimento externo — não altera a nota nem as revisões.</small>
+                    </header>
+                    {factCheckLoading ? (
+                      <div className="structural-audit-state">Verificando os fatos…</div>
+                    ) : factCheckError ? (
+                      <div className="structural-audit-state is-error">
+                        <span>{factCheckError}</span>
+                        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void runFactCheck()}>Tentar novamente</Button>
+                      </div>
+                    ) : factCheck === null ? (
+                      <div className="structural-audit-state">Preparando a verificação…</div>
+                    ) : factCheck.outcome === 'invalid' ? (
+                      <div className="structural-audit-state is-error">
+                        <span>{factCheck.message}</span>
+                        {factCheck.validationErrors.length > 0 ? (
+                          <ul>{factCheck.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="fact-check-results">
+                        <p className="fact-check-summary">{factCheck.report.overallSummary}</p>
+                        <ul>
+                          {factCheck.report.findings.map((finding, index) => (
+                            <li key={`${finding.claim}-${index}`} className={`fact-check-finding is-${finding.status}`}>
+                              <div className="fact-check-finding-head">
+                                <span className="fact-check-status">
+                                  {finding.status === 'confirmed' ? 'Confirmado' : finding.status === 'divergent' ? 'Divergente' : 'Incerto'}
+                                </span>
+                                <p>{finding.claim}</p>
+                              </div>
+                              {finding.quote && finding.quote !== finding.claim ? (
+                                <pre className="structural-audit-quote">{finding.quote}</pre>
+                              ) : null}
+                              <p className="fact-check-reason">{finding.reason}</p>
+                              {finding.source ? <p className="fact-check-source">Fonte: {finding.source}</p> : null}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : auditReportOpen ? (
                   <NoteStructureReport
                     audit={structuralAudit}
                     loading={structuralAuditLoading}
@@ -5338,6 +5396,10 @@ function App() {
                     }
                   }}
                   onAuditStructure={openAuditReport}
+                  onFactCheck={() => {
+                    setFactCheckOpen(true)
+                    if (factCheck === null && factCheckError === null) void runFactCheck()
+                  }}
                   onImproveNote={openImprovementPanel}
                   adjustments={reviewReportOpen ? null : (
                     <>
@@ -5351,69 +5413,6 @@ function App() {
                     </>
                   )}
                 />
-                )}
-              </PopoverContent>
-            </Popover>
-          )
-        case 'factcheck':
-          return (
-            <Popover key={key} open={factCheckOpen} onOpenChange={(open) => {
-              setFactCheckOpen(open)
-              if (open && factCheck === null && factCheckError === null) void runFactCheck()
-            }}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="bare"
-                  className="ui-button structural-audit-trigger"
-                  aria-label="Verificar fatos da nota"
-                  title="Verificação factual opcional — compara as afirmações com conhecimento externo, sem alterar a nota nem as pontuações"
-                >
-                  <CheckCircle2 size={15} strokeWidth={1.5} aria-hidden="true" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" sideOffset={6} className="structural-audit-scope fact-check-panel">
-                <header className="structural-audit-header">
-                  <strong>Verificação factual</strong>
-                  <small>Compara as afirmações da nota com conhecimento externo — não altera a nota nem as revisões.</small>
-                </header>
-                {factCheckLoading ? (
-                  <div className="structural-audit-state">Verificando os fatos…</div>
-                ) : factCheckError ? (
-                  <div className="structural-audit-state is-error">
-                    <span>{factCheckError}</span>
-                    <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void runFactCheck()}>Tentar novamente</Button>
-                  </div>
-                ) : factCheck === null ? (
-                    <div className="structural-audit-state">Preparando a verificação…</div>
-                ) : factCheck.outcome === 'invalid' ? (
-                  <div className="structural-audit-state is-error">
-                    <span>{factCheck.message}</span>
-                    {factCheck.validationErrors.length > 0 ? (
-                      <ul>{factCheck.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="fact-check-results">
-                    <p className="fact-check-summary">{factCheck.report.overallSummary}</p>
-                    <ul>
-                      {factCheck.report.findings.map((finding, index) => (
-                        <li key={`${finding.claim}-${index}`} className={`fact-check-finding is-${finding.status}`}>
-                          <div className="fact-check-finding-head">
-                            <span className="fact-check-status">
-                              {finding.status === 'confirmed' ? 'Confirmado' : finding.status === 'divergent' ? 'Divergente' : 'Incerto'}
-                            </span>
-                            <p>{finding.claim}</p>
-                          </div>
-                          {finding.quote && finding.quote !== finding.claim ? (
-                            <pre className="structural-audit-quote">{finding.quote}</pre>
-                          ) : null}
-                          <p className="fact-check-reason">{finding.reason}</p>
-                          {finding.source ? <p className="fact-check-source">Fonte: {finding.source}</p> : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
                 )}
               </PopoverContent>
             </Popover>

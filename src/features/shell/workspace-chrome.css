@@ -1671,9 +1671,6 @@ label.settings-toggle {
  * mais seria um alvo de clique que nao faz nada. */
 .workspace-shell .explorer-search-button {
   margin-left: 4px;
-  border-left: 1px solid var(--line-soft);
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
   padding-left: 6px;
   padding-right: 6px;
 }

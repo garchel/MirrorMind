@@ -201,6 +201,12 @@ def main():
                 ('13.0', 48,
                  '2026-11-10: item do menu do perfil.'),
             ],
+            'src/features/review/review-panels.css': [
+                # Verificacao factual agora vive dentro do menu de avaliacao
+                # (2026-11-11); a declaracao de 12px do painel e nova.
+                ('12.0', 10,
+                 '2026-11-11: painel de verificacao factual no menu de avaliacao.'),
+            ],
             'src/features/review/review-ai.css': [
                 ('11.0', 48, motivo_confianca),
                 ('15.0', 49, motivo_confianca),

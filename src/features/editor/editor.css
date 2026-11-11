@@ -56,6 +56,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* A entrelinha herdada (27px) deixava o resumo alto demais; com 1.5 o
+   * "g" de "Tags" ainda cabe inteiro e o padding-bottom garante o
+   * descendente mesmo com metricas apertadas da fonte. */
+  line-height: 1.5;
+  padding-bottom: 1px;
 }
 
 .workspace-shell .note-header-tags .note-tags-toggle .note-tags-chevron {
@@ -174,6 +179,21 @@
   padding: 0 8px;
 }
 
+/* Icone do gatilho: a nota (mesmo glifo do explorador) com as estrelinhas
+ * de IA no canto. A posicao relativa fica no wrapper para o selo absoluto
+ * nao deslocar o layout do botao. */
+.workspace-shell .note-review-trigger-icon {
+  position: relative;
+  display: inline-flex;
+}
+
+.workspace-shell .note-review-trigger-sparkle {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  color: var(--accent);
+}
+
 .workspace-shell .editor-actions > .indexadora-button {
   display: inline-flex;
   align-items: center;
@@ -181,13 +201,6 @@
   gap: 6px;
   min-width: 30px;
   min-height: var(--button-size-toolbar-height);
-  padding: 0 8px;
-}
-
-/* Gatilho icon-only da verificacao factual (sem regra propria de tamanho). */
-.workspace-shell .editor-actions > .structural-audit-trigger {
-  min-width: 30px;
-  min-height: 30px;
   padding: 0 8px;
 }
 
