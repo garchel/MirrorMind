@@ -1294,8 +1294,10 @@ label.settings-toggle {
   --workspace-text: var(--mm-ink-950-11);
   --workspace-muted: var(--mm-ink-800-7);
   --workspace-accent: var(--mm-ink-600-2);
-  --rail-width: 156px;
-  --explorer-width: 272px;
+  /* 16px do explorador foram para o trilho: o rodape de perfil precisa de
+   * um pouco mais de largura para o nome, e o total do chrome nao muda. */
+  --rail-width: 172px;
+  --explorer-width: 256px;
   grid-template-columns: var(--rail-width) minmax(0, 1fr);
   /* A barra de titulo customizada e a linha do topo: o workspace ocupa a
    * janela INTEIRA (o margin negativo cancela o padding-top de #root). */
@@ -1447,7 +1449,9 @@ label.settings-toggle {
 .rail-profile-copy {
   display: grid;
   min-width: 0;
-  gap: 1px;
+  /* Sem vao extra: nome e plano ficam colados (o espaco era a entrelinha
+   * herdada de 27px do corpo, nao o gap). */
+  gap: 0;
 }
 
 .rail-profile-name {
@@ -1455,12 +1459,14 @@ label.settings-toggle {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
+  line-height: 1.25;
   font-weight: 600;
 }
 
 .rail-profile-plan {
   color: var(--workspace-muted, var(--muted));
   font-size: 11px;
+  line-height: 1.2;
 }
 
 .workspace-shell.is-sidebar-collapsed .rail-profile {
