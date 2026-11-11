@@ -1372,6 +1372,36 @@ label.settings-toggle {
   color: var(--mm-ink-900-11);
   text-align: left;
   white-space: nowrap;
+  position: relative;
+}
+
+/* Contador de notas vencidas no item Revisar. Expandido fica no fim da
+ * linha; recolhido vira um selo no canto do icone. */
+.workspace-shell .rail-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger, var(--mm-brick-850-4));
+  color: var(--mm-clay-50);
+  font-size: var(--font-size-micro);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.workspace-shell.is-sidebar-collapsed .rail-badge {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  min-width: 14px;
+  height: 14px;
+  margin: 0;
+  padding: 0 3px;
 }
 
 .workspace-shell .rail-button > svg {

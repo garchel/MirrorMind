@@ -107,6 +107,7 @@ export function WorkspaceRail({
   openGraphPage,
   openTrashPage,
   accountClient,
+  dueReviewCount,
 }: {
   isSidebarExpanded: boolean
   setSidebarExpanded: Dispatch<SetStateAction<boolean>>
@@ -117,7 +118,12 @@ export function WorkspaceRail({
   openTrashPage: () => void
   /** Cliente de conta (null = sem cobranca/backend; menu so com Configuracoes). */
   accountClient: SessionClient | null
+  /** Notas vencidas na fila; null = ainda nao medido. */
+  dueReviewCount: number | null
 }) {
+  const dueReviewLabel = dueReviewCount !== null && dueReviewCount > 0
+    ? `${dueReviewCount} ${dueReviewCount === 1 ? 'nota vencida' : 'notas vencidas'}`
+    : null
   return (
     <aside className="workspace-rail" aria-label="Ferramentas do workspace" data-builder-name="workspace-rail">
       <TitleBarBrand />
@@ -146,11 +152,16 @@ export function WorkspaceRail({
         type="button"
         className={`rail-button${workspacePage === 'review' ? ' is-active' : ''}`}
         onClick={() => setWorkspacePage('review')}
-        aria-label="Abrir fila de revisão"
-        title="Revisar"
+        aria-label={dueReviewLabel ? `Abrir fila de revisão (${dueReviewLabel})` : 'Abrir fila de revisão'}
+        title={dueReviewLabel ? `Revisar — ${dueReviewLabel}` : 'Revisar'}
       >
         <BookOpenCheck size={17} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Revisar</span>
+        {dueReviewCount !== null && dueReviewCount > 0 ? (
+          <span className="rail-badge" aria-hidden="true">
+            {dueReviewCount > 99 ? '99+' : dueReviewCount}
+          </span>
+        ) : null}
       </Button>
       <Button
         type="button"

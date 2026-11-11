@@ -30,6 +30,7 @@ import { useReviewAiSettings } from './features/review/ReviewAiSettingsContext'
 import { getNoteReviewGaps, type NoteReviewGap } from './features/review/noteReviewGaps'
 import { getNoteReviewUnits, type NoteReviewUnit } from './features/review/noteReviewUnits'
 import { getDueReviewQueue, type DueReviewItem } from './features/review/reviewQueue'
+import { useDueReviewCount } from './features/review/useDueReviewCount'
 import { checkReviewNotifications, type ReviewNotificationCheck } from './features/review/reviewNotifications'
 import { localDayStartUnixMs } from './features/review/reviewDashboard'
 import { nudgeCursor } from './lib/nudgeCursor'
@@ -479,6 +480,10 @@ function App() {
     }
   }, [])
   const [activeReviewItem, setActiveReviewItem] = useState<DueReviewItem | null>(null)
+  // Contador da badge do trilho. O token sobe quando uma sessao termina/sai
+  // para a fila ser medida de novo.
+  const [reviewBadgeRefresh, setReviewBadgeRefresh] = useState(0)
+  const dueReviewCount = useDueReviewCount(vault?.path ?? null, reviewBadgeRefresh)
   const [reviewMenuOpen, setReviewMenuOpen] = useState(false)
   // Quando o relatorio de prontidao esta aberto, ele substitui TODO o conteudo
   // do popover (cabecalho e politica inclusos); o botao de voltar o fecha.
@@ -5461,6 +5466,7 @@ function App() {
           openGraphPage={openGraphPage}
           openTrashPage={openTrashPage}
           accountClient={isBillingEnabled() ? disabledSessionClient : null}
+          dueReviewCount={dueReviewCount}
         />
         <WorkspaceTopbar
           vault={vault}
@@ -5650,8 +5656,11 @@ function App() {
                     <ReviewSessionPage
                       vaultPath={vault.path}
                       item={activeReviewItem}
-                      onExit={() => setActiveReviewItem(null)}
-                      onCompleted={() => undefined}
+                      onExit={() => {
+                        setActiveReviewItem(null)
+                        setReviewBadgeRefresh((token) => token + 1)
+                      }}
+                      onCompleted={() => setReviewBadgeRefresh((token) => token + 1)}
                     />
                   ) : (
                     <ReviewQueuePage
