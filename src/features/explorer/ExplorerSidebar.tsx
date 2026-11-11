@@ -169,18 +169,8 @@ export function ExplorerSidebar({
         </ul>
         {vault.obsidianPreferences?.ignoredPreferenceFields.length ||
         vault.obsidianIgnoredConfigFiles.length ? (
-          <p className="obsidian-config-note" title="Apenas os nomes sao informados; nenhum conteudo de plugin e exposto.">
-            Config Obsidian:{' '}
-            {vault.obsidianPreferences?.ignoredPreferenceFields.length
-              ? ` ${vault.obsidianPreferences.ignoredPreferenceFields.length} campo(s) ignorado(s) em app.json`
-              : ''}
-            {vault.obsidianPreferences?.ignoredPreferenceFields.length &&
-            vault.obsidianIgnoredConfigFiles.length
-              ? ' ·'
-              : ''}
-            {vault.obsidianIgnoredConfigFiles.length
-              ? ` ${vault.obsidianIgnoredConfigFiles.length} config(s) nao aplicada(s)`
-              : ''}
+          <p className="obsidian-config-note" title="Nenhum conteúdo dos arquivos de configuração é exposto.">
+            Alguns ajustes do vault não puderam ser importados.
           </p>
         ) : null}
       </div>

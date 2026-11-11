@@ -457,7 +457,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
       const preview = await previewTagManagementChange(vaultPath, change)
       setPendingDelete({
         title: `Excluir #${selected.tag}`,
-        description: 'A configuração da tag será excluída. Escolha se ela também deve ser removida do Markdown das notas.',
+        description: 'A configuração da tag será excluída. Escolha se ela também deve ser removida do texto das notas.',
         change,
         preview,
         tagRules: config.tagRules.filter((rule) => rule.tag !== selected.tag),
@@ -889,7 +889,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   change: { ...pendingDelete.change, removeFromNotes: event.target.checked },
                 })}
               />
-              <span><strong>Remover também das notas</strong><small>{pendingDelete.change.removeFromNotes ? 'O Markdown das notas abaixo será alterado.' : 'A tag continuará no Markdown como uma tag sem ritmo.'}</small></span>
+              <span><strong>Remover também das notas</strong><small>{pendingDelete.change.removeFromNotes ? 'O texto das notas abaixo será alterado.' : 'A tag continuará nas notas como uma tag sem ritmo.'}</small></span>
             </label>
             <div className="tag-impact-notes">
               {pendingDelete.preview.affectedNotePaths.length > 0 ? (

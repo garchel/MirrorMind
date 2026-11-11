@@ -306,7 +306,7 @@ export function EditorContent({
     {editorMode === 'edit' ? (
       <MarkdownCodeEditor
         ref={markdownCodeEditorRef}
-        ariaLabel={`Editor Markdown da nota ${activeNoteName}`}
+        ariaLabel={`Editor de texto da nota ${activeNoteName}`}
         documentKey={activeNotePath}
         historyLimit={historyLimit}
         spellCheck={isSpellCheckEnabled}
@@ -372,7 +372,7 @@ export function EditorContent({
       <section ref={editorPanelRef} className={`markdown-mixed${reviewGapData ? ' has-gap-marks' : ''}${reviewGapMode === 'hover' ? ' is-gap-hover-only' : ''}`}>
         <MarkdownCodeEditor
           ref={markdownCodeEditorRef}
-          ariaLabel={`Editor Markdown (Misto) da nota ${activeNoteName}`}
+          ariaLabel={`Editor de texto (Misto) da nota ${activeNoteName}`}
           documentKey={`${activeNotePath}::misto::gfm`}
           livePreview
           historyLimit={historyLimit}
@@ -449,7 +449,7 @@ export function EditorContent({
         ref={markdownToolsRef}
         className={`floating-markdown-toolbar is-${markdownToolsOrientation}`}
         role="toolbar"
-        aria-label="Ferramentas de Markdown"
+        aria-label="Ferramentas de formatação"
         style={{ right: markdownToolsPosition.x, top: markdownToolsPosition.y }}
       >
         <Button type="button" className="ui-button markdown-tools-drag-handle" onPointerDown={startMarkdownToolsDrag} title="Arrastar ferramentas" aria-label="Arrastar ferramentas">

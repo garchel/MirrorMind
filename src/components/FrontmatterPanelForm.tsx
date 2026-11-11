@@ -123,8 +123,8 @@ export function FrontmatterPanelForm({ backlinks, brokenLinks, compatibilityNote
                   className="frontmatter-panel-value"
                   value={row.value}
                   onChange={(event) => updateRow(index, { value: event.target.value })}
-                  placeholder="texto, número, [lista] ou chave: valor"
-                  aria-label={`Valor YAML da propriedade ${index + 1}`}
+                  placeholder="texto, número ou lista"
+                  aria-label={`Valor da propriedade ${index + 1}`}
                   spellCheck={false}
                   rows={Math.max(1, row.value.split(/\r?\n/).length)}
                 />
@@ -145,7 +145,7 @@ export function FrontmatterPanelForm({ backlinks, brokenLinks, compatibilityNote
       </section>
 
       {backlinks.length > 0 ? (
-        <section className="frontmatter-panel-section frontmatter-panel-backlinks" aria-label="Backlinks">
+        <section className="frontmatter-panel-section frontmatter-panel-backlinks" aria-label="Notas que referenciam esta nota">
           <Button
             type="button"
             className="ui-button frontmatter-panel-section-toggle"

@@ -59,13 +59,13 @@ function parseFrontmatterDocument(input: string) {
     parsed = document.toJS()
   } catch (error) {
     return {
-      error: errorMessage(error, 'Frontmatter YAML invalido.'),
+      error: errorMessage(error, 'Propriedades da nota inválidas.'),
       properties: null,
     }
   }
   if (parsed === null) return { error: null, properties: {} }
   if (typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return { error: 'O frontmatter deve conter propriedades YAML no formato chave: valor.', properties: null }
+    return { error: 'As propriedades da nota devem usar o formato chave: valor.', properties: null }
   }
 
   return { error: null, properties: parsed as FrontmatterProperties }
@@ -111,7 +111,7 @@ function parseFrontmatterPropertyValue(input: string) {
     uniqueKeys: true,
   })
   if (document.errors.length > 0 || !isMap(document.contents)) {
-    return { error: document.errors[0]?.message ?? 'Valor YAML invalido.', pair: null }
+    return { error: document.errors[0]?.message ?? 'Valor da propriedade inválido.', pair: null }
   }
 
   return { error: null, pair: document.contents.items[0] as Pair<Node, Node> }
@@ -124,7 +124,7 @@ function findFrontmatterPair(source: string, key: string) {
     uniqueKeys: true,
   })
   if (document.errors.length > 0 || !isMap(document.contents)) {
-    return { document, error: document.errors[0]?.message ?? 'O frontmatter deve ser um objeto YAML.', pair: null }
+    return { document, error: document.errors[0]?.message ?? 'As propriedades da nota devem formar uma lista de chaves e valores.', pair: null }
   }
 
   const pair = document.contents.items.find((item) => (
@@ -174,7 +174,7 @@ function validateFrontmatterSource(source: string) {
     document.toJS()
     return null
   } catch (error) {
-    return errorMessage(error, 'Frontmatter YAML invalido.')
+    return errorMessage(error, 'Propriedades da nota inválidas.')
   }
 }
 
@@ -194,7 +194,7 @@ export function setMarkdownFrontmatterPropertySource(
 
   const parsedValue = parseFrontmatterPropertyValue(valueSource)
   if (parsedValue.error || !parsedValue.pair || !isNode(parsedValue.pair.value)) {
-    return { content, error: parsedValue.error ?? 'Valor YAML invalido.' }
+    return { content, error: parsedValue.error ?? 'Valor da propriedade inválido.' }
   }
 
   const match = frontmatterMatch(content)

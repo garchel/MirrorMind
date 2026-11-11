@@ -537,7 +537,7 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.getByText('Aplicado no rascunho')).toBeInTheDocument()
 
     await user.click(screen.getByRole('radio', { name: 'Edição' }))
-    expect(screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })).toHaveTextContent('## Introducao')
+    expect(screen.getByRole('textbox', { name: 'Editor de texto da nota inicial' })).toHaveTextContent('## Introducao')
   })
 
   it('[dicionário] busca o conceito em segundo plano e só abre o modal pelo aviso', async () => {
@@ -1005,7 +1005,7 @@ describe('Regressao do editor no workspace', () => {
 
     await user.click(screen.getByRole('button', { name: 'Abrir nota inicial' }))
     await user.click(screen.getByRole('radio', { name: 'Edição' }))
-    await user.click(screen.getByRole('button', { name: 'Ferramentas de Markdown' }))
+    await user.click(screen.getByRole('button', { name: 'Ferramentas de formatação' }))
     await user.click(await screen.findByTitle('Inserir tag'))
     const dialog = await screen.findByRole('dialog', { name: 'Inserir tag' })
     await user.type(within(dialog).getByRole('textbox', { name: 'Nome da tag' }), 'Estudo/Português')
@@ -1923,7 +1923,7 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
 
     await user.click(screen.getByRole('radio', { name: 'Edição' }))
-    const editor = screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })
+    const editor = screen.getByRole('textbox', { name: 'Editor de texto da nota inicial' })
     await user.click(editor)
     await user.keyboard('{Control>}{End}{/Control}')
     await user.paste(' Resumo-atualizado')
@@ -1952,7 +1952,7 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
     await user.click(screen.getByRole('radio', { name: 'Edição' }))
 
-    const editor = screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })
+    const editor = screen.getByRole('textbox', { name: 'Editor de texto da nota inicial' })
     await user.click(editor)
     await user.keyboard('{Control>}{End}{/Control}')
     await user.paste(`\n\n${marker}`)
@@ -1974,7 +1974,7 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
     await user.click(screen.getByRole('radio', { name: 'Edição' }))
 
-    expect(screen.getByRole('textbox', { name: 'Editor Markdown da nota inicial' })).toHaveTextContent(marker)
+    expect(screen.getByRole('textbox', { name: 'Editor de texto da nota inicial' })).toHaveTextContent(marker)
     expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'inicial.md' }))
   })
 
@@ -1999,7 +1999,7 @@ describe('Regressao do editor no workspace', () => {
     const keyInputs = screen.getAllByLabelText(/Nome da propriedade/)
     await user.clear(keyInputs[keyInputs.length - 1]!)
     await user.type(keyInputs[keyInputs.length - 1]!, 'review')
-    const valueInputs = screen.getAllByLabelText(/Valor YAML/)
+    const valueInputs = screen.getAllByLabelText(/Valor da propriedade/)
     await user.type(valueInputs[valueInputs.length - 1]!, 'interval: 7{enter}repetitions: 3')
 
     await waitFor(() => {

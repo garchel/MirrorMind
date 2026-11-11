@@ -69,7 +69,7 @@ describe('generic frontmatter properties', () => {
 
   it('rejects invalid YAML and non-object frontmatter', () => {
     expect(parseFrontmatterPropertiesInput('source: livro\nsource: artigo').error).toBeTruthy()
-    expect(parseFrontmatterPropertiesInput('- estudo\n- portugues').error).toContain('deve conter propriedades')
+    expect(parseFrontmatterPropertiesInput('- estudo\n- portugues').error).toContain('formato chave: valor')
     expect(parseFrontmatterPropertiesInput('review: *missing').error).toContain('Unresolved alias')
   })
 

@@ -64,10 +64,10 @@ export function VaultSelection({
       </aside>
       <section className="hero-panel">
         <p className="eyebrow">Bem-vindo ao MirrorMind</p>
-        <h1>Vault local, notas em Markdown e base pronta para revisar conhecimento.</h1>
+        <h1>Notas locais e uma base pronta para revisar conhecimento.</h1>
         <p className="hero-copy">
-          Suas notas são Markdown local — nada vai para servidores.
-          Abra um vault (Obsidian incluso) ou crie um.
+          Suas notas ficam no computador — nada vai para servidores.
+          Abra uma pasta de notas ou crie uma.
         </p>
         <div className="status-strip" role="status">
           <span className={`status-dot${loading ? ' is-busy' : ''}`}></span>
@@ -82,8 +82,8 @@ export function VaultSelection({
             <h2>Abrir vault existente</h2>
           </div>
           <p>
-            Selecione uma pasta já existente no computador. O app vai reconhecer notas
-            <code>.md</code> e detectar se o vault já veio do Obsidian.
+            Selecione uma pasta já existente no computador. O app vai reconhecer as notas
+            <code>.md</code> e a estrutura da pasta automaticamente.
           </p>
           <Button variant="primary" size="md" onClick={chooseExistingVault} disabled={loading}>
             Escolher pasta

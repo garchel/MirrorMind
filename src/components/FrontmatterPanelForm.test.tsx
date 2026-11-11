@@ -27,13 +27,13 @@ describe('FrontmatterPanelForm (painel integrado de propriedades)', () => {
     expect(screen.getByText('Propriedades')).toBeInTheDocument()
     // A linha do titulo como campos estruturados (sem `---`).
     expect(screen.getByLabelText('Nome da propriedade 1')).toHaveValue('title')
-    expect(screen.getByLabelText('Valor YAML da propriedade 1')).toHaveValue('Fotossíntese')
+    expect(screen.getByLabelText('Valor da propriedade 1')).toHaveValue('Fotossíntese')
     expect(screen.queryByText('---')).toBeNull()
   })
 
   it('aplica ao vivo (sem botao Aplicar) as mudancas nas linhas', async () => {
     const { onApply } = renderPanel()
-    fireEvent.change(screen.getByLabelText('Valor YAML da propriedade 1'), { target: { value: 'Novo título' } })
+    fireEvent.change(screen.getByLabelText('Valor da propriedade 1'), { target: { value: 'Novo título' } })
     // Debounce de 400ms: a gravacao acontece sozinha, sem botao Aplicar.
     await waitFor(() => expect(onApply).toHaveBeenCalled(), { timeout: 2_000 })
     expect(onApply.mock.calls.at(-1)?.[0]).toEqual([{ key: 'title', value: 'Novo título' }])

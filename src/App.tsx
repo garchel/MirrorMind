@@ -252,7 +252,7 @@ const GoalsPage = lazy(() => import('./features/goals/GoalsPage').then((module) 
  * mesma: o texto original fica intacto, so a exibicao simplifica. */
 const COMPATIBILITY_NOTES: Record<string, string> = {
   html: 'Partes em HTML aparecem simplificadas na leitura, mas o texto original continua intacto no arquivo.',
-  'obsidian-comment': 'Comentários %% do Obsidian ficam ocultos na leitura; continuam salvos no arquivo.',
+  'obsidian-comment': 'Comentários com %% ficam ocultos na leitura; continuam salvos no arquivo.',
   'plugin-block': 'Blocos de plugins (como dataview) mostram o código em vez do resultado — nada é executado nem alterado.',
   'plugin-inline': 'Comandos de plugins no meio do texto aparecem como texto comum — nada é executado.',
 }
@@ -6152,11 +6152,11 @@ function App() {
               <Field size="md" autoFocus value={renameName} onChange={(event) => setRenameName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void renameVaultItem() }} placeholder="Novo nome" aria-label="Novo nome" />
               {wikilinkIndexProgress ? (
                 <p className="wikilink-index-progress" role="status">
-                  Indexando wikilinks... ({wikilinkIndexProgress.processed} de {wikilinkIndexProgress.total} notas)
+                  Indexando links... ({wikilinkIndexProgress.processed} de {wikilinkIndexProgress.total} notas)
                   {!wikilinkIndexCancelled ? (
                     <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</Button>
                   ) : (
-                    <span className="wikilink-index-cancelled">Indexacao cancelada; usando varredura completa.</span>
+                    <span className="wikilink-index-cancelled">Indexação cancelada; usando leitura completa.</span>
                   )}
                 </p>
               ) : null}
@@ -6188,11 +6188,11 @@ function App() {
               </div>
               {wikilinkIndexProgress ? (
                 <p className="wikilink-index-progress" role="status">
-                  Indexando wikilinks... ({wikilinkIndexProgress.processed} de {wikilinkIndexProgress.total} notas)
+                  Indexando links... ({wikilinkIndexProgress.processed} de {wikilinkIndexProgress.total} notas)
                   {!wikilinkIndexCancelled ? (
                     <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</Button>
                   ) : (
-                    <span className="wikilink-index-cancelled">Indexacao cancelada; usando varredura completa.</span>
+                    <span className="wikilink-index-cancelled">Indexação cancelada; usando leitura completa.</span>
                   )}
                 </p>
               ) : null}

@@ -34,7 +34,7 @@ export function SpecialFileViewer({ file, content, onClose }: Props) {
       >
         <div className="move-item-heading">
           <strong>{KIND_LABELS[file.kind]}: {file.name}</strong>
-          <span>Visualização somente leitura — o arquivo não é alterado e o código de plugin nunca é executado.</span>
+          <span>Visualização somente leitura — o arquivo não é alterado.</span>
           <Button autoFocus type="button" className="ui-button modal-close-button" onClick={onClose} aria-label="Fechar visualização do arquivo especial"><span aria-hidden="true">×</span></Button>
         </div>
         {summary === null ? (
@@ -43,7 +43,7 @@ export function SpecialFileViewer({ file, content, onClose }: Props) {
           <>
             <p className="special-file-viewer-note" role="status">
               <AlertTriangle size={13} strokeWidth={1.75} aria-hidden="true" />
-              O JSON não pode ser interpretado; exibindo o conteudo cru preservado.
+              Não foi possível interpretar este arquivo; exibindo o conteúdo original.
             </p>
             <pre className="special-file-viewer-raw"><code>{summary.raw}</code></pre>
           </>
@@ -52,7 +52,7 @@ export function SpecialFileViewer({ file, content, onClose }: Props) {
             <div className="special-file-viewer-metrics" role="list" aria-label="Resumo do arquivo">
               <div className="special-file-viewer-metric" role="listitem">
                 <Shapes size={15} strokeWidth={1.75} aria-hidden="true" />
-                <span>{summary.itemCount} {summary.kind === 'canvas' ? 'nos' : 'elementos'}</span>
+                <span>{summary.itemCount} {summary.kind === 'canvas' ? 'nós' : 'elementos'}</span>
               </div>
               {summary.types.map((entry) => (
                 <span key={entry.type} className="special-file-viewer-type">
@@ -61,7 +61,7 @@ export function SpecialFileViewer({ file, content, onClose }: Props) {
               ))}
             </div>
             {summary.canvasNodes.length > 0 ? (
-              <ul className="special-file-viewer-nodes" aria-label="Nós de texto do Canvas">
+              <ul className="special-file-viewer-nodes" aria-label="Textos do arquivo">
                 {summary.canvasNodes.map((node) => (
                   <li key={node.id}>
                     <span className="special-file-viewer-node-type">{node.type}</span>
@@ -72,7 +72,7 @@ export function SpecialFileViewer({ file, content, onClose }: Props) {
             ) : null}
             <p className="special-file-viewer-files-note">
               <FileJson2 size={13} strokeWidth={1.75} aria-hidden="true" />
-              Para editar, abra o arquivo no Obsidian: o MirrorMind preserva o `.canvas`/`.excalidraw` sem alterações.
+              Para editar, abra o arquivo em um aplicativo compatível. O MirrorMind preserva o arquivo original sem alterações.
             </p>
           </>
         )}

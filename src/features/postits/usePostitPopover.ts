@@ -318,7 +318,7 @@ export function usePostitPopover(deps: UsePostitPopoverDeps) {
     if (bodyFrom < 0 || bodyTo > noteBody.length) {
       // `reportError` (banner com role=alert) em vez de status: o status so
       // aparece na tela de vault, nao no workspace.
-      reportError('Post-it: selecione um trecho do texto da nota (fora do frontmatter).')
+      reportError('Post-it: selecione um trecho do texto da nota (fora das propriedades).')
       return { kind: 'blocked' }
     }
     const selectedText = noteBody.slice(bodyFrom, bodyTo)

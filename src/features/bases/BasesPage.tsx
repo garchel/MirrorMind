@@ -182,8 +182,8 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
         title="Tabela de notas"
         description={(
           <>
-            Todas as notas do vault em uma tabela, com as propriedades do frontmatter como colunas
-            (como as Bases do Obsidian). Use o botão Colunas para escolher quais propriedades exibir.
+            Todas as notas do vault em uma tabela, com as propriedades de cada nota como colunas.
+            Use o botão Colunas para escolher quais propriedades exibir.
             {rows !== null ? ` ${rows.length} ${rows.length === 1 ? 'nota' : 'notas'}.` : ''}
           </>
         )}

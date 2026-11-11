@@ -409,7 +409,7 @@ export function NoteReadinessControl({
             <div className="review-ai-report-body">
               <p id="review-discard-description">
                 Arquivo ilegível. Descartar remove os dados corrompidos e zera
-                pontuações, memória e agendamento — o Markdown fica intacto.
+                pontuações, memória e agendamento — o texto da nota fica intacto.
               </p>
               <p className="review-reset-hint">
                 Recomendado: “Exportar arquivo” antes de descartar, para preservar o conteúdo original.

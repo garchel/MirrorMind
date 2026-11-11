@@ -751,7 +751,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
         <div className="review-setup">
           <p className="review-session-kicker">Preparar sessão</p>
           <h2 id="review-setup-title">{item.title}</h2>
-          <p>O conteúdo da nota ficará oculto. A avaliação usará somente o Markdown salvo como fonte.</p>
+          <p>O conteúdo da nota ficará oculto. A avaliação usará somente o texto salvo como fonte.</p>
           <fieldset><legend>Como você quer revisar?</legend>
             <label className={mode === 'exam' ? 'is-selected' : ''}><input type="radio" name="mode" checked={mode === 'exam'} onChange={() => setMode('exam')} /><strong>Modo prova</strong><span>Perguntas independentes e correção ao final.</span></label>
             <label className={mode === 'conversation' ? 'is-selected' : ''}><input type="radio" name="mode" checked={mode === 'conversation'} onChange={() => setMode('conversation')} /><strong>Modo conversa</strong><span>A IA explora seu entendimento progressivamente.</span></label>

@@ -319,7 +319,7 @@ const findHighlighter = StateField.define<DecorationSet>({
 })
 
 function MarkdownCodeEditorComponent(
-  { ariaLabel = 'Editor Markdown', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, dictionaryEntries = null, documentKey, getEmbedContent, historyLimit = 100, lineWrap = true, livePreview = false, onBlur, onChange, onDictionaryHover, onDictionaryHoverRect, onHistoryChange, onOpenLink, onPostitClick, onPostitPeek, onSearchRequest, onSessionChange, readOnly = false, resolveAssetUrl, reviewGapData, postitData, session, spellCheck = true, stateCache, value, vaultPath }: MarkdownCodeEditorProps,
+  { ariaLabel = 'Editor de texto', autoFocus = false, autocompleteData = { attachments: [], notePaths: [], tags: [] }, dictionaryEntries = null, documentKey, getEmbedContent, historyLimit = 100, lineWrap = true, livePreview = false, onBlur, onChange, onDictionaryHover, onDictionaryHoverRect, onHistoryChange, onOpenLink, onPostitClick, onPostitPeek, onSearchRequest, onSessionChange, readOnly = false, resolveAssetUrl, reviewGapData, postitData, session, spellCheck = true, stateCache, value, vaultPath }: MarkdownCodeEditorProps,
   ref: ForwardedRef<MarkdownCodeEditorHandle>,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null)

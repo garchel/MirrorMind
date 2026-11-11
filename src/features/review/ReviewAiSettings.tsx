@@ -198,8 +198,8 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
       {provider === 'gemini' ? (
         <div className="review-ai-provider-panel">
           <p>
-            O Gemini recebe apenas o Markdown da nota selecionada e os dados necessarios da sessão atual.
-            O restante do Vault permanece local.
+            O Gemini recebe apenas o texto da nota selecionada e os dados necessários da sessão atual.
+            O restante da pasta permanece local.
           </p>
           <label className="review-ai-consent">
             <input

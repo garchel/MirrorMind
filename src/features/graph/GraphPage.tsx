@@ -638,7 +638,7 @@ export function GraphPage({
                         <PanelLeft size={14} strokeWidth={1.75} aria-hidden="true" /> Revelar no explorador
                       </Button>
                       <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void copyGraphWikiLink(focusedGraphDocument.relativePath)}>
-                        <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Copiar wikilink
+                        <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Copiar link da nota
                       </Button>
                       <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setGraphDetailOpen(false); setGraphMode('local') }}>
                         <Network size={14} strokeWidth={1.75} aria-hidden="true" /> Grafo local

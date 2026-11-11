@@ -50,7 +50,7 @@ export function ObsidianPluginBlock({ language, source }: Props) {
             ))}
           </ul>
         ) : (
-          <p className="obsidian-plugin-block-note">Nenhuma tarefa `- [ ]` encontrada no bloco.</p>
+          <p className="obsidian-plugin-block-note">Nenhuma tarefa encontrada no bloco.</p>
         )
       ) : null}
       <pre className="obsidian-plugin-block-source"><code>{block.source}</code></pre>

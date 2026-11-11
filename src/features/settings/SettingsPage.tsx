@@ -180,7 +180,7 @@ export function SettingsPage({
             <div className="settings-toggle">
               <span>
                 <strong>Tema</strong>
-                <small>Escuro aplica contraste noturno em toda a interface. Seguir Obsidian importa o tema do `appearance.json` sem sobrescrever o `.obsidian`.</small>
+                <small>Escuro aplica contraste noturno em toda a interface. A opção do vault usa o tema definido na pasta de notas, sem alterar os arquivos originais.</small>
               </span>
               <div className="settings-segmented" role="radiogroup" aria-label="Tema da interface">
                 {THEME_MODES.map((option) => (
@@ -256,10 +256,10 @@ export function SettingsPage({
             {obsidianAppearance?.baseFontSize ? (
               <label className="settings-toggle">
                 <span>
-                  <strong>Tamanho do Obsidian</strong>
-                  <small>O Vault declara baseFontSize de {Math.round(obsidianAppearance.baseFontSize)}px. Aplica sem alterar o `.obsidian`.</small>
+                  <strong>Tamanho definido no vault</strong>
+                  <small>O vault define {Math.round(obsidianAppearance.baseFontSize)}px para o texto. Você pode aplicar esse valor sem alterar os arquivos originais.</small>
                 </span>
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setEditorFontSize(clampFontSize(obsidianAppearance?.baseFontSize ?? DEFAULT_FONT_SIZE))}>Usar tamanho do Obsidian</Button>
+                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setEditorFontSize(clampFontSize(obsidianAppearance?.baseFontSize ?? DEFAULT_FONT_SIZE))}>Usar tamanho do vault</Button>
               </label>
             ) : null}
             <label className="settings-toggle">
@@ -280,16 +280,16 @@ export function SettingsPage({
             </label>
             {obsidianAppearance?.ignoredAppearanceFields.length ? (
               <p className="settings-note" role="status">
-                {obsidianAppearance.ignoredAppearanceFields.length} campo(s) de `appearance.json` com tipo invalido foram ignorados sem descartar os demais.
+                {obsidianAppearance.ignoredAppearanceFields.length} ajuste(s) de aparência do vault tinham formato inválido e foram ignorados; os demais foram mantidos.
               </p>
             ) : null}
           </div>
           <div className="settings-section" id="settings-workspace" aria-labelledby="workspace-preferences-title">
-            <p className="card-kicker" id="workspace-preferences-title">Workspace</p>
+            <p className="card-kicker" id="workspace-preferences-title">Área de trabalho</p>
             <label className="settings-toggle">
               <span>
-                <strong>Auto Save</strong>
-              <small>Salva após uma breve pausa na digitação, sem interromper a edição.</small>
+                <strong>Salvamento automático</strong>
+                <small>Salva após uma breve pausa na digitação, sem interromper a edição.</small>
             </span>
             <input
               type="checkbox"
@@ -581,7 +581,7 @@ export function SettingsPage({
           </div>
           <div className="settings-section" id="settings-grafo2d" aria-labelledby="graph2d-preferences-title">
             <p className="card-kicker" id="graph2d-preferences-title">Grafo 2D</p>
-            <p className="settings-section-description">Forças da simulação do grafo 2D, no modelo do Obsidian: repulsão 1/distância² entre nós, molas das arestas (rigidez e descanso), amortecimento da velocidade e atração ao anel central.</p>
+            <p className="settings-section-description">Forças da simulação do grafo 2D: repulsão entre os nós, molas das arestas (rigidez e descanso), amortecimento da velocidade e atração ao anel central.</p>
             <label className="settings-toggle">
               <span>
                 <strong>Repulsão</strong>
@@ -658,7 +658,7 @@ export function SettingsPage({
             <label className="settings-toggle">
               <span>
                 <strong>Lacunas da última revisão no editor</strong>
-                <small>Como destacar os trechos esquecidos ou confundidos na nota, usando o resultado mais recente. O Markdown nunca é modificado.</small>
+                <small>Como destacar os trechos esquecidos ou confundidos na nota, usando o resultado mais recente. O texto da nota nunca é modificado.</small>
               </span>
               <Field as="select"
                 className="settings-select"
@@ -721,13 +721,13 @@ export function SettingsPage({
             <div className="settings-toggle" style={{ marginTop: 12 }}>
               <span>
                 <strong>Privacidade — Apagar dados locais</strong>
-                <small>Remove recent-vault.json, chaves do cofre (Gemini/OpenAI) e preferências locais (LGPD Art.18 VI). Vaults e notas NÃO são apagados.</small>
+                <small>Remove o histórico de pastas recentes, as chaves de acesso dos provedores de IA e as preferências locais. Suas notas e pastas não são apagadas.</small>
               </span>
               <Button
                 type="button"
                 className="ui-button ui-button--secondary ui-button--sm"
                 onClick={async () => {
-                  if (!confirm('Apagar dados locais do MirrorMind? Isso limpa recent-vault.json, chaves do cofre e localStorage (preferências). Vaults e notas serão preservados.')) return
+                  if (!confirm('Apagar dados locais do MirrorMind? Isso limpa o histórico de pastas recentes, as chaves de acesso e as preferências. Suas notas e pastas serão preservadas.')) return
                   try {
                     await invoke('clear_local_app_data')
                     localStorage.clear()

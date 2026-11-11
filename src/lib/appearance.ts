@@ -11,7 +11,7 @@ export type EditorFontFamily = 'sans' | 'serif' | 'mono'
 export const THEME_MODES: ReadonlyArray<{ value: ThemeMode; label: string }> = [
   { value: 'light', label: 'Claro' },
   { value: 'dark', label: 'Escuro' },
-  { value: 'follow-obsidian', label: 'Seguir Obsidian' },
+  { value: 'follow-obsidian', label: 'Tema do vault' },
 ]
 
 export const FONT_FAMILIES: ReadonlyArray<{ value: EditorFontFamily; label: string }> = [

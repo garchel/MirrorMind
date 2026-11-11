@@ -117,7 +117,7 @@ describe('TagManagementPage', () => {
     const removeFromNotes = screen.getByLabelText(/Remover também das notas/i)
     expect(removeFromNotes).not.toBeChecked()
     await user.click(removeFromNotes)
-    expect(screen.getByText(/O Markdown das notas abaixo será alterado/i)).toBeInTheDocument()
+    expect(screen.getByText(/O texto das notas abaixo será alterado/i)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Excluir tag' }))
 
     await waitFor(() => expect(applyMock).toHaveBeenCalledWith(expect.objectContaining({

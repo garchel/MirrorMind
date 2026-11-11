@@ -2715,7 +2715,7 @@ export function frontmatterSummary(frontmatterText: string): string {
   if (title) parts.push(title)
   if (tagCount > 0) parts.push(`${tagCount} ${tagCount === 1 ? 'tag' : 'tags'}`)
   if (parts.length === 0) parts.push(`${Math.max(1, propertyCount)} ${propertyCount === 1 ? 'propriedade' : 'propriedades'}`)
-  return `YAML · ${parts.join(' · ')}`
+  return `Propriedades · ${parts.join(' · ')}`
 }
 
 /** Espaco invisivel que substitui o bloco YAML no documento (zero altura):

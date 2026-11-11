@@ -217,7 +217,7 @@ export function EditorHeader({
         </div>
         {isAutoSaveEnabled && !isNewNoteDraft ? (
           <span className={`autosave-indicator is-${autoSaveState}`} aria-live="polite">
-            {autoSaveState === 'pending' ? 'Alterações pendentes' : autoSaveState === 'saving' ? 'Salvando...' : autoSaveState === 'saved' ? 'Salvo' : 'Auto Save'}
+            {autoSaveState === 'pending' ? 'Alterações pendentes' : autoSaveState === 'saving' ? 'Salvando...' : autoSaveState === 'saved' ? 'Salvo' : 'Salvamento automático'}
           </span>
         ) : null}
         {!hiddenActions.includes('favorite') ? renderHeaderAction('favorite') : null}
@@ -261,7 +261,7 @@ export function EditorHeader({
             className={`editor-mode-button${editorMode === 'edit' ? ' is-active' : ''}`}
             onClick={() => changeEditorMode('edit')}
             aria-checked={editorMode === 'edit'}
-            title="Edição: mostra o Markdown puro"
+            title="Edição: mostra o texto com os marcadores de formatação"
           >Edição</Button>
           <Button
             type="button"
@@ -339,8 +339,8 @@ export function EditorHeader({
             variant="bare"
             className={`ui-button markdown-tools-toggle${isMarkdownToolsOpen ? ' is-active' : ''}`}
             onClick={() => setMarkdownToolsOpen((isOpen) => !isOpen)}
-            title="Ferramentas de Markdown"
-            aria-label="Ferramentas de Markdown"
+            title="Ferramentas de formatação"
+            aria-label="Ferramentas de formatação"
             aria-expanded={isMarkdownToolsOpen}
           >
             <TextCursorInput size={15} strokeWidth={1.5} aria-hidden="true" />

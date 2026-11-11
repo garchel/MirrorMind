@@ -338,10 +338,10 @@ export function buildVaultPathPreview(parentPath: string, name: string) {
 
 export function getVaultModeLabel(vault: VaultSummary) {
   if (vault.isObsidianVault) {
-    return 'Vault Obsidian suportado'
+    return 'Pasta de notas compatível'
   }
 
-  return 'Vault Markdown local'
+  return 'Pasta de notas local'
 }
 
 export function parseVaultSummary(payload: unknown) {

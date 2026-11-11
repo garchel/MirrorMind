@@ -199,7 +199,7 @@ https://exemplo.test/#fragmento`
           missing: [],
         },
       }),
-    ).toBe('Vault Obsidian suportado')
+    ).toBe('Pasta de notas compatível')
   })
 
   it('validates vault payloads at runtime', () => {
