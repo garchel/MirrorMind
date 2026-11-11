@@ -189,8 +189,11 @@
 
 .workspace-shell .note-review-trigger-sparkle {
   position: absolute;
-  top: -5px;
-  right: -5px;
+  top: -4px;
+  right: -4px;
+  /* A estrela fica inteira dentro do botao (padding de 8px) e nao captura
+   * clique, que pertence ao gatilho. */
+  pointer-events: none;
   color: var(--accent);
 }
 
@@ -482,6 +485,11 @@
 .ui-popover-content.note-review-menu .note-review-policy-trigger {
   border: 1px solid var(--mm-gold-300-2);
   background: var(--mm-clay-150-3);
+  /* O menu e portalado para fora do .workspace-shell: sem a cor da base do
+   * workspace, o botao herda o creme de `button` e o texto some no tema
+   * claro. A superficie do menu e clara nos dois temas, entao a tinta
+   * escura vale sempre. */
+  color: var(--mm-ink-900-23);
 }
 
 .ui-popover-content.note-review-menu .note-readiness-report-trigger:not(:disabled):hover,

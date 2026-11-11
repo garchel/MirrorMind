@@ -10,7 +10,7 @@ import { errorMessage, invoke, isTauriRuntime } from './lib/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { Folder, FolderOpen, Sparkles, Star, X } from 'lucide-react'
+import { Folder, FolderOpen, Sparkle, Star, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Bookmark02Icon, File02Icon } from '@hugeicons/core-free-icons'
 import { RiFocus2Fill, RiFocus2Line } from '@remixicon/react'
@@ -5296,7 +5296,10 @@ function App() {
                   <span className={`note-review-status-dot is-${noteReadiness ?? 'none'}`} aria-hidden="true" />
                   <span className="note-review-trigger-icon" aria-hidden="true">
                     <HugeiconsIcon icon={File02Icon} size={15} strokeWidth={1.5} />
-                    <Sparkles size={9} strokeWidth={2} className="note-review-trigger-sparkle" />
+                    {/* Uma estrela so: o glifo de tres estrelas do lucide
+                        fica ilegivel a 9px e parecia "quebrado". O
+                        preenchimento mantem a leitura na escala minima. */}
+                    <Sparkle size={10} strokeWidth={1.5} fill="currentColor" className="note-review-trigger-sparkle" />
                   </span>
                 </Button>
               </PopoverTrigger>

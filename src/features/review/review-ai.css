@@ -275,8 +275,10 @@
   font-size: var(--font-size-caption);
 }
 
+/* Sem limite de largura: a mensagem vive no menu de revisao e precisa usar a
+ * largura do popover (o antigo `max-width: 240px` quebrava a frase em duas
+ * linhas). */
 .review-ai-toolbar-error {
-  max-width: 240px;
   margin: 0;
   color: var(--status-bad);
   font-size: 12px;
