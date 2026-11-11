@@ -30,10 +30,30 @@
   color: var(--danger, var(--status-bad));
 }
 
+/* 7 cartoes: 4+3 por padrao (nunca um cartao sozinho na segunda linha) e
+ * uma linha unica quando ha largura. Container query porque a largura util
+ * muda com o trilho/explorador, nao so com a janela. Sem suporte a
+ * container query, o padrao de 4 colunas (4+3) continua correto. */
+.review-dashboard-page {
+  container-type: inline-size;
+}
+
 .review-dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+@container (max-width: 699px) {
+  .review-dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (min-width: 1200px) {
+  .review-dashboard-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
 }
 
 /* StatCard no padrao dos cards de Relatorios (retention-card): label
