@@ -190,6 +190,16 @@ def main():
                 ('1.0', 9,
                  '2026-09-29: o `- 1px` do calc de min-height que fecha '
                  'a altura da aba com a barra.'),
+                # Rodape de perfil (2026-11-10): avatar, nome, plano e item
+                # do menu. As posicoes sao as do arquivo novo.
+                ('11.0', 45,
+                 '2026-11-10: avatar do rodape de perfil (font shorthand).'),
+                ('12.0', 46,
+                 '2026-11-10: nome do rodape de perfil.'),
+                ('11.0', 47,
+                 '2026-11-10: plano do rodape de perfil.'),
+                ('13.0', 48,
+                 '2026-11-10: item do menu do perfil.'),
             ],
             'src/features/review/review-ai.css': [
                 ('11.0', 48, motivo_confianca),

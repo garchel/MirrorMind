@@ -1400,6 +1400,141 @@ label.settings-toggle {
   margin-top: auto;
 }
 
+/* --- Rodape de perfil (avatar + nome + plano + engrenagem) --------------
+ * Ocupa o lugar do antigo botao "Configuracoes". Recolhido, so o avatar
+ * aparece; o menu do avatar mantem Configuracoes acessivel. */
+.workspace-shell .rail-profile {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--mm-ink-350-3);
+}
+
+.workspace-shell .rail-profile-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--workspace-text);
+  text-align: left;
+}
+
+.workspace-shell .rail-profile-main:hover:not(:disabled) {
+  border-color: var(--mm-ink-400-4);
+  background: var(--mm-gold-100);
+}
+
+.rail-profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--mm-moss-250);
+  color: var(--mm-sage-950);
+  font: 700 11px/1 var(--sans);
+  letter-spacing: 0.02em;
+}
+
+.rail-profile-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.rail-profile-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rail-profile-plan {
+  color: var(--workspace-muted, var(--muted));
+  font-size: 11px;
+}
+
+.workspace-shell .rail-profile-gear {
+  flex: none;
+  min-height: 28px;
+  padding: 0 5px;
+  color: var(--workspace-muted);
+}
+
+.workspace-shell .rail-profile-gear:hover:not(:disabled) {
+  color: var(--workspace-text);
+  background: var(--mm-gold-100);
+  transform: none;
+}
+
+.workspace-shell.is-sidebar-collapsed .rail-profile {
+  justify-content: center;
+  border-top: 0;
+}
+
+.workspace-shell.is-sidebar-collapsed .rail-profile-copy,
+.workspace-shell.is-sidebar-collapsed .rail-profile-gear {
+  display: none;
+}
+
+.workspace-shell.is-sidebar-collapsed .rail-profile-main {
+  flex: none;
+  padding: 2px;
+}
+
+/* Menu do perfil (portalado fora do shell, como o menu de post-its). */
+.ui-popover-content.rail-profile-menu {
+  width: 240px;
+  padding: 6px;
+}
+
+.rail-profile-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ui-popover-content.rail-profile-menu .rail-profile-menu-item {
+  display: flex;
+  width: 100%;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.ui-popover-content.rail-profile-menu .rail-profile-menu-item:hover:not(:disabled) {
+  background: var(--mm-gold-150);
+  transform: none;
+}
+
+[data-theme='dark'] .workspace-shell .rail-profile-main:hover:not(:disabled),
+[data-theme='dark'] .workspace-shell .rail-profile-gear:hover:not(:disabled) {
+  background: var(--workspace-raised);
+}
+
+[data-theme='dark'] .ui-popover-content.rail-profile-menu .rail-profile-menu-item:hover:not(:disabled) {
+  background: var(--workspace-raised);
+}
+
 .rail-icon {
   display: grid;
   width: 18px;

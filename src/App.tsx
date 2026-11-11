@@ -5458,6 +5458,7 @@ function App() {
           openTagManagementPage={openTagManagementPage}
           openGraphPage={openGraphPage}
           openTrashPage={openTrashPage}
+          accountClient={isBillingEnabled() ? disabledSessionClient : null}
         />
         <WorkspaceTopbar
           vault={vault}

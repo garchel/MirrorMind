@@ -16,6 +16,8 @@ import {
 import { BsLayoutSidebarInset, BsLayoutSidebarInsetReverse } from 'react-icons/bs'
 import { TitleBarBrand } from '../../components/TitleBar'
 import type { NotePreview, VaultSummary } from '../../lib/vault'
+import type { SessionClient } from '../../lib/session'
+import { ProfileFooter } from './ProfileFooter'
 
 /** Páginas do workspace (movido do `App.tsx` sem mudança — o App importa). */
 export type WorkspacePage =
@@ -106,6 +108,7 @@ export function WorkspaceRail({
   openTagManagementPage,
   openGraphPage,
   openTrashPage,
+  accountClient,
 }: {
   isSidebarExpanded: boolean
   setSidebarExpanded: Dispatch<SetStateAction<boolean>>
@@ -114,6 +117,8 @@ export function WorkspaceRail({
   openTagManagementPage: () => void
   openGraphPage: () => void
   openTrashPage: () => void
+  /** Cliente de conta (null = sem cobranca/backend; menu so com Configuracoes). */
+  accountClient: SessionClient | null
 }) {
   return (
     <aside className="workspace-rail" aria-label="Ferramentas do workspace" data-builder-name="workspace-rail">
@@ -229,16 +234,10 @@ export function WorkspaceRail({
         <Trash2 size={16} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Lixeira</span>
       </Button>
-      <Button
-        type="button"
-        className="ui-button rail-button rail-button--bottom"
-        onClick={() => setWorkspacePage('settings')}
-        aria-label="Configurações"
-        title="Configurações"
-      >
-        <span className="rail-icon" aria-hidden="true">&#9881;</span>
-        <span className="rail-label">Configurações</span>
-      </Button>
+      <ProfileFooter
+        accountClient={accountClient}
+        onOpenSettings={() => setWorkspacePage('settings')}
+      />
     </aside>
   )
 }
