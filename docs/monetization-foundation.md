@@ -3,6 +3,22 @@
 > Escola grátis, cantina e guarda-volumes pagos, caixa registradora primeiro.
 > Decisões travadas: **Stripe** (cobrança; Pix a verificar na F0) · **Supabase Auth** (contas) · **São Paulo** (região dos dados).
 
+## Decisão de pacotes do beta (2026-11-11)
+
+Decisão registrada em [`monetization-beta-decision.md`](monetization-beta-decision.md)
+e modelada em [`monetization-unit-economics.xlsx`](monetization-unit-economics.xlsx).
+
+- **Grátis:** core local + Ollama + BYOK avançado + 50 chamadas gerenciadas únicas.
+- **Essencial:** R$ 69/mês ou R$ 662,40/ano; IA gerenciada com uso justo
+  (1.000 chamadas/mês, 300/dia, 20/min, teto US$ 4/mês); sem nuvem.
+- **Pro:** R$ 109/mês ou R$ 1.046,40/ano; inclui nuvem; uso justo de 1.200
+  chamadas/mês, 400/dia, 30/min, teto US$ 5/mês.
+
+“Uso justo” não é cota visível: os limites são proteção antiabuso. Ao atingir o
+teto, o app oferece BYOK/Ollama ou o próximo ciclo. Os preços são hipótese de
+teste do beta, não decisão final.
+
+
 ## Princípios inegociáveis
 
 1. Core, privacidade e exportação nunca atrás de paywall — nem offline nem online.
@@ -33,9 +49,9 @@ Pagamento nunca toca nossos servidores (Stripe/MoR). Região BR. Log de consenti
 |------|--------|--------|
 | **F0** | Pix no Stripe (ou 2º trilho), região SP no Supabase, emissor NF + contador | 3 linhas acima verdes por escrito; nada abaixo começa com F0 vermelha |
 | **F1** | Auth fim-a-fim: PKCE + deep-link, sessão no keyring, tela Conta, excluir conta (local) | criar conta → reabrir logado → sair/entrar; token fora de plaintext; testes com backend mockado |
-| **F2** | Catálogo (`gratis`, `ia_mensal`), `useEntitlement()`, graça 30 dias, flags nos 2 pontos (sem cobrar) | plano manual libera/nega com copy; expiração simulada; core sem flags |
+| **F2** | Catálogo (`gratis`, `essencial`, `pro`), `useEntitlement()`, graça 30 dias, flags nos 2 pontos (sem cobrar) | plano manual libera/nega com copy; expiração simulada; core sem flags |
 | **F3** | Checkout + webhooks + portal, sandbox primeiro | assinar via Pix/cartão ativa em <60s; cancelar rebaixa sem perder dados; webhook duplicado idempotente |
-| **F4** | Ledger + UI de cota + alertas de custo/abuso | 200 chamadas batem centavo a centavo; retry não duplica; esgotado nega com data |
+| **F4** | Ledger + UI de cota + alertas de custo/abuso | chamadas do plano batem centavo a centavo; retry não duplica; esgotado nega com data |
 | **F5** | Exportação, cascata, DPA, caos controlado, runbook + flag `billing_enabled=false` | conta excluída sem restos (teste prova); rollback sem deploy |
 
 Estimativa: **7–10 semanas**, 1 dev focado. Risco nº 1: Pix recorrente (se F0 devolver 2º trilho, F3 += 1 semana).
@@ -49,12 +65,17 @@ Estimativa: **7–10 semanas**, 1 dev focado. Risco nº 1: Pix recorrente (se F0
 - [x] F2 (gate único): `managedAiGate` decide execução e rótulo; Ollama/BYOK fora do gate
 - [x] F2 (ponto de uso 1): opção `managed` habilitada só com plano pago, `selectProvider` bloqueia e devolve a Ollama quando o plano se perde
 - [x] F2 (plano manual): painel de plano em `AccountSettings` concede/revoga direitos sem cobrança (o servidor assume na F3)
+- [x] Decisão de pacotes do beta: Essencial R$ 69, Pro R$ 109, fair use e BYOK/Ollama — ver `monetization-beta-decision.md`
 - [ ] F0 (humano): verificações de mercado acima
 - [ ] F1b (com Supabase): PKCE real, tela Conta, refresh, excluir conta
 - [ ] F2 (ponto de uso 2): gate nos comandos de backup — o backup/sync pago ainda não existe; entra junto da F3
 - [ ] F3–F5: conforme tabela
 
 ### Onde a F2 encosta no código
+
+> O catálogo de código ainda usa `ia_mensal`/`ia_anual` como placeholders de
+> desenvolvimento. A migração para `essencial`/`pro` e os tetos por plano entram
+> na F3, junto do checkout.
 
 - `src/lib/billing.ts`: catálogo, flag e `resolveEntitlement` (devolve o fim do ciclo).
 - `src/lib/entitlement.tsx`: cache dos direitos (`EntitlementStore`, injetável) e o plano manual.
