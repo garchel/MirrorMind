@@ -1066,9 +1066,9 @@ class TableWidget extends WidgetType {
 
   /** Atualiza as celulas nao-editadas a partir do novo spec (sem redesenhar). */
   private syncCells(wrap: HTMLElement) {
-    const editing = wrap.querySelector('.cm-live-table-cell.is-editing')
+    const editing = new Set(wrap.querySelectorAll<HTMLElement>('.cm-live-table-cell.is-editing'))
     wrap.querySelectorAll<HTMLElement>('th.cm-live-table-cell, td.cm-live-table-cell').forEach((el) => {
-      if (el === editing) return
+      if (editing.has(el)) return
       const row = Number(el.dataset.row)
       const col = Number(el.dataset.col)
       const cell = row === 0 ? this.spec.header[col] : this.spec.rows[row - 1]?.[col]
@@ -1132,6 +1132,13 @@ class TableWidget extends WidgetType {
   private enterEditMode(cell: HTMLElement) {
     if (this.readOnly) return
     if (cell.dataset.raw === 'true') return
+    // Uma tabela tem UMA celula em edicao. Sem isto, clicar direto em outra
+    // celula da mesma linha deixa a anterior com `is-editing` (o focusout
+    // nao sai da linha) e o pontilhado fica em duas — ou preso.
+    const wrap = cell.closest('.cm-live-table-wrap') as HTMLElement | null
+    wrap?.querySelectorAll<HTMLElement>('.cm-live-table-cell.is-editing').forEach((other) => {
+      if (other !== cell) this.exitEditMode(other)
+    })
     const widget = this.liveWidget(cell) ?? this
     const row = Number(cell.dataset.row)
     const col = Number(cell.dataset.col)
@@ -1216,7 +1223,11 @@ class TableWidget extends WidgetType {
     const cell = this.cellForEvent(event.target)
     if (!cell) return
     const related = event.relatedTarget
-    if (related instanceof Node && cell.parentElement?.contains(related)) return
+    // So continua em edicao se o foco foi para DENTRO da propria celula
+    // (ex.: um span interno). A checagem antiga era no `parentElement`
+    // (a `<tr>`): mover para outra celula da mesma linha nao saia da
+    // edicao e o pontilhado ficava nas duas.
+    if (related instanceof Node && cell.contains(related)) return
     this.exitEditMode(cell)
   }
 

@@ -192,6 +192,38 @@ describe('markdownLivePreview render (jsdom)', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('mantem uma unica celula em edicao ao pular de celula na mesma linha', async () => {
+    const container = await renderLive('Tabela\n\n| A | B |\n|---|---|\n| 1 | 2 |', 0)
+    await waitFor(() => expect(table(container)).not.toBeNull())
+    const first = container.querySelector<HTMLElement>('.cm-live-table-cell[data-row="1"][data-col="0"]')!
+    const second = container.querySelector<HTMLElement>('.cm-live-table-cell[data-row="1"][data-col="1"]')!
+
+    fireEvent.mouseDown(first)
+    fireEvent.focusIn(first)
+    expect(first.classList.contains('is-editing')).toBe(true)
+
+    // Clique na celula vizinha da MESMA linha: mousedown entra na nova e o
+    // focusout da anterior precisa sair dela (antes o `parentElement` era a
+    // `<tr>`, entao a anterior ficava com o pontilhado).
+    fireEvent.mouseDown(second)
+    fireEvent.focusOut(first, { relatedTarget: second })
+    fireEvent.focusIn(second)
+
+    expect(first.classList.contains('is-editing')).toBe(false)
+    expect(second.classList.contains('is-editing')).toBe(true)
+    expect(container.querySelectorAll('.cm-live-table-cell.is-editing')).toHaveLength(1)
+  })
+
+  it('sai da edicao ao clicar fora da tabela', async () => {
+    const container = await renderLive('Tabela\n\n| A | B |\n|---|---|\n| 1 | 2 |', 0)
+    await waitFor(() => expect(table(container)).not.toBeNull())
+    const cell = container.querySelector<HTMLElement>('.cm-live-table-cell[data-row="1"][data-col="0"]')!
+    fireEvent.mouseDown(cell)
+    fireEvent.focusIn(cell)
+    fireEvent.focusOut(cell)
+    expect(cell.classList.contains('is-editing')).toBe(false)
+  })
+
   it('renderiza matematica com KaTeX (widget presente no DOM)', async () => {
     const container = await renderLive('Introducao\n\n$$E=mc^2$$')
     await waitFor(() => expect(container.querySelector('.cm-live-math .katex')).not.toBeNull())
