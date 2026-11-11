@@ -90,17 +90,6 @@ export function ProfileFooter({
           ) : null}
         </PopoverContent>
       </Popover>
-      <Button
-        type="button"
-        variant="bare"
-        size="sm"
-        className="rail-profile-gear"
-        aria-label="Configurações"
-        title="Configurações"
-        onClick={onOpenSettings}
-      >
-        <Settings size={15} strokeWidth={1.6} aria-hidden="true" />
-      </Button>
     </div>
   )
 }

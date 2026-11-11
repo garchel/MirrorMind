@@ -366,6 +366,13 @@ async function openTestVault(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByRole('button', { name: 'Abrir nota inicial' })
 }
 
+/** Configuracoes agora vive no menu do rodape de perfil (nao ha mais botao
+ * direto no trilho). Abre o menu e clica no item. */
+async function openSettings(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /Abrir menu do perfil/ }))
+  await user.click(await screen.findByRole('button', { name: 'Configurações' }))
+}
+
 /** Simula o pedido de fechamento da janela nativa: devolve o `preventDefault`
  *  que o handler chamou (ou nao). */
 async function requestWindowClose() {
@@ -734,7 +741,7 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Configurações' }))
+    await openSettings(user)
     await user.click(screen.getByRole('button', { name: 'Atalhos' }))
 
     expect(screen.getByRole('textbox', { name: 'Atalho para salvar nota' })).toHaveValue('Ctrl+S')
@@ -845,7 +852,7 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Configurações' }))
+    await openSettings(user)
     await user.click(screen.getByRole('button', { name: 'Atalhos' }))
     const modeShortcutInput = screen.getByRole('textbox', { name: 'Atalho para alternar modo de visualização' })
     await user.click(modeShortcutInput)
@@ -2579,7 +2586,7 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Configurações' }))
+    await openSettings(user)
     expect(await screen.findByRole('heading', { name: 'Configurações do vault' })).toBeInTheDocument()
 
     // Menu lateral navega entre as sessoes (destaque acompanha o clique).
@@ -2611,7 +2618,7 @@ describe('Regressao do editor no workspace', () => {
     createTauriHarness()
     await openTestVault(user)
 
-    await user.click(screen.getByRole('button', { name: 'Configurações' }))
+    await openSettings(user)
     const nav = await screen.findByRole('navigation', { name: 'Seções das configurações' })
     const panel = document.querySelector('.workspace-page') as HTMLElement
     expect(panel).not.toBeNull()

@@ -60,9 +60,13 @@ describe('ProfileFooter', () => {
     expect(screen.getByText('Grátis')).toBeInTheDocument()
   })
 
-  it('a engrenagem abre Configuracoes direto', async () => {
+  it('o menu do perfil abre Configuracoes', async () => {
     const { onOpenSettings } = renderFooter(null, null)
-    fireEvent.click(screen.getByRole('button', { name: 'Configurações' }))
+    const trigger = await screen.findByRole('button', { name: /Abrir menu do perfil/ })
+    fireEvent.pointerDown(trigger)
+    fireEvent.click(trigger)
+    const item = await screen.findByRole('button', { name: 'Configurações' })
+    fireEvent.click(item)
     expect(onOpenSettings).toHaveBeenCalledTimes(1)
   })
 
