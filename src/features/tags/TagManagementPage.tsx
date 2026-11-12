@@ -617,7 +617,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   <legend>Perfil de revisão</legend>
                   <div>
                     {Object.values(PRESETS).map((preset) => (
-                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm" key={preset.label} onClick={() => applyPreset(preset.values)}>
+                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm tag-preset-card" key={preset.label} onClick={() => applyPreset(preset.values)}>
                         <strong>{preset.label}</strong>
                         <small>{preset.description}</small>
                       </Button>

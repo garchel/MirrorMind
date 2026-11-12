@@ -153,12 +153,27 @@
 /* Onda 2 `<Field>`: o primitivo injeta um outline de foco
  * (`.ui-field:focus-visible`, 0,2,0) que o cru nao tinha — o
  * `.tag-search` desenha o anel via `:focus-within` e os campos de
- * nome/ritmo vivem dentro de uma moldura que ja indica o foco. Esta
- * regra (0,2,1) preserva o comportamento medido. */
-.tag-search input:focus-visible,
-.tag-name-field input:focus-visible,
-.tag-policy-fields input:focus-visible {
+ * nome/ritmo vivem dentro de uma moldura que ja indica o foco.
+ *
+ * O seletor leva `.tag-management-page` de proposito: o anel global do
+ * workspace (`.workspace-shell :is(button, input, …):focus-visible`) e
+ * (0,3,0), nao (0,2,1) — `:is()` assume o argumento mais forte do grupo
+ * (`[role='tab']`, uma classe). Ele vencia `.tag-name-field
+ * input:focus-visible` (0,2,1) e desenhava o anel cinza-esverdeado
+ * (#738979) em volta do input, 2px dentro da moldura que o usuario ve
+ * como "o campo". Com 0,3,1 a regra local vence sem depender de ordem. */
+.tag-management-page .tag-search input:focus-visible,
+.tag-management-page .tag-name-field input:focus-visible,
+.tag-management-page .tag-policy-fields input:focus-visible {
   outline: 0;
+}
+
+/* O foco dos campos emoldurados e desenhado NA moldura: o input nao tem
+ * borda propria, entao um anel nele fica solto dentro da caixa. */
+.tag-name-field > div:focus-within,
+.tag-policy-fields label > div:focus-within {
+  border-color: var(--tag-accent);
+  box-shadow: 0 0 0 3px rgb(115 137 121 / 14%);
 }
 
 .tag-tree-summary {
@@ -717,6 +732,46 @@
   text-align: left;
 }
 
+/* Cards de perfil (Intensiva / Equilibrada / Leve): superficie clara com
+ * borda, como os cartoes de modo logo abaixo — nao a pilula escura dos
+ * botoes de acao da pagina. O `padding` da regra acima (0,1,0) empata com
+ * `.ui-button--sm` (0,1,0) e perdia por ordem no bundle: o card ficava
+ * com `0 14px`, sem respiro em cima e embaixo. Aqui (0,4,0) o padding
+ * vertical vale, e o `min-height` de botao sai para o card crescer pelo
+ * conteudo. A descricao herdava `--tag-muted` sobre a pilula escura
+ * (#282824) e sumia; com a superficie clara ela volta a contrastar. */
+.tag-management-page.tag-management-page .tag-presets :is(button, .ui-button).tag-preset-card {
+  display: grid;
+  justify-content: normal;
+  align-content: start;
+  gap: 5px;
+  min-height: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--mm-clay-400);
+  border-radius: var(--radius-lg);
+  background: var(--tag-surface);
+  color: var(--tag-ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+/* A descricao precisa de contraste proprio: `--tag-muted` (#6f6e67) sobre
+ * a superficie clara da 4,99:1 — passa, mas fica apagada em 12px. Aqui a
+ * cor e a mesma dos rotulos de botao da pagina (8,03:1 no tema claro). */
+.tag-management-page .tag-presets :is(button, .ui-button).tag-preset-card small {
+  color: var(--tag-btn-ink);
+  line-height: 1.45;
+}
+
+/* O `:is()` (e nao `:where()`) e proposital: contribui com uma classe e
+ * leva esta regra a 0,5,0, acima da regra geral de botoes da pagina
+ * (0,5,0 com os `:not`) — que fica depois no arquivo e vencia o padding. */
+.tag-management-page.tag-management-page .tag-presets :is(button, .ui-button).tag-preset-card:hover:not(:disabled) {
+  border-color: var(--tag-accent);
+  background: color-mix(in srgb, var(--tag-accent) 6%, var(--tag-surface));
+}
+
 .tag-policy-fields {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -950,7 +1005,7 @@
  * próprio (0,3,0) — sem isso, esta regra (0,3,1) pinta o fundo delas de
  * escuro até no tema claro. O `.tag-tree-create` (botão Criar tag da
  * árvore) também tem estilo próprio. */
-.tag-management-page.tag-management-page :where(button, .ui-button):not(.modal-close):not(.tag-tree-row):not(.tag-tree-create) {
+.tag-management-page.tag-management-page :where(button, .ui-button):not(.modal-close):not(.tag-tree-row):not(.tag-tree-create):not(.tag-preset-card) {
   min-height: var(--button-size-sm-height);
   border-radius: var(--radius-md);
   background: var(--mm-ink-950-14);
@@ -959,7 +1014,7 @@
   font-weight: 600;
 }
 
-.tag-management-page.tag-management-page :where(button, .ui-button):hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create) {
+.tag-management-page.tag-management-page :where(button, .ui-button):hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create):not(.tag-preset-card) {
   transform: none;
   background: var(--mm-ink-950);
 }
