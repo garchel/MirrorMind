@@ -1561,7 +1561,13 @@ function App() {
       && activeNote
       && isDirty
       && !saving
-      && (!isNewNoteDraft || Boolean(formatNoteTitleAsPath(createNoteForm.title)))
+      && (isNewNoteDraft
+        ? Boolean(formatNoteTitleAsPath(createNoteForm.title))
+        // Sentinela ativa com o flag desligado e a janela de troca de nota:
+        // `openNote` desliga o flag antes de ler o arquivo de destino e, ate
+        // o `setActiveNote` chegar, o alvo ainda e `__new_note__`. Gravar
+        // aqui mandaria o conteudo do rascunho para um caminho que nao existe.
+        : activeNote.relativePath !== '__new_note__')
 
     if (!canAutoSave) {
       if (!isAutoSaveEnabled || !activeNote) setAutoSaveState('idle')
@@ -3541,6 +3547,12 @@ function App() {
       setWorkspacePage('notes')
       setIsNewNoteDraft(true)
       setActiveNote({ name: 'Nova nota', relativePath: '__new_note__', content: '' })
+      // O texto do rascunho fica em `draftsByPath` (guardado quando o usuario
+      // abriu outra nota) e precisa voltar junto com a aba. Restaurar so o
+      // `activeNote` deixava `draftContent` com o conteudo da ULTIMA nota
+      // aberta: o editor mostrava a outra nota dentro da nota nova e o
+      // autosave gravava esse conteudo no arquivo recem-criado.
+      setDraftContent(draftsByPathRef.current['__new_note__'] ?? '')
       setOpenTabs((tabs) => (tabs.includes('__new_note__') ? tabs : [...tabs, '__new_note__']))
       setError(null)
       setStatus('Defina o titulo da nova nota.')
@@ -3760,6 +3772,13 @@ function App() {
         setOpenTabs((tabs) => tabs.map((tab) => (tab === '__new_note__' ? savedNote.relativePath : tab)))
         setIsNewNoteDraft(false)
         setCreateNoteForm({ title: '' })
+        // O rascunho virou arquivo: guardar o texto sob o sentinela faria a
+        // proxima "nova nota" (ou um resume da aba) herdar o texto antigo.
+        setDraftsByPath((drafts) => {
+          if (!('__new_note__' in drafts)) return drafts
+          const { '__new_note__': _discardedDraft, ...remainingDrafts } = drafts
+          return remainingDrafts
+        })
         await refreshNotes(vault.path)
         return true
       } finally {
@@ -4164,6 +4183,13 @@ function App() {
     setActiveNote({ name: 'Nova nota', relativePath: '__new_note__', content: '' })
     setOpenTabs((tabs) => (tabs.includes('__new_note__') ? tabs : [...tabs, '__new_note__']))
     setDraftContent('')
+    // Rascunho anterior: o botao "nova nota" comeca uma tela em branco, entao
+    // o texto guardado da aba sentinela nao pode ressurgir num resume futuro.
+    setDraftsByPath((drafts) => {
+      if (!('__new_note__' in drafts)) return drafts
+      const { '__new_note__': _discardedDraft, ...remainingDrafts } = drafts
+      return remainingDrafts
+    })
     setIsNewNoteDraft(true)
     setStatus('Defina o titulo da nova nota.')
     requestAnimationFrame(() => document.getElementById('note-title-input')?.focus())

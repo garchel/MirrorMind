@@ -720,6 +720,39 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.queryByText(/Nao foi possivel encontrar|Não foi possível encontrar/)).toBeNull()
   })
 
+  it('[nota nova] retomar o rascunho devolve o texto digitado, nunca o da nota aberta depois', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    await openTestVault(user)
+
+    // Rascunho: nome digitado (sem Enter) e texto no editor.
+    await user.click(screen.getByRole('button', { name: 'Nova nota' }))
+    const title = await screen.findByRole('textbox', { name: 'Título da nova nota' })
+    await user.type(title, 'Rascunho')
+    await user.click(screen.getByRole('radio', { name: 'Edição' }))
+    await waitFor(() => expect(document.querySelector('#note-editor .cm-content')).not.toBeNull())
+    await user.click(document.querySelector('#note-editor .cm-content') as HTMLElement)
+    // `paste` e um unico evento: o editor nao e recriado no meio da digitacao.
+    await user.paste('texto do rascunho')
+
+    // Abre outra nota SEM confirmar o nome do rascunho.
+    await user.click(screen.getByRole('button', { name: 'Abrir nota alvo' }))
+    await screen.findByRole('tab', { name: 'alvo' })
+
+    // Volta para o rascunho: o editor tem de mostrar o que foi digitado nele.
+    await user.click(screen.getByRole('tab', { name: 'Nova nota' }))
+    await waitFor(() => {
+      expect(document.querySelector('.cm-content')?.textContent).toContain('texto do rascunho')
+    })
+    expect(document.querySelector('.cm-content')?.textContent).not.toContain('Conteúdo do callout')
+
+    // E o autosave nao pode gravar o conteudo da nota alvo na nota nova.
+    await waitFor(() => expect(notes.get('rascunho.md')).toBeDefined(), { timeout: 4000 })
+    expect(notes.get('rascunho.md')?.content).toContain('texto do rascunho')
+    expect(notes.get('rascunho.md')?.content).not.toContain('Conteúdo do callout')
+    expect(notes.get('alvo.md')?.content).toContain('Conteúdo do callout')
+  })
+
   it('[nota nova] salva ao confirmar o título com Enter e abre a nota criada', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
