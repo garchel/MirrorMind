@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
@@ -58,9 +58,39 @@ export function ReviewPriorityControl({
   onChange,
 }: ReviewPriorityControlProps) {
   const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
   const level = priorityLevelFor(weight)
   const exact = weight === level.weight
   const detail = exact ? level.label : `${level.label} (peso ${formatWeight(weight)})`
+
+  // Ao abrir, o foco vai para o nivel atual — o Radix foca o painel, nao a
+  // opcao, e sem isso o teclado teria que tabular desde o topo do popover.
+  useEffect(() => {
+    if (!open) return
+    const marcado = menuRef.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')
+    const primeiro = menuRef.current?.querySelector<HTMLButtonElement>('button')
+    ;(marcado ?? primeiro)?.focus()
+  }, [open])
+
+  // Setas/Home/End dentro do menu (o Popover do Radix nao faz roving focus;
+  // o DropdownMenu faria, mas nao esta entre as dependencias do projeto).
+  function handleMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const itens = Array.from(
+      menuRef.current?.querySelectorAll<HTMLButtonElement>('.review-priority-option') ?? [],
+    )
+    if (itens.length === 0) return
+    const atual = itens.indexOf(document.activeElement as HTMLButtonElement)
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const passo = event.key === 'ArrowDown' ? 1 : -1
+      itens[(atual + passo + itens.length) % itens.length].focus()
+      return
+    }
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault()
+      itens[event.key === 'Home' ? 0 : itens.length - 1].focus()
+    }
+  }
 
   return (
     <Popover open={open && !busy} onOpenChange={setOpen}>
@@ -81,7 +111,7 @@ export function ReviewPriorityControl({
       </PopoverTrigger>
       <PopoverContent className="review-priority-menu" align="start" sideOffset={6}>
         <p className="review-priority-menu-title">Prioridade desta nota</p>
-        <div role="menu" aria-label="Prioridade da nota">
+        <div role="menu" aria-label="Prioridade da nota" ref={menuRef} onKeyDown={handleMenuKeyDown}>
           {REVIEW_PRIORITY_LEVELS.map((option) => {
             const checked = option.weight === level.weight
             return (

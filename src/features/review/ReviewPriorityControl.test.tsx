@@ -80,4 +80,29 @@ describe('ReviewPriorityControl', () => {
 
     expect(screen.getByRole('button', { name: /Prioridade de ATP/ })).toBeDisabled()
   })
+
+  it('abre o menu no teclado e move o foco com as setas', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<ReviewPriorityControl weight={1} noteTitle="ATP" onChange={onChange} />)
+
+    await user.tab()
+    await user.keyboard('{Enter}')
+
+    // O foco comeca no nivel atual (Normal) e desce para Alta.
+    const normal = await screen.findByRole('menuitemradio', { name: /Normal/ })
+    expect(normal).toHaveFocus()
+
+    await user.keyboard('{ArrowDown}')
+    expect(screen.getByRole('menuitemradio', { name: /Alta/ })).toHaveFocus()
+
+    await user.keyboard('{ArrowDown}{ArrowDown}')
+    expect(screen.getByRole('menuitemradio', { name: /Normal/ })).toHaveFocus() // deu a volta
+
+    await user.keyboard('{ArrowUp}')
+    expect(screen.getByRole('menuitemradio', { name: /Urgente/ })).toHaveFocus()
+
+    await user.keyboard('{Enter}')
+    expect(onChange).toHaveBeenCalledWith(3)
+  })
 })

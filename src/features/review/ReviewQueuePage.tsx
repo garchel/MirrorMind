@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
-import { CalendarClock, CheckCircle2, Minus, Play, Plus } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Play } from 'lucide-react'
 import { ErrorState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { QueueSkeleton } from '../../components/PageSkeleton'
+import { ReviewPriorityControl } from './ReviewPriorityControl'
 import { setNoteReviewPriority } from './reviewPolicy'
 import { listUpcomingReviewQueue, getDueReviewQueue, UPCOMING_PAGE_SIZE, type DueReviewItem } from './reviewQueue'
 import { formatOverdueDate, formatUpcomingDate } from './reviewQueueDate'
@@ -15,23 +16,6 @@ type ReviewQueuePageProps = {
   onOpenNote: (relativePath: string) => void
   onStartReview: (item: DueReviewItem) => void
   onBrowseNotes?: () => void
-}
-
-const PRIORITY_STEP = 1
-const PRIORITY_MIN = 1
-const PRIORITY_MAX = 100
-
-/**
- * Peso de prioridade: escala INTEIRA de 1 a 100.
- *
- * O contrato do backend aceita `(0, 100]` (peso positivo) e o padrao do vault
- * e 1.0 — ou seja, 1 e o piso, nao 0,1. O codigo antigo usava
- * `Math.round((peso + delta) * 10) / 10` com piso 0,1, entao descer de 1 caia
- * para 0,1 (um valor que nada significa na tela) e subir depois dava 1,1:
- * o arredondamento preservava a fracao em vez de somar passos inteiros.
- */
-function stepPriority(current: number, delta: number): number {
-  return Math.min(PRIORITY_MAX, Math.max(PRIORITY_MIN, Math.round(current + delta)))
 }
 
 export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowseNotes }: ReviewQueuePageProps) {
@@ -157,9 +141,8 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
     return () => observer.disconnect()
   }, [loadUpcomingPage, hasMoreUpcoming, upcomingLoading, upcomingLoadingMore, upcomingItems.length])
 
-  async function changePriority(item: DueReviewItem, delta: number) {
+  async function changePriority(item: DueReviewItem, next: number) {
     if (priorityBusy) return
-    const next = stepPriority(item.priorityWeight, delta)
     if (next === item.priorityWeight) return
     setPriorityBusy(item.noteId)
     setPriorityError(null)
@@ -245,27 +228,12 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
                 <div className="review-queue-meta">
                   <span>{formatOverdueDate(item.nextReviewAtUnixMs)}</span>
                   <span>{item.preferredMode === 'exam' ? 'Modo prova' : 'Modo conversa'}</span>
-                  <span className="review-queue-priority" aria-label={`Prioridade ${item.priorityWeight}`} aria-live="polite">
-                    <Button
-                      type="button"
-                      className="ui-button review-queue-priority-step"
-                      onClick={() => void changePriority(item, -PRIORITY_STEP)}
-                      disabled={priorityBusy !== null || Math.round(item.priorityWeight) <= PRIORITY_MIN}
-                      aria-label={`Diminuir prioridade de ${item.title}`}
-                    >
-                      <Minus size={13} strokeWidth={2} aria-hidden="true" />
-                    </Button>
-                    <span>Prioridade {item.priorityWeight}</span>
-                    <Button
-                      type="button"
-                      className="ui-button review-queue-priority-step"
-                      onClick={() => void changePriority(item, PRIORITY_STEP)}
-                      disabled={priorityBusy !== null || Math.round(item.priorityWeight) >= PRIORITY_MAX}
-                      aria-label={`Aumentar prioridade de ${item.title}`}
-                    >
-                      <Plus size={13} strokeWidth={2} aria-hidden="true" />
-                    </Button>
-                  </span>
+                  <ReviewPriorityControl
+                    weight={item.priorityWeight}
+                    noteTitle={item.title}
+                    busy={priorityBusy !== null}
+                    onChange={(weight) => void changePriority(item, weight)}
+                  />
                   {item.deadlineAtUnixMs !== null ? (
                     <span className={`review-queue-deadline${item.deadlineAtUnixMs <= Date.now() ? ' is-expired' : ''}`}>
                       Prazo {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(item.deadlineAtUnixMs))}
