@@ -1,4 +1,7 @@
-.review-session-page { gap: 28px; max-width: 960px; }
+/* A sessao ocupa a largura do workspace: o teto de 960px (somado aos 720px
+ * do fluxo interno) deixava metade da tela vazia em janela maximizada. A
+ * medida de leitura fica no texto; controles e paineis usam a largura. */
+.review-session-page { gap: 28px; max-width: none; }
 
 /* Revisao de sintese: avaliacao formativa do modelo mental integrado. */
 .review-synthesis-sources { margin-top:16px; border:1px solid var(--line); border-radius: var(--radius-md); padding:12px 14px; background:var(--surface-canvas); }
@@ -63,11 +66,15 @@
 .review-report-side:hover::-webkit-scrollbar-thumb, .review-report-note:hover::-webkit-scrollbar-thumb { background: var(--line-strong); }
 .review-session-topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; border-bottom:1px solid var(--line); padding-bottom:14px; color:var(--text-muted); font: var(--font-size-caption)/1.4 var(--mono); }
 .review-session-topbar :where(button, .ui-button), .review-answer-actions :where(button, .ui-button), .review-diagnostic :where(button, .ui-button), .review-perfect { display:inline-flex; align-items:center; gap:7px; }
-.review-setup, .review-question { display:grid; gap:18px; width:min(100%, 720px); }
+.review-setup, .review-question { display:grid; gap:18px; width:100%; }
+/* Medida de leitura: o texto corrido para de crescer; caixas, opcoes e o
+ * campo de resposta acompanham a largura da pagina. */
+.review-setup h2, .review-question h2,
+.review-setup > p:not(.review-session-kicker):not(.review-setup-plan) { max-width:72ch; }
 .review-session-kicker { color:var(--accent); font:700 10px/1 var(--sans); letter-spacing:.14em; text-transform:uppercase; }
 .review-setup h2, .review-question h2, .review-report-header-main h2 { font:600 26px/1.18 var(--serif); }
 .review-setup > p:not(.review-session-kicker), .review-report-summary { margin:0; color:var(--text-muted); font-size:13px; line-height:1.65; }
-.review-setup fieldset { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; border:0; margin:0; padding:0; }
+.review-setup fieldset { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; border:0; margin:0; padding:0; }
 .review-setup legend { grid-column:1/-1; margin-bottom:8px; color:var(--text-normal); font-size:12px; font-weight:700; }
 .review-setup fieldset label { display:grid; grid-template-columns:auto 1fr; gap:4px 9px; border:1px solid var(--line); border-radius: var(--radius-md); padding:14px; background:var(--surface-canvas); cursor:pointer; }
 .review-setup fieldset label.is-selected { border-color:color-mix(in srgb,var(--accent) 65%,var(--line)); background:color-mix(in srgb,var(--accent) 6%,var(--surface-canvas)); }
@@ -82,7 +89,7 @@
 /* Pontos avaliáveis por unidade no plano da sessao */
 .review-setup-points { display:grid; gap:10px; }
 .review-setup-points h3 { margin:0; color:var(--text-normal); font-size:12px; font-weight:700; }
-.review-setup-points > ul { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+.review-setup-points > ul { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:8px; margin:0; padding:0; list-style:none; }
 .review-setup-points > ul > li { display:grid; gap:4px; border:1px solid var(--line-soft); border-radius: var(--radius-md); padding:10px 12px; background:var(--surface-canvas); }
 .review-setup-points-label { margin:0; font-size:var(--font-size-caption); font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); }
 .review-setup-points li li { margin:0; padding-left:14px; color:var(--text-normal); font-size:12px; line-height:1.55; list-style:square; }
