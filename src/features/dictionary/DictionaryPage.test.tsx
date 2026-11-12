@@ -41,6 +41,29 @@ function detailPane() {
   return screen.getByRole('main')
 }
 
+/** O campo de busca. A consulta e pelo papel (`search`) e nao pelo
+ *  placeholder: o texto dele se digita sozinho, entao o atributo muda a cada
+ *  ~40 ms e `getByPlaceholderText` seria uma corrida. */
+function searchField(): HTMLInputElement {
+  return screen.getByRole('searchbox') as HTMLInputElement
+}
+
+/** Um `matchMedia` que responde "sem preferencia por menos movimento", como
+ *  um navegador comum. Sem ele o jsdom nao expoe a API e o hook cai no modo
+ *  estatico (movimento reduzido). */
+function stubMotionAllowed() {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    dispatchEvent: () => false,
+  }))
+}
+
 describe('DictionaryPage', () => {
   beforeEach(() => {
     entriesMock.mockReset()
@@ -109,11 +132,88 @@ describe('DictionaryPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
     })
-    await userEvent.type(screen.getByPlaceholderText('Buscar por termo'), 'GLICOL')
+    await userEvent.type(searchField(), 'GLICOL')
     await waitFor(() => {
       expect(screen.queryByText('rubisco')).toBeNull()
     })
     expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
+  })
+
+  it('busca tambem no conceito, nao so no termo', async () => {
+    entriesMock.mockResolvedValue(
+      snapshot([
+        entry('eletron', 'Partícula subatômica com carga negativa.'),
+        entry('proton', 'Partícula subatômica com carga positiva.'),
+        entry('fotossíntese', 'Processo que converte luz em energia.'),
+      ]),
+    )
+    render(<DictionaryPage vaultPath={VAULT_PATH} />)
+    await waitFor(() => {
+      expect(screen.getAllByText('eletron').length).toBeGreaterThan(0)
+    })
+
+    // "particula" nao esta em nenhum TERMO: so nas definicoes. Antes desta
+    // busca o filtro olhava apenas a chave e a lista vinha vazia.
+    await userEvent.type(searchField(), 'particula')
+    await waitFor(() => {
+      expect(within(termsPane()).getByRole('button', { name: 'eletron' })).toBeTruthy()
+    })
+    expect(within(termsPane()).getByRole('button', { name: 'proton' })).toBeTruthy()
+    expect(within(termsPane()).queryByRole('button', { name: 'fotossíntese' })).toBeNull()
+  })
+
+  it('digita o placeholder alternando conceito e termo, e congela no foco', async () => {
+    stubMotionAllowed()
+    try {
+      entriesMock.mockResolvedValue(snapshot([entry('glicólise', 'Quebra da glicose.')]))
+      render(<DictionaryPage vaultPath={VAULT_PATH} />)
+      const field = await screen.findByRole('searchbox')
+
+      // O rotulo do campo nao muda junto com a dica: o nome acessivel continua
+      // "Buscar conceito" mesmo com o placeholder digitando.
+      expect(screen.getByRole('searchbox', { name: 'Buscar conceito' })).toBe(field)
+
+      // O texto chega letra por letra: o primeiro valor lido e um prefixo da
+      // primeira frase, nunca a frase inteira aparecendo de uma vez.
+      await waitFor(() => expect(field.getAttribute('placeholder') ?? '').not.toBe(''))
+      expect('Buscar por conceito'.startsWith(field.getAttribute('placeholder') ?? '')).toBe(true)
+      await waitFor(
+        () => expect(field.getAttribute('placeholder')).toBe('Buscar por conceito'),
+        { timeout: 4000 },
+      )
+
+      // Em foco o ciclo para: o usuario esta lendo a dica enquanto digita.
+      await userEvent.click(field)
+      await new Promise((resolve) => setTimeout(resolve, 120))
+      const frozen = field.getAttribute('placeholder')
+      await new Promise((resolve) => setTimeout(resolve, 400))
+      expect(field.getAttribute('placeholder')).toBe(frozen)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('mantem o placeholder estatico quando o sistema pede menos movimento', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }))
+    try {
+      entriesMock.mockResolvedValue(snapshot([entry('glicólise', 'Quebra da glicose.')]))
+      render(<DictionaryPage vaultPath={VAULT_PATH} />)
+      const field = await screen.findByRole('searchbox')
+      expect(field.getAttribute('placeholder')).toBe('Buscar por conceito')
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      expect(field.getAttribute('placeholder')).toBe('Buscar por conceito')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('filtra pela letra e limpa o filtro ao clicar de novo', async () => {
@@ -152,7 +252,7 @@ describe('DictionaryPage', () => {
       expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
     })
 
-    await userEvent.type(screen.getByPlaceholderText('Buscar por termo'), 'glico')
+    await userEvent.type(searchField(), 'glico')
     await userEvent.click(screen.getByRole('button', { name: 'Letra G' }))
     expect(screen.getAllByText('glicólise').length).toBeGreaterThan(0)
     expect(screen.getAllByText('glicogênio').length).toBeGreaterThan(0)

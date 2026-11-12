@@ -5,8 +5,9 @@ import { BookMarked, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { EmptyState, ErrorState } from '../../components/ErrorState'
 import { PageHeader } from '../../components/PageHeader'
 import { useDictionary } from './useDictionary'
+import { useTypedPlaceholder } from './useTypedPlaceholder'
 import { DictionarySkeleton } from '../../components/PageSkeleton'
-import { normalizeTerm, type DictionaryEntry } from './dictionarySchema'
+import { normalizeTerm, normalizeSearchText, matchesDictionaryQuery, type DictionaryEntry } from './dictionarySchema'
 import './dictionary.css'
 
 type DictionaryPageProps = {
@@ -15,6 +16,45 @@ type DictionaryPageProps = {
 
 /** As letras da barra de filtro. */
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
+/** Os dois jeitos de procurar no dicionario. A mesma busca filtra termo e
+ *  conceito (o indice casa o termo e a definicao entra na lista), por isso o
+ *  campo alterna o texto em vez de oferecer um seletor: escolher um modo nao
+ *  mudaria nada no resultado. */
+const SEARCH_PLACEHOLDERS = ['Buscar por conceito', 'Buscar por termo'] as const
+
+/** Campo de busca do dicionario.
+ *
+ *  Vive num componente proprio porque o placeholder digita sozinho: o texto
+ *  muda a cada ~40 ms e essa atualizacao nao pode re-renderizar a lista de
+ *  verbetes (que pode ter centenas de itens) a cada tique. */
+function DictionarySearchField({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (next: string) => void
+}) {
+  const [focused, setFocused] = useState(false)
+  const placeholder = useTypedPlaceholder(SEARCH_PLACEHOLDERS, { paused: focused || value.length > 0 })
+  return (
+    <label className="dictionary-search">
+      <Search size={15} aria-hidden="true" />
+      {/* O rotulo acessivel nao acompanha a animacao: quem usa leitor de tela
+          ouve um nome fixo, e o texto que muda e apenas dica visual. */}
+      <span className="visually-hidden">Buscar conceito</span>
+      <Field
+        size="xs"
+        type="search"
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      />
+    </label>
+  )
+}
 
 /**
  * A inicial de um termo, na mesma normalizacao do hover.
@@ -89,14 +129,31 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
   const [concept, setConcept] = useState('')
   const [formError, setFormError] = useState('')
 
+  /** Cada verbete com o texto ja normalizado para a busca (termo + conceito).
+   *
+   *  A busca casa os dois: a pagina e um dicionario de **conceitos** e quem
+   *  procura "particula" quer achar os verbetes cuja definicao fala disso,
+   *  nao so os que tem esse nome. Normalizar a definicao a cada tecla custaria
+   *  caro (frases de ate 2000 caracteres por verbete); aqui o trabalho
+   *  acontece uma vez por leitura do dicionario e a digitacao vira um
+   *  `includes`. */
+  const searchIndex = useMemo(
+    () => entries.map((entry) => ({
+      entry,
+      haystack: `${normalizeSearchText(entry.term)} ${normalizeSearchText(entry.concept)}`,
+    })),
+    [entries],
+  )
+
   const filtered = useMemo(() => {
-    const needle = normalizeTerm(query)
-    return entries.filter((entry) => {
-      if (letter && initialOf(entry.term) !== letter) return false
-      if (!needle) return true
-      return normalizeTerm(entry.term).includes(needle)
-    })
-  }, [entries, query, letter])
+    const needle = normalizeSearchText(query)
+    return searchIndex
+      .filter((row) => {
+        if (letter && initialOf(row.entry.term) !== letter) return false
+        return !needle || row.haystack.includes(needle)
+      })
+      .map((row) => row.entry)
+  }, [searchIndex, query, letter])
 
   /** Se existe algum termo que nao comeca com letra (numero, simbolo). O
    * grupo "#" so aparece nesse caso — 27 botoes, um deles inerte, e ruido. */
@@ -152,10 +209,9 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
     try {
       await save(term, concept)
       const savedKey = normalizeTerm(term)
-      const needle = normalizeTerm(query)
       const stillVisible =
         (!letter || initialOf(term) === letter) &&
-        (!needle || savedKey.includes(needle))
+        matchesDictionaryQuery({ term, concept }, query)
       setSelectedKey(savedKey)
       // Um termo novo (ou renomeado) que nao casa com a busca/letra atual
       // sumiria da lista logo depois de salvo. Limpar o filtro o mostra.
@@ -206,22 +262,7 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
       {error && !formError ? <ErrorState message={error} /> : null}
       <div className="dictionary-filters">
         <div className="dictionary-toolbar">
-          <label className="dictionary-search">
-            <Search size={15} aria-hidden="true" />
-            <span className="visually-hidden">Buscar conceito</span>
-            <Field
-              size="xs"
-              type="search"
-              value={query}
-              placeholder="Buscar por termo"
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-          <p className="dictionary-count">
-            {filtered.length === entries.length
-              ? `${entries.length} conceito${entries.length === 1 ? '' : 's'}`
-              : `${filtered.length} de ${entries.length}`}
-          </p>
+          <DictionarySearchField value={query} onChange={setQuery} />
         </div>
 
         <div className="dictionary-alphabet" role="group" aria-label="Filtrar termos por letra">

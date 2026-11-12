@@ -1,3 +1,23 @@
+/* Utilitario de acessibilidade: o texto continua no DOM (entra no nome
+ * acessivel do campo/label) e some da tela.
+ *
+ * O `.visually-hidden` era usado no dicionario e no modal de sugestao SEM
+ * nenhuma regra no CSS: o rotulo "Buscar conceito" aparecia dentro da pilula
+ * de busca, ao lado do placeholder, e a pessoa lia dois textos no mesmo campo
+ * ("Busca por conceito" + "Buscar por termo"). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .app-shell {
   display: grid;
   gap: 24px;

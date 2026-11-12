@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   dictionaryEntrySchema,
   indexDictionary,
+  matchesDictionaryQuery,
+  normalizeSearchText,
   normalizeTerm,
   wordAt,
   type DictionaryEntry,
@@ -151,5 +153,38 @@ describe('dictionaryEntrySchema', () => {
     })
     expect(parsed.contexts).toHaveLength(1)
     expect(parsed.contexts[0].notePath).toBe('bio/fotossintese.md')
+  })
+})
+
+describe('normalizeSearchText', () => {
+  it('tira acento e caixa e troca pontuacao por espaco', () => {
+    expect(normalizeSearchText('Partícula, com carga (negativa).'))
+      .toBe('particula com carga negativa')
+  })
+
+  it('preserva o texto de termos compostos', () => {
+    expect(normalizeSearchText('  pH ótimo  ')).toBe('ph otimo')
+  })
+})
+
+describe('matchesDictionaryQuery', () => {
+  const eletron = entry('eletron', 'Partícula subatômica com carga negativa.')
+
+  it('casa pelo termo', () => {
+    expect(matchesDictionaryQuery(eletron, 'ELE')).toBe(true)
+  })
+
+  it('casa pelo conceito, mesmo com acento e pontuacao', () => {
+    expect(matchesDictionaryQuery(eletron, 'particula')).toBe(true)
+    expect(matchesDictionaryQuery(eletron, 'subatômica, com carga')).toBe(true)
+  })
+
+  it('nao casa quando o texto nao esta no termo nem no conceito', () => {
+    expect(matchesDictionaryQuery(eletron, 'fotossintese')).toBe(false)
+  })
+
+  it('busca vazia casa com tudo', () => {
+    expect(matchesDictionaryQuery(eletron, '')).toBe(true)
+    expect(matchesDictionaryQuery(eletron, '   ')).toBe(true)
   })
 })

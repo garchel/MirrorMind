@@ -91,6 +91,45 @@ export function indexDictionary(
 }
 
 /**
+ * Normaliza um texto para a busca "contém" da pagina do dicionario.
+ *
+ * Diferente de `normalizeTerm`, aqui a pontuacao interna **nao** interessa:
+ * a definicao e uma frase ("Enzima que fixa carbono, liberando energia.") e
+ * quem digita "carbono liberando" precisa casar. Toda sequencia que nao seja
+ * letra/numero vira um espaco simples, e os espacos repetidos somem.
+ *
+ * Mesma familia de normalizacao do resto (`NFD` + marcas combinantes fora),
+ * para "particula" achar "partícula".
+ */
+export function normalizeSearchText(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+}
+
+/**
+ * O verbete casa com o que foi digitado na busca?
+ *
+ * Casa pelo **termo** ou pelo **conceito**: a pagina se chama "dicionario de
+ * conceitos" e o campo diz "Buscar por conceito" — procurar so na chave
+ * deixava invisivel justamente o texto que a pessoa lembra (a definicao).
+ *
+ * Busca vazia casa com tudo (o filtro esta desligado).
+ */
+export function matchesDictionaryQuery(
+  entry: Pick<DictionaryEntry, 'term' | 'concept'>,
+  query: string,
+): boolean {
+  const needle = normalizeSearchText(query)
+  if (!needle) return true
+  return normalizeSearchText(entry.term).includes(needle)
+    || normalizeSearchText(entry.concept).includes(needle)
+}
+
+/**
  * As palavras de um termo, já normalizadas.
  *
  * Usado para casar **palavra inteira** no texto: o termo "arte" não pode
