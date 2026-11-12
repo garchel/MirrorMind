@@ -109,6 +109,95 @@ describe('ReviewQueuePage', () => {
     expect(getDueReviewQueueMock).toHaveBeenCalledTimes(2)
   })
 
+  it('mantem a escala de prioridade inteira: 3 desce para 2 e 1 nao vira 0,1', async () => {
+    getDueReviewQueueMock.mockResolvedValue([
+      {
+        noteId: 'note-high',
+        relativePath: 'Prova/ATP.md',
+        title: 'ATP',
+        nextReviewAtUnixMs: Date.now() - 3 * 24 * 60 * 60 * 1_000,
+        priorityWeight: 3,
+        deadlineAtUnixMs: null,
+        preferredMode: 'exam',
+        isFirstReview: true,
+      },
+      {
+        noteId: 'note-low',
+        relativePath: 'Leitura.md',
+        title: 'Leitura',
+        nextReviewAtUnixMs: Date.now() - 24 * 60 * 60 * 1_000,
+        priorityWeight: 1,
+        deadlineAtUnixMs: null,
+        preferredMode: 'conversation',
+        isFirstReview: false,
+      },
+    ])
+
+    render(<ReviewQueuePage vaultPath={VAULT_PATH} onOpenNote={vi.fn()} onStartReview={vi.fn()} />)
+
+    const rows = await screen.findAllByRole('listitem')
+    const user = userEvent.setup()
+
+    await user.click(within(rows[0]).getByRole('button', { name: 'Diminuir prioridade de ATP' }))
+    expect(setPriorityMock).toHaveBeenLastCalledWith(expect.objectContaining({ priorityWeight: 2 }))
+
+    // 1 e o piso do modelo (o padrao do vault) — o peso 0,1 do codigo antigo
+    // nao tem significado na tela.
+    expect(within(rows[1]).getByRole('button', { name: 'Diminuir prioridade de Leitura' })).toBeDisabled()
+  })
+
+  it('recupera o peso 0,1 que ficou salvo: aumentar leva para 1 e nao para 1,1', async () => {
+    getDueReviewQueueMock.mockResolvedValue([
+      {
+        noteId: 'note-high',
+        relativePath: 'Prova/ATP.md',
+        title: 'ATP',
+        nextReviewAtUnixMs: Date.now() - 3 * 24 * 60 * 60 * 1_000,
+        priorityWeight: 0.1,
+        deadlineAtUnixMs: null,
+        preferredMode: 'exam',
+        isFirstReview: true,
+      },
+    ])
+
+    render(<ReviewQueuePage vaultPath={VAULT_PATH} onOpenNote={vi.fn()} onStartReview={vi.fn()} />)
+
+    const row = (await screen.findAllByRole('listitem'))[0]
+    await userEvent.setup().click(within(row).getByRole('button', { name: 'Aumentar prioridade de ATP' }))
+
+    expect(setPriorityMock).toHaveBeenLastCalledWith(expect.objectContaining({ priorityWeight: 1 }))
+  })
+
+  it('mostra o novo peso na hora e nao troca a lista por carregando', async () => {
+    const item = {
+      noteId: 'note-high',
+      relativePath: 'Prova/ATP.md',
+      title: 'ATP',
+      nextReviewAtUnixMs: Date.now() - 3 * 24 * 60 * 60 * 1_000,
+      priorityWeight: 3,
+      deadlineAtUnixMs: null,
+      preferredMode: 'exam',
+      isFirstReview: true,
+    }
+    getDueReviewQueueMock.mockReset()
+    getDueReviewQueueMock.mockResolvedValueOnce([item])
+    // A recarga disparada pelo ajuste fica pendente: se ela zerasse a lista,
+    // o item sumiria da tela e o "carregando" apareceria (o flick).
+    getDueReviewQueueMock.mockReturnValue(new Promise(() => {}))
+    listUpcomingMock.mockReset()
+    listUpcomingMock.mockResolvedValueOnce({ items: [], total: 0 })
+    listUpcomingMock.mockReturnValue(new Promise(() => {}))
+
+    render(<ReviewQueuePage vaultPath={VAULT_PATH} onOpenNote={vi.fn()} onStartReview={vi.fn()} />)
+
+    const row = (await screen.findAllByRole('listitem'))[0]
+    await userEvent.setup().click(within(row).getByRole('button', { name: 'Aumentar prioridade de ATP' }))
+
+    expect(within(row).getByText('Prioridade 4')).toBeInTheDocument()
+    expect(screen.queryByText('Carregando revisões vencidas...')).not.toBeInTheDocument()
+    expect(screen.queryByText('Carregando próximos vencimentos…')).not.toBeInTheDocument()
+  })
+
   it('explains when there are no overdue notes', async () => {
     getDueReviewQueueMock.mockResolvedValue([])
     render(<ReviewQueuePage vaultPath="C:\\Vault" onOpenNote={vi.fn()} onStartReview={vi.fn()} />)

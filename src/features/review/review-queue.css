@@ -328,6 +328,10 @@ p.review-queue-upcoming-error {
   gap: 4px;
   color: var(--text-normal);
   font-weight: 600;
+  /* Numeros de largura fixa: sem isso, "Prioridade 9" -> "Prioridade 10"
+   * mudava a largura do bloco e empurrava o resto da linha meta a cada
+   * clique, um tremor a mais no ajuste. */
+  font-variant-numeric: tabular-nums;
 }
 
 .review-queue-priority-step {

@@ -18,12 +18,35 @@ type ReviewQueuePageProps = {
 }
 
 const PRIORITY_STEP = 1
+const PRIORITY_MIN = 1
+const PRIORITY_MAX = 100
+
+/**
+ * Peso de prioridade: escala INTEIRA de 1 a 100.
+ *
+ * O contrato do backend aceita `(0, 100]` (peso positivo) e o padrao do vault
+ * e 1.0 — ou seja, 1 e o piso, nao 0,1. O codigo antigo usava
+ * `Math.round((peso + delta) * 10) / 10` com piso 0,1, entao descer de 1 caia
+ * para 0,1 (um valor que nada significa na tela) e subir depois dava 1,1:
+ * o arredondamento preservava a fracao em vez de somar passos inteiros.
+ */
+function stepPriority(current: number, delta: number): number {
+  return Math.min(PRIORITY_MAX, Math.max(PRIORITY_MIN, Math.round(current + delta)))
+}
 
 export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowseNotes }: ReviewQueuePageProps) {
   const [items, setItems] = useState<DueReviewItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadRequest, setReloadRequest] = useState(0)
+  // Recarga silenciosa: mantem a lista na tela em vez de trocar por skeleton.
+  // Usada quando o ajuste de prioridade ja se refletiu no estado local — a
+  // pagina piscava a cada clique porque o reload zerava a fila visivel.
+  const [reloadSilent, setReloadSilent] = useState(false)
+  const requestReload = useCallback((silent: boolean) => {
+    setReloadSilent(silent)
+    setReloadRequest((request) => request + 1)
+  }, [])
   const [priorityBusy, setPriorityBusy] = useState<string | null>(null)
   const [priorityError, setPriorityError] = useState<string | null>(null)
   const requestIdRef = useRef(0)
@@ -39,7 +62,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
 
   useEffect(() => {
     const requestId = ++requestIdRef.current
-    setLoading(true)
+    if (!reloadSilent) setLoading(true)
     setError(null)
 
     void getDueReviewQueue(vaultPath)
@@ -60,15 +83,15 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
         }
       })
       .finally(() => {
-        if (requestId === requestIdRef.current) setLoading(false)
+        if (requestId === requestIdRef.current && !reloadSilent) setLoading(false)
       })
-  }, [vaultPath, reloadRequest])
+  }, [vaultPath, reloadRequest, reloadSilent])
 
   /** Carrega uma página da fila de vencimento. Com `reset`, recomeça do zero
    * (troca de vault ou atualização manual); sem `reset`, anexa a próxima
    * janela — a rolagem infinita do histórico: mais itens ao rolar, sem
    * recarregar o que já está na tela. */
-  const loadUpcomingPage = useCallback(async (reset: boolean) => {
+  const loadUpcomingPage = useCallback(async (reset: boolean, silent = false) => {
     if (reset) {
       upcomingLoadingRef.current = false
       upcomingOffsetRef.current = 0
@@ -78,7 +101,9 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
     const offset = upcomingOffsetRef.current
     const requestId = ++upcomingRequestIdRef.current
     if (reset) {
-      setUpcomingLoading(true)
+      // `silent` mantem a lista atual na tela: sem isso, cada ajuste de
+      // prioridade trocava a secao por "Carregando proximos vencimentos...".
+      if (!silent) setUpcomingLoading(true)
       setUpcomingError(null)
     } else {
       setUpcomingLoadingMore(true)
@@ -110,8 +135,8 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
   }, [vaultPath])
 
   useEffect(() => {
-    void loadUpcomingPage(true)
-  }, [loadUpcomingPage, reloadRequest])
+    void loadUpcomingPage(true, reloadSilent)
+  }, [loadUpcomingPage, reloadRequest, reloadSilent])
 
   const hasMoreUpcoming = upcomingItems.length < upcomingTotal
 
@@ -134,14 +159,27 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
 
   async function changePriority(item: DueReviewItem, delta: number) {
     if (priorityBusy) return
-    const next = Math.min(100, Math.max(0.1, Math.round((item.priorityWeight + delta) * 10) / 10))
+    const next = stepPriority(item.priorityWeight, delta)
     if (next === item.priorityWeight) return
     setPriorityBusy(item.noteId)
     setPriorityError(null)
+    // O numero muda na hora (resposta local) e a recarga que corrige a ordem
+    // vem depois, silenciosa: esperar o backend para pintar o valor fazia o
+    // clique parecer que nao tinha funcionado, e recarregar com skeleton
+    // piscava a pagina inteira.
+    setItems((current) =>
+      current.map((row) => (row.noteId === item.noteId ? { ...row, priorityWeight: next } : row)),
+    )
+    requestReload(true)
     try {
       await setNoteReviewPriority({ vaultPath, relativePath: item.relativePath, priorityWeight: next })
-      setReloadRequest((request) => request + 1)
     } catch (cause) {
+      // Falhou: desfaz o valor otimista e conta o erro.
+      setItems((current) =>
+        current.map((row) =>
+          row.noteId === item.noteId ? { ...row, priorityWeight: item.priorityWeight } : row,
+        ),
+      )
       setPriorityError(errorMessage(cause, String(cause)))
     } finally {
       setPriorityBusy(null)
@@ -156,13 +194,13 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
         titleId="review-queue-title"
         description="Notas vencidas, ordenadas por prioridade e pelo maior atraso."
       >
-        <PageRefreshButton onRefresh={() => setReloadRequest((request) => request + 1)} disabled={loading} />
+        <PageRefreshButton onRefresh={() => requestReload(false)} disabled={loading} />
       </PageHeader>
 
       {loading ? (
         <QueueSkeleton />
       ) : error ? (
-        <ErrorState message={error} onRetry={() => setReloadRequest((request) => request + 1)} />
+        <ErrorState message={error} onRetry={() => requestReload(false)} />
       ) : items.length === 0 ? (
         <div className="review-queue-empty">
           <span className="review-queue-empty-badge" aria-hidden="true">
@@ -212,7 +250,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
                       type="button"
                       className="ui-button review-queue-priority-step"
                       onClick={() => void changePriority(item, -PRIORITY_STEP)}
-                      disabled={priorityBusy !== null || item.priorityWeight <= 0.1}
+                      disabled={priorityBusy !== null || Math.round(item.priorityWeight) <= PRIORITY_MIN}
                       aria-label={`Diminuir prioridade de ${item.title}`}
                     >
                       <Minus size={13} strokeWidth={2} aria-hidden="true" />
@@ -222,7 +260,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
                       type="button"
                       className="ui-button review-queue-priority-step"
                       onClick={() => void changePriority(item, PRIORITY_STEP)}
-                      disabled={priorityBusy !== null || item.priorityWeight >= 100}
+                      disabled={priorityBusy !== null || Math.round(item.priorityWeight) >= PRIORITY_MAX}
                       aria-label={`Aumentar prioridade de ${item.title}`}
                     >
                       <Plus size={13} strokeWidth={2} aria-hidden="true" />
