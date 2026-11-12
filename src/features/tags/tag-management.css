@@ -264,6 +264,19 @@
   white-space: nowrap;
 }
 
+/* `line-height` proprio, e nao o `1` do shell.
+ *
+ * A linha da arvore e um `<Button>` secundario, e `.workspace-shell
+ * .secondary-button` (0,2,0) fixa `line-height: 1` para o token de 28px
+ * fechar. Com 13px de fonte a caixa de linha fica com 13px, menor que a tinta
+ * das descendentes (g, ç, p); o `overflow: hidden` do `.tag-tree-name` — que
+ * existe para o ellipsis — cortava esses ~2px (medido: clientHeight 13,
+ * scrollHeight 15). A classe duplicada vence a regra do shell sem depender da
+ * ordem dos bundles. */
+.tag-management-page.tag-management-page .tag-tree-row {
+  line-height: 1.45;
+}
+
 .tag-tree-row .tag-tree-chevron,
 .tag-tree-chevron-slot {
   width: 14px;
