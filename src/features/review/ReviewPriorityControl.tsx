@@ -2,6 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
+import { REVIEW_PRIORITY_LEVELS, priorityLevelFor } from './reviewPriorityLevels'
+
+function formatWeight(weight: number): string {
+  return weight.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+}
+
+type ReviewPriorityControlProps = {
+  weight: number
+  noteTitle: string
+  busy?: boolean
+  onChange: (weight: number) => void
+}
 
 /**
  * Prioridade como ESCOLHA, nao como numero.
@@ -17,40 +29,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/pop
  * Os pesos gravados sao exatamente os que o backend ja entende (1, 2, 3), sem
  * migracao de dados: uma nota que hoje tem peso 2 continua "Alta".
  */
-export const REVIEW_PRIORITY_LEVELS = [
-  { label: 'Normal', weight: 1, description: 'Entra na fila pelo atraso, como as demais.' },
-  { label: 'Alta', weight: 2, description: 'Passa na frente das normais.' },
-  { label: 'Urgente', weight: 3, description: 'Vai para o topo da fila.' },
-] as const
-
-export type ReviewPriorityLevel = (typeof REVIEW_PRIORITY_LEVELS)[number]
-
-/** Nivel correspondente ao peso salvo.
- *
- *  O peso pode vir fracionario de uma politica (tag, prazo ou nota antiga que
- *  ficou com 0,1). A tela mostra o degrau mais proximo — `0,1` e `0,4` sao
- *  "Normal", `2,7` e "Urgente" — e o valor exato aparece no `title` do
- *  controle, para nao esconder o dado de quem procura. Nada e reescrito ate o
- *  usuario escolher um nivel. */
-export function priorityLevelFor(weight: number): ReviewPriorityLevel {
-  const index = Math.min(
-    REVIEW_PRIORITY_LEVELS.length - 1,
-    Math.max(0, Math.round(weight) - 1),
-  )
-  return REVIEW_PRIORITY_LEVELS[index]
-}
-
-function formatWeight(weight: number): string {
-  return weight.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
-}
-
-type ReviewPriorityControlProps = {
-  weight: number
-  noteTitle: string
-  busy?: boolean
-  onChange: (weight: number) => void
-}
-
 export function ReviewPriorityControl({
   weight,
   noteTitle,

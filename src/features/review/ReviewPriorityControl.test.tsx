@@ -1,7 +1,8 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ReviewPriorityControl, priorityLevelFor } from './ReviewPriorityControl'
+import { ReviewPriorityControl } from './ReviewPriorityControl'
+import { priorityLevelFor } from './reviewPriorityLevels'
 
 afterEach(cleanup)
 
