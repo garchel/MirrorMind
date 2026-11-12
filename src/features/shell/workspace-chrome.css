@@ -130,9 +130,17 @@
    * (28px). Era 26px, um valor fora da escala; o botao secundario sem
    * contexto especifico e este. */
   min-height: var(--button-size-xs-height);
-  /* Linha 1 para o token de 28 valer: com a linha herdada de 27px o
-   * botao fecharia em 29 (27 + 2 de borda). */
-  line-height: 1;
+  /* 1.2, e nao 1.
+   *
+   * A linha 1 nasceu para o token de 28px valer (com a linha herdada de 27px o
+   * botao fecharia em 29), mas ela tambem e a caixa de linha de qualquer TEXTO
+   * dentro de um botao secundario. Com fonte de 12-13px a caixa fica menor que
+   * a tinta das descendentes (g, ç, p) e, onde existe `overflow: hidden` para
+   * truncar (rotulos do rail, linhas de lista), o texto era cortado embaixo —
+   * medido em 12x14 (clientHeight x scrollHeight) no rail e 13x15 na arvore de
+   * tags. 1.2 da 15,6px com 13px de fonte: cabe, e a altura do botao continua
+   * sendo a `min-height` (o conteudo nunca chega aos 28px). */
+  line-height: 1.2;
   padding: 0 8px;
   color: var(--workspace-muted);
   background: transparent;
@@ -1568,6 +1576,15 @@ label.settings-toggle {
 .rail-label {
   overflow: hidden;
   font-size: 12px;
+  /* `line-height` proprio, e nao o herdado do botao.
+   *
+   * O item do rail e um <Button> secundario, e o shell fixa
+   * `line-height: 1` nessa variante; herdado, o rotulo de 12px ficava com
+   * 12px de caixa de linha e o `overflow: hidden` — que existe para truncar
+   * o texto quando a barra esta estreita — cortava as descendentes (medido:
+   * clientHeight 12 x scrollHeight 14, em TODOS os rotulos). 1.35 da 16,2px,
+   * que cabe nos 34px do item. */
+  line-height: 1.35;
 }
 
 .rail-label--menu {
