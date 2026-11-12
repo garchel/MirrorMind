@@ -69,7 +69,10 @@ describe('ReviewQueuePage', () => {
 
     const rows = await screen.findAllByRole('listitem')
     expect(within(rows[0]).getByRole('heading', { name: 'ATP' })).toBeInTheDocument()
-    expect(within(rows[0]).getByText('Primeira revisão')).toBeInTheDocument()
+    // O aviso de primeira revisao saiu da lista: aparecia em quase toda nota
+    // (toda nota nova comeca sem historico) e virava ruido. Ele mora na
+    // sessao de revisao, onde muda a expectativa de quem responde.
+    expect(within(rows[0]).queryByText('Primeira revisão')).not.toBeInTheDocument()
     expect(within(rows[1]).getByRole('heading', { name: 'Leitura' })).toBeInTheDocument()
     // O nome da nota e o proprio link: nao existe mais botao "Abrir nota".
     await userEvent.setup().click(within(rows[0]).getByRole('button', { name: 'ATP' }))

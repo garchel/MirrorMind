@@ -74,6 +74,20 @@
 .review-session-kicker { color:var(--accent); font:700 10px/1 var(--sans); letter-spacing:.14em; text-transform:uppercase; }
 .review-setup h2, .review-question h2, .review-report-header-main h2 { font:600 26px/1.18 var(--serif); }
 .review-setup > p:not(.review-session-kicker), .review-report-summary { margin:0; color:var(--text-muted); font-size:13px; line-height:1.65; }
+
+/* Aviso de primeira revisao: bloco de contexto, nao alerta. Precisa de
+ * (0,3,1) para vencer o seletor de paragrafo acima, que empata em
+ * especificidade e vem antes. */
+.review-setup > p.review-first-timer:not(.review-session-kicker) {
+  max-width: 72ch;
+  padding: 10px 13px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface-canvas));
+  color: var(--text-normal);
+}
+
+.review-first-timer strong { color: var(--text-h); font-weight: 700; }
 .review-setup fieldset { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; border:0; margin:0; padding:0; }
 .review-setup legend { grid-column:1/-1; margin-bottom:8px; color:var(--text-normal); font-size:12px; font-weight:700; }
 .review-setup fieldset label { display:grid; grid-template-columns:auto 1fr; gap:4px 9px; border:1px solid var(--line); border-radius: var(--radius-md); padding:14px; background:var(--surface-canvas); cursor:pointer; }

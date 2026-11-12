@@ -154,6 +154,34 @@ describe('ReviewSessionPage', () => {
     expect(startMock).not.toHaveBeenCalled()
   })
 
+  it('avisa na tela de preparo que a nota nunca foi revisada', async () => {
+    renderPage()
+
+    // O aviso que saiu da lista mora aqui: e nesta tela que ele muda a
+    // expectativa de quem vai responder.
+    const aviso = await screen.findByText(/Ainda não há histórico/)
+    expect(aviso).toHaveTextContent(/Primeira revisão desta nota\./)
+    expect(aviso).toHaveTextContent(/serve para calibrar a nota/)
+  })
+
+  it('nao repete o aviso quando a nota ja tem historico', async () => {
+    render(
+      <EntitlementProvider>
+        <ReviewAiSettingsProvider>
+          <ReviewSessionPage
+            vaultPath={VAULT_PATH}
+            item={{ ...item, isFirstReview: false }}
+            onExit={vi.fn()}
+            onCompleted={vi.fn()}
+          />
+        </ReviewAiSettingsProvider>
+      </EntitlementProvider>,
+    )
+
+    await screen.findByText(/O conteúdo da nota ficará oculto/)
+    expect(screen.queryByText(/Primeira revisão desta nota\./)).not.toBeInTheDocument()
+  })
+
   it('shows the evaluable points of each target unit on the setup screen', async () => {
     previewMock.mockResolvedValue({
       targetUnitCount: 2, totalUnitCount: 4, coverageFraction: 0.5,

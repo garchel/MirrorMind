@@ -169,17 +169,6 @@
   text-decoration-color: currentColor;
 }
 
-.review-queue-badge {
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-  border-radius: 999px;
-  padding: 3px 7px;
-  color: var(--accent-soft);
-  background: color-mix(in srgb, var(--accent) 9%, var(--surface-canvas));
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
 .review-queue-path {
   overflow: hidden;
   color: var(--text-muted);

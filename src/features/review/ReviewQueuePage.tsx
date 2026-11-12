@@ -222,7 +222,6 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
                       {item.title}
                     </Button>
                   </h3>
-                  {item.isFirstReview ? <span className="review-queue-badge">Primeira revisão</span> : null}
                 </div>
                 <p className="review-queue-path">{item.relativePath}</p>
                 <div className="review-queue-meta">
@@ -303,8 +302,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
                           {item.title}
                         </Button>
                       </h3>
-                      {item.isFirstReview ? <span className="review-queue-badge">Primeira revisão</span> : null}
-                    </div>
+                        </div>
                     <p className="review-queue-path">{item.relativePath}</p>
                     <div className="review-queue-meta">
                       <span>{formatUpcomingDate(item.nextReviewAtUnixMs)}</span>

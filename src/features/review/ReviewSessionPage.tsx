@@ -752,6 +752,17 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
           <p className="review-session-kicker">Preparar sessão</p>
           <h2 id="review-setup-title">{item.title}</h2>
           <p>O conteúdo da nota ficará oculto. A avaliação usará somente o texto salvo como fonte.</p>
+          {item.isFirstReview ? (
+            <p className="review-first-timer">
+              {/* O aviso de primeira revisao mora AQUI, e nao na fila: na lista
+                  ele aparecia em quase toda nota (toda nota nova comeca sem
+                  historico) e virava ruido; aqui ele muda a expectativa de
+                  quem vai responder. */}
+              <strong>Primeira revisão desta nota.</strong> Ainda não há histórico
+              de respostas, então esta sessão serve para calibrar a nota — é a
+              próxima que vai poder ser comparada com ela.
+            </p>
+          ) : null}
           <fieldset><legend>Como você quer revisar?</legend>
             <label className={mode === 'exam' ? 'is-selected' : ''}><input type="radio" name="mode" checked={mode === 'exam'} onChange={() => setMode('exam')} /><strong>Modo prova</strong><span>Perguntas independentes e correção ao final.</span></label>
             <label className={mode === 'conversation' ? 'is-selected' : ''}><input type="radio" name="mode" checked={mode === 'conversation'} onChange={() => setMode('conversation')} /><strong>Modo conversa</strong><span>A IA explora seu entendimento progressivamente.</span></label>
