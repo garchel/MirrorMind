@@ -71,7 +71,8 @@ describe('ReviewQueuePage', () => {
     expect(within(rows[0]).getByRole('heading', { name: 'ATP' })).toBeInTheDocument()
     expect(within(rows[0]).getByText('Primeira revisão')).toBeInTheDocument()
     expect(within(rows[1]).getByRole('heading', { name: 'Leitura' })).toBeInTheDocument()
-    await userEvent.setup().click(within(rows[0]).getByRole('button', { name: 'Abrir nota ATP' }))
+    // O nome da nota e o proprio link: nao existe mais botao "Abrir nota".
+    await userEvent.setup().click(within(rows[0]).getByRole('button', { name: 'ATP' }))
     expect(onOpenNote).toHaveBeenCalledWith('Prova/ATP.md')
     await userEvent.setup().click(within(rows[0]).getByRole('button', { name: 'Revisar ATP' }))
     expect(onStartReview).toHaveBeenCalledWith(expect.objectContaining({ noteId: 'note-high' }))
@@ -270,7 +271,7 @@ describe('ReviewQueuePage', () => {
 
     render(<ReviewQueuePage vaultPath="C:\\Vault" onOpenNote={onOpenNote} onStartReview={vi.fn()} />)
 
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Abrir nota Futura' }))
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Futura' }))
     expect(onOpenNote).toHaveBeenCalledWith('Futura.md')
     expect(screen.queryByRole('button', { name: 'Revisar Futura' })).not.toBeInTheDocument()
   })

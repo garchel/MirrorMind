@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
-import { CalendarClock, CheckCircle2, Minus, Plus } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Minus, Play, Plus } from 'lucide-react'
 import { ErrorState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { QueueSkeleton } from '../../components/PageSkeleton'
@@ -188,7 +188,19 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
               <div className="review-queue-order" aria-hidden="true" />
               <div className="review-queue-copy">
                 <div className="review-queue-title-row">
-                  <h3>{item.title}</h3>
+                  <h3 className="review-queue-title">
+                    {/* O nome abre a nota: e ele que carrega o link, em vez de
+                        um segundo botao "Abrir nota" ao lado do "Revisar". */}
+                    <Button
+                      type="button"
+                      variant="bare"
+                      className="ui-button review-queue-note-link"
+                      onClick={() => onOpenNote(item.relativePath)}
+                      title={`Abrir ${item.relativePath}`}
+                    >
+                      {item.title}
+                    </Button>
+                  </h3>
                   {item.isFirstReview ? <span className="review-queue-badge">Primeira revisão</span> : null}
                 </div>
                 <p className="review-queue-path">{item.relativePath}</p>
@@ -226,19 +238,14 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
               <div className="review-queue-actions">
                 <Button
                   type="button"
-                  className="ui-button ui-button--primary ui-button--md"
+                  variant="primary"
+                  size="md"
+                  className="review-queue-start"
                   onClick={() => onStartReview(item)}
                   aria-label={`Revisar ${item.title}`}
                 >
+                  <Play size={15} strokeWidth={2} aria-hidden="true" />
                   Revisar
-                </Button>
-                <Button
-                  type="button"
-                  className="ui-button ui-button--secondary ui-button--sm review-queue-open"
-                  onClick={() => onOpenNote(item.relativePath)}
-                  aria-label={`Abrir nota ${item.title}`}
-                >
-                  Abrir nota
                 </Button>
               </div>
             </li>
@@ -279,7 +286,17 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
                   <div className="review-queue-order" aria-hidden="true" />
                   <div className="review-queue-copy">
                     <div className="review-queue-title-row">
-                      <h3>{item.title}</h3>
+                      <h3 className="review-queue-title">
+                        <Button
+                          type="button"
+                          variant="bare"
+                          className="ui-button review-queue-note-link"
+                          onClick={() => onOpenNote(item.relativePath)}
+                          title={`Abrir ${item.relativePath}`}
+                        >
+                          {item.title}
+                        </Button>
+                      </h3>
                       {item.isFirstReview ? <span className="review-queue-badge">Primeira revisão</span> : null}
                     </div>
                     <p className="review-queue-path">{item.relativePath}</p>
@@ -287,16 +304,6 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
                       <span>{formatUpcomingDate(item.nextReviewAtUnixMs)}</span>
                       <span>{item.preferredMode === 'exam' ? 'Modo prova' : 'Modo conversa'}</span>
                     </div>
-                  </div>
-                  <div className="review-queue-actions">
-                    <Button
-                      type="button"
-                      className="ui-button ui-button--secondary ui-button--sm review-queue-open"
-                      onClick={() => onOpenNote(item.relativePath)}
-                      aria-label={`Abrir nota ${item.title}`}
-                    >
-                      Abrir nota
-                    </Button>
                   </div>
                 </li>
               ))}
