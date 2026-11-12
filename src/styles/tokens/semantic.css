@@ -67,6 +67,11 @@
   --accent-soft: var(--mm-clay-850-11);
   --button-bg: var(--mm-azure-950-4);
   --button-text: var(--mm-clay-150-3);
+  /* Hover da primaria: um passo mais escuro da MESMA tinta. Antes apontava
+   * para `--text-inverse` (o creme do proprio rotulo): o botao preto virava
+   * creme no hover com o texto creme em cima — 1,08:1, ou seja, ilegivel.
+   * Com `azure-950-2` o rotulo mantem 16,9:1 e o hover continua perceptivel. */
+  --button-primary-hover: var(--mm-azure-950-2);
   --button-secondary: var(--mm-clay-200-11);
   --code-bg: rgba(39, 47, 51, 0.08);
   --panel-shadow: 0 18px 50px rgba(56, 44, 18, 0.1);
@@ -172,6 +177,11 @@
   --accent-soft: var(--mm-clay-550-3);
   --button-bg: var(--mm-gold-200-2);
   --button-text: var(--mm-ink-950-11);
+  /* Mesmo raciocinio do tema claro: no escuro a primaria e clara e o rotulo
+   * escuro, entao o hover desce um degrau na mesma familia (gold-300-2).
+   * O valor antigo (`--text-inverse` = ink-950-11) deixava texto escuro
+   * sobre fundo escuro: 1,00:1, invisivel. */
+  --button-primary-hover: var(--mm-gold-300-2);
   --button-secondary: var(--mm-ink-900-15);
   --code-bg: rgba(232, 230, 221, 0.08);
   --panel-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);

@@ -160,7 +160,8 @@
  * (0,3,0), nao (0,2,1) — `:is()` assume o argumento mais forte do grupo
  * (`[role='tab']`, uma classe). Ele vencia `.tag-name-field
  * input:focus-visible` (0,2,1) e desenhava o anel cinza-esverdeado
- * (#738979) em volta do input, 2px dentro da moldura que o usuario ve
+ * (o cinza-esverdeado de --mm-ink-750) em volta do input, 2px dentro da
+ * moldura que o usuario ve
  * como "o campo". Com 0,3,1 a regra local vence sem depender de ordem. */
 .tag-management-page .tag-search input:focus-visible,
 .tag-management-page .tag-name-field input:focus-visible,
@@ -739,7 +740,7 @@
  * com `0 14px`, sem respiro em cima e embaixo. Aqui (0,4,0) o padding
  * vertical vale, e o `min-height` de botao sai para o card crescer pelo
  * conteudo. A descricao herdava `--tag-muted` sobre a pilula escura
- * (#282824) e sumia; com a superficie clara ela volta a contrastar. */
+ * da pilula escura e sumia; com a superficie clara ela volta a contrastar. */
 .tag-management-page.tag-management-page .tag-presets :is(button, .ui-button).tag-preset-card {
   display: grid;
   justify-content: normal;
@@ -756,7 +757,7 @@
   text-align: left;
 }
 
-/* A descricao precisa de contraste proprio: `--tag-muted` (#6f6e67) sobre
+/* A descricao precisa de contraste proprio: `--tag-muted` sobre
  * a superficie clara da 4,99:1 — passa, mas fica apagada em 12px. Aqui a
  * cor e a mesma dos rotulos de botao da pagina (8,03:1 no tema claro). */
 .tag-management-page .tag-presets :is(button, .ui-button).tag-preset-card small {

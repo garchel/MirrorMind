@@ -62,10 +62,13 @@
   --button-icon-size: 16px;
   --button-icon-only-padding: 0;
 
-  /* primaria: a unica com tinta cheia. Uma por tela. */
+  /* primaria: a unica com tinta cheia. Uma por tela.
+   * O hover vem do token semantico do tema (`--button-primary-hover`); se
+   * apontasse para o texto (creme no claro, tinta no escuro), o rotulo
+   * desapareceria no proprio hover. */
   --button-primary-bg: var(--button-bg);
   --button-primary-fg: var(--button-text);
-  --button-primary-bg-hover: var(--text-inverse);
+  --button-primary-bg-hover: var(--button-primary-hover);
   --button-primary-border: transparent;
 
   /* secundaria: contorno sobre a superficie. O padrao do app. */
