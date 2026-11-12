@@ -115,6 +115,10 @@ continuar com Ollama/BYOK.
 
 ## O que precisa ser instrumentado antes de escalar
 
+Primeira medição feita em 2026-11-12: Ollama local medido; DeepSeek direto
+bloqueado por 402; ver [`ai-benchmark-report.md`](ai-benchmark-report.md).
+Ainda faltam p50/p95, tokens reais com schema e custo de nuvem.
+
 Eventos:
 
 - `managed_ai_call` (provider, tokens, custo estimado, plano);

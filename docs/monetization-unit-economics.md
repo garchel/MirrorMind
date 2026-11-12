@@ -79,6 +79,28 @@ O teto de fair use é uma proteção contra abuso, não uma cota comercial. A ma
 de ~54% no teto é o piso aceitável; se o custo real ficar 2× acima do modelo,
 preço e/ou tetos precisam ser revistos.
 
+## Benchmark real (2026-11-12)
+
+Primeira medição com os prompts reais do código:
+
+- **Ollama qwen2.5:7b (local):** medido. Tokens e latência reais; custo de API zero.
+- **DeepSeek V4.1 Flash direto:** não medido — o endpoint respondeu **402** (sem plano/saldo para a chave). O custo abaixo é um **proxy** que aplica o preço de tabela do DeepSeek aos tokens medidos no Ollama.
+- **OpenCode Go (DeepSeek via agente):** uma execução mínima consumiu ~5.900 tokens de entrada por causa do system prompt/ferramentas do agente; não representa o custo do app.
+
+Custo proxy do DeepSeek por fluxo:
+
+| Fluxo | Chamadas | Custo proxy |
+| --- | ---: | ---: |
+| Prova (primeira sessão) | 2 | R$ 0,0033 |
+| Prova (sessão seguinte) | 1 | R$ 0,0021 |
+| Conversa (4 turnos) | 6 | R$ 0,0054 |
+| Conversa (6 turnos) | 8 | R$ 0,0061 |
+| Verificação factual | 2 | R$ 0,0135 |
+
+As chamadas medidas ficaram abaixo das 2.500/2.000 tokens por chamada assumidas na planilha, exceto a verificação factual, que bateu no teto de 2.000 tokens de saída. O schema JSON do app **não** entrou no benchmark, então os tokens reais serão maiores; trate esses valores como piso.
+
+Detalhes: [`ai-benchmark-report.md`](ai-benchmark-report.md) e aba **Benchmark real** da planilha.
+
 ## Preço mínimo para 70% de margem
 
 | Plano | Leve | Médio | Pesado |
