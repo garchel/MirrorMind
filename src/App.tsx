@@ -1639,6 +1639,13 @@ function App() {
     let disposed = false
     let unlisten: (() => void) | undefined
     void getCurrentWindow().onCloseRequested((event) => {
+      // Avisa o processo que o webview esta vivo ANTES de decidir qualquer
+      // coisa. O Tauri so conclui o fechamento quando este handler responde
+      // (`window.destroy()`); se a pagina morreu (servidor do `tauri:dev` fora
+      // do ar, WebView2 na pagina de erro), ninguem responde e a janela fica
+      // impossivel de fechar. O `CloseRequestState` do Rust espera 2 s por este
+      // aviso e, sem ele, fecha a janela por conta propria.
+      void invoke('ack_close_request').catch(() => undefined)
       if (allowCloseRef.current) return
       const { paths, newNote } = unsavedForCloseRef.current
       if (paths.length === 0 && !newNote) return

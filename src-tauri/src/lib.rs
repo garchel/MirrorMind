@@ -5389,6 +5389,78 @@ pub(crate) struct AuthorizedPaths {
     parent_directories: Mutex<HashSet<PathBuf>>,
 }
 
+/// Guarda de fechamento do lado do processo.
+///
+/// Por que existe
+/// --------------
+/// O Tauri so fecha a janela quando o JS responde ao `tauri://close-requested`:
+/// o `onCloseRequested` do `@tauri-apps/api` chama `window.destroy()` depois do
+/// handler. E o `WindowEvent::CloseRequested` do framework faz
+/// `api.prevent_close()` sempre que `has_js_listener` for verdadeiro — flag que
+/// fica `true` para sempre depois que a pagina registrou o listener.
+///
+/// Resultado: se o webview morre DEPOIS de registrar (servidor do `tauri:dev`
+/// encerrado, a pagina vira o erro "localhost recusou a conectar" do WebView2),
+/// o pedido de fechamento e emitido para ninguem e a janela nunca fecha — nem
+/// pelo X, nem por Alt+F4, nem pela barra de tarefas.
+///
+/// O protocolo
+/// -----------
+/// O webview avisa que esta vivo (`ack_close_request`) no inicio do handler. Se
+/// o aviso nao chegar em `CLOSE_ACK_TIMEOUT`, o processo destroi a janela por
+/// conta propria: perder um rascunho e ruim, uma janela impossivel de fechar
+/// tambem. Cada pedido tem um numero; o ack cobre os pedidos ate o momento em
+/// que chegou, entao um ack antigo nao libera um pedido novo.
+#[derive(Default)]
+pub(crate) struct CloseRequestState {
+    last_request: AtomicU64,
+    last_ack: AtomicU64,
+}
+
+/// Tempo maximo para o webview responder ao pedido de fechamento. Folgado de
+/// proposito: um `ack` que chega tarde (maquina ocupada) nao pode fazer o app
+/// fechar na mao do usuario e descartar trabalho.
+const CLOSE_ACK_TIMEOUT: Duration = Duration::from_millis(2_000);
+
+/// O pedido `request_seq` foi respondido por um ack de numero `last_ack`?
+/// Extraido para poder ser testado sem janela (o resto do fluxo precisa de um
+/// webview de verdade).
+fn close_was_acknowledged(last_ack: u64, request_seq: u64) -> bool {
+    last_ack >= request_seq
+}
+
+/// Abre o prazo de resposta do pedido de fechamento e, se o webview nao
+/// responder, fecha a janela pelo lado do processo.
+fn queue_close_watchdog<R: tauri::Runtime>(window: &tauri::Window<R>) {
+    let state = window.state::<CloseRequestState>();
+    let request_seq = state.last_request.fetch_add(1, Ordering::SeqCst) + 1;
+    drop(state);
+
+    let app = window.app_handle().clone();
+    let label = window.label().to_string();
+    thread::spawn(move || {
+        thread::sleep(CLOSE_ACK_TIMEOUT);
+        // Sem estado registrado nao ha o que concluir: nao fecha por conta
+        // propria (um `false` aqui seria um fechamento sem motivo).
+        let acknowledged = app
+            .try_state::<CloseRequestState>()
+            .map(|state| close_was_acknowledged(state.last_ack.load(Ordering::SeqCst), request_seq))
+            .unwrap_or(true);
+        if acknowledged {
+            return;
+        }
+        if let Some(window) = app.get_webview_window(&label) {
+            let _ = window.destroy();
+        }
+    });
+}
+
+#[tauri::command]
+fn ack_close_request(state: State<'_, CloseRequestState>) {
+    let request_seq = state.last_request.load(Ordering::SeqCst);
+    state.last_ack.store(request_seq, Ordering::SeqCst);
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 enum VaultFileSystemChangeKind {
@@ -6305,7 +6377,17 @@ pub fn run() {
         .manage(VaultWatcherState::default())
         .manage(WikilinkIndexState::default())
         .manage(VaultInventoryState::default())
+        .manage(CloseRequestState::default())
+        // Fechamento: o Tauri so conclui o `CloseRequested` quando o JS
+        // responde. Este vigia cobre o caso em que o webview morreu e ninguem
+        // responde mais (ver `CloseRequestState`).
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                queue_close_watchdog(window);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
+            ack_close_request,
             select_existing_vault,
             get_recent_vault_preference,
             reopen_recent_vault,
@@ -6451,7 +6533,7 @@ mod tests {
     use super::{
         append_knowledge_suggestion_in_root, apply_history_command, apply_vault_scan_change,
         attachment_directory_for_note, build_tag_index_for_note_paths,
-        classify_vault_file_system_change, collect_attachment_files, collect_folders,
+        classify_vault_file_system_change, close_was_acknowledged, collect_attachment_files, collect_folders,
         collect_markdown_files, collect_special_vault_files, copy_file_synced,
         delete_vault_item_in_root, diagnose_unreadable_notes, ensure_metadata_layout, extract_tags,
         extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root,
@@ -10729,5 +10811,16 @@ mod tests {
 
         apply_history_command(&root, &command, true).expect("undo note");
         assert!(!root.join(&relative_path).exists());
+    }
+
+    #[test]
+    fn close_ack_covers_only_the_requests_made_before_it() {
+        // Um ack antigo nao libera um pedido novo: se a pessoa clica no X, o
+        // webview responde, e depois a pagina morre e ela clica de novo, o
+        // segundo pedido tem de fechar a janela pelo lado do processo.
+        assert!(!close_was_acknowledged(0, 1));
+        assert!(close_was_acknowledged(1, 1));
+        assert!(close_was_acknowledged(2, 1));
+        assert!(!close_was_acknowledged(1, 2));
     }
 }

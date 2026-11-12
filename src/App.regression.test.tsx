@@ -901,6 +901,18 @@ describe('Regressao do editor no workspace', () => {
     return user
   }
 
+  it('[fechamento] avisa o processo que o webview esta vivo antes de decidir', async () => {
+    // O Rust fecha a janela por conta propria quando este aviso nao chega em
+    // 2 s. Ele existe porque o Tauri so conclui o fechamento quando o webview
+    // responde: com a pagina morta (dev server fora do ar), a janela ficaria
+    // impossivel de fechar — X, Alt+F4 e barra de tarefas inclusive.
+    await openVaultWithUnsavedDraft()
+
+    await requestWindowClose()
+
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('ack_close_request', undefined))
+  })
+
   it('[fechamento] pergunta antes de sair quando ha rascunho nao salvo', async () => {
     const user = await openVaultWithUnsavedDraft()
 
