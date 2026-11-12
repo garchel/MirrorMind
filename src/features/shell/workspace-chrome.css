@@ -188,6 +188,15 @@
   color: var(--mm-lilac-150-2);
 }
 
+/* Nota nova ainda sem arquivo: o explorador mostra o nome enquanto ele e
+ * digitado. Italico + acento dizem "isto vai existir quando o nome for
+ * salvo" sem parecer item quebrado; o clique cria a nota. */
+.workspace-shell .tree-note.is-pending,
+.workspace-shell .tree-note.is-pending:hover:not(:disabled) {
+  color: var(--accent);
+  font-style: italic;
+}
+
 /* Nota com o menu de contexto ABERTO: indica de qual nota o menu aberto
  * e, sem depender de decorar a posicao do clique. Estado proprio — nao
  * reusa `is-active`, que e "nota aberta no editor" (outra coisa).

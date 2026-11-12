@@ -720,7 +720,7 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.queryByText(/Nao foi possivel encontrar|Não foi possível encontrar/)).toBeNull()
   })
 
-  it('[nota nova] retomar o rascunho devolve o texto digitado, nunca o da nota aberta depois', async () => {
+  it('[nota nova] trocar de nota salva o nome e o texto digitados, sem herdar a outra nota', async () => {
     const user = userEvent.setup()
     const { notes } = createTauriHarness()
     await openTestVault(user)
@@ -734,23 +734,25 @@ describe('Regressao do editor no workspace', () => {
     await user.click(document.querySelector('#note-editor .cm-content') as HTMLElement)
     // `paste` e um unico evento: o editor nao e recriado no meio da digitacao.
     await user.paste('texto do rascunho')
+    await waitFor(() => {
+      expect(document.querySelector('#note-editor .cm-content')?.textContent).toContain('texto do rascunho')
+    })
 
-    // Abre outra nota SEM confirmar o nome do rascunho.
+    // Abre outra nota: o nome digitado e gravado e a aba vira a nota criada.
     await user.click(screen.getByRole('button', { name: 'Abrir nota alvo' }))
     await screen.findByRole('tab', { name: 'alvo' })
+    await waitFor(() => expect(notes.get('rascunho.md')).toBeDefined())
 
-    // Volta para o rascunho: o editor tem de mostrar o que foi digitado nele.
-    await user.click(screen.getByRole('tab', { name: 'Nova nota' }))
-    await waitFor(() => {
-      expect(document.querySelector('.cm-content')?.textContent).toContain('texto do rascunho')
-    })
-    expect(document.querySelector('.cm-content')?.textContent).not.toContain('Conteúdo do callout')
-
-    // E o autosave nao pode gravar o conteudo da nota alvo na nota nova.
-    await waitFor(() => expect(notes.get('rascunho.md')).toBeDefined(), { timeout: 4000 })
+    // O arquivo criado tem o texto do rascunho — nunca o da nota aberta depois.
     expect(notes.get('rascunho.md')?.content).toContain('texto do rascunho')
     expect(notes.get('rascunho.md')?.content).not.toContain('Conteúdo do callout')
     expect(notes.get('alvo.md')?.content).toContain('Conteúdo do callout')
+
+    // E voltar para ela mostra o texto dela, nao o da outra nota.
+    await user.click(screen.getByRole('tab', { name: 'rascunho' }))
+    await waitFor(() => {
+      expect(document.querySelector('#note-editor .cm-content')?.textContent).toContain('texto do rascunho')
+    })
   })
 
   it('[nota nova] salva ao confirmar o título com Enter e abre a nota criada', async () => {
@@ -768,6 +770,90 @@ describe('Regressao do editor no workspace', () => {
     })
     expect(invokeMock).toHaveBeenCalledWith('create_note', expect.objectContaining({ relativePath: 'minha-nota-de-regressao.md' }))
     expect(invokeMock).toHaveBeenCalledWith('save_note', expect.objectContaining({ relativePath: 'minha-nota-de-regressao.md' }))
+  })
+
+  it('[nota nova] a nota aparece no explorador enquanto o nome e digitado', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Nova nota' }))
+    const title = await screen.findByRole('textbox', { name: 'Título da nova nota' })
+
+    // Primeira letra ja mostra o item, com o nome saneado (nao o texto cru).
+    await user.type(title, 'M')
+    expect(await screen.findByRole('button', { name: 'Criar nota m' })).toBeTruthy()
+
+    await user.type(title, 'inha nota')
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Criar nota minha-nota' })).toBeTruthy()
+    })
+    expect(screen.queryByRole('button', { name: 'Criar nota m' })).toBeNull()
+
+    // O item e so o nome: nenhum arquivo nasceu por digitar.
+    expect(invokeMock.mock.calls.some(([command]) => command === 'create_note')).toBe(false)
+  })
+
+  it('[nota nova] trocar de nota salva o nome digitado', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Nova nota' }))
+    await user.type(await screen.findByRole('textbox', { name: 'Título da nova nota' }), 'Rascunho')
+
+    await user.click(screen.getByRole('button', { name: 'Abrir nota alvo' }))
+
+    await waitFor(() => expect(notes.get('rascunho.md')).toBeDefined())
+    expect(await screen.findByRole('tab', { name: 'alvo' })).toBeTruthy()
+    // O arquivo criado nao pode herdar o conteudo da nota aberta depois.
+    expect(notes.get('rascunho.md')?.content).not.toContain('Conteúdo do callout')
+  })
+
+  it('[nota nova] trocar de pagina salva o nome digitado', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Nova nota' }))
+    await user.type(await screen.findByRole('textbox', { name: 'Título da nova nota' }), 'Anotacao rapida')
+
+    await user.click(screen.getByRole('button', { name: 'Abrir gerenciador de tags' }))
+
+    await waitFor(() => expect(notes.get('anotacao-rapida.md')).toBeDefined())
+  })
+
+  it('[nota nova] clicar no item do explorador cria a nota', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Nova nota' }))
+    await user.type(await screen.findByRole('textbox', { name: 'Título da nova nota' }), 'Direto')
+
+    await user.click(screen.getByRole('button', { name: 'Criar nota direto' }))
+
+    await waitFor(() => expect(notes.get('direto.md')).toBeDefined())
+    // A aba do rascunho passa a ser a nota criada.
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'direto' })).toBeTruthy())
+  })
+
+  it('[nota nova] nome que ja existe nao vira item nem sobrescreve o arquivo', async () => {
+    const user = userEvent.setup()
+    const { notes } = createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Nova nota' }))
+    await user.type(await screen.findByRole('textbox', { name: 'Título da nova nota' }), 'inicial')
+
+    // O caminho ja existe: nenhum item pendente no explorador.
+    expect(screen.queryByRole('button', { name: 'Criar nota inicial' })).toBeNull()
+
+    // Trocar de nota tenta salvar (o nome foi digitado) e a criacao falha:
+    // o erro aparece e a nota existente continua intacta.
+    await user.click(screen.getByRole('button', { name: 'Abrir nota alvo' }))
+    await waitFor(() => expect(screen.getByText(/Nota ja existe/)).toBeTruthy())
+    expect(notes.get('inicial.md')?.content).toContain('Texto inicial')
   })
 
   it('[atalhos] exibe os atalhos para salvar a nota e alternar o modo de visualização', async () => {

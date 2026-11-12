@@ -1604,6 +1604,22 @@ function App() {
     }
   }, [activeNote, draftContent, draftsByPath, isNewNoteDraft])
 
+  // Trocar de pagina tambem encerra o rascunho de nota nova: sair da pagina de
+  // notas com um nome ja digitado grava o arquivo. O ref guarda a pagina
+  // anterior porque o efeito so roda depois da troca — comparar com
+  // `workspacePage` no proprio render nao diria de onde se veio.
+  const previousWorkspacePageRef = useRef<WorkspacePage>(workspacePage)
+  const commitDraftWhenLeavingNotes = useEffectEvent(() => {
+    void commitNewNoteDraft()
+  })
+  useEffect(() => {
+    const previous = previousWorkspacePageRef.current
+    previousWorkspacePageRef.current = workspacePage
+    if (previous === workspacePage) return
+    if (previous !== 'notes' || !isNewNoteDraftRef.current) return
+    commitDraftWhenLeavingNotes()
+  }, [workspacePage])
+
   useEffect(() => {
     // Shell web (Vite no navegador, sem Tauri): o `beforeunload` e a unica
     // rede. Dentro do app desktop quem manda e o `onCloseRequested`, e manter
@@ -3560,9 +3576,12 @@ function App() {
       return
     }
 
-    // Navegar para uma nota existente encerra o rascunho de nova nota: sem
-    // isso, autosave, indicador e historico continuavam tratando a nota aberta
-    // como se fosse a nova nota nao salva.
+    // Navegar para uma nota existente encerra o rascunho de nova nota: com
+    // nome digitado o arquivo e criado agora (foi esse nome que o explorador
+    // mostrou enquanto a pessoa digitava); sem nome, so o flag volta e o texto
+    // continua guardado em `draftsByPath`. Sem isso, autosave, indicador e
+    // historico tratavam a nota aberta como se fosse a nova nota nao salva.
+    if (!(await commitNewNoteDraft())) return
     setIsNewNoteDraft(false)
 
     setLoading(true)
@@ -3781,6 +3800,13 @@ function App() {
         })
         await refreshNotes(vault.path)
         return true
+      } catch (caughtError) {
+        // Colisao de nome, pasta removida por fora, disco cheio: a nota
+        // continua sendo um rascunho e o erro precisa aparecer — quem chamou
+        // (trocar de nota, trocar de pagina, salvar e sair) usa o `false`.
+        setError(errorMessage(caughtError, 'Não foi possível criar a nota.'))
+        setStatus('Falha ao criar a nota.')
+        return false
       } finally {
         saveInFlightRef.current = false
         setSaving(false)
@@ -3856,6 +3882,21 @@ function App() {
       setSaving(false)
       if (isAutomatic) setAutoSaveState(draftContentRef.current === contentToSave ? 'saved' : 'pending')
     }
+  }
+
+  /**
+   * Grava o rascunho de nota nova quando o titulo ja diz qual e o nome.
+   *
+   * Trocar de nota, trocar de pagina ou abrir a nota diaria encerra o
+   * rascunho: com nome digitado o arquivo nasce agora (foi esse nome que o
+   * explorador mostrou enquanto a pessoa digitava); sem nome o rascunho segue
+   * guardado em `draftsByPath`, como antes. `false` = a gravacao falhou e a
+   * navegacao nao deve prosseguir sem o usuario ver o erro.
+   */
+  async function commitNewNoteDraft(): Promise<boolean> {
+    if (!isNewNoteDraft) return true
+    if (!formatNoteTitleAsPath(createNoteForm.title)) return true
+    return saveActiveNote()
   }
 
   /** Espera um salvamento em voo terminar: fechar durante o autosave nao pode
@@ -4198,7 +4239,9 @@ function App() {
   async function openDailyNote() {
     if (!vault) return
 
-    // A nota diaria e uma nota existente: encerra o rascunho de nova nota.
+    // A nota diaria e uma nota existente: o rascunho de nota nova e gravado
+    // antes de sair (mesma regra de trocar de nota).
+    if (!(await commitNewNoteDraft())) return
     setIsNewNoteDraft(false)
 
     const relativePath = formatDailyNotePath(new Date())
@@ -4838,7 +4881,12 @@ function App() {
   function renderTree(nodes: NoteTreeNode[], depth = 0): ReactNode {
     return (
       <ul className="tree-list" data-depth={depth}>
-        {nodes.map((node) => (
+        {nodes.map((node) => {
+          // Nota nova ainda sem arquivo: o item existe porque o titulo esta
+          // sendo digitado, e clicar nele grava o nome (cria o arquivo) em vez
+          // de tentar abrir um caminho que ainda nao existe.
+          const isPendingNote = node.type === 'note' && node.path === pendingNewNotePath
+          return (
           <li key={node.id}>
             {node.type === 'folder' ? (
               <div className="tree-item-row" data-drop-folder={node.path}>
@@ -4883,14 +4931,18 @@ function App() {
                 <Button
                   type="button"
                   variant="bare"
-                  className={`tree-note${node.path === activeNote?.relativePath ? ' is-active' : ''}${draggedNotePath === node.path ? ' is-dragging' : ''}${explorerContextMenu?.target.path === node.path ? ' is-context-open' : ''}`}
+                  className={`tree-note${node.path === activeNote?.relativePath ? ' is-active' : ''}${isPendingNote ? ' is-pending' : ''}${draggedNotePath === node.path ? ' is-dragging' : ''}${explorerContextMenu?.target.path === node.path ? ' is-context-open' : ''}`}
                   draggable={false}
-                  onPointerDown={(event) => beginNotePointerDrag(event, node.path)}
-                  onClick={() => { if (suppressNoteClickRef.current) { suppressNoteClickRef.current = false; return } void openNote(node.path) }}
+                  onPointerDown={(event) => { if (!isPendingNote) beginNotePointerDrag(event, node.path) }}
+                  onClick={() => {
+                    if (suppressNoteClickRef.current) { suppressNoteClickRef.current = false; return }
+                    if (isPendingNote) { void saveActiveNote(); return }
+                    void openNote(node.path)
+                  }}
                   onMouseEnter={(event) => setTruncatedLabelTooltip(event, node.name.replace(/\.md$/i, ''))}
-                  onContextMenu={(event) => openExplorerContextMenu(event, { path: node.path, name: node.name, type: 'note' })}
+                  onContextMenu={(event) => { if (!isPendingNote) openExplorerContextMenu(event, { path: node.path, name: node.name, type: 'note' }) }}
                   disabled={loading || saving}
-                  aria-label={`Abrir nota ${node.name.replace(/\.md$/i, '')}`}
+                  aria-label={`${isPendingNote ? 'Criar nota' : 'Abrir nota'} ${node.name.replace(/\.md$/i, '')}`}
                 >
                   <span className="tree-icon tree-icon--note" aria-hidden="true"><HugeiconsIcon icon={indexadoraPaths.includes(node.path) ? Bookmark02Icon : File02Icon} size={14} strokeWidth={1.5} /></span>
                   <span className="tree-item-label">{node.name.replace(/\.md$/i, '')}</span>
@@ -4898,7 +4950,8 @@ function App() {
               </div>
             )}
           </li>
-        ))}
+          )
+        })}
       </ul>
     )
   }
@@ -4919,7 +4972,33 @@ function App() {
     if (!hasSelectedTags) return folders
     return folders.filter((folder) => filteredNotes.some((note) => note.relativePath.startsWith(`${folder}/`)))
   }, [vault, folders, hasSelectedTags, filteredNotes])
-  const noteTree = useMemo(() => buildNoteTree(filteredNotes, visibleFolders), [filteredNotes, visibleFolders])
+  /**
+   * O caminho que a nota nova vai ter quando for salva — ou `null` enquanto
+   * nao ha nome valido (ou quando o arquivo ja existe, caso em que o item do
+   * explorador seria um duplicado de uma nota real).
+   *
+   * E so derivacao: nenhum arquivo nasce aqui. Existe para o explorador
+   * mostrar a nota enquanto o titulo e digitado, do mesmo jeito que o nome
+   * final vai aparecer.
+   */
+  const pendingNewNotePath = useMemo(() => {
+    if (!isNewNoteDraft) return null
+    const relativePath = formatNoteTitleAsPath(createNoteForm.title)
+    if (!relativePath) return null
+    if (notes.some((note) => note.relativePath === relativePath)) return null
+    return relativePath
+  }, [isNewNoteDraft, createNoteForm.title, notes])
+  /** A arvore do explorador com a nota nova ainda sem arquivo no fim da
+   *  lista (a ordenacao por nome a coloca no lugar certo). */
+  const treeNotes = useMemo(() => {
+    if (!pendingNewNotePath) return filteredNotes
+    const preview: NotePreview = {
+      name: pendingNewNotePath.split('/').at(-1) ?? pendingNewNotePath,
+      relativePath: pendingNewNotePath,
+    }
+    return [...filteredNotes, preview]
+  }, [filteredNotes, pendingNewNotePath])
+  const noteTree = useMemo(() => buildNoteTree(treeNotes, visibleFolders), [treeNotes, visibleFolders])
   const linkableNotes = useMemo(() => {
     if (!vault) return []
     const activePath = activeNote?.relativePath
