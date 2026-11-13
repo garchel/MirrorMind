@@ -32,8 +32,15 @@ pub struct RetentionOverall {
 pub struct TagRetentionItem {
     pub tag: String,
     pub note_count: usize,
+    /// Notas da tag que ja venceram (mesma regra da fila e do dashboard:
+    /// inscrita, pronta e com a proxima revisao no passado).
+    pub due_count: usize,
     pub unit_count: usize,
     pub average_retrievability: Option<f64>,
+    /// Meta media de retencao das notas da tag. E o que permite dizer se a
+    /// tag esta abaixo do alvo DELA — uma tag leve tem meta menor que uma de
+    /// prova, e comparar as duas com um numero unico seria injusto.
+    pub target_retention: Option<f64>,
     pub fragile_unit_count: usize,
 }
 
@@ -59,9 +66,11 @@ pub struct RetentionReport {
 #[derive(Default)]
 struct TagAccumulator {
     note_ids: std::collections::BTreeSet<String>,
+    due_note_ids: std::collections::BTreeSet<String>,
     unit_count: usize,
     retrievability_sum: f64,
     fragile_unit_count: usize,
+    target_sum: f64,
 }
 
 /// Extrai as tags de uma nota sem interromper o relatorio: nota removida,
@@ -166,7 +175,21 @@ pub fn build_retention_report(
         // na retencao de cada tag que as carrega.
         for tag in &note_tags {
             let accumulator = per_tag.entry(tag.clone()).or_default();
-            accumulator.note_ids.insert(document.note.id.clone());
+            // `insert` devolve true na primeira vez: a nota conta uma vez por
+            // tag, mesmo que repita a tag no texto.
+            let primeira_vez = accumulator.note_ids.insert(document.note.id.clone());
+            // Vencida: mesma definicao da fila (inscrita, pronta, data passada).
+            if enrolled
+                && document
+                    .scheduling
+                    .next_review_at_unix_ms
+                    .is_some_and(|next| next <= now_unix_ms)
+            {
+                accumulator.due_note_ids.insert(document.note.id.clone());
+            }
+            if primeira_vez {
+                accumulator.target_sum += document.effective_policy.target_retention;
+            }
             accumulator.unit_count += note_unit_count;
             for unit in &document.units {
                 if let Some(fsrs) = &unit.fsrs {
@@ -207,6 +230,16 @@ pub fn build_retention_report(
             },
             tag,
             note_count: accumulator.note_ids.len(),
+            due_count: accumulator.due_note_ids.len(),
+            target_retention: if accumulator.note_ids.is_empty() {
+                None
+            } else {
+                Some(
+                    (accumulator.target_sum / accumulator.note_ids.len() as f64 * 10_000.0)
+                        .round()
+                        / 10_000.0,
+                )
+            },
             unit_count: accumulator.unit_count,
             fragile_unit_count: accumulator.fragile_unit_count,
         })
