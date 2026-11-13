@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VaultReviewPolicySettings } from './VaultReviewPolicySettings'
@@ -91,9 +91,9 @@ describe('VaultReviewPolicySettings', () => {
     await user.click(await screen.findByRole('button', { name: /^Intensiva/ }))
     await user.click(screen.getByText('Opções avançadas'))
     await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
-    const vaultPriorityInput = screen.getAllByLabelText('Peso de prioridade')[0]
-    await user.clear(vaultPriorityInput)
-    await user.type(vaultPriorityInput, '9')
+    // Prioridade agora e escolha de nivel: "Urgente" grava 3.
+    const prioridadeVault = screen.getByRole('radiogroup', { name: 'Prioridade na fila' })
+    await user.click(within(prioridadeVault).getByRole('radio', { name: 'Urgente' }))
     resolvePreview?.({ affectedNoteCount: 3 })
 
     await user.click(await screen.findByRole('button', { name: 'Confirmar alteração' }))

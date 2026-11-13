@@ -86,9 +86,9 @@ describe('TagManagementPage', () => {
 
     expect(await screen.findByRole('heading', { name: /prova/i })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Editar/i }))
-    const priority = screen.getByLabelText('Prioridade na fila')
-    await user.clear(priority)
-    await user.type(priority, '4')
+    // Prioridade agora e escolha de nivel, nao numero: "Urgente" grava 3.
+    const prioridade = screen.getByRole('radiogroup', { name: 'Prioridade na fila' })
+    await user.click(within(prioridade).getByRole('radio', { name: 'Urgente' }))
     await user.click(screen.getByRole('button', { name: 'Revisar alterações' }))
 
     expect(await screen.findByRole('dialog', { name: /Salvar alterações em #prova/i })).toBeInTheDocument()
@@ -100,7 +100,7 @@ describe('TagManagementPage', () => {
     await waitFor(() => expect(applyMock).toHaveBeenCalledWith(expect.objectContaining({
       expectedRevision: 3,
       expectedAffectedNotePaths: ['materias/biologia.md', 'materias/quimica.md'],
-      tagRules: [expect.objectContaining({ tag: 'prova', priorityWeight: 4 })],
+      tagRules: [expect.objectContaining({ tag: 'prova', priorityWeight: 3 })],
     })))
   })
 

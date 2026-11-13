@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
+import { ReviewPriorityLevelPicker } from '../review/ReviewPriorityLevelPicker'
 import { InfoTip } from '../../components/ui/InfoTip'
 import { AlertTriangle, Check, ChevronRight, FileText, Hash, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
 import {
@@ -662,7 +663,6 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 </legend>
                   <label><span>Primeira revisão</span><div><Field size="sm" aria-label="Primeira revisão" type="number" min="1" max="3650" value={draft.firstReviewIntervalDays} onChange={(event) => updateDraft({ firstReviewIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
                   <label><span>Retenção desejada</span><div><Field size="sm" aria-label="Retenção desejada" type="number" min="50" max="99" value={Math.round(draft.targetRetention * 100)} onChange={(event) => updateDraft({ targetRetention: Number(event.target.value) / 100 })} /><small>%</small></div></label>
-                  <label><span>Prioridade na fila</span><div><Field size="sm" aria-label="Prioridade na fila" type="number" min="0.1" max="100" step="0.1" value={draft.priorityWeight} onChange={(event) => updateDraft({ priorityWeight: Number(event.target.value) })} /><small>peso</small></div></label>
                   <label><span>Intervalo mínimo</span><div><Field size="sm" aria-label="Intervalo mínimo" type="number" min="1" max="3650" value={draft.minIntervalDays} onChange={(event) => updateDraft({ minIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
                   <label><span>Intervalo máximo</span><div><Field size="sm" aria-label="Intervalo máximo" type="number" min="1" max="36500" value={draft.maxIntervalDays} onChange={(event) => updateDraft({ maxIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
                   <label className="tag-deadline-field">
@@ -679,6 +679,14 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     </div>
                   </label>
                 </fieldset>
+
+                <div className="review-priority-field">
+                  <span>Prioridade na fila</span>
+                  <ReviewPriorityLevelPicker
+                    value={draft.priorityWeight}
+                    onChange={(weight) => updateDraft({ priorityWeight: weight })}
+                  />
+                </div>
 
                 <PolicyWorkloadEstimate
                   firstReviewIntervalDays={draft.firstReviewIntervalDays}

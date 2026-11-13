@@ -1,4 +1,5 @@
 import { REVIEW_PRIORITY_LEVELS, priorityLevelFor } from './reviewPriorityLevels'
+import './review-priority-picker.css'
 
 /**
  * Prioridade como escolha de tres niveis, em formulario.
