@@ -114,7 +114,7 @@ export function VaultSelection({
             <span>Pasta pai</span>
             <Button
               type="button"
-              className="ui-button ui-button--secondary ui-button--sm"
+              variant="secondary" size="md"
               onClick={chooseVaultParent}
               disabled={loading}
             >
@@ -154,7 +154,7 @@ export function VaultSelection({
               <span>Não perguntar novamente e abrir este vault automaticamente.</span>
             </label>
             <div className="recent-vault-actions">
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void dismissRecentVault()}>
+              <Button type="button" variant="secondary" size="md" onClick={() => void dismissRecentVault()}>
                 Escolher outro vault
               </Button>
               <Button variant="primary" size="sm" onClick={() => void confirmRecentVault()}>

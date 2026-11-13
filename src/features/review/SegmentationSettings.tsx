@@ -160,7 +160,7 @@ export function SegmentationSettings({ vaultPath }: Props) {
 
       {loading ? <p role="status">Carregando segmentação do Vault…</p> : null}
       {!loading && !config ? (
-        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setReloadToken((current) => current + 1)}>
+        <Button type="button" variant="secondary" size="md" onClick={() => setReloadToken((current) => current + 1)}>
           Tentar carregar novamente
         </Button>
       ) : null}

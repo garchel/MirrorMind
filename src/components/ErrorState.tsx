@@ -7,7 +7,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
     <div className="workspace-error-state is-error" role="alert">
       <p>{message}</p>
       {onRetry ? (
-        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onRetry}>
+        <Button type="button" variant="secondary" size="md" onClick={onRetry}>
           Tentar novamente
         </Button>
       ) : null}

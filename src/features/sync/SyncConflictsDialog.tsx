@@ -74,16 +74,16 @@ export function SyncConflictsDialog({ open, copies, hasOriginal, onClose, onOpen
                 </small>
               </div>
               <div className="sync-conflicts-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => onOpen(copy.originalPath)} disabled={originalMissing}>
+                <Button type="button" variant="secondary" size="md" onClick={() => onOpen(copy.originalPath)} disabled={originalMissing}>
                   Abrir original
                 </Button>
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => onOpen(copy.relativePath)}>
+                <Button type="button" variant="secondary" size="md" onClick={() => onOpen(copy.relativePath)}>
                   Abrir cópia
                 </Button>
                 {confirmId === copy.relativePath ? (
                   <Button
                     type="button"
-                    className="ui-button ui-button--secondary ui-button--sm"
+                    variant="secondary" size="md"
                     disabled={busyId !== null || originalMissing}
                     onClick={() => void promote(copy)}
                   >
@@ -92,7 +92,7 @@ export function SyncConflictsDialog({ open, copies, hasOriginal, onClose, onOpen
                 ) : (
                   <Button
                     type="button"
-                    className="ui-button ui-button--secondary ui-button--sm"
+                    variant="secondary" size="md"
                     disabled={originalMissing}
                     onClick={() => { setError(null); setConfirmId(copy.relativePath) }}
                   >
@@ -101,7 +101,7 @@ export function SyncConflictsDialog({ open, copies, hasOriginal, onClose, onOpen
                 )}
                 <Button
                   type="button"
-                  className="ui-button ui-button--secondary ui-button--sm"
+                  variant="secondary" size="md"
                   onClick={() => onDelete(copy)}
                 >
                   Excluir cópia

@@ -58,12 +58,12 @@ export function AccountSettings({ client }: { client: SessionClient }) {
             <small>Conectado como {snapshot.email ?? 'conta local'}.</small>
           </span>
           <div className="settings-account-actions">
-            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void signOut()}>
+            <Button type="button" variant="secondary" size="md" onClick={() => void signOut()}>
               Sair
             </Button>
             <Button
               type="button"
-              className="ui-button ui-button--secondary ui-button--sm"
+              variant="secondary" size="md"
               onClick={() => {
                 if (!confirm('Excluir a conta neste aparelho? Isso encerra a sessão local.')) return
                 void signOut()
@@ -112,13 +112,13 @@ export function AccountSettings({ client }: { client: SessionClient }) {
         />
         {error ? <p role="alert" className="settings-note">{error}</p> : null}
         <div className="settings-account-actions">
-          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void signInWithGoogle()}>
+          <Button type="button" variant="secondary" size="md" onClick={() => void signInWithGoogle()}>
             Entrar com Google
           </Button>
           <Button type="submit" variant="primary" size="sm">
             Entrar
           </Button>
-          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void signUp(email, password)}>
+          <Button type="button" variant="secondary" size="md" onClick={() => void signUp(email, password)}>
             Criar conta
           </Button>
         </div>

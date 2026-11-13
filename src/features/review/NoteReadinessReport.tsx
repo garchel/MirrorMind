@@ -240,7 +240,7 @@ export function NoteReadinessReport({ attempt, isStaleReport, error, busy, onClo
           </section>
           {error ? <p className="field-error" role="alert">{error}</p> : null}
            <div className="review-ai-dialog-actions">
-             <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onRetry} disabled={busy}>
+             <Button type="button" variant="secondary" size="md" onClick={onRetry} disabled={busy}>
                {busy ? 'Gerando…' : 'Gerar novo relatório da IA'}
              </Button>
            </div>

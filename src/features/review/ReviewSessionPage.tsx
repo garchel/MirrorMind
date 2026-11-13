@@ -469,7 +469,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
     return (
       <section className="workspace-page review-session-page review-synthesis-page" aria-labelledby="review-synthesis-title">
         <header className="review-session-topbar">
-          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setSynthesisMode(false); setSynthesisAttempt(null) }}>
+          <Button type="button" variant="secondary" size="md" onClick={() => { setSynthesisMode(false); setSynthesisAttempt(null) }}>
             <ArrowLeft size={15} /> Voltar à fila
           </Button>
           <span>{item.relativePath}</span>
@@ -560,7 +560,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
     return (
       <section className="workspace-page review-session-page review-report-page" aria-labelledby="review-result-title">
         <header className="review-session-topbar">
-          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onExit}><ArrowLeft size={15} /> Voltar à fila</Button>
+          <Button type="button" variant="secondary" size="md" onClick={onExit}><ArrowLeft size={15} /> Voltar à fila</Button>
           <span>{report.inconclusive ? 'Relatório inconclusivo' : 'Relatório concluído'}</span>
         </header>
         <header className="review-report-header">
@@ -688,7 +688,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
                       ) : (
                         <Button
                           type="button"
-                          className="ui-button ui-button--secondary ui-button--sm review-knowledge-add"
+                          variant="secondary" size="md" className="review-knowledge-add"
                           onClick={() => setKnowledgeSuggestion(suggestion)}
                           disabled={knowledgeBusy}
                         >
@@ -747,7 +747,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   if (!draft) {
     return (
       <section className="workspace-page review-session-page" aria-labelledby="review-setup-title">
-        <header className="review-session-topbar"><Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onExit}><ArrowLeft size={15} /> Voltar à fila</Button><span>{item.relativePath}</span></header>
+        <header className="review-session-topbar"><Button type="button" variant="secondary" size="md" onClick={onExit}><ArrowLeft size={15} /> Voltar à fila</Button><span>{item.relativePath}</span></header>
         <div className="review-setup">
           <p className="review-session-kicker">Preparar sessão</p>
           <h2 id="review-setup-title">{item.title}</h2>
@@ -805,7 +805,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
   const lastExamPrompt = draft.mode === 'exam' && promptIndex === draft.prompts.length - 1
   return (
     <section className="workspace-page review-session-page" aria-labelledby="review-question-title">
-      <header className="review-session-topbar"><Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={requestAbandon} disabled={busy}><ArrowLeft size={15} /> {busy ? 'Finalizando…' : 'Abandonar'}</Button><span>{draft.mode === 'exam' ? `Questão ${promptIndex + 1} de ${draft.prompts.length}` : `Turno ${exchanges.length + 1}`}</span></header>
+      <header className="review-session-topbar"><Button type="button" variant="secondary" size="md" onClick={requestAbandon} disabled={busy}><ArrowLeft size={15} /> {busy ? 'Finalizando…' : 'Abandonar'}</Button><span>{draft.mode === 'exam' ? `Questão ${promptIndex + 1} de ${draft.prompts.length}` : `Turno ${exchanges.length + 1}`}</span></header>
       <div className="review-question">
         <p className="review-session-kicker">{draft.mode === 'exam' ? 'Modo prova' : 'Modo conversa'}
           {draft.mode === 'conversation' && prompt?.isClarification ? (
@@ -845,7 +845,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
           </Button>
         ) : null}
         <div className="review-answer-actions">
-          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setAssistanceVisible((visible) => !visible)}><Lightbulb size={15} /> {assistanceVisible ? 'Ocultar ajuda' : draft.mode === 'exam' ? 'Mostrar dica' : 'Mostrar contexto'}</Button>
+          <Button type="button" variant="secondary" size="md" onClick={() => setAssistanceVisible((visible) => !visible)}><Lightbulb size={15} /> {assistanceVisible ? 'Ocultar ajuda' : draft.mode === 'exam' ? 'Mostrar dica' : 'Mostrar contexto'}</Button>
           <Button type="button" className="ui-button ui-button--primary ui-button--md" onClick={() => void submitAnswer()} disabled={busy || diagnostic !== null || (draft.mode === 'exam' ? (prompt?.kind === 'shortAnswer' ? (!answer.trim() && !dontKnow) : (selectedOption === null && !dontKnow)) : !answer.trim())}>{busy ? 'Processando…' : lastExamPrompt ? 'Concluir e avaliar' : 'Salvar resposta'}</Button>
         </div>
         {assistanceVisible ? <aside className="review-assistance"><MessageCircle size={16} /><div className="review-assistance-text"><ReviewRichMarkdown content={prompt?.assistance ?? ''} /></div></aside> : null}
@@ -858,7 +858,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             <h3 id="review-abandon-title">Abandonar esta revisão?</h3>
             <p>As respostas desta sessão serão descartadas e nenhuma pontuação será registrada.</p>
             <div className="review-abandon-actions">
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setAbandonOpen(false)} autoFocus>Cancelar</Button>
+              <Button type="button" variant="secondary" size="md" onClick={() => setAbandonOpen(false)} autoFocus>Cancelar</Button>
               <Button type="button" className="ui-button review-abandon-confirm" aria-label="Confirmar abandono da sessão" onClick={confirmAbandon}>Abandonar</Button>
             </div>
           </section>
@@ -872,7 +872,7 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
             <p className="review-knowledge-confirm-text">{knowledgeSuggestion}</p>
             <p>O texto será adicionado como citação ao final da nota. Nada é alterado sem sua confirmação.</p>
             <div className="review-abandon-actions">
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setKnowledgeSuggestion(null)} disabled={knowledgeBusy} autoFocus>Cancelar</Button>
+              <Button type="button" variant="secondary" size="md" onClick={() => setKnowledgeSuggestion(null)} disabled={knowledgeBusy} autoFocus>Cancelar</Button>
               <Button type="button" className="ui-button ui-button--primary ui-button--md" aria-label="Confirmação de adição do conhecimento à nota" onClick={() => void confirmAddKnowledge(knowledgeSuggestion)} disabled={knowledgeBusy}>{knowledgeBusy ? 'Adicionando…' : 'Adicionar'}</Button>
             </div>
           </section>
@@ -883,5 +883,5 @@ export function ReviewSessionPage({ vaultPath, item, onExit, onCompleted }: Prop
 }
 
 function DiagnosticPanel({ diagnostic, retry, retryLabel, busy }: { diagnostic: Diagnostic; retry: () => void | Promise<void>; retryLabel: string; busy: boolean }) {
-  return <section className="review-diagnostic" role="alert"><strong>{diagnostic.message}</strong>{diagnostic.validationErrors.length > 0 ? <ul>{diagnostic.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul> : null}{diagnostic.rawResponse !== null ? <label>Resposta bruta da IA<Field as="textarea" size="xs" readOnly value={diagnostic.rawResponse} rows={7} /></label> : null}<Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void retry()} disabled={busy}><RotateCw size={15} /> {retryLabel}</Button></section>
+  return <section className="review-diagnostic" role="alert"><strong>{diagnostic.message}</strong>{diagnostic.validationErrors.length > 0 ? <ul>{diagnostic.validationErrors.map((error) => <li key={error}>{error}</li>)}</ul> : null}{diagnostic.rawResponse !== null ? <label>Resposta bruta da IA<Field as="textarea" size="xs" readOnly value={diagnostic.rawResponse} rows={7} /></label> : null}<Button type="button" variant="secondary" size="md" onClick={() => void retry()} disabled={busy}><RotateCw size={15} /> {retryLabel}</Button></section>
 }

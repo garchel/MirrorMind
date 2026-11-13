@@ -43,7 +43,7 @@ export function PageRefreshButton({
   return (
     <Button
       type="button"
-      className="ui-button ui-button--secondary ui-button--sm workspace-page-refresh"
+      variant="secondary" size="md" className="workspace-page-refresh"
       onClick={onRefresh}
       disabled={disabled}
     >

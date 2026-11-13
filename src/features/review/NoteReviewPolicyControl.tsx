@@ -213,7 +213,7 @@ export function NoteReviewPolicyControl({
     return (
       <Button
         type="button"
-        className="ui-button ui-button--secondary ui-button--sm note-review-policy-trigger note-review-policy-trigger-error"
+        variant="secondary" size="md" className="note-review-policy-trigger note-review-policy-trigger-error"
         aria-label="Falha ao carregar a política de revisão. Tentar novamente"
         title={`Falha ao carregar a política de revisão: ${error}`}
         disabled={disabled || loading}
@@ -332,7 +332,7 @@ export function NoteReviewPolicyControl({
     <>
       <Button
         type="button"
-        className="ui-button ui-button--secondary ui-button--sm note-review-policy-trigger"
+        variant="secondary" size="md" className="note-review-policy-trigger"
         aria-label="Configurar revisão da nota"
         title="Configurar revisão da nota"
         disabled={disabled || loading}
@@ -433,8 +433,8 @@ export function NoteReviewPolicyControl({
               </div>
 
             <footer>
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={saving} onClick={() => void inheritVaultDefaults()}>Usar padrão do Vault</Button>
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={saving} onClick={closeDialog}>Cancelar</Button>
+              <Button type="button" variant="secondary" size="md" disabled={saving} onClick={() => void inheritVaultDefaults()}>Usar padrão do Vault</Button>
+              <Button type="button" variant="secondary" size="md" disabled={saving} onClick={closeDialog}>Cancelar</Button>
               <Button type="button" className="ui-button ui-button--primary ui-button--md" disabled={saving || !validation?.success} onClick={() => void save()}>{saving ? 'Salvando…' : 'Salvar política'}</Button>
             </footer>
           </section>

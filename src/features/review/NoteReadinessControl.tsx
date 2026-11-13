@@ -234,7 +234,7 @@ export function NoteReadinessControl({
       <Button
         ref={triggerButtonRef}
         type="button"
-        className="ui-button ui-button--secondary ui-button--sm note-readiness-trigger"
+        variant="secondary" size="md" className="note-readiness-trigger"
         onClick={() => void runAssessment()}
         disabled={disabled || busy || stateLoading || Boolean(unavailableReason)}
         title={unavailableReason ?? 'Avaliar se a nota está pronta para revisão'}
@@ -246,7 +246,7 @@ export function NoteReadinessControl({
       {reviewState?.report ? (
         <Button
           type="button"
-          className="ui-button ui-button--secondary ui-button--sm note-readiness-report-trigger"
+          variant="secondary" size="md" className="note-readiness-report-trigger"
           onClick={openPersistedReport}
           disabled={disabled || isDirty || busy}
           aria-label="Abrir último relatório de prontidão"
@@ -261,7 +261,7 @@ export function NoteReadinessControl({
       {onAuditStructure ? (
         <Button
           type="button"
-          className="ui-button ui-button--secondary ui-button--sm note-structure-trigger"
+          variant="secondary" size="md" className="note-structure-trigger"
           onClick={() => onAuditStructure()}
           disabled={disabled}
           title="Avaliar a estrutura da nota para a revisão (determinístico, sem IA)"
@@ -274,7 +274,7 @@ export function NoteReadinessControl({
       {onFactCheck ? (
         <Button
           type="button"
-          className="ui-button ui-button--secondary ui-button--sm note-structure-trigger"
+          variant="secondary" size="md" className="note-structure-trigger"
           onClick={() => onFactCheck()}
           disabled={disabled}
           title="Compara as afirmações da nota com conhecimento externo — não altera a nota nem as revisões"
@@ -287,7 +287,7 @@ export function NoteReadinessControl({
       {onImproveNote ? (
         <Button
           type="button"
-          className="ui-button ui-button--secondary ui-button--sm note-structure-trigger"
+          variant="secondary" size="md" className="note-structure-trigger"
           onClick={() => onImproveNote()}
           disabled={disabled}
           title="Expandir os trechos apressados e escrever as definições que faltam (usa IA)"
@@ -313,7 +313,7 @@ export function NoteReadinessControl({
                   ? 'Boa retenção sem concentrar revisões.'
                   : 'Para não esquecer completamente.'
               return (
-                <Button key={tag} type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => onApplyTag?.(tag)}>
+                <Button key={tag} type="button" variant="secondary" size="md" onClick={() => onApplyTag?.(tag)}>
                   <strong>{label}</strong>
                   <small>#{tag} · {description}</small>
                 </Button>
@@ -362,7 +362,7 @@ export function NoteReadinessControl({
           <div className="note-recovery-banner-actions">
             <Button
               type="button"
-              className="ui-button ui-button--secondary ui-button--sm"
+              variant="secondary" size="md"
               onClick={() => void performRecoveryExport()}
               disabled={recoveryBusy}
             >
@@ -371,7 +371,7 @@ export function NoteReadinessControl({
             </Button>
             <Button
               type="button"
-              className="ui-button ui-button--secondary ui-button--sm"
+              variant="secondary" size="md"
               onClick={openDiscardConfirm}
               disabled={recoveryBusy}
             >
@@ -417,7 +417,7 @@ export function NoteReadinessControl({
               {recoveryError ? <p className="review-reset-error" role="alert">{recoveryError}</p> : null}
             </div>
             <div className="review-ai-dialog-actions">
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeDiscardConfirm} disabled={recoveryBusy}>
+              <Button type="button" variant="secondary" size="md" onClick={closeDiscardConfirm} disabled={recoveryBusy}>
                 Cancelar
               </Button>
               <Button
@@ -481,7 +481,7 @@ export function NoteReadinessControl({
               {resetError ? <p className="review-reset-error" role="alert">{resetError}</p> : null}
             </div>
             <div className="review-ai-dialog-actions">
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeResetConfirm} disabled={resetBusy}>
+              <Button type="button" variant="secondary" size="md" onClick={closeResetConfirm} disabled={resetBusy}>
                 Cancelar
               </Button>
               <Button

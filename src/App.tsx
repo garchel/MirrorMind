@@ -5424,7 +5424,7 @@ function App() {
                   <div className="structural-audit-scope fact-check-panel">
                     <Button
                       type="button"
-                      className="ui-button ui-button--secondary ui-button--sm"
+                      variant="secondary" size="md"
                       onClick={() => setFactCheckOpen(false)}
                     >
                       Voltar
@@ -5438,7 +5438,7 @@ function App() {
                     ) : factCheckError ? (
                       <div className="structural-audit-state is-error">
                         <span>{factCheckError}</span>
-                        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void runFactCheck()}>Tentar novamente</Button>
+                        <Button type="button" variant="secondary" size="md" onClick={() => void runFactCheck()}>Tentar novamente</Button>
                       </div>
                     ) : factCheck === null ? (
                       <div className="structural-audit-state">Preparando a verificação…</div>
@@ -5998,7 +5998,7 @@ function App() {
               </div>
               <p>Escolha qual versão deve permanecer no editor. Nenhuma versão será sobrescrita automaticamente.</p>
               <div className="folder-dialog-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={loadExternalNoteVersion}>Carregar arquivo externo</Button>
+                <Button type="button" variant="secondary" size="md" onClick={loadExternalNoteVersion}>Carregar arquivo externo</Button>
                 <Button variant="primary" size="sm" onClick={keepLocalNoteVersion}>Manter meu rascunho</Button>
               </div>
           </Modal>
@@ -6026,8 +6026,8 @@ function App() {
                 />
               </label>
               <div className="folder-dialog-actions external-removed-note-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeExternallyRemovedNote} disabled={loading}>Fechar aba</Button>
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void saveExternallyRemovedNoteAsNew()} disabled={loading || !recoveredNotePath.trim()}>Salvar como nova</Button>
+                <Button type="button" variant="secondary" size="md" onClick={closeExternallyRemovedNote} disabled={loading}>Fechar aba</Button>
+                <Button type="button" variant="secondary" size="md" onClick={() => void saveExternallyRemovedNoteAsNew()} disabled={loading || !recoveredNotePath.trim()}>Salvar como nova</Button>
                 <Button variant="primary" size="sm" onClick={() => void restoreExternallyRemovedNote()} disabled={loading}>Restaurar arquivo</Button>
               </div>
           </Modal>
@@ -6040,7 +6040,7 @@ function App() {
                 {matchingCommands.map((command) => <Button key={command.id} variant="bare" size="sm" disabled={command.disabled} onClick={() => runPaletteCommand(command)}><span>{command.label}</span><small>{command.description}</small></Button>)}
                 {matchingCommands.length === 0 ? <p>Nenhum comando encontrado.</p> : null}
               </div>
-              <div className="folder-dialog-actions"><span className="command-palette-hint">Ctrl+K para abrir</span><Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowCommandPalette(false)}>Fechar</Button></div>
+              <div className="folder-dialog-actions"><span className="command-palette-hint">Ctrl+K para abrir</span><Button type="button" variant="secondary" size="md" onClick={() => setShowCommandPalette(false)}>Fechar</Button></div>
             </section>
           </div>
         ) : null}
@@ -6183,7 +6183,7 @@ function App() {
                 </div>
               </div>
               <div className="folder-dialog-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setSelectedTags([]); setTagFilterQuery('') }}>Limpar</Button>
+                <Button type="button" variant="secondary" size="md" onClick={() => { setSelectedTags([]); setTagFilterQuery('') }}>Limpar</Button>
                 <Button variant="primary" size="sm" onClick={() => setShowTagFilterDialog(false)}>Aplicar filtro</Button>
               </div>
           </Modal>
@@ -6203,7 +6203,7 @@ function App() {
                 {linkableNotes.length === 0 ? <p>Nenhuma outra nota encontrada.</p> : null}
               </div>
               <div className="folder-dialog-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowNoteLinkDialog(false)}>Cancelar</Button>
+                <Button type="button" variant="secondary" size="md" onClick={() => setShowNoteLinkDialog(false)}>Cancelar</Button>
               </div>
           </Modal>
         ) : null}
@@ -6223,7 +6223,7 @@ function App() {
                 {graphConnectNotes.length === 0 ? <p>Nenhuma outra nota disponível para conectar.</p> : null}
               </div>
               <div className="folder-dialog-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setGraphConnectSource(null)}>Cancelar</Button>
+                <Button type="button" variant="secondary" size="md" onClick={() => setGraphConnectSource(null)}>Cancelar</Button>
               </div>
           </Modal>
           </div>,
@@ -6238,7 +6238,7 @@ function App() {
           >
               <Field size="md" autoFocus value={tagName} onChange={(event) => setTagName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') insertTag() }} placeholder="Nome da tag" aria-label="Nome da tag" />
               <div className="folder-dialog-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowTagDialog(false)}>Cancelar</Button>
+                <Button type="button" variant="secondary" size="md" onClick={() => setShowTagDialog(false)}>Cancelar</Button>
                 <Button variant="primary" size="sm" onClick={insertTag} disabled={!tagName.trim()}>Inserir tag</Button>
               </div>
           </Modal>
@@ -6252,7 +6252,7 @@ function App() {
           >
               <Field size="md" autoFocus value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void createFolder() }} placeholder="Nome ou caminho da pasta" aria-label="Nome da pasta" />
               <div className="folder-dialog-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setShowFolderDialog(false)}>Cancelar</Button>
+                <Button type="button" variant="secondary" size="md" onClick={() => setShowFolderDialog(false)}>Cancelar</Button>
                 <Button variant="primary" size="sm" onClick={() => void createFolder()} disabled={!folderName.trim() || loading}>Criar pasta</Button>
               </div>
           </Modal>
@@ -6269,14 +6269,14 @@ function App() {
                 <p className="wikilink-index-progress" role="status">
                   Indexando links... ({wikilinkIndexProgress.processed} de {wikilinkIndexProgress.total} notas)
                   {!wikilinkIndexCancelled ? (
-                    <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</Button>
+                    <Button type="button" variant="secondary" size="md" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</Button>
                   ) : (
                     <span className="wikilink-index-cancelled">Indexação cancelada; usando leitura completa.</span>
                   )}
                 </p>
               ) : null}
               <div className="folder-dialog-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setRenameTarget(null)}>Cancelar</Button>
+                <Button type="button" variant="secondary" size="md" onClick={() => setRenameTarget(null)}>Cancelar</Button>
                 <Button variant="primary" size="sm" onClick={() => void renameVaultItem()} disabled={!renameName.trim() || loading}>Renomear</Button>
               </div>
           </Modal>
@@ -6305,14 +6305,14 @@ function App() {
                 <p className="wikilink-index-progress" role="status">
                   Indexando links... ({wikilinkIndexProgress.processed} de {wikilinkIndexProgress.total} notas)
                   {!wikilinkIndexCancelled ? (
-                    <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</Button>
+                    <Button type="button" variant="secondary" size="md" onClick={() => void cancelWikilinkIndexBuild()}>Cancelar</Button>
                   ) : (
                     <span className="wikilink-index-cancelled">Indexação cancelada; usando leitura completa.</span>
                   )}
                 </p>
               ) : null}
               <div className="folder-dialog-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setMoveTarget(null)}>Cancelar</Button>
+                <Button type="button" variant="secondary" size="md" onClick={() => setMoveTarget(null)}>Cancelar</Button>
                 <Button variant="primary" size="sm" onClick={() => void moveVaultItem()} disabled={loading}>Mover</Button>
               </div>
           </Modal>
@@ -6333,7 +6333,7 @@ function App() {
                 Não mostrar esta confirmação novamente
               </label>
               <div className="folder-dialog-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+                <Button type="button" variant="secondary" size="md" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
                 <Button type="button" className="ui-button ui-button--danger ui-button--sm" onClick={() => void deleteVaultItem()} disabled={loading}>Mover para lixeira</Button>
               </div>
           </Modal>
@@ -6350,7 +6350,7 @@ function App() {
                 <span>{permanentDeleteTarget.itemType === 'folder' ? `A pasta "${permanentDeleteTarget.originalRelativePath}" e todo o seu conteúdo serão removidos definitivamente.` : `A nota "${permanentDeleteTarget.originalRelativePath.replace(/\.md$/i, '')}" será removida definitivamente e não poderá ser restaurada.`}</span>
               </div>
               <div className="folder-dialog-actions">
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setPermanentDeleteTarget(null)}>Cancelar</Button>
+                <Button type="button" variant="secondary" size="md" onClick={() => setPermanentDeleteTarget(null)}>Cancelar</Button>
                 <Button type="button" className="ui-button ui-button--danger ui-button--sm" onClick={() => void permanentlyDeleteTrashItem()} disabled={loading}>Excluir permanentemente</Button>
               </div>
           </Modal>

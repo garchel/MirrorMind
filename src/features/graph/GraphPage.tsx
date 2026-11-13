@@ -631,16 +631,16 @@ export function GraphPage({
                       <ExternalLink size={14} strokeWidth={1.75} aria-hidden="true" /> Abrir nota
                     </Button>
                     <div className="graph-note-drawer-actions-grid">
-                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(focusedGraphDocument) }} title={`Criar uma conexao de ${focusedGraphDocument.name.replace(/\.md$/i, '')} para outra nota`}>
+                      <Button type="button" variant="secondary" size="md" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(focusedGraphDocument) }} title={`Criar uma conexao de ${focusedGraphDocument.name.replace(/\.md$/i, '')} para outra nota`}>
                         <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Criar conexão
                       </Button>
-                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void revealNoteInExplorer(focusedGraphDocument.relativePath)} title="Revelar no explorador de notas">
+                      <Button type="button" variant="secondary" size="md" onClick={() => void revealNoteInExplorer(focusedGraphDocument.relativePath)} title="Revelar no explorador de notas">
                         <PanelLeft size={14} strokeWidth={1.75} aria-hidden="true" /> Revelar no explorador
                       </Button>
-                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void copyGraphWikiLink(focusedGraphDocument.relativePath)}>
+                      <Button type="button" variant="secondary" size="md" onClick={() => void copyGraphWikiLink(focusedGraphDocument.relativePath)}>
                         <Link2 size={14} strokeWidth={1.75} aria-hidden="true" /> Copiar link da nota
                       </Button>
-                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setGraphDetailOpen(false); setGraphMode('local') }}>
+                      <Button type="button" variant="secondary" size="md" onClick={() => { setGraphDetailOpen(false); setGraphMode('local') }}>
                         <Network size={14} strokeWidth={1.75} aria-hidden="true" /> Grafo local
                       </Button>
                     </div>
@@ -652,7 +652,7 @@ export function GraphPage({
           {showOnlyGraphOrphans ? (
             <section className="graph-orphan-panel" aria-label="Notas não conectadas">
               <div><p className="card-kicker">Limpeza do vault</p><h3>{orphanGraphDocuments.length} notas não conectadas</h3></div>
-              {orphanGraphDocuments.length > 0 ? <div className="graph-orphan-list">{orphanGraphDocuments.map((document) => <div key={document.relativePath}><span>{document.name.replace(/\.md$/i, '')}</span><div className="graph-orphan-actions"><Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void revealNoteInExplorer(document.relativePath)} title="Revelar no explorador de notas">Revelar</Button><Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(document) }} title={`Criar uma conexão de ${document.name.replace(/\.md$/i, '')} para outra nota`}>Conectar</Button><Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => onOpenNote(document.relativePath)}>Abrir</Button></div></div>)}</div> : <p>Nenhuma nota isolada com os filtros atuais.</p>}
+              {orphanGraphDocuments.length > 0 ? <div className="graph-orphan-list">{orphanGraphDocuments.map((document) => <div key={document.relativePath}><span>{document.name.replace(/\.md$/i, '')}</span><div className="graph-orphan-actions"><Button type="button" variant="secondary" size="md" onClick={() => void revealNoteInExplorer(document.relativePath)} title="Revelar no explorador de notas">Revelar</Button><Button type="button" variant="secondary" size="md" onClick={() => { setGraphConnectQuery(''); setGraphConnectSource(document) }} title={`Criar uma conexão de ${document.name.replace(/\.md$/i, '')} para outra nota`}>Conectar</Button><Button type="button" variant="secondary" size="md" onClick={() => onOpenNote(document.relativePath)}>Abrir</Button></div></div>)}</div> : <p>Nenhuma nota isolada com os filtros atuais.</p>}
             </section>
           ) : null}
           {visibleGraphDocuments.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota corresponde aos filtros atuais.</p> : graphLinks.length === 0 ? <p className="graph-empty-state graph-empty-state-overlay">Ainda não há links internos entre estas notas. Use <code>[[Nome da nota]]</code> para criar conexões.</p> : null}

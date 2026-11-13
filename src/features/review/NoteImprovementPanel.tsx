@@ -121,7 +121,7 @@ export function NoteImprovementPanel({
       <div className="review-ai-inline-actions">
         <Button
           type="button"
-          className="ui-button ui-button--secondary ui-button--sm"
+          variant="secondary" size="md"
           onClick={() => void run('expansions')}
           disabled={loading}
         >
@@ -129,7 +129,7 @@ export function NoteImprovementPanel({
         </Button>
         <Button
           type="button"
-          className="ui-button ui-button--secondary ui-button--sm"
+          variant="secondary" size="md"
           onClick={() => void run('definitions')}
           disabled={loading}
         >
@@ -233,7 +233,6 @@ export function NoteImprovementPanel({
               <Button
                 type="button"
                 variant="secondary"
-                className="ui-button ui-button--secondary ui-button--sm"
                 onClick={() => setDictionaryOpen(true)}
               >
                 <BookMarked size={14} aria-hidden="true" />

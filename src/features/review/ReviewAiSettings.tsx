@@ -224,7 +224,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           </label>
           <div className="review-ai-inline-actions">
             {configuration?.geminiConfigured ? (
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void removeKey()} disabled={busy}>
+              <Button type="button" variant="secondary" size="md" onClick={() => void removeKey()} disabled={busy}>
                 Remover chave
               </Button>
             ) : null}
@@ -304,7 +304,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           </label>
           <div className="review-ai-inline-actions">
             {configuration?.openAiCompatibleConfigured ? (
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void removeOpenAiCompatible()} disabled={busy}>
+              <Button type="button" variant="secondary" size="md" onClick={() => void removeOpenAiCompatible()} disabled={busy}>
                 Remover servidor
               </Button>
             ) : null}
@@ -321,7 +321,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
             <div><dt>Modelo</dt><dd>{configuration?.ollamaModel ?? 'qwen2.5:7b'}</dd></div>
           </dl>
           <div className="review-ai-inline-actions">
-            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void checkOllama()} disabled={busy}>
+            <Button type="button" variant="secondary" size="md" onClick={() => void checkOllama()} disabled={busy}>
               Verificar Ollama
             </Button>
             {ollamaStatus ? (
@@ -343,7 +343,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           falha em um lado não derruba o relatório.
         </p>
         <div className="review-ai-inline-actions">
-          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void runComparison()} disabled={busy || comparisonLoading}>
+          <Button type="button" variant="secondary" size="md" onClick={() => void runComparison()} disabled={busy || comparisonLoading}>
             {comparisonLoading ? 'Comparando…' : 'Comparar provedores'}
           </Button>
         </div>

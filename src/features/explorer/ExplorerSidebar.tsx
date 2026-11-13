@@ -240,7 +240,7 @@ export function ExplorerSidebar({
             {specialFiles.length > 0 ? (
               <Button
                 type="button"
-                className="ui-button ui-button--secondary ui-button--sm special-files-button"
+                variant="secondary" size="md" className="special-files-button"
                 onClick={() => setShowSpecialFilesDialog(true)}
                 title={`${specialFiles.length}${specialFilesTruncated ? '+' : ''} arquivo${specialFiles.length === 1 ? '' : 's'} preservado${specialFiles.length === 1 ? '' : 's'} sem edição`}
                 aria-label={`Ver ${specialFiles.length}${specialFilesTruncated ? ' ou mais' : ''} arquivo${specialFiles.length === 1 ? '' : 's'} com compatibilidade limitada`}
@@ -252,7 +252,7 @@ export function ExplorerSidebar({
             {syncConflictCopies.length > 0 ? (
               <Button
                 type="button"
-                className="ui-button ui-button--secondary ui-button--sm special-files-button"
+                variant="secondary" size="md" className="special-files-button"
                 onClick={() => setShowSyncConflicts(true)}
                 title={`${syncConflictCopies.length} ${syncConflictCopies.length === 1 ? 'cópia de conflito' : 'cópias de conflito'} de sincronização fora do inventário`}
                 aria-label={`Resolver ${syncConflictCopies.length} ${syncConflictCopies.length === 1 ? 'cópia de conflito' : 'cópias de conflito'} de sincronização`}

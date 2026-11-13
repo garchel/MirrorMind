@@ -164,7 +164,7 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
             />
           </label>
           <div className="review-ai-inline-actions">
-            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void sendTest()} disabled={busy || settings.muted}>
+            <Button type="button" variant="secondary" size="md" onClick={() => void sendTest()} disabled={busy || settings.muted}>
               Enviar notificação de teste
             </Button>
             {testStatus ? <span role="status">{testStatus}</span> : null}

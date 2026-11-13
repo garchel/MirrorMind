@@ -129,11 +129,11 @@ export function PostitPopover({
       {editable ? (
         <div className="postit-popover-range">
           {!rangeArming ? (
-            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onArmRange}>Alterar área</Button>
+            <Button type="button" variant="secondary" size="md" onClick={onArmRange}>Alterar área</Button>
           ) : canReanchor ? (
-            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onConfirmRange}>Confirmar área</Button>
+            <Button type="button" variant="secondary" size="md" onClick={onConfirmRange}>Confirmar área</Button>
           ) : (
-            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled>Selecione o texto…</Button>
+            <Button type="button" variant="secondary" size="md" disabled>Selecione o texto…</Button>
           )}
         </div>
       ) : null}

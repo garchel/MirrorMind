@@ -259,7 +259,7 @@ export function SettingsPage({
                   <strong>Tamanho definido no vault</strong>
                   <small>O vault define {Math.round(obsidianAppearance.baseFontSize)}px para o texto. Você pode aplicar esse valor sem alterar os arquivos originais.</small>
                 </span>
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setEditorFontSize(clampFontSize(obsidianAppearance?.baseFontSize ?? DEFAULT_FONT_SIZE))}>Usar tamanho do vault</Button>
+                <Button type="button" variant="secondary" size="md" onClick={() => setEditorFontSize(clampFontSize(obsidianAppearance?.baseFontSize ?? DEFAULT_FONT_SIZE))}>Usar tamanho do vault</Button>
               </label>
             ) : null}
             <label className="settings-toggle">
@@ -475,7 +475,7 @@ export function SettingsPage({
               </label>
             </div>
             <div>
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={resetShortcuts}>
+              <Button type="button" variant="secondary" size="md" onClick={resetShortcuts}>
                 Restaurar padroes
               </Button>
             </div>
@@ -688,7 +688,7 @@ export function SettingsPage({
               </span>
               <Button
                 type="button"
-                className="ui-button ui-button--secondary ui-button--sm"
+                variant="secondary" size="md"
                 onClick={() => void appUpdater.checkNow()}
                 disabled={appUpdater.status.kind === 'checking' || appUpdater.status.kind === 'downloading'}
               >
@@ -725,7 +725,7 @@ export function SettingsPage({
               </span>
               <Button
                 type="button"
-                className="ui-button ui-button--secondary ui-button--sm"
+                variant="secondary" size="md"
                 onClick={async () => {
                   if (!confirm('Apagar dados locais do MirrorMind? Isso limpa o histórico de pastas recentes, as chaves de acesso e as preferências. Suas notas e pastas serão preservadas.')) return
                   try {

@@ -139,7 +139,7 @@ export function ReviewCalibrationSettings({ vaultPath }: { vaultPath?: string })
         {configuration.typesafeConfigured ? (
           <Button
             type="button"
-            className="ui-button ui-button--secondary ui-button--sm"
+            variant="secondary" size="md"
             onClick={() => void removeApiKey()}
             disabled={busy}
           >

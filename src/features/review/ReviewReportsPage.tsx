@@ -327,7 +327,7 @@ export function ReviewReportsPage({ vaultPath, onOpenNote, embedded = false }: P
                         <td>
                           <Button
                             type="button"
-                            className="ui-button ui-button--secondary ui-button--sm review-reports-open"
+                            variant="secondary" size="md" className="review-reports-open"
                             onClick={() => onOpenNote(report.relativePath)}
                             aria-label={`Abrir nota ${report.title}`}
                           >

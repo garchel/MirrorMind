@@ -124,7 +124,6 @@ export function DictionaryOfferModal({
               <Button
                 type="button"
                 variant="secondary"
-                className="ui-button ui-button--secondary ui-button--sm"
                 disabled={busyTerm !== null || already}
                 onClick={() => void save(suggestion)}
               >

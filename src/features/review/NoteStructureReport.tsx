@@ -95,7 +95,7 @@ export function NoteStructureReport({ audit, loading, error, appliedIndex, onBac
         <div className="review-ai-report-body">
           <div className="structural-audit-state is-error">
             <span>{error}</span>
-            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onRetry}>Tentar novamente</Button>
+            <Button type="button" variant="secondary" size="md" onClick={onRetry}>Tentar novamente</Button>
           </div>
         </div>
       ) : !audit ? (

@@ -266,14 +266,14 @@ export function WorkspaceTopbar({
           {!vault.metadata.isInitialized ? (
             <Button
               type="button"
-              className="ui-button ui-button--secondary ui-button--sm"
+              variant="secondary" size="md"
               onClick={initializeMetadata}
               disabled={loading || saving}
             >
               Inicializar .mirmind
             </Button>
           ) : null}
-          <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={chooseExistingVault} disabled={loading || saving}>
+          <Button type="button" variant="secondary" size="md" onClick={chooseExistingVault} disabled={loading || saving}>
             Trocar vault
           </Button>
         </div>

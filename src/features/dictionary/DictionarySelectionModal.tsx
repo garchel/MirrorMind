@@ -191,7 +191,6 @@ export function DictionarySelectionModal({
           <Button
             type="button"
             variant="secondary"
-            className="ui-button ui-button--secondary ui-button--sm"
             onClick={onRetry}
           >
             <RefreshCw size={14} aria-hidden="true" />
@@ -208,7 +207,6 @@ export function DictionarySelectionModal({
           <Button
             type="button"
             variant="secondary"
-            className="ui-button ui-button--secondary ui-button--sm"
             onClick={onRetry}
           >
             <RefreshCw size={14} aria-hidden="true" />
@@ -285,7 +283,6 @@ export function DictionarySelectionModal({
         <Button
           type="button"
           variant="secondary"
-          className="ui-button ui-button--secondary ui-button--sm"
           onClick={onClose}
           disabled={saving}
         >

@@ -595,7 +595,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   <p className="card-kicker">{mode === 'create' ? 'Nova tag' : 'Editando tag'}</p>
                   <h3>{mode === 'create' ? 'Defina a tag e seu ritmo' : `#${selectedTag}`}</h3>
                 </div>
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm tag-icon-button" onClick={cancelEditing} disabled={busy} aria-label="Cancelar edição">
+                <Button type="button" variant="secondary" size="md" className="tag-icon-button" onClick={cancelEditing} disabled={busy} aria-label="Cancelar edição">
                   <X size={16} aria-hidden="true" />
                 </Button>
               </div>
@@ -619,7 +619,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   <legend>Perfil de revisão</legend>
                   <div>
                     {Object.values(PRESETS).map((preset) => (
-                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm tag-preset-card" key={preset.label} onClick={() => applyPreset(preset.values)}>
+                      <Button type="button" variant="secondary" size="md" className="tag-preset-card" key={preset.label} onClick={() => applyPreset(preset.values)}>
                         <strong>{preset.label}</strong>
                         <small>{preset.description}</small>
                       </Button>
@@ -699,7 +699,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 {!validation.success ? <p className="field-error" role="alert">Revise o nome e os intervalos da tag.</p> : null}
                 {duplicate ? <p className="field-error" role="alert">Esta tag já existe no vault.</p> : null}
                 <div className="tag-form-actions">
-                  <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={cancelEditing} disabled={busy}>Cancelar</Button>
+                  <Button type="button" variant="secondary" size="md" onClick={cancelEditing} disabled={busy}>Cancelar</Button>
                   <Button type="button" variant="primary" size="sm" onClick={() => void requestSave()} disabled={busy || !validation.success || duplicate}>
                     {busy ? 'Calculando impacto…' : mode === 'create' ? 'Revisar criação' : 'Revisar alterações'}
                   </Button>
@@ -724,13 +724,13 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 <div className="tag-detail-actions">
                   {selected ? (
                     <>
-                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={startEdit} disabled={busy}><Pencil size={15} aria-hidden="true" />Editar</Button>
-                      <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void requestDelete()} disabled={busy}><Trash2 size={15} aria-hidden="true" />Excluir</Button>
+                      <Button type="button" variant="secondary" size="md" onClick={startEdit} disabled={busy}><Pencil size={15} aria-hidden="true" />Editar</Button>
+                      <Button type="button" variant="secondary" size="md" onClick={() => void requestDelete()} disabled={busy}><Trash2 size={15} aria-hidden="true" />Excluir</Button>
                     </>
                   ) : (
                     <Button
                       type="button"
-                      className="ui-button ui-button--secondary ui-button--sm"
+                      variant="secondary" size="md"
                       onClick={() => startCreate(selectedTag)}
                       disabled={busy || atRuleLimit}
                       title={atRuleLimit ? 'Limite de 100 regras de tag atingido' : `Criar uma regra de revisão para #${selectedTag}`}
@@ -809,7 +809,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
             <div className="tag-page-error" role="alert">
               <AlertTriangle size={17} aria-hidden="true" />
               <span>{error}</span>
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setReloadToken((value) => value + 1)}>Recarregar</Button>
+              <Button type="button" variant="secondary" size="md" onClick={() => setReloadToken((value) => value + 1)}>Recarregar</Button>
             </div>
           ) : null}
           {success ? <p className="tag-page-success" role="status">{success}</p> : null}
@@ -846,7 +846,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               ) : <p>Nenhuma nota existente será alterada.</p>}
             </div>
             <div className="tag-impact-actions">
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setPending(null)} disabled={busy}>Cancelar</Button>
+              <Button type="button" variant="secondary" size="md" onClick={() => setPending(null)} disabled={busy}>Cancelar</Button>
               <Button type="button" variant="primary" size="sm" onClick={() => confirmPending()} disabled={busy}>
                 {busy ? 'Aplicando…' : 'Confirmar alteração'}
               </Button>
@@ -920,7 +920,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               ) : <p>Nenhuma nota existente será alterada.</p>}
             </div>
             <div className="tag-impact-actions">
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setPendingDelete(null)} disabled={busy}>Cancelar</Button>
+              <Button type="button" variant="secondary" size="md" onClick={() => setPendingDelete(null)} disabled={busy}>Cancelar</Button>
               <Button type="button" className="ui-button ui-button--danger ui-button--sm" onClick={() => confirmDelete()} disabled={busy}>
                 {busy ? 'Aplicando…' : 'Excluir tag'}
               </Button>

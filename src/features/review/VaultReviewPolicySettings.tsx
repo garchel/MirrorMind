@@ -182,7 +182,7 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
 
       {loading ? <p role="status">Carregando política do Vault…</p> : null}
       {!loading && !form ? (
-        <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setReloadToken((current) => current + 1)}>
+        <Button type="button" variant="secondary" size="md" onClick={() => setReloadToken((current) => current + 1)}>
           Tentar carregar novamente
         </Button>
       ) : null}
@@ -194,7 +194,7 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
               <Button
                 type="button"
                 key={preset.label}
-                className="ui-button ui-button--secondary ui-button--sm"
+                variant="secondary" size="md"
                 disabled={busy}
                 onClick={() => {
                   if (!form) return
@@ -263,7 +263,7 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
             <div className="vault-review-policy-confirmation" role="alertdialog" aria-label="Confirmar alteração do padrão do Vault">
               <p><strong>{preview.result.affectedNoteCount} notas terão suas datas recalculadas.</strong> Sobrescritas próprias serão preservadas.</p>
               <div>
-                <Button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={busy} onClick={() => setPreview(null)}>Cancelar</Button>
+                <Button type="button" variant="secondary" size="md" disabled={busy} onClick={() => setPreview(null)}>Cancelar</Button>
                 <Button type="button" variant="primary" size="sm" disabled={busy} onClick={() => void applyDefaults(preview.defaults)}>{busy ? 'Aplicando…' : 'Confirmar alteração'}</Button>
               </div>
             </div>

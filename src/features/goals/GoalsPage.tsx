@@ -530,7 +530,7 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
                 <>
                   <Button
                     type="button"
-                    className="ui-button ui-button--secondary ui-button--sm goal-delete-confirm"
+                    variant="secondary" size="md" className="goal-delete-confirm"
                     onClick={() => void handleDelete(detailGoal.id)}
                     aria-label={`Confirmar exclusão da meta ${detailGoal.title}`}
                   >
@@ -538,7 +538,7 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
                   </Button>
                   <Button
                     type="button"
-                    className="ui-button ui-button--secondary ui-button--sm"
+                    variant="secondary" size="md"
                     onClick={() => setConfirmDeleteId(null)}
                   >
                     Cancelar
@@ -547,7 +547,7 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
               ) : (
                 <Button
                   type="button"
-                  className="ui-button ui-button--secondary ui-button--sm"
+                  variant="secondary" size="md"
                   onClick={() => void handleDelete(detailGoal.id)}
                   aria-label={`Excluir meta ${detailGoal.title}`}
                   title="Excluir meta"
@@ -656,7 +656,7 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
             />
           </div>
           <div className="goals-dialog-actions">
-            <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setModalOpen(false)}>
+            <Button type="button" variant="secondary" size="md" onClick={() => setModalOpen(false)}>
               Cancelar
             </Button>
             <Button

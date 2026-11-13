@@ -198,7 +198,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
             <li>Volte quando vencer</li>
           </ol>
           {onBrowseNotes ? (
-            <Button type="button" className="ui-button ui-button--primary ui-button--md" onClick={onBrowseNotes}>
+            <Button type="button" variant="primary" size="sm" onClick={onBrowseNotes}>
               Avaliar notas
             </Button>
           ) : null}
