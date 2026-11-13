@@ -33,7 +33,8 @@ vi.mock('./ai', async (importOriginal) => ({
 
 const item = {
   noteId: 'note-1', relativePath: 'Biologia/Fotossintese.md', title: 'Fotossintese',
-  nextReviewAtUnixMs: 1, priorityWeight: 3, deadlineAtUnixMs: null, preferredMode: 'exam' as const, isFirstReview: true,
+  nextReviewAtUnixMs: 1, priorityWeight: 3, prioritySource: { kind: 'tag' as const, sourceId: 'revisao/prova' },
+  deadlineAtUnixMs: null, preferredMode: 'exam' as const, isFirstReview: true,
 }
 
 const VAULT_PATH = 'C:\\Vault'

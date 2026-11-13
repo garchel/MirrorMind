@@ -2061,6 +2061,7 @@ function App() {
       title: activeNote.name.replace(/\.md$/i, ''),
       nextReviewAtUnixMs: info?.nextReviewAtUnixMs ?? Date.now(),
       priorityWeight: 1,
+      prioritySource: { kind: 'note', sourceId: activeNote.relativePath },
       deadlineAtUnixMs: null,
       preferredMode: info?.preferredMode ?? 'exam',
       isFirstReview: info?.firstReviewAtUnixMs == null,
@@ -2089,6 +2090,7 @@ function App() {
       title: item.title,
       nextReviewAtUnixMs: Date.now(),
       priorityWeight: 'priorityWeight' in item ? item.priorityWeight : 1,
+      prioritySource: dueItem?.prioritySource ?? { kind: 'note', sourceId: item.relativePath },
       deadlineAtUnixMs: item.deadlineAtUnixMs,
       // Quando o item real da fila existe, preserva o modo preferido da nota;
       // no fallback sintetizado (sem fila) usa o padrao Prova.

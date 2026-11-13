@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
-import { REVIEW_PRIORITY_LEVELS, priorityLevelFor } from './reviewPriorityLevels'
+import {
+  REVIEW_PRIORITY_LEVELS,
+  describePrioritySource,
+  priorityLevelFor,
+  type PrioritySourceLike,
+} from './reviewPriorityLevels'
 
 function formatWeight(weight: number): string {
   return weight.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
@@ -11,6 +16,8 @@ function formatWeight(weight: number): string {
 type ReviewPriorityControlProps = {
   weight: number
   noteTitle: string
+  /** De onde veio o peso. Sem isso, "Alta" parece escolha da nota. */
+  source?: PrioritySourceLike | null
   busy?: boolean
   onChange: (weight: number) => void
 }
@@ -32,6 +39,7 @@ type ReviewPriorityControlProps = {
 export function ReviewPriorityControl({
   weight,
   noteTitle,
+  source = null,
   busy = false,
   onChange,
 }: ReviewPriorityControlProps) {
@@ -40,6 +48,10 @@ export function ReviewPriorityControl({
   const level = priorityLevelFor(weight)
   const exact = weight === level.weight
   const detail = exact ? level.label : `${level.label} (peso ${formatWeight(weight)})`
+  const origem = describePrioritySource(source)
+  const herdada = source?.kind === 'tag'
+    || source?.kind === 'activeDeadlineTag'
+    || source?.kind === 'expiredDeadlineTag'
 
   // Ao abrir, o foco vai para o nivel atual — o Radix foca o painel, nao a
   // opcao, e sem isso o teclado teria que tabular desde o topo do popover.
@@ -89,6 +101,7 @@ export function ReviewPriorityControl({
       </PopoverTrigger>
       <PopoverContent className="review-priority-menu" align="start" sideOffset={6}>
         <p className="review-priority-menu-title">Prioridade desta nota</p>
+        {origem ? <p className="review-priority-source">{origem}</p> : null}
         <div role="menu" aria-label="Prioridade da nota" ref={menuRef} onKeyDown={handleMenuKeyDown}>
           {REVIEW_PRIORITY_LEVELS.map((option) => {
             const checked = option.weight === level.weight
@@ -115,7 +128,11 @@ export function ReviewPriorityControl({
             )
           })}
         </div>
-        <p className="review-priority-hint">Vale só para esta nota.</p>
+        <p className="review-priority-hint">
+          {herdada
+            ? 'Mudar aqui vale só para esta nota; a tag continua valendo para as outras.'
+            : 'Vale só para esta nota.'}
+        </p>
       </PopoverContent>
     </Popover>
   )

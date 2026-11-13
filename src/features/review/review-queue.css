@@ -432,6 +432,17 @@ p.review-queue-upcoming-error {
   font-size: 11px;
 }
 
+/* Origem do peso. Fica entre o titulo do menu e as opcoes porque a pergunta
+   "de onde veio isso?" vem antes da pergunta "para qual eu troco?". */
+.review-priority-source {
+  margin: 2px 6px 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
 
 .review-queue-priority-error {
   max-width: 820px;

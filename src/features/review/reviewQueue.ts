@@ -1,12 +1,21 @@
 import { invoke } from '../../lib/tauri'
 import { z } from 'zod'
 
+const policySourceSchema = z.object({
+  kind: z.enum(['vaultDefault', 'expiredDeadlineTag', 'tag', 'activeDeadlineTag', 'note']),
+  sourceId: z.string().max(1_024).nullable(),
+}).strict()
+
+export type PolicySource = z.infer<typeof policySourceSchema>
+
 const dueReviewItemSchema = z.object({
   noteId: z.string().min(1).max(256),
   relativePath: z.string().min(1).max(1_024),
   title: z.string().min(1).max(1_024),
   nextReviewAtUnixMs: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
   priorityWeight: z.number().finite().positive().max(100),
+  /** De onde veio `priorityWeight`: nota, tag ou padrao do vault. */
+  prioritySource: policySourceSchema,
   deadlineAtUnixMs: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).nullable(),
   preferredMode: z.enum(['exam', 'conversation']),
   isFirstReview: z.boolean(),

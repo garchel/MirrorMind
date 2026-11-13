@@ -9,6 +9,7 @@ describe('review queue contract', () => {
       title: 'Fotossintese',
       nextReviewAtUnixMs: 1_720_000_000_000,
       priorityWeight: 3,
+      prioritySource: { kind: 'tag', sourceId: 'revisao/prova' },
       deadlineAtUnixMs: null,
       preferredMode: 'exam',
       isFirstReview: true,
@@ -24,6 +25,7 @@ describe('review queue contract', () => {
       title: 'Nota',
       nextReviewAtUnixMs: 1,
       priorityWeight: 1,
+      prioritySource: { kind: 'vaultDefault', sourceId: null },
       deadlineAtUnixMs: null,
       preferredMode: 'exam' as const,
       isFirstReview: true,
@@ -39,6 +41,7 @@ describe('review queue contract', () => {
       title: 'Nota',
       nextReviewAtUnixMs: -1,
       priorityWeight: 1,
+      prioritySource: { kind: 'vaultDefault', sourceId: null },
       preferredMode: 'unknown',
       isFirstReview: true,
     }])).toThrow()

@@ -230,6 +230,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
                   <span>{item.preferredMode === 'exam' ? 'Modo prova' : 'Modo conversa'}</span>
                   <ReviewPriorityControl
                     weight={item.priorityWeight}
+                    source={item.prioritySource}
                     noteTitle={item.title}
                     busy={priorityBusy !== null}
                     onChange={(weight) => void changePriority(item, weight)}

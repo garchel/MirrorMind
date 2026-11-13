@@ -286,7 +286,7 @@ pub struct PolicySources {
     pub active_deadline: Option<PolicySource>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PolicySource {
     pub kind: PolicySourceKind,
@@ -420,7 +420,7 @@ pub enum GapClassification {
     Confused,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PolicySourceKind {
     VaultDefault,

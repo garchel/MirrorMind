@@ -28,3 +28,33 @@ export function priorityLevelFor(weight: number): ReviewPriorityLevel {
   )
   return REVIEW_PRIORITY_LEVELS[index]
 }
+
+/** Origem do peso, na lingua do usuario.
+ *
+ *  A fila mostra "Alta" e nada mais. Sem a origem, nao da para saber se a nota
+ *  foi marcada assim ou se herdou de uma tag — e a diferenca importa: mudar a
+ *  prioridade na fila vale so para aquela nota, enquanto a tag continua
+ *  valendo para as outras.
+ */
+export type PrioritySourceLike = {
+  kind: 'vaultDefault' | 'expiredDeadlineTag' | 'tag' | 'activeDeadlineTag' | 'note'
+  sourceId: string | null
+}
+
+export function describePrioritySource(source?: PrioritySourceLike | null): string | null {
+  if (!source) return null
+  const tag = source.sourceId ? `#${source.sourceId}` : 'de prazo'
+  switch (source.kind) {
+    case 'tag':
+      return `Herdada da tag ${tag}`
+    case 'activeDeadlineTag':
+    case 'expiredDeadlineTag':
+      return `Herdada da tag ${tag}`
+    case 'note':
+      return 'Definida nesta nota'
+    case 'vaultDefault':
+      return 'Padrão do vault'
+    default:
+      return null
+  }
+}

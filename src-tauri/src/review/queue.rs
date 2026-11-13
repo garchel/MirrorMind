@@ -1,4 +1,4 @@
-use super::contract::{LearningDocument, ReadinessAssessment, ReviewMode};
+use super::contract::{LearningDocument, PolicySource, ReadinessAssessment, ReviewMode};
 use super::evaluation::source_hash;
 use super::state::{load_note_review_state, PreferredReviewMode};
 use super::storage::{list_learning_storage_keys, load_learning_document};
@@ -14,6 +14,10 @@ pub struct DueReviewItem {
     pub title: String,
     pub next_review_at_unix_ms: u64,
     pub priority_weight: f64,
+    /// De onde vem `priority_weight` (nota, tag ou padrao do vault). A fila
+    /// mostra isso ao lado da prioridade: sem a origem, "Alta" parece uma
+    /// escolha da nota quando na verdade veio de uma tag.
+    pub priority_source: PolicySource,
     pub deadline_at_unix_ms: Option<u64>,
     pub preferred_mode: PreferredReviewMode,
     pub is_first_review: bool,
@@ -48,6 +52,7 @@ fn queue_item_from_document(document: LearningDocument, now_unix_ms: u64) -> Due
             .next_review_at_unix_ms
             .expect("queue item has a date"),
         priority_weight: document.effective_policy.priority_weight,
+        priority_source: document.effective_policy.sources.priority_weight.clone(),
         deadline_at_unix_ms: document
             .effective_policy
             .deadline_at_unix_ms
@@ -188,6 +193,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{list_due_reviews, list_upcoming_reviews};
+    use crate::review::contract::{PolicySource, PolicySourceKind};
     use crate::review::evaluation::{ReadinessReport, ReadinessStatus};
     use crate::review::state::{
         load_note_review_state, persist_readiness_assessment, set_manual_enrollment,
@@ -242,6 +248,55 @@ mod tests {
             .collect();
         assert_eq!(paths, ["Alta-antiga.md", "Alta-recente.md", "Baixa.md"]);
         assert!(queue.iter().all(|item| item.is_first_review));
+    }
+
+    #[test]
+    fn queue_item_carries_the_source_of_its_priority() {
+        let vault = tempdir().expect("vault");
+        let now = 1_730_000_000_000;
+        // `ready_at` tem de estar longe o bastante para a proxima revisao ja ter
+        // vencido: a politica padrao espera 2 dias, entao uma nota avaliada
+        // ontem ficaria agendada para o futuro e nem entraria na fila.
+        create_ready_note(vault.path(), "Com-origem.md", now - 8 * DAY_MS, 2.0);
+
+        // A prioridade pode vir da nota, de uma tag ou do padrao do vault. A
+        // fila precisa dizer QUAL foi: "Alta" sem origem parece escolha da nota.
+        let keys = crate::review::storage::list_learning_storage_keys(vault.path()).expect("keys");
+        let key = keys
+            .iter()
+            .find(|key| {
+                load_learning_document(vault.path(), key)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|loaded| loaded.document.note.relative_path == "Com-origem.md")
+            })
+            .expect("a chave da nota Com-origem.md");
+        let loaded = load_learning_document(vault.path(), key)
+            .expect("load")
+            .expect("document");
+        let expected_revision = loaded.document.revision;
+        let mut document = loaded.document;
+        document.revision += 1;
+        document.effective_policy.sources.priority_weight = PolicySource {
+            kind: PolicySourceKind::Note,
+            source_id: Some("Com-origem.md".to_string()),
+        };
+        write_learning_document(vault.path(), key, Some(expected_revision), &document)
+            .expect("write");
+
+        let queue =
+            list_due_reviews(vault.path(), now, |_| Ok(Some(MARKDOWN.to_string()))).expect("queue");
+        let item = queue
+            .iter()
+            .find(|item| item.relative_path == "Com-origem.md")
+            .expect("item");
+
+        assert_eq!(item.priority_weight, 2.0);
+        assert_eq!(item.priority_source.kind, PolicySourceKind::Note);
+        assert_eq!(
+            item.priority_source.source_id.as_deref(),
+            Some("Com-origem.md")
+        );
     }
     #[test]
     fn a_due_note_with_an_active_deadline_is_prioritized_after_priority() {

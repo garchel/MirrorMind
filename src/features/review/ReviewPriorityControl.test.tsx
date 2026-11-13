@@ -2,7 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ReviewPriorityControl } from './ReviewPriorityControl'
-import { priorityLevelFor } from './reviewPriorityLevels'
+import { describePrioritySource, priorityLevelFor } from './reviewPriorityLevels'
 
 afterEach(cleanup)
 
@@ -24,7 +24,39 @@ describe('priorityLevelFor', () => {
   })
 })
 
+describe('describePrioritySource', () => {
+  it('diz de onde veio o peso', () => {
+    expect(describePrioritySource({ kind: 'tag', sourceId: 'revisao/prova' }))
+      .toBe('Herdada da tag #revisao/prova')
+    expect(describePrioritySource({ kind: 'activeDeadlineTag', sourceId: 'prova-bio' }))
+      .toBe('Herdada da tag #prova-bio')
+    expect(describePrioritySource({ kind: 'note', sourceId: null })).toBe('Definida nesta nota')
+    expect(describePrioritySource({ kind: 'vaultDefault', sourceId: null })).toBe('Padrão do vault')
+  })
+
+  it('nao inventa origem quando nao ha dado', () => {
+    expect(describePrioritySource(null)).toBeNull()
+  })
+})
+
 describe('ReviewPriorityControl', () => {
+  it('mostra a origem do peso e avisa que a tag continua valendo para as outras', async () => {
+    const user = userEvent.setup()
+    render(
+      <ReviewPriorityControl
+        weight={3}
+        noteTitle="ATP"
+        source={{ kind: 'tag', sourceId: 'revisao/prova' }}
+        onChange={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Prioridade de ATP/ }))
+
+    expect(await screen.findByText('Herdada da tag #revisao/prova')).toBeInTheDocument()
+    expect(screen.getByText(/a tag continua valendo para as outras/)).toBeInTheDocument()
+  })
+
   it('mostra o degrau atual e abre as tres opcoes com o efeito de cada uma', async () => {
     const user = userEvent.setup()
     render(<ReviewPriorityControl weight={2} noteTitle="ATP" onChange={vi.fn()} />)
