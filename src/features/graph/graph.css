@@ -1151,64 +1151,6 @@
   .workspace-shell .graph-controls select { flex: 1 1 140px; min-width: 0; }
 }
 
-.workspace-shell .trash-table-wrap {
-  width: min(100%, 920px);
-  overflow-x: auto;
-  border: 1px solid var(--mm-ink-250-2);
-  border-radius: var(--radius-sm);
-  background: var(--mm-gold-50);
-}
-
-.workspace-shell .trash-table-wrap table {
-  width: 100%;
-  min-width: 620px;
-  border-collapse: collapse;
-  color: var(--mm-ink-900-32);
-  font-size: 12px;
-  text-align: left;
-}
-
-.workspace-shell .trash-table-wrap th,
-.workspace-shell .trash-table-wrap td {
-  padding: 11px 12px;
-  border-bottom: 1px solid var(--mm-gold-250-3);
-  vertical-align: middle;
-}
-
-.workspace-shell .trash-table-wrap th {
-  color: var(--mm-ink-800-7);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-.workspace-shell .trash-table-wrap tr:last-child td {
-  border-bottom: 0;
-}
-
-.workspace-shell .trash-table-wrap td:first-child {
-  max-width: 390px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.workspace-shell .trash-table-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 5px;
-}
-
-.workspace-shell .trash-table-actions .secondary-button {
-  display: grid;
-  width: 28px;
-  min-width: 28px;
-  min-height: var(--button-size-xs-height);
-  padding: 0;
-  place-items: center;
-}
-
 .workspace-shell .editor-surface {
   grid-template-rows: auto 0 minmax(0, 1fr);
   height: 100%;
