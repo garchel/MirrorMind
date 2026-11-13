@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { CalendarClock, CheckCircle2, Play } from 'lucide-react'
 import { ErrorState } from '../../components/ErrorState'
+import { InfoTip } from '../../components/ui/InfoTip'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { QueueSkeleton } from '../../components/PageSkeleton'
 import { ReviewPriorityControl } from './ReviewPriorityControl'
@@ -260,7 +261,17 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
       {!loading && !error ? (
         <section className="review-queue-upcoming" aria-labelledby="review-queue-upcoming-title">
           <div className="review-queue-subhead">
-            <h3 id="review-queue-upcoming-title">Próximas revisões</h3>
+            <div className="review-heading-title">
+              <h3 id="review-queue-upcoming-title">Próximas revisões</h3>
+              <InfoTip label="Próximas revisões">
+                <p>
+                  Notas que o app vai pedir de volta nos próximos dias, da mais próxima para a
+                  mais distante. A data é calculada pelo modelo de memória, segundo o ritmo da
+                  política de cada nota.
+                </p>
+                <p>Data de prova não aparece aqui: ela mora em <em>Datas-limite</em>, no Progresso.</p>
+              </InfoTip>
+            </div>
             {upcomingLoading ? null : upcomingTotal > 0 ? (
               <span>Mostrando {upcomingItems.length} de {upcomingTotal}</span>
             ) : (

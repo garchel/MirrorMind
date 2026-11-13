@@ -427,7 +427,7 @@ describe('ReviewDashboardPage', () => {
       newDeadline: expect.any(Number),
     }))
     expect(onOpenNote).not.toHaveBeenCalled()
-    expect(await screen.findByRole('heading', { name: /Meu progresso/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /^Progresso$/ })).toBeInTheDocument()
   })
 
   it('hides the confirm button until the impact has been previewed', async () => {

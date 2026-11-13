@@ -282,7 +282,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
     <section className="workspace-page review-dashboard-page" aria-labelledby="review-dashboard-title">
       <PageHeader
         kicker="Revisão"
-        title="Meu progresso"
+        title="Progresso"
         titleId="review-dashboard-title"
         description="Como estão suas notas e suas tags, e como sua retenção evolui com o tempo."
       >

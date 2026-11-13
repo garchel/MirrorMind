@@ -68,6 +68,11 @@ export function InfoTip({ label, children }: InfoTipProps) {
           onMouseEnter={agendarAbrir}
           onMouseLeave={agendarFechar}
           onFocus={() => setOpen(true)}
+          // Dentro de <label> ou <summary>, o clique no "?" borbulharia e
+          // ativaria o controle/botao de tras (focando o campo ou fechando o
+          // bloco). stopPropagation para o pai, sem impedir o Radix no proprio
+          // elemento.
+          onClick={(event) => event.stopPropagation()}
         >
           <CircleHelp size={13} strokeWidth={2} aria-hidden="true" />
         </Button>
