@@ -383,8 +383,8 @@ function VaultDiagnosticsBanner({
       <div className="vault-diagnostics-text">
         <p className="vault-diagnostics-title">Leitura parcial do vault</p>
         <p className="vault-diagnostics-detail">
-          {parts.join(' · ') || 'Algumas pastas ou notas nao puderam ser lidas.'} A parte
-          valida continua disponivel e nada foi sobrescrito.
+          {parts.join(' · ') || 'Algumas pastas ou notas não puderam ser lidas.'} A parte
+          válida continua disponível e nada foi sobrescrito.
         </p>
         {paths.length > 0 ? (
           <ul className="vault-diagnostics-paths">

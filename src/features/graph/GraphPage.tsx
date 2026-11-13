@@ -580,10 +580,10 @@ export function GraphPage({
             <span>{graphLinks.length} {graphLinks.length === 1 ? 'conexão' : 'conexões'}</span>
           </div>
           {graphIsSummarized ? (
-            <p className="graph-culling-note" role="status">Grafo resumido: exibindo {renderedGraphDocuments.length} de {visibleGraphDocuments.length} nos no viewport (limite de {graphRenderLimit}). Aproxime ou reduza o limite nas configuracoes para ver os demais.</p>
+            <p className="graph-culling-note" role="status">Grafo resumido: exibindo {renderedGraphDocuments.length} de {visibleGraphDocuments.length} nós no viewport (limite de {graphRenderLimit}). Aproxime ou reduza o limite nas configurações para ver os demais.</p>
           ) : null}
           {graphMode === 'local' && localGraphBeyond.size > 0 ? (
-            <p className="graph-local-limit-note">Grafo local limitado: {localGraphBeyond.size} {localGraphBeyond.size === 1 ? 'nota esta' : 'notas estão'} alem de {graphLocalDepth} {graphLocalDepth === 1 ? 'salto' : 'saltos'} de {localGraphCenterPath?.split('/').at(-1)?.replace(/\.md$/i, '') ?? 'a nota central'}.</p>
+            <p className="graph-local-limit-note">Grafo local limitado: {localGraphBeyond.size} {localGraphBeyond.size === 1 ? 'nota está' : 'notas estão'} além de {graphLocalDepth} {graphLocalDepth === 1 ? 'salto' : 'saltos'} de {localGraphCenterPath?.split('/').at(-1)?.replace(/\.md$/i, '') ?? 'a nota central'}.</p>
           ) : null}
           <Drawer direction="right" open={graphDetailOpen && Boolean(focusedGraphDocument)} onOpenChange={(open) => { if (!open) { setGraphDetailOpen(false); setFocusedGraphPath(null) } }}>
             <DrawerContent className="graph-note-drawer">
@@ -605,7 +605,7 @@ export function GraphPage({
                     <div className="graph-detail-stat"><strong>{graphDegreeByPath[focusedGraphDocument.relativePath] ?? 0}</strong><span>conexões</span></div>
                   </div>
                   <div className="graph-note-drawer-section">
-                    <p className="graph-note-drawer-section-title">Conteudo</p>
+                    <p className="graph-note-drawer-section-title">Conteúdo</p>
                     <p className="graph-note-drawer-preview">{getMarkdownPreviewText(focusedGraphDocument.content, 240) || 'Nota vazia.'}</p>
                   </div>
                   {focusedIncomingNotes.length > 0 ? (

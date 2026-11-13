@@ -10,7 +10,7 @@ type Props = {
 const HEADERS: Record<PluginBlockLanguage, { title: string; description: string }> = {
   dataview: {
     title: 'Bloco Dataview',
-    description: 'Consulta renderizada somente leitura: o resultado nao e calculado aqui e a fonte permanece intacta.',
+    description: 'Consulta renderizada somente leitura: o resultado não é calculado aqui e a fonte permanece intacta.',
   },
   dataviewjs: {
     title: 'Bloco Dataview JS',

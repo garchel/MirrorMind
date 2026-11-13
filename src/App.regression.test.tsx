@@ -1481,7 +1481,7 @@ describe('Regressao do editor no workspace', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Modo do grafo' }), 'local')
     expect(screen.getByRole('button', { name: 'Abrir nota alvo no grafo' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Abrir nota quarta no grafo' })).not.toBeInTheDocument()
-    expect(screen.getByText(/Grafo local limitado: 1 nota esta alem de 1 salto/)).toBeInTheDocument()
+    expect(screen.getByText(/Grafo local limitado: 1 nota está além de 1 salto/)).toBeInTheDocument()
 
     // 2 saltos: quarta entra e o aviso de limite desaparece.
     await user.selectOptions(screen.getByRole('combobox', { name: 'Profundidade do grafo local' }), '2')
@@ -1932,7 +1932,7 @@ describe('Regressao do editor no workspace', () => {
       expect(expected).toBeLessThan(allPaths.length)
       expect(screen.getByText(`${expected} de 62 notas`)).toBeInTheDocument()
       const warning = screen.getByText(/Grafo resumido/)
-      expect(warning.textContent).toMatch(/exibindo \d+ de 62 nos no viewport \(limite de 50\)/)
+      expect(warning.textContent).toMatch(/exibindo \d+ de 62 nós no viewport \(limite de 50\)/)
       expect(screen.getAllByRole('button', { name: /^Abrir nota .* no grafo$/ })).toHaveLength(expected)
     } finally {
       raf.mockRestore()

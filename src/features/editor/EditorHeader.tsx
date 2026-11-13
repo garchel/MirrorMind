@@ -244,7 +244,7 @@ export function EditorHeader({
             className="editor-mode-control"
           role="radiogroup"
           aria-label="Modo de visualização da nota"
-          title="Edicao mostra o código, Misto edita o bloco ativo, Leitura mostra a nota formatada."
+          title="Edição mostra o código, Misto edita o bloco ativo, Leitura mostra a nota formatada."
           onKeyDown={(event) => {
             if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
             event.preventDefault()

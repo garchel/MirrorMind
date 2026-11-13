@@ -1753,7 +1753,7 @@ function App() {
     try {
       const vaultPayload = await invoke<unknown>('reopen_recent_vault')
       if (!vaultPayload) {
-        setStatus('O último vault nao esta mais disponivel. Escolha outra pasta.')
+        setStatus('O último vault não está mais disponível. Escolha outra pasta.')
         return
       }
 
@@ -4219,7 +4219,7 @@ function App() {
         setDraftContent('')
       }
     }
-    setStatus('A aba da nota removida foi fechada; o arquivo nao foi recriado.')
+    setStatus('A aba da nota removida foi fechada; o arquivo não foi recriado.')
   }
 
   function startNewNote() {
@@ -5332,7 +5332,7 @@ function App() {
       if (!request || request.id !== requestId) return
       setGraphExportRequest(null)
       if (!scene || scene.nodes.length === 0) {
-        setStatus('A cena do grafo 3D ainda nao esta pronta para exportar.')
+        setStatus('A cena do grafo 3D ainda não está pronta para exportar.')
         return
       }
       const svg = buildGraphSvg({
@@ -5357,7 +5357,7 @@ function App() {
       }
       const svg = buildGraph2dSvg()
       if (!svg) {
-        setStatus('O grafo ainda nao esta pronto para exportar.')
+        setStatus('O grafo ainda não está pronto para exportar.')
         return
       }
       void deliverGraphExport(svg, format)
@@ -5365,7 +5365,7 @@ function App() {
     const paletteCommands: PaletteCommand[] = [
       { id: 'new-note', label: 'Criar nova nota', description: 'Abre uma nova nota com foco no titulo.' },
       { id: 'daily-note', label: 'Abrir nota diaria', description: 'Cria ou abre a nota de hoje em Diarias.' },
-      { id: 'open-note', label: 'Abrir nota', description: 'Pesquisa notas por nome, conteudo ou tags.' },
+      { id: 'open-note', label: 'Abrir nota', description: 'Pesquisa notas por nome, conteúdo ou tags.' },
       { id: 'filter-tags', label: 'Filtrar por tags', description: 'Abre o filtro completo de tags.' },
       { id: 'manage-tags', label: 'Gerenciar tags', description: 'Abre a página de tags e políticas de revisão.' },
       { id: 'goals', label: 'Abrir metas', description: 'Vai para a página de Metas de aprendizado.' },
@@ -6326,7 +6326,7 @@ function App() {
           >
               <div className="move-item-heading">
                 <strong>Enviar para a lixeira?</strong>
-                <span>{deleteTarget.type === 'folder' ? `A pasta "${deleteTarget.name}" e todo o seu conteudo serao movidos para a lixeira.` : `A nota "${deleteTarget.name.replace(/\.md$/i, '')}" será movida para a lixeira.`}</span>
+                <span>{deleteTarget.type === 'folder' ? `A pasta "${deleteTarget.name}" e todo o seu conteúdo serão movidos para a lixeira.` : `A nota "${deleteTarget.name.replace(/\.md$/i, '')}" será movida para a lixeira.`}</span>
               </div>
               <label className="delete-confirmation-preference">
                 <input type="checkbox" checked={skipSoftDeleteConfirmation} onChange={(event) => setSkipSoftDeleteConfirmation(event.target.checked)} />
@@ -6347,7 +6347,7 @@ function App() {
           >
               <div className="move-item-heading">
                 <strong>Excluir permanentemente?</strong>
-                <span>{permanentDeleteTarget.itemType === 'folder' ? `A pasta "${permanentDeleteTarget.originalRelativePath}" e todo o seu conteudo serao removidos definitivamente.` : `A nota "${permanentDeleteTarget.originalRelativePath.replace(/\.md$/i, '')}" será removida definitivamente e nao podera ser restaurada.`}</span>
+                <span>{permanentDeleteTarget.itemType === 'folder' ? `A pasta "${permanentDeleteTarget.originalRelativePath}" e todo o seu conteúdo serão removidos definitivamente.` : `A nota "${permanentDeleteTarget.originalRelativePath.replace(/\.md$/i, '')}" será removida definitivamente e não poderá ser restaurada.`}</span>
               </div>
               <div className="folder-dialog-actions">
                 <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => setPermanentDeleteTarget(null)}>Cancelar</Button>
