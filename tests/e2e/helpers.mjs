@@ -109,3 +109,20 @@ export async function selectEditorMode(modeElement, mode) {
   await expect(radio).toBeDisplayed()
   await radio.click()
 }
+
+// Fechamento pelo SO (WM_CLOSE) mora em window-close-os.mjs: aquele modulo nao
+// importa @wdio/globals e por isso tambem roda no probe nativo, sem sessao.
+export {
+  appProcessIds as appProcessIdsOf,
+  requestWindowCloseFromOs,
+  waitForProcessExit,
+  waitForWindow,
+} from './window-close-os.mjs'
+
+/** PID(s) do app E2E em execucao (filtra pelo binario publicado pelo conf). */
+export async function appProcessIds() {
+  const { appProcessIds: ids } = await import('./window-close-os.mjs')
+  const appBinary = process.env.MIRRORMIND_E2E_APP_BINARY
+  if (!appBinary) throw new Error('MIRRORMIND_E2E_APP_BINARY nao foi publicado pelo wdio.conf.')
+  return ids(appBinary)
+}

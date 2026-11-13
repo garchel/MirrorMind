@@ -38,6 +38,9 @@ const appBinary = resolve(
   'src-tauri/target/debug/',
   process.platform === 'win32' ? 'mirrormind.exe' : 'mirrormind',
 )
+// O spec de fechamento precisa do CAMINHO para achar o processo certo: ha
+// builds de outras pastas rodando na mesma maquina.
+process.env.MIRRORMIND_E2E_APP_BINARY = appBinary
 
 for (const directory of [vaultParent, appData, localAppData, artifactsRoot]) {
   mkdirSync(directory, { recursive: true })

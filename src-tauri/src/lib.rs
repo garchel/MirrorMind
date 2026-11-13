@@ -5411,6 +5411,14 @@ pub(crate) struct AuthorizedPaths {
 /// conta propria: perder um rascunho e ruim, uma janela impossivel de fechar
 /// tambem. Cada pedido tem um numero; o ack cobre os pedidos ate o momento em
 /// que chegou, entao um ack antigo nao libera um pedido novo.
+///
+/// PRE-REQUISITO: `core:window:allow-destroy` em `capabilities/default.json`.
+/// Quando o handler JS nao chama `preventDefault`, quem conclui o fechamento e
+/// o `destroy()` do `@tauri-apps/api` — e sem essa permissao a chamada e
+/// rejeitada em silencio, a janela fica aberta e o watchdog nao age (o webview
+/// respondeu ao ack, entao ele confia que o JS fechou). Foi exatamente o que o
+/// E2E de fechamento pegou: WM_CLOSE entregue e processo vivo. Com a permissao
+/// `allow-close` sozinha, apenas o `close()` (que reemite o evento) funciona.
 #[derive(Default)]
 pub(crate) struct CloseRequestState {
     last_request: AtomicU64,

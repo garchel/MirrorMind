@@ -155,6 +155,20 @@ try {
   for (const journey of journeys) {
     await runJourney(journey)
   }
+  // Fora do WebDriver: o criterio e a janela sair do sistema, e quando ela sai
+  // a sessao do driver morre junto.
+  await new Promise((resolveProbe, rejectProbe) => {
+    const probe = spawn(process.execPath, ['tests/e2e/window-close-native.mjs'], {
+      cwd: projectRoot,
+      stdio: 'inherit',
+    })
+    probe.once('error', rejectProbe)
+    probe.once('exit', (code) => (
+      code === 0
+        ? resolveProbe()
+        : rejectProbe(new Error(`E2E nativo do fechamento falhou (code=${code}).`))
+    ))
+  })
 } catch (error) {
   console.error(error)
   process.exitCode = 1
