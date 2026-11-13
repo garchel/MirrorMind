@@ -11,6 +11,9 @@ import './review-reports.css'
 type Props = {
   vaultPath: string
   onOpenNote: (relativePath: string) => void
+  /** Renderizado dentro de uma aba do painel: sem cabecalho de pagina e sem
+   *  o padding de `.workspace-page`, que numa aba viraria margem dupla. */
+  embedded?: boolean
 }
 
 const outcomeLabels: Record<NonNullable<ReviewReportItem['outcome']>, string> = {
@@ -113,7 +116,7 @@ function EvolutionChart({ points }: { points: RetentionReport['evolution'] }) {
   )
 }
 
-export function ReviewReportsPage({ vaultPath, onOpenNote }: Props) {
+export function ReviewReportsPage({ vaultPath, onOpenNote, embedded = false }: Props) {
   const [reports, setReports] = useState<ReviewReportItem[]>([])
   const [retention, setRetention] = useState<RetentionReport | null>(null)
   const [loading, setLoading] = useState(true)
@@ -143,7 +146,11 @@ export function ReviewReportsPage({ vaultPath, onOpenNote }: Props) {
   const overall = retention?.overall ?? null
 
   return (
-    <section className="workspace-page review-reports-page" aria-labelledby="review-reports-title">
+    <section
+      className={embedded ? 'review-reports-embedded' : 'workspace-page review-reports-page'}
+      aria-labelledby={embedded ? undefined : 'review-reports-title'}
+    >
+      {embedded ? null : (
       <PageHeader
         kicker="Revisão"
         title="Relatórios"
@@ -152,6 +159,7 @@ export function ReviewReportsPage({ vaultPath, onOpenNote }: Props) {
       >
         <PageRefreshButton onRefresh={() => setReloadRequest((request) => request + 1)} disabled={loading} />
       </PageHeader>
+      )}
 
       {loading ? (
         <ReportsSkeleton />

@@ -741,3 +741,190 @@
   color: var(--mm-sage-500);
 }
 
+
+/* ---------- Abas do painel (notas · tags · desempenho) ----------
+ *
+ * O painel respondia a tres perguntas diferentes na mesma rolagem: como esta
+ * cada nota, como esta cada tag e como EU estou ao longo do tempo. A retencao
+ * por tag, especificamente, ficava no fim da pagina "Relatorios" — um dado
+ * sobre tags dentro de um relatorio de desempenho. Cada aba e uma pergunta.
+ */
+.review-dashboard-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--surface-canvas);
+}
+
+.review-dashboard-tabs button {
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-size-body-sm);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.review-dashboard-tabs button:hover:not(.is-active) {
+  color: var(--text-normal);
+}
+
+.review-dashboard-tabs button.is-active {
+  background: var(--text-h);
+  color: var(--surface-canvas);
+}
+
+/* ---------- Aba "Minhas tags" ---------- */
+.review-tags-status {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-body-sm);
+}
+
+.review-tags-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xl);
+  background: var(--surface-canvas);
+  color: var(--text-muted);
+  font-size: var(--font-size-body-sm);
+}
+
+.review-tags-summary p {
+  margin: 0;
+}
+
+.review-tags-summary strong {
+  color: var(--text-h);
+  font-size: var(--font-size-body-md);
+}
+
+.review-tags-block {
+  padding: 16px 18px 18px;
+  background: var(--surface-canvas);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xl);
+}
+
+.review-tags-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-body-sm);
+}
+
+.review-tags-table th,
+.review-tags-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.review-tags-table thead th {
+  color: var(--text-muted);
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.review-tags-table tbody th {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.review-tags-table tbody tr:last-child th,
+.review-tags-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.review-tags-retention {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-tags-bar {
+  display: inline-block;
+  width: 84px;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-h) 12%, transparent);
+  overflow: hidden;
+}
+
+.review-tags-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.review-tags-gap {
+  color: var(--accent-strong, var(--accent));
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-tags-weak-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-tags-weak-list li {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 84px minmax(0, 1.4fr);
+  align-items: center;
+  gap: 12px;
+  font-size: var(--font-size-body-sm);
+}
+
+.review-tags-weak-name {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .review-tags-weak-list li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+/* Precisa de (0,2,1) para vencer `.review-tags-table th, .review-tags-table td`
+ * (que empata em especificidade e vem antes) — sem isso o `text-align: right`
+ * era descartado e as colunas numericas ficavam a esquerda. */
+.review-tags-table td.review-tags-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-tags-table th.review-tags-num {
+  text-align: right;
+}
+
+/* Abaixo da meta: a retencao fica na cor de alerta, para a linha se destacar
+ * na varredura da tabela — o numero do delta saiu da tabela (ficava tecnico
+ * demais, "−8 p.p.") e virou frase no bloco abaixo. */
+.review-tags-retention.is-abaixo {
+  color: var(--accent-strong, var(--accent));
+  font-weight: 700;
+}
+
+.review-tags-retention.is-abaixo .review-tags-bar > span {
+  background: var(--accent-strong, var(--accent));
+}

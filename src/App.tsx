@@ -242,7 +242,6 @@ const AUTO_SAVE_DELAY_MS = 650
 // quando o usuario navega ate elas.
 const ReviewDashboardPage = lazy(() => import('./features/review/ReviewDashboardPage').then((module) => ({ default: module.ReviewDashboardPage })))
 const ReviewQueuePage = lazy(() => import('./features/review/ReviewQueuePage').then((module) => ({ default: module.ReviewQueuePage })))
-const ReviewReportsPage = lazy(() => import('./features/review/ReviewReportsPage').then((module) => ({ default: module.ReviewReportsPage })))
 const ReviewSessionPage = lazy(() => import('./features/review/ReviewSessionPage').then((module) => ({ default: module.ReviewSessionPage })))
 const TagManagementPage = lazy(() => import('./features/tags/TagManagementPage').then((module) => ({ default: module.TagManagementPage })))
 const BasesPage = lazy(() => import('./features/bases/BasesPage').then((module) => ({ default: module.BasesPage })))
@@ -5754,7 +5753,7 @@ function App() {
               </div>
             )}
               </>
-            ) : workspacePage === 'review' || workspacePage === 'dashboard' || workspacePage === 'reports' || workspacePage === 'tags' || workspacePage === 'bases' || workspacePage === 'goals' || workspacePage === 'dictionary' ? (
+            ) : workspacePage === 'review' || workspacePage === 'dashboard' || workspacePage === 'tags' || workspacePage === 'bases' || workspacePage === 'goals' || workspacePage === 'dictionary' ? (
               <Suspense fallback={<PageSkeleton variant={workspacePage} />}>
                 {workspacePage === 'goals' ? (
                   <GoalsPage
@@ -5787,11 +5786,6 @@ function App() {
                     vaultPath={vault.path}
                     onOpenNote={openNoteInWorkspace}
                     onStartReview={(item) => void handleStartReviewFromDeadline(item)}
-                  />
-                ) : workspacePage === 'reports' ? (
-                  <ReviewReportsPage
-                    vaultPath={vault.path}
-                    onOpenNote={openNoteInWorkspace}
                   />
                 ) : workspacePage === 'bases' ? (
                   <BasesPage

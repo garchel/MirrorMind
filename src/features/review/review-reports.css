@@ -214,3 +214,11 @@
   .retention-cards { grid-template-columns: 1fr 1fr; }
 }
 
+
+/* Embutido numa aba do painel: sem `.workspace-page` (que traz padding de
+ * pagina e `overflow: auto`), so o fluxo vertical dos blocos. */
+.review-reports-embedded {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}

@@ -3,7 +3,6 @@ import { Button } from '../../components/ui/Button'
 import {
   BookMarked,
   BookOpenCheck,
-  ClipboardList,
   Hash,
   LayoutDashboard,
   Network,
@@ -24,7 +23,6 @@ export type WorkspacePage =
   | 'notes'
   | 'review'
   | 'dashboard'
-  | 'reports'
   | 'tags'
   | 'bases'
   | 'graph'
@@ -192,16 +190,6 @@ export function WorkspaceRail({
       >
         <LayoutDashboard size={17} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Painel</span>
-      </Button>
-      <Button
-        type="button"
-        className={`rail-button${workspacePage === 'reports' ? ' is-active' : ''}`}
-        onClick={() => setWorkspacePage('reports')}
-        aria-label="Abrir relatórios de revisão"
-        title="Relatórios"
-      >
-        <ClipboardList size={17} strokeWidth={1.5} aria-hidden="true" />
-        <span className="rail-label">Relatórios</span>
       </Button>
       <Button
         type="button"

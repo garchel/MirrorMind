@@ -3,12 +3,14 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewDashboardPage } from './ReviewDashboardPage'
 
-const { getDashboardMock, getConfigMock, previewDeadlineMock, applyDeadlineMock, setPriorityMock } = vi.hoisted(() => ({
+const { getDashboardMock, getConfigMock, previewDeadlineMock, applyDeadlineMock, setPriorityMock, retentionMock, reportsMock } = vi.hoisted(() => ({
   getDashboardMock: vi.fn(),
   getConfigMock: vi.fn(),
   previewDeadlineMock: vi.fn(),
   applyDeadlineMock: vi.fn(),
   setPriorityMock: vi.fn(),
+  retentionMock: vi.fn(),
+  reportsMock: vi.fn(),
 }))
 
 vi.mock('./reviewDashboard', async (importOriginal) => ({
@@ -23,12 +25,55 @@ vi.mock('./vaultReviewPolicy', async (importOriginal) => ({
   applyDeadlineChange: applyDeadlineMock,
 }))
 
+vi.mock('./retentionReport', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./retentionReport')>(),
+  getRetentionReport: retentionMock,
+}))
+
+vi.mock('./reviewReports', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./reviewReports')>(),
+  getReviewReports: reportsMock,
+}))
+
 vi.mock('./reviewPolicy', async (importOriginal) => ({
   ...await importOriginal<typeof import('./reviewPolicy')>(),
   setNoteReviewPriority: setPriorityMock,
 }))
 
 const emptyForecast = Array.from({ length: 7 }, (_, dayOffset) => ({ dayOffset, dueCount: 0 }))
+
+const retentionReport = {
+  generatedAtUnixMs: 1_750_000_000_000,
+  overall: {
+    enrolledNoteCount: 12,
+    trackedUnitCount: 40,
+    averageRetrievability: 0.72,
+    averageStabilityDays: 9.5,
+    fragileUnitCount: 2,
+    completedSessionCount: 15,
+  },
+  perTag: [
+    {
+      tag: 'revisao/prova',
+      noteCount: 4,
+      dueCount: 2,
+      unitCount: 16,
+      averageRetrievability: 0.91,
+      targetRetention: 0.9,
+      fragileUnitCount: 0,
+    },
+    {
+      tag: 'revisao/leve',
+      noteCount: 3,
+      dueCount: 1,
+      unitCount: 9,
+      averageRetrievability: 0.62,
+      targetRetention: 0.7,
+      fragileUnitCount: 2,
+    },
+  ],
+  evolution: [],
+}
 
 const dashboard = {
   enrolledNoteCount: 12,
@@ -121,17 +166,48 @@ describe('ReviewDashboardPage', () => {
     applyDeadlineMock.mockResolvedValue({ revision: 8 })
     setPriorityMock.mockReset()
     setPriorityMock.mockResolvedValue({})
+    retentionMock.mockReset()
+    retentionMock.mockResolvedValue(retentionReport)
+    reportsMock.mockReset()
+    reportsMock.mockResolvedValue([])
   })
   afterEach(cleanup)
 
-  it('renders the summary cards and the retention hint', async () => {
+  it('abre a aba de tags com retenção por tag e a distância até a meta', async () => {
+    renderPage()
+    await screen.findByText('Notas em aprendizado')
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Minhas tags' }))
+
+    expect(await screen.findByRole('heading', { name: 'Como cada tag está indo' })).toBeInTheDocument()
+    expect(screen.getAllByText('#revisao/prova').length).toBeGreaterThan(0)
+    // A meta e da PROPRIA tag: 62% contra meta de 70% e -8 p.p.; a de prova
+    // (91% contra 90%) nao aparece como problema.
+    expect(screen.getByText('8 pontos abaixo da meta de 70%')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Onde a retenção está abaixo da meta' })).toBeInTheDocument()
+    // Os blocos de nota saem da tela quando a aba de tags esta ativa.
+    expect(screen.queryByText('Prontidão para revisar')).not.toBeInTheDocument()
+  })
+
+  it('abre a aba de desempenho sem repetir os cards da aba de notas', async () => {
+    renderPage()
+    await screen.findByText('Notas em aprendizado')
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Meu desempenho' }))
+
+    expect(await screen.findByText('Retenção média')).toBeInTheDocument()
+    expect(screen.getByText('Vencendo em 7 dias')).toBeInTheDocument()
+    expect(screen.queryByText('Prontidão para revisar')).not.toBeInTheDocument()
+  })
+
+  it('renders the summary cards of the notes tab', async () => {
     renderPage()
     expect(await screen.findByText('Notas em aprendizado')).toBeInTheDocument()
     expect(screen.getByText('Vencidas agora')).toBeInTheDocument()
     expect(screen.getByText('12')).toBeInTheDocument()
     expect(screen.getAllByText('3').length).toBeGreaterThan(0)
-    expect(screen.getByText(/72%/)).toBeInTheDocument()
-    expect(screen.getByText(/2 frágeis/)).toBeInTheDocument()
+    // A retencao media saiu da aba de notas: ela pertence a "Meu desempenho",
+    // junto da estabilidade e das unidades frageis.
+    expect(screen.queryByText(/72%/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/2 frágeis/)).not.toBeInTheDocument()
   })
 
   it('shows the awaiting-first-review card', async () => {
@@ -144,7 +220,7 @@ describe('ReviewDashboardPage', () => {
     const onOpenNote = vi.fn()
     renderPage(onOpenNote)
 
-    expect(await screen.findByRole('heading', { name: 'Qualidade das notas' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Prontidão para revisar' })).toBeInTheDocument()
     expect(screen.getByText('Prontas')).toBeInTheDocument()
     expect(screen.getByText('Ambíguas')).toBeInTheDocument()
     expect(screen.getByText('Insuficientes')).toBeInTheDocument()
@@ -167,7 +243,7 @@ describe('ReviewDashboardPage', () => {
       readinessAttentionNotes: [],
     })
     renderPage()
-    expect(await screen.findByText('Qualidade das notas')).toBeInTheDocument()
+    expect(await screen.findByText('Prontidão para revisar')).toBeInTheDocument()
     expect(screen.getByText(/Nenhuma nota precisa de atenção/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Abrir nota Esboco' })).not.toBeInTheDocument()
   })
@@ -186,7 +262,7 @@ describe('ReviewDashboardPage', () => {
   it('renders the calibration section with partial retention progress and an open action', async () => {
     const onOpenNote = vi.fn()
     renderPage(onOpenNote)
-    expect(await screen.findByRole('heading', { name: 'Em calibração' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Notas longas em calibração' })).toBeInTheDocument()
     expect(screen.getByText(/1 nota longa/)).toBeInTheDocument()
     const progress = screen.getByRole('progressbar', { name: 'Progresso da calibração de Longa' })
     expect(progress).toHaveAttribute('aria-valuenow', '3')
@@ -205,7 +281,7 @@ describe('ReviewDashboardPage', () => {
       }],
     })
     renderPage()
-    expect(await screen.findByRole('heading', { name: 'Em calibração' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Notas longas em calibração' })).toBeInTheDocument()
     expect(screen.getByText('3 de 8 seções · 5 restantes')).toBeInTheDocument()
   })
 
@@ -229,7 +305,7 @@ describe('ReviewDashboardPage', () => {
   it('signals expired deadlines with the tag source and guidance', async () => {
     renderPage()
 
-    expect(await screen.findByRole('heading', { name: 'Prazos encerrados' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Já passaram' })).toBeInTheDocument()
     expect(screen.getByText(/1 nota — a data-limite da tag já passou/)).toBeInTheDocument()
     expect(screen.getByText('Passada')).toBeInTheDocument()
     expect(screen.getByText('Provas/Passada.md')).toBeInTheDocument()
@@ -295,7 +371,7 @@ describe('ReviewDashboardPage', () => {
     })
     renderPage()
 
-    await screen.findByText('Próximos prazos')
+    await screen.findByText('Datas-limite')
     expect(screen.queryByRole('button', { name: 'Revisar Calculo' })).not.toBeInTheDocument()
   })
 

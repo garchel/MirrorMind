@@ -16,8 +16,10 @@ export const retentionOverallSchema = z.object({
 export const tagRetentionItemSchema = z.object({
   tag: z.string().min(1).max(512),
   noteCount: z.number().int().nonnegative().max(1_000_000),
+  dueCount: z.number().int().nonnegative().max(1_000_000),
   unitCount: z.number().int().nonnegative().max(10_000_000),
   averageRetrievability: z.number().min(0).max(1).nullable(),
+  targetRetention: z.number().min(0.5).max(0.99).nullable(),
   fragileUnitCount: z.number().int().nonnegative().max(10_000_000),
 }).strict()
 

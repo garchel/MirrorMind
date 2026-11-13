@@ -161,7 +161,7 @@ describe('ReviewQueuePage', () => {
 
     expect(within(row).getByRole('button', { name: 'Prioridade de ATP: Urgente' })).toBeInTheDocument()
     expect(screen.queryByText('Carregando revisões vencidas...')).not.toBeInTheDocument()
-    expect(screen.queryByText('Carregando próximos vencimentos…')).not.toBeInTheDocument()
+    expect(screen.queryByText('Carregando próximas revisões…')).not.toBeInTheDocument()
   })
   it('explains when there are no overdue notes', async () => {
     getDueReviewQueueMock.mockResolvedValue([])
@@ -206,7 +206,7 @@ describe('ReviewQueuePage', () => {
   it('always shows the upcoming section, even with nothing scheduled', async () => {
     render(<ReviewQueuePage vaultPath={VAULT_PATH} onOpenNote={vi.fn()} onStartReview={vi.fn()} />)
 
-    expect(await screen.findByRole('heading', { name: 'Próximos vencimentos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Próximas revisões' })).toBeInTheDocument()
     expect(screen.getByText('Nada agendado')).toBeInTheDocument()
     expect(screen.getByText(/Nada agendado por enquanto/)).toBeInTheDocument()
   })
@@ -236,7 +236,7 @@ describe('ReviewQueuePage', () => {
 
     render(<ReviewQueuePage vaultPath={VAULT_PATH} onOpenNote={vi.fn()} onStartReview={vi.fn()} />)
 
-    expect(await screen.findByRole('heading', { name: 'Próximos vencimentos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Próximas revisões' })).toBeInTheDocument()
     expect(screen.getByText('Mostrando 5 de 8')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Futura 0' })).toBeInTheDocument()
     expect(listUpcomingMock).toHaveBeenCalledWith(VAULT_PATH, 5, 0)

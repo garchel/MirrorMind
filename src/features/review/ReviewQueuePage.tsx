@@ -86,7 +86,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
     const requestId = ++upcomingRequestIdRef.current
     if (reset) {
       // `silent` mantem a lista atual na tela: sem isso, cada ajuste de
-      // prioridade trocava a secao por "Carregando proximos vencimentos...".
+      // prioridade trocava a secao por "Carregando proximas revisoes...".
       if (!silent) setUpcomingLoading(true)
       setUpcomingError(null)
     } else {
@@ -260,7 +260,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
       {!loading && !error ? (
         <section className="review-queue-upcoming" aria-labelledby="review-queue-upcoming-title">
           <div className="review-queue-subhead">
-            <h3 id="review-queue-upcoming-title">Próximos vencimentos</h3>
+            <h3 id="review-queue-upcoming-title">Próximas revisões</h3>
             {upcomingLoading ? null : upcomingTotal > 0 ? (
               <span>Mostrando {upcomingItems.length} de {upcomingTotal}</span>
             ) : (
@@ -268,7 +268,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
             )}
           </div>
           {upcomingLoading ? (
-            <p className="review-queue-upcoming-loading" role="status">Carregando próximos vencimentos…</p>
+            <p className="review-queue-upcoming-loading" role="status">Carregando próximas revisões…</p>
           ) : upcomingError && upcomingItems.length === 0 ? (
             <div className="review-queue-upcoming-error" role="alert">
               <p>{upcomingError}</p>

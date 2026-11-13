@@ -47,8 +47,10 @@ const baseRetention = {
     {
       tag: 'revisao/prova',
       noteCount: 1,
+      dueCount: 1,
       unitCount: 3,
       averageRetrievability: 0.55,
+      targetRetention: 0.8,
       fragileUnitCount: 1,
     },
   ],

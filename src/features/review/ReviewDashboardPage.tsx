@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
-import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, TimerReset, TrendingUp, X } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, TimerReset, X } from 'lucide-react'
 import { ErrorState } from '../../components/ErrorState'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { DashboardSkeleton } from '../../components/PageSkeleton'
@@ -9,6 +9,8 @@ import { applyDeadlineChange, getVaultReviewPolicyConfig, previewDeadlineChange 
 import { setNoteReviewPriority } from './reviewPolicy'
 import { getVaultReviewDashboard, type CalibrationNoteItem, type ExpiredDeadlineItem, type ReadinessAttentionItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
 import { Modal } from '../../components/Modal'
+import { ReviewReportsPage } from './ReviewReportsPage'
+import { ReviewTagsSection } from './ReviewTagsSection'
 import './review-dashboard.css'
 import { errorMessage } from '../../lib/tauri'
 
@@ -16,16 +18,6 @@ type Props = {
   vaultPath: string
   onOpenNote: (relativePath: string) => void
   onStartReview: (item: UpcomingDeadlineItem | ExpiredDeadlineItem) => void
-}
-
-function formatPercentage(value: number | null) {
-  if (value === null) return '—'
-  return `${Math.round(value * 100)}%`
-}
-
-function formatStability(value: number | null) {
-  if (value === null) return '—'
-  return `${value.toFixed(1)} dias`
 }
 
 function formatDeadline(deadline: number) {
@@ -238,6 +230,10 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadRequest, setReloadRequest] = useState(0)
+  // Uma aba por pergunta: notas (como esta cada uma), tags (como esta por
+  // assunto) e desempenho (como EU estou ao longo do tempo). Antes tudo isso
+  // morava junto aqui, e a retencao por tag ficava no fim de "Relatorios".
+  const [aba, setAba] = useState<'notas' | 'tags' | 'desempenho'>('notas')
   const [deadlineItem, setDeadlineItem] = useState<DeadlineEditable | null>(null)
   const [priorityBusy, setPriorityBusy] = useState<string | null>(null)
   const [priorityError, setPriorityError] = useState<string | null>(null)
@@ -287,9 +283,62 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
         <PageRefreshButton onRefresh={() => setReloadRequest((request) => request + 1)} disabled={loading} />
       </PageHeader>
 
-      {loading ? (
+      <div className="review-dashboard-tabs" role="tablist" aria-label="Seções do painel">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'notas'}
+          className={aba === 'notas' ? 'is-active' : ''}
+          onClick={() => setAba('notas')}
+        >
+          Minhas notas
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'tags'}
+          className={aba === 'tags' ? 'is-active' : ''}
+          onClick={() => setAba('tags')}
+        >
+          Minhas tags
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'desempenho'}
+          className={aba === 'desempenho' ? 'is-active' : ''}
+          onClick={() => setAba('desempenho')}
+        >
+          Meu desempenho
+        </button>
+      </div>
+
+      {aba === 'tags' ? <ReviewTagsSection vaultPath={vaultPath} /> : null}
+      {aba === 'desempenho' ? (
+        <>
+          {dashboard ? (
+            <div className="review-dashboard-grid">
+              <StatCard
+                icon={<TimerReset size={18} strokeWidth={1.6} aria-hidden="true" />}
+                label="Vencendo em 7 dias"
+                value={dashboard.dueWithinWeekCount}
+                hint="Inclui as já vencidas."
+              />
+              <StatCard
+                icon={<Layers size={18} strokeWidth={1.6} aria-hidden="true" />}
+                label="Unidades acompanhadas"
+                value={dashboard.trackedUnitCount}
+                hint="Fragmentos com estado de memória."
+              />
+            </div>
+          ) : null}
+          <ReviewReportsPage vaultPath={vaultPath} onOpenNote={onOpenNote} embedded />
+        </>
+      ) : null}
+
+      {aba === 'notas' && loading ? (
         <DashboardSkeleton />
-      ) : error ? (
+      ) : aba !== 'notas' ? null : error ? (
         <ErrorState message={error} onRetry={() => setReloadRequest((request) => request + 1)} />
       ) : dashboard ? (
         <>
@@ -305,27 +354,9 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
               value={dashboard.dueNoteCount}
             />
             <StatCard
-              icon={<TimerReset size={18} strokeWidth={1.6} aria-hidden="true" />}
-              label="Vencendo em 7 dias"
-              value={dashboard.dueWithinWeekCount}
-              hint="Inclui as já vencidas."
-            />
-            <StatCard
               icon={<CalendarClock size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Prazos ativos"
               value={dashboard.activeDeadlineNoteCount}
-            />
-            <StatCard
-              icon={<Layers size={18} strokeWidth={1.6} aria-hidden="true" />}
-              label="Unidades acompanhadas"
-              value={dashboard.trackedUnitCount}
-              hint="Fragmentos com estado de memória."
-            />
-            <StatCard
-              icon={<TrendingUp size={18} strokeWidth={1.6} aria-hidden="true" />}
-              label="Retenção média"
-              value={formatPercentage(dashboard.averageRetrievability)}
-              hint={`Estabilidade ${formatStability(dashboard.averageStabilityDays)} · ${dashboard.fragileUnitCount} ${dashboard.fragileUnitCount === 1 ? 'frágil' : 'frágeis'}`}
             />
             <StatCard
               icon={<ListTodo size={18} strokeWidth={1.6} aria-hidden="true" />}
@@ -349,7 +380,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
 
           <section className="review-dashboard-deadlines" aria-labelledby="review-dashboard-deadlines-title">
             <div className="review-dashboard-section-heading">
-              <h3 id="review-dashboard-deadlines-title">Próximos prazos</h3>
+              <h3 id="review-dashboard-deadlines-title">Datas-limite</h3>
               <span>{dashboard.completedSessionCount} {dashboard.completedSessionCount === 1 ? 'sessão concluída' : 'sessões concluídas'}</span>
             </div>
             {dashboard.upcomingDeadlines.length === 0 ? (
@@ -495,7 +526,7 @@ function ReadinessSection({ unassessed, ready, ambiguous, insufficient, modified
   return (
     <section className="review-dashboard-readiness" aria-labelledby="review-dashboard-readiness-title">
       <div className="review-dashboard-section-heading">
-        <h3 id="review-dashboard-readiness-title">Qualidade das notas</h3>
+        <h3 id="review-dashboard-readiness-title">Prontidão para revisar</h3>
         <span>
           {attentionCount} {attentionCount === 1 ? 'nota precisa' : 'notas precisam'} de atenção
         </span>
@@ -566,7 +597,7 @@ function CalibrationSection({ notes, count, onOpenNote }: {
   return (
     <section className="review-dashboard-calibration" aria-labelledby="review-dashboard-calibration-title">
       <div className="review-dashboard-section-heading">
-        <h3 id="review-dashboard-calibration-title">Em calibração</h3>
+        <h3 id="review-dashboard-calibration-title">Notas longas em calibração</h3>
         <span>
           {count} {count === 1 ? 'nota longa' : 'notas longas'} — retenção parcial até todas as unidades serem avaliadas
         </span>
@@ -632,7 +663,7 @@ function ExpiredDeadlinesSection({ items, count, onOpenNote, onEditDeadline, onS
   return (
     <section className="review-dashboard-expired" aria-labelledby="review-dashboard-expired-title">
       <div className="review-dashboard-section-heading">
-        <h3 id="review-dashboard-expired-title">Prazos encerrados</h3>
+        <h3 id="review-dashboard-expired-title">Já passaram</h3>
         <span>
           {count} {count === 1 ? 'nota' : 'notas'} — a data-limite da tag já passou
         </span>
