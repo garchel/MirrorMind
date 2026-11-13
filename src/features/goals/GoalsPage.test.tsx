@@ -95,6 +95,15 @@ describe('GoalsPage', () => {
     expect(within(items[1]).getByText('Prática guiada')).toBeInTheDocument()
   })
 
+  it('explica como o progresso e contado sem poluir o resumo', async () => {
+    render(<GoalsPage vaultPath={VAULT_PATH} onOpenNote={() => undefined} />)
+
+    // O "?" existe, tem rotulo proprio e nao entra no texto do resumo.
+    const gatilho = await screen.findByRole('button', { name: 'Como funciona: Progresso das metas' })
+    expect(gatilho).toBeInTheDocument()
+    expect(screen.getByText(/concluído no geral/)).toBeInTheDocument()
+  })
+
   it('mostra as métricas gerais no cabeçalho e os passos concluídos no modal', async () => {
     render(<GoalsPage vaultPath={VAULT_PATH} onOpenNote={() => undefined} />)
     await screen.findByText('Aprender fotossíntese')

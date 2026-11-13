@@ -7,6 +7,7 @@ import { GoalsSkeleton } from '../../components/PageSkeleton'
 import { Modal, ModalHeader } from '../../components/Modal'
 import { useEscapeToClose } from '../../lib/escapeStack'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
+import { InfoTip } from '../../components/ui/InfoTip'
 import { useReviewAiSettings } from '../review/ReviewAiSettingsContext'
 import {
   createGoal,
@@ -372,11 +373,23 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
       </PageHeader>
 
       {goals.length > 0 && !loading ? (
-        <p className="goals-headline-stats" aria-label="Resumo das metas">
-          <strong>{goals.length} {goals.length === 1 ? 'meta' : 'metas'}</strong>
-          <span aria-hidden="true"> · </span>
-          <strong>{totalPercent}%</strong> concluído no geral
-        </p>
+        <div className="goals-headline-row">
+          <p className="goals-headline-stats" aria-label="Resumo das metas">
+            <strong>{goals.length} {goals.length === 1 ? 'meta' : 'metas'}</strong>
+            <span aria-hidden="true"> · </span>
+            <strong>{totalPercent}%</strong> concluído no geral
+          </p>
+          <InfoTip label="Progresso das metas">
+            <p>
+              Cada meta é um plano de estudo dividido em passos, e cada passo vira uma nota.
+              O percentual conta apenas os passos que <strong>já têm nota criada</strong>.
+            </p>
+            <p>
+              Uma meta com 4 notas propostas e 1 criada mostra 25%. O total do topo soma todos
+              os passos de todas as metas, para você ver o avanço geral.
+            </p>
+          </InfoTip>
+        </div>
       ) : null}
 
       {createdMessage ? <p role="status" className="goals-success">{createdMessage}</p> : null}
@@ -433,6 +446,16 @@ export function GoalsPage({ vaultPath, onOpenNote }: GoalsPageProps) {
                   </div>
                   <div className="goal-card-meta">
                     <span>{goal.steps.length} {goal.steps.length === 1 ? 'nota proposta' : 'notas propostas'}</span>
+                    <InfoTip label="Notas propostas">
+                      <p>
+                        São as notas do plano, na ordem em que faz sentido estudar. Enquanto a nota
+                        não existe, o passo conta como pendente.
+                      </p>
+                      <p>
+                        O <strong>+</strong> de cada passo cria a nota com o título e o resumo que a
+                        meta definiu — a nota nasce pronta para ser escrita.
+                      </p>
+                    </InfoTip>
                   </div>
                 </div>
               </li>

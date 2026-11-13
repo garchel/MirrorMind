@@ -79,6 +79,14 @@ describe('BasesPage (Tabela)', () => {
     expect(screen.getAllByRole('row')).toHaveLength(4)
   })
 
+  it('explica de onde vem as colunas', async () => {
+    renderPage()
+
+    expect(
+      await screen.findByRole('button', { name: 'Como funciona: Colunas da tabela' }),
+    ).toBeInTheDocument()
+  })
+
   it('o seletor de colunas lista as propriedades e a coluna Nota fica fixa', async () => {
     renderPage()
     await screen.findByRole('table')

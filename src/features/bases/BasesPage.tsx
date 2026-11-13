@@ -6,6 +6,7 @@ import { listen } from '@tauri-apps/api/event'
 import { invoke } from '../../lib/tauri'
 import { parseNoteDocumentList } from '../../lib/vault'
 import { PageHeader } from '../../components/PageHeader'
+import { InfoTip } from '../../components/ui/InfoTip'
 import { BasesSkeleton } from '../../components/PageSkeleton'
 import { getMarkdownFrontmatterProperties } from '../../lib/markdown'
 import {
@@ -210,6 +211,18 @@ export function BasesPage({ vaultPath, notePreviews, onOpenNote }: Props) {
           onToggle={toggleColumn}
           onReset={resetColumns}
         />
+        <InfoTip label="Colunas da tabela">
+          <p>
+            Cada coluna é uma propriedade do <strong>frontmatter</strong> das notas. As colunas
+            nascem das notas que existem no vault: crie uma nota com <code>status:</code> e a
+            coluna aparece.
+          </p>
+          <p>
+            O <strong>Nome</strong> é sempre visível. O botão Colunas escolhe o resto e guarda a
+            escolha por vault; clicar no título de uma coluna ordena, e o mesmo título inverte a
+            ordem.
+          </p>
+        </InfoTip>
       </div>
 
       {error ? <p className="bases-error" role="alert">{error}</p> : null}

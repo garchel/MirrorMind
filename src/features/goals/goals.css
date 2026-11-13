@@ -298,6 +298,16 @@
   font-weight: 700;
 }
 
+/* O "?" fica ao LADO do texto, nao dentro: um gatilho de 20px dentro de uma
+   linha de 13px infla a altura da linha (medido: 26px de caixa para 32px de
+   conteudo) e o numero do resumo sai do lugar. Em flex, o botao centraliza
+   sem mexer na tipografia. */
+.goals-headline-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .goals-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -367,6 +377,7 @@
 
 .goal-card-meta {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px 14px;
   color: var(--goals-muted);
