@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ErrorState } from '../../components/ErrorState'
+import { InfoTip } from '../../components/ui/InfoTip'
 import { errorMessage } from '../../lib/tauri'
 import { getRetentionReport, type RetentionReport, type TagRetentionItem } from './retentionReport'
 
@@ -84,7 +85,19 @@ export function ReviewTagsSection({ vaultPath }: Props) {
 
       <section className="review-tags-block" aria-labelledby="review-tags-table-title">
         <div className="review-dashboard-section-heading">
-          <h3 id="review-tags-table-title">Como cada tag está indo</h3>
+          <div className="review-heading-title">
+            <h3 id="review-tags-table-title">Como cada tag está indo</h3>
+            <InfoTip label="Como cada tag está indo">
+              <p>
+                Cada linha é uma tag das notas em revisão. <em>Retenção</em> é a recuperabilidade
+                média das unidades da tag; <em>meta</em> é o alvo da política aplicada a ela.
+              </p>
+              <p>
+                O que importa é a distância até a meta da própria tag: 62% está bem numa tag leve
+                (meta 70%) e mal numa de prova (meta 90%).
+              </p>
+            </InfoTip>
+          </div>
           <span>{tags.length === 1 ? '1 tag' : `${tags.length} tags`}</span>
         </div>
         {tags.length === 0 ? (
@@ -139,7 +152,15 @@ export function ReviewTagsSection({ vaultPath }: Props) {
 
       <section className="review-tags-block" aria-labelledby="review-tags-weak-title">
         <div className="review-dashboard-section-heading">
-          <h3 id="review-tags-weak-title">Onde a retenção está abaixo da meta</h3>
+          <div className="review-heading-title">
+            <h3 id="review-tags-weak-title">Onde a retenção está abaixo da meta</h3>
+            <InfoTip label="Onde a retenção está abaixo da meta">
+              <p>
+                Só as tags cuja retenção ficou abaixo do próprio alvo, da mais atrasada para a
+                menos. É a lista de onde começar a estudar.
+              </p>
+            </InfoTip>
+          </div>
           <span>o que revisar primeiro</span>
         </div>
         {abaixoDaMeta.length === 0 ? (

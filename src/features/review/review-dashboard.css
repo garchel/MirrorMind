@@ -965,3 +965,18 @@
 .review-dashboard-panel[hidden] {
   display: none;
 }
+
+/* Titulo de bloco + "?" de ajuda. O InfoTip fica FORA do <h3> de proposito:
+ * dentro, o nome acessivel do heading passaria a incluir o rotulo do botao. */
+.review-heading-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.review-dashboard-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}

@@ -393,7 +393,7 @@ describe('ReviewDashboardPage', () => {
   it('shows the error state with retry when the backend fails', async () => {
     getDashboardMock.mockRejectedValueOnce(new Error('boom'))
     renderPage()
-    expect(await screen.findByRole('alert')).toHaveTextContent(/Não foi possível carregar o painel/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Não foi possível carregar seu progresso/i)
     getDashboardMock.mockResolvedValueOnce(dashboard)
     await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
     expect(await screen.findByText('Notas em aprendizado')).toBeInTheDocument()
@@ -427,7 +427,7 @@ describe('ReviewDashboardPage', () => {
       newDeadline: expect.any(Number),
     }))
     expect(onOpenNote).not.toHaveBeenCalled()
-    expect(await screen.findByRole('heading', { name: /Painel de aprendizado/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Meu progresso/ })).toBeInTheDocument()
   })
 
   it('hides the confirm button until the impact has been previewed', async () => {

@@ -3,6 +3,7 @@ import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
 import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Clock3, FileText, Layers, ListTodo, Minus, Pencil, Plus, TimerReset, X } from 'lucide-react'
 import { ErrorState } from '../../components/ErrorState'
+import { InfoTip } from '../../components/ui/InfoTip'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { DashboardSkeleton } from '../../components/PageSkeleton'
 import { applyDeadlineChange, getVaultReviewPolicyConfig, previewDeadlineChange } from './vaultReviewPolicy'
@@ -47,17 +48,22 @@ type DeadlineEditable = {
 /** StatCard no padrao dos cards de Relatorios (retention-card): label
  * uppercase em cima, valor mono embaixo, hint curto. O icone vem ao lado
  * do valor na cor muted do texto — nunca o laranja de acao do app. */
-function StatCard({ icon, label, value, hint }: {
+function StatCard({ icon, label, value, hint, info }: {
   icon: React.ReactNode
   label: string
   value: string | number
   hint?: string
+  /** Ajuda contextual do numero: o rotulo sozinho nao diz de onde ele vem. */
+  info?: React.ReactNode
 }) {
   return (
     <div className="review-dashboard-card">
       <span className="review-dashboard-card-icon" aria-hidden="true">{icon}</span>
       <strong>{value}</strong>
-      <span>{label}</span>
+      <span className="review-dashboard-card-label">
+        {label}
+        {info}
+      </span>
       {hint ? <small>{hint}</small> : null}
     </div>
   )
@@ -265,7 +271,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
         if (requestId === requestIdRef.current) setDashboard(next)
       })
       .catch(() => {
-        if (requestId === requestIdRef.current) setError('Não foi possível carregar o painel de aprendizado.')
+        if (requestId === requestIdRef.current) setError('Não foi possível carregar seu progresso.')
       })
       .finally(() => {
         if (requestId === requestIdRef.current) setLoading(false)
@@ -276,9 +282,9 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
     <section className="workspace-page review-dashboard-page" aria-labelledby="review-dashboard-title">
       <PageHeader
         kicker="Revisão"
-        title="Painel de aprendizado"
+        title="Meu progresso"
         titleId="review-dashboard-title"
-        description="Visão geral da retenção de memória, prazos e carga de revisão."
+        description="Como estão suas notas e suas tags, e como sua retenção evolui com o tempo."
       >
         <PageRefreshButton onRefresh={() => setReloadRequest((request) => request + 1)} disabled={loading} />
       </PageHeader>
@@ -343,12 +349,29 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
                 label="Vencendo em 7 dias"
                 value={dashboard.dueWithinWeekCount}
                 hint="Inclui as já vencidas."
+                info={(
+                  <InfoTip label="Vencendo em 7 dias">
+                    <p>
+                      Tudo que precisa de revisão até o fim da semana, somando as já vencidas.
+                      É a sua carga imediata.
+                    </p>
+                  </InfoTip>
+                )}
               />
               <StatCard
                 icon={<Layers size={18} strokeWidth={1.6} aria-hidden="true" />}
                 label="Unidades acompanhadas"
                 value={dashboard.trackedUnitCount}
                 hint="Fragmentos com estado de memória."
+                info={(
+                  <InfoTip label="Unidades acompanhadas">
+                    <p>
+                      Parágrafos ou seções com estado de memória próprio. A retenção é medida
+                      por unidade, não por nota — uma nota longa vale tantas quantas suas
+                      unidades.
+                    </p>
+                  </InfoTip>
+                )}
               />
             </div>
           ) : null}
@@ -373,21 +396,53 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
               icon={<CheckCircle2 size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Notas em aprendizado"
               value={dashboard.enrolledNoteCount}
+              info={(
+                <InfoTip label="Notas em aprendizado">
+                  <p>
+                    Notas inscritas na revisão espaçada. Só elas entram na fila e nos cálculos
+                    de retenção — as demais são conteúdo do vault, sem acompanhamento.
+                  </p>
+                </InfoTip>
+              )}
             />
             <StatCard
               icon={<Clock3 size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Vencidas agora"
               value={dashboard.dueNoteCount}
+              info={(
+                <InfoTip label="Vencidas agora">
+                  <p>
+                    Notas cuja próxima revisão já passou. É a mesma lista da página Revisar,
+                    ordenada por prioridade e atraso.
+                  </p>
+                </InfoTip>
+              )}
             />
             <StatCard
               icon={<CalendarClock size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Prazos ativos"
               value={dashboard.activeDeadlineNoteCount}
+              info={(
+                <InfoTip label="Prazos ativos">
+                  <p>
+                    Notas com data-limite no futuro, definida numa tag. Cada uma aparece em
+                    <em>Datas-limite</em>, com o risco de retenção calculado para a data.
+                  </p>
+                </InfoTip>
+              )}
             />
             <StatCard
               icon={<ListTodo size={18} strokeWidth={1.6} aria-hidden="true" />}
               label="Aguardando 1ª revisão"
               value={dashboard.awaitingFirstReviewCount}
+              info={(
+                <InfoTip label="Aguardando 1ª revisão">
+                  <p>
+                    Notas inscritas que nunca passaram por uma sessão. O prazo até a primeira
+                    revisão vem da política (vault, tag ou nota), não do intervalo normal.
+                  </p>
+                </InfoTip>
+              )}
             />
           </div>
 
@@ -406,7 +461,17 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
 
           <section className="review-dashboard-deadlines" aria-labelledby="review-dashboard-deadlines-title">
             <div className="review-dashboard-section-heading">
+              <div className="review-heading-title">
               <h3 id="review-dashboard-deadlines-title">Datas-limite</h3>
+              <InfoTip label="Datas-limite">
+                <p>
+                  Data de prova ou entrega definida numa tag da nota. O app antecipa revisões
+                  para chegar inteiro nela — e marca <em>meta de retenção em risco</em> quando
+                  nem antecipando o alvo da política é alcançável antes da data.
+                </p>
+                <p>É diferente do vencimento: vencimento é quando o app quer que você volte.</p>
+              </InfoTip>
+            </div>
               <span>{dashboard.completedSessionCount} {dashboard.completedSessionCount === 1 ? 'sessão concluída' : 'sessões concluídas'}</span>
             </div>
             {dashboard.upcomingDeadlines.length === 0 ? (
@@ -553,7 +618,17 @@ function ReadinessSection({ unassessed, ready, ambiguous, insufficient, modified
   return (
     <section className="review-dashboard-readiness" aria-labelledby="review-dashboard-readiness-title">
       <div className="review-dashboard-section-heading">
-        <h3 id="review-dashboard-readiness-title">Prontidão para revisar</h3>
+        <div className="review-heading-title">
+            <h3 id="review-dashboard-readiness-title">Prontidão para revisar</h3>
+            <InfoTip label="Prontidão para revisar">
+              <p>
+                Se a nota tem conteúdo suficiente para a IA avaliar. <em>Prontas</em> entram na
+                fila; <em>ambíguas</em> servem, mas com ressalvas; <em>insuficientes</em> precisam
+                de mais conteúdo antes de gastar uma sessão.
+              </p>
+              <p>Modificadas desde a última revisão voltam a ser avaliadas antes de valer nota.</p>
+            </InfoTip>
+          </div>
         <span>
           {attentionCount} {attentionCount === 1 ? 'nota precisa' : 'notas precisam'} de atenção
         </span>
@@ -624,7 +699,17 @@ function CalibrationSection({ notes, count, onOpenNote }: {
   return (
     <section className="review-dashboard-calibration" aria-labelledby="review-dashboard-calibration-title">
       <div className="review-dashboard-section-heading">
-        <h3 id="review-dashboard-calibration-title">Notas longas em calibração</h3>
+        <div className="review-heading-title">
+            <h3 id="review-dashboard-calibration-title">Notas longas em calibração</h3>
+            <InfoTip label="Notas longas em calibração">
+              <p>
+                Nota com vários parágrafos é avaliada por partes, uma sessão por vez. Enquanto
+                houver parágrafo nunca perguntado, a retenção mostrada para ela é parcial — só
+                das partes já observadas.
+              </p>
+              <p>Sai da lista sozinha quando o último parágrafo for avaliado.</p>
+            </InfoTip>
+          </div>
         <span>
           {count} {count === 1 ? 'nota longa' : 'notas longas'} — retenção parcial até todas as unidades serem avaliadas
         </span>
@@ -690,7 +775,16 @@ function ExpiredDeadlinesSection({ items, count, onOpenNote, onEditDeadline, onS
   return (
     <section className="review-dashboard-expired" aria-labelledby="review-dashboard-expired-title">
       <div className="review-dashboard-section-heading">
-        <h3 id="review-dashboard-expired-title">Já passaram</h3>
+        <div className="review-heading-title">
+          <h3 id="review-dashboard-expired-title">Já passaram</h3>
+          <InfoTip label="Datas-limite que já passaram">
+            <p>
+              A data-limite chegou e ficou para trás; a nota <strong>continua em revisão
+              normal</strong>, com todo o histórico. Decida o que fazer com a política dela:
+              remover a tag, trocar o perfil nas Configurações, ou manter como está.
+            </p>
+          </InfoTip>
+        </div>
         <span>
           {count} {count === 1 ? 'nota' : 'notas'} — a data-limite da tag já passou
         </span>

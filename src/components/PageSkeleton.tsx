@@ -53,7 +53,7 @@ function StatusShell({
   )
 }
 
-/** Painel de aprendizado: 7 stat cards + prontidao + proximos prazos. */
+/** Meu progresso: abas (notas/tags/desempenho) com cards e blocos. */
 export function DashboardSkeleton() {
   return (
     <StatusShell message="Calculando métricas do vault...">

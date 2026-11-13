@@ -185,8 +185,8 @@ export function WorkspaceRail({
         type="button"
         className={`rail-button${workspacePage === 'dashboard' ? ' is-active' : ''}`}
         onClick={() => setWorkspacePage('dashboard')}
-        aria-label="Abrir painel de aprendizado"
-        title="Painel de aprendizado"
+        aria-label="Abrir meu progresso"
+        title="Meu progresso"
       >
         <LayoutDashboard size={17} strokeWidth={1.5} aria-hidden="true" />
         <span className="rail-label">Painel</span>

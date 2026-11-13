@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { BarChart3, ClipboardList, ExternalLink } from 'lucide-react'
 import { ErrorState } from '../../components/ErrorState'
+import { InfoTip } from '../../components/ui/InfoTip'
 import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { ReportsSkeleton } from '../../components/PageSkeleton'
 import { getReviewReports, type ReviewReportItem } from './reviewReports'
@@ -171,7 +172,16 @@ export function ReviewReportsPage({ vaultPath, onOpenNote, embedded = false }: P
             <section className="retention-section" aria-labelledby="retention-title">
               <div className="retention-heading">
                 <div>
-                  <h3 id="retention-title">Retenção estimada</h3>
+                  <div className="review-heading-title">
+                    <h3 id="retention-title">Retenção estimada</h3>
+                    <InfoTip label="Retenção estimada">
+                      <p>
+                        Quanto você ainda lembraria agora, unidade por unidade. Cai com o tempo
+                        desde a última revisão; subir de novo só revisando.
+                      </p>
+                      <p>É uma estimativa do modelo de memória, não uma medição direta.</p>
+                    </InfoTip>
+                  </div>
                   <p>Recuperabilidade das unidades, com a passagem do tempo desde a última revisão.</p>
                 </div>
               </div>
@@ -240,7 +250,15 @@ export function ReviewReportsPage({ vaultPath, onOpenNote, embedded = false }: P
                 )}
 
                 <div className="retention-evolution">
-                  <h4>Evolução do desempenho</h4>
+                  <div className="review-heading-title">
+                    <h4>Evolução do desempenho</h4>
+                    <InfoTip label="Evolução do desempenho">
+                      <p>
+                        Média das notas das sessões por dia. Dia sem sessão aparece como lacuna —
+                        não conta como zero.
+                      </p>
+                    </InfoTip>
+                  </div>
                   <p className="retention-evolution-note">Média das notas das sessões por dia (últimos 30 dias).</p>
                   {retention && <EvolutionChart points={retention.evolution} />}
                 </div>
@@ -251,7 +269,15 @@ export function ReviewReportsPage({ vaultPath, onOpenNote, embedded = false }: P
           <section className="review-reports-list" aria-labelledby="review-reports-list-title">
             <div className="retention-heading">
               <div>
+                <div className="review-heading-title">
                 <h3 id="review-reports-list-title">Histórico completo</h3>
+                <InfoTip label="Histórico completo">
+                  <p>
+                    Todas as provas e conversas concluídas, da mais recente para a mais antiga.
+                    Cada linha abre o relatório daquela sessão.
+                  </p>
+                </InfoTip>
+              </div>
                 <p>Todas as provas e conversas concluídas, para acompanhar o seu progresso.</p>
               </div>
             </div>
