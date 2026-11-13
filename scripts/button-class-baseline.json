@@ -79,8 +79,6 @@
     "src/features/review/ReviewDashboardPage.tsx::className=\"ui-button ui-button--secondary ui-button--sm\"",
     "src/features/review/ReviewNotificationSettings.tsx::<Button type=\"button\" className=\"ui-button ui-button--secondary ui-button--sm\" onClick={() => void sendTest()} disabled={busy || settings.muted}>",
     "src/features/review/ReviewQueuePage.tsx::<Button type=\"button\" className=\"ui-button ui-button--primary ui-button--md\" onClick={onBrowseNotes}>",
-    "src/features/review/ReviewQueuePage.tsx::<Button type=\"button\" className=\"ui-button ui-button--secondary ui-button--sm\" onClick={() => void loadUpcomingPage(true)}>",
-    "src/features/review/ReviewQueuePage.tsx::className=\"ui-button ui-button--secondary ui-button--sm\"",
     "src/features/review/ReviewReportsPage.tsx::className=\"ui-button ui-button--secondary ui-button--sm review-reports-open\"",
     "src/features/review/ReviewSessionPage.tsx::<Button type=\"button\" className=\"ui-button ui-button--primary ui-button--md review-start\" onClick={() => void begin()} disabled={busy || !canUseProvider}>{busy ? 'Preparando…' : 'Iniciar revisão'}</Button>",
     "src/features/review/ReviewSessionPage.tsx::<Button type=\"button\" className=\"ui-button ui-button--primary ui-button--md review-start\" onClick={onRedo}>Reescrever e avaliar de novo</Button>",

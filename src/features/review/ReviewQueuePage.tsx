@@ -283,7 +283,7 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
           ) : upcomingError && upcomingItems.length === 0 ? (
             <div className="review-queue-upcoming-error" role="alert">
               <p>{upcomingError}</p>
-              <Button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void loadUpcomingPage(true)}>
+              <Button type="button" variant="secondary" size="md" onClick={() => void loadUpcomingPage(true)}>
                 Tentar novamente
               </Button>
             </div>
@@ -332,7 +332,8 @@ export function ReviewQueuePage({ vaultPath, onOpenNote, onStartReview, onBrowse
               <div ref={sentinelRef} className="review-queue-sentinel" aria-hidden="true" />
               <Button
                 type="button"
-                className="ui-button ui-button--secondary ui-button--sm"
+                variant="secondary"
+                size="md"
                 onClick={() => void loadUpcomingPage(false)}
                 disabled={upcomingLoadingMore}
               >
