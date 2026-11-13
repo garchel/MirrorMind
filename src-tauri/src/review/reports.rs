@@ -650,6 +650,37 @@ mod tests {
     }
 
     #[test]
+    fn retention_report_counts_due_notes_and_keeps_the_tag_target() {
+        let vault = tempdir().expect("vault");
+        let now = 1_730_000_000_000;
+        let day_start = now - (now % DAY_MS);
+        // A fixture tem `nextReviewAtUnixMs` em 2024-07 (passado em relacao a
+        // `now`) e um alvo de retencao de 0,93: a tag deve sair com 1 vencida e
+        // a meta 0,93, nao com a meta do vault.
+        write_tagged_document(
+            vault.path(),
+            "Biologia/Prova.md",
+            "revisao/prova",
+            2.0,
+            20,
+            now,
+            58,
+        );
+
+        let retention =
+            build_retention_report(vault.path(), now, day_start).expect("build retention");
+
+        let tag = &retention.per_tag[0];
+        assert_eq!(tag.tag, "revisao/prova");
+        assert_eq!(tag.due_count, 1, "nota com next_review no passado conta como vencida");
+        assert_eq!(
+            tag.target_retention,
+            Some(0.93),
+            "a meta vem da politica efetiva da nota, nao de um numero fixo"
+        );
+    }
+
+    #[test]
     fn retention_report_groups_by_tag_with_weakest_first() {
         let vault = tempdir().expect("vault");
         let now = 1_730_000_000_000;
