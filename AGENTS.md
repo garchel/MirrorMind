@@ -92,6 +92,15 @@ compilar.
 bugs reais que o typecheck não pega (um componente usado sem import, uma
 função com nome errado). O aviso estava certo e passar por ele custou tempo.
 
+**Botão novo nasce com o primitivo, nunca com classes na mão.** `Button` tem
+`variant` e `size`; escrever `className="ui-button ui-button--secondary"` tira
+a garantia de uma variante e uma densidade por botão. Essa mistura já custou
+três bugs reais: duas variantes no mesmo elemento (o "Revisar" media 34px em
+vez de 40), o "?" de ajuda com 32×40 por causa do `min-height` da densidade
+`md`, e as abas do painel com 54px de altura. `npm run buttons:verify` falha
+para botão manual novo (os ~126 existentes estão no baseline); ao migrar uma
+tela, rode o mesmo script com `--update` para retirar as linhas migradas.
+
 ## Medição: só o que foi medido pode virar número
 
 Um critério **não medido** aparece como "não medido", nunca como aprovado. Vale

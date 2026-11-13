@@ -18,6 +18,8 @@
     "tokens:verify:cascade": "python scripts/verify-field-cascade.py",
     "tokens:verify:html": "python scripts/verify-html-nesting.py",
     "tokens:verify:all": "npm run tokens:verify:drift && npm run tokens:verify:type && npm run tokens:verify:cascade && npm run tokens:verify:html",
+    "buttons:verify": "python scripts/verify-button-classes.py",
+    "verify:all": "npm run tokens:verify:all && npm run buttons:verify",
     "tokens:verify:type": "python scripts/verify-type-scale.py",
     "tokens:cluster": "python scripts/cluster-primitives.py",
     "tokens:type-scale": "python scripts/type-scale.py",
