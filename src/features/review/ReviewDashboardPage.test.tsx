@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewDashboardPage } from './ReviewDashboardPage'
@@ -185,7 +185,19 @@ describe('ReviewDashboardPage', () => {
     expect(screen.getByText('8 pontos abaixo da meta de 70%')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Onde a retenção está abaixo da meta' })).toBeInTheDocument()
     // Os blocos de nota saem da tela quando a aba de tags esta ativa.
-    expect(screen.queryByText('Prontidão para revisar')).not.toBeInTheDocument()
+    expect(screen.getByText('Prontidão para revisar')).not.toBeVisible()
+  })
+
+  it('troca de aba sem passar por skeleton (as abas ficam montadas)', async () => {
+    renderPage()
+    await screen.findByText('Notas em aprendizado')
+
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Meu desempenho' }))
+
+    // Sem `await`: se a troca montasse a aba e recarregasse, este conteudo so
+    // apareceria depois do fetch (e o skeleton piscaria no meio).
+    expect(screen.getByText('Retenção média')).toBeInTheDocument()
+    expect(screen.getByText('Evolução do desempenho')).toBeInTheDocument()
   })
 
   it('abre a aba de desempenho sem repetir os cards da aba de notas', async () => {
@@ -195,7 +207,7 @@ describe('ReviewDashboardPage', () => {
 
     expect(await screen.findByText('Retenção média')).toBeInTheDocument()
     expect(screen.getByText('Vencendo em 7 dias')).toBeInTheDocument()
-    expect(screen.queryByText('Prontidão para revisar')).not.toBeInTheDocument()
+    expect(screen.getByText('Prontidão para revisar')).not.toBeVisible()
   })
 
   it('renders the summary cards of the notes tab', async () => {
@@ -206,14 +218,17 @@ describe('ReviewDashboardPage', () => {
     expect(screen.getAllByText('3').length).toBeGreaterThan(0)
     // A retencao media saiu da aba de notas: ela pertence a "Meu desempenho",
     // junto da estabilidade e das unidades frageis.
-    expect(screen.queryByText(/72%/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/2 frágeis/)).not.toBeInTheDocument()
+    // A aba de desempenho fica montada (hidden) para a troca ser instantanea:
+    // aqui o que importa e nao estar VISIVEL na aba de notas, nao a ausencia
+    // do DOM.
+    expect(screen.getByText(/72%/)).not.toBeVisible()
   })
 
   it('shows the awaiting-first-review card', async () => {
     renderPage()
-    expect(await screen.findByText('Aguardando 1ª revisão')).toBeInTheDocument()
-    expect(screen.getByText('4')).toBeInTheDocument()
+    const painel = within(await screen.findByRole('tabpanel'))
+    expect(painel.getByText('Aguardando 1ª revisão')).toBeInTheDocument()
+    expect(painel.getByText('4')).toBeInTheDocument()
   })
 
   it('renders the readiness quality section with counts and attention notes', async () => {

@@ -287,6 +287,8 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
         <button
           type="button"
           role="tab"
+          id="review-tab-notas"
+          aria-controls="review-panel-notas"
           aria-selected={aba === 'notas'}
           className={aba === 'notas' ? 'is-active' : ''}
           onClick={() => setAba('notas')}
@@ -296,6 +298,8 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
         <button
           type="button"
           role="tab"
+          id="review-tab-tags"
+          aria-controls="review-panel-tags"
           aria-selected={aba === 'tags'}
           className={aba === 'tags' ? 'is-active' : ''}
           onClick={() => setAba('tags')}
@@ -305,6 +309,8 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
         <button
           type="button"
           role="tab"
+          id="review-tab-desempenho"
+          aria-controls="review-panel-desempenho"
           aria-selected={aba === 'desempenho'}
           className={aba === 'desempenho' ? 'is-active' : ''}
           onClick={() => setAba('desempenho')}
@@ -313,10 +319,24 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
         </button>
       </div>
 
-      {aba === 'tags' ? <ReviewTagsSection vaultPath={vaultPath} /> : null}
-      {aba === 'desempenho' ? (
-        <>
-          {dashboard ? (
+      <div
+        className="review-dashboard-panel"
+        role="tabpanel"
+        id="review-panel-tags"
+        aria-labelledby="review-tab-tags"
+        hidden={aba !== 'tags'}
+      >
+        <ReviewTagsSection vaultPath={vaultPath} />
+      </div>
+
+      <div
+        className="review-dashboard-panel"
+        role="tabpanel"
+        id="review-panel-desempenho"
+        aria-labelledby="review-tab-desempenho"
+        hidden={aba !== 'desempenho'}
+      >
+        {dashboard ? (
             <div className="review-dashboard-grid">
               <StatCard
                 icon={<TimerReset size={18} strokeWidth={1.6} aria-hidden="true" />}
@@ -332,13 +352,19 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
               />
             </div>
           ) : null}
-          <ReviewReportsPage vaultPath={vaultPath} onOpenNote={onOpenNote} embedded />
-        </>
-      ) : null}
+        <ReviewReportsPage vaultPath={vaultPath} onOpenNote={onOpenNote} embedded />
+      </div>
 
-      {aba === 'notas' && loading ? (
+      <div
+        className="review-dashboard-panel"
+        role="tabpanel"
+        id="review-panel-notas"
+        aria-labelledby="review-tab-notas"
+        hidden={aba !== 'notas'}
+      >
+      {loading ? (
         <DashboardSkeleton />
-      ) : aba !== 'notas' ? null : error ? (
+      ) : error ? (
         <ErrorState message={error} onRetry={() => setReloadRequest((request) => request + 1)} />
       ) : dashboard ? (
         <>
@@ -471,6 +497,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
           />
         </>
       ) : null}
+      </div>
 
       {deadlineItem ? (
         <DeadlineChangeDialog
