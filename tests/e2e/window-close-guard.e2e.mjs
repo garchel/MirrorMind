@@ -1,5 +1,4 @@
 import { $, browser, expect } from '@wdio/globals'
-import { join } from 'node:path'
 import { appProcessIds, createVault, openSettings, requestWindowCloseFromOs, typeIntoEditor, waitForTauriPlugin } from './helpers.mjs'
 
 /**
