@@ -1,10 +1,39 @@
 import { spawn } from 'node:child_process'
-import { rmSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { createOwnedRunRoot, removeOwnedRunRoot } from './run-root.mjs'
 
 const projectRoot = resolve(import.meta.dirname, '../..')
 const resultsRoot = resolve(projectRoot, 'test-results/e2e')
+const appBinary = resolve(projectRoot, 'src-tauri/target/debug/mirrormind.exe')
+
+/** O binario precisa ter sido construido com `--features e2e`.
+ *
+ *  Sem a feature, o app NAO registra `tauri-plugin-wdio-webdriver`: a esteira
+ *  morre no `onPrepare` com "Embedded WebDriver server did not become ready"
+ *  depois de 90 s por fase — sintoma que nao aponta para o build. Ja aconteceu
+ *  de o `target/debug` terminar com um binario de 36 MB (sem feature) no lugar
+ *  do de 43 MB, e a esteira inteira falhar sem nenhuma pista do motivo.
+ *
+ *  A checagem e por conteudo, nao por data/tamanho: a string do plugin so existe
+ *  quando a feature foi compilada. */
+function assertE2eBinary() {
+  let bytes
+  try {
+    bytes = readFileSync(appBinary)
+  } catch {
+    throw new Error(
+      `Binario E2E nao encontrado em ${appBinary}. Rode: npm run build:e2e:windows`,
+    )
+  }
+  if (!bytes.includes('wdio_webdriver')) {
+    throw new Error(
+      'O binario em src-tauri/target/debug nao tem a feature "e2e" (o plugin do WebDriver nao esta compilado). '
+      + 'Rode `npm run build:e2e:windows` antes da esteira: sem a feature o servidor embutido nunca sobe '
+      + 'e todas as fases falham por timeout, sem pista do motivo.',
+    )
+  }
+}
 
 // O build E2E usa o identificador `com.mirrormind.desktop.e2e`, mas no Windows
 // a APPDATA/LOCALAPPDATA reais vencem os envs do run (Known Folder API): o
@@ -88,6 +117,13 @@ const journeys = [
     spec: 'tests/e2e/sync-conflicts.e2e.mjs',
     phases: ['sync-conflicts'],
   },
+  {
+    // Fechar pelo X levando uma nota nova sem salvar: o aviso tem de aparecer.
+    // Fica no WebDriver porque, no fim, o teste clica em Cancelar e a janela
+    // continua viva (o fechamento que conclui e o probe nativo, no fim).
+    spec: 'tests/e2e/window-close-guard.e2e.mjs',
+    phases: ['window-close-guard'],
+  },
 ]
 
 // WebView2 demora a liberar o compositor apos o fechamento do app; a pausa
@@ -152,6 +188,7 @@ async function runJourney({ phases, spec }) {
 }
 
 try {
+  assertE2eBinary()
   for (const journey of journeys) {
     await runJourney(journey)
   }

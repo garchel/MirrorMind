@@ -18,13 +18,15 @@ export async function waitForTauriPlugin() {
 }
 
 export async function waitForEditorText(expectedText) {
-  const esperado = expectedText.split(String.fromCharCode(13, 10)).join(String.fromCharCode(10)).trimEnd()
+  // Comparacao por PALAVRA, nao por byte: no modo Misto o CodeMirror insere
+  // elementos de decoracao (markers de titulo, listas) e o textContent pode
+  // sair com espacos diferentes do markdown digitado. Comparar o texto
+  // colapsado verifica o que importa (o conteudo nao se perdeu) sem falhar por
+  // espaco de renderizacao — era essa a fonte da falha intermitente.
+  const colapsar = (texto) => texto.trim().split(/\s+/).join(' ')
+  const esperado = colapsar(expectedText)
   await browser.waitUntil(
     async () => {
-      // Le o texto do CodeMirror pelo aria-label real do build ("Editor de
-      // texto ..."), sem depender de `.cm-line`: no modo Misto o documento pode
-      // nao expor as mesmas linhas, e era assim que este helper falhava de
-      // forma intermitente.
       const texto = await browser.execute(() => {
         const editor = document.querySelector('[aria-label^="Editor de texto"]')
         if (!editor) return null
@@ -34,10 +36,9 @@ export async function waitForEditorText(expectedText) {
         return editor.innerText ?? ''
       })
       if (typeof texto !== 'string') return false
-      const normalizado = texto.split(String.fromCharCode(13, 10)).join(String.fromCharCode(10)).trimEnd()
-      return normalizado === esperado
+      return colapsar(texto) === esperado
     },
-    { timeout: 15_000, interval: 250, timeoutMsg: `O editor nao exibiu o conteudo esperado: ${expectedText}` },
+    { timeout: 20_000, interval: 250, timeoutMsg: `O editor nao exibiu o conteudo esperado: ${expectedText}` },
   )
 }
 

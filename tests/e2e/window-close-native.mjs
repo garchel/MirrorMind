@@ -31,12 +31,14 @@ import {
  *    sempre — a janela presa que o watchdog nao cobria, porque o webview
  *    respondia ao ack. Corrigido; hoje fecha em ~210 ms.
  *
- * 2. ABERTO: com a janela destravada, fechar pelo X levando uma nota NOVA
- *    digitada e nao salva encerra o app sem perguntar (o dialogo de "alteracoes
- *    nao salvas" nao aparece). Medido no spec WebDriver que existia aqui
- *    (removido da esteira por causa disso): depois do WM_CLOSE, zero processos
- *    vivos e o texto perdido. O cenario precisa de uma jornada propria, com a
- *    nota comprovadamente suja antes do X.
+ * 2. INVESTIGADO E DESCARTADO (o registro anterior dizia "bug aberto" e estava
+ *    errado): fechar o X com uma nota NOVA digitada e nao salva parecia
+ *    descartar texto. Nao descartava. O spec de entao tinha dois furos: usava
+ *    `[aria-label="Nova nota"]`/`role="dialog"` (o Modal e um <dialog> nativo,
+ *    cujo role e implicito, nao atributo CSS) e rodava com o autosave ligado —
+ *    nesse caso o app grava a nota em ~650 ms e fechar sem perguntar esta certo.
+ *    Com autosave desligado, o aviso aparece e "Cancelar" mantem o texto:
+ *    coberto agora por `window-close-guard.e2e.mjs`.
  */
 
 const FECHAR_MS = 20_000
