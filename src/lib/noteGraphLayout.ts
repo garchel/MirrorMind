@@ -101,16 +101,22 @@ export const OBSIDIAN_PHYSICS_2D = {
   hubCenterMaxExtraDegree: 8,
   /** Fator de crescimento da forca por conexao alem do minimo. */
   hubCenterDegreeFactor: 0.25,
-  /** Raio base da colisao dos nos (unidades do mundo 0-200). Combina com a
-   * folga abaixo para os nos nao encostarem (bolinha + nome abaixo). */
-  collideRadiusBase: 3.0,
+  /** Raio base da colisao dos nos (unidades do mundo 0-200). E o raio VISUAL
+   * da bolinha: 18px de diametro num mundo de 200 mapeado em ~764px de
+   * largura da 9px de raio = 2,4 unidades. Estava em 3,0 + 2,0 de folga (raio
+   * 5), o dobro do desenho: com 250 nos no anel da center force a exigencia
+   * geometrica passava da area disponivel e o layout so podia terminar
+   * sobreposto (medido: 545 pares empilhados, sobreposicao de ate 11 unidades). */
+  collideRadiusBase: 2.4,
   /** Crescimento do raio de colisao por conexao (grau da nota), com teto.
    * Hubs grandes empurram os vizinhos para mais longe (anel maior). */
   collideRadiusPerDegree: 0.3,
   /** Teto de grau para o crescimento do raio de colisao. */
   collideRadiusMaxDegree: 8,
-  /** Folga extra entre nos alem da bolinha (espaco para o nome abaixo). */
-  collidePadding: 2.0,
+  /** Folga extra entre nos alem da bolinha. Pequena de proposito: reservar
+   * espaco para o NOME inflava a colisao em todas as direcoes (o nome fica so
+   * abaixo), e o raio de colisao virava 5 para uma bolinha de raio 2,4. */
+  collidePadding: 0.4,
   /** Forca da colisao por unidade de sobreposicao (d3-force collide). Forte o
    * suficiente para o anel nao "travar" com nos encostados (deslizamento
    * angular livre dos vizinhos ao redor do hub). */
@@ -240,6 +246,9 @@ export function accumulateObsidianForces2D(params: {
   const nodePositions: Array<NoteGraphPosition | undefined> = new Array(count)
   const nodeVelocities: Array<NoteGraphPosition | undefined> = new Array(count)
   const nodeRadii: number[] = new Array(count)
+  // Raio por caminho: as molas precisam dele para nao puxar dois nos para
+  // dentro da distancia de colisao (ver descanso efetivo abaixo).
+  const radiusByPath = new Map<string, number>()
   for (let index = 0; index < count; index += 1) {
     nodePositions[index] = positions.get(all[index])
     nodeVelocities[index] = velocities.get(all[index])
@@ -247,6 +256,7 @@ export function accumulateObsidianForces2D(params: {
     nodeRadii[index] = collideStrength > 0
       ? collideRadiusBase + Math.min(degreeCount, collideRadiusMaxDegree) * collideRadiusPerDegree + collidePadding
       : 0
+    radiusByPath.set(all[index], nodeRadii[index])
   }
 
   // 1) Repulsao many-body (Coulomb, 1/d²) entre todos os pares, com cutoff, e
@@ -262,28 +272,6 @@ export function accumulateObsidianForces2D(params: {
       const dx = a.x - b.x
       const dy = a.y - b.y
       const distanceSquared = dx * dx + dy * dy
-
-      // Colisao: pares mais proximos que a soma dos raios se empurram ao
-      // longo da normal ate nao se sobreporem. Nos colocalizados (l = 0)
-      // usam uma direcao deterministica (+x) para se separarem. Mesmo
-      // contrato de movimento: so quem tem entrada em velocities se move.
-      const collideRadius = nodeRadii[left] + nodeRadii[right]
-      if (collideRadius > 0 && distanceSquared < collideRadius * collideRadius) {
-        const distance = distanceSquared === 0 ? 0 : Math.sqrt(distanceSquared)
-        const push = (collideRadius - distance) * collideStrength * scale
-        const nx = distance === 0 ? 1 : dx / distance
-        const ny = distance === 0 ? 0 : dy / distance
-        const va = nodeVelocities[left]
-        const vb = nodeVelocities[right]
-        if (va) {
-          va.x += nx * push
-          va.y += ny * push
-        }
-        if (vb) {
-          vb.x -= nx * push
-          vb.y -= ny * push
-        }
-      }
 
       if (distanceSquared >= cutoffSquared || distanceSquared === 0) continue
       const distance = Math.sqrt(distanceSquared)
@@ -323,7 +311,14 @@ export function accumulateObsidianForces2D(params: {
     const edgeStiffness = isDragEdge && params.dragSpringBoost !== undefined
       ? linkStiffness * params.dragSpringBoost
       : linkStiffness
-    const force = (dist - linkRest) * edgeStiffness * scale
+    // Descanso efetivo: a mola nunca puxa dois nos para dentro da distancia de
+    // colisao. Com linkRest fixo (10) e hub + folha somando ~12 de raio, a
+    // mola vencia a colisao e o par ficava sobreposto para sempre.
+    const rest = Math.max(
+      linkRest,
+      (radiusByPath.get(edge.source) ?? 0) + (radiusByPath.get(edge.target) ?? 0),
+    )
+    const force = (dist - rest) * edgeStiffness * scale
     const nx = dx / dist
     const ny = dy / dist
     const springBiasByDegree = params.springBiasByDegree ?? true
@@ -405,4 +400,115 @@ export function accumulateObsidianForces2D(params: {
       velocity.y *= velocityScale
     }
   }
+}
+
+/** Separa nos sobrepostos movendo as POSICOES (nao as velocidades).
+ *
+ * Colisao como forca nao funciona aqui: o impulso acumula energia, a mola
+ * passa a vencer um "vento" constante e o layout INTEIRO infla. Medido num
+ * grafo sintetico de 250 nos: com a separacao aplicada a velocidade, os pares
+ * sobrepostos cairam de 695 para 420, mas a distancia media das arestas subiu
+ * de 36 para 51 unidades — trocar bolas empilhadas por arestas esticadas nao e
+ * ganho. O d3-force trata colisao como restricao geometrica: resolve a posicao
+ * e segue. Duas iteracoes desfazem o empilhamento que o resfriamento deixa
+ * para tras sem mexer no equilibrio de forcas.
+ *
+ * `fixed` (nos pinados durante o arrasto) nao se move: o outro lado absorve a
+ * separacao inteira.
+ *
+ * Devolve quantos pares precisaram de separacao (diagnostico e testes).
+ */
+export function resolveGraph2dOverlaps(params: {
+  paths: string[]
+  positions: Map<string, NoteGraphPosition>
+  edges?: NoteGraphLayoutLink[]
+  fixed?: ReadonlySet<string> | null
+  /** Iteracoes de relaxamento (2 resolvem os empilhamentos tipicos). */
+  iterations?: number
+}): number {
+  const {
+    paths,
+    positions,
+    edges,
+    fixed = null,
+    iterations = 2,
+  } = params
+  const {
+    collideRadiusBase,
+    collideRadiusPerDegree,
+    collideRadiusMaxDegree,
+    collidePadding,
+  } = OBSIDIAN_PHYSICS_2D
+
+  const degree = new Map<string, number>()
+  for (const edge of edges ?? []) {
+    degree.set(edge.source, (degree.get(edge.source) ?? 0) + 1)
+    degree.set(edge.target, (degree.get(edge.target) ?? 0) + 1)
+  }
+  const radiusByPath = new Map<string, number>()
+  for (const path of paths) {
+    const connections = degree.get(path) ?? 0
+    radiusByPath.set(
+      path,
+      collideRadiusBase + Math.min(connections, collideRadiusMaxDegree) * collideRadiusPerDegree + collidePadding,
+    )
+  }
+
+  let separados = 0
+  for (let iteration = 0; iteration < iterations; iteration += 1) {
+    let separadosNestePasso = 0
+    for (let left = 0; left < paths.length; left += 1) {
+      const pathA = paths[left]
+      const a = positions.get(pathA)
+      if (!a) continue
+      const raioA = radiusByPath.get(pathA) ?? 0
+      for (let right = left + 1; right < paths.length; right += 1) {
+        const pathB = paths[right]
+        const b = positions.get(pathB)
+        if (!b) continue
+        const soma = raioA + (radiusByPath.get(pathB) ?? 0)
+        if (soma <= 0) continue
+        let dx = b.x - a.x
+        let dy = b.y - a.y
+        let distance = Math.hypot(dx, dy)
+        if (distance >= soma) continue
+        if (distance === 0) {
+          // Nos exatamente empilhados: direcao deterministica pelo indice.
+          const angulo = ((left + right) % 12) * (Math.PI / 6)
+          dx = Math.cos(angulo)
+          dy = Math.sin(angulo)
+          distance = 0
+        }
+        const overlap = soma - distance
+        const nx = distance === 0 ? dx : dx / distance
+        const ny = distance === 0 ? dy : dy / distance
+        const fixoA = fixed?.has(pathA) ?? false
+        const fixoB = fixed?.has(pathB) ?? false
+        // Quem esta fixo nao cede: o outro lado absorve tudo.
+        const parteA = fixoA && !fixoB ? 0 : fixoB && !fixoA ? 1 : 0.5
+        const parteB = 1 - parteA
+        if (!fixoA) {
+          a.x = clampX(a.x - nx * overlap * parteA)
+          a.y = clampY(a.y - ny * overlap * parteA)
+        }
+        if (!fixoB) {
+          b.x = clampX(b.x + nx * overlap * parteB)
+          b.y = clampY(b.y + ny * overlap * parteB)
+        }
+        separados += 1
+        separadosNestePasso += 1
+      }
+    }
+    // Nada mais sobreposto: as iteracoes seguintes nao teriam trabalho.
+    if (separadosNestePasso === 0) break
+  }
+  return separados
+}
+
+function clampX(value: number): number {
+  return Math.max(GRAPH_2D_BOUNDS.minX, Math.min(GRAPH_2D_BOUNDS.maxX, value))
+}
+
+function clampY(value: number): number {
+  return Math.max(GRAPH_2D_BOUNDS.minY, Math.min(GRAPH_2D_BOUNDS.maxY, value))
 }

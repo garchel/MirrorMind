@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   accumulateObsidianForces2D,
+  resolveGraph2dOverlaps,
   graph2dLineTransform,
   GRAPH_2D_BOUNDS,
   GRAPH_2D_WORLD_CENTER,
@@ -115,36 +116,41 @@ describe('accumulateObsidianForces2D', () => {
     expect(velocities.get('a')).toBeUndefined()
   })
 
-  it('a colisao separa nos colocalizados deterministicamente (+x)', () => {
-    // No centro do mundo (sem center force) e sem arestas (sem repulsao em
-    // d=0), a UNICA forca sobre o par colocalizado e a colisao: separa o
-    // primeiro para -x e o segundo para +x.
+  it('a colisao separa nos colocalizados ate a soma dos raios', () => {
+    // Colisao e passo GEOMETRICO (posicao), nao forca: depois de resolver, os
+    // dois nos ficam exatamente a soma dos raios um do outro.
     const positions = positionsOf([
       ['a', { x: 100, y: 100 }],
       ['b', { x: 100, y: 100 }],
     ])
-    const velocities = velocitiesOf(['a', 'b'])
-    accumulateObsidianForces2D({ paths: ['a', 'b'], positions, velocities, delta: 1 / 60 })
-    // Raio base 3 + padding 2 = 5 por no; soma 10. push = 10 * collideStrength / 60.
-    // Com l = 0 a normal e +x: a e empurrado para +x e b para -x (separam-se).
-    const push = (10 * OBSIDIAN_PHYSICS_2D.collideStrength) / 60
-    expect(velocities.get('a')!.x).toBeCloseTo(push, 10)
-    expect(velocities.get('a')!.y).toBe(0)
-    expect(velocities.get('b')!.x).toBeCloseTo(-push, 10)
-    expect(velocities.get('b')!.y).toBe(0)
+    const separados = resolveGraph2dOverlaps({ paths: ['a', 'b'], positions, iterations: 1 })
+    const a = positions.get('a')!
+    const b = positions.get('b')!
+    const distancia = Math.hypot(a.x - b.x, a.y - b.y)
+    // Sem grau, o raio e (base + folga) por no: a distancia final e a soma.
+    const raioPorNo = OBSIDIAN_PHYSICS_2D.collideRadiusBase + OBSIDIAN_PHYSICS_2D.collidePadding
+    expect(distancia).toBeCloseTo(raioPorNo * 2, 6)
+    expect(separados).toBe(1)
   })
 
-  it('a colisao respeita o contrato de pinned: o fixo empurra mas nao se move', () => {
+  it('a colisao respeita o contrato de pinned: o fixo nao se move', () => {
     const positions = positionsOf([
-      ['a', { x: 100, y: 100 }], // fixo (ancora do arrasto): sem velocity
+      ['a', { x: 100, y: 100 }], // fixo (ancora do arrasto)
       ['b', { x: 100, y: 100 }], // movente colocalizado
     ])
-    const velocities = velocitiesOf(['b'])
-    accumulateObsidianForces2D({ paths: ['a', 'b'], positions, velocities, delta: 1 / 60 })
-    // b (movente) e empurrado para -x pela colisao com o fixo a (+x).
-    const push = (10 * OBSIDIAN_PHYSICS_2D.collideStrength) / 60
-    expect(velocities.get('b')!.x).toBeCloseTo(-push, 10)
-    expect(velocities.get('a')).toBeUndefined()
+    resolveGraph2dOverlaps({
+      paths: ['a', 'b'],
+      positions,
+      fixed: new Set(['a']),
+      iterations: 1,
+    })
+    const a = positions.get('a')!
+    const b = positions.get('b')!
+    expect(a.x).toBe(100)
+    expect(a.y).toBe(100)
+    // O movente absorve a separacao inteira: fica a soma dos raios do fixo.
+    const raioPorNo = OBSIDIAN_PHYSICS_2D.collideRadiusBase + OBSIDIAN_PHYSICS_2D.collidePadding
+    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeCloseTo(raioPorNo * 2, 6)
   })
 
   it('pares alem da soma dos raios nao colidem (so a repulsao age)', () => {

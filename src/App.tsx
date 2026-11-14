@@ -98,6 +98,7 @@ import { useFormatToolbar } from './features/format/useFormatToolbar'
 import { SyncConflictsDialog } from './features/sync/SyncConflictsDialog'
 import {
   accumulateObsidianForces2D,
+  resolveGraph2dOverlaps,
   graph2dLineTransform,
   GRAPH_2D_BOUNDS,
   GRAPH_2D_WORLD_CENTER,
@@ -2660,6 +2661,9 @@ function App() {
         if (coastRemaining < 0.05 || coast.alpha < OBSIDIAN_PHYSICS_2D.alphaMin || now - coast.startedAt > 4000) {
       // Assentou: congela o layout reorganizado como a nova base persistida.
       physics.coast = null
+      // Ultimo ajuste antes de persistir: remove sobreposicao residual do
+      // resfriamento (a colisao durante a simulacao brigava com a integracao).
+      resolveGraph2dOverlaps({ paths: coast.paths, positions, edges })
       setGraphNodeOverrides((previous) => ({ ...previous, ...Object.fromEntries(positions) }))
         }
       }
@@ -2681,6 +2685,7 @@ function App() {
       if (ambientRemaining < 0.05 || ambient.alpha < OBSIDIAN_PHYSICS_2D.alphaMin || now - ambient.startedAt > 4500) {
         // Assentou: vira a nova base persistida (layout espalhado).
         physics.ambient = null
+        resolveGraph2dOverlaps({ paths: ambient.paths, positions, edges })
         setGraphNodeOverrides((previous) => ({ ...previous, ...Object.fromEntries(positions) }))
       }
     }

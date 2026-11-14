@@ -13,6 +13,7 @@ import {
   accumulateObsidianForces2D,
   GRAPH_2D_BOUNDS,
   OBSIDIAN_PHYSICS_2D,
+  resolveGraph2dOverlaps,
 } from './noteGraphLayout'
 import type { NoteGraphLayoutLink, NoteGraphPosition } from './noteGraphLayout'
 
@@ -109,6 +110,9 @@ export function ambientWorkerSettled(state: AmbientWorkerState, remaining: numbe
 
 /** Serializa as posicoes do estado para o postMessage (estrutura clone). */
 export function ambientWorkerPositionsSnapshot(state: AmbientWorkerState): Record<string, NoteGraphPosition> {
+  // Assentou: ajusta a sobreposicao residual uma vez, antes de devolver o
+  // layout para a thread principal (mesmo criterio do congelamento do App).
+  resolveGraph2dOverlaps({ paths: state.paths, positions: state.positions, edges: state.edges })
   const snapshot: Record<string, NoteGraphPosition> = {}
   for (const [path, position] of state.positions) {
     snapshot[path] = { x: position.x, y: position.y }
