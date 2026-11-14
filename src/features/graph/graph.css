@@ -243,6 +243,34 @@
 .ui-popover-content.graph-settings-popover {
   width: min(340px, 92vw);
   padding: 14px 14px 10px;
+  /* O Radix posiciona o balao, mas nao limita a altura: com as cinco secoes
+     (visual, orbita, arestas, forcas 2D, exibicao + cores) o menu passava do
+     rodape da janela e o fim ficava inalcancavel. `max-height` cabe sempre na
+     viewport (descontando o respiro do Radix); a rolagem fica DESLIGADA por
+     padrao para a roda do mouse continuar rolando o grafo, e liga so com o
+     ponteiro (ou o foco do teclado) dentro do menu. */
+  max-height: min(72vh, calc(100dvh - 32px));
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+/* A classe vem do React (onPointerEnter), nao de `:hover`: o estado do ponteiro
+   fica explicito e testavel. Para teclado vale `:has(:focus-visible)` e NAO
+   `:focus-within`: o Radix foca o proprio painel ao abrir, e `:focus-within`
+   casaria sempre — medido, o menu abria com `overflow-y: auto` e a roda do
+   mouse ficava presa nele mesmo com o ponteiro fora. Foco por Tab e visivel, e
+   so ele deve liberar a rolagem. */
+.ui-popover-content.graph-settings-popover.is-pointer-inside,
+.ui-popover-content.graph-settings-popover:has(:focus-visible) {
+  overflow-y: auto;
+}
+
+/* Sem barra visivel: o menu e curto, e a barra piscando ao passar o mouse
+   chamava mais atencao que a rolagem em si. */
+.graph-settings-popover::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .graph-settings-popover .graph-settings-header {

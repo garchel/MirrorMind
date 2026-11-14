@@ -1,4 +1,4 @@
-import { useMemo, type Dispatch, type SetStateAction } from 'react'
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { Button } from './ui/Button'
 import { Field } from './ui/Field'
 import {
@@ -182,6 +182,11 @@ export function GraphToolbar(props: GraphToolbarProps) {
     setGraphRenderLimit,
   } = props
 
+  // Rolar o menu so enquanto o ponteiro (ou o foco do teclado) esta dentro
+  // dele. Fora, a roda do mouse pertence ao grafo: sem isso, girar a roda
+  // sobre a tela com o menu aberto ficava com metade do gesto presa no menu.
+  const [settingsPointerInside, setSettingsPointerInside] = useState(false)
+
   const folderOptions = useMemo(() => graphFolders.map((folder) => ({ value: folder, label: folder })), [graphFolders])
   const tagOptions = useMemo(() => graphTags.map((tag) => ({ value: tag, label: `#${tag}` })), [graphTags])
 
@@ -277,7 +282,14 @@ export function GraphToolbar(props: GraphToolbarProps) {
             <Settings size={15} strokeWidth={1.5} aria-hidden="true" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" sideOffset={6} className="graph-settings-popover">
+        <PopoverContent
+          align="end"
+          sideOffset={6}
+          collisionPadding={12}
+          className={`graph-settings-popover${settingsPointerInside ? ' is-pointer-inside' : ''}`}
+          onPointerEnter={() => setSettingsPointerInside(true)}
+          onPointerLeave={() => setSettingsPointerInside(false)}
+        >
           <header className="graph-settings-header">
             <span className="graph-settings-header-title">
               <SlidersHorizontal size={14} strokeWidth={1.75} aria-hidden="true" />
