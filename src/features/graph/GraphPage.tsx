@@ -1,10 +1,11 @@
-import { Suspense, lazy, type CSSProperties, type Dispatch, type PointerEvent, type RefObject, type SetStateAction } from 'react'
+import { Suspense, lazy, useEffect, useRef, type Dispatch, type PointerEvent, type RefObject, type SetStateAction } from 'react'
 import { Button } from '../../components/ui/Button'
 import { ExternalLink, Link2, Network, PanelLeft, X } from 'lucide-react'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../components/ui/drawer'
 import { GraphSkeleton } from '../../components/PageSkeleton'
 import { Graph3DLoader } from '../../components/Graph3DLoader'
 import { GraphToolbar, type GraphMode } from '../../components/GraphToolbar'
+import { Graph2dNode, type Graph2dNodeHandlers } from './Graph2dNode'
 import {
   GRAPH_2D_BOUNDS,
   GRAPH_2D_WORLD_SIZE,
@@ -317,6 +318,84 @@ export function GraphPage({
     setGraph2dCenterForce,
   } = graph
 
+
+  // Handlers do no num ref estavel: o componente e memoizado, e closures novas
+  // a cada render quebrariam a memoizacao (volta o custo de 20ms por hover).
+  const graphNodeHandlersRef = useRef<Graph2dNodeHandlers>({
+    hover: () => undefined,
+    open: () => undefined,
+    dragStart: () => undefined,
+    dragMove: () => undefined,
+    dragEnd: () => undefined,
+    dragCancel: () => undefined,
+    focus: () => undefined,
+    register: () => undefined,
+  })
+  graphNodeHandlersRef.current = {
+    hover: (relativePath) => setGraphHoverPath(relativePath),
+    open: (relativePath) => {
+      if (graphSkipNodeClickRef.current) {
+        graphSkipNodeClickRef.current = false
+        return
+      }
+      onOpenNote(relativePath)
+    },
+    dragStart: (relativePath, event) => startGraph2dNodeDrag(relativePath, event),
+    dragMove: (relativePath, event) => {
+      if (graphNodeDragRef.current !== relativePath) return
+      graphSkipNodeClickRef.current = true
+      const physics = graphPhysicsRef.current
+      if (!physics?.drag) return
+      const bounds = physics.drag.bounds
+      if (bounds && bounds.width > 0 && bounds.height > 0) {
+        physics.drag.draggedTarget = {
+          x: Math.max(GRAPH_2D_BOUNDS.minX, Math.min(GRAPH_2D_BOUNDS.maxX, ((event.clientX - bounds.left - graphViewport.x) / (bounds.width * graphViewport.scale)) * GRAPH_2D_WORLD_SIZE)),
+          y: Math.max(GRAPH_2D_BOUNDS.minY, Math.min(GRAPH_2D_BOUNDS.maxY, ((event.clientY - bounds.top - graphViewport.y) / (bounds.height * graphViewport.scale)) * GRAPH_2D_WORLD_SIZE)),
+        }
+      }
+      if (graphPhysicsFrameRef.current === null) kickGraph2dPhysics()
+      if (Math.hypot(event.clientX - physics.drag.startX, event.clientY - physics.drag.startY) > 3) physics.drag.moved = true
+    },
+    dragEnd: (event) => finishGraph2dNodeDrag(event),
+    dragCancel: () => {
+      graphNodeDragRef.current = null
+      const physics = graphPhysicsRef.current
+      if (physics) {
+        physics.drag = null
+        physics.coast = null
+      }
+      if (graphPhysicsFrameRef.current !== null) {
+        cancelAnimationFrame(graphPhysicsFrameRef.current)
+        graphPhysicsFrameRef.current = null
+      }
+    },
+    focus: (relativePath) => setFocusedGraphPath(relativePath),
+    register: (relativePath, element) => {
+      if (element) graph2dNodeElementsRef.current.set(relativePath, element)
+      else graph2dNodeElementsRef.current.delete(relativePath)
+    },
+  }
+
+  // Hover e esmaecimento aplicados direto no DOM: com eles no JSX, cada troca
+  // de no reconciliava a arvore inteira (medido: 20ms em 300 nos, 37ms em 600).
+  useEffect(() => {
+    const neighbors = graphHoverNeighbors
+    for (const [relativePath, element] of graph2dNodeElementsRef.current) {
+      const hovered = graphHoverPath === relativePath
+      element.classList.toggle('is-hovered', hovered)
+      const dimmed = (neighbors !== null && !neighbors.has(relativePath))
+        || (graphFilterMatchPaths !== null && !graphFilterMatchPaths.has(relativePath))
+      element.classList.toggle('is-dimmed', dimmed)
+      const degree = graphDegreeByPath[relativePath] ?? 0
+      const hideByZoom = graphHideAllNames || (graphViewport.scale < 0.65 && degree < 2)
+      const matched = graphFilterMatchPaths !== null && graphFilterMatchPaths.has(relativePath)
+      // O rotulo e o ultimo filho do no: evita um querySelector por elemento a
+      // cada troca de hover (medido: 7,3ms -> 6,6ms em 300 nos).
+      ;(element.lastElementChild as HTMLElement | null)
+        ?.classList.toggle('is-hidden', !(hovered || matched || !hideByZoom))
+    }
+  }, [graphHoverPath, graphHoverNeighbors, graphHideAllNames, graphViewport.scale, graphFilterMatchPaths, graphDegreeByPath, graph2dNodeElementsRef])
+
   return (
     <section
       className="workspace-page graph-page"
@@ -486,75 +565,32 @@ export function GraphPage({
               const position = graphNodePositions[document.relativePath]
               const degree = graphDegreeByPath[document.relativePath] ?? 0
               const isCurrent = document.relativePath === activeNotePath
-              const isHovered = graphHoverPath === document.relativePath
-              // O nome aparece de acordo com o zoom: com o zoom bem
-              // afastado nos de poucas conexões ocultam o nome, e
-              // "Ocultar nomes" esconde todos. No hover o nome
-              // sempre aparece abaixo da bolinha.
               const hideNameByZoom = graphHideAllNames || (graphViewport.scale < 0.65 && degree < 2)
               const isFilterMatch = graphFilterMatchPaths !== null && graphFilterMatchPaths.has(document.relativePath)
               const isFilteredOut = graphFilterMatchPaths !== null && !isFilterMatch
-              const showLabel = !hideNameByZoom || isHovered || isFilterMatch
-              // No hover, nós sem conexão direta com o nó são
-              // esmaecidos (opacidade reduzida). O filtro pasta/tag
-              // esmaece mais quem não casa e realça quem casa.
-              const isDimmed = (graphHoverNeighbors !== null && !graphHoverNeighbors.has(document.relativePath))
-                || isFilteredOut
+              const folderColor = graphGroupingKind && graphGroupMaps
+                ? graphGroupMaps.groupColorByPath[graphGroupMaps.groupByPath[document.relativePath] ?? ''] ?? null
+                : null
+              // Hover/dim nao entram aqui: sao aplicados por efeito imperativo
+              // (ver o `useEffect` abaixo). Deixa-los no JSX custava 20ms por
+              // troca de no em 300 nos — o `memo` nunca casaria.
               return (
-                <Button
+                <Graph2dNode
                   key={document.relativePath}
-                  type="button"
-                  className={`note-graph-node${isCurrent ? ' is-current' : ''}${focusedGraphPath === document.relativePath ? ' is-focused' : ''}${isHovered ? ' is-hovered' : ''}${isDimmed ? ' is-dimmed' : ''}${isFilterMatch ? ' is-match' : ''}${isFilteredOut ? ' is-filtered-out' : ''}`}
-                  style={{ left: `${(position.x / GRAPH_2D_WORLD_SIZE) * 100}%`, top: `${(position.y / GRAPH_2D_WORLD_SIZE) * 100}%` } as CSSProperties}
-                  ref={(element) => {
-                    if (element) graph2dNodeElementsRef.current.set(document.relativePath, element)
-                    else graph2dNodeElementsRef.current.delete(document.relativePath)
-                  }}
-                  onPointerEnter={() => setGraphHoverPath(document.relativePath)}
-                  onPointerDown={(event) => { startGraph2dNodeDrag(document.relativePath, event) }}
-                  onPointerMove={(event) => {
-                    if (graphNodeDragRef.current !== document.relativePath) return
-                    graphSkipNodeClickRef.current = true
-                    const physics = graphPhysicsRef.current
-                    if (!physics?.drag) return
-                    const bounds = physics.drag.bounds
-                    // Unico ponto fixado: o no arrastado segue o cursor
-                    // (os vizinhos fluem pelas forcas no rAF). Bounds
-                    // capturados no inicio do arrasto — sem chamadas de
-                    // getBoundingClientRect no caminho quente.
-                    if (bounds && bounds.width > 0 && bounds.height > 0) {
-                      physics.drag.draggedTarget = {
-                        x: Math.max(GRAPH_2D_BOUNDS.minX, Math.min(GRAPH_2D_BOUNDS.maxX, ((event.clientX - bounds.left - graphViewport.x) / (bounds.width * graphViewport.scale)) * GRAPH_2D_WORLD_SIZE)),
-                        y: Math.max(GRAPH_2D_BOUNDS.minY, Math.min(GRAPH_2D_BOUNDS.maxY, ((event.clientY - bounds.top - graphViewport.y) / (bounds.height * graphViewport.scale)) * GRAPH_2D_WORLD_SIZE)),
-                      }
-                    }
-                    // Acorda o loop se estava dormindo (cursor parado).
-                    if (graphPhysicsFrameRef.current === null) kickGraph2dPhysics()
-                    if (Math.hypot(event.clientX - physics.drag.startX, event.clientY - physics.drag.startY) > 3) physics.drag.moved = true
-                  }}
-                  onPointerUp={(event) => { finishGraph2dNodeDrag(event) }}
-                  onPointerCancel={() => {
-                    graphNodeDragRef.current = null
-                    const physics = graphPhysicsRef.current
-                    if (physics) {
-                      physics.drag = null
-                      physics.coast = null
-                    }
-                    if (graphPhysicsFrameRef.current !== null) {
-                      cancelAnimationFrame(graphPhysicsFrameRef.current)
-                      graphPhysicsFrameRef.current = null
-                    }
-                  }}
-                  onFocus={() => setFocusedGraphPath(document.relativePath)}
-                  onClick={() => { if (graphSkipNodeClickRef.current) { graphSkipNodeClickRef.current = false; return }; onOpenNote(document.relativePath) }}
-                  aria-label={`Abrir nota ${document.name.replace(/\.md$/i, '')} no grafo`}
-                  title={`${document.name.replace(/\.md$/i, '')}${degree ? `, ${degree} conexão(ões)` : ''}`}
-                >
-                  {/* Bolinha sempre circular; cresce com as conexões. Com
-                     agrupamento por pasta, a cor vem do grupo. */}
-                  <span className="note-graph-node-dot" style={{ '--graph-scale': 1 + Math.min(degree, 8) * 0.13, ...(graphGroupingKind && graphGroupMaps ? { '--node-folder-color': graphGroupMaps.groupColorByPath[graphGroupMaps.groupByPath[document.relativePath] ?? ''] } : {}) } as CSSProperties} />
-                  <span className={`note-graph-node-label${showLabel ? '' : ' is-hidden'}`}>{document.name.replace(/\.md$/i, '')}</span>
-                </Button>
+                  relativePath={document.relativePath}
+                  label={document.name.replace(/\.md$/i, '')}
+                  degree={degree}
+                  isCurrent={isCurrent}
+                  isFocused={focusedGraphPath === document.relativePath}
+                  isFilterMatch={isFilterMatch}
+                  isFilteredOut={isFilteredOut}
+                  leftPercent={(position.x / GRAPH_2D_WORLD_SIZE) * 100}
+                  topPercent={(position.y / GRAPH_2D_WORLD_SIZE) * 100}
+                  dotScale={1 + Math.min(degree, 8) * 0.13}
+                  folderColor={folderColor}
+                  labelHidden={hideNameByZoom}
+                  handlersRef={graphNodeHandlersRef}
+                />
               )
             })}
             </div>
