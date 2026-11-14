@@ -980,3 +980,12 @@
   align-items: center;
   gap: 5px;
 }
+
+/* Desfecho na data-limite: o que a nota entregou ate o prazo. Fica abaixo da
+   tag porque responde a pergunta seguinte ("e como ela chegou?") sem competir
+   com o titulo. Cor e tamanho vem de `.review-dashboard-deadline-copy small`
+   (medido: 12px) — repetir aqui so criava CSS morto. */
+.review-dashboard-expired-outcome {
+  display: block;
+  margin-top: 2px;
+}

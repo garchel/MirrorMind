@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseVaultReviewDashboard, vaultReviewDashboardSchema } from './reviewDashboard'
+import { expiredDeadlineOutcome, parseVaultReviewDashboard, vaultReviewDashboardSchema } from './reviewDashboard'
 
 const emptyForecast = Array.from({ length: 7 }, (_, dayOffset) => ({ dayOffset, dueCount: 0 }))
 
@@ -25,6 +25,10 @@ const validDashboard = {
     title: 'Passada',
     deadlineAtUnixMs: 1_700_000_000_000,
     sourceTag: 'prova-bio',
+    retentionAtDeadline: 0.78,
+    targetRetention: 0.9,
+    sessionsBeforeDeadline: 4,
+    reviewedAfterDeadline: false,
   }],
   trackedUnitCount: 40,
   averageRetrievability: 0.72,
@@ -202,5 +206,47 @@ describe('vault review dashboard schema', () => {
       ...validDashboard,
       loadForecast: emptyForecast.map((day, index) => ({ ...day, dueCount: index + 1 })),
     }).success).toBe(true)
+  })
+})
+
+describe('expiredDeadlineOutcome', () => {
+  it('le a retencao da data contra a meta da nota', () => {
+    expect(
+      expiredDeadlineOutcome({
+        retentionAtDeadline: 0.78,
+        targetRetention: 0.9,
+        sessionsBeforeDeadline: 4,
+        reviewedAfterDeadline: false,
+      }),
+    ).toBe('Chegou com 78% de retenção — 12 pontos abaixo da meta de 90% · 4 sessões até a data')
+
+    expect(
+      expiredDeadlineOutcome({
+        retentionAtDeadline: 0.93,
+        targetRetention: 0.9,
+        sessionsBeforeDeadline: 0,
+        reviewedAfterDeadline: false,
+      }),
+    ).toBe('Chegou com 93% de retenção — meta de 90% atingida · sem sessões até a data')
+  })
+
+  it('diz que nao foi medido em vez de inventar numero', () => {
+    expect(
+      expiredDeadlineOutcome({
+        retentionAtDeadline: null,
+        targetRetention: 0.9,
+        sessionsBeforeDeadline: 1,
+        reviewedAfterDeadline: true,
+      }),
+    ).toBe('Revisada depois do prazo — sem leitura da data · 1 sessão até a data')
+
+    expect(
+      expiredDeadlineOutcome({
+        retentionAtDeadline: null,
+        targetRetention: 0.9,
+        sessionsBeforeDeadline: 0,
+        reviewedAfterDeadline: false,
+      }),
+    ).toContain('Sem leitura de retenção na data')
   })
 })

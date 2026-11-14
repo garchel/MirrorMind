@@ -97,6 +97,10 @@ const dashboard = {
     title: 'Passada',
     deadlineAtUnixMs: Date.now() - 4 * 86_400_000,
     sourceTag: 'prova-bio',
+    retentionAtDeadline: 0.78,
+    targetRetention: 0.9,
+    sessionsBeforeDeadline: 4,
+    reviewedAfterDeadline: false,
   }],
   trackedUnitCount: 40,
   averageRetrievability: 0.72,
@@ -327,6 +331,10 @@ describe('ReviewDashboardPage', () => {
     expect(screen.getByText('#prova-bio')).toBeInTheDocument()
     expect(screen.getByText(/remova a tag, troque o perfil\s+nas Configurações ou mantenha a política atual/)).toBeInTheDocument()
     expect(screen.getByText('Há 4 dias')).toBeInTheDocument()
+    // Desfecho: como a nota chegou na data, lido contra a meta.
+    expect(
+      screen.getByText('Chegou com 78% de retenção — 12 pontos abaixo da meta de 90% · 4 sessões até a data'),
+    ).toBeInTheDocument()
   })
 
   it('opens the note from an expired deadline', async () => {

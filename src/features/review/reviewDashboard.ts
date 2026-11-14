@@ -20,6 +20,13 @@ export const expiredDeadlineItemSchema = z.object({
   title: z.string().min(1).max(1_024),
   deadlineAtUnixMs: unixMillisecondsSchema,
   sourceTag: z.string().min(1).max(100).nullable(),
+  /** Retencao media estimada NA data do prazo; `null` = nao medido. */
+  retentionAtDeadline: z.number().finite().min(0).max(1).nullable(),
+  targetRetention: z.number().finite().positive().max(1),
+  /** Sessoes concluidas ate a data. */
+  sessionsBeforeDeadline: z.number().int().nonnegative().max(100_000),
+  /** Houve revisao depois do prazo: a leitura da data deixa de valer. */
+  reviewedAfterDeadline: z.boolean(),
 }).strict()
 
 export const dailyLoadItemSchema = z.object({
@@ -125,4 +132,39 @@ export async function getVaultReviewDashboard(vaultPath: string): Promise<VaultR
     path: vaultPath,
     localDayStartUnixMs: localDayStartUnixMs(),
   }))
+}
+
+/** Como a nota chegou na data-limite, em uma linha.
+ *
+ * Sem numero, o desfecho diz explicitamente que nao foi medido — nunca "0%" nem
+ * "chegou bem". A retencao so existe quando todas as unidades tem leitura
+ * anterior ao prazo; se alguma foi revisada depois, o estado atual descreve
+ * outro momento e o dado nao vale para aquele dia.
+ */
+export function expiredDeadlineOutcome(item: {
+  retentionAtDeadline: number | null
+  targetRetention: number
+  sessionsBeforeDeadline: number
+  reviewedAfterDeadline: boolean
+}): string {
+  const sessoes =
+    item.sessionsBeforeDeadline === 0
+      ? 'sem sessões até a data'
+      : item.sessionsBeforeDeadline === 1
+        ? '1 sessão até a data'
+        : `${item.sessionsBeforeDeadline} sessões até a data`
+
+  if (item.retentionAtDeadline === null) {
+    return item.reviewedAfterDeadline
+      ? `Revisada depois do prazo — sem leitura da data · ${sessoes}`
+      : `Sem leitura de retenção na data · ${sessoes}`
+  }
+
+  const retencao = Math.round(item.retentionAtDeadline * 100)
+  const meta = Math.round(item.targetRetention * 100)
+  const diferenca = retencao - meta
+  if (diferenca >= 0) {
+    return `Chegou com ${retencao}% de retenção — meta de ${meta}% atingida · ${sessoes}`
+  }
+  return `Chegou com ${retencao}% de retenção — ${Math.abs(diferenca)} pontos abaixo da meta de ${meta}% · ${sessoes}`
 }

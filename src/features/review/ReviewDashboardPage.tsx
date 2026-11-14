@@ -8,7 +8,7 @@ import { PageHeader, PageRefreshButton } from '../../components/PageHeader'
 import { DashboardSkeleton } from '../../components/PageSkeleton'
 import { applyDeadlineChange, getVaultReviewPolicyConfig, previewDeadlineChange } from './vaultReviewPolicy'
 import { setNoteReviewPriority } from './reviewPolicy'
-import { getVaultReviewDashboard, type CalibrationNoteItem, type ExpiredDeadlineItem, type ReadinessAttentionItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
+import { expiredDeadlineOutcome, getVaultReviewDashboard, type CalibrationNoteItem, type ExpiredDeadlineItem, type ReadinessAttentionItem, type UpcomingDeadlineItem, type VaultReviewDashboard } from './reviewDashboard'
 import { Modal } from '../../components/Modal'
 import { ReviewReportsPage } from './ReviewReportsPage'
 import { ReviewTagsSection } from './ReviewTagsSection'
@@ -809,6 +809,9 @@ function ExpiredDeadlinesSection({ items, count, onOpenNote, onEditDeadline, onS
                   {item.sourceTag ? (
                     <span className="review-dashboard-expired-tag">#{item.sourceTag}</span>
                   ) : null}
+                  <small className="review-dashboard-expired-outcome">
+                    {expiredDeadlineOutcome(item)}
+                  </small>
                 </div>
                 <div className="review-dashboard-deadline-actions">
                   <Button

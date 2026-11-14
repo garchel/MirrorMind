@@ -51,6 +51,17 @@ pub struct ExpiredDeadlineItem {
     /// Tag cujo prazo ja encerrou (origem da politica), permitindo alterar a
     /// data ou remover o prazo pelo dashboard.
     pub source_tag: Option<String>,
+    /// Retencao media estimada NA data do prazo, calculada a partir da
+    /// ultima revisao de cada unidade. `None` significa "nao medido": houve
+    /// revisao depois da data (o estado atual nao descreve aquele dia) ou
+    /// nenhuma unidade foi observada ainda. Um numero ali seria ficcao.
+    pub retention_at_deadline: Option<f64>,
+    /// Meta de retencao vigente, para ler o numero acima contra ela.
+    pub target_retention: f64,
+    /// Sessoes concluidas ate a data do prazo (o esforco que a nota recebeu).
+    pub sessions_before_deadline: usize,
+    /// Sinaliza que a leitura da data nao pode ser medida.
+    pub reviewed_after_deadline: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -290,11 +301,41 @@ pub fn build_vault_review_dashboard(
                 if expired_deadlines.len() < MAX_EXPIRED_DEADLINES {
                     let relative_path = document.note.relative_path.clone();
                     let title = display_title(&relative_path);
+                    // Como a nota chegou na data: retencao media das unidades
+                    // com memoria naquele dia. Revisao depois do prazo invalida
+                    // a leitura (o estado atual reflete outro momento), entao o
+                    // campo fica nulo em vez de mentir 100%.
+                    let observed: Vec<_> = document
+                        .units
+                        .iter()
+                        .filter_map(|unit| unit.fsrs.as_ref())
+                        .collect();
+                    let reviewed_after_deadline = observed
+                        .iter()
+                        .any(|fsrs| fsrs.last_reviewed_at_unix_ms > deadline);
+                    let retention_at_deadline = if reviewed_after_deadline || observed.is_empty() {
+                        None
+                    } else {
+                        let soma: f64 = observed
+                            .iter()
+                            .map(|fsrs| effective_retrievability(fsrs, deadline))
+                            .sum();
+                        Some(soma / observed.len() as f64)
+                    };
+                    let sessions_before_deadline = document
+                        .sessions
+                        .iter()
+                        .filter(|session| session.completed_at_unix_ms <= deadline)
+                        .count();
                     expired_deadlines.push(ExpiredDeadlineItem {
                         note_id: document.note.id.clone(),
                         relative_path,
                         title,
                         deadline_at_unix_ms: deadline,
+                        retention_at_deadline,
+                        target_retention: document.effective_policy.target_retention,
+                        sessions_before_deadline,
+                        reviewed_after_deadline,
                         source_tag: document
                             .effective_policy
                             .sources
@@ -1492,5 +1533,194 @@ mod tests {
             .find(|item| item.title == "Editada")
             .expect("modified item");
         assert_eq!(modified_item.issue_count, 0);
+    }
+
+    /// O desfecho de um prazo encerrado e o que a nota entregou ATE a data.
+    ///
+    /// Duas leituras opostas, no mesmo teste: a nota revisada antes do prazo
+    /// tem retencao medida (e abaixo da meta, de proposito); a revisada depois
+    /// nao tem — o estado atual descreve outro momento, e devolver um numero ali
+    /// seria inventar dado.
+    #[test]
+    fn expired_deadline_reports_retention_at_the_date_only_when_measurable() {
+        use crate::review::contract::{
+            AiProvider, EvidenceStrength, FsrsState, PolicySource, PolicySourceKind, RecallOutcome,
+            ReviewMode, ReviewSession, SessionUnitResult, UnitEvaluation, UnitSnapshot,
+        };
+
+        let vault = tempdir().expect("vault");
+        let now = 1_730_000_000_000;
+        let deadline = now - 10 * DAY_MS;
+        let report = ReadinessReport {
+            status: ReadinessStatus::Ready,
+            explanation: "Pronta.".to_string(),
+            central_idea: None,
+            evaluable_points: Vec::new(),
+            issues: Vec::new(),
+            confidence: None,
+            status_probabilities: None,
+            confidence_degraded: None,
+        };
+
+        // Monta uma nota com prazo encerrado e devolve o documento salvo, para
+        // que o teste ajuste memoria e sessoes sem repetir o setup.
+        let preparar = |arquivo: &str| {
+            let saved = persist_readiness_assessment(
+                vault.path(),
+                arquivo,
+                MARKDOWN,
+                &report,
+                now - 40 * DAY_MS,
+            )
+            .expect("persist readiness");
+            set_manual_enrollment(vault.path(), arquivo, MARKDOWN, true, now - 40 * DAY_MS)
+                .expect("enroll");
+            let loaded = load_learning_document(vault.path(), &saved.note_id)
+                .expect("load")
+                .expect("document");
+            let revision = loaded.document.revision;
+            let mut document = loaded.document;
+            document.effective_policy.deadline_at_unix_ms = Some(deadline);
+            document.effective_policy.sources.deadline_at_unix_ms = Some(PolicySource {
+                kind: PolicySourceKind::ActiveDeadlineTag,
+                source_id: Some("revisao/prova".to_string()),
+            });
+            document.effective_policy.target_retention = 0.9;
+            (saved.note_id, document, revision)
+        };
+
+        let sessao = |document: &crate::review::contract::LearningDocument,
+                      quando: u64,
+                      id: &str,
+                      memoria: &FsrsState,
+                      proxima: u64| {
+            let unit = &document.units[0];
+            let snapshot = UnitSnapshot {
+                id: unit.id.clone(),
+                ordinal: unit.ordinal,
+                kind: unit.kind.clone(),
+                content_hash: unit.content_hash.clone(),
+                section_path: unit.section_path.clone(),
+                identity: unit.identity.clone(),
+                source_start_utf16: unit.source_start_utf16,
+                source_end_utf16: unit.source_end_utf16,
+            };
+            ReviewSession {
+                id: id.to_string(),
+                note_content_hash: document.note.content_hash.clone(),
+                mode: ReviewMode::Exam,
+                provider: AiProvider::Ollama,
+                calibration: None,
+                completed_at_unix_ms: quando,
+                overall_score: Some(80),
+                unit_results: vec![SessionUnitResult {
+                    unit_snapshot: snapshot,
+                    evaluation: UnitEvaluation::Evaluated {
+                        score: 80,
+                        outcome: RecallOutcome::Good,
+                        evidence: EvidenceStrength::FreeRecall,
+                        evaluated_at_unix_ms: quando,
+                        gaps: Vec::new(),
+                        assertions: Vec::new(),
+                    },
+                    fsrs_before: Some(memoria.clone()),
+                    fsrs_after: Some(memoria.clone()),
+                }],
+                effective_policy: document.effective_policy.clone(),
+                // A sessao mais recente e o agendamento precisam concordar
+                // sobre a proxima revisao (invariante do documento).
+                next_review_at_unix_ms: Some(proxima),
+            }
+        };
+
+        // Nota 1: revisada ANTES do prazo, estabilidade curta — na data, a
+        // retencao tinha caido abaixo da meta de 90%.
+        let (id_medida, mut medida, revision_medida) = preparar("Medida.md");
+        // A memoria da unidade tem de ser a da sessao MAIS RECENTE (invariante
+        // do documento): por isso a de antes do prazo e a da primeira sessao sao
+        // estados diferentes.
+        let memoria_anterior = FsrsState {
+            difficulty: 5.0,
+            stability_days: 5.0,
+            retrievability: 0.92,
+            last_reviewed_at_unix_ms: deadline - 25 * DAY_MS,
+        };
+        let memoria_medida = FsrsState {
+            difficulty: 5.0,
+            stability_days: 3.0,
+            retrievability: 0.9,
+            last_reviewed_at_unix_ms: deadline - 15 * DAY_MS,
+        };
+        medida.units[0].fsrs = Some(memoria_medida.clone());
+        // Uma sessao por nota: o validador do documento cobra que a memoria da
+        // unidade, o agendamento e a ultima sessao descrevam o mesmo instante.
+        medida.sessions = vec![
+            sessao(&medida, deadline - 15 * DAY_MS, "antes", &memoria_medida, deadline - 14 * DAY_MS),
+        ];
+        // A unidade precisa espelhar a ultima avaliacao do historico (outra
+        // invariante do documento).
+        medida.units[0].latest_evaluation =
+            Some(medida.sessions[0].unit_results[0].evaluation.clone());
+        // O agendamento precisa apontar para a sessao mais recente (invariante
+        // validada ao persistir).
+        medida.scheduling.first_review_at_unix_ms = Some(deadline - 25 * DAY_MS);
+        medida.scheduling.last_review_at_unix_ms = Some(deadline - 15 * DAY_MS);
+        medida.scheduling.next_review_at_unix_ms = Some(deadline - 14 * DAY_MS);
+        medida.revision += 1;
+        write_learning_document(vault.path(), &id_medida, Some(revision_medida), &medida)
+            .expect("persist medida");
+
+        // Nota 2: revisada DEPOIS do prazo — o estado atual nao descreve a data.
+        let (id_tardia, mut tardia, revision_tardia) = preparar("Tardia.md");
+        let memoria_tardia = FsrsState {
+            difficulty: 5.0,
+            stability_days: 30.0,
+            retrievability: 0.95,
+            last_reviewed_at_unix_ms: deadline + 5 * DAY_MS,
+        };
+        tardia.units[0].fsrs = Some(memoria_tardia.clone());
+        tardia.sessions = vec![
+            sessao(&tardia, deadline - 12 * DAY_MS, "antes", &memoria_tardia, deadline - 11 * DAY_MS),
+            sessao(&tardia, deadline + 5 * DAY_MS, "depois", &memoria_tardia, deadline + 6 * DAY_MS),
+        ];
+        tardia.units[0].latest_evaluation =
+            Some(tardia.sessions[1].unit_results[0].evaluation.clone());
+        tardia.scheduling.first_review_at_unix_ms = Some(deadline - 12 * DAY_MS);
+        tardia.scheduling.last_review_at_unix_ms = Some(deadline + 5 * DAY_MS);
+        tardia.scheduling.next_review_at_unix_ms = Some(deadline + 6 * DAY_MS);
+        tardia.revision += 1;
+        write_learning_document(vault.path(), &id_tardia, Some(revision_tardia), &tardia)
+            .expect("persist tardia");
+
+        let dashboard = build_vault_review_dashboard(vault.path(), now, now - DAY_MS)
+            .expect("dashboard");
+
+        let medida_item = dashboard
+            .expired_deadlines
+            .iter()
+            .find(|item| item.title == "Medida")
+            .expect("item medido");
+        let retencao = medida_item
+            .retention_at_deadline
+            .expect("retencao medida na data");
+        assert!(
+            retencao < 0.9,
+            "a unidade com estabilidade curta deveria estar abaixo da meta, veio {retencao}"
+        );
+        assert_eq!(medida_item.sessions_before_deadline, 1);
+        assert!(!medida_item.reviewed_after_deadline);
+        assert_eq!(medida_item.target_retention, 0.9);
+
+        let tardia_item = dashboard
+            .expired_deadlines
+            .iter()
+            .find(|item| item.title == "Tardia")
+            .expect("item tardio");
+        assert!(tardia_item.reviewed_after_deadline);
+        assert!(
+            tardia_item.retention_at_deadline.is_none(),
+            "revisao depois do prazo invalida a leitura da data"
+        );
+        assert_eq!(tardia_item.sessions_before_deadline, 1);
     }
 }
