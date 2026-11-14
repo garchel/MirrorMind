@@ -1,7 +1,7 @@
 import { $, browser, expect } from '@wdio/globals'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { createVault, waitForEditorText, waitForFile, waitForTauriPlugin } from './helpers.mjs'
+import { createVault, openSettings, waitForEditorText, waitForFile, waitForTauriPlugin } from './helpers.mjs'
 
 const phase = process.env.MIRRORMIND_E2E_PHASE
 const journeyStatePath = join(process.env.MIRRORMIND_E2E_RUN_ROOT, 'settings-state.json')
@@ -14,8 +14,8 @@ const SHORTCUT = 'Ctrl+Shift+N'
 
 async function assertConfiguredSettings() {
   // Autosave permanece ligado apos o reinicio.
-  await $('[aria-label="Configurações"]').click()
-  const autoSaveToggle = await $('.settings-toggle*=Auto Save').$('input[type="checkbox"]')
+  await openSettings()
+  const autoSaveToggle = await $('.settings-toggle*=Salvamento automático').$('input[type="checkbox"]')
   await expect(autoSaveToggle).toBeSelected()
 
   // O atalho personalizado permanece configurado (Configurações > Atalhos).
@@ -39,8 +39,8 @@ if (phase === 'configure-settings') describe('Configurar preferencias', () => {
     await createVault(VAULT_NAME)
 
     // Autosave ligado nas configuracoes do vault.
-    await $('[aria-label="Configurações"]').click()
-    const autoSaveToggle = await $('.settings-toggle*=Auto Save').$('input[type="checkbox"]')
+    await openSettings()
+    const autoSaveToggle = await $('.settings-toggle*=Salvamento automático').$('input[type="checkbox"]')
     await expect(autoSaveToggle).toBeDisplayed()
     if (!(await autoSaveToggle.isSelected())) {
       await autoSaveToggle.click()
@@ -91,10 +91,10 @@ if (phase === 'verify-settings-reopen') describe('Reiniciar e confirmar preferen
     writeFileSync(notePath, initialContent)
     await $('[aria-label="Atualizar explorador de arquivos"]').click()
     await $('[aria-label="Abrir nota persistencia"]').click()
-    await expect($('[aria-label^="Editor Markdown"]')).toBeDisplayed()
+    await expect($('[aria-label^="Editor de texto"]')).toBeDisplayed()
     await selectEditMode()
     await waitForEditorText(initialContent)
-    const editor = await $('[aria-label^="Editor Markdown"]')
+    const editor = await $('[aria-label^="Editor de texto"]')
     await editor.click()
     await browser.keys(['Control', 'a'])
     await browser.keys('Delete')

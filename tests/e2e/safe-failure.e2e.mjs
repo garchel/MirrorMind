@@ -26,7 +26,7 @@ if (phase === 'safe-failure') describe('Falha segura', () => {
     // Edicao propaga a digitacao programatica como sujeira (o Misto nao).
     await $('[aria-label="Nova nota"]').click()
     await $('[aria-label="Título da nova nota"]').setValue('Bloqueada')
-    await expect($('[aria-label^="Editor Markdown"]')).toBeDisplayed()
+    await expect($('[aria-label^="Editor de texto"]')).toBeDisplayed()
     const editorMode = await $('[aria-label="Modo de visualização da nota"]')
     const editButton = editorMode.$('.//button[normalize-space()="Edição"]')
     await expect(editButton).toBeDisplayed()
@@ -56,7 +56,7 @@ if (phase === 'safe-failure') describe('Falha segura', () => {
     const editorDom = await browser.execute((target) => {
       const lines = Array.from(target.querySelectorAll('.cm-line')).map((line) => line.textContent ?? '')
       return { lines }
-    }, await $('[aria-label^="Editor Markdown"]'))
+    }, await $('[aria-label^="Editor de texto"]'))
     console.log('EDITOR_LINES', JSON.stringify(editorDom.lines))
     await expect(errorBanner).toHaveText(expect.stringContaining(noteSlug))
 

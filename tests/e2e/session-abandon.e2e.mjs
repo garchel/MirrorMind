@@ -34,7 +34,7 @@ async function seedReviewState(vaultPath) {
 }
 
 async function openQueuePage() {
-  await $('[aria-label="Abrir fila de revisão"]').click()
+  await $('[aria-label^="Abrir fila de revisão"]').click()
   await expect($('.review-queue-page')).toBeDisplayed()
   const reviewButton = await $(`[aria-label="Revisar ${NOTE_SLUG}"]`)
   await expect(reviewButton).toBeDisplayed()
@@ -112,12 +112,12 @@ describe('Abandono nativo de sessao', () => {
     await startSession()
 
     // Clique no Painel: o dialogo abre e Cancelar mantem a sessao.
-    await $('[aria-label="Abrir painel de aprendizado"]').click()
+    await $('[aria-label="Abrir progresso"]').click()
     await cancelAbandonment()
     await assertStillInSession()
 
     // Novo clique na barra: confirmar descarta e volta para a fila.
-    await $('[aria-label="Abrir painel de aprendizado"]').click()
+    await $('[aria-label="Abrir progresso"]').click()
     await confirmAbandonment()
     await assertBackToQueue()
   })

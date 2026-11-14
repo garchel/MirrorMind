@@ -133,7 +133,7 @@ if (phase === 'open-obsidian-vault') describe('Abrir Vault Obsidian', () => {
 
     // Edita a nota e salva pelos bytes do arquivo. O modo Edicao propaga a
     // digitacao programatica como sujeira (o Misto nao) e o Ctrl+S grava.
-    const editor = await $('[aria-label^="Editor Markdown"]')
+    const editor = await $('[aria-label^="Editor de texto"]')
     await editor.click()
     await browser.keys(['Control', 'a'])
     await browser.keys('Delete')

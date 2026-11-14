@@ -25,7 +25,7 @@ const TXT_CONTENT = 'Conteudo do anexo de texto.'
 // Emite o mesmo evento nativo que o arrastar-e-soltar real do SO produz: o
 // frontend escuta `tauri://drag-drop` via `getCurrentWindow().onDragDropEvent`.
 async function dropFileIntoEditor(sourcePath) {
-  const editor = await $('[aria-label^="Editor Markdown"]')
+  const editor = await $('[aria-label^="Editor de texto"]')
   const position = await browser.execute((target) => {
     const bounds = target.getBoundingClientRect()
     return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 }
@@ -54,7 +54,7 @@ async function waitForFileBytes(path, predicate, timeoutMsg) {
 async function waitForEditorTextContaining(expectedParts) {
   await browser.waitUntil(
     async () => {
-      const editor = await $('[aria-label^="Editor Markdown"]')
+      const editor = await $('[aria-label^="Editor de texto"]')
       if (!(await editor.isExisting())) return false
       const text = await browser.execute((target) => (
         Array.from(target.querySelectorAll('.cm-line')).map((line) => line.textContent ?? '').join('\n')

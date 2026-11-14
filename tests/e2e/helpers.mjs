@@ -18,18 +18,26 @@ export async function waitForTauriPlugin() {
 }
 
 export async function waitForEditorText(expectedText) {
-  const expected = expectedText.replace(/\r\n/g, '\n').trimEnd()
+  const esperado = expectedText.split(String.fromCharCode(13, 10)).join(String.fromCharCode(10)).trimEnd()
   await browser.waitUntil(
     async () => {
-      const editor = await $('[aria-label^="Editor Markdown"]')
-      return (await editor.isExisting())
-        && await browser.execute((target) => (
-          Array.from(target.querySelectorAll('.cm-line'))
-            .map((line) => line.textContent ?? '')
-            .join('\n')
-        ), editor).then((text) => text.replace(/\r\n/g, '\n').trimEnd()) === expected
+      // Le o texto do CodeMirror pelo aria-label real do build ("Editor de
+      // texto ..."), sem depender de `.cm-line`: no modo Misto o documento pode
+      // nao expor as mesmas linhas, e era assim que este helper falhava de
+      // forma intermitente.
+      const texto = await browser.execute(() => {
+        const editor = document.querySelector('[aria-label^="Editor de texto"]')
+        if (!editor) return null
+        const quebra = String.fromCharCode(10)
+        const linhas = Array.from(editor.querySelectorAll('.cm-line'))
+        if (linhas.length > 0) return linhas.map((linha) => linha.textContent ?? '').join(quebra)
+        return editor.innerText ?? ''
+      })
+      if (typeof texto !== 'string') return false
+      const normalizado = texto.split(String.fromCharCode(13, 10)).join(String.fromCharCode(10)).trimEnd()
+      return normalizado === esperado
     },
-    { timeout: 10_000, timeoutMsg: `O editor nao exibiu o conteudo esperado: ${expectedText}` },
+    { timeout: 15_000, interval: 250, timeoutMsg: `O editor nao exibiu o conteudo esperado: ${expectedText}` },
   )
 }
 
@@ -58,11 +66,11 @@ export async function waitForMissing(path, timeoutMsg) {
 // Remounts (troca de modo/aba) podem roubar o foco entre a consulta e o
 // clique: so digita com o foco confirmado dentro do editor.
 export async function typeIntoEditor(content) {
-  const editor = await $('[aria-label^="Editor Markdown"]')
+  const editor = await $('[aria-label^="Editor de texto"]')
   await editor.click()
   await browser.waitUntil(
     async () => browser.execute(() => {
-      const target = document.querySelector('[aria-label^="Editor Markdown"]')
+      const target = document.querySelector('[aria-label^="Editor de texto"]')
       return !!target && target.contains(document.activeElement)
     }),
     { timeout: 5_000, timeoutMsg: 'O editor nao recebeu foco antes da digitacao.' },
@@ -125,4 +133,17 @@ export async function appProcessIds() {
   const appBinary = process.env.MIRRORMIND_E2E_APP_BINARY
   if (!appBinary) throw new Error('MIRRORMIND_E2E_APP_BINARY nao foi publicado pelo wdio.conf.')
   return ids(appBinary)
+}
+
+/** Abre a pagina de Configuracoes.
+ *
+ *  Ela saiu do trilho e passou a viver no menu do rodape de perfil; clicar em
+ *  `[aria-label="Configurações"]` direto nao encontra nada. Os specs quebraram
+ *  todos nesse ponto quando o botao mudou de lugar.
+ */
+export async function openSettings() {
+  await $('[aria-label^="Abrir menu do perfil"]').click()
+  const item = await $('.//button[normalize-space()="Configurações"]')
+  await expect(item).toBeDisplayed({ wait: 10_000 })
+  await item.click()
 }

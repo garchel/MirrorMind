@@ -107,7 +107,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
     await waitForFile(referencePath, (content) => content === renamedReferences, 'O rename nao atualizou o wikilink da nota.')
     expect(existsSync(join(sourceFolder, 'aula.md'))).toBe(false)
     expect(readFileSync(join(sourceFolder, 'resumo.md'), 'utf8')).toBe(targetContent)
-    await expect($('[role="tab"]*=resumo.md')).toBeDisplayed()
+    await expect($('[role="tab"]*=resumo')).toBeDisplayed()
 
     const renamedNote = await $('[aria-label="Abrir nota resumo"]')
     await expect(renamedNote).toBeDisplayed()
@@ -117,7 +117,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
     await waitForFile(referencePath, (content) => content === noteMovedReferences, 'O move nao atualizou o wikilink da nota.')
     expect(existsSync(join(sourceFolder, 'resumo.md'))).toBe(false)
     expect(readFileSync(join(noteDestination, 'resumo.md'), 'utf8')).toBe(targetContent)
-    const movedNoteTab = await $('[role="tab"]*=resumo.md')
+    const movedNoteTab = await $('[role="tab"]*=resumo')
     await movedNoteTab.click()
     await expect($('.editor-title-button')).toHaveText('resumo')
     const editorMode = await $('[aria-label="Modo de visualização da nota"]')
@@ -126,7 +126,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
     await waitForEditorText(targetContent)
     await saveEditorText(join(noteDestination, 'resumo.md'), movedTabContent)
 
-    const materialTab = await $('[role="tab"]*=material-interno.md')
+    const materialTab = await $('[role="tab"]*=material-interno')
     await materialTab.click()
     await expect($('.editor-title-button')).toHaveText('material-interno')
 
@@ -154,7 +154,7 @@ if (phase === 'rename-and-move') describe('Renomear e mover com links', () => {
     const finalNestedPath = join(folderDestination, 'estudos', 'sub', 'material-interno.md')
     expect(readFileSync(finalNestedPath, 'utf8')).toBe(nestedContent)
     expect(existsSync(join(vaultPath, 'estudos'))).toBe(false)
-    await expect($('[role="tab"]*=material-interno.md')).toHaveAttribute('aria-selected', 'true')
+    await expect($('[role="tab"]*=material-interno')).toHaveAttribute('aria-selected', 'true')
     await expect($('.editor-title-button')).toHaveText('material-interno')
     // O salvamento pelo atalho exige o editor em modo Edicao (o modo Misto
     // nao propaga a entrada programatica do WebdriverIO como sujeira).

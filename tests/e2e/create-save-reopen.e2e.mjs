@@ -1,7 +1,7 @@
 import { $, browser, expect } from '@wdio/globals'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { typeIntoEditor, waitForEditorText } from './helpers.mjs'
+import { openSettings, typeIntoEditor, waitForEditorText } from './helpers.mjs'
 
 const phase = process.env.MIRRORMIND_E2E_PHASE
 const journeyStatePath = join(process.env.MIRRORMIND_E2E_RUN_ROOT, 'journey-state.json')
@@ -40,8 +40,8 @@ if (phase === 'create-and-save') describe('Criar e salvar', () => {
       { timeout: 20_000, timeoutMsg: 'O scan inicial do Vault nao foi concluido.' },
     )
 
-    await $('[aria-label="Configurações"]').click()
-    const autoSaveToggle = await $('.settings-toggle*=Auto Save').$('input[type="checkbox"]')
+    await openSettings()
+    const autoSaveToggle = await $('.settings-toggle*=Salvamento automático').$('input[type="checkbox"]')
     await expect(autoSaveToggle).toBeDisplayed()
     if (!(await autoSaveToggle.isSelected())) {
       await autoSaveToggle.click()
@@ -57,7 +57,7 @@ if (phase === 'create-and-save') describe('Criar e salvar', () => {
 
     // O modo misto nao renderiza mais um <article> interno: o foco vai direto
     // para o editor, que ja responde ao clique no proprio conteiner.
-    await expect($('[aria-label^="Editor Markdown"]')).toBeDisplayed()
+    await expect($('[aria-label^="Editor de texto"]')).toBeDisplayed()
     await typeIntoEditor(initialContent)
     await titleInput.click()
     await browser.keys('Enter')
@@ -110,7 +110,7 @@ if (phase === 'reopen') describe('Reabrir em novo processo', () => {
     await expect(reopenedNote).toBeDisplayed()
     await reopenedNote.click()
 
-    const reopenedEditor = await $('[aria-label^="Editor Markdown"]')
+    const reopenedEditor = await $('[aria-label^="Editor de texto"]')
     await expect(reopenedEditor).toBeDisplayed()
     await waitForEditorText(finalContent)
     expect(readFileSync(notePath, 'utf8')).toBe(finalContent)

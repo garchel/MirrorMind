@@ -71,7 +71,7 @@ if (phase === 'trash-and-restore') describe('Lixeira e restauracao', () => {
     await expect($$('.trash-table-actions')).toBeElementsArrayOfSize(1)
 
     // 3. Restaurar devolve o arquivo ao local original com os mesmos bytes.
-    await $('[aria-label="Restaurar item"]').click()
+    await $(`[aria-label="Restaurar ${noteA}.md"]`).click()
     await waitForFile(noteAPath, (content) => content === contentA, 'A restauracao nao devolveu os bytes originais.')
     await expect($('.trash-page')).toHaveText(expect.stringContaining('A lixeira está vazia.'))
 
@@ -82,7 +82,7 @@ if (phase === 'trash-and-restore') describe('Lixeira e restauracao', () => {
     await waitForMissing(noteBPath, 'A segunda nota excluida nao saiu do vault.')
     writeFileSync(noteBPath, replacementContent)
     await $('[aria-label="Abrir lixeira"]').click()
-    await $('[aria-label="Restaurar item"]').click()
+    await $(`[aria-label="Restaurar ${noteB}.md"]`).click()
     // A restauracao recusa sem sobrescrever: erro exibido, o arquivo novo
     // permanece intacto no local original e o item segue na lixeira.
     await expect($('.error-banner')).toBeDisplayed({ wait: 10_000 })
@@ -91,7 +91,7 @@ if (phase === 'trash-and-restore') describe('Lixeira e restauracao', () => {
 
     // 5. Depois que o conflito e resolvido, restaurar de novo tem sucesso.
     rmSync(noteBPath)
-    await $('[aria-label="Restaurar item"]').click()
+    await $(`[aria-label="Restaurar ${noteB}.md"]`).click()
     await waitForFile(noteBPath, (content) => content === contentB, 'A restauracao apos o conflito falhou.')
     // O registro da lixeira fica vazio: arquivo e metadados removidos.
     await browser.waitUntil(
@@ -135,7 +135,7 @@ if (phase === 'verify-trash-restore') describe('Reabrir apos lixeira e restaurac
     await expect($(`[aria-label="Abrir nota ${noteA}"]`)).toBeDisplayed()
     await expect($(`[aria-label="Abrir nota ${noteB}"]`)).toBeDisplayed()
     await $('[aria-label="Abrir nota ' + noteA + '"]').click()
-    const editor = await $('[aria-label^="Editor Markdown"]')
+    const editor = await $('[aria-label^="Editor de texto"]')
     await expect(editor).toBeDisplayed()
     await browser.waitUntil(
       async () => (await editor.isExisting())

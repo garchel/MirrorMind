@@ -19,7 +19,7 @@ if (!supportedPhases.includes(phase)) throw new Error(`Unexpected external-chang
 
 async function openNoteAndType(noteLabel, content) {
   await $('[aria-label="Abrir nota ' + noteLabel + '"]').click()
-  const editor = await $('[aria-label^="Editor Markdown"]')
+  const editor = await $('[aria-label^="Editor de texto"]')
   await expect(editor).toBeDisplayed()
   const editorMode = await $('[aria-label="Modo de visualização da nota"]')
   await selectEditorMode(editorMode, 'edit')
@@ -130,7 +130,7 @@ if (phase === 'automatic-detect') describe('Deteccao automatica de mudanca exter
     await $('[aria-label="Atualizar explorador de arquivos"]').click()
     await expect($('[aria-label="Abrir nota auto"]')).toBeDisplayed()
     await $('[aria-label="Abrir nota auto"]').click()
-    await expect($('[aria-label^="Editor Markdown"]')).toBeDisplayed()
+    await expect($('[aria-label^="Editor de texto"]')).toBeDisplayed()
     const editorMode = await $('[aria-label="Modo de visualização da nota"]')
     await selectEditorMode(editorMode, 'edit')
     await waitForEditorText(initial)
