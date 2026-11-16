@@ -93,6 +93,17 @@ describe('graph2dSimulation (modelo do Obsidian)', () => {
     expect(sim.settled).toBe(true)
   })
 
+  it('centerStrength 0 nao puxa nada para o centro', () => {
+    // Regressao: o mapeamento da UI tinha piso de 0.1, entao pedir "forca para
+    // o centro = 0" continuava puxando o no solto para o meio.
+    const sim = criar([['a', 400, 300]], [])
+    sim.settings.centerStrength = 0
+    rodar(sim, 300)
+    const p = sim.positionOf('a')!
+    expect(p.x).toBeCloseTo(400, 3)
+    expect(p.y).toBeCloseTo(300, 3)
+  })
+
   it('nao ha limites de mundo (o d3-force nao tem)', () => {
     const sim = criar([['a', 0, 0], ['b', 1, 0]], [['a', 'b']])
     rodar(sim, 400)

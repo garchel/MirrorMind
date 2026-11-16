@@ -89,6 +89,20 @@ export function Graph2dCanvas({
     | { tipo: 'pano'; x: number; y: number; movido: boolean }
     | null
   >(null)
+  /** Ultimo `settings` recebido: lido pelo efeito que aplica ao vivo. */
+  const settingsRef = useRef(settings)
+  settingsRef.current = settings
+  /** Assinatura dos VALORES (nao da identidade do objeto, que muda a cada
+   * render do pai). So reaquece quando algum numero muda de fato. */
+  const settingsKey = [
+    settings.linkDistance,
+    settings.linkStrength,
+    settings.repelStrength,
+    settings.centerStrength,
+    settings.collideRadius,
+    settings.collideStrength,
+    settings.nodeSize,
+  ].join('|')
   const onSettledRef = useRef(onSettled)
   onSettledRef.current = onSettled
   const persistidoRef = useRef(false)
@@ -215,10 +229,18 @@ export function Graph2dCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assinatura, reorganizeKey])
 
-  // Constantes ao vivo (sliders da toolbar).
+  // Constantes ao vivo (sliders da toolbar). O layout dorme em alpha 0.001:
+  // so trocar `settings` nao move nada ate o proximo gesto, e o slider parecia
+  // nao ter efeito. Reaquecer (0.3, o mesmo valor do arrasto) faz a mudanca
+  // aparecer na hora.
   useEffect(() => {
-    if (simRef.current) simRef.current.settings = { ...settings }
-  }, [settings])
+    const sim = simRef.current
+    if (!sim) return
+    sim.settings = { ...settingsRef.current }
+    sim.reheat(0.3)
+    persistidoRef.current = false
+    pedirFrame()
+  }, [settingsKey, pedirFrame])
 
   // Hover do app -> canvas.
   useEffect(() => {
