@@ -199,6 +199,7 @@ export function Graph2dCanvas({
     }))
     hoverRef.current = -1
     vizinhosRef.current = null
+    desenhar()
     pedirFrame()
     // `settings` e aplicado ao vivo no efeito abaixo; nao recria a simulacao.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -236,8 +237,18 @@ export function Graph2dCanvas({
       const rect = canvas.getBoundingClientRect()
       const dpr = Math.min(2, window.devicePixelRatio || 1)
       sizeRef.current = { width: rect.width, height: rect.height, dpr }
-      canvas.width = Math.max(1, Math.round(rect.width * dpr))
-      canvas.height = Math.max(1, Math.round(rect.height * dpr))
+      // Atribuir `canvas.width/height` LIMPA o canvas. Um ResizeObserver que
+      // reatribui a cada medicao apagava o desenho logo depois de pinta-lo
+      // (medido: 171 frames desenhados e 0 pixels no buffer). Só redimensiona
+      // quando o valor muda de fato.
+      const largura = Math.max(1, Math.round(rect.width * dpr))
+      const altura = Math.max(1, Math.round(rect.height * dpr))
+      if (canvas.width !== largura) canvas.width = largura
+      if (canvas.height !== altura) canvas.height = altura
+      // Desenha ja: o primeiro quadro nao pode depender do rAF, que fica
+      // pausado com a janela em segundo plano (o grafo abria em branco ate o
+      // primeiro gesto).
+      desenhar()
       pedirFrame()
     }
     medir()
@@ -248,7 +259,7 @@ export function Graph2dCanvas({
     const observer = new ResizeObserver(medir)
     observer.observe(canvas)
     return () => observer.disconnect()
-  }, [pedirFrame])
+  }, [pedirFrame, desenhar])
 
   useEffect(
     () => () => {
