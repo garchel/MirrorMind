@@ -93,12 +93,10 @@ describe('graph2dSimulation (modelo do Obsidian)', () => {
     expect(sim.settled).toBe(true)
   })
 
-  it('no solto volta para o equilibrio entre os proprios vizinhos', () => {
-    // Caso do "Meio do triangulo": um no ligado a tres vertices. Arrastado para
-    // longe e solto, ele volta para a MESMA posicao relativa aos vizinhos que
-    // ocupava antes (o balanco das molas), e nao fica onde foi solto.
-    // A posicao ABSOLUTA nao serve de referencia: o cluster inteiro desloca
-    // durante o gesto (medido: 175 de deslocamento do centroide).
+  it('no solto volta para o centroide dos proprios vizinhos', () => {
+    // Comportamento pedido (nao e o d3-force puro): ao soltar, o no persegue o
+    // meio dos vizinhos. Sem isso ele parava onde foi largado, porque com as
+    // molas no comprimento de descanso nao ha forca apontando para o centro.
     const sim = criar(
       [['a', -250, 0], ['b', 250, 0], ['c', 0, 433], ['meio', 0, 144]],
       [['meio', 'a'], ['meio', 'b'], ['meio', 'c'], ['a', 'b'], ['b', 'c'], ['c', 'a']],
@@ -110,28 +108,37 @@ describe('graph2dSimulation (modelo do Obsidian)', () => {
       const c = sim.positionOf('c')!
       return { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 }
     }
-    const desvioDe = () => {
+    const desvio = () => {
       const m = sim.positionOf('meio')!
       const c = centroide()
       return Math.hypot(m.x - c.x, m.y - c.y)
     }
-    const desvioNoRepouso = desvioDe()
-
-    // Gesto real: 40 frames com o no preso, terminando ~1300 unidades longe.
-    const meio = centroide()
+    const antes = centroide()
     for (let passo = 1; passo <= 40; passo += 1) {
-      sim.pin('meio', meio.x + 900 + passo * 6, meio.y + 600)
+      sim.pin('meio', antes.x + 900 + passo * 6, antes.y + 600)
       sim.step()
     }
     const solto = sim.positionOf('meio')!
-    const centroAo_Soltar = centroide()
-    expect(Math.hypot(solto.x - centroAo_Soltar.x, solto.y - centroAo_Soltar.y)).toBeGreaterThan(500)
+    const centroSolta = centroide()
+    expect(Math.hypot(solto.x - centroSolta.x, solto.y - centroSolta.y)).toBeGreaterThan(500)
 
     sim.unpin('meio')
-    rodar(sim, 600)
-    // Voltou ao mesmo balanco: o desvio ao centroide dos vizinhos e o de antes.
-    expect(Math.abs(desvioDe() - desvioNoRepouso)).toBeLessThan(40)
-    expect(desvioDe()).toBeLessThan(250)
+    rodar(sim, 400)
+    expect(desvio()).toBeLessThan(80)
+  })
+
+  it('folha com um vizinho so nao e puxada para dentro dele', () => {
+    // Sem a guarda de grau>=2, o centroide de UM vizinho e a posicao dele:
+    // a folha seria arrastada para cima do no conectado.
+    const sim = criar([['a', 0, 0], ['b', 600, 0]], [['a', 'b']])
+    rodar(sim, 400)
+    sim.pin('b', 1200, 0)
+    for (let i = 0; i < 20; i += 1) sim.step()
+    sim.unpin('b')
+    rodar(sim, 400)
+    const b = sim.positionOf('b')!
+    const a = sim.positionOf('a')!
+    expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeGreaterThan(150)
   })
 
   it('centerStrength 0 nao puxa nada para o centro', () => {

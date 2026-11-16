@@ -73,6 +73,11 @@ export const GRAPH2D_DEFAULT_SETTINGS: Graph2dSettings = {
 
 export type Graph2dLink = { source: string; target: string }
 
+/** Quanto tempo (ticks) o no recem-solto persegue o centroide dos vizinhos. */
+const RECENTRO_TICKS = 240
+/** Ganho por tick da busca pelo centroide (com o freio 0.6, converge suave). */
+const RECENTRO_FORCA = 0.12
+
 const THETA2 = OBSIDIAN_PHYSICS.theta * OBSIDIAN_PHYSICS.theta
 const MAX_DEPTH = 14
 const QUAD_STACK = new Int32Array(1 << 16)
@@ -130,6 +135,8 @@ export class Graph2dSimulation {
   settings: Graph2dSettings
   alpha: number
   alphaTarget = 0
+  /** No solto que esta voltando para o meio dos proprios vizinhos. */
+  private recentro: { index: number; restante: number } | null = null
 
   private readonly quad: Quad
   private readonly buckets = new Map<number, number[]>()
@@ -325,7 +332,32 @@ export class Graph2dSimulation {
       }
     }
 
-    // 5) integracao: x += vx *= .6 (no preso: x = fx, vx = 0)
+    // 5) no recem-solto: puxa para o centroide dos vizinhos por alguns ticks.
+    // O alvo e recalculado todo passo, entao ele acompanha o cluster.
+    if (this.recentro) {
+      const { index } = this.recentro
+      let sx = 0
+      let sy = 0
+      let n = 0
+      for (let e = 0; e < edgePairs.length / 2; e += 1) {
+        const a = edgePairs[e * 2]
+        const b = edgePairs[e * 2 + 1]
+        if (a === index) { sx += xs[b]; sy += ys[b]; n += 1 }
+        else if (b === index) { sx += xs[a]; sy += ys[a]; n += 1 }
+      }
+      if (n >= 2) {
+        const dx = sx / n - xs[index]
+        const dy = sy / n - ys[index]
+        if (dx * dx + dy * dy > 4) {
+          vxs[index] += dx * RECENTRO_FORCA
+          vys[index] += dy * RECENTRO_FORCA
+        }
+      }
+      this.recentro.restante -= 1
+      if (this.recentro.restante <= 0) this.recentro = null
+    }
+
+    // 6) integracao: x += vx *= .6 (no preso: x = fx, vx = 0)
     for (let i = 0; i < count; i += 1) {
       const pin = this.pinned.get(i)
       if (pin) {
@@ -369,12 +401,21 @@ export class Graph2dSimulation {
     if (this.alpha < OBSIDIAN_PHYSICS.alphaTargetDrag) this.alpha = OBSIDIAN_PHYSICS.alphaTargetDrag
   }
 
-  /** `forceNode{x:null,y:null}` + alphaTarget 0. */
+  /** `forceNode{x:null,y:null}` + alphaTarget 0.
+   *
+   * Ao soltar, o no passa a voltar para o meio dos vizinhos. Isso NAO e o
+   * d3-force puro: com todas as molas no comprimento de descanso nao existe
+   * forca nenhuma apontando para o centroide, entao o no ficaria onde foi
+   * largado (medido: 214 unidades fora do centroide das proprias folhas, e
+   * igual antes e depois do arrasto). E um comportamento pedido, aplicado
+   * SO ao no que estava preso — o resto do grafo segue a fisica normal. */
   unpin(path: string): void {
     const index = this.indexByPath.get(path)
     if (index === undefined) return
     this.pinned.delete(index)
     this.alphaTarget = 0
+    // Um vizinho so nao tem "meio": empurraria o no para dentro dele.
+    this.recentro = this.degree[index] >= 2 ? { index, restante: RECENTRO_TICKS } : null
   }
 
   reheat(value = 0.3): void {
