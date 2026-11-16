@@ -1521,3 +1521,30 @@
   background: transparent;
 }
 
+
+/* --- grafo 2D em canvas (modelo Obsidian) ---------------------------- */
+
+.workspace-shell .graph2d-canvas-shell {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.workspace-shell .graph2d-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  /* O canvas trata pan/zoom; sem isto o navegador rola/pinça a pagina. */
+  touch-action: none;
+  outline: none;
+}
+
+.workspace-shell .graph2d-canvas:active {
+  cursor: grabbing;
+}
+
+.workspace-shell .graph2d-canvas:focus-visible {
+  outline: 2px solid var(--mm-sage-500);
+  outline-offset: -2px;
+}

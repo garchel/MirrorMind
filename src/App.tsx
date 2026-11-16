@@ -1,3 +1,7 @@
+/** O grafo 2D roda no canvas (Graph2dCanvas); a simulacao antiga fica
+ * desligada ate ser removida de vez. */
+const GRAPH2D_CANVAS_ATIVO: boolean = true
+
 import { lazy, Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from './components/ui/Button'
 import { Field } from './components/ui/Field'
@@ -2976,6 +2980,12 @@ function App() {
    * Worker, a simulacao roda FORA da thread de interface (layout em worker);
    * senao, cai no loop local em rAF. */
   function startGraph2dAmbientSimulation(forceBigBang = false) {
+    // O grafo 2D agora e um <canvas> com simulacao propria (Graph2dCanvas,
+    // Barnes-Hut + buffers tipados). A simulacao antiga escrevia posicoes em
+    // elementos DOM que nao existem mais; rodar as duas seria trabalho dobrado
+    // e duas fontes de verdade para a mesma posicao. O corpo fica aqui ate a
+    // limpeza final, atras desta flag.
+    if (GRAPH2D_CANVAS_ATIVO) return
     const { visibleGraphDocuments, visiblePaths, edges, simulatedPaths, simulatedEdges } = getGraph2dSimulationState()
     if (graphSurfaceRef.current === null || visibleGraphDocuments.length === 0) return
     // O worker roda FORA da thread: simula o conjunto completo. O fallback da
@@ -5817,6 +5827,9 @@ function App() {
                   rendered: renderedGraphDocuments,
                   orphans: orphanGraphDocuments,
                 }}
+                onGraphLayoutSettled={(positions) =>
+                  setGraphNodeOverrides((previous) => ({ ...previous, ...positions }))
+                }
                 topology={{
                   links: graphLinks,
                   degreeByPath: graphDegreeByPath,

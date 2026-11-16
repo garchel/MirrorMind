@@ -1,16 +1,11 @@
-import { Suspense, lazy, useEffect, useRef, type Dispatch, type PointerEvent, type RefObject, type SetStateAction } from 'react'
+import { Suspense, lazy, type Dispatch, type PointerEvent, type RefObject, type SetStateAction } from 'react'
 import { Button } from '../../components/ui/Button'
 import { ExternalLink, Link2, Network, PanelLeft, X } from 'lucide-react'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../components/ui/drawer'
 import { GraphSkeleton } from '../../components/PageSkeleton'
 import { Graph3DLoader } from '../../components/Graph3DLoader'
 import { GraphToolbar, type GraphMode } from '../../components/GraphToolbar'
-import { Graph2dNode, type Graph2dNodeHandlers } from './Graph2dNode'
-import {
-  GRAPH_2D_BOUNDS,
-  GRAPH_2D_WORLD_SIZE,
-  graph2dLineTransform,
-} from '../../lib/noteGraphLayout'
+import { Graph2dCanvas } from './Graph2dCanvas'
 import { getMarkdownPreviewText } from '../../lib/markdown'
 import { buildGroupMaps } from '../../lib/graphGrouping'
 import type { TagIndex } from '../../lib/tagIndex'
@@ -169,6 +164,8 @@ export type GraphPageProps = {
   selection: GraphSelection
   refs: GraphRefs
   actions: GraphActions
+  /** Layout assentado: o App persiste por vault. */
+  onGraphLayoutSettled?: (positions: Record<string, { x: number; y: number }>) => void
 }
 
 export function GraphPage({
@@ -180,6 +177,7 @@ export function GraphPage({
   selection,
   refs,
   actions,
+  onGraphLayoutSettled,
 }: GraphPageProps) {
   const {
     totalNoteCount,
@@ -192,7 +190,6 @@ export function GraphPage({
     links: graphLinks,
     degreeByPath: graphDegreeByPath,
     positions: graphNodePositions,
-    renderedPaths: graphRenderedPaths,
     dimmedPaths: graphDimmedPaths,
     hoverNeighbors: graphHoverNeighbors,
   } = topology
@@ -244,7 +241,6 @@ export function GraphPage({
     layoutVersion: graph3dLayoutVersion,
     mode3d: graphMode3d,
     setMode3d: setGraphMode3d,
-    viewport: graphViewport,
     setViewport: setGraphViewport,
   } = view
   const {
@@ -264,13 +260,6 @@ export function GraphPage({
   } = selection
   const {
     surfaceRef: graphSurfaceRef,
-    panRef: graphPanRef,
-    nodeDragRef: graphNodeDragRef,
-    skipNodeClickRef: graphSkipNodeClickRef,
-    physicsRef: graphPhysicsRef,
-    physicsFrameRef: graphPhysicsFrameRef,
-    nodeElementsRef: graph2dNodeElementsRef,
-    linkElementsRef: graph2dLinkElementsRef,
     uiHideTimerRef: graphUiHideTimerRef,
     tagIndexRef: graphTagIndexRef,
   } = refs
@@ -282,9 +271,6 @@ export function GraphPage({
     reset3d: resetGraph3dSettings,
     handleExport: handleGraphExport,
     handle3dExport: handleGraph3dExport,
-    startNodeDrag: startGraph2dNodeDrag,
-    finishNodeDrag: finishGraph2dNodeDrag,
-    kickPhysics: kickGraph2dPhysics,
     revealInExplorer: revealNoteInExplorer,
     copyWikiLink: copyGraphWikiLink,
     openNote: onOpenNote,
@@ -319,82 +305,18 @@ export function GraphPage({
   } = graph
 
 
-  // Handlers do no num ref estavel: o componente e memoizado, e closures novas
-  // a cada render quebrariam a memoizacao (volta o custo de 20ms por hover).
-  const graphNodeHandlersRef = useRef<Graph2dNodeHandlers>({
-    hover: () => undefined,
-    open: () => undefined,
-    dragStart: () => undefined,
-    dragMove: () => undefined,
-    dragEnd: () => undefined,
-    dragCancel: () => undefined,
-    focus: () => undefined,
-    register: () => undefined,
-  })
-  graphNodeHandlersRef.current = {
-    hover: (relativePath) => setGraphHoverPath(relativePath),
-    open: (relativePath) => {
-      if (graphSkipNodeClickRef.current) {
-        graphSkipNodeClickRef.current = false
-        return
-      }
-      onOpenNote(relativePath)
-    },
-    dragStart: (relativePath, event) => startGraph2dNodeDrag(relativePath, event),
-    dragMove: (relativePath, event) => {
-      if (graphNodeDragRef.current !== relativePath) return
-      graphSkipNodeClickRef.current = true
-      const physics = graphPhysicsRef.current
-      if (!physics?.drag) return
-      const bounds = physics.drag.bounds
-      if (bounds && bounds.width > 0 && bounds.height > 0) {
-        physics.drag.draggedTarget = {
-          x: Math.max(GRAPH_2D_BOUNDS.minX, Math.min(GRAPH_2D_BOUNDS.maxX, ((event.clientX - bounds.left - graphViewport.x) / (bounds.width * graphViewport.scale)) * GRAPH_2D_WORLD_SIZE)),
-          y: Math.max(GRAPH_2D_BOUNDS.minY, Math.min(GRAPH_2D_BOUNDS.maxY, ((event.clientY - bounds.top - graphViewport.y) / (bounds.height * graphViewport.scale)) * GRAPH_2D_WORLD_SIZE)),
-        }
-      }
-      if (graphPhysicsFrameRef.current === null) kickGraph2dPhysics()
-      if (Math.hypot(event.clientX - physics.drag.startX, event.clientY - physics.drag.startY) > 3) physics.drag.moved = true
-    },
-    dragEnd: (event) => finishGraph2dNodeDrag(event),
-    dragCancel: () => {
-      graphNodeDragRef.current = null
-      const physics = graphPhysicsRef.current
-      if (physics) {
-        physics.drag = null
-        physics.coast = null
-      }
-      if (graphPhysicsFrameRef.current !== null) {
-        cancelAnimationFrame(graphPhysicsFrameRef.current)
-        graphPhysicsFrameRef.current = null
-      }
-    },
-    focus: (relativePath) => setFocusedGraphPath(relativePath),
-    register: (relativePath, element) => {
-      if (element) graph2dNodeElementsRef.current.set(relativePath, element)
-      else graph2dNodeElementsRef.current.delete(relativePath)
-    },
+  // O canvas consome a simulacao nova (Barnes-Hut): os sliders da toolbar
+  // continuam mandando, numa escala equivalente a do d3-force.
+  const graphCanvasSettings = {
+    linkStiffness: graph2dLinkStiffness / 4,
+    linkRest: graph2dLinkDistance,
+    repulsionStrength: graph2dRepulsionStrength / 6.67,
+    velocityDecay: graph2dVelocityDecay,
+    centerStrength: (graph2dCenterForce / 100) * 0.02,
+    repulsionCutoff: 55,
+    centerRadius: 60,
   }
-
-  // Hover e esmaecimento aplicados direto no DOM: com eles no JSX, cada troca
-  // de no reconciliava a arvore inteira (medido: 20ms em 300 nos, 37ms em 600).
-  useEffect(() => {
-    const neighbors = graphHoverNeighbors
-    for (const [relativePath, element] of graph2dNodeElementsRef.current) {
-      const hovered = graphHoverPath === relativePath
-      element.classList.toggle('is-hovered', hovered)
-      const dimmed = (neighbors !== null && !neighbors.has(relativePath))
-        || (graphFilterMatchPaths !== null && !graphFilterMatchPaths.has(relativePath))
-      element.classList.toggle('is-dimmed', dimmed)
-      const degree = graphDegreeByPath[relativePath] ?? 0
-      const hideByZoom = graphHideAllNames || (graphViewport.scale < 0.65 && degree < 2)
-      const matched = graphFilterMatchPaths !== null && graphFilterMatchPaths.has(relativePath)
-      // O rotulo e o ultimo filho do no: evita um querySelector por elemento a
-      // cada troca de hover (medido: 7,3ms -> 6,6ms em 300 nos).
-      ;(element.lastElementChild as HTMLElement | null)
-        ?.classList.toggle('is-hidden', !(hovered || matched || !hideByZoom))
-    }
-  }, [graphHoverPath, graphHoverNeighbors, graphHideAllNames, graphViewport.scale, graphFilterMatchPaths, graphDegreeByPath, graph2dNodeElementsRef])
+  const graphCanvasNeighbors = graphHoverNeighbors ?? graphFilterMatchPaths
 
   return (
     <section
@@ -520,80 +442,35 @@ export function GraphPage({
           ) : (
           <div
             ref={graphSurfaceRef}
-            className="note-graph"
+            className="note-graph note-graph-canvas"
             role="region"
             aria-label="Grafo interativo das notas"
-            onWheel={(event) => { event.preventDefault(); setGraphViewport((view) => ({ ...view, scale: Math.max(0.55, Math.min(2.4, view.scale + (event.deltaY < 0 ? 0.1 : -0.1))) })) }}
-            onPointerDown={(event) => { if (event.target instanceof Element && event.target.closest('.note-graph-node')) return; event.currentTarget.setPointerCapture?.(event.pointerId); graphPanRef.current = { x: event.clientX, y: event.clientY, viewport: graphViewport } }}
-            onPointerMove={(event) => {
-              const pan = graphPanRef.current
-              if (pan) {
-                setGraphViewport({ ...pan.viewport, x: pan.viewport.x + event.clientX - pan.x, y: pan.viewport.y + event.clientY - pan.y })
-              } else if (!(event.target instanceof Element && event.target.closest('.note-graph-node'))) {
-                // Sem arrastar e sem estar sobre um no: limpa o hover
-                // (mantem o valor para nao re-renderizar a cada move).
-                setGraphHoverPath((current) => (current === null ? current : null))
-              }
-            }}
-            onPointerUp={(event) => { graphPanRef.current = null; event.currentTarget.releasePointerCapture?.(event.pointerId) }}
-            onPointerCancel={() => { graphPanRef.current = null }}
-            onPointerLeave={() => setGraphHoverPath(null)}
           >
-            <div className="note-graph-world" style={{ transform: `translate(${graphViewport.x}px, ${graphViewport.y}px) scale(${graphViewport.scale})` }}>
-              <svg className="note-graph-links" viewBox={`0 0 ${GRAPH_2D_WORLD_SIZE} ${GRAPH_2D_WORLD_SIZE}`} preserveAspectRatio="none" aria-hidden="true">
-                {graphLinks.map((link) => {
-                  if (!graphRenderedPaths.has(link.source) || !graphRenderedPaths.has(link.target)) return null
-                  const source = graphNodePositions[link.source]
-                  const target = graphNodePositions[link.target]
-                  const isFocused = focusedGraphPath === link.source || focusedGraphPath === link.target
-                  const isHovered = graphHoverPath !== null && (link.source === graphHoverPath || link.target === graphHoverPath)
-                  const isLinkMatched = graphFilterMatchPaths !== null && graphFilterMatchPaths.has(link.source) && graphFilterMatchPaths.has(link.target)
-                  const isLinkFaded = graphFilterMatchPaths !== null && !graphFilterMatchPaths.has(link.source) && !graphFilterMatchPaths.has(link.target)
-                  const linkClassName = `${isFocused ? 'is-focused' : ''}${isHovered ? ' is-hovered' : ''}${isLinkMatched ? ' is-matched' : ''}${isLinkFaded ? ' is-faded' : ''}`.trim() || undefined
-                  // A linha usa geometria base fixa [0,0]-[100,0] e o
-                  // transform (rotacao + escala) liga os nos; o loop
-                  // da fisica so reescreve o transform a cada frame
-                  // (composicao por GPU, sem invalidar layout SVG).
-                  return <line className={linkClassName} key={`${link.source}-${link.target}`} x1="0" y1="0" x2="100" y2="0" transform={graph2dLineTransform(source, target)} ref={(element) => {
-                    const linkKey = `${link.source}\u0000${link.target}`
-                    if (element) graph2dLinkElementsRef.current.set(linkKey, element)
-                    else graph2dLinkElementsRef.current.delete(linkKey)
-                  }} />
-                })}
-              </svg>
-            {renderedGraphDocuments.map((document) => {
-              const position = graphNodePositions[document.relativePath]
-              const degree = graphDegreeByPath[document.relativePath] ?? 0
-              const isCurrent = document.relativePath === activeNotePath
-              const hideNameByZoom = graphHideAllNames || (graphViewport.scale < 0.65 && degree < 2)
-              const isFilterMatch = graphFilterMatchPaths !== null && graphFilterMatchPaths.has(document.relativePath)
-              const isFilteredOut = graphFilterMatchPaths !== null && !isFilterMatch
-              const folderColor = graphGroupingKind && graphGroupMaps
-                ? graphGroupMaps.groupColorByPath[graphGroupMaps.groupByPath[document.relativePath] ?? ''] ?? null
-                : null
-              // Hover/dim nao entram aqui: sao aplicados por efeito imperativo
-              // (ver o `useEffect` abaixo). Deixa-los no JSX custava 20ms por
-              // troca de no em 300 nos — o `memo` nunca casaria.
-              return (
-                <Graph2dNode
-                  key={document.relativePath}
-                  relativePath={document.relativePath}
-                  label={document.name.replace(/\.md$/i, '')}
-                  degree={degree}
-                  isCurrent={isCurrent}
-                  isFocused={focusedGraphPath === document.relativePath}
-                  isFilterMatch={isFilterMatch}
-                  isFilteredOut={isFilteredOut}
-                  leftPercent={(position.x / GRAPH_2D_WORLD_SIZE) * 100}
-                  topPercent={(position.y / GRAPH_2D_WORLD_SIZE) * 100}
-                  dotScale={1 + Math.min(degree, 8) * 0.13}
-                  folderColor={folderColor}
-                  labelHidden={hideNameByZoom}
-                  handlersRef={graphNodeHandlersRef}
-                />
-              )
-            })}
-            </div>
+            <Graph2dCanvas
+              nodes={renderedGraphDocuments.map((document) => ({
+                path: document.relativePath,
+                label: document.name.replace(/\.md$/i, ''),
+                degree: graphDegreeByPath[document.relativePath] ?? 0,
+                color:
+                  graphGroupingKind && graphGroupMaps
+                    ? (graphGroupMaps.groupColorByPath[graphGroupMaps.groupByPath[document.relativePath] ?? ''] ?? null)
+                    : null,
+                isCurrent: document.relativePath === activeNotePath,
+              }))}
+              links={graphLinks}
+              settings={graphCanvasSettings}
+              hoveredPath={graphHoverPath}
+              neighbors={graphCanvasNeighbors}
+              reorganizeKey={0}
+              initialPositions={graphNodePositions}
+              onSettled={onGraphLayoutSettled}
+              onHover={setGraphHoverPath}
+              onFocus={(path) => {
+                setFocusedGraphPath(path)
+                setGraphDetailOpen(true)
+              }}
+              onOpen={onOpenNote}
+            />
           </div>
           )}
           {graphGroupingKind && graphGroupMaps && graphGroupMaps.groups.length > 0 ? (

@@ -29,6 +29,11 @@ export type Graph2dSettings = {
   velocityDecay: number
   /** Atracao para o centro do mundo (0-1). */
   centerStrength: number
+  /** Pares mais distantes que isso nao se repelem: repulsao LOCAL, para os
+   * grupos nao se empurrarem entre si (o ajuste calibrado no app). */
+  repulsionCutoff?: number
+  /** Raio do anel onde a forca central comeca a puxar. */
+  centerRadius?: number
 }
 
 export type Graph2dLink = { source: string; target: string }
@@ -195,6 +200,9 @@ export class Graph2dSimulation {
           continue
         }
         const size = quad.size[cell]
+        const cutoff = settings.repulsionCutoff ?? 55
+        // Poda: a celula inteira esta fora do alcance da repulsao.
+        if (Math.sqrt(d2) - size > cutoff) continue
         if ((size * size) / d2 < THETA2) {
           const d = Math.sqrt(d2)
           const force = (repulsao * mass) / d2
@@ -237,9 +245,17 @@ export class Graph2dSimulation {
     // 3) Centro.
     const meio = (GRAPH2D_WORLD.min + GRAPH2D_WORLD.max) / 2
     const center = settings.centerStrength * alpha
+    const anel = settings.centerRadius ?? 60
     for (let i = 0; i < count; i += 1) {
-      vxs[i] += (meio - xs[i]) * center
-      vys[i] += (meio - ys[i]) * center
+      const dx = meio - xs[i]
+      const dy = meio - ys[i]
+      const d = Math.sqrt(dx * dx + dy * dy)
+      // Dentro do anel nada puxa: os vizinhos do hub se organizam em circulo
+      // em vez de colapsarem no centro.
+      if (d <= anel) continue
+      const forca = ((d - anel) / d) * center
+      vxs[i] += dx * forca
+      vys[i] += dy * forca
     }
     // 4) Integracao no esquema do d3-force: a velocidade E o deslocamento por
     // passo (nao ha multiplicacao por delta). As constantes de forca ficam na

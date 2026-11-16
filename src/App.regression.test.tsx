@@ -1331,15 +1331,15 @@ describe('Regressao do editor no workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Filtrar pasta do grafo' }))
     await user.click(screen.getByRole('option', { name: 'pasta' }))
 
-    // Quem casa continua normal, quem não casa esmaece — ninguém sai do grafo.
-    expect(screen.getByRole('button', { name: 'Abrir nota a no grafo' }).className).not.toContain('is-dimmed')
-    expect(screen.getByRole('button', { name: 'Abrir nota a no grafo' }).className).toContain('is-match')
-    expect(screen.getByRole('button', { name: 'Abrir nota b no grafo' }).className).toContain('is-dimmed')
-    expect(screen.getByRole('button', { name: 'Abrir nota b no grafo' }).className).toContain('is-filtered-out')
+    // O esmaecimento agora e feito no desenho do canvas (o filtro chega por
+    // prop e vira `neighbors`), entao o que se verifica aqui e o contrato que
+    // continua observavel no DOM: filtro destaca SEM tirar ninguem do grafo.
+    expect(screen.getByRole('button', { name: 'Abrir nota a no grafo' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Abrir nota b no grafo' })).toBeInTheDocument()
     expect(screen.getByText('1 nota')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Limpar filtro do grafo' }))
-    expect(screen.getByRole('button', { name: 'Abrir nota b no grafo' }).className).not.toContain('is-dimmed')
+    expect(screen.getByRole('button', { name: 'Abrir nota b no grafo' })).toBeInTheDocument()
   })
 
   it('[grafo] cria uma conexao pelo painel do no, anexando o wikilink e salvando', async () => {
@@ -1630,10 +1630,11 @@ describe('Regressao do editor no workspace', () => {
       await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
       expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
 
-      // Os nos renderizam exatamente nas posicoes salvas para este Vault
-      // (posicoes em unidades do mundo 0-200, renderizadas em % da superficie).
-      expect(screen.getByRole('button', { name: 'Abrir nota inicial no grafo' })).toHaveStyle({ left: '12%', top: '34%' })
-      expect(screen.getByRole('button', { name: 'Abrir nota alvo no grafo' })).toHaveStyle({ left: '66%', top: '78%' })
+      // No canvas as posicoes nao viram `left/top` de elementos: a restauracao
+      // e a persistencia sao cobertas em `Graph2dCanvas.test.tsx` (que roda a
+      // simulacao de verdade). Aqui fica o contrato de armazenamento: o layout
+      // de OUTRO vault nao vaza para este.
+      expect(screen.getByRole('button', { name: 'Abrir nota inicial no grafo' })).toBeInTheDocument()
 
       // O layout e re-gravado sob a chave do Vault atual e o de outro Vault
       // permanece intocado (chave por Vault).
@@ -1648,209 +1649,12 @@ describe('Regressao do editor no workspace', () => {
     }
   })
 
-  // O ambiente do grafo 2D roda num Web Worker; o jsdom nao tem Worker, entao
-  // instalamos um fake para exercitar o caminho do worker (onde acontecia o
-  // bug: ao assentar, o transform px residual somava ao left % que o React
-  // escreve a cada render e os nos se desprendiam das arestas, espalhados).
-  // Verifica que, apos o ambient-settled, os nos ficam SO em left/top %.
-  it('[grafo] após a simulacao ambiente do worker assentar, os nos não ficam com transform px residual', async () => {
-    const user = userEvent.setup()
-    createTauriHarness()
-
-    type WorkerMessage = { type: string; requestId: number; positions?: Record<string, { x: number; y: number }> }
-    type FakeWorkerInstance = {
-      onmessage: ((event: MessageEvent<WorkerMessage>) => void) | null
-      postMessage: ReturnType<typeof vi.fn>
-    }
-    const workers: FakeWorkerInstance[] = []
-    class FakeWorker {
-      onmessage: FakeWorkerInstance['onmessage'] = null
-      onerror: (() => void) | null = null
-      postMessage = vi.fn()
-      terminate = vi.fn()
-      constructor() {
-        workers.push(this as unknown as FakeWorkerInstance)
-      }
-    }
-    vi.stubGlobal('Worker', FakeWorker)
-    // O worker posiciona por transform px somente com o tamanho da superficie
-    // conhecido; o jsdom devolve clientWidth/Height = 0, entao mockamos.
-    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')
-    const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')
-    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 800 })
-    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 600 })
-    try {
-      await openTestVault(user)
-      await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
-      await screen.findByRole('heading', { name: 'Grafo das notas' })
-
-      // O worker recebe o ambient-start (big bang ao abrir o grafo).
-      await waitFor(() => expect(workers).toHaveLength(1))
-      const ambientStart = workers[0].postMessage.mock.calls
-        .map((call) => call[0] as WorkerMessage)
-        .find((message) => message.type === 'ambient-start')
-      expect(ambientStart).toBeDefined()
-      const { requestId } = ambientStart!
-
-      const inicialNode = screen.getByRole('button', { name: 'Abrir nota inicial no grafo' })
-      const alvoNode = screen.getByRole('button', { name: 'Abrir nota alvo no grafo' })
-
-      // Um passo do worker: posiciona por left 0 + transform px (caminho com
-      // tamanho de superficie conhecido). Posicoes em unidades do mundo 0-200:
-      // 20/200 da superficie 800px = 80px.
-      const stepPositions = { 'inicial.md': { x: 40, y: 60 }, 'alvo.md': { x: 140, y: 160 } }
-      workers[0].onmessage?.({ data: { type: 'ambient-step', requestId, positions: stepPositions } } as unknown as MessageEvent<WorkerMessage>)
-      expect(inicialNode.style.left).toBe('0px')
-      expect(inicialNode.style.transform).toContain('translate(160px, 180px)')
-
-      // Assentou: persiste o layout e zera o requestId — o React passa a
-      // posicionar por left/top % e o transform px residual precisa sumir
-      // (era ele que desprendia os nos das arestas).
-      workers[0].onmessage?.({ data: { type: 'ambient-settled', requestId, positions: stepPositions } } as unknown as MessageEvent<WorkerMessage>)
-      await waitFor(() => {
-        expect(inicialNode).toHaveStyle({ left: '20%', top: '30%' })
-      })
-      expect(inicialNode.style.transform).toBe('')
-      expect(alvoNode).toHaveStyle({ left: '70%', top: '80%' })
-      expect(alvoNode.style.transform).toBe('')
-    } finally {
-      vi.unstubAllGlobals()
-      if (originalClientWidth) {
-        Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth)
-      } else {
-        delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientWidth
-      }
-      if (originalClientHeight) {
-        Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight)
-      } else {
-        delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight
-      }
-    }
-  })
-
-  // Arrastar um no que NAO e o mais conectado nao pode teleportar o hub (no
-  // com mais conexoes) para o ponto da soltura: o no arrastado permanece onde
-  // foi solto e os vizinhos assentam ao redor dele.
-  it('[grafo] arrastar um no não-hub não teleporta o hub para o ponto da soltura', async () => {
-    const user = userEvent.setup()
-    createTauriHarness([
-      { name: 'hub.md', relativePath: 'hub.md', content: '# Hub\n\nVeja [[inicial]] e [[leaf]].' },
-      { name: 'leaf.md', relativePath: 'leaf.md', content: '# Leaf\n\nVeja [[hub]].' },
-    ])
-    // Layout inicial deterministico: hub com mais conexoes (liga inicial e
-    // leaf), leaf liga apenas ao hub. O viewport salvo (escala 1, sem pan)
-    // evita o auto-fit ao abrir, mantendo a conversao cursor->mundo exata.
-    localStorage.setItem('mirrormind.graph.C:\\Vault de testes', JSON.stringify({
-      positions: { 'hub.md': { x: 100, y: 100 }, 'leaf.md': { x: 150, y: 100 } },
-      viewport: { scale: 1, x: 0, y: 0 },
-    }))
-    // Controle dos frames da fisica: o rAF nao roda sozinho (o jsdom nao
-    // avanca frames); o teste bombeia frames manualmente e controla o relogio
-    // (performance.now) para a simulacao ambiente e o assentamento assentarem.
-    const rafCallbacks: FrameRequestCallback[] = []
-    let nowMs = 0
-    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
-      rafCallbacks.push(callback)
-      return rafCallbacks.length
-    })
-    const cancelRaf = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined)
-    const performanceNow = vi.spyOn(performance, 'now').mockImplementation(() => nowMs)
-    // Captura o timeout de 120ms que iniciaria a simulacao ambiente (big bang)
-    // ao abrir o grafo e o cancela antes do arrasto: o teste controla a
-    // fisica apenas pelo rAF bombeado manualmente, entao o ambiente nao
-    // interfere nas posicoes do hub.
-    const originalSetTimeout = window.setTimeout.bind(window)
-    const pendingTimeouts: number[] = []
-    const setTimeoutSpy = vi.spyOn(window, 'setTimeout').mockImplementation(((handler: TimerHandler, timeout?: number) => {
-      // Mantem o comportamento normal (waitFor/userEvent dependem de
-      // setTimeout), mas expoe o id para o teste cancelar o timeout do
-      // ambiente (big bang) antes do arrasto.
-      const id = originalSetTimeout(handler, timeout)
-      pendingTimeouts.push(id as unknown as number)
-      return id as unknown as number
-    }) as unknown as typeof window.setTimeout)
-    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')
-    const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')
-    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 800 })
-    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 600 })
-    const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect
-    Element.prototype.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON: () => ({}) } as DOMRect)
-    const pumpFrames = (count: number) => {
-      for (let frame = 0; frame < count; frame += 1) {
-        const callback = rafCallbacks.shift()
-        if (!callback) break
-        nowMs += 16
-        callback(nowMs)
-      }
-    }
-    // Durante a simulacao ativa (coast), as posicoes sao escritas no DOM por
-    // transform translate(px); ao assentar, o React re-renderiza com
-    // left/top %. Le a posicao atual de um no em ambos os formatos.
-    const nodeWorldPx = (element: HTMLElement) => {
-      const transform = element.style.transform
-      if (transform && transform !== 'none') {
-        const match = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(transform)
-        if (match) return { x: Number(match[1]), y: Number(match[2]) }
-      }
-      return { x: (parseFloat(element.style.left) / 100) * 800, y: (parseFloat(element.style.top) / 100) * 600 }
-    }
-    try {
-      await openTestVault(user)
-      await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
-      expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
-
-      // A simulacao ambiente (big bang) fica CONGELADA (setTimeout cancelado
-      // e nenhum frame bombeado antes do arrasto): os nos permanecem nas
-      // posicoes salvas acima, tornando o baseline deterministico.
-      const hubNode = await screen.findByRole('button', { name: 'Abrir nota hub no grafo' })
-      const leafNode = screen.getByRole('button', { name: 'Abrir nota leaf no grafo' })
-      const hubBaseline = nodeWorldPx(hubNode)
-      const leafBaseline = nodeWorldPx(leafNode)
-      for (const id of pendingTimeouts) window.clearTimeout(id)
-      pendingTimeouts.length = 0
-      rafCallbacks.length = 0
-
-      // Arrasta o no leaf (nao-hub) para outro ponto da superficie e solta.
-      fireEvent.pointerDown(leafNode, { pointerId: 1, clientX: 150, clientY: 100 })
-      fireEvent.pointerMove(leafNode, { pointerId: 1, clientX: 150, clientY: 200 })
-      pumpFrames(5)
-      fireEvent.pointerUp(leafNode, { pointerId: 1, clientX: 150, clientY: 200 })
-      // Assentamento pos-soltura: bombeia frames ate o loop parar (o layout
-      // final e persistido em graphNodeOverrides e o React re-renderiza).
-      pumpFrames(1000)
-
-      await waitFor(() => {
-        const hubAfter = nodeWorldPx(hubNode)
-        const leafAfter = nodeWorldPx(leafNode)
-        // O arrasto efetivamente moveu o no leaf para outro ponto.
-        expect(Math.hypot(leafAfter.x - leafBaseline.x, leafAfter.y - leafBaseline.y)).toBeGreaterThan(50)
-        // O hub NAO e reposicionado para o ponto da soltura: fica longe do no
-        // arrastado (era o teleporte do bug, que os sobrepunha exatamente).
-        expect(Math.hypot(hubAfter.x - leafAfter.x, hubAfter.y - leafAfter.y)).toBeGreaterThan(30)
-        // E o hub nao abandonou a regiao onde estava: mudanca bem menor que o
-        // movimento do no arrastado (sem teleporte para o drop).
-        expect(Math.hypot(hubAfter.x - hubBaseline.x, hubAfter.y - hubBaseline.y)).toBeLessThan(
-          Math.hypot(leafAfter.x - leafBaseline.x, leafAfter.y - leafBaseline.y),
-        )
-      })
-    } finally {
-      raf.mockRestore()
-      cancelRaf.mockRestore()
-      performanceNow.mockRestore()
-      setTimeoutSpy.mockRestore()
-      if (originalClientWidth) {
-        Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth)
-      } else {
-        delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientWidth
-      }
-      if (originalClientHeight) {
-        Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight)
-      } else {
-        delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight
-      }
-      Element.prototype.getBoundingClientRect = originalGetBoundingClientRect
-    }
-  })
+  // A fisica do grafo 2D mudou de casa: o canvas (Graph2dCanvas) roda uma
+  // simulacao propria, coberta em `src/lib/graph2dSimulation.test.ts` — o que
+  // estes dois testes checavam no DOM (transform px residual, hub teleportado
+  // na soltura) nao existe mais como contrato observavel. O nucleo novo cobre
+  // o que importa: colisao sem sobreposicao, pin/unpin, assentamento sem NaN e
+  // restauracao/persistencia do layout em `Graph2dCanvas.test.tsx`.
 
   it('[grafo] renderiza todas as notas de um vault grande com a contagem correta', async () => {
     const user = userEvent.setup()
