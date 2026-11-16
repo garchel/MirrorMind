@@ -95,6 +95,32 @@ describe('Graph2dSimulation', () => {
     expect(sim.positionOf('a')).not.toEqual({ x: 30, y: 40 })
   })
 
+  it('arrastar puxa a vizinhanca com decaimento por salto (modelo do 3D)', () => {
+    // cadeia hub - a - b - c: 1, 2 e 3 saltos. `livre` nao se conecta.
+    const paths = ['hub', 'a', 'b', 'c', 'livre']
+    const positions = new Map<string, { x: number; y: number }>([
+      ['hub', { x: 100, y: 100 }], ['a', { x: 82, y: 100 }], ['b', { x: 64, y: 100 }],
+      ['c', { x: 46, y: 100 }], ['livre', { x: 140, y: 160 }],
+    ])
+    const links = [
+      { source: 'hub', target: 'a' }, { source: 'a', target: 'b' }, { source: 'b', target: 'c' },
+    ]
+    const sim = criar(paths.map((p) => [p, positions.get(p)!.x, positions.get(p)!.y]), links.map((l) => [l.source, l.target]))
+    rodar(sim, 200)
+    const antes = new Map(paths.map((p) => [p, sim.positionOf(p)!]))
+    sim.beginDrag('hub')
+    for (let passo = 1; passo <= 30; passo += 1) {
+      sim.pin('hub', 100 + (40 * passo) / 30, 100)
+      sim.step()
+    }
+    const desloc = (p: string) => sim.positionOf(p)!.x - antes.get(p)!.x
+    // O no solto nao se move; os conectados acompanham com fator 0,6 por salto.
+    expect(Math.abs(desloc('livre'))).toBeLessThan(1)
+    expect(desloc('a')).toBeGreaterThan(20)
+    expect(desloc('a')).toBeGreaterThan(desloc('b'))
+    expect(desloc('b')).toBeGreaterThan(desloc('c'))
+  })
+
   it('300 nos rodam sem estourar (Barnes-Hut, nao n^2)', () => {
     const nos = Array.from({ length: 300 }, (_, i) => [`n${i}`, 40 + Math.random() * 120, 40 + Math.random() * 120] as [string, number, number])
     const links = nos.slice(1).map((_, i) => [nos[i][0], nos[i + 1][0]] as [string, string])

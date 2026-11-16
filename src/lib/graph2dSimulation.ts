@@ -54,6 +54,16 @@ export const GRAPH2D_ALPHA_DECAY = 0.0228
 /** Abaixo disso o layout e considerado assentado e o loop dorme. */
 export const GRAPH2D_ALPHA_SLEEP = 0.02
 
+/** Vizinhanca puxada junto ao arrastar — os MESMOS numeros do grafo 3D
+ * (`DRAG_PULL_HOPS` / `DRAG_PULL_FACTOR` em NoteGraph3D.tsx): o no arrastado
+ * leva ate 3 saltos de vizinhos, cada salto valendo 60% do anterior. */
+export const GRAPH2D_DRAG_PULL_HOPS = 3
+export const GRAPH2D_DRAG_PULL_FACTOR = 0.6
+/** Rigidez do puxao por passo. Nao escala por alpha de proposito: com o
+ * layout assentado o alpha e ~0,02 e qualquer forca multiplicada por ele nao
+ * move nada — foi por isso que o arrasto nao levava os vizinhos. */
+export const GRAPH2D_DRAG_PULL_STIFFNESS = 0.35
+
 /** theta^2 do Barnes-Hut (0.9^2): erro desprezivel com ganho grande. */
 const THETA2 = 0.81
 /** Profundidade maxima da quadtree (corpos coincidentes nao descem infinito). */
@@ -125,6 +135,17 @@ export class Graph2dSimulation {
   readonly pinned = new Map<number, { x: number; y: number }>()
   /** No sendo arrastado: as arestas dele usam `dragSpringBoost`. */
   dragAnchor: number | null = null
+  /** Vizinhanca puxada no arrasto (BFS com fator por salto, como no 3D). */
+  private dragPull: {
+    anchor: number
+    factors: Map<number, number>
+    restX: Float32Array
+    restY: Float32Array
+    anchorRestX: number
+    anchorRestY: number
+  } | null = null
+  /** Adjacencia para o BFS do arrasto, montada uma vez. */
+  private readonly adjacency: number[][]
   readonly count: number
   alpha: number
   settings: Graph2dSettings
@@ -167,6 +188,13 @@ export class Graph2dSimulation {
     }
     this.edgePairs = Int32Array.from(pares)
     this.edgeRest = Float32Array.from(rests)
+    this.adjacency = Array.from({ length: this.count }, () => [] as number[])
+    for (let e = 0; e < rests.length; e += 1) {
+      const a = pares[e * 2]
+      const b = pares[e * 2 + 1]
+      this.adjacency[a].push(b)
+      this.adjacency[b].push(a)
+    }
     this.quad = createQuad(Math.max(32, this.count * 2))
     this.alpha = 1
   }
@@ -268,6 +296,23 @@ export class Graph2dSimulation {
       vxs[i] += dx * forca
       vys[i] += dy * forca
     }
+    // 3b) Puxao do arrasto: a vizinhanca acompanha o no segurado, com forca
+    // que NAO depende de alpha (o layout costuma estar assentado, alpha ~0,02,
+    // e qualquer forca escalada por ele nao move nada — era o bug do arrasto
+    // nao levar os conectados).
+    const puxao = this.dragPull
+    if (puxao) {
+      const dxAncora = xs[puxao.anchor] - puxao.anchorRestX
+      const dyAncora = ys[puxao.anchor] - puxao.anchorRestY
+      for (const [indice, fator] of puxao.factors) {
+        if (indice === puxao.anchor || this.pinned.has(indice)) continue
+        const alvoX = puxao.restX[indice] + dxAncora
+        const alvoY = puxao.restY[indice] + dyAncora
+        const k = GRAPH2D_DRAG_PULL_STIFFNESS * fator
+        vxs[indice] += (alvoX - xs[indice]) * k
+        vys[indice] += (alvoY - ys[indice]) * k
+      }
+    }
     // 4) Integracao no esquema do d3-force: a velocidade E o deslocamento por
     // passo (nao ha multiplicacao por delta). As constantes de forca ficam na
     // mesma ordem do d3 e `delta` sai da conta.
@@ -319,6 +364,43 @@ export class Graph2dSimulation {
   unpin(path: string): void {
     const index = this.indexByPath.get(path)
     if (index !== undefined) this.pinned.delete(index)
+  }
+
+  /** Comeca o arrasto: guarda a posicao de repouso de todos e o BFS da
+   * vizinhanca (ate 3 saltos, fator 0.6 por salto) — o mesmo modelo do 3D. */
+  beginDrag(path: string): void {
+    const anchor = this.indexByPath.get(path)
+    if (anchor === undefined) return
+    const factors = new Map<number, number>()
+    factors.set(anchor, 1)
+    const visitados = new Set<number>([anchor])
+    let fronteira = [anchor]
+    for (let hop = 0; hop < GRAPH2D_DRAG_PULL_HOPS && fronteira.length > 0; hop += 1) {
+      const proxima: number[] = []
+      for (const no of fronteira) {
+        for (const vizinho of this.adjacency[no]) {
+          if (visitados.has(vizinho)) continue
+          visitados.add(vizinho)
+          factors.set(vizinho, Math.pow(GRAPH2D_DRAG_PULL_FACTOR, hop + 1))
+          proxima.push(vizinho)
+        }
+      }
+      fronteira = proxima
+    }
+    this.dragAnchor = anchor
+    this.dragPull = {
+      anchor,
+      factors,
+      restX: this.xs.slice(),
+      restY: this.ys.slice(),
+      anchorRestX: this.xs[anchor],
+      anchorRestY: this.ys[anchor],
+    }
+  }
+
+  endDrag(): void {
+    this.dragPull = null
+    this.dragAnchor = null
   }
 
   /** Acorda a simulacao num gesto (arrasto, reorganizar). */
