@@ -1,151 +1,166 @@
 import { describe, expect, it } from 'vitest'
 import {
-  GRAPH2D_ALPHA_SLEEP,
-  GRAPH2D_NODE_RADIUS,
   Graph2dSimulation,
-  type Graph2dSettings,
+  GRAPH2D_DEFAULT_SETTINGS,
+  OBSIDIAN_PHYSICS,
+  type Graph2dLink,
 } from './graph2dSimulation'
 
-const BASE: Graph2dSettings = {
-  linkStiffness: 1,
-  linkRest: 12,
-  repulsionStrength: 300,
-  velocityDecay: 0.4,
-  centerStrength: 0.02,
-}
-
-function criar(
-  entries: Array<[string, number, number]>,
-  links: Array<[string, string]>,
-  settings: Partial<Graph2dSettings> = {},
-): Graph2dSimulation {
-  const positions = new Map(entries.map(([path, x, y]) => [path, { x, y }]))
+function criar(nos: Array<[string, number, number]>, links: Array<[string, string]>) {
   return new Graph2dSimulation({
-    paths: entries.map(([path]) => path),
-    links: links.map(([source, target]) => ({ source, target })),
-    positions,
-    settings: { ...BASE, ...settings },
+    paths: nos.map(([p]) => p),
+    links: links.map(([source, target]: [string, string]): Graph2dLink => ({ source, target })),
+    positions: new Map(nos.map(([p, x, y]) => [p, { x, y }])),
   })
 }
 
-function rodar(sim: Graph2dSimulation, passos: number): void {
+function rodar(sim: Graph2dSimulation, passos: number) {
   for (let i = 0; i < passos; i += 1) sim.step()
 }
 
-describe('Graph2dSimulation', () => {
-  it('a repulsao afasta dois nos sem conexao', () => {
-    const sim = criar([['a', 100, 100], ['b', 100.2, 100]], [], { centerStrength: 0 })
-    const antes = Math.hypot(sim.xs[0] - sim.xs[1], sim.ys[0] - sim.ys[1])
-    rodar(sim, 30)
-    const depois = Math.hypot(sim.xs[0] - sim.xs[1], sim.ys[0] - sim.ys[1])
-    expect(depois).toBeGreaterThan(antes)
-  })
+const distancia = (sim: Graph2dSimulation, a: string, b: string) => {
+  const pa = sim.positionOf(a)!
+  const pb = sim.positionOf(b)!
+  return Math.hypot(pa.x - pb.x, pa.y - pb.y)
+}
 
-  it('a mola aproxima dois nos ligados ate o descanso', () => {
-    const sim = criar([['a', 60, 100], ['b', 140, 100]], [['a', 'b']], {
-      repulsionStrength: 0,
-      centerStrength: 0,
-      linkStiffness: 1,
-      linkRest: 12,
-    })
-    rodar(sim, 200)
-    const d = Math.hypot(sim.xs[0] - sim.xs[1], sim.ys[0] - sim.ys[1])
-    expect(d).toBeGreaterThan(10)
-    expect(d).toBeLessThan(14)
-  })
-
-  it('a colisao impede sobreposicao mesmo partindo do mesmo ponto', () => {
-    const sim = criar([['a', 100, 100], ['b', 100, 100], ['c', 100, 100]], [])
-    rodar(sim, 120)
-    for (let i = 0; i < 3; i += 1) {
-      for (let j = i + 1; j < 3; j += 1) {
-        const d = Math.hypot(sim.xs[i] - sim.xs[j], sim.ys[i] - sim.ys[j])
-        // Toca no maximo; nunca invade o raio do outro.
-        expect(d).toBeGreaterThan(GRAPH2D_NODE_RADIUS * 2 - 0.15)
-      }
+describe('graph2dSimulation (modelo do Obsidian)', () => {
+  it('as constantes sao as do sim.js', () => {
+    expect(OBSIDIAN_PHYSICS.linkDistance).toBe(250)
+    expect(OBSIDIAN_PHYSICS.repelStrength).toBe(30)
+    expect(OBSIDIAN_PHYSICS.collideRadius).toBe(60)
+    expect(OBSIDIAN_PHYSICS.collideStrength).toBe(0.5)
+    expect(OBSIDIAN_PHYSICS.distanceMin).toBe(30)
+    expect(OBSIDIAN_PHYSICS.theta).toBe(0.9)
+    expect(OBSIDIAN_PHYSICS.centerStrength).toBe(0.1)
+    expect(OBSIDIAN_PHYSICS.alphaTargetDrag).toBe(0.3)
+    // alpha 1 -> 0.001 em ~300 ticks.
+    let alpha = 1
+    let ticks = 0
+    while (alpha > 0.001 && ticks < 1000) {
+      alpha += (0 - alpha) * OBSIDIAN_PHYSICS.alphaDecay
+      ticks += 1
     }
+    expect(ticks).toBeGreaterThan(290)
+    expect(ticks).toBeLessThan(310)
   })
 
-  it('assenta: alpha cai abaixo do limite de sono e a energia diminui', () => {
-    const nos = Array.from({ length: 40 }, (_, i) => [`n${i}`, 90 + (i % 8) * 3, 90 + Math.floor(i / 8) * 3] as [string, number, number])
-    const links = nos.slice(1).map(([path]) => [nos[0][0], path] as [string, string])
-    const sim = criar(nos, links)
-    const energiaInicial = sim.step()
-    // O Obsidian resfria alpha 1 -> 0.001 em ~300 ticks.
-    rodar(sim, 360)
-    expect(sim.alpha).toBeLessThan(GRAPH2D_ALPHA_SLEEP)
-    expect(sim.settled).toBe(true)
-    expect(sim.step()).toBeLessThan(energiaInicial)
+  it('a mola descansa perto de 250 (linkDistance do Obsidian)', () => {
+    const sim = criar([['a', 0, 0], ['b', 10, 0]], [['a', 'b']])
+    rodar(sim, 600)
+    const d = distancia(sim, 'a', 'b')
+    // O link do d3 so descansa em 250 isolado: com centro 0.1 e repulsao -30
+    // atuando, o par assenta um pouco abaixo (medido: ~228).
+    expect(d).toBeGreaterThan(200)
+    expect(d).toBeLessThan(400)
   })
 
-  it('nao aloca buffer novo por passo (snapshot reaproveita o mesmo objeto)', () => {
-    const sim = criar([['a', 100, 100], ['b', 110, 100]], [['a', 'b']])
-    const primeiro = sim.snapshot()
-    rodar(sim, 10)
-    expect(sim.snapshot()).toBe(primeiro)
-  })
+  it('arrastar MANTEM alphatarget 0.3 e leva a vizinhanca junto', () => {
+    // Corrente: hub - a - b - c (2 saltos ja devem seguir).
+    const sim = criar(
+      [['hub', -375, 0], ['a', -125, 0], ['b', 125, 0], ['c', 375, 0]],
+      [['hub', 'a'], ['a', 'b'], ['b', 'c']],
+    )
+    rodar(sim, 500)
+    const antes = new Map(['a', 'b', 'c'].map((p) => [p, sim.positionOf(p)!]))
 
-  it('nos fixados nao se movem', () => {
-    const sim = criar([['a', 100, 100], ['b', 100, 100]], [['a', 'b']])
-    sim.pin('a', 30, 40)
-    rodar(sim, 60)
-    expect(sim.positionOf('a')).toEqual({ x: 30, y: 40 })
-    sim.unpin('a')
-    sim.reheat()
-    rodar(sim, 60)
-    expect(sim.positionOf('a')).not.toEqual({ x: 30, y: 40 })
-  })
-
-  it('arrastar mantem alphaTarget e move a vizinhanca (modelo do Obsidian)', () => {
-    // `app.js`: arrastar = forceNode{x,y} + alphaTarget .3; soltar = alphaTarget 0.
-    const paths = ['hub', 'a', 'b', 'c']
-    const positions = new Map<string, { x: number; y: number }>([
-      ['hub', { x: 100, y: 100 }], ['a', { x: 82, y: 100 }],
-      ['b', { x: 64, y: 100 }], ['c', { x: 46, y: 100 }],
-    ])
-    const links = [
-      { source: 'hub', target: 'a' }, { source: 'a', target: 'b' }, { source: 'b', target: 'c' },
-    ]
-    const sim = criar(paths.map((p) => [p, positions.get(p)!.x, positions.get(p)!.y]), links.map((l) => [l.source, l.target]))
-    rodar(sim, 400)
-    const antes = new Map(paths.map((p) => [p, sim.positionOf(p)!]))
+    // Arrasta o hub 200 unidades em 40 frames, como um gesto real.
     for (let passo = 1; passo <= 40; passo += 1) {
-      sim.pin('hub', 100 + (30 * passo) / 40, 100)
+      sim.pin('hub', -375 + (200 * passo) / 40, 0)
       sim.step()
     }
-    // Com o no fixado o alpha fica em 0.3 (nao resfria) e os vizinhos seguem.
+
     expect(sim.alphaTarget).toBe(0.3)
     expect(sim.alpha).toBeGreaterThan(0.25)
-    const moveu = (p: string) => Math.hypot(sim.positionOf(p)!.x - antes.get(p)!.x, sim.positionOf(p)!.y - antes.get(p)!.y)
-    expect(moveu('a')).toBeGreaterThan(1)
-    expect(moveu('b')).toBeGreaterThan(1)
-    // Soltar volta o alvo para 0 (e o layout resfria de novo).
-    sim.unpin('hub')
-    expect(sim.alphaTarget).toBe(0)
+    const moveu = (p: string) => {
+      const depois = sim.positionOf(p)!
+      return Math.hypot(depois.x - antes.get(p)!.x, depois.y - antes.get(p)!.y)
+    }
+    // O vizinho direto acompanha de perto; o de 2 saltos, menos; mas todos saem
+    // do lugar — e isso que faltava no app.
+    expect(moveu('a')).toBeGreaterThan(30)
+    expect(moveu('b')).toBeGreaterThan(5)
   })
 
-  it('300 nos rodam sem estourar (Barnes-Hut, nao n^2)', () => {
-    const nos = Array.from({ length: 300 }, (_, i) => [`n${i}`, 40 + Math.random() * 120, 40 + Math.random() * 120] as [string, number, number])
-    const links = nos.slice(1).map((_, i) => [nos[i][0], nos[i + 1][0]] as [string, string])
-    const sim = criar(nos, links)
-    sim.step() // aquece alocacao
-    // Melhor de 3 rodadas: o menor tempo e o menos contaminado por carga da
-    // maquina (testes de performance falham por ruido, nao por regressao).
-    const PASSOS = 20
-    let porPasso = Infinity
-    for (let rodada = 0; rodada < 2; rodada += 1) {
-      const inicio = performance.now()
-      for (let i = 0; i < PASSOS; i += 1) sim.step()
-      porPasso = Math.min(porPasso, (performance.now() - inicio) / PASSOS)
+  it('soltar volta alphaTarget para 0 e o layout resfria', () => {
+    const sim = criar([['a', 0, 0], ['b', 200, 0]], [['a', 'b']])
+    rodar(sim, 400)
+    sim.pin('a', 10, 10)
+    expect(sim.alphaTarget).toBe(0.3)
+    sim.unpin('a')
+    expect(sim.alphaTarget).toBe(0)
+    rodar(sim, 400)
+    expect(sim.settled).toBe(true)
+  })
+
+  it('nao ha limites de mundo (o d3-force nao tem)', () => {
+    const sim = criar([['a', 0, 0], ['b', 1, 0]], [['a', 'b']])
+    rodar(sim, 400)
+    const longe = Math.max(Math.abs(sim.xs[0]), Math.abs(sim.ys[0]))
+    expect(longe).toBeGreaterThan(0)
+    // Se houvesse clamp em 200, nada passaria daqui.
+    sim.pin('b', 5000, 0)
+    for (let i = 0; i < 30; i += 1) sim.step()
+    expect(sim.xs[1]).toBe(5000)
+    expect(sim.positionOf('b')).toEqual({ x: 5000, y: 0 })
+  })
+
+  it('colisao mantem dois nos a pelo menos 2*raio quando lotados', () => {
+    const sim = criar(
+      [['a', 0, 0], ['b', 1, 1], ['c', 2, 2], ['d', 3, 3]],
+      [['a', 'b'], ['b', 'c'], ['c', 'd']],
+    )
+    rodar(sim, 400)
+    for (const [x, y] of [['a', 'b'], ['a', 'c'], ['a', 'd'], ['b', 'c']]) {
+      expect(distancia(sim, x, y)).toBeGreaterThan(40)
     }
-    // Medido isolado: ~1,0ms por passo (O(n^2) seriam dezenas de ms). NAO se
-    // asserta o tempo: dentro da suite o vitest roda 135 arquivos em paralelo
-    // e o numero passa a medir a carga da maquina (medido: 20s de duracao com
-    // contencao, 1,05ms isolado). O valor fica no log e no commit.
-    console.log(`300 nos: ${porPasso.toFixed(2)} ms por passo (600 medido isolado: 1,05ms)`)
-    // A assercao e de sanidade (roda sem explodir e sem NaN); o tempo vai
-    // para o log.
-    expect(sim.count).toBe(300)
-    expect(Number.isFinite(sim.xs[0])).toBe(true)
+  })
+
+  it('nao colapsa nem explode: a repulsao EMPURRA (31 nos / 67 links)', () => {
+    // Este e o teste que pega o sinal invertido do Barnes-Hut: com atracao no
+    // lugar de repulsao tudo colapsa num ponto e a simulacao diverge (a camera
+    // chegou a 1e27 no app). Aqui o layout tem de ficar num tamanho plausivel.
+    const paths = ['hub', ...Array.from({ length: 30 }, (_, i) => `n${i}`)]
+    const links: Array<{ source: string; target: string }> = []
+    for (let i = 1; i <= 8; i += 1) links.push({ source: 'hub', target: `n${i}` })
+    for (let i = 9; i <= 30; i += 1) links.push({ source: `n${(i % 8) + 1}`, target: `n${i}` })
+    const sim = new Graph2dSimulation({ paths, links })
+    rodar(sim, 400)
+
+    for (let i = 0; i < sim.count; i += 1) {
+      expect(Number.isFinite(sim.xs[i])).toBe(true)
+      expect(Number.isFinite(sim.ys[i])).toBe(true)
+    }
+    let minX = Infinity; let maxX = -Infinity; let minY = Infinity; let maxY = -Infinity
+    for (let i = 0; i < sim.count; i += 1) {
+      minX = Math.min(minX, sim.xs[i]); maxX = Math.max(maxX, sim.xs[i])
+      minY = Math.min(minY, sim.ys[i]); maxY = Math.max(maxY, sim.ys[i])
+    }
+    const extensao = Math.max(maxX - minX, maxY - minY)
+    // Nem colapsado (todos num ponto) nem explodido (milhoes de unidades).
+    expect(extensao).toBeGreaterThan(200)
+    expect(extensao).toBeLessThan(4000)
+  })
+
+  it('600 nos rodam num orcamento de frame', () => {
+    const paths = Array.from({ length: 600 }, (_, i) => `n${i}`)
+    const links = paths.slice(1).map((p, i) => ({ source: paths[Math.floor(i / 4)], target: p }))
+    const positions = new Map(paths.map((p, i) => [p, { x: (i % 30) * 40, y: Math.floor(i / 30) * 40 }]))
+    const sim = new Graph2dSimulation({ paths, links, positions })
+    sim.step()
+    const t0 = performance.now()
+    for (let i = 0; i < 60; i += 1) sim.step()
+    const ms = (performance.now() - t0) / 60
+    // Smoke test: a suite roda 133 arquivos em paralelo e o tempo por passo
+    // oscila com a carga da maquina. O numero fino e medido isolado (commit).
+    console.log(`600 nos: ${ms.toFixed(2)} ms/passo`)
+    expect(ms).toBeLessThan(40)
+  })
+
+  it('settings parciais completam com os defaults do Obsidian', () => {
+    const sim = new Graph2dSimulation({ paths: ['a'], links: [], settings: { nodeSize: 9 } })
+    expect(sim.settings.nodeSize).toBe(9)
+    expect(sim.settings.linkDistance).toBe(GRAPH2D_DEFAULT_SETTINGS.linkDistance)
+    expect(sim.settings.collideRadius).toBe(60)
   })
 })

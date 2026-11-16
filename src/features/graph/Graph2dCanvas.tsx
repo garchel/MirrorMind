@@ -4,7 +4,6 @@ import {
   drawGraph2d,
   pickNode,
   screenToWorld,
-  worldScale,
   type Graph2dNodeStyle,
   type Graph2dView,
 } from './graph2dRenderer'
@@ -39,36 +38,29 @@ export type Graph2dCanvasProps = {
   ariaLabel?: string
 }
 
-const ZOOM_MIN = 0.35
-const ZOOM_MAX = 4
-/** Alpha usado enquanto o usuario arrasta: o cluster acompanha sem oscilar. */
-/** A partir daqui os nomes aparecem sem hover. O zoom inicial e 1 (grafo
- * inteiro): mostrar todos os nomes ali vira mancha de texto — medido no
- * harness, com 120 nos os rotulos cobriam as bolinhas. */
-const ZOOM_LABELS = 1.6
+const ZOOM_MIN = 0.15
+const ZOOM_MAX = 6
+/** A partir daqui os nomes aparecem sem hover. */
+const ZOOM_LABELS = 1.45
 
 /** Cores concretas: o canvas nao resolve `var(--token)`. */
 const CORES = {
-  background: 'transparent',
-  link: 'rgb(120 138 125 / 34%)',
-  linkDim: 'rgb(120 138 125 / 9%)',
+  link: 'rgb(120 138 125 / 40%)',
+  linkDim: 'rgb(120 138 125 / 10%)',
   node: 'rgb(226 214 178)',
-  nodeRing: 'rgb(28 36 39 / 78%)',
+  nodeRing: 'rgb(28 36 39 / 70%)',
   nodeCurrent: 'rgb(196 106 62)',
   label: 'rgb(28 36 39)',
-  labelDim: 'rgb(48 62 52 / 82%)',
+  labelDim: 'rgb(48 62 52 / 80%)',
 } as const
 
 /**
- * Grafo 2D em canvas — o modelo do Obsidian.
+ * Grafo 2D em canvas — mesma fisica e mesmas interacoes do Obsidian.
  *
- * O documento nao tem um elemento por nota: o desenho e o `<canvas>`, e o
- * loop so roda enquanto o layout tem trabalho. Quando `alpha` cai abaixo do
- * limite, nenhum `requestAnimationFrame` fica agendado (custo ocioso zero) e
- * o proximo gesto acorda a simulacao.
- *
- * O esmaecimento do hover vem por prop (estado do app) e e aplicado no
- * desenho: nao re-renderiza React a cada movimento do mouse.
+ * A simulacao e criada UMA vez por conjunto de notas e vive num ref: nenhum
+ * re-render do React a recria (recriar no meio de um gesto era o que fazia o
+ * arrasto parecer que so movia o no clicado). O loop de `requestAnimationFrame`
+ * para sozinho quando o alpha assenta e acorda no proximo gesto.
  */
 export function Graph2dCanvas({
   nodes,
@@ -86,23 +78,22 @@ export function Graph2dCanvas({
 }: Graph2dCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const simRef = useRef<Graph2dSimulation | null>(null)
-  const viewRef = useRef<Graph2dView>({ panX: 0, panY: 0, zoom: 1 })
-  const sizeRef = useRef<{ width: number; height: number; dpr: number }>({ width: 0, height: 0, dpr: 1 })
+  const viewRef = useRef<Graph2dView>({ x: 0, y: 0, zoom: 1 })
+  const sizeRef = useRef({ width: 0, height: 0, dpr: 1 })
   const frameRef = useRef<number | null>(null)
   const hoverRef = useRef(-1)
   const vizinhosRef = useRef<Set<number> | null>(null)
   const estilosRef = useRef<Graph2dNodeStyle[]>([])
-  // Nasce sem rotulos: com todos visiveis o grafo vira uma mancha de texto.
-  const labelsRef = useRef(false)
   const arrastoRef = useRef<
-    { tipo: 'no'; path: string; x: number; y: number; movido: boolean } | { tipo: 'pano'; x: number; y: number; movido: boolean } | null
+    | { tipo: 'no'; path: string; x: number; y: number; movido: boolean }
+    | { tipo: 'pano'; x: number; y: number; movido: boolean }
+    | null
   >(null)
-  /** Posicoes atuais, para trocar o conjunto de nos sem re-explodir. */
-  const posicoesRef = useRef<Map<string, { x: number; y: number }>>(new Map())
   const onSettledRef = useRef(onSettled)
   onSettledRef.current = onSettled
-  /** Evita persistir o mesmo layout a cada frame parado. */
   const persistidoRef = useRef(false)
+  /** Primeira vez: a camera enquadra o grafo quando ele assentar. */
+  const enquadradoRef = useRef(false)
 
   const assinatura = useMemo(
     () => `${nodes.map((node) => node.path).join('|')}::${links.length}`,
@@ -124,10 +115,10 @@ export function Graph2dCanvas({
       view: viewRef.current,
       hovered: hoverRef.current,
       neighbors: vizinhosRef.current,
-      radius: 2.4,
-      labels: labelsRef.current,
+      labels: hoverRef.current >= 0 || viewRef.current.zoom > ZOOM_LABELS,
       colors: CORES,
       nodeStyles: estilosRef.current,
+      nodeSize: sim.settings.nodeSize,
     })
   }, [])
 
@@ -145,9 +136,21 @@ export function Graph2dCanvas({
         pedirFrame()
         return
       }
+      // Assentou: enquadra UMA vez e persiste UMA vez.
+      if (!enquadradoRef.current && sim.count > 0 && sim.alpha < 0.4) {
+        enquadradoRef.current = true
+        const c = sim.centroid()
+        let maior = 1
+        for (let i = 0; i < sim.count; i += 1) {
+          maior = Math.max(maior, Math.hypot(sim.xs[i] - c.x, sim.ys[i] - c.y))
+        }
+        const { width, height } = sizeRef.current
+        const caber = Math.min(width, height) / (maior * 2.4)
+        // Piso de 0.3: enquadrar uma cadeia longa inteira levava o zoom a
+        // 0.15 e as bolinhas a 2px — o usuario abria o grafo e via um borrao.
+        viewRef.current = { x: c.x, y: c.y, zoom: Math.max(0.3, Math.min(1.1, caber)) }
+      }
       desenhar()
-      // Assentou: persiste UMA vez (nao por frame). `persistido` volta a false
-      // quando o layout e reaquecido (arrasto, reorganizar).
       if (!persistidoRef.current && onSettledRef.current) {
         persistidoRef.current = true
         const snapshot: Record<string, { x: number; y: number }> = {}
@@ -160,25 +163,33 @@ export function Graph2dCanvas({
     })
   }, [desenhar])
 
-  // (Re)cria a simulacao quando o conjunto de nos muda.
+  // (Re)cria a simulacao quando o conjunto de nos muda — e so entao.
   useEffect(() => {
     const anterior = simRef.current
     const posicoes = new Map<string, { x: number; y: number }>()
-    if (!anterior && initialPositions && reorganizeKey === 0) {
-      for (const node of nodes) {
-        const salva = initialPositions[node.path]
-        if (salva) posicoes.set(node.path, { x: salva.x, y: salva.y })
-      }
-    }
     if (anterior && reorganizeKey === 0) {
       for (const node of nodes) {
         const posicao = anterior.positionOf(node.path)
         if (posicao) posicoes.set(node.path, posicao)
       }
-    }
-    for (const node of nodes) {
-      const posicao = anterior?.positionOf(node.path)
-      if (posicao) posicoesRef.current.set(node.path, posicao)
+    } else if (reorganizeKey === 0 && initialPositions) {
+      // Layouts salvos antes desta versao estao na escala 0..200 do mundo
+      // antigo; com link 250 eles comecariam comprimidos e explodiriam.
+      // Se a extensao for menor que o link, o layout e de outra escala.
+      let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity
+      for (const node of nodes) {
+        const salva = initialPositions[node.path]
+        if (!salva) continue
+        minX = Math.min(minX, salva.x); maxX = Math.max(maxX, salva.x)
+        minY = Math.min(minY, salva.y); maxY = Math.max(maxY, salva.y)
+      }
+      const extensao = Math.max(maxX - minX, maxY - minY)
+      if (Number.isFinite(extensao) && extensao >= (settings.linkDistance ?? 250) * 0.5) {
+        for (const node of nodes) {
+          const salva = initialPositions[node.path]
+          if (salva) posicoes.set(node.path, { x: salva.x, y: salva.y })
+        }
+      }
     }
     const sim = new Graph2dSimulation({
       paths: nodes.map((node) => node.path),
@@ -186,16 +197,16 @@ export function Graph2dCanvas({
       positions: posicoes,
       settings,
     })
-    // Abrir o grafo (ou reorganizar) e big bang: todos do centro, alpha cheio.
-    if (anterior === null || reorganizeKey > 0) sim.reheat(1)
-    else sim.reheat(0.45)
+    // Abrir o grafo ou reorganizar = big bang (alpha cheio, todos do centro).
+    if (!anterior || reorganizeKey > 0) {
+      sim.alpha = 1
+      enquadradoRef.current = false
+    } else {
+      sim.reheat(0.35)
+    }
     simRef.current = sim
     persistidoRef.current = false
-    estilosRef.current = nodes.map((node) => ({
-      color: node.color,
-      isCurrent: node.isCurrent,
-      scale: 1 + Math.min(node.degree, 8) * 0.09,
-    }))
+    estilosRef.current = nodes.map((node) => ({ color: node.color, isCurrent: node.isCurrent }))
     hoverRef.current = -1
     vizinhosRef.current = null
     desenhar()
@@ -213,7 +224,7 @@ export function Graph2dCanvas({
   useEffect(() => {
     const sim = simRef.current
     if (!sim) return
-    const indice = hoveredPath ? (sim.indexByPath.get(hoveredPath) ?? -1) : -1
+    hoverRef.current = hoveredPath ? (sim.indexByPath.get(hoveredPath) ?? -1) : -1
     let vizinhos: Set<number> | null = null
     if (neighbors) {
       vizinhos = new Set()
@@ -222,9 +233,7 @@ export function Graph2dCanvas({
         if (i !== undefined) vizinhos.add(i)
       }
     }
-    hoverRef.current = indice
     vizinhosRef.current = vizinhos
-    labelsRef.current = vizinhos !== null || viewRef.current.zoom > ZOOM_LABELS
     pedirFrame()
   }, [hoveredPath, neighbors, pedirFrame])
 
@@ -236,17 +245,12 @@ export function Graph2dCanvas({
       const rect = canvas.getBoundingClientRect()
       const dpr = Math.min(2, window.devicePixelRatio || 1)
       sizeRef.current = { width: rect.width, height: rect.height, dpr }
-      // Atribuir `canvas.width/height` LIMPA o canvas. Um ResizeObserver que
-      // reatribui a cada medicao apagava o desenho logo depois de pinta-lo
-      // (medido: 171 frames desenhados e 0 pixels no buffer). Só redimensiona
-      // quando o valor muda de fato.
+      // Atribuir `canvas.width/height` LIMPA o buffer: so quando muda de fato.
       const largura = Math.max(1, Math.round(rect.width * dpr))
       const altura = Math.max(1, Math.round(rect.height * dpr))
       if (canvas.width !== largura) canvas.width = largura
       if (canvas.height !== altura) canvas.height = altura
-      // Desenha ja: o primeiro quadro nao pode depender do rAF, que fica
-      // pausado com a janela em segundo plano (o grafo abria em branco ate o
-      // primeiro gesto).
+      // Primeiro quadro sincrono: rAF fica pausado com a janela em segundo plano.
       desenhar()
       pedirFrame()
     }
@@ -262,11 +266,8 @@ export function Graph2dCanvas({
 
   useEffect(
     () => () => {
-      // Zerar o ref e obrigatorio: sem isso ele fica com o id de um frame
-      // CANCELADO e `pedirFrame` passa a sair cedo para sempre — a simulacao
-      // nunca mais da um passo e nem o pan/arrasto redesenham. Em dev o
-      // StrictMode monta/desmonta/remonta os efeitos, e era exatamente onde o
-      // loop morria (medido no app: passos=0 com alpha=1 e settled=false).
+      // Zerar o ref e obrigatorio: senao ele guarda um frame CANCELADO e
+      // `pedirFrame` passa a sair cedo para sempre (loop morto no StrictMode).
       if (frameRef.current !== null) {
         cancelAnimationFrame(frameRef.current)
         frameRef.current = null
@@ -286,31 +287,25 @@ export function Graph2dCanvas({
     const sim = simRef.current
     if (!sim) return -1
     const { width, height } = sizeRef.current
-    return pickNode(sim, ponto.x, ponto.y, viewRef.current, width, height, 2.4)
+    return pickNode(sim, ponto.x, ponto.y, viewRef.current, width, height, sim.settings.nodeSize)
   }
 
   const aoPressionar = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const ponto = pontoLocal(event)
-    const indice = noNoPonto(ponto)
-    // `setPointerCapture` lanca InvalidStateError quando o ponteiro nao esta
-    // ativo. Sem o try, a excecao abortava o handler ANTES de marcar o
-    // arrasto: pan e arrasto de no ficavam mortos sem nenhum erro visivel.
     try {
       event.currentTarget.setPointerCapture(event.pointerId)
     } catch {
-      /* sem captura: o arrasto segue pelos eventos da propria janela */
+      /* sem captura: o arrasto segue pelos eventos da janela */
     }
+    const indice = noNoPonto(ponto)
     const sim = simRef.current
     if (indice >= 0 && sim) {
-      const path = sim.paths[indice]
       const { width, height } = sizeRef.current
       const mundo = screenToWorld(ponto.x, ponto.y, viewRef.current, width, height)
-      // `pin` ja reaquece para alphaTarget 0.3 (o que o app.js do Obsidian
-      // manda no arrasto) — e isso que faz a vizinhanca seguir.
-      sim.pin(path, mundo.x, mundo.y)
+      // `pin` = forceNode{x,y} + alphaTarget .3 (app.js do Obsidian).
+      sim.pin(sim.paths[indice], mundo.x, mundo.y)
       persistidoRef.current = false
-      arrastoRef.current = { tipo: 'no', path, x: ponto.x, y: ponto.y, movido: false }
-      onFocus?.(path)
+      arrastoRef.current = { tipo: 'no', path: sim.paths[indice], x: ponto.x, y: ponto.y, movido: false }
       pedirFrame()
       return
     }
@@ -325,7 +320,8 @@ export function Graph2dCanvas({
       const dy = ponto.y - arrasto.y
       if (Math.hypot(dx, dy) > 2) arrasto.movido = true
       if (arrasto.tipo === 'pano') {
-        viewRef.current = { ...viewRef.current, panX: viewRef.current.panX + dx, panY: viewRef.current.panY + dy }
+        const view = viewRef.current
+        viewRef.current = { ...view, x: view.x - dx / view.zoom, y: view.y - dy / view.zoom }
       } else {
         const { width, height } = sizeRef.current
         const mundo = screenToWorld(ponto.x, ponto.y, viewRef.current, width, height)
@@ -340,7 +336,6 @@ export function Graph2dCanvas({
     const indice = noNoPonto(ponto)
     if (indice !== hoverRef.current) {
       hoverRef.current = indice
-      labelsRef.current = indice >= 0 || viewRef.current.zoom > ZOOM_LABELS
       const sim = simRef.current
       onHover(indice >= 0 && sim ? sim.paths[indice] : null)
       pedirFrame()
@@ -352,18 +347,16 @@ export function Graph2dCanvas({
     arrastoRef.current = null
     const sim = simRef.current
     if (arrasto?.tipo === 'no' && sim) {
-      // Soltar: unpin + alphaTarget 0, exatamente o par do app.js do Obsidian.
+      // Soltar: unpin + alphaTarget 0 (o par do app.js).
       sim.unpin(arrasto.path)
-      if (!arrasto.movido) {
-        onFocus?.(arrasto.path)
-        onOpen(arrasto.path)
-      }
+      // Clique simples abre o painel; arrastar nao abre nada.
+      if (!arrasto.movido) onFocus?.(arrasto.path)
       pedirFrame()
     }
     try {
       event.currentTarget.releasePointerCapture(event.pointerId)
     } catch {
-      /* ja liberado pelo navegador */
+      /* ja liberado */
     }
   }
 
@@ -374,13 +367,12 @@ export function Graph2dCanvas({
     const { width, height } = sizeRef.current
     const antes = screenToWorld(ponto.x, ponto.y, view, width, height)
     const zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, view.zoom * Math.exp(-event.deltaY * 0.0015)))
-    const base = worldScale(width, height) * zoom
+    // Mantem o ponto sob o cursor parado (zoom no cursor, como no Obsidian).
     viewRef.current = {
       zoom,
-      panX: ponto.x - width / 2 - (antes.x - 100) * base,
-      panY: ponto.y - height / 2 - (antes.y - 100) * base,
+      x: antes.x - (ponto.x - width / 2) / zoom,
+      y: antes.y - (ponto.y - height / 2) / zoom,
     }
-    labelsRef.current = hoverRef.current >= 0 || zoom > ZOOM_LABELS
     pedirFrame()
   }
 
@@ -408,7 +400,8 @@ export function Graph2dCanvas({
       />
       <p id="graph2d-canvas-ajuda" className="visually-hidden">
         Grafo das notas. Arraste o fundo para mover, use a roda para aproximar, arraste uma nota para
-        reorganizar e clique para abrir. As notas também estão listadas logo abaixo, acessíveis pelo teclado.
+        reorganizar e clique para ver os detalhes. As notas também estão listadas logo abaixo,
+        acessíveis pelo teclado.
       </p>
       <ul className="visually-hidden" aria-label="Notas no grafo">
         {nodes.map((node) => (

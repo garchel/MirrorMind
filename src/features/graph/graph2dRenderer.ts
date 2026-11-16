@@ -1,70 +1,54 @@
 /**
- * Renderizador do grafo 2D em `<canvas>` — o modelo do Obsidian.
+ * Desenho do grafo 2D — o visual do Obsidian, em canvas 2D.
  *
- * O render anterior era DOM: um `<button>` por nota, com `will-change:
- * transform` em cada um (uma camada de composicao por no) e um `<svg>` de
- * arestas. Centenas de elementos: cada frame custa reconciliacao, estilo,
- * layout e pintura. No canvas, um frame e um punhado de `arc` e um `stroke`
- * agrupado — o custo passa a ser proporcional ao que esta na tela, nao ao
- * numero de elementos do documento.
+ * O Obsidian desenha com PixiJS (WebGL). Aqui o mesmo desenho e feito em
+ * canvas 2D, com as regras que importam para a leitura:
  *
- * Este modulo e puro: recebe a simulacao e um contexto 2D. Quem chama decide
- * quando desenhar.
+ * - camera com zoom e pan; o mundo nao tem limites (igual ao simulador);
+ * - raio do no cresce com o GRAU e com sqrt(zoom), como no Obsidian (o no
+ *   cresce menos que o zoom para nao engolir a tela);
+ * - links finos (1px de tela) com opacidade baixa, sem seta por padrao;
+ * - rotulos aparecem no hover e, acima de um limiar de zoom, em todos;
+ * - hover esmaece o que nao e vizinho (o grafo do Obsidian faz o mesmo).
  */
 
-import { GRAPH2D_WORLD, type Graph2dSimulation } from '../../lib/graph2dSimulation'
+import type { Graph2dSimulation } from '../../lib/graph2dSimulation'
 
-export type Graph2dView = {
-  /** Deslocamento em px. */
-  panX: number
-  panY: number
-  /** Zoom (1 = ajustado ao maior lado). */
-  zoom: number
-}
+export type Graph2dView = { x: number; y: number; zoom: number }
 
 export type Graph2dNodeStyle = {
-  /** Cor da bolinha (grupo/pasta) ou null para a cor padrao. */
   color: string | null
-  /** No da nota aberta. */
   isCurrent: boolean
-  /** Multiplicador de raio por grau (1 + min(grau, 8) * 0.13). */
-  scale: number
 }
 
-export type Graph2dRendererOptions = {
+export type Graph2dColors = {
+  link: string
+  linkDim: string
+  node: string
+  nodeRing: string
+  nodeCurrent: string
+  label: string
+  labelDim: string
+}
+
+export type Graph2dRenderOptions = {
   width: number
   height: number
-  /** devicePixelRatio (o canvas ja vem escalado). */
   dpr: number
   view: Graph2dView
-  /** Indice do no sob o ponteiro, ou -1. */
   hovered: number
-  /** Vizinhos do no em hover: o resto fica esmaecido. */
   neighbors: Set<number> | null
-  /** Raio base da bolinha em unidades de mundo. */
-  radius: number
-  /** Mostra os nomes (zoom suficiente ou hover). */
   labels: boolean
-  /** Estilo por no (cor, atual, escala). Opcional: sem ele, cor padrao. */
-  nodeStyles?: Graph2dNodeStyle[]
-  colors: {
-    background: string
-    link: string
-    linkDim: string
-    node: string
-    nodeRing: string
-    nodeCurrent: string
-    label: string
-    labelDim: string
-  }
+  colors: Graph2dColors
+  nodeStyles: Graph2dNodeStyle[]
+  nodeSize: number
 }
 
-/** Px por unidade de mundo, antes do zoom. */
-export function worldScale(width: number, height: number): number {
-  return Math.min(width, height) / GRAPH2D_WORLD.max
+/** Raio visual no mundo: cresce com o grau, como o tamanho do no do Obsidian. */
+export function nodeRadiusWorld(degree: number, nodeSize: number): number {
+  return nodeSize * (1 + Math.min(degree, 12) * 0.12)
 }
 
-/** Mundo (0..200) -> tela, em px de CSS. */
 export function worldToScreen(
   x: number,
   y: number,
@@ -72,15 +56,12 @@ export function worldToScreen(
   width: number,
   height: number,
 ): { x: number; y: number } {
-  const base = worldScale(width, height) * view.zoom
-  const meio = GRAPH2D_WORLD.max / 2
   return {
-    x: (x - meio) * base + width / 2 + view.panX,
-    y: (y - meio) * base + height / 2 + view.panY,
+    x: width / 2 + (x - view.x) * view.zoom,
+    y: height / 2 + (y - view.y) * view.zoom,
   }
 }
 
-/** Tela -> mundo (para arrastar e zoom no ponteiro). */
 export function screenToWorld(
   x: number,
   y: number,
@@ -88,15 +69,13 @@ export function screenToWorld(
   width: number,
   height: number,
 ): { x: number; y: number } {
-  const base = worldScale(width, height) * view.zoom
-  const meio = GRAPH2D_WORLD.max / 2
   return {
-    x: (x - width / 2 - view.panX) / base + meio,
-    y: (y - height / 2 - view.panY) / base + meio,
+    x: (x - width / 2) / view.zoom + view.x,
+    y: (y - height / 2) / view.zoom + view.y,
   }
 }
 
-/** No mais proximo do ponto, dentro do raio de acerto (px de tela). */
+/** No sob o cursor (com folga de 4px, como o alvo de clique do Obsidian). */
 export function pickNode(
   sim: Graph2dSimulation,
   screenX: number,
@@ -104,164 +83,104 @@ export function pickNode(
   view: Graph2dView,
   width: number,
   height: number,
-  radius: number,
-  hitSlop = 12,
+  nodeSize: number,
 ): number {
-  const base = worldScale(width, height) * view.zoom
-  const alcance = Math.max(radius * base, hitSlop)
-  const alcance2 = alcance * alcance
   let melhor = -1
-  let melhorDistancia = Infinity
+  let melhorDist = Infinity
   for (let i = 0; i < sim.count; i += 1) {
-    const p = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
-    const dx = p.x - screenX
-    const dy = p.y - screenY
-    const d2 = dx * dx + dy * dy
-    if (d2 <= alcance2 && d2 < melhorDistancia) {
-      melhorDistancia = d2
+    const s = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
+    const raio = nodeRadiusWorld(sim.degree[i], nodeSize) * view.zoom + 4
+    const dx = s.x - screenX
+    const dy = s.y - screenY
+    const d = dx * dx + dy * dy
+    if (d <= raio * raio && d < melhorDist) {
+      melhorDist = d
       melhor = i
     }
   }
   return melhor
 }
 
-/** Desenha o grafo. Nao le estado global: tudo vem por parametro. */
 export function drawGraph2d(
   ctx: CanvasRenderingContext2D,
   sim: Graph2dSimulation,
-  options: Graph2dRendererOptions,
+  options: Graph2dRenderOptions,
 ): void {
-  const { width, height, dpr, view, hovered, neighbors, radius, labels, colors } = options
+  const { width, height, dpr, view, hovered, neighbors, labels, colors, nodeStyles, nodeSize } = options
   ctx.save()
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, width, height)
-  if (colors.background) {
-    ctx.fillStyle = colors.background
-    ctx.fillRect(0, 0, width, height)
-  }
-  const base = worldScale(width, height) * view.zoom
-  const raioTela = Math.max(1.5, radius * base)
 
-  // Arestas: dois paths (normais e esmaecidas) em vez de um por aresta.
-  if (sim.edgePairs.length > 0) {
-    ctx.lineWidth = 1
-    if (TEM_PATH2D) {
-      const normais = new Path2D()
-      const esmaecidas = new Path2D()
-      for (let e = 0; e < sim.edgePairs.length / 2; e += 1) {
-        const a = sim.edgePairs[e * 2]
-        const b = sim.edgePairs[e * 2 + 1]
-        const dim = neighbors !== null && !neighbors.has(a) && !neighbors.has(b)
-        const path = dim ? esmaecidas : normais
-        const pa = worldToScreen(sim.xs[a], sim.ys[a], view, width, height)
-        const pb = worldToScreen(sim.xs[b], sim.ys[b], view, width, height)
-        path.moveTo(pa.x, pa.y)
-        path.lineTo(pb.x, pb.y)
-      }
-      ctx.strokeStyle = colors.linkDim
-      ctx.stroke(esmaecidas)
-      ctx.strokeStyle = colors.link
-      ctx.stroke(normais)
-    } else {
-      ctx.strokeStyle = colors.link
-      ctx.beginPath()
-      for (let e = 0; e < sim.edgePairs.length / 2; e += 1) {
-        const a = sim.edgePairs[e * 2]
-        const b = sim.edgePairs[e * 2 + 1]
-        const pa = worldToScreen(sim.xs[a], sim.ys[a], view, width, height)
-        const pb = worldToScreen(sim.xs[b], sim.ys[b], view, width, height)
-        ctx.moveTo(pa.x, pa.y)
-        ctx.lineTo(pb.x, pb.y)
-      }
-      ctx.stroke()
+  const dim = neighbors !== null && hovered >= 0
+  const noVisivel = (i: number) => !dim || i === hovered || (neighbors?.has(i) ?? false)
+
+  // --- links: 1px de tela, opacidade baixa; esmaece o que nao toca o hover ---
+  ctx.lineWidth = 1
+  ctx.strokeStyle = colors.link
+  ctx.beginPath()
+  const dimPath = new Path2D()
+  const { edgePairs } = sim
+  for (let e = 0; e < edgePairs.length / 2; e += 1) {
+    const a = edgePairs[e * 2]
+    const b = edgePairs[e * 2 + 1]
+    const pa = worldToScreen(sim.xs[a], sim.ys[a], view, width, height)
+    const pb = worldToScreen(sim.xs[b], sim.ys[b], view, width, height)
+    // Descarta links fora da tela (culling).
+    if (Math.max(pa.x, pb.x) < -20 || Math.min(pa.x, pb.x) > width + 20) continue
+    if (Math.max(pa.y, pb.y) < -20 || Math.min(pa.y, pb.y) > height + 20) continue
+    if (dim && !(noVisivel(a) || noVisivel(b))) {
+      dimPath.moveTo(pa.x, pa.y)
+      dimPath.lineTo(pb.x, pb.y)
+      continue
     }
+    ctx.moveTo(pa.x, pa.y)
+    ctx.lineTo(pb.x, pb.y)
+  }
+  ctx.stroke()
+  if (dim) {
+    ctx.strokeStyle = colors.linkDim
+    ctx.stroke(dimPath)
   }
 
-  // Nos agrupados por cor e por estado, para nao trocar `fillStyle` por no.
-  const porEstilo = new Map<string, number[]>()
-  const raios = new Map<number, number>()
+  // --- nos: raio crescendo com sqrt(zoom), como o Obsidian ---
+  const escalaZoom = Math.sqrt(Math.max(0.05, view.zoom))
   for (let i = 0; i < sim.count; i += 1) {
-    const estilo = options.nodeStyles?.[i]
-    const cor = estilo?.isCurrent ? colors.nodeCurrent : (estilo?.color ?? colors.node)
-    const esmaecido = neighbors !== null && !neighbors.has(i)
-    const chave = `${cor}|${esmaecido ? 1 : 0}`
-    const lista = porEstilo.get(chave)
-    if (lista) lista.push(i)
-    else porEstilo.set(chave, [i])
-    raios.set(i, raioTela * (estilo?.scale ?? 1))
-  }
-  for (const [chave, indices] of porEstilo) {
-    const [cor, esmaecido] = chave.split('|')
-    ctx.globalAlpha = esmaecido === '1' ? 0.25 : 1
-    ctx.fillStyle = cor
-    if (TEM_PATH2D) {
-      const path = new Path2D()
-      const anel = new Path2D()
-      for (const i of indices) {
-        const p = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
-        const r = raios.get(i) ?? raioTela
-        // Fora da tela nao entra no path (culling de graca no canvas).
-        if (p.x < -r || p.y < -r || p.x > width + r || p.y > height + r) continue
-        path.moveTo(p.x + r, p.y)
-        path.arc(p.x, p.y, r, 0, Math.PI * 2)
-        // Borda fina: no DOM cada bolinha tinha contorno e sombra; sem ela o
-        // canvas fica chapado e as bolinhas parecem "manchas".
-        anel.moveTo(p.x + r, p.y)
-        anel.arc(p.x, p.y, r, 0, Math.PI * 2)
-      }
-      ctx.fill(path)
-      ctx.strokeStyle = colors.nodeRing
-      ctx.lineWidth = 1
-      ctx.stroke(anel)
-    } else {
-      for (const i of indices) {
-        const p = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
-        const r = raios.get(i) ?? raioTela
-        if (p.x < -r || p.y < -r || p.x > width + r || p.y > height + r) continue
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.strokeStyle = colors.nodeRing
-        ctx.lineWidth = 1
-        ctx.stroke()
-      }
-    }
+    const s = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
+    const raioMundo = nodeRadiusWorld(sim.degree[i], nodeSize)
+    const raio = Math.max(1.2, raioMundo * escalaZoom)
+    if (s.x < -raio - 2 || s.x > width + raio + 2 || s.y < -raio - 2 || s.y > height + raio + 2) continue
+    const estilo = nodeStyles[i]
+    const visivel = noVisivel(i)
+    ctx.globalAlpha = visivel ? 1 : 0.18
+    ctx.beginPath()
+    ctx.arc(s.x, s.y, raio, 0, Math.PI * 2)
+    ctx.fillStyle = estilo?.color ?? (estilo?.isCurrent ? colors.nodeCurrent : colors.node)
+    ctx.fill()
+    ctx.lineWidth = i === hovered ? 2 : 1
+    ctx.strokeStyle = colors.nodeRing
+    ctx.stroke()
   }
   ctx.globalAlpha = 1
 
-  // Anel do no em hover.
-  if (hovered >= 0 && hovered < sim.count) {
-    const p = worldToScreen(sim.xs[hovered], sim.ys[hovered], view, width, height)
-    const r = (raios.get(hovered) ?? raioTela) + 2
-    ctx.beginPath()
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
-    ctx.strokeStyle = colors.nodeRing
-    ctx.lineWidth = 1.5
-    ctx.stroke()
-  }
-
-  // Nomes: so quando pedido (zoom alto ou hover) e so dos visiveis.
-  if (labels) {
-    ctx.font = `600 11px ${GRAPH2D_LABEL_FONT}`
+  // --- rotulos: hover sempre; zoom alto mostra todos; fade no meio ---
+  const mostraRotulos = labels || view.zoom > 1.15
+  if (mostraRotulos) {
+    ctx.font = '12px system-ui, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
     for (let i = 0; i < sim.count; i += 1) {
-      const esmaecido = neighbors !== null && !neighbors.has(i)
-      if (esmaecido && hovered !== i) continue
-      const p = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
-      const r = raios.get(i) ?? raioTela
-      if (p.x < -80 || p.y < -20 || p.x > width + 80 || p.y > height + 20) continue
-      ctx.fillStyle = hovered === i ? colors.label : colors.labelDim
-      const nome = sim.paths[i].split('/').at(-1)?.replace(/\.md$/i, '') ?? sim.paths[i]
-      ctx.fillText(nome, p.x, p.y + r + 3)
+      const destacado = i === hovered || (neighbors?.has(i) ?? false)
+      if (!destacado && !labels && view.zoom < 1.45) continue
+      const s = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
+      if (s.x < -80 || s.x > width + 80 || s.y < -30 || s.y > height + 30) continue
+      const raio = Math.max(1.2, nodeRadiusWorld(sim.degree[i], nodeSize) * escalaZoom)
+      ctx.globalAlpha = destacado ? 1 : 0.75
+      ctx.fillStyle = destacado ? colors.label : colors.labelDim
+      const nome = sim.paths[i].replace(/^.*\//, '').replace(/\.md$/i, '')
+      ctx.fillText(nome, s.x, s.y + raio + 4)
     }
+    ctx.globalAlpha = 1
   }
+
   ctx.restore()
 }
-
-/** Verdadeiro quando o ambiente tem Path2D (navegador). jsdom nao tem: nesse
- * caso o desenho vai direto no contexto, uma operacao por no. */
-const TEM_PATH2D = typeof Path2D === 'function'
-
-/** Fonte dos rotulos: a mesma do app (variavel CSS nao vale no canvas). */
-export const GRAPH2D_LABEL_FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif'

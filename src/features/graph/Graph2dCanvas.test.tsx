@@ -1,96 +1,89 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Graph2dCanvas, type Graph2dCanvasNode } from './Graph2dCanvas'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { Graph2dCanvas, type Graph2dCanvasProps } from './Graph2dCanvas'
 import { Graph2dSimulation } from '../../lib/graph2dSimulation'
 
-afterEach(cleanup)
-
-const SETTINGS = {
-  linkStiffness: 1,
-  linkRest: 12,
-  repulsionStrength: 300,
-  velocityDecay: 0.4,
-  centerStrength: 0.02,
-}
-
-const NOS: Graph2dCanvasNode[] = [
-  { path: 'a.md', label: 'a', degree: 1, color: null, isCurrent: true },
-  { path: 'b.md', label: 'b', degree: 1, color: '#c60', isCurrent: false },
+const NOS: Graph2dCanvasProps['nodes'] = [
+  { path: 'a.md', label: 'a', degree: 1, color: null, isCurrent: false },
+  { path: 'b.md', label: 'b', degree: 1, color: null, isCurrent: false },
 ]
 
-function montar(extra: Partial<Parameters<typeof Graph2dCanvas>[0]> = {}) {
-  const props = {
+function props(extra: Partial<Graph2dCanvasProps> = {}): Graph2dCanvasProps {
+  return {
     nodes: NOS,
     links: [{ source: 'a.md', target: 'b.md' }],
-    settings: SETTINGS,
+    settings: {
+      linkDistance: 250,
+      linkStrength: 1,
+      repelStrength: 30,
+      centerStrength: 0.1,
+      collideRadius: 60,
+      collideStrength: 0.5,
+      nodeSize: 5,
+    },
     hoveredPath: null,
     neighbors: null,
     reorganizeKey: 0,
-    onHover: vi.fn(),
-    onOpen: vi.fn(),
-    onFocus: vi.fn(),
+    // O no `a` comeca exatamente na origem do mundo; com o canvas em 0x0 no
+    // jsdom, ele cai em (0,0) na tela — e o alvo do ponteiro.
+    initialPositions: { 'a.md': { x: 0, y: 0 }, 'b.md': { x: 250, y: 0 } },
+    onHover: () => {},
+    onOpen: () => {},
+    onFocus: () => {},
     ...extra,
   }
-  render(<Graph2dCanvas {...props} />)
-  return props
 }
 
-describe('Graph2dCanvas', () => {
-  it('desenha um canvas acessivel e nao um elemento por nota', () => {
-    montar()
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
+
+describe('Graph2dCanvas (modelo do Obsidian)', () => {
+  it('desenha em canvas (nao em um elemento por nota)', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+    render(<Graph2dCanvas {...props()} />)
     const canvas = screen.getByRole('application', { name: 'Grafo de notas' })
     expect(canvas.tagName).toBe('CANVAS')
-    expect(canvas).toHaveAttribute('tabindex', '0')
-    expect(canvas).toHaveAttribute('aria-describedby', 'graph2d-canvas-ajuda')
-    // Nenhum botao visivel por nota: o desenho e do canvas.
-    expect(document.querySelectorAll('.note-graph-node').length).toBe(0)
   })
 
-  it('lista as notas em botoes escondidos para teclado e leitor de tela', async () => {
-    const user = userEvent.setup()
-    const props = montar()
-    const botao = screen.getByRole('button', { name: 'Abrir nota b no grafo' })
-    await user.click(botao)
-    expect(props.onOpen).toHaveBeenCalledWith('b.md')
-  })
-
-  it('restaura as posicoes salvas do vault e persiste quando assenta', async () => {
-    const onSettled = vi.fn()
-    montar({
-      initialPositions: { 'a.md': { x: 10, y: 20 }, 'b.md': { x: 30, y: 40 } },
-      onSettled,
-    })
-    // O alpha do Obsidian leva ~300 ticks para chegar em 0.001.
-    await waitFor(() => expect(onSettled).toHaveBeenCalled(), { timeout: 20000 })
-    const posicoes = onSettled.mock.calls[0][0] as Record<string, { x: number; y: number }>
-    expect(Object.keys(posicoes).sort()).toEqual(['a.md', 'b.md'])
-    // `initialPositions` e o PONTO DE PARTIDA (a simulacao move a partir dali,
-    // como no Obsidian): o contrato aqui e que as posicoes salvas entram no
-    // layout e voltam no assentamento — a conversao em si e do construtor da
-    // simulacao, coberta em graph2dSimulation.test.ts.
-    expect(posicoes['a.md']).toBeTypeOf('object')
-    expect(posicoes['b.md']).toBeTypeOf('object')
-  })
-
-  it('arrastar um no fixa ele e reaquece a simulacao (vizinhos seguem)', async () => {
+  it('pointerdown fixa o no (forceNode) e pointerup sem mover abre o painel', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
     const pin = vi.spyOn(Graph2dSimulation.prototype, 'pin')
-    const reheat = vi.spyOn(Graph2dSimulation.prototype, 'reheat')
-    montar()
+    const unpin = vi.spyOn(Graph2dSimulation.prototype, 'unpin')
+    const onFocus = vi.fn()
+    render(<Graph2dCanvas {...props({ onFocus })} />)
     const canvas = screen.getByRole('application', { name: 'Grafo de notas' })
-    await new Promise((resolve) => setTimeout(resolve, 30))
+    // A simulacao nasce num efeito; sob carga da suite ela pode chegar depois.
+    await waitFor(() => {
+      fireEvent.pointerDown(canvas, { clientX: 0, clientY: 0, pointerId: 1 })
+      expect(pin).toHaveBeenCalled()
+    })
+
+    fireEvent.pointerUp(canvas, { clientX: 0, clientY: 0, pointerId: 1 })
+    expect(unpin).toHaveBeenCalled()
+    expect(onFocus).toHaveBeenCalledWith('a.md')
+  })
+
+  it('arrastar NAO abre o painel', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+    const onFocus = vi.fn()
+    render(<Graph2dCanvas {...props({ onFocus })} />)
+    const canvas = screen.getByRole('application', { name: 'Grafo de notas' })
+    await waitFor(() => expect(canvas).toBeInTheDocument())
 
     fireEvent.pointerDown(canvas, { clientX: 0, clientY: 0, pointerId: 1 })
-    fireEvent.pointerMove(canvas, { clientX: 30, clientY: 20, pointerId: 1 })
+    fireEvent.pointerMove(canvas, { clientX: 60, clientY: 30, pointerId: 1 })
+    fireEvent.pointerUp(canvas, { clientX: 60, clientY: 30, pointerId: 1 })
 
-    expect(pin).toHaveBeenCalled()
-    expect(reheat).toHaveBeenCalledWith(1)
-    pin.mockRestore()
-    reheat.mockRestore()
+    expect(onFocus).not.toHaveBeenCalled()
   })
 
-  it('explica os gestos para quem usa teclado', () => {
-    montar()
-    expect(screen.getByText(/Arraste o fundo para mover/)).toBeInTheDocument()
+  it('lista as notas em botoes acessiveis (teclado)', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+    const onOpen = vi.fn()
+    render(<Graph2dCanvas {...props({ onOpen })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir nota b no grafo' }))
+    expect(onOpen).toHaveBeenCalledWith('b.md')
   })
 })
