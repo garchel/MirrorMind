@@ -101,7 +101,7 @@ export function Graph2dCanvas({
     settings.centerStrength,
     settings.collideRadius,
     settings.collideStrength,
-    settings.nodeSize,
+    settings.nodeSizeMultiplier,
   ].join('|')
   const onSettledRef = useRef(onSettled)
   onSettledRef.current = onSettled
@@ -132,7 +132,7 @@ export function Graph2dCanvas({
       labels: hoverRef.current >= 0 || viewRef.current.zoom > ZOOM_LABELS,
       colors: CORES,
       nodeStyles: estilosRef.current,
-      nodeSize: sim.settings.nodeSize,
+      nodeSizeMultiplier: sim.settings.nodeSizeMultiplier,
     })
   }, [])
 
@@ -309,7 +309,7 @@ export function Graph2dCanvas({
     const sim = simRef.current
     if (!sim) return -1
     const { width, height } = sizeRef.current
-    return pickNode(sim, ponto.x, ponto.y, viewRef.current, width, height, sim.settings.nodeSize)
+    return pickNode(sim, ponto.x, ponto.y, viewRef.current, width, height, sim.settings.nodeSizeMultiplier)
   }
 
   const aoPressionar = (event: React.PointerEvent<HTMLCanvasElement>) => {

@@ -34,7 +34,7 @@ export type Graph2dSimSettings = {
   centerStrength: number
   collideRadius: number
   collideStrength: number
-  nodeSize: number
+  nodeSizeMultiplier: number
 }
 
 export function buildGraph2dSettings(values: Graph2dSliderValues): Graph2dSimSettings {
@@ -48,6 +48,6 @@ export function buildGraph2dSettings(values: Graph2dSliderValues): Graph2dSimSet
     // Estes tres nao tem slider: sao as constantes do `sim.js`.
     collideRadius: 60,
     collideStrength: 0.5,
-    nodeSize: 5,
+    nodeSizeMultiplier: 1,
   }
 }

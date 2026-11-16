@@ -41,12 +41,26 @@ export type Graph2dRenderOptions = {
   labels: boolean
   colors: Graph2dColors
   nodeStyles: Graph2dNodeStyle[]
-  nodeSize: number
+  nodeSizeMultiplier: number
 }
 
-/** Raio visual no mundo: cresce com o grau, como o tamanho do no do Obsidian. */
-export function nodeRadiusWorld(degree: number, nodeSize: number): number {
-  return nodeSize * (1 + Math.min(degree, 12) * 0.12)
+/**
+ * Tamanho do no, formula do Obsidian (`app.js`):
+ *
+ *   getSize() { return fNodeSizeMult * Math.max(8, Math.min(3*sqrt(weight+1), 30)) }
+ *
+ * `weight` e o numero de conexoes. O piso de 8 faz quase todo no nascer do
+ * mesmo tamanho; o crescimento e por raiz, entao a diferenca entre um no de
+ * grau 1 e um de grau 20 e ~1,7x, nao 10x. O teto de 30 chega em ~100 conexoes.
+ * O valor e em pixels de TELA; o zoom entra como sqrt (ver `nodeRadiusPx`).
+ */
+export function nodeSizePx(degree: number, nodeSizeMultiplier: number): number {
+  return nodeSizeMultiplier * Math.max(8, Math.min(3 * Math.sqrt(degree + 1), 30))
+}
+
+/** Raio em px na tela, ja com o zoom (o Obsidian multiplica por sqrt(zoom)). */
+export function nodeRadiusPx(degree: number, nodeSizeMultiplier: number, zoom: number): number {
+  return nodeSizePx(degree, nodeSizeMultiplier) * Math.sqrt(Math.max(0.05, zoom))
 }
 
 export function worldToScreen(
@@ -83,13 +97,13 @@ export function pickNode(
   view: Graph2dView,
   width: number,
   height: number,
-  nodeSize: number,
+  nodeSizeMultiplier: number,
 ): number {
   let melhor = -1
   let melhorDist = Infinity
   for (let i = 0; i < sim.count; i += 1) {
     const s = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
-    const raio = nodeRadiusWorld(sim.degree[i], nodeSize) * view.zoom + 4
+    const raio = nodeRadiusPx(sim.degree[i], nodeSizeMultiplier, view.zoom) + 4
     const dx = s.x - screenX
     const dy = s.y - screenY
     const d = dx * dx + dy * dy
@@ -106,7 +120,7 @@ export function drawGraph2d(
   sim: Graph2dSimulation,
   options: Graph2dRenderOptions,
 ): void {
-  const { width, height, dpr, view, hovered, neighbors, labels, colors, nodeStyles, nodeSize } = options
+  const { width, height, dpr, view, hovered, neighbors, labels, colors, nodeStyles, nodeSizeMultiplier } = options
   ctx.save()
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, width, height)
@@ -142,12 +156,10 @@ export function drawGraph2d(
     ctx.stroke(dimPath)
   }
 
-  // --- nos: raio crescendo com sqrt(zoom), como o Obsidian ---
-  const escalaZoom = Math.sqrt(Math.max(0.05, view.zoom))
+  // --- nos: mesmo tamanho do Obsidian (piso 8, sqrt do grau, teto 30) ---
   for (let i = 0; i < sim.count; i += 1) {
     const s = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
-    const raioMundo = nodeRadiusWorld(sim.degree[i], nodeSize)
-    const raio = Math.max(1.2, raioMundo * escalaZoom)
+    const raio = Math.max(1.2, nodeRadiusPx(sim.degree[i], nodeSizeMultiplier, view.zoom))
     if (s.x < -raio - 2 || s.x > width + raio + 2 || s.y < -raio - 2 || s.y > height + raio + 2) continue
     const estilo = nodeStyles[i]
     const visivel = noVisivel(i)
@@ -173,7 +185,7 @@ export function drawGraph2d(
       if (!destacado && !labels && view.zoom < 1.45) continue
       const s = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
       if (s.x < -80 || s.x > width + 80 || s.y < -30 || s.y > height + 30) continue
-      const raio = Math.max(1.2, nodeRadiusWorld(sim.degree[i], nodeSize) * escalaZoom)
+      const raio = Math.max(1.2, nodeRadiusPx(sim.degree[i], nodeSizeMultiplier, view.zoom))
       ctx.globalAlpha = destacado ? 1 : 0.75
       ctx.fillStyle = destacado ? colors.label : colors.labelDim
       const nome = sim.paths[i].replace(/^.*\//, '').replace(/\.md$/i, '')

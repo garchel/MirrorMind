@@ -93,6 +93,47 @@ describe('graph2dSimulation (modelo do Obsidian)', () => {
     expect(sim.settled).toBe(true)
   })
 
+  it('no solto volta para o equilibrio entre os proprios vizinhos', () => {
+    // Caso do "Meio do triangulo": um no ligado a tres vertices. Arrastado para
+    // longe e solto, ele volta para a MESMA posicao relativa aos vizinhos que
+    // ocupava antes (o balanco das molas), e nao fica onde foi solto.
+    // A posicao ABSOLUTA nao serve de referencia: o cluster inteiro desloca
+    // durante o gesto (medido: 175 de deslocamento do centroide).
+    const sim = criar(
+      [['a', -250, 0], ['b', 250, 0], ['c', 0, 433], ['meio', 0, 144]],
+      [['meio', 'a'], ['meio', 'b'], ['meio', 'c'], ['a', 'b'], ['b', 'c'], ['c', 'a']],
+    )
+    rodar(sim, 600)
+    const centroide = () => {
+      const a = sim.positionOf('a')!
+      const b = sim.positionOf('b')!
+      const c = sim.positionOf('c')!
+      return { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 }
+    }
+    const desvioDe = () => {
+      const m = sim.positionOf('meio')!
+      const c = centroide()
+      return Math.hypot(m.x - c.x, m.y - c.y)
+    }
+    const desvioNoRepouso = desvioDe()
+
+    // Gesto real: 40 frames com o no preso, terminando ~1300 unidades longe.
+    const meio = centroide()
+    for (let passo = 1; passo <= 40; passo += 1) {
+      sim.pin('meio', meio.x + 900 + passo * 6, meio.y + 600)
+      sim.step()
+    }
+    const solto = sim.positionOf('meio')!
+    const centroAo_Soltar = centroide()
+    expect(Math.hypot(solto.x - centroAo_Soltar.x, solto.y - centroAo_Soltar.y)).toBeGreaterThan(500)
+
+    sim.unpin('meio')
+    rodar(sim, 600)
+    // Voltou ao mesmo balanco: o desvio ao centroide dos vizinhos e o de antes.
+    expect(Math.abs(desvioDe() - desvioNoRepouso)).toBeLessThan(40)
+    expect(desvioDe()).toBeLessThan(250)
+  })
+
   it('centerStrength 0 nao puxa nada para o centro', () => {
     // Regressao: o mapeamento da UI tinha piso de 0.1, entao pedir "forca para
     // o centro = 0" continuava puxando o no solto para o meio.
@@ -169,8 +210,8 @@ describe('graph2dSimulation (modelo do Obsidian)', () => {
   })
 
   it('settings parciais completam com os defaults do Obsidian', () => {
-    const sim = new Graph2dSimulation({ paths: ['a'], links: [], settings: { nodeSize: 9 } })
-    expect(sim.settings.nodeSize).toBe(9)
+    const sim = new Graph2dSimulation({ paths: ['a'], links: [], settings: { nodeSizeMultiplier: 2 } })
+    expect(sim.settings.nodeSizeMultiplier).toBe(2)
     expect(sim.settings.linkDistance).toBe(GRAPH2D_DEFAULT_SETTINGS.linkDistance)
     expect(sim.settings.collideRadius).toBe(60)
   })

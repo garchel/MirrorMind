@@ -19,7 +19,7 @@ function props(extra: Partial<Graph2dCanvasProps> = {}): Graph2dCanvasProps {
       centerStrength: 0.1,
       collideRadius: 60,
       collideStrength: 0.5,
-      nodeSize: 5,
+      nodeSizeMultiplier: 1,
     },
     hoveredPath: null,
     neighbors: null,

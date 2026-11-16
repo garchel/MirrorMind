@@ -35,8 +35,8 @@ export type Graph2dSettings = {
   collideRadius: number
   /** Intensidade da colisao (Obsidian: 0.5). */
   collideStrength: number
-  /** Raio VISUAL do no no espaco do mundo (Obsidian: 5 x multiplicador). */
-  nodeSize: number
+  /** Multiplicador do tamanho do no (Obsidian: `fNodeSizeMult`, default 1). */
+  nodeSizeMultiplier: number
 }
 
 /** Constantes do `sim.js`, para os testes e para a UI partir delas. */
@@ -57,8 +57,8 @@ export const OBSIDIAN_PHYSICS = {
   alphaTargetDrag: 0.3,
   /** Abaixo disso a simulacao dorme. */
   alphaSleep: 0.001,
-  /** Raio visual do no (antes do multiplicador). */
-  nodeSize: 5,
+  /** `fNodeSizeMult` do Obsidian. */
+  nodeSizeMultiplier: 1,
 } as const
 
 export const GRAPH2D_DEFAULT_SETTINGS: Graph2dSettings = {
@@ -68,7 +68,7 @@ export const GRAPH2D_DEFAULT_SETTINGS: Graph2dSettings = {
   centerStrength: OBSIDIAN_PHYSICS.centerStrength,
   collideRadius: OBSIDIAN_PHYSICS.collideRadius,
   collideStrength: OBSIDIAN_PHYSICS.collideStrength,
-  nodeSize: OBSIDIAN_PHYSICS.nodeSize,
+  nodeSizeMultiplier: OBSIDIAN_PHYSICS.nodeSizeMultiplier,
 }
 
 export type Graph2dLink = { source: string; target: string }
