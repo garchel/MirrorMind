@@ -143,12 +143,12 @@ export function drawGraph2d(
   const raioTela = Math.max(1.5, radius * base)
 
   // Arestas: dois paths (normais e esmaecidas) em vez de um por aresta.
-  if (sim.edgeRest.length > 0) {
+  if (sim.edgePairs.length > 0) {
     ctx.lineWidth = 1
     if (TEM_PATH2D) {
       const normais = new Path2D()
       const esmaecidas = new Path2D()
-      for (let e = 0; e < sim.edgeRest.length; e += 1) {
+      for (let e = 0; e < sim.edgePairs.length / 2; e += 1) {
         const a = sim.edgePairs[e * 2]
         const b = sim.edgePairs[e * 2 + 1]
         const dim = neighbors !== null && !neighbors.has(a) && !neighbors.has(b)
@@ -165,7 +165,7 @@ export function drawGraph2d(
     } else {
       ctx.strokeStyle = colors.link
       ctx.beginPath()
-      for (let e = 0; e < sim.edgeRest.length; e += 1) {
+      for (let e = 0; e < sim.edgePairs.length / 2; e += 1) {
         const a = sim.edgePairs[e * 2]
         const b = sim.edgePairs[e * 2 + 1]
         const pa = worldToScreen(sim.xs[a], sim.ys[a], view, width, height)

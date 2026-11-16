@@ -71,7 +71,8 @@ describe('Graph2dSimulation', () => {
     const links = nos.slice(1).map(([path]) => [nos[0][0], path] as [string, string])
     const sim = criar(nos, links)
     const energiaInicial = sim.step()
-    rodar(sim, 200)
+    // O Obsidian resfria alpha 1 -> 0.001 em ~300 ticks.
+    rodar(sim, 360)
     expect(sim.alpha).toBeLessThan(GRAPH2D_ALPHA_SLEEP)
     expect(sim.settled).toBe(true)
     expect(sim.step()).toBeLessThan(energiaInicial)
@@ -95,30 +96,32 @@ describe('Graph2dSimulation', () => {
     expect(sim.positionOf('a')).not.toEqual({ x: 30, y: 40 })
   })
 
-  it('arrastar puxa a vizinhanca com decaimento por salto (modelo do 3D)', () => {
-    // cadeia hub - a - b - c: 1, 2 e 3 saltos. `livre` nao se conecta.
-    const paths = ['hub', 'a', 'b', 'c', 'livre']
+  it('arrastar mantem alphaTarget e move a vizinhanca (modelo do Obsidian)', () => {
+    // `app.js`: arrastar = forceNode{x,y} + alphaTarget .3; soltar = alphaTarget 0.
+    const paths = ['hub', 'a', 'b', 'c']
     const positions = new Map<string, { x: number; y: number }>([
-      ['hub', { x: 100, y: 100 }], ['a', { x: 82, y: 100 }], ['b', { x: 64, y: 100 }],
-      ['c', { x: 46, y: 100 }], ['livre', { x: 140, y: 160 }],
+      ['hub', { x: 100, y: 100 }], ['a', { x: 82, y: 100 }],
+      ['b', { x: 64, y: 100 }], ['c', { x: 46, y: 100 }],
     ])
     const links = [
       { source: 'hub', target: 'a' }, { source: 'a', target: 'b' }, { source: 'b', target: 'c' },
     ]
     const sim = criar(paths.map((p) => [p, positions.get(p)!.x, positions.get(p)!.y]), links.map((l) => [l.source, l.target]))
-    rodar(sim, 200)
+    rodar(sim, 400)
     const antes = new Map(paths.map((p) => [p, sim.positionOf(p)!]))
-    sim.beginDrag('hub')
-    for (let passo = 1; passo <= 30; passo += 1) {
-      sim.pin('hub', 100 + (40 * passo) / 30, 100)
+    for (let passo = 1; passo <= 40; passo += 1) {
+      sim.pin('hub', 100 + (30 * passo) / 40, 100)
       sim.step()
     }
-    const desloc = (p: string) => sim.positionOf(p)!.x - antes.get(p)!.x
-    // O no solto nao se move; os conectados acompanham com fator 0,6 por salto.
-    expect(Math.abs(desloc('livre'))).toBeLessThan(1)
-    expect(desloc('a')).toBeGreaterThan(20)
-    expect(desloc('a')).toBeGreaterThan(desloc('b'))
-    expect(desloc('b')).toBeGreaterThan(desloc('c'))
+    // Com o no fixado o alpha fica em 0.3 (nao resfria) e os vizinhos seguem.
+    expect(sim.alphaTarget).toBe(0.3)
+    expect(sim.alpha).toBeGreaterThan(0.25)
+    const moveu = (p: string) => Math.hypot(sim.positionOf(p)!.x - antes.get(p)!.x, sim.positionOf(p)!.y - antes.get(p)!.y)
+    expect(moveu('a')).toBeGreaterThan(1)
+    expect(moveu('b')).toBeGreaterThan(1)
+    // Soltar volta o alvo para 0 (e o layout resfria de novo).
+    sim.unpin('hub')
+    expect(sim.alphaTarget).toBe(0)
   })
 
   it('300 nos rodam sem estourar (Barnes-Hut, nao n^2)', () => {

@@ -42,7 +42,6 @@ export type Graph2dCanvasProps = {
 const ZOOM_MIN = 0.35
 const ZOOM_MAX = 4
 /** Alpha usado enquanto o usuario arrasta: o cluster acompanha sem oscilar. */
-const ALPHA_DRAG = 1
 /** A partir daqui os nomes aparecem sem hover. O zoom inicial e 1 (grafo
  * inteiro): mostrar todos os nomes ali vira mancha de texto — medido no
  * harness, com 120 nos os rotulos cobriam as bolinhas. */
@@ -306,10 +305,9 @@ export function Graph2dCanvas({
       const path = sim.paths[indice]
       const { width, height } = sizeRef.current
       const mundo = screenToWorld(ponto.x, ponto.y, viewRef.current, width, height)
+      // `pin` ja reaquece para alphaTarget 0.3 (o que o app.js do Obsidian
+      // manda no arrasto) — e isso que faz a vizinhanca seguir.
       sim.pin(path, mundo.x, mundo.y)
-      // Modelo do grafo 3D: BFS de ate 3 saltos com fator 0,6 por salto.
-      sim.beginDrag(path)
-      sim.reheat(ALPHA_DRAG)
       persistidoRef.current = false
       arrastoRef.current = { tipo: 'no', path, x: ponto.x, y: ponto.y, movido: false }
       onFocus?.(path)
@@ -332,7 +330,6 @@ export function Graph2dCanvas({
         const { width, height } = sizeRef.current
         const mundo = screenToWorld(ponto.x, ponto.y, viewRef.current, width, height)
         simRef.current?.pin(arrasto.path, mundo.x, mundo.y)
-        simRef.current?.reheat(ALPHA_DRAG)
         persistidoRef.current = false
       }
       arrasto.x = ponto.x
@@ -355,9 +352,8 @@ export function Graph2dCanvas({
     arrastoRef.current = null
     const sim = simRef.current
     if (arrasto?.tipo === 'no' && sim) {
+      // Soltar: unpin + alphaTarget 0, exatamente o par do app.js do Obsidian.
       sim.unpin(arrasto.path)
-      sim.endDrag()
-      sim.reheat(0.4)
       if (!arrasto.movido) {
         onFocus?.(arrasto.path)
         onOpen(arrasto.path)
