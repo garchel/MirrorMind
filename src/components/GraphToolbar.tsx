@@ -2,6 +2,7 @@ import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { Button } from './ui/Button'
 import { Field } from './ui/Field'
 import {
+  Box,
   Download,
   Eye,
   Folder,
@@ -63,6 +64,7 @@ export type GraphToolbarProps = {
   graphSettingsOpen: boolean
   setGraphSettingsOpenSynced: (open: boolean) => void
   resetGraph3dSettings: () => void
+  resetGraph2dSettings: () => void
   graph3dNodeSize: number
   setGraph3dNodeSize: (next: number) => void
   graph3dDegreeGrowth: number
@@ -139,6 +141,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
     graphSettingsOpen,
     setGraphSettingsOpenSynced,
     resetGraph3dSettings,
+    resetGraph2dSettings,
     graph3dNodeSize,
     setGraph3dNodeSize,
     graph3dDegreeGrowth,
@@ -295,151 +298,176 @@ export function GraphToolbar(props: GraphToolbarProps) {
               <SlidersHorizontal size={14} strokeWidth={1.75} aria-hidden="true" />
               <strong>Configurações do grafo</strong>
             </span>
-            <Button type="button" className="ui-button graph-settings-reset" onClick={resetGraph3dSettings} title="Restaurar os valores padrão" aria-label="Restaurar os valores padrão">
+            <Button type="button" className="ui-button graph-settings-reset" onClick={() => { resetGraph3dSettings(); resetGraph2dSettings() }} title="Restaurar os valores padrão de 2D e 3D" aria-label="Restaurar os valores padrão">
               <RotateCcw size={12} strokeWidth={1.75} aria-hidden="true" />
               <span>Padroes</span>
             </Button>
           </header>
-          <section className="graph-settings-group" aria-label="Visual dos nós">
-            <p className="graph-settings-group-title"><Palette size={12} strokeWidth={1.75} aria-hidden="true" /> Visual</p>
-            <label className="graph-settings-row">
-              <span>Tamanho dos nós<small>Raio base dos orbes</small></span>
-              <Field type="number" size="xs" min={0.2} max={3} step={0.05} value={graph3dNodeSize} onChange={(event) => setGraph3dNodeSize(updateNumberSetting(event.target.value, graph3dNodeSize, 0.2, 3))} aria-label="Tamanho dos nós no grafo 3D" />
-            </label>
-            <label className="graph-settings-row">
-              <span>Aumento por conexão<small>Crescimento do nó por link</small></span>
-              <Field type="number" size="xs" min={0} max={1} step={0.01} value={graph3dDegreeGrowth} onChange={(event) => setGraph3dDegreeGrowth(updateNumberSetting(event.target.value, graph3dDegreeGrowth, 0, 1))} aria-label="Fator de aumento por conexão no grafo 3D" />
-            </label>
-          </section>
-          <section className="graph-settings-group" aria-label="Órbita dos nós">
-            <p className="graph-settings-group-title"><Orbit size={12} strokeWidth={1.75} aria-hidden="true" /> Orbita</p>
-            <label className="graph-settings-row">
-              <span>Distância entre nós<small>Raio das órbitas ao redor do núcleo</small></span>
-              <Field type="number" size="xs" min={2} max={20} step={0.5} value={graph3dNodeSpacing} onChange={(event) => setGraph3dNodeSpacing(updateNumberSetting(event.target.value, graph3dNodeSpacing, 2, 20))} aria-label="Distância entre nós no grafo 3D" />
-            </label>
-            <label className="graph-settings-row">
-              <span>Velocidade de orbitação<small>Multiplicador do giro orbital</small></span>
-              <Field type="number" size="xs" min={0.1} max={5} step={0.1} value={graph3dOrbitSpeed} onChange={(event) => setGraph3dOrbitSpeed(updateNumberSetting(event.target.value, graph3dOrbitSpeed, 0.1, 5))} aria-label="Velocidade de orbitação no grafo 3D" />
-            </label>
-          </section>
-          <section className="graph-settings-group" aria-label="Arestas do grafo">
-            <p className="graph-settings-group-title"><Link2 size={12} strokeWidth={1.75} aria-hidden="true" /> Arestas</p>
-            <label className="graph-settings-row">
-              <span>Aresta máxima<small>Limite superior das conexões</small></span>
-              <Field type="number" size="xs" min={4} max={40} step={1} value={graph3dMaxEdgeLength} onChange={(event) => setGraph3dMaxEdgeLength(updateNumberSetting(event.target.value, graph3dMaxEdgeLength, 4, 40))} aria-label="Tamanho máximo das arestas no grafo 3D" />
-            </label>
-            <label className="graph-settings-row">
-              <span>Aresta mínima<small>Distância mínima entre conectados</small></span>
-              <Field type="number" size="xs" min={0} max={30} step={0.5} value={graph3dMinEdgeLength} onChange={(event) => setGraph3dMinEdgeLength(updateNumberSetting(event.target.value, graph3dMinEdgeLength, 0, 30))} aria-label="Tamanho mínimo das arestas no grafo 3D" />
-            </label>
-          </section>
-          <section className="graph-settings-group" aria-label="Forças do grafo 2D">
-            <p className="graph-settings-group-title"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Forças (2D)</p>
-            <label className="graph-settings-row">
-              <span>Afastamento<small>O quanto as notas se empurram entre si</small></span>
-              <Field type="number" size="xs" step={50} value={graph2dRepulsionStrength} onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, -Infinity, Infinity))} aria-label="Força de repulsão dos nós no grafo 2D" />
-            </label>
-            <label className="graph-settings-row">
-              <span>Firmeza das conexões<small>O quanto duas notas ligadas resistem a se afastar</small></span>
-              <Field type="number" size="xs" step={0.1} value={graph2dLinkStiffness} onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, -Infinity, Infinity))} aria-label="Rigidez da mola das arestas no grafo 2D" />
-            </label>
-            <label className="graph-settings-row">
-              <span>Freio<small>Quanto o movimento perde força a cada segundo; maior, para antes</small></span>
-              <Field type="number" size="xs" step={0.05} value={graph2dVelocityDecay} onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, -Infinity, Infinity))} aria-label="Amortecimento da velocidade no grafo 2D" />
-            </label>
-            <label className="graph-settings-row">
-              <span>Distância das conexões<small>Onde duas notas ligadas param de se puxar</small></span>
-              <Field type="number" size="xs" step={0.5} value={graph2dLinkDistance} onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, -Infinity, Infinity))} aria-label="Distância do link no grafo 2D" />
-            </label>
-            <label className="graph-settings-row">
-              <span>Força para o centro<small>O quanto as notas são puxadas para o meio</small></span>
-              <Field type="number" size="xs" step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))} aria-label="Força central do grafo 2D" />
-            </label>
-          </section>
-          <section className="graph-settings-group" aria-label="Exibição do grafo">
-            <p className="graph-settings-group-title"><Eye size={12} strokeWidth={1.75} aria-hidden="true" /> Exibicao</p>
-            <label className="graph-settings-toggle">
-              <span>Mostrar notas sem conexão<small>Inclui notas isoladas no grafo</small></span>
-              <input type="checkbox" checked={showGraphOrphans} onChange={(event) => setShowGraphOrphans(event.target.checked)} />
-              <span className="graph-settings-toggle-track" aria-hidden="true" />
-            </label>
-            <label className="graph-settings-toggle">
-              <span>Somente notas não conectadas<small>Esconde as conectadas</small></span>
-              <input type="checkbox" checked={showOnlyGraphOrphans} onChange={(event) => setShowOnlyGraphOrphans(event.target.checked)} />
-              <span className="graph-settings-toggle-track" aria-hidden="true" />
-            </label>
-            <label className="graph-settings-toggle">
-              <span>Ocultar nomes<small>O nome aparece ao passar o mouse na nota</small></span>
-              <input type="checkbox" checked={graphHideAllNames} onChange={(event) => setGraphHideAllNames(event.target.checked)} />
-              <span className="graph-settings-toggle-track" aria-hidden="true" />
-            </label>
-            <label className="graph-settings-toggle">
-              <span>Agrupar por pasta<small>Notas da mesma pasta ficam juntas e com a mesma cor</small></span>
-              <input type="checkbox" checked={graphGroupByFolder} onChange={(event) => setGraphGroupByFolder(event.target.checked)} aria-label="Agrupar por pasta" />
-              <span className="graph-settings-toggle-track" aria-hidden="true" />
-            </label>
-            <label className="graph-settings-toggle">
-              <span>Agrupar por tag<small>Notas da mesma tag principal ficam juntas e com a mesma cor</small></span>
-              <input type="checkbox" checked={graphGroupByTag} onChange={(event) => setGraphGroupByTag(event.target.checked)} aria-label="Agrupar por tag" />
-              <span className="graph-settings-toggle-track" aria-hidden="true" />
-            </label>
-            {graphGroupByTag ? (
+
+          {/* ---------- 3D ---------- */}
+          <section className="graph-settings-mode" data-active={graphMode3d ? 'true' : 'false'} aria-labelledby="graph-settings-modo-3d">
+            <p className="graph-settings-mode-head" id="graph-settings-modo-3d">
+              <span className="graph-settings-mode-name"><Box size={12} strokeWidth={1.75} aria-hidden="true" /> Grafo 3D</span>
+              {graphMode3d ? <span className="graph-settings-mode-badge">em uso</span> : null}
+            </p>
+            <section className="graph-settings-group" aria-label="Visual dos nós">
+              <p className="graph-settings-group-title"><Palette size={12} strokeWidth={1.75} aria-hidden="true" /> Visual</p>
               <label className="graph-settings-row">
-                <span>Tag principal<small>Usada para desempatar notas com várias tags</small></span>
-                <Field as="select" size="xs"
-                  value={graphPrimaryTag}
-                  onChange={(event) => setGraphPrimaryTag(event.target.value)}
-                  aria-label="Tag principal do agrupamento por tag"
-                >
-                  <option value="">Primeira tag da nota</option>
-                  {graphTagIndexRef.current.allTags().map((tag) => (
-                    <option key={tag} value={tag}>#{tag}</option>
-                  ))}
-                </Field>
+                <span>Tamanho dos nós<small>Raio base dos orbes</small></span>
+                <Field type="number" size="xs" min={0.2} max={3} step={0.05} value={graph3dNodeSize} onChange={(event) => setGraph3dNodeSize(updateNumberSetting(event.target.value, graph3dNodeSize, 0.2, 3))} aria-label="Tamanho dos nós no grafo 3D" />
               </label>
-            ) : null}
-            {graphGroupMaps ? (
-              <section className="graph-settings-colors" aria-label="Cores dos grupos">
-                <p className="graph-settings-colors-title"><Palette size={12} strokeWidth={1.75} aria-hidden="true" /> Cores dos grupos</p>
-                {graphGroupMaps.groups.slice(0, 12).map((group) => {
-                  const override = graphColorOverrides[group.key]
-                  return (
-                    <label key={group.key} className="graph-settings-color-row">
-                      <input
-                        type="color"
-                        value={override && /^#[0-9a-fA-F]{6}$/.test(override) ? override : group.color}
-                        onChange={(event) => setGraphColorOverrides((current) => ({ ...current, [group.key]: event.target.value }))}
-                        aria-label={`Cor do grupo ${group.label}`}
-                      />
-                      <span className="graph-settings-color-label" title={group.label}>{group.label}</span>
-                      {override ? (
-                        <Button
-                          type="button"
-                          className="ui-button graph-settings-color-reset"
-                          onClick={() => setGraphColorOverrides((current) => {
-                            const next = { ...current }
-                            delete next[group.key]
-                            return next
-                          })}
-                          aria-label={`Restaurar cor padrao do grupo ${group.label}`}
-                        >Restaurar</Button>
-                      ) : null}
-                    </label>
-                  )
-                })}
-                {Object.keys(graphColorOverrides).length > 0 ? (
-                  <Button
-                    type="button"
-                    className="ui-button graph-settings-color-reset-all"
-                    onClick={() => setGraphColorOverrides({})}
-                  >Restaurar todas as cores</Button>
-                ) : null}
-              </section>
-            ) : null}
-            <label className="graph-settings-row">
-              <span>Limite de notas exibidas<small>Acima disso, o grafo mostra só a tela e o entorno dela</small></span>
-              <Field type="number" size="xs" min={50} max={10000} step={50} value={graphRenderLimit} onChange={(event) => setGraphRenderLimit(updateNumberSetting(event.target.value, graphRenderLimit, 50, 10000))} aria-label="Limite de nós renderizados no grafo 2D" />
-            </label>
+              <label className="graph-settings-row">
+                <span>Aumento por conexão<small>Crescimento do nó por link</small></span>
+                <Field type="number" size="xs" min={0} max={1} step={0.01} value={graph3dDegreeGrowth} onChange={(event) => setGraph3dDegreeGrowth(updateNumberSetting(event.target.value, graph3dDegreeGrowth, 0, 1))} aria-label="Fator de aumento por conexão no grafo 3D" />
+              </label>
+            </section>
+            <section className="graph-settings-group" aria-label="Órbita dos nós">
+              <p className="graph-settings-group-title"><Orbit size={12} strokeWidth={1.75} aria-hidden="true" /> Orbita</p>
+              <label className="graph-settings-row">
+                <span>Distância entre nós<small>Raio das órbitas ao redor do núcleo</small></span>
+                <Field type="number" size="xs" min={2} max={20} step={0.5} value={graph3dNodeSpacing} onChange={(event) => setGraph3dNodeSpacing(updateNumberSetting(event.target.value, graph3dNodeSpacing, 2, 20))} aria-label="Distância entre nós no grafo 3D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Velocidade de orbitação<small>Multiplicador do giro orbital</small></span>
+                <Field type="number" size="xs" min={0.1} max={5} step={0.1} value={graph3dOrbitSpeed} onChange={(event) => setGraph3dOrbitSpeed(updateNumberSetting(event.target.value, graph3dOrbitSpeed, 0.1, 5))} aria-label="Velocidade de orbitação no grafo 3D" />
+              </label>
+            </section>
+            <section className="graph-settings-group" aria-label="Arestas do grafo">
+              <p className="graph-settings-group-title"><Link2 size={12} strokeWidth={1.75} aria-hidden="true" /> Arestas</p>
+              <label className="graph-settings-row">
+                <span>Aresta máxima<small>Limite superior das conexões</small></span>
+                <Field type="number" size="xs" min={4} max={40} step={1} value={graph3dMaxEdgeLength} onChange={(event) => setGraph3dMaxEdgeLength(updateNumberSetting(event.target.value, graph3dMaxEdgeLength, 4, 40))} aria-label="Tamanho máximo das arestas no grafo 3D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Aresta mínima<small>Distância mínima entre conectados</small></span>
+                <Field type="number" size="xs" min={0} max={30} step={0.5} value={graph3dMinEdgeLength} onChange={(event) => setGraph3dMinEdgeLength(updateNumberSetting(event.target.value, graph3dMinEdgeLength, 0, 30))} aria-label="Tamanho mínimo das arestas no grafo 3D" />
+              </label>
+            </section>
+          </section>
+
+          {/* ---------- 2D ---------- */}
+          <section className="graph-settings-mode" data-active={graphMode3d ? 'false' : 'true'} aria-labelledby="graph-settings-modo-2d">
+            <p className="graph-settings-mode-head" id="graph-settings-modo-2d">
+              <span className="graph-settings-mode-name"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Grafo 2D</span>
+              {graphMode3d ? null : <span className="graph-settings-mode-badge">em uso</span>}
+            </p>
+            <section className="graph-settings-group" aria-label="Forças do grafo 2D">
+              <p className="graph-settings-group-title"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Forças</p>
+              <label className="graph-settings-row">
+                <span>Afastamento<small>O quanto as notas se empurram entre si</small></span>
+                <Field type="number" size="xs" step={50} value={graph2dRepulsionStrength} onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, -Infinity, Infinity))} aria-label="Força de repulsão dos nós no grafo 2D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Firmeza das conexões<small>O quanto duas notas ligadas resistem a se afastar</small></span>
+                <Field type="number" size="xs" step={0.1} value={graph2dLinkStiffness} onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, -Infinity, Infinity))} aria-label="Rigidez da mola das arestas no grafo 2D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Freio<small>Quanto o movimento perde força a cada segundo; maior, para antes</small></span>
+                <Field type="number" size="xs" step={0.05} value={graph2dVelocityDecay} onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, -Infinity, Infinity))} aria-label="Amortecimento da velocidade no grafo 2D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Distância das conexões<small>Onde duas notas ligadas param de se puxar</small></span>
+                <Field type="number" size="xs" step={0.5} value={graph2dLinkDistance} onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, -Infinity, Infinity))} aria-label="Distância do link no grafo 2D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Força para o centro<small>O quanto as notas são puxadas para o meio</small></span>
+                <Field type="number" size="xs" step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))} aria-label="Força central do grafo 2D" />
+              </label>
+            </section>
+            <section className="graph-settings-group" aria-label="Desempenho do grafo 2D">
+              <p className="graph-settings-group-title"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Desempenho</p>
+              <label className="graph-settings-row">
+                <span>Limite de notas exibidas<small>Acima disso, o grafo mostra só a tela e o entorno dela</small></span>
+                <Field type="number" size="xs" min={50} max={10000} step={50} value={graphRenderLimit} onChange={(event) => setGraphRenderLimit(updateNumberSetting(event.target.value, graphRenderLimit, 50, 10000))} aria-label="Limite de nós renderizados no grafo 2D" />
+              </label>
+            </section>
+          </section>
+
+          {/* ---------- comum aos dois ---------- */}
+          <section className="graph-settings-mode" aria-labelledby="graph-settings-modo-comum">
+            <p className="graph-settings-mode-head" id="graph-settings-modo-comum">
+              <span className="graph-settings-mode-name"><Eye size={12} strokeWidth={1.75} aria-hidden="true" /> Exibição (2D e 3D)</span>
+            </p>
+            <section className="graph-settings-group" aria-label="Exibição do grafo">
+              <label className="graph-settings-toggle">
+                <span>Mostrar notas sem conexão<small>Inclui notas isoladas no grafo</small></span>
+                <input type="checkbox" checked={showGraphOrphans} onChange={(event) => setShowGraphOrphans(event.target.checked)} />
+                <span className="graph-settings-toggle-track" aria-hidden="true" />
+              </label>
+              <label className="graph-settings-toggle">
+                <span>Somente notas não conectadas<small>Esconde as conectadas</small></span>
+                <input type="checkbox" checked={showOnlyGraphOrphans} onChange={(event) => setShowOnlyGraphOrphans(event.target.checked)} />
+                <span className="graph-settings-toggle-track" aria-hidden="true" />
+              </label>
+              <label className="graph-settings-toggle">
+                <span>Ocultar nomes<small>O nome aparece ao passar o mouse na nota</small></span>
+                <input type="checkbox" checked={graphHideAllNames} onChange={(event) => setGraphHideAllNames(event.target.checked)} />
+                <span className="graph-settings-toggle-track" aria-hidden="true" />
+              </label>
+              <label className="graph-settings-toggle">
+                <span>Agrupar por pasta<small>Notas da mesma pasta ficam juntas e com a mesma cor</small></span>
+                <input type="checkbox" checked={graphGroupByFolder} onChange={(event) => setGraphGroupByFolder(event.target.checked)} aria-label="Agrupar por pasta" />
+                <span className="graph-settings-toggle-track" aria-hidden="true" />
+              </label>
+              <label className="graph-settings-toggle">
+                <span>Agrupar por tag<small>Notas da mesma tag principal ficam juntas e com a mesma cor</small></span>
+                <input type="checkbox" checked={graphGroupByTag} onChange={(event) => setGraphGroupByTag(event.target.checked)} aria-label="Agrupar por tag" />
+                <span className="graph-settings-toggle-track" aria-hidden="true" />
+              </label>
+              {graphGroupByTag ? (
+                <label className="graph-settings-row">
+                  <span>Tag principal<small>Usada para desempatar notas com várias tags</small></span>
+                  <Field as="select" size="xs"
+                    value={graphPrimaryTag}
+                    onChange={(event) => setGraphPrimaryTag(event.target.value)}
+                    aria-label="Tag principal do agrupamento por tag"
+                  >
+                    <option value="">Primeira tag da nota</option>
+                    {graphTagIndexRef.current.allTags().map((tag) => (
+                      <option key={tag} value={tag}>#{tag}</option>
+                    ))}
+                  </Field>
+                </label>
+              ) : null}
+              {graphGroupMaps ? (
+                <section className="graph-settings-colors" aria-label="Cores dos grupos">
+                  <p className="graph-settings-colors-title"><Palette size={12} strokeWidth={1.75} aria-hidden="true" /> Cores dos grupos</p>
+                  {graphGroupMaps.groups.slice(0, 12).map((group) => {
+                    const override = graphColorOverrides[group.key]
+                    return (
+                      <label key={group.key} className="graph-settings-color-row">
+                        <input
+                          type="color"
+                          value={override && /^#[0-9a-fA-F]{6}$/.test(override) ? override : group.color}
+                          onChange={(event) => setGraphColorOverrides((current) => ({ ...current, [group.key]: event.target.value }))}
+                          aria-label={`Cor do grupo ${group.label}`}
+                        />
+                        <span className="graph-settings-color-label" title={group.label}>{group.label}</span>
+                        {override ? (
+                          <Button
+                            type="button"
+                            className="ui-button graph-settings-color-reset"
+                            onClick={() => setGraphColorOverrides((current) => {
+                              const next = { ...current }
+                              delete next[group.key]
+                              return next
+                            })}
+                            aria-label={`Restaurar cor padrao do grupo ${group.label}`}
+                          >Restaurar</Button>
+                        ) : null}
+                      </label>
+                    )
+                  })}
+                  {Object.keys(graphColorOverrides).length > 0 ? (
+                    <Button
+                      type="button"
+                      className="ui-button graph-settings-color-reset-all"
+                      onClick={() => setGraphColorOverrides({})}
+                    >Restaurar todas as cores</Button>
+                  ) : null}
+                </section>
+              ) : null}
+            </section>
           </section>
           <p className="graph-settings-note"><Info size={12} strokeWidth={1.75} aria-hidden="true" /> Sincronizado com a página de Configurações.</p>
         </PopoverContent>

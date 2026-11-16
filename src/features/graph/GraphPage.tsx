@@ -142,6 +142,7 @@ export type GraphActions = {
   resetView: () => void
   openPage: () => void
   reset3d: () => void
+  reset2d: () => void
   handleExport: (format: 'svg' | 'png') => void
   handle3dExport: (requestId: number, scene: Graph3DExportScene | null) => void
   startNodeDrag: (relativePath: string, event: PointerEvent<HTMLButtonElement>) => void
@@ -269,6 +270,7 @@ export function GraphPage({
     resetView: resetGraphView,
     openPage: openGraphPage,
     reset3d: resetGraph3dSettings,
+    reset2d: resetGraph2dSettings,
     handleExport: handleGraphExport,
     handle3dExport: handleGraph3dExport,
     revealInExplorer: revealNoteInExplorer,
@@ -309,7 +311,7 @@ export function GraphPage({
   // continuam mandando, convertidos para a escala do simulador (link 250,
   // repulsao -30, centro 0.1), que e a escala em que o modelo foi calibrado.
   const graphCanvasSettings = {
-    linkDistance: (graph2dLinkDistance / 12) * 250,
+    linkDistance: (graph2dLinkDistance / 30) * 250,
     linkStrength: Math.max(0.05, graph2dLinkStiffness / 4),
     // O app.js do Obsidian manda `repelStrength: slider^3` — com o slider em
     // 10 (default) isso e 1000, nao os -30 do fallback do sim.js.
@@ -317,7 +319,7 @@ export function GraphPage({
     // Piso de 0.1 (o valor do Obsidian): sem ele os nos soltos nao tem nada
     // que os segure e a repulsao os empurra para dezenas de milhares de
     // unidades (medido: extensao 13.9k x 35.5k com o slider em 0).
-    centerStrength: Math.max(0.1, (graph2dCenterForce / 100) * 0.3),
+    centerStrength: Math.max(0.1, (graph2dCenterForce / 100) * 0.1),
     collideRadius: 60,
     collideStrength: 0.5,
     nodeSize: 5,
@@ -376,6 +378,7 @@ export function GraphPage({
             graphSettingsOpen={graphSettingsOpen}
             setGraphSettingsOpenSynced={setGraphSettingsOpenSynced}
             resetGraph3dSettings={resetGraph3dSettings}
+            resetGraph2dSettings={resetGraph2dSettings}
             graph3dNodeSize={graph3dNodeSize}
             setGraph3dNodeSize={setGraph3dNodeSize}
             graph3dDegreeGrowth={graph3dDegreeGrowth}

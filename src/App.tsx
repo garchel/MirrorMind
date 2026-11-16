@@ -2509,7 +2509,9 @@ function App() {
     setGraph3dMaxEdgeLength(14)
     setGraph3dMinEdgeLength(2.5)
     setGraph3dDegreeGrowth(0.13)
-    // Tambem restaura as forcas do grafo 2D (mesmo popover/header).
+  }
+
+  function resetGraph2dSettings() {
     setGraph2dRepulsionStrength(2000)
     setGraph2dLinkStiffness(4.0)
     setGraph2dVelocityDecay(0.4)
@@ -5922,6 +5924,7 @@ function App() {
                   resetView: resetGraphView,
                   openPage: openGraphPage,
                   reset3d: resetGraph3dSettings,
+                  reset2d: resetGraph2dSettings,
                   handleExport: handleGraphExport,
                   handle3dExport: handleGraph3dExport,
                   startNodeDrag: startGraph2dNodeDrag,

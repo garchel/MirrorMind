@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { GRAPH_RENDER_LIMIT_DEFAULT } from './graphCulling'
 import { serializeNumber, usePref } from './prefs'
 
@@ -40,6 +41,14 @@ const parseVelocityDecay2d = parseNonNegative(0.4)
 const parseLinkDistance2d = parsePositive(30)
 const parseCenterForce2d = parseNonNegative(100)
 
+/** Marca da migracao das forcas 2D. O motor 2D foi trocado pelo do Obsidian
+ * (link 250, repulsao -1000, colisao 60), entao os numeros salvos pelo motor
+ * antigo (mundo 0..200) significam outra coisa na escala nova: um "Afastamento
+ * 200" vira repulsao fraca e o grafo abre comprimido. A migracao roda UMA vez
+ * e devolve os cinco valores 2D ao padrao; 3D e exibicao nao sao tocados. */
+const CHAVE_MIGRACAO_FORCAS_2D = 'mirrormind.graph2d.physics-version'
+const MIGRACAO_FORCAS_2D = '2'
+
 export function useGraphSettings() {
   const [graphRenderLimit, setGraphRenderLimit] = usePref(
     'mirrormind.graph2d.render-limit', GRAPH_RENDER_LIMIT_DEFAULT, parseRenderLimit, serializeNumber,
@@ -77,6 +86,22 @@ export function useGraphSettings() {
   const [graph2dCenterForce, setGraph2dCenterForce] = usePref(
     'mirrormind.graph2d.center-force', 100, parseCenterForce2d, serializeNumber,
   )
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(CHAVE_MIGRACAO_FORCAS_2D) === MIGRACAO_FORCAS_2D) return
+      localStorage.setItem(CHAVE_MIGRACAO_FORCAS_2D, MIGRACAO_FORCAS_2D)
+    } catch {
+      return
+    }
+    setGraph2dRepulsionStrength(2000)
+    setGraph2dLinkStiffness(4)
+    setGraph2dVelocityDecay(0.4)
+    setGraph2dLinkDistance(30)
+    setGraph2dCenterForce(100)
+    // Roda uma vez, no mount: os setters do usePref sao estaveis.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return {
     graphRenderLimit,
