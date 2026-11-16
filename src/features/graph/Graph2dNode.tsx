@@ -73,7 +73,7 @@ export const Graph2dNode = memo(function Graph2dNode({
       onFocus={() => handlersRef.current.focus(relativePath)}
       onClick={() => handlersRef.current.open(relativePath)}
       aria-label={`Abrir nota ${label} no grafo`}
-      title={`${label}${degree ? `, ${degree} conexão(ões)` : ''}`}
+      title={degree ? `${label} · ${degree} ${degree === 1 ? 'conexão' : 'conexões'}` : label}
     >
       <span
         className="note-graph-node-dot"

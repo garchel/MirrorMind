@@ -47,7 +47,7 @@ describe('Graph2dNode', () => {
     const no = screen.getByRole('button', { name: 'Abrir nota Celula no grafo' })
     expect(no).toHaveStyle({ left: '40%', top: '60%' })
     expect(no).toHaveTextContent('Celula')
-    expect(no).toHaveAttribute('title', 'Celula, 3 conexão(ões)')
+    expect(no).toHaveAttribute('title', 'Celula · 3 conexões')
   })
 
   it('nao carrega estado de hover nas classes (aplicado imperativamente)', () => {

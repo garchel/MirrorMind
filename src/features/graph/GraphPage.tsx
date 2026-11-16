@@ -413,7 +413,7 @@ export function GraphPage({
           }
         />
       ) : graphDocuments.length === 0 ? (
-        <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota disponível para montar o grafo.</p>
+        <p className="graph-empty-state graph-empty-state-overlay">Nenhuma nota para mostrar aqui. Crie uma nota ou limpe os filtros para o grafo aparecer.</p>
       ) : (
         <>
           <GraphToolbar
@@ -616,10 +616,10 @@ export function GraphPage({
             <span>{graphLinks.length} {graphLinks.length === 1 ? 'conexão' : 'conexões'}</span>
           </div>
           {graphIsSummarized ? (
-            <p className="graph-culling-note" role="status">Grafo resumido: exibindo {renderedGraphDocuments.length} de {visibleGraphDocuments.length} nós no viewport (limite de {graphRenderLimit}). Aproxime ou reduza o limite nas configurações para ver os demais.</p>
+            <p className="graph-culling-note" role="status">Grafo resumido: mostrando {renderedGraphDocuments.length} de {visibleGraphDocuments.length} notas — as que estão na tela e as vizinhas delas. Aproxime para ver as outras ou aumente o limite nas configurações.</p>
           ) : null}
           {graphMode === 'local' && localGraphBeyond.size > 0 ? (
-            <p className="graph-local-limit-note">Grafo local limitado: {localGraphBeyond.size} {localGraphBeyond.size === 1 ? 'nota está' : 'notas estão'} além de {graphLocalDepth} {graphLocalDepth === 1 ? 'salto' : 'saltos'} de {localGraphCenterPath?.split('/').at(-1)?.replace(/\.md$/i, '') ?? 'a nota central'}.</p>
+            <p className="graph-local-limit-note">Grafo local limitado: {localGraphBeyond.size} {localGraphBeyond.size === 1 ? 'nota está' : 'notas estão'} além de {graphLocalDepth} {graphLocalDepth === 1 ? 'conexão de distância' : 'conexões de distância'} de {localGraphCenterPath?.split('/').at(-1)?.replace(/\.md$/i, '') ?? 'a nota central'}.</p>
           ) : null}
           <Drawer direction="right" open={graphDetailOpen && Boolean(focusedGraphDocument)} onOpenChange={(open) => { if (!open) { setGraphDetailOpen(false); setFocusedGraphPath(null) } }}>
             <DrawerContent className="graph-note-drawer">

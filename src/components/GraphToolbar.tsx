@@ -336,23 +336,23 @@ export function GraphToolbar(props: GraphToolbarProps) {
           <section className="graph-settings-group" aria-label="Forças do grafo 2D">
             <p className="graph-settings-group-title"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Forças (2D)</p>
             <label className="graph-settings-row">
-              <span>Repulsão<small>Força entre os nós (1/distância²)</small></span>
+              <span>Afastamento<small>O quanto as notas se empurram entre si</small></span>
               <Field type="number" size="xs" step={50} value={graph2dRepulsionStrength} onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, -Infinity, Infinity))} aria-label="Força de repulsão dos nós no grafo 2D" />
             </label>
             <label className="graph-settings-row">
-              <span>Rigidez da mola<small>Força das arestas por unidade de distância</small></span>
+              <span>Firmeza das conexões<small>O quanto duas notas ligadas resistem a se afastar</small></span>
               <Field type="number" size="xs" step={0.1} value={graph2dLinkStiffness} onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, -Infinity, Infinity))} aria-label="Rigidez da mola das arestas no grafo 2D" />
             </label>
             <label className="graph-settings-row">
-              <span>Amortecimento<small>Decaimento de velocidade por segundo</small></span>
+              <span>Freio<small>Quanto o movimento perde força a cada segundo; maior, para antes</small></span>
               <Field type="number" size="xs" step={0.05} value={graph2dVelocityDecay} onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, -Infinity, Infinity))} aria-label="Amortecimento da velocidade no grafo 2D" />
             </label>
             <label className="graph-settings-row">
-              <span>Distância do link<small>Descanso das molas entre conectados</small></span>
+              <span>Distância das conexões<small>Onde duas notas ligadas param de se puxar</small></span>
               <Field type="number" size="xs" step={0.5} value={graph2dLinkDistance} onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, -Infinity, Infinity))} aria-label="Distância do link no grafo 2D" />
             </label>
             <label className="graph-settings-row">
-              <span>Forca central<small>Atração ao anel no meio do grafo</small></span>
+              <span>Força para o centro<small>O quanto as notas são puxadas para o meio</small></span>
               <Field type="number" size="xs" step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))} aria-label="Força central do grafo 2D" />
             </label>
           </section>
@@ -369,17 +369,17 @@ export function GraphToolbar(props: GraphToolbarProps) {
               <span className="graph-settings-toggle-track" aria-hidden="true" />
             </label>
             <label className="graph-settings-toggle">
-              <span>Ocultar nomes<small>Nome aparece apenas no hover</small></span>
+              <span>Ocultar nomes<small>O nome aparece ao passar o mouse na nota</small></span>
               <input type="checkbox" checked={graphHideAllNames} onChange={(event) => setGraphHideAllNames(event.target.checked)} />
               <span className="graph-settings-toggle-track" aria-hidden="true" />
             </label>
             <label className="graph-settings-toggle">
-              <span>Agrupar por pasta<small>Clusters e cores por pasta com legenda</small></span>
+              <span>Agrupar por pasta<small>Notas da mesma pasta ficam juntas e com a mesma cor</small></span>
               <input type="checkbox" checked={graphGroupByFolder} onChange={(event) => setGraphGroupByFolder(event.target.checked)} aria-label="Agrupar por pasta" />
               <span className="graph-settings-toggle-track" aria-hidden="true" />
             </label>
             <label className="graph-settings-toggle">
-              <span>Agrupar por tag<small>Clusters e cores pela tag principal com legenda</small></span>
+              <span>Agrupar por tag<small>Notas da mesma tag principal ficam juntas e com a mesma cor</small></span>
               <input type="checkbox" checked={graphGroupByTag} onChange={(event) => setGraphGroupByTag(event.target.checked)} aria-label="Agrupar por tag" />
               <span className="graph-settings-toggle-track" aria-hidden="true" />
             </label>
@@ -437,7 +437,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
               </section>
             ) : null}
             <label className="graph-settings-row">
-              <span>Limite de nós renderizados<small>Acima dele, só o viewport e o contexto aparecem</small></span>
+              <span>Limite de notas exibidas<small>Acima disso, o grafo mostra só a tela e o entorno dela</small></span>
               <Field type="number" size="xs" min={50} max={10000} step={50} value={graphRenderLimit} onChange={(event) => setGraphRenderLimit(updateNumberSetting(event.target.value, graphRenderLimit, 50, 10000))} aria-label="Limite de nós renderizados no grafo 2D" />
             </label>
           </section>
