@@ -1,7 +1,8 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Graph2dCanvas, type Graph2dCanvasNode } from './Graph2dCanvas'
+import { Graph2dSimulation } from '../../lib/graph2dSimulation'
 
 afterEach(cleanup)
 
@@ -66,6 +67,22 @@ describe('Graph2dCanvas', () => {
     // Partiu do layout salvo (10/20 e 30/40), nao do centro (100, 100).
     expect(posicoes['a.md'].x).toBeLessThan(60)
     expect(posicoes['b.md'].y).toBeLessThan(90)
+  })
+
+  it('arrastar um no fixa ele e reaquece a simulacao (vizinhos seguem)', async () => {
+    const pin = vi.spyOn(Graph2dSimulation.prototype, 'pin')
+    const reheat = vi.spyOn(Graph2dSimulation.prototype, 'reheat')
+    montar()
+    const canvas = screen.getByRole('application', { name: 'Grafo de notas' })
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    fireEvent.pointerDown(canvas, { clientX: 0, clientY: 0, pointerId: 1 })
+    fireEvent.pointerMove(canvas, { clientX: 30, clientY: 20, pointerId: 1 })
+
+    expect(pin).toHaveBeenCalled()
+    expect(reheat).toHaveBeenCalledWith(1)
+    pin.mockRestore()
+    reheat.mockRestore()
   })
 
   it('explica os gestos para quem usa teclado', () => {

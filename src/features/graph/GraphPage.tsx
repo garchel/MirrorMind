@@ -315,6 +315,7 @@ export function GraphPage({
     centerStrength: (graph2dCenterForce / 100) * 0.02,
     repulsionCutoff: 55,
     centerRadius: 60,
+    dragSpringBoost: 8,
   }
   const graphCanvasNeighbors = graphHoverNeighbors ?? graphFilterMatchPaths
 

@@ -34,6 +34,10 @@ export type Graph2dSettings = {
   repulsionCutoff?: number
   /** Raio do anel onde a forca central comeca a puxar. */
   centerRadius?: number
+  /** Multiplicador da rigidez das arestas ligadas ao no sendo arrastado.
+   * Sem ele os vizinhos so esticam a mola (medido: a folha acompanhava ~15%
+   * do deslocamento do hub) — no Obsidian a rede vem junto. */
+  dragSpringBoost?: number
 }
 
 export type Graph2dLink = { source: string; target: string }
@@ -119,6 +123,8 @@ export class Graph2dSimulation {
   readonly buffer: Float32Array
   /** Nos fixados durante o arrasto: indice -> alvo. */
   readonly pinned = new Map<number, { x: number; y: number }>()
+  /** No sendo arrastado: as arestas dele usam `dragSpringBoost`. */
+  dragAnchor: number | null = null
   readonly count: number
   alpha: number
   settings: Graph2dSettings
@@ -227,6 +233,8 @@ export class Graph2dSimulation {
     }
     // 2) Molas.
     const { edgePairs, edgeRest } = this
+    const boost = settings.dragSpringBoost ?? 1
+    const ancora = this.dragAnchor
     for (let e = 0; e < edgeRest.length; e += 1) {
       const a = edgePairs[e * 2]
       const b = edgePairs[e * 2 + 1]
@@ -234,7 +242,10 @@ export class Graph2dSimulation {
       let dy = ys[b] - ys[a]
       let d = Math.sqrt(dx * dx + dy * dy)
       if (d < 1e-6) { dx = 1e-3; dy = 0; d = 1e-3 }
-      const f = ((settings.linkStiffness * alpha) / d) * (d - edgeRest[e])
+      // Arestas do no arrastado ficam mais rigidas: a rede acompanha o
+      // cursor em vez de esticar e voltar quando ele solta.
+      const rigidez = ancora !== null && (a === ancora || b === ancora) ? settings.linkStiffness * boost : settings.linkStiffness
+      const f = ((rigidez * alpha) / d) * (d - edgeRest[e])
       const fx = dx * f
       const fy = dy * f
       vxs[a] += fx

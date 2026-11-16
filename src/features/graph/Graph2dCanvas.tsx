@@ -42,7 +42,7 @@ export type Graph2dCanvasProps = {
 const ZOOM_MIN = 0.35
 const ZOOM_MAX = 4
 /** Alpha usado enquanto o usuario arrasta: o cluster acompanha sem oscilar. */
-const ALPHA_DRAG = 0.55
+const ALPHA_DRAG = 1
 /** A partir daqui os nomes aparecem sem hover. O zoom inicial e 1 (grafo
  * inteiro): mostrar todos os nomes ali vira mancha de texto — medido no
  * harness, com 120 nos os rotulos cobriam as bolinhas. */
@@ -307,6 +307,7 @@ export function Graph2dCanvas({
       const { width, height } = sizeRef.current
       const mundo = screenToWorld(ponto.x, ponto.y, viewRef.current, width, height)
       sim.pin(path, mundo.x, mundo.y)
+      sim.dragAnchor = sim.indexByPath.get(path) ?? null
       sim.reheat(ALPHA_DRAG)
       persistidoRef.current = false
       arrastoRef.current = { tipo: 'no', path, x: ponto.x, y: ponto.y, movido: false }
@@ -354,6 +355,7 @@ export function Graph2dCanvas({
     const sim = simRef.current
     if (arrasto?.tipo === 'no' && sim) {
       sim.unpin(arrasto.path)
+      sim.dragAnchor = null
       sim.reheat(0.4)
       if (!arrasto.movido) {
         onFocus?.(arrasto.path)
