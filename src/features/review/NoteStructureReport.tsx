@@ -140,7 +140,7 @@ export function NoteStructureReport({ audit, loading, error, appliedIndex, onBac
                         <div className="structural-audit-apply-row">
                           <Button
                             type="button"
-                            className="ui-button ui-button--primary ui-button--md structural-audit-apply"
+                            variant="primary" size="md" className="structural-audit-apply"
                             onClick={() => onApply(index)}
                             disabled={appliedIndex !== null && appliedIndex !== index}
                           >

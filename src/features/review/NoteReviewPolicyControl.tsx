@@ -435,7 +435,7 @@ export function NoteReviewPolicyControl({
             <footer>
               <Button type="button" variant="secondary" size="md" disabled={saving} onClick={() => void inheritVaultDefaults()}>Usar padrão do Vault</Button>
               <Button type="button" variant="secondary" size="md" disabled={saving} onClick={closeDialog}>Cancelar</Button>
-              <Button type="button" className="ui-button ui-button--primary ui-button--md" disabled={saving || !validation?.success} onClick={() => void save()}>{saving ? 'Salvando…' : 'Salvar política'}</Button>
+              <Button type="button" variant="primary" size="md" disabled={saving || !validation?.success} onClick={() => void save()}>{saving ? 'Salvando…' : 'Salvar política'}</Button>
             </footer>
           </section>
         </Modal>

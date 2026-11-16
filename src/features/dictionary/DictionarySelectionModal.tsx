@@ -291,7 +291,7 @@ export function DictionarySelectionModal({
         <Button
           type="button"
           variant="primary"
-          className="ui-button ui-button--sm"
+          size="md"
           onClick={() => void save()}
           disabled={!canSave}
         >

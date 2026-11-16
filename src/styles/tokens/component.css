@@ -245,8 +245,10 @@
 }
 
 /* Glifo sem rotulo: quadrado, senao o botao de 28px fica largo demais
- * para o trilho do rail. */
-.ui-button--xs:not(:has(.ui-button__icon + :not(:empty))) {
+ * para o trilho do rail. Precisa do `:has(.ui-button__icon)`: sem ele o
+ * seletor tambem casa com botao SO DE TEXTO e zera o padding dele (medido:
+ * largura 28 e padding 0 num "Salvar politica" de 28px). */
+.ui-button--xs:has(.ui-button__icon):not(:has(.ui-button__icon + :not(:empty))) {
   padding: var(--button-icon-only-padding);
   min-width: var(--button-size-xs-height);
 }

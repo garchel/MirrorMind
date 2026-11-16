@@ -921,7 +921,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
             </div>
             <div className="tag-impact-actions">
               <Button type="button" variant="secondary" size="md" onClick={() => setPendingDelete(null)} disabled={busy}>Cancelar</Button>
-              <Button type="button" className="ui-button ui-button--danger ui-button--sm" onClick={() => confirmDelete()} disabled={busy}>
+              <Button type="button" variant="danger" size="sm" onClick={() => confirmDelete()} disabled={busy}>
                 {busy ? 'Aplicando…' : 'Excluir tag'}
               </Button>
             </div>

@@ -135,7 +135,7 @@ export function NoteImprovementPanel({
         >
           {loadingScope === 'definitions' ? 'Buscando definições…' : 'Sugerir definições'}
         </Button>
-        <Button type="button" className="ui-button ui-button--sm" onClick={onBack}>
+        <Button type="button" variant="secondary" size="md" onClick={onBack}>
           Voltar
         </Button>
       </div>
@@ -178,7 +178,7 @@ export function NoteImprovementPanel({
                 <div className="review-ai-inline-actions">
                   <Button
                     type="button"
-                    className="ui-button ui-button--sm"
+                    variant="secondary" size="md"
                     disabled={appliedExpansions.includes(index)}
                     onClick={() => {
                       if (onApplyExpansion(expansion)) {
@@ -221,7 +221,7 @@ export function NoteImprovementPanel({
             <div className="review-ai-inline-actions">
               <Button
                 type="button"
-                className="ui-button ui-button--sm"
+                variant="secondary" size="md"
                 disabled={applied}
                 onClick={() => {
                   const first = suggestions[0]

@@ -517,7 +517,7 @@ export function ReviewDashboardPage({ vaultPath, onOpenNote, onStartReview }: Pr
                       {item.due ? (
                         <Button
                           type="button"
-                          className="ui-button ui-button--primary ui-button--md review-dashboard-deadline-review"
+                          variant="primary" size="md" className="review-dashboard-deadline-review"
                           onClick={() => onStartReview(item)}
                           aria-label={`Revisar ${item.title}`}
                         >
@@ -816,7 +816,7 @@ function ExpiredDeadlinesSection({ items, count, onOpenNote, onEditDeadline, onS
                 <div className="review-dashboard-deadline-actions">
                   <Button
                     type="button"
-                    className="ui-button ui-button--primary ui-button--md review-dashboard-deadline-review"
+                    variant="primary" size="md" className="review-dashboard-deadline-review"
                     onClick={() => onStartReview(item)}
                     aria-label={`Revisar ${item.title}`}
                   >

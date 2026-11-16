@@ -6341,7 +6341,7 @@ function App() {
               </label>
               <div className="folder-dialog-actions">
                 <Button type="button" variant="secondary" size="md" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-                <Button type="button" className="ui-button ui-button--danger ui-button--sm" onClick={() => void deleteVaultItem()} disabled={loading}>Mover para lixeira</Button>
+                <Button type="button" variant="danger" size="sm" onClick={() => void deleteVaultItem()} disabled={loading}>Mover para lixeira</Button>
               </div>
           </Modal>
         ) : null}
@@ -6358,7 +6358,7 @@ function App() {
               </div>
               <div className="folder-dialog-actions">
                 <Button type="button" variant="secondary" size="md" onClick={() => setPermanentDeleteTarget(null)}>Cancelar</Button>
-                <Button type="button" className="ui-button ui-button--danger ui-button--sm" onClick={() => void permanentlyDeleteTrashItem()} disabled={loading}>Excluir permanentemente</Button>
+                <Button type="button" variant="danger" size="sm" onClick={() => void permanentlyDeleteTrashItem()} disabled={loading}>Excluir permanentemente</Button>
               </div>
           </Modal>
         ) : null}

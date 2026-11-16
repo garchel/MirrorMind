@@ -438,7 +438,7 @@ export function DictionaryPage({ vaultPath }: DictionaryPageProps) {
                 <Button
                   type="submit"
                   variant="primary"
-                  className="ui-button ui-button--primary"
+                  size="md"
                   disabled={busy}
                 >
                   {editing ? 'Salvar' : 'Registrar'}
