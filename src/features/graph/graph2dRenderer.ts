@@ -196,6 +196,7 @@ export function drawGraph2d(
     ctx.fillStyle = cor
     if (TEM_PATH2D) {
       const path = new Path2D()
+      const anel = new Path2D()
       for (const i of indices) {
         const p = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
         const r = raios.get(i) ?? raioTela
@@ -203,8 +204,15 @@ export function drawGraph2d(
         if (p.x < -r || p.y < -r || p.x > width + r || p.y > height + r) continue
         path.moveTo(p.x + r, p.y)
         path.arc(p.x, p.y, r, 0, Math.PI * 2)
+        // Borda fina: no DOM cada bolinha tinha contorno e sombra; sem ela o
+        // canvas fica chapado e as bolinhas parecem "manchas".
+        anel.moveTo(p.x + r, p.y)
+        anel.arc(p.x, p.y, r, 0, Math.PI * 2)
       }
       ctx.fill(path)
+      ctx.strokeStyle = colors.nodeRing
+      ctx.lineWidth = 1
+      ctx.stroke(anel)
     } else {
       for (const i of indices) {
         const p = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
@@ -213,6 +221,9 @@ export function drawGraph2d(
         ctx.beginPath()
         ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
         ctx.fill()
+        ctx.strokeStyle = colors.nodeRing
+        ctx.lineWidth = 1
+        ctx.stroke()
       }
     }
   }

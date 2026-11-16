@@ -195,7 +195,7 @@ export function Graph2dCanvas({
     estilosRef.current = nodes.map((node) => ({
       color: node.color,
       isCurrent: node.isCurrent,
-      scale: 1 + Math.min(node.degree, 8) * 0.13,
+      scale: 1 + Math.min(node.degree, 8) * 0.09,
     }))
     hoverRef.current = -1
     vizinhosRef.current = null
@@ -263,7 +263,15 @@ export function Graph2dCanvas({
 
   useEffect(
     () => () => {
-      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
+      // Zerar o ref e obrigatorio: sem isso ele fica com o id de um frame
+      // CANCELADO e `pedirFrame` passa a sair cedo para sempre — a simulacao
+      // nunca mais da um passo e nem o pan/arrasto redesenham. Em dev o
+      // StrictMode monta/desmonta/remonta os efeitos, e era exatamente onde o
+      // loop morria (medido no app: passos=0 com alpha=1 e settled=false).
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current)
+        frameRef.current = null
+      }
     },
     [],
   )
@@ -285,7 +293,14 @@ export function Graph2dCanvas({
   const aoPressionar = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const ponto = pontoLocal(event)
     const indice = noNoPonto(ponto)
-    event.currentTarget.setPointerCapture?.(event.pointerId)
+    // `setPointerCapture` lanca InvalidStateError quando o ponteiro nao esta
+    // ativo. Sem o try, a excecao abortava o handler ANTES de marcar o
+    // arrasto: pan e arrasto de no ficavam mortos sem nenhum erro visivel.
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      /* sem captura: o arrasto segue pelos eventos da propria janela */
+    }
     const sim = simRef.current
     if (indice >= 0 && sim) {
       const path = sim.paths[indice]
@@ -346,7 +361,11 @@ export function Graph2dCanvas({
       }
       pedirFrame()
     }
-    event.currentTarget.releasePointerCapture?.(event.pointerId)
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    } catch {
+      /* ja liberado pelo navegador */
+    }
   }
 
   const aoRolar = (event: React.WheelEvent<HTMLCanvasElement>) => {
