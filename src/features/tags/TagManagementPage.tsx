@@ -3,6 +3,7 @@ import type { KeyboardEvent } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
 import { ReviewPriorityLevelPicker } from '../review/ReviewPriorityLevelPicker'
+import { priorityLevelFor } from '../review/reviewPriorityLevels'
 import { InfoTip } from '../../components/ui/InfoTip'
 import { AlertTriangle, Check, ChevronRight, FileText, Hash, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
 import {
@@ -806,26 +807,11 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                       ? 'Escolha os números do ritmo logo abaixo.'
                       : `Primeira revisão em ${draft.firstReviewIntervalDays} dia${draft.firstReviewIntervalDays === 1 ? '' : 's'} · `
                         + `retenção ${Math.round(draft.targetRetention * 100)}% · `
-                        + `intervalos de ${draft.minIntervalDays} a ${draft.maxIntervalDays} dias.`}
+                        + `intervalos de ${draft.minIntervalDays} a ${draft.maxIntervalDays} dias · `
+                        // A prioridade fica escondida no perfil pronto, e o preset
+                        // grava um nivel — entao o resumo precisa dizer qual.
+                        + `prioridade ${priorityLevelFor(draft.priorityWeight).label.toLowerCase()}.`}
                   </p>
-                </fieldset>
-
-                <fieldset className="tag-mode-field">
-                  <legend>Modo de revisão herdado</legend>
-                  <div className="tag-mode-options">
-                    <label>
-                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === null} onChange={() => updateDraft({ preferredMode: null })} />
-                      <span><strong>Sem preferência</strong><small>A nota usa o modo dela ou o padrão Prova.</small></span>
-                    </label>
-                    <label>
-                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === 'exam'} onChange={() => updateDraft({ preferredMode: 'exam' })} />
-                      <span><strong>Prova</strong><small>Perguntas independentes.</small></span>
-                    </label>
-                    <label>
-                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === 'conversation'} onChange={() => updateDraft({ preferredMode: 'conversation' })} />
-                      <span><strong>Conversa</strong><small>Exploração progressiva.</small></span>
-                    </label>
-                  </div>
                 </fieldset>
 
                 {customProfile ? (
@@ -866,13 +852,34 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   </div>
                 </label>
 
-                <div className="review-priority-field">
-                  <span>Prioridade na fila</span>
-                  <ReviewPriorityLevelPicker
-                    value={draft.priorityWeight}
-                    onChange={(weight) => updateDraft({ priorityWeight: weight })}
-                  />
-                </div>
+                {customProfile ? (
+                  <div className="review-priority-field">
+                    <span>Prioridade na fila</span>
+                    <ReviewPriorityLevelPicker
+                      value={draft.priorityWeight}
+                      onChange={(weight) => updateDraft({ priorityWeight: weight })}
+                    />
+                  </div>
+                ) : null}
+
+                <fieldset className="tag-mode-field">
+                  <legend>Modo de revisão herdado</legend>
+                  <div className="tag-mode-options">
+                    <label>
+                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === null} onChange={() => updateDraft({ preferredMode: null })} />
+                      <span><strong>Sem preferência</strong><small>A nota usa o modo dela ou o padrão Prova.</small></span>
+                    </label>
+                    <label>
+                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === 'exam'} onChange={() => updateDraft({ preferredMode: 'exam' })} />
+                      <span><strong>Prova</strong><small>Perguntas independentes.</small></span>
+                    </label>
+                    <label>
+                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === 'conversation'} onChange={() => updateDraft({ preferredMode: 'conversation' })} />
+                      <span><strong>Conversa</strong><small>Exploração progressiva.</small></span>
+                    </label>
+                  </div>
+                </fieldset>
+
 
                 <PolicyWorkloadEstimate
                   firstReviewIntervalDays={draft.firstReviewIntervalDays}

@@ -86,7 +86,9 @@ describe('TagManagementPage', () => {
 
     expect(await screen.findByRole('heading', { name: /prova/i })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Editar/i }))
-    // Prioridade agora e escolha de nivel, nao numero: "Urgente" grava 3.
+    // Prioridade agora e escolha de nivel, nao numero: "Urgente" grava 3 — e ela
+    // so aparece em Personalizada (o perfil pronto ja define um nivel).
+    await user.click(screen.getByRole('radio', { name: /Personalizada/ }))
     const prioridade = screen.getByRole('radiogroup', { name: 'Prioridade na fila' })
     await user.click(within(prioridade).getByRole('radio', { name: 'Urgente' }))
     await user.click(screen.getByRole('button', { name: 'Revisar alterações' }))
@@ -181,13 +183,27 @@ describe('TagManagementPage', () => {
     expect(screen.queryByLabelText('Primeira revisão')).toBeNull()
     expect(screen.getByText(/Primeira revisão em 2 dias/)).toBeInTheDocument()
     expect(screen.getByLabelText('Prazo de estudo')).toBeInTheDocument()
+    // Prioridade tambem so existe em Personalizada; no perfil pronto o nivel do
+    // preset aparece no resumo em palavras.
+    expect(screen.queryByRole('radiogroup', { name: 'Prioridade na fila' })).toBeNull()
+    expect(screen.getByText(/prioridade alta/i)).toBeInTheDocument()
 
     await user.click(screen.getByRole('radio', { name: /Personalizada/ }))
     expect(screen.getByLabelText('Primeira revisão')).toHaveValue(2)
     expect(screen.getByLabelText('Intervalo máximo')).toHaveValue(365)
+    expect(screen.getByRole('radiogroup', { name: 'Prioridade na fila' })).toBeInTheDocument()
+
+    // Ordem no formulario: ritmo e prioridade ANTES do modo herdado.
+    const ritmo = screen.getByText(/^Ritmo de revisão$/i)
+    const prioridadeRotulo = screen.getByText('Prioridade na fila')
+    const modo = screen.getByText('Modo de revisão herdado')
+    const vemAntes = (a: HTMLElement, b: HTMLElement) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(vemAntes(ritmo, modo)).toBe(true)
+    expect(vemAntes(prioridadeRotulo, modo)).toBe(true)
 
     await user.click(screen.getByRole('radio', { name: /Intensiva/ }))
     expect(screen.queryByLabelText('Primeira revisão')).toBeNull()
+    expect(screen.queryByRole('radiogroup', { name: 'Prioridade na fila' })).toBeNull()
     expect(screen.getByText(/Primeira revisão em 1 dia ·/)).toBeInTheDocument()
   })
 
