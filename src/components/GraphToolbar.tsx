@@ -90,7 +90,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
 
   // A busca aceita nota e tag: o placeholder alterna entre as duas para dizer
   // isso sem ocupar espaco com texto fixo.
-  const searchPlaceholder = useTypingPlaceholder(['Buscar nota', 'Buscar tag'])
+  const searchPlaceholder = useTypingPlaceholder(['Buscar nota', 'Buscar tag'], { typeMs: 130, eraseMs: 60, holdMs: 2600, pauseMs: 700 })
 
   const folderOptions = useMemo(() => graphFolders.map((folder) => ({ value: folder, label: folder })), [graphFolders])
   const tagOptions = useMemo(() => graphTags.map((tag) => ({ value: tag, label: `#${tag}` })), [graphTags])

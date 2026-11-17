@@ -336,10 +336,14 @@
   background: rgb(28 36 39 / 12%);
 }
 
-.workspace-shell .graph-immersive-header .graph-filter-group {
+/* Classe duplicada de proposito: `graph.css` declara o mesmo seletor
+   (padding 0 6px 0 9px, gap 2px) e a ordem de carga entre os dois arquivos nao
+   e garantida — com especificidade maior esta regra sempre vence. */
+.workspace-shell .graph-immersive-header .graph-filter-group.graph-filter-group {
   height: var(--graph-ctl);
+  box-sizing: border-box;
   gap: 0;
-  padding: 0 8px 0 10px;
+  padding: 2px 8px 2px 9px;
 }
 
 /* Icone colado no texto: caixa de 14px para pasta e "#" ocuparem o mesmo
@@ -348,10 +352,16 @@
 
    A altura e 24px (nao 30) para o realce de hover flutuar dentro da pilula em
    vez de encostar nas bordas dela. */
+/* Icone colado no texto: 3px de gap, sem padding lateral no gatilho (o
+   padding do grupo ja separa da borda). Altura 100% do conteudo do grupo,
+   que fecha 24px com 2px de padding + 1px de borda — assim o realce de hover
+   fica com a mesma folga em cima e embaixo. */
 .workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select {
-  height: calc(var(--graph-ctl) - 6px);
-  gap: 4px;
-  padding: 0 6px;
+  height: 100%;
+  min-height: 0;
+  gap: 3px;
+  padding: 0 4px;
+  justify-content: flex-start;
 }
 
 .workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select-icon {
@@ -359,6 +369,7 @@
   place-items: center;
   width: 14px;
   height: 14px;
+  margin: 0;
 }
 
 .workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select:hover {
@@ -375,4 +386,12 @@
 .workspace-shell .graph-immersive-header .graph-icon-button {
   padding: 0;
   place-items: center;
+}
+
+/* Mesmo tom do valor vazio dos filtros (`--mm-ink-650`): antes a busca usava
+   um cinza mais claro e os dois placeholders pareciam de componentes
+   diferentes. */
+.workspace-shell .graph-immersive-header .graph-search .graph-search-input::placeholder {
+  color: var(--mm-ink-650);
+  opacity: 1;
 }
