@@ -406,3 +406,28 @@
   color: var(--mm-ink-650);
   opacity: 1;
 }
+
+/* Respiro entre o icone de filtro (as linhas) e o primeiro seletor: antes eram
+   4px e os dois icones pareciam um so. */
+.workspace-shell .graph-immersive-header .graph-filter-group > svg {
+  margin-right: 9px;
+}
+
+/* Hover simetrico: `line-height` do texto empurrava a caixa para baixo e o
+   realce parecia mais curto em cima. `line-height: 1` + centralizacao deixa a
+   pilula de hover com a mesma folga dos dois lados. */
+.workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select {
+  align-items: center;
+  line-height: 1;
+  transition: background-color 140ms ease;
+}
+
+/* `align-items: center` centraliza a CAIXA da linha, nao o glifo: a caixa do
+   texto (ascent/descent da fonte) ficava 3,1px do topo e 4,9px da base, e o
+   realce de hover parecia mais curto em cima. Este deslocamento de 1px poe o
+   glifo no meio (4,1/3,9 medidos). */
+.workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select-value {
+  position: relative;
+  top: 1px;
+  line-height: 1.15;
+}

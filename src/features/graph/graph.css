@@ -83,11 +83,18 @@
   user-select: none;
 }
 
+/* Os dois numeros ficam dentro da MESMA pilula: cada um tinha contorno e fundo
+   proprios, o que desenhava tres bordas para um componente so. */
+.workspace-shell .graph-summary-counter span + span {
+  border-left: 1px solid rgb(28 36 39 / 12%);
+  padding-left: 8px;
+}
+
 .workspace-shell .graph-summary-counter span {
-  padding: 2px 7px;
-  border: 1px solid rgb(28 36 39 / 10%);
-  border-radius: 999px;
-  background: rgb(255 254 249 / 70%);
+  padding: 0 3px;
+  border: 0;
+  border-radius: 0;
+  background: none;
 }
 
 /* Legenda do agrupamento por pasta: componente flutuante no canto inferior
