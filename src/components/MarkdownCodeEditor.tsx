@@ -37,6 +37,10 @@ export type MarkdownCodeEditorHandle = {
    * Usado pelo popover de formatacao para posicionar-se junto ao texto. */
   getSelectionRect: () => { bottom: number; left: number; right: number; top: number } | null
   focus: () => void
+  /** Foca e posiciona o cursor no fim do documento. Usado quando o clique cai
+   * no vazio da area da nota (padding do painel, abaixo do texto), onde nao
+   * existe posicao de texto para o CodeMirror calcular. */
+  focusEnd: () => void
   redo: () => boolean
   selectRange: (from: number, to: number) => void
   setFindQuery: (query: string) => void
@@ -532,6 +536,19 @@ function MarkdownCodeEditorComponent(
   }, [historyLimit])
 
   useImperativeHandle(ref, () => ({
+    focusEnd() {
+      const view = viewRef.current
+      if (!view) return
+      // Focar PRIMEIRO: o `focus()` do CodeMirror reinstala a selecao do estado
+      // e sobrescrevia um setSelection feito antes dele (medido: o texto
+      // seguinte era digitado na posicao 0 em vez do fim).
+      view.focus()
+      const fim = view.state.doc.length
+      view.dispatch({
+        selection: { anchor: fim },
+        effects: EditorView.scrollIntoView(fim, { y: 'nearest' }),
+      })
+    },
     getSelection() {
       const view = viewRef.current
       if (!view) return null

@@ -260,8 +260,33 @@ export function EditorContent({
     deletePostitById,
   } = postits
 
+  /** O padding do painel e o espaco abaixo do ultimo paragrafo nao tem posicao
+   * de texto: o clique caia na <section> e nada acontecia, entao so dava para
+   * posicionar o cursor clicando em cima do texto. Aqui o vazio passa a focar o
+   * editor com o cursor no fim. Clicks em link, botao, campo, post-it, barra de
+   * busca e no proprio CodeMirror seguem o caminho normal. */
+  const handleBlankAreaPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return
+    const alvo = event.target
+    if (!(alvo instanceof Element)) return
+    const interativo = alvo.closest(
+      'a, button, input, textarea, select, label, [contenteditable="true"], .cm-editor, .note-find-bar, .floating-markdown-toolbar, .postit-menu, .note-postit, [role="button"], [role="dialog"], [role="listbox"], [role="menu"], [role="tooltip"]',
+    )
+    if (interativo) return
+    const handle = markdownCodeEditorRef.current
+    if (!handle) return
+    event.preventDefault()
+    handle.focusEnd()
+  }
+
   return (
-    <div id="note-editor" className="editor-content" ref={editorContentRef} data-builder-name="editor-content">
+    <div
+      id="note-editor"
+      className="editor-content"
+      ref={editorContentRef}
+      data-builder-name="editor-content"
+      onPointerDown={handleBlankAreaPointerDown}
+    >
     {/* Botao flutuante de post-its: icone + contagem, no canto superior
         direito da area do texto, como o painel de ferramentas. */}
     {notePostits.length > 0 ? (

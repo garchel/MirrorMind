@@ -24,6 +24,33 @@ describe('MarkdownCodeEditor', () => {
     expect(container.querySelector('.cm-content')).toHaveAttribute('aria-label', 'Editor da nota')
   })
 
+  it('focusEnd poe o cursor no fim do documento', async () => {
+    const ref = createRef<MarkdownCodeEditorHandle>()
+    render(
+      <MarkdownCodeEditor
+        ref={ref}
+        documentKey="longa.md"
+        onChange={vi.fn()}
+        onHistoryChange={vi.fn()}
+        onSessionChange={vi.fn()}
+        value={'primeira linha\n\nsegunda linha'}
+      />,
+    )
+
+    await waitFor(() => expect(ref.current).not.toBeNull())
+    await waitFor(() => expect(ref.current?.getSelection()).not.toBeNull())
+
+    // Antes: cursor no inicio. Depois do focusEnd: no fim, que e o que o clique
+    // no vazio da area da nota dispara.
+    const selecao = ref.current!.getSelection()!
+    expect(selecao.selectionStart).toBe(0)
+
+    ref.current!.focusEnd()
+    const fim = ref.current!.getSelection()!
+    expect(fim.selectionStart).toBe(fim.value.length)
+    expect(fim.selectionEnd).toBe(fim.value.length)
+  })
+
   it('sincroniza o documento quando a nota ativa muda', () => {
     const onChange = vi.fn()
     const onSessionChange = vi.fn()

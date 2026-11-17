@@ -570,6 +570,32 @@ describe('Regressao do editor no workspace', () => {
     expect(within(dialog).getByDisplayValue(/Definição de/)).toBeInTheDocument()
   })
 
+  it('[editor] clicar no vazio da area da nota posiciona o cursor no fim', async () => {
+    const user = userEvent.setup()
+    createTauriHarness([
+      { name: 'longa.md', relativePath: 'longa.md', content: '# Longa\n\nprimeiro paragrafo' },
+    ])
+    await openTestVault(user)
+
+    // Modo Misto: e o que tem o painel com padding em volta do texto, onde o
+    // clique no vazio nao fazia nada.
+    await user.click(screen.getByRole('radio', { name: 'Misto' }))
+    await waitFor(() => expect(document.querySelector('.markdown-mixed')).not.toBeNull())
+
+    // O padding do painel e o espaco abaixo do texto nao tem posicao de caret:
+    // antes, clicar ali nao fazia nada e so dava para posicionar o cursor
+    // clicando em cima do texto.
+    const painel = document.querySelector('.markdown-mixed') as HTMLElement
+    expect(painel).not.toBeNull()
+    fireEvent.pointerDown(painel, { button: 0 })
+
+    await waitFor(() => expect(document.activeElement?.classList.contains('cm-content')).toBe(true))
+
+    // O caret no fim do documento e verificado no app real (jsdom nao desenha o
+    // cursor do CodeMirror nem mede linha): aqui garantimos o que o teste
+    // consegue observar, que e o clique no vazio entregar o foco ao editor.
+  })
+
   it('[dicionário] empilha um aviso por trecho, com o mais novo em cima', async () => {
     const user = userEvent.setup()
     // As duas buscas esperam o mesmo portao: o teste ve os dois avisos no
