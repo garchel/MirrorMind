@@ -132,6 +132,9 @@ export function Graph2dCanvas({
   const usuarioMexeuRef = useRef(false)
   /** Zoom do enquadramento, para derivar o limiar dos nomes. */
   const zoomEncaixeRef = useRef(0)
+  /** `true` quando o layout esta nascendo do zero (big bang): a camera
+   * acompanha o espalhamento ate assentar. Com layout salvo, enquadra 1 vez. */
+  const acompanharRef = useRef(false)
 
   const assinatura = useMemo(
     () => `${nodes.map((node) => node.path).join('|')}::${links.length}`,
@@ -140,9 +143,9 @@ export function Graph2dCanvas({
 
   /** Enquadra o grafo inteiro e deriva o limiar dos nomes a partir dai:
    * "um zoom in acima do enquadramento" (1.15x, o mesmo passo dos botoes). */
-  const enquadrar = useCallback((sim: Graph2dSimulation) => {
+  const enquadrar = useCallback((sim: Graph2dSimulation): boolean => {
     const { width, height } = sizeRef.current
-    if (sim.count === 0 || width === 0 || height === 0) return
+    if (sim.count === 0 || width === 0 || height === 0) return false
     const c = sim.centroid()
     let maior = 1
     for (let i = 0; i < sim.count; i += 1) {
@@ -153,6 +156,7 @@ export function Graph2dCanvas({
     viewRef.current = { x: c.x, y: c.y, zoom }
     zoomEncaixeRef.current = zoom
     comunicarZoom()
+    return true
   }, [comunicarZoom])
 
   /** Aproxima o peso de cada no do alvo (1 no conjunto do hover, 0 fora) a
@@ -222,13 +226,14 @@ export function Graph2dCanvas({
         return
       }
       // Assentou: enquadra UMA vez e persiste UMA vez.
-      // Enquadra UMA vez, quando o layout se espalhou — e nunca por cima de uma
-      // camera que o usuario ja ajustou. Recriar a simulacao (mais notas
-      // chegaram) nao reinicia isso: era o que fazia o zoom pular sozinho
-      // depois de alguns segundos com o grafo aberto.
-      if (!enquadradoRef.current && !usuarioMexeuRef.current && sim.count > 0 && sim.alpha < 0.4) {
-        enquadradoRef.current = true
+      // Enquadramento: enquanto o layout ainda esta se espalhando (alpha alto)
+      // a camera acompanha, para o grafo ja nascer enquadrado e nao "pular"
+      // depois; ao esfriar, trava. Uma vez travado, recriar a simulacao (mais
+      // notas chegando) NAO reenquadra — era o zoom que mudava sozinho.
+      if (!enquadradoRef.current && !usuarioMexeuRef.current && sim.count > 0) {
         enquadrar(sim)
+        // Big bang: acompanha ate assentar. Layout salvo: uma vez e trava.
+        if (!acompanharRef.current || sim.alpha <= 0.05) enquadradoRef.current = true
       }
       desenhar()
       if (!persistidoRef.current && onSettledRef.current) {
@@ -277,12 +282,21 @@ export function Graph2dCanvas({
       positions: posicoes,
       settings,
     })
-    // Abrir o grafo ou reorganizar = big bang (alpha cheio, todos do centro).
-    if (!anterior || reorganizeKey > 0) {
-      sim.alpha = 1
-      enquadradoRef.current = false
-    } else {
+    // Com layout salvo, o grafo abre JA no lugar: a simulacao comeca morna
+    // (reheat curto) em vez de "big bang". O big bang espalhava os nos por
+    // segundos, e qualquer enquadramento feito antes disso ficava errado — era
+    // o zoom que se ajustava sozinho depois de abrir.
+    if (posicoes.size > 0 && reorganizeKey === 0) {
       sim.reheat(0.35)
+      acompanharRef.current = false
+      // Enquadra uma vez, a partir do layout salvo, e trava. Se o canvas ainda
+      // nao tem tamanho, `enquadrar` devolve false e o loop faz no 1o frame.
+      enquadradoRef.current = usuarioMexeuRef.current ? true : enquadrar(sim)
+    } else {
+      sim.alpha = 1
+      acompanharRef.current = true
+      enquadradoRef.current = false
+      enquadrar(sim)
     }
     simRef.current = sim
     focoRef.current = new Float32Array(sim.count)
@@ -295,7 +309,7 @@ export function Graph2dCanvas({
     pedirFrame()
     // `settings` e aplicado ao vivo no efeito abaixo; nao recria a simulacao.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assinatura, reorganizeKey])
+  }, [assinatura, reorganizeKey, enquadrar])
 
   // Constantes ao vivo (sliders da toolbar). O layout dorme em alpha 0.001:
   // so trocar `settings` nao move nada ate o proximo gesto, e o slider parecia
@@ -488,7 +502,8 @@ export function Graph2dCanvas({
     const view = viewRef.current
     if (zoomCommand.type === 'reset') {
       usuarioMexeuRef.current = false
-      enquadrar(sim)
+      acompanharRef.current = false
+      enquadradoRef.current = enquadrar(sim)
     } else {
       const zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, view.zoom * (zoomCommand.type === 'in' ? 1.15 : 1 / 1.15)))
       viewRef.current = { zoom, x: view.x, y: view.y }
