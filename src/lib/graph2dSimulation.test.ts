@@ -155,6 +155,24 @@ describe('graph2dSimulation (modelo do Obsidian)', () => {
     expect(distancia(comprimido, 'a', 'b')).toBeGreaterThan(250)
   })
 
+  it('freio acima de 1 nao inverte a velocidade (era o tremor)', () => {
+    // Com velocityDecay 2 o fator `1 - freio` vira -1 e o no oscila para
+    // sempre. O limite e [0, 0.95].
+    const sim = criar([['a', 0, 0], ['b', 400, 0]], [['a', 'b']])
+    sim.settings.velocityDecay = 2
+    sim.settings.centerStrength = 0
+    sim.settings.repelStrength = 0.0001
+    rodar(sim, 300)
+    const x1 = sim.xs[0]
+    rodar(sim, 1)
+    const x2 = sim.xs[0]
+    rodar(sim, 1)
+    const x3 = sim.xs[0]
+    // Sem inversao: o passo seguinte nao desfaz o anterior.
+    expect(Math.abs((x3 - x2) + (x2 - x1))).toBeGreaterThan(Math.abs(x3 - x2) * 0.5)
+    expect(Number.isFinite(x3)).toBe(true)
+  })
+
   it('centerStrength 0 nao puxa nada para o centro', () => {
     // Regressao: o mapeamento da UI tinha piso de 0.1, entao pedir "forca para
     // o centro = 0" continuava puxando o no solto para o meio.

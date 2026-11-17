@@ -45,6 +45,8 @@ export type Graph2dSettings = {
   minEdgeLength: number
   /** Aresta maxima (0 = sem limite): a mola nao estica alem disso. */
   maxEdgeLength: number
+  /** Freio: fracao da velocidade perdida por passo (0 a 0.95). */
+  velocityDecay: number
 }
 
 /** Constantes do `sim.js`, para os testes e para a UI partir delas. */
@@ -86,6 +88,7 @@ export const GRAPH2D_DEFAULT_SETTINGS: Graph2dSettings = {
   recentroSeconds: OBSIDIAN_PHYSICS.recentroSeconds,
   minEdgeLength: OBSIDIAN_PHYSICS.minEdgeLength,
   maxEdgeLength: OBSIDIAN_PHYSICS.maxEdgeLength,
+  velocityDecay: OBSIDIAN_PHYSICS.velocityDecay,
 }
 
 export type Graph2dLink = { source: string; target: string }
@@ -221,6 +224,10 @@ export class Graph2dSimulation {
 
   step(): void {
     const { xs, ys, vxs, vys, settings, count } = this
+    // `v *= 1 - freio`. Com freio >= 1 o fator fica ZERO ou NEGATIVO: em 2, a
+    // velocidade inverte de sinal a cada passo e o no oscila para sempre (era
+    // o tremor com o campo em 2). O d3 limita velocityDecay a [0,1].
+    const amortecimento = Math.min(0.95, Math.max(0, settings.velocityDecay))
     this.alpha += (this.alphaTarget - this.alpha) * OBSIDIAN_PHYSICS.alphaDecay
     const alpha = this.alpha
     if (alpha < 1e-8) return
@@ -449,8 +456,8 @@ export class Graph2dSimulation {
         vys[i] = 0
         continue
       }
-      vxs[i] *= 1 - OBSIDIAN_PHYSICS.velocityDecay
-      vys[i] *= 1 - OBSIDIAN_PHYSICS.velocityDecay
+      vxs[i] *= 1 - amortecimento
+      vys[i] *= 1 - amortecimento
       // Teto por passo: mantem o movimento fluido e impede que uma forca
       // numerica grande vire um salto visivel.
       const velocidade = Math.hypot(vxs[i], vys[i])

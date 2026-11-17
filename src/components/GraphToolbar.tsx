@@ -387,8 +387,8 @@ export function GraphToolbar(props: GraphToolbarProps) {
                 <Field type="number" size="xs" step={0.1} value={graph2dLinkStiffness} onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, -Infinity, Infinity))} aria-label="Rigidez da mola das arestas no grafo 2D" />
               </label>
               <label className="graph-settings-row">
-                <span>Freio<small>Quanto o movimento perde força a cada segundo; maior, para antes</small></span>
-                <Field type="number" size="xs" step={0.05} value={graph2dVelocityDecay} onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, -Infinity, Infinity))} aria-label="Amortecimento da velocidade no grafo 2D" />
+                <span>Freio<small>Quanto o movimento perde força a cada passo (0 a 0,95); maior, para antes</small></span>
+                <Field type="number" size="xs" min={0} max={0.95} step={0.05} value={graph2dVelocityDecay} onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, 0, 0.95))} aria-label="Amortecimento da velocidade no grafo 2D" />
               </label>
               <label className="graph-settings-row">
                 <span>Distância das conexões<small>Onde duas notas ligadas param de se puxar</small></span>

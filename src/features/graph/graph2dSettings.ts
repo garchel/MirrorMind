@@ -51,6 +51,7 @@ export type Graph2dSimSettings = {
   recentroSeconds: number
   minEdgeLength: number
   maxEdgeLength: number
+  velocityDecay: number
 }
 
 export function buildGraph2dSettings(values: Graph2dSliderValues): Graph2dSimSettings {
@@ -67,6 +68,7 @@ export function buildGraph2dSettings(values: Graph2dSliderValues): Graph2dSimSet
     alphaTargetDrag: values.dragAlpha,
     recentroSeconds: values.recentroSeconds,
     // Mesma escala da distancia das conexoes (30 no app = 250 no motor).
+    velocityDecay: values.velocityDecay,
     minEdgeLength: (values.minEdgeLength / 30) * 250,
     maxEdgeLength: (values.maxEdgeLength / 30) * 250,
   }
