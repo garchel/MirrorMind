@@ -17,9 +17,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 7px;
-  max-width: min(94%, 1080px);
+  /* Largura fixa (nao shrink-to-fit): com o grupo de acoes empurrado por
+     `margin-left: auto`, a barra precisa de largura propria para as duas
+     pontas aparecerem — filtro a esquerda, camera/menu a direita. */
+  width: min(94%, 1080px);
   padding: 8px 10px;
   border: 1px solid rgb(28 36 39 / 14%);
   border-radius: var(--radius-lg);
@@ -41,6 +44,13 @@
   color: var(--mm-ink-900-6);
   font: 600 13px/1 var(--sans);
   white-space: nowrap;
+}
+
+.workspace-shell .graph-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
 }
 
 .workspace-shell .graph-header-sep {
@@ -634,64 +644,7 @@
 }
 
 /* Menu de exportacao (SVG/PNG) do header do grafo. */
-.ui-popover-content.graph-export-popover {
-  width: min(280px, 92vw);
-  padding: 14px 14px 10px;
-}
 
-.graph-export-popover .graph-settings-header-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0 0 10px;
-  color: var(--mm-ink-900-6);
-  font: 600 13px/1 var(--sans);
-}
-
-.graph-export-popover .graph-settings-header-title svg {
-  color: var(--mm-sage-850);
-}
-
-.graph-export-popover .graph-settings-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 0;
-  color: var(--mm-ink-900-23);
-  font-size: 12px;
-}
-
-.graph-export-popover .graph-settings-row small {
-  display: block;
-  color: var(--mm-ink-700);
-  font-size: 10px;
-}
-
-.graph-export-popover .graph-settings-row select {
-  /* Onda 2 `<Field>`: `width: auto` volta ao comportamento do cru. */
-  width: auto;
-  min-height: 28px;
-  padding: 0 6px;
-  border: 1px solid var(--mm-ink-350-3);
-  border-radius: var(--radius-sm);
-  background: var(--mm-gold-50);
-  color: var(--mm-ink-900-23);
-  font: 12px var(--sans);
-}
-
-.graph-export-popover .graph-export-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid rgb(28 36 39 / 8%);
-}
-
-.graph-export-popover .graph-export-actions .secondary-button {
-  flex: 1;
-  min-height: var(--button-size-toolbar-height);
-}
 
 /* Drawer lateral da nota selecionada (coluna a direita). */
 .workspace-shell .graph-note-drawer .ui-drawer-header {

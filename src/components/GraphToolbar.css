@@ -165,21 +165,8 @@
 
 /* --- Larguras fixas: o header nao reflow ao trocar opcoes --- */
 
-.workspace-shell .graph-immersive-header .graph-mode-select,
-.workspace-shell .graph-immersive-header .graph-depth-select {
-  max-width: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.workspace-shell .graph-immersive-header .graph-mode-select {
-  width: 118px;
-}
 
-.workspace-shell .graph-immersive-header .graph-depth-select {
-  width: 92px;
-}
 
 .workspace-shell .graph-immersive-header .graph-search-input {
   width: 150px;
@@ -192,12 +179,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-width: 118px;
   font-variant-numeric: tabular-nums;
-}
-
-.workspace-shell .graph-immersive-header .graph-filter-meta[data-active='false'] {
-  visibility: hidden;
 }
 
 /* --- Enfase dupla do highlight (2D) ------------------------------------ */

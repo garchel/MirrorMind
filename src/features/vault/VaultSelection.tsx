@@ -4,7 +4,7 @@ import { Field } from '../../components/ui/Field'
 import { TitleBar } from '../../components/TitleBar'
 import { UpdateBanner } from '../../components/UpdateBanner'
 import { Modal } from '../../components/Modal'
-import { BuilderModeControl } from '../../components/BuilderModeControl'
+import { DevControls } from '../../components/DevControls'
 import {
   buildVaultPathPreview,
   type CreateVaultForm,
@@ -163,7 +163,7 @@ export function VaultSelection({
             </div>
         </Modal>
       ) : null}
-      <BuilderModeControl enabled={isBuilderModeEnabled} onEnabledChange={setBuilderModeEnabled} />
+      <DevControls enabled={isBuilderModeEnabled} onEnabledChange={setBuilderModeEnabled} />
     </main>
   )
 }

@@ -4,7 +4,8 @@ import { ExternalLink, Link2, Network, PanelLeft, X } from 'lucide-react'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../components/ui/drawer'
 import { GraphSkeleton } from '../../components/PageSkeleton'
 import { Graph3DLoader } from '../../components/Graph3DLoader'
-import { GraphToolbar, type GraphMode } from '../../components/GraphToolbar'
+import type { GraphMode } from '../../lib/graphMode'
+import { GraphToolbar } from '../../components/GraphToolbar'
 import { Graph2dCanvas } from './Graph2dCanvas'
 import { buildGraph2dSettings } from './graph2dSettings'
 import { getMarkdownPreviewText } from '../../lib/markdown'
@@ -61,7 +62,6 @@ export type GraphFilters = {
   mode: GraphMode
   setMode: Dispatch<SetStateAction<GraphMode>>
   localDepth: number
-  setLocalDepth: Dispatch<SetStateAction<number>>
   folder: string
   setFolder: Dispatch<SetStateAction<string>>
   tag: string
@@ -92,10 +92,6 @@ export type GraphView = {
   setUiVisible: (visible: boolean) => void
   settingsOpen: boolean
   setSettingsOpenSynced: (open: boolean) => void
-  exportOpen: boolean
-  setExportOpen: Dispatch<SetStateAction<boolean>>
-  exportScale: number
-  setExportScale: (scale: number) => void
   exportRequest: Graph3DExportRequest | null
   layoutVersion: number
   mode3d: boolean
@@ -138,13 +134,8 @@ export type GraphRefs = {
 
 /** Ações: callbacks do App (sem estado). */
 export type GraphActions = {
-  updateNumberSetting: (raw: string, current: number, min: number, max: number) => number
   poke: () => void
   resetView: () => void
-  openPage: () => void
-  reset3d: () => void
-  reset2d: () => void
-  handleExport: (format: 'svg' | 'png') => void
   handle3dExport: (requestId: number, scene: Graph3DExportScene | null) => void
   startNodeDrag: (relativePath: string, event: PointerEvent<HTMLButtonElement>) => void
   finishNodeDrag: (event: PointerEvent<HTMLButtonElement>) => void
@@ -206,7 +197,6 @@ export function GraphPage({
     mode: graphMode,
     setMode: setGraphMode,
     localDepth: graphLocalDepth,
-    setLocalDepth: setGraphLocalDepth,
     folder: graphFolder,
     setFolder: setGraphFolder,
     tag: graphTag,
@@ -235,10 +225,6 @@ export function GraphPage({
     setUiVisible: setGraphUiVisible,
     settingsOpen: graphSettingsOpen,
     setSettingsOpenSynced: setGraphSettingsOpenSynced,
-    exportOpen: graphExportOpen,
-    setExportOpen: setGraphExportOpen,
-    exportScale: graphExportScale,
-    setExportScale: setGraphExportScale,
     exportRequest: graphExportRequest,
     layoutVersion: graph3dLayoutVersion,
     mode3d: graphMode3d,
@@ -265,12 +251,7 @@ export function GraphPage({
     tagIndexRef: graphTagIndexRef,
   } = refs
   const {
-    updateNumberSetting,
     poke: pokeGraphUi,
-    openPage: openGraphPage,
-    reset3d: resetGraph3dSettings,
-    reset2d: resetGraph2dSettings,
-    handleExport: handleGraphExport,
     handle3dExport: handleGraph3dExport,
     revealInExplorer: revealNoteInExplorer,
     copyWikiLink: copyGraphWikiLink,
@@ -279,44 +260,24 @@ export function GraphPage({
     setConnectSource: setGraphConnectSource,
   } = actions
   const {
-    graphRenderLimit,
-    setGraphRenderLimit,
     graph3dNodeSize,
-    setGraph3dNodeSize,
     graph3dNodeSpacing,
-    setGraph3dNodeSpacing,
     graph3dOrbitSpeed,
-    setGraph3dOrbitSpeed,
     graph3dMaxEdgeLength,
-    setGraph3dMaxEdgeLength,
     graph3dMinEdgeLength,
-    setGraph3dMinEdgeLength,
     graph3dDegreeGrowth,
-    setGraph3dDegreeGrowth,
     graph2dRepulsionStrength,
-    setGraph2dRepulsionStrength,
     graph2dLinkStiffness,
-    setGraph2dLinkStiffness,
     graph2dVelocityDecay,
-    setGraph2dVelocityDecay,
     graph2dLinkDistance,
-    setGraph2dLinkDistance,
     graph2dCenterForce,
-    setGraph2dCenterForce,
     graph2dCollideRadius,
-    setGraph2dCollideRadius,
     graph2dCollideStrength,
-    setGraph2dCollideStrength,
     graph2dRecentroSeconds,
-    setGraph2dRecentroSeconds,
     graph2dDragAlpha,
-    setGraph2dDragAlpha,
     graph2dMinEdgeLength,
-    setGraph2dMinEdgeLength,
     graph2dMaxEdgeLength,
-    setGraph2dMaxEdgeLength,
     graph2dLabelZoom,
-    setGraph2dLabelZoom,
   } = graph
 
 
@@ -375,10 +336,6 @@ export function GraphPage({
             onHoverEnd={pokeGraphUi}
             graphMode3d={graphMode3d}
             setGraphMode3d={setGraphMode3d}
-            graphMode={graphMode}
-            setGraphMode={setGraphMode}
-            graphLocalDepth={graphLocalDepth}
-            setGraphLocalDepth={setGraphLocalDepth}
             graphFolder={graphFolder}
             setGraphFolder={setGraphFolder}
             graphFolders={graphFolders}
@@ -391,54 +348,8 @@ export function GraphPage({
             setGraphQuery={setGraphQuery}
             graph2dZoom={graph2dZoom}
             onGraph2dZoomCommand={comandarZoom2d}
-            openGraphPage={openGraphPage}
-            isGraphLoading={isGraphLoading}
-            graphExportOpen={graphExportOpen}
-            setGraphExportOpen={setGraphExportOpen}
-            graphExportScale={graphExportScale}
-            setGraphExportScale={setGraphExportScale}
-            handleGraphExport={handleGraphExport}
             graphSettingsOpen={graphSettingsOpen}
             setGraphSettingsOpenSynced={setGraphSettingsOpenSynced}
-            resetGraph3dSettings={resetGraph3dSettings}
-            resetGraph2dSettings={resetGraph2dSettings}
-            graph3dNodeSize={graph3dNodeSize}
-            setGraph3dNodeSize={setGraph3dNodeSize}
-            graph3dDegreeGrowth={graph3dDegreeGrowth}
-            setGraph3dDegreeGrowth={setGraph3dDegreeGrowth}
-            graph3dNodeSpacing={graph3dNodeSpacing}
-            setGraph3dNodeSpacing={setGraph3dNodeSpacing}
-            graph3dOrbitSpeed={graph3dOrbitSpeed}
-            setGraph3dOrbitSpeed={setGraph3dOrbitSpeed}
-            graph3dMaxEdgeLength={graph3dMaxEdgeLength}
-            setGraph3dMaxEdgeLength={setGraph3dMaxEdgeLength}
-            graph3dMinEdgeLength={graph3dMinEdgeLength}
-            setGraph3dMinEdgeLength={setGraph3dMinEdgeLength}
-            graph2dRepulsionStrength={graph2dRepulsionStrength}
-            setGraph2dRepulsionStrength={setGraph2dRepulsionStrength}
-            graph2dLinkStiffness={graph2dLinkStiffness}
-            setGraph2dLinkStiffness={setGraph2dLinkStiffness}
-            graph2dVelocityDecay={graph2dVelocityDecay}
-            setGraph2dVelocityDecay={setGraph2dVelocityDecay}
-            graph2dLinkDistance={graph2dLinkDistance}
-            setGraph2dLinkDistance={setGraph2dLinkDistance}
-            graph2dCenterForce={graph2dCenterForce}
-            setGraph2dCenterForce={setGraph2dCenterForce}
-            graph2dCollideRadius={graph2dCollideRadius}
-            setGraph2dCollideRadius={setGraph2dCollideRadius}
-            graph2dCollideStrength={graph2dCollideStrength}
-            setGraph2dCollideStrength={setGraph2dCollideStrength}
-            graph2dRecentroSeconds={graph2dRecentroSeconds}
-            setGraph2dRecentroSeconds={setGraph2dRecentroSeconds}
-            graph2dDragAlpha={graph2dDragAlpha}
-            setGraph2dDragAlpha={setGraph2dDragAlpha}
-            graph2dMinEdgeLength={graph2dMinEdgeLength}
-            setGraph2dMinEdgeLength={setGraph2dMinEdgeLength}
-            graph2dMaxEdgeLength={graph2dMaxEdgeLength}
-            setGraph2dMaxEdgeLength={setGraph2dMaxEdgeLength}
-            graph2dLabelZoom={graph2dLabelZoom}
-            setGraph2dLabelZoom={setGraph2dLabelZoom}
-            updateNumberSetting={updateNumberSetting}
             showGraphOrphans={showGraphOrphans}
             setShowGraphOrphans={setShowGraphOrphans}
             showOnlyGraphOrphans={showOnlyGraphOrphans}
@@ -455,8 +366,6 @@ export function GraphPage({
             graphGroupMaps={graphGroupMaps}
             graphColorOverrides={graphColorOverrides}
             setGraphColorOverrides={setGraphColorOverrides}
-            graphRenderLimit={graphRenderLimit}
-            setGraphRenderLimit={setGraphRenderLimit}
           />
           {graphMode3d ? (
             <Suspense fallback={<Graph3DLoader />}>

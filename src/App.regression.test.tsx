@@ -1477,8 +1477,10 @@ describe('Regressao do editor no workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
     expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
 
+    // O seletor de escopo saiu da barra do usuario: mora no painel DEV.
+    await user.click(screen.getByRole('button', { name: 'Controles de desenvolvimento do grafo' }))
     // Local com 1 salto a partir da nota ativa (inicial): inicial e alvo apenas.
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Modo do grafo' }), 'local')
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Modo do grafo' }), 'local')
     expect(screen.getByRole('button', { name: 'Abrir nota alvo no grafo' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Abrir nota quarta no grafo' })).not.toBeInTheDocument()
     expect(screen.getByText(/Grafo local limitado: 1 nota está além de 1 conexão de distância/)).toBeInTheDocument()
@@ -1777,8 +1779,9 @@ describe('Regressao do editor no workspace', () => {
 
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
 
+    // Exportar saiu do menu do usuario e mora no painel DEV.
+    await user.click(screen.getByRole('button', { name: 'Controles de desenvolvimento do grafo' }))
     // SVG: download disparado com nome .svg.
-    await user.click(screen.getByRole('button', { name: 'Exportar grafo' }))
     await user.click(await screen.findByRole('button', { name: 'Exportar grafo como SVG' }))
     await waitFor(() => expect(clickSpy).toHaveBeenCalled())
     const svgAnchor = clickSpy.mock.instances.at(-1) as HTMLAnchorElement
@@ -1786,7 +1789,6 @@ describe('Regressao do editor no workspace', () => {
     expect(URL.createObjectURL).toHaveBeenCalled()
 
     // PNG com resolucao 2x: sem canvas no jsdom, cai no fallback sem download.
-    await user.click(screen.getByRole('button', { name: 'Exportar grafo' }))
     const scaleSelect = await screen.findByRole('combobox', { name: 'Resolução do PNG exportado' })
     await user.selectOptions(scaleSelect, '2')
     await user.click(screen.getByRole('button', { name: 'Exportar grafo como PNG' }))
@@ -1804,7 +1806,7 @@ describe('Regressao do editor no workspace', () => {
     await user.click(screen.getByRole('radio', { name: '3D' }))
 
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
-    await user.click(screen.getByRole('button', { name: 'Exportar grafo' }))
+    await user.click(screen.getByRole('button', { name: 'Controles de desenvolvimento do grafo' }))
     await user.click(await screen.findByRole('button', { name: 'Exportar grafo como SVG' }))
 
     await waitFor(() => expect(clickSpy).toHaveBeenCalled())

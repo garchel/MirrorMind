@@ -18,7 +18,7 @@ import { Folder, FolderOpen, Sparkle, Star, X } from 'lucide-react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Bookmark02Icon, File02Icon } from '@hugeicons/core-free-icons'
 import { RiFocus2Fill, RiFocus2Line } from '@remixicon/react'
-import { BuilderModeControl } from './components/BuilderModeControl'
+import { DevControls } from './components/DevControls'
 import { TitleBar } from './components/TitleBar'
 import type { FrontmatterPanelData, FrontmatterRow, LinkTarget } from './components/markdownLivePreview'
 import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover'
@@ -46,7 +46,7 @@ import { Modal } from './components/Modal'
 import { UnsavedChangesDialog } from './components/UnsavedChangesDialog'
 import { hasUnsavedNewNote, unsavedDraftPaths } from './lib/unsavedDrafts'
 import { PageSkeleton } from './components/PageSkeleton'
-import { type GraphMode } from './components/GraphToolbar'
+import type { GraphMode } from './lib/graphMode'
 import { useGraphSettings } from './lib/useGraphSettings'
 import { useAppearanceSettings } from './lib/useAppearanceSettings'
 import { useNoteSearch } from './lib/useNoteSearch'
@@ -640,7 +640,6 @@ function App() {
   // varias tags) e overrides de cor por grupo, ambos persistidos por Vault.
   const [graphPrimaryTag, setGraphPrimaryTag] = useState('')
   const [graphColorOverrides, setGraphColorOverrides] = useState<Record<string, string>>({})
-  const [graphExportOpen, setGraphExportOpen] = useState(false)
   const [graphExportScale, setGraphExportScale] = useState(2)
   const [graphExportRequest, setGraphExportRequest] = useState<Graph3DExportRequest | null>(null)
   const graphExportRequestIdRef = useRef(0)
@@ -5384,7 +5383,6 @@ function App() {
 
     /** Inicia a exportacao: 3D pede a cena ao componente; 2D monta direto. */
     function handleGraphExport(format: 'svg' | 'png') {
-      setGraphExportOpen(false)
       if (graphMode3d) {
         const id = graphExportRequestIdRef.current + 1
         graphExportRequestIdRef.current = id
@@ -5868,7 +5866,6 @@ function App() {
                   mode: graphMode,
                   setMode: setGraphMode,
                   localDepth: graphLocalDepth,
-                  setLocalDepth: setGraphLocalDepth,
                   folder: graphFolder,
                   setFolder: setGraphFolder,
                   tag: graphTag,
@@ -5897,10 +5894,6 @@ function App() {
                   setUiVisible: setGraphUiVisible,
                   settingsOpen: graphSettingsOpen,
                   setSettingsOpenSynced: setGraphSettingsOpenSynced,
-                  exportOpen: graphExportOpen,
-                  setExportOpen: setGraphExportOpen,
-                  exportScale: graphExportScale,
-                  setExportScale: setGraphExportScale,
                   exportRequest: graphExportRequest,
                   layoutVersion: graph3dLayoutVersion,
                   mode3d: graphMode3d,
@@ -5936,13 +5929,8 @@ function App() {
                   tagIndexRef: graphTagIndexRef,
                 }}
                 actions={{
-                  updateNumberSetting,
                   poke: pokeGraphUi,
                   resetView: resetGraphView,
-                  openPage: openGraphPage,
-                  reset3d: resetGraph3dSettings,
-                  reset2d: resetGraph2dSettings,
-                  handleExport: handleGraphExport,
                   handle3dExport: handleGraph3dExport,
                   startNodeDrag: startGraph2dNodeDrag,
                   finishNodeDrag: finishGraph2dNodeDrag,
@@ -5963,6 +5951,7 @@ function App() {
               />
             ) : (
               <SettingsPage
+                updateNumberSetting={updateNumberSetting}
                 vaultPath={vault.path}
                 obsidianAppearance={vault?.obsidianAppearance ?? null}
                 appearance={appearance}
@@ -5975,7 +5964,6 @@ function App() {
                 appUpdater={appUpdater}
                 autoUpdateEnabled={autoUpdateEnabled}
                 onToggleAutoUpdate={handleToggleAutoUpdate}
-                updateNumberSetting={updateNumberSetting}
                 activeSettingsSection={activeSettingsSection}
                 onNavigateSettingsSection={scrollToSettingsSection}
                 settingsScrollRef={settingsScrollRef}
@@ -6419,7 +6407,65 @@ function App() {
             ))}
           </div>
         ) : null}
-        <BuilderModeControl enabled={isBuilderModeEnabled} onEnabledChange={setBuilderModeEnabled} />
+        <DevControls
+          enabled={isBuilderModeEnabled}
+          onEnabledChange={setBuilderModeEnabled}
+          graph2d={{
+            repulsionStrength: graph.graph2dRepulsionStrength,
+            setRepulsionStrength: graph.setGraph2dRepulsionStrength,
+            linkStiffness: graph.graph2dLinkStiffness,
+            setLinkStiffness: graph.setGraph2dLinkStiffness,
+            velocityDecay: graph.graph2dVelocityDecay,
+            setVelocityDecay: graph.setGraph2dVelocityDecay,
+            linkDistance: graph.graph2dLinkDistance,
+            setLinkDistance: graph.setGraph2dLinkDistance,
+            centerForce: graph.graph2dCenterForce,
+            setCenterForce: graph.setGraph2dCenterForce,
+            collideRadius: graph.graph2dCollideRadius,
+            setCollideRadius: graph.setGraph2dCollideRadius,
+            collideStrength: graph.graph2dCollideStrength,
+            setCollideStrength: graph.setGraph2dCollideStrength,
+            dragAlpha: graph.graph2dDragAlpha,
+            setDragAlpha: graph.setGraph2dDragAlpha,
+            recentroSeconds: graph.graph2dRecentroSeconds,
+            setRecentroSeconds: graph.setGraph2dRecentroSeconds,
+            minEdgeLength: graph.graph2dMinEdgeLength,
+            setMinEdgeLength: graph.setGraph2dMinEdgeLength,
+            maxEdgeLength: graph.graph2dMaxEdgeLength,
+            setMaxEdgeLength: graph.setGraph2dMaxEdgeLength,
+            labelZoom: graph.graph2dLabelZoom,
+            setLabelZoom: graph.setGraph2dLabelZoom,
+            renderLimit: graph.graphRenderLimit,
+            setRenderLimit: graph.setGraphRenderLimit,
+            reset: resetGraph2dSettings,
+          }}
+          graph3d={{
+            nodeSize: graph.graph3dNodeSize,
+            setNodeSize: graph.setGraph3dNodeSize,
+            degreeGrowth: graph.graph3dDegreeGrowth,
+            setDegreeGrowth: graph.setGraph3dDegreeGrowth,
+            nodeSpacing: graph.graph3dNodeSpacing,
+            setNodeSpacing: graph.setGraph3dNodeSpacing,
+            orbitSpeed: graph.graph3dOrbitSpeed,
+            setOrbitSpeed: graph.setGraph3dOrbitSpeed,
+            maxEdgeLength: graph.graph3dMaxEdgeLength,
+            setMaxEdgeLength: graph.setGraph3dMaxEdgeLength,
+            minEdgeLength: graph.graph3dMinEdgeLength,
+            setMinEdgeLength: graph.setGraph3dMinEdgeLength,
+            reset: resetGraph3dSettings,
+          }}
+          exportTools={{
+            scale: graphExportScale,
+            setScale: setGraphExportScale,
+            run: handleGraphExport,
+          }}
+          graphMode={{
+            mode: graphMode,
+            setMode: setGraphMode,
+            localDepth: graphLocalDepth,
+            setLocalDepth: setGraphLocalDepth,
+          }}
+        />
         <UpdateBanner
           updater={appUpdater}
           onBeforeInstall={async () => {
