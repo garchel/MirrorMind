@@ -1,4 +1,4 @@
-import { Suspense, lazy, type Dispatch, type PointerEvent, type RefObject, type SetStateAction } from 'react'
+import { Suspense, lazy, useRef, useState, type Dispatch, type PointerEvent, type RefObject, type SetStateAction } from 'react'
 import { Button } from '../../components/ui/Button'
 import { ExternalLink, Link2, Network, PanelLeft, X } from 'lucide-react'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../components/ui/drawer'
@@ -243,7 +243,6 @@ export function GraphPage({
     layoutVersion: graph3dLayoutVersion,
     mode3d: graphMode3d,
     setMode3d: setGraphMode3d,
-    setViewport: setGraphViewport,
   } = view
   const {
     focusedPath: focusedGraphPath,
@@ -268,7 +267,6 @@ export function GraphPage({
   const {
     updateNumberSetting,
     poke: pokeGraphUi,
-    resetView: resetGraphView,
     openPage: openGraphPage,
     reset3d: resetGraph3dSettings,
     reset2d: resetGraph2dSettings,
@@ -321,6 +319,17 @@ export function GraphPage({
     setGraph2dLabelZoom,
   } = graph
 
+
+  // Zoom da camera do canvas 2D: exibido no menu e comandado pelos botoes
+  // + / - / Centralizar da barra (antes eles mexiam no viewport do grafo
+  // antigo, que nao existe mais neste caminho).
+  const [graph2dZoom, setGraph2dZoom] = useState(1)
+  const [graph2dZoomCommand, setGraph2dZoomCommand] = useState<{ id: number; type: 'in' | 'out' | 'reset' } | null>(null)
+  const graph2dZoomIdRef = useRef(0)
+  const comandarZoom2d = (type: 'in' | 'out' | 'reset') => {
+    graph2dZoomIdRef.current += 1
+    setGraph2dZoomCommand({ id: graph2dZoomIdRef.current, type })
+  }
 
   // Fisica do Obsidian: os sliders do app sao convertidos para a escala do
   // simulador (link 250, repulsao -1000, centro 0.1) sem piso nenhum.
@@ -380,8 +389,8 @@ export function GraphPage({
             graphFilterMatchPaths={graphFilterMatchPaths}
             graphQuery={graphQuery}
             setGraphQuery={setGraphQuery}
-            setGraphViewport={setGraphViewport}
-            resetGraphView={resetGraphView}
+            graph2dZoom={graph2dZoom}
+            onGraph2dZoomCommand={comandarZoom2d}
             openGraphPage={openGraphPage}
             isGraphLoading={isGraphLoading}
             graphExportOpen={graphExportOpen}
@@ -484,6 +493,8 @@ export function GraphPage({
             aria-label="Grafo interativo das notas"
           >
             <Graph2dCanvas
+              onZoomChange={setGraph2dZoom}
+              zoomCommand={graph2dZoomCommand}
               nodes={renderedGraphDocuments.map((document) => ({
                 path: document.relativePath,
                 label: document.name.replace(/\.md$/i, ''),

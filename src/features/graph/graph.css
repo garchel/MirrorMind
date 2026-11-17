@@ -1584,6 +1584,19 @@
 
 /* --- grafo 2D em canvas (modelo Obsidian) ---------------------------- */
 
+/* Leitura do nivel de zoom ao lado dos botoes + / - (para calibrar o zoom
+   inicial do grafo 2D). Largura fixa para o cluster nao "pular" a cada
+   mudanca de digito. */
+.workspace-shell .graph-zoom-value,
+.graph-zoom-value {
+  min-width: 42px;
+  padding: 0 4px;
+  color: var(--mm-ink-800-4);
+  font: 500 var(--font-size-caption) var(--sans);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 .workspace-shell .graph2d-canvas-shell {
   position: absolute;
   inset: 0;

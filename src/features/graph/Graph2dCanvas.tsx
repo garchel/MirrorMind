@@ -35,6 +35,10 @@ export type Graph2dCanvasProps = {
   onHover: (path: string | null) => void
   onOpen: (path: string) => void
   onFocus?: (path: string) => void
+  /** Zoom atual da camera (para exibir no menu). */
+  onZoomChange?: (zoom: number) => void
+  /** Comando de zoom vindo da barra: `id` muda a cada pedido. */
+  zoomCommand?: { id: number; type: 'in' | 'out' | 'reset' } | null
   ariaLabel?: string
 }
 
@@ -73,6 +77,8 @@ export function Graph2dCanvas({
   onHover,
   onOpen,
   onFocus,
+  onZoomChange,
+  zoomCommand,
   ariaLabel = 'Grafo de notas',
 }: Graph2dCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -110,6 +116,16 @@ export function Graph2dCanvas({
   /** Peso 0..1 do destaque de hover por no (animado, nao instantaneo). */
   const focoRef = useRef<Float32Array>(new Float32Array(0))
   const focoIntensidadeRef = useRef(0)
+  const onZoomChangeRef = useRef(onZoomChange)
+  onZoomChangeRef.current = onZoomChange
+  /** Ultimo zoom comunicado: evita re-render do pai em cada frame de roda. */
+  const zoomComunicadoRef = useRef(-1)
+  const comunicarZoom = useCallback(() => {
+    const zoom = viewRef.current.zoom
+    if (Math.abs(zoom - zoomComunicadoRef.current) < 0.005) return
+    zoomComunicadoRef.current = zoom
+    onZoomChangeRef.current?.(zoom)
+  }, [])
   /** Primeira vez: a camera enquadra o grafo quando ele assentar. */
   const enquadradoRef = useRef(false)
 
@@ -194,6 +210,7 @@ export function Graph2dCanvas({
         // Piso de 0.3: enquadrar uma cadeia longa inteira levava o zoom a
         // 0.15 e as bolinhas a 2px — o usuario abria o grafo e via um borrao.
         viewRef.current = { x: c.x, y: c.y, zoom: Math.max(0.3, Math.min(1.1, caber)) }
+        comunicarZoom()
       }
       desenhar()
       if (!persistidoRef.current && onSettledRef.current) {
@@ -206,7 +223,7 @@ export function Graph2dCanvas({
         onSettledRef.current(snapshot)
       }
     })
-  }, [animarFoco, desenhar])
+  }, [animarFoco, comunicarZoom, desenhar])
 
   // (Re)cria a simulacao quando o conjunto de nos muda — e so entao.
   useEffect(() => {
@@ -444,6 +461,28 @@ export function Graph2dCanvas({
     }
   }
 
+  // Comandos de zoom da barra (+ / - / Centralizar), que antes mexiam no
+  // viewport do grafo antigo e nao faziam nada neste canvas.
+  useEffect(() => {
+    if (!zoomCommand) return
+    const sim = simRef.current
+    if (!sim) return
+    const { width, height } = sizeRef.current
+    const view = viewRef.current
+    if (zoomCommand.type === 'reset') {
+      const c = sim.centroid()
+      let maior = 1
+      for (let i = 0; i < sim.count; i += 1) maior = Math.max(maior, Math.hypot(sim.xs[i] - c.x, sim.ys[i] - c.y))
+      const caber = Math.min(width, height) / (maior * 2.4)
+      viewRef.current = { x: c.x, y: c.y, zoom: Math.max(0.3, Math.min(1.1, caber)) }
+    } else {
+      const zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, view.zoom * (zoomCommand.type === 'in' ? 1.15 : 1 / 1.15)))
+      viewRef.current = { zoom, x: view.x, y: view.y }
+    }
+    comunicarZoom()
+    pedirFrame()
+  }, [zoomCommand, comunicarZoom, pedirFrame])
+
   const aoRolar = (event: React.WheelEvent<HTMLCanvasElement>) => {
     event.preventDefault()
     const ponto = pontoLocal(event)
@@ -457,6 +496,7 @@ export function Graph2dCanvas({
       x: antes.x - (ponto.x - width / 2) / zoom,
       y: antes.y - (ponto.y - height / 2) / zoom,
     }
+    comunicarZoom()
     pedirFrame()
   }
 

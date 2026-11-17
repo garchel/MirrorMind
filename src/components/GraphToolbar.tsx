@@ -52,8 +52,6 @@ export type GraphToolbarProps = {
   graphFilterMatchPaths: Set<string> | null
   graphQuery: string
   setGraphQuery: Dispatch<SetStateAction<string>>
-  setGraphViewport: Dispatch<SetStateAction<{ scale: number; x: number; y: number }>>
-  resetGraphView: () => void
   openGraphPage: () => unknown
   isGraphLoading: boolean
   graphExportOpen: boolean
@@ -101,6 +99,9 @@ export type GraphToolbarProps = {
   setGraph2dMaxEdgeLength: (next: number) => void
   graph2dLabelZoom: number
   setGraph2dLabelZoom: (next: number) => void
+  /** Zoom atual da camera do canvas 2D (1 = 100%). */
+  graph2dZoom: number
+  onGraph2dZoomCommand: (type: 'in' | 'out' | 'reset') => void
   updateNumberSetting: (raw: string, current: number, min: number, max: number) => number
   showGraphOrphans: boolean
   setShowGraphOrphans: Dispatch<SetStateAction<boolean>>
@@ -143,8 +144,6 @@ export function GraphToolbar(props: GraphToolbarProps) {
     graphFilterMatchPaths,
     graphQuery,
     setGraphQuery,
-    setGraphViewport,
-    resetGraphView,
     openGraphPage,
     isGraphLoading,
     graphExportOpen,
@@ -192,6 +191,8 @@ export function GraphToolbar(props: GraphToolbarProps) {
     setGraph2dMaxEdgeLength,
     graph2dLabelZoom,
     setGraph2dLabelZoom,
+    graph2dZoom,
+    onGraph2dZoomCommand,
     updateNumberSetting,
     showGraphOrphans,
     setShowGraphOrphans,
@@ -276,9 +277,12 @@ export function GraphToolbar(props: GraphToolbarProps) {
       <Field size="sm" value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
       {!graphMode3d ? (
         <span className="graph-zoom-cluster" aria-label="Zoom do grafo">
-          <Button type="button" variant="secondary" size="md" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.min(2.4, view.scale + 0.15) }))} aria-label="Aproximar grafo">+</Button>
-          <Button type="button" variant="secondary" size="md" onClick={() => setGraphViewport((view) => ({ ...view, scale: Math.max(0.55, view.scale - 0.15) }))} aria-label="Afastar grafo">−</Button>
-          <Button type="button" variant="secondary" size="md" onClick={resetGraphView} aria-label="Centralizar grafo">Centralizar</Button>
+          <Button type="button" variant="secondary" size="md" onClick={() => onGraph2dZoomCommand('in')} aria-label="Aproximar grafo">+</Button>
+          <Button type="button" variant="secondary" size="md" onClick={() => onGraph2dZoomCommand('out')} aria-label="Afastar grafo">−</Button>
+          <span className="graph-zoom-value" role="status" aria-label="Nível de zoom do grafo">
+            {Math.round(graph2dZoom * 100)}%
+          </span>
+          <Button type="button" variant="secondary" size="md" onClick={() => onGraph2dZoomCommand('reset')} aria-label="Centralizar grafo">Centralizar</Button>
         </span>
       ) : null}
       <span className="graph-header-sep" aria-hidden="true" />
