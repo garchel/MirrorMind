@@ -20,8 +20,8 @@ describe('useGraphSettings (extração do App)', () => {
     expect(result.current.graph2dCollideRadius).toBe(15)
     expect(result.current.graph2dMaxEdgeLength).toBe(50)
     expect(result.current.graph2dRecentroSeconds).toBe(10)
-    expect(result.current.graph2dLabelZoom).toBe(0.7)
-    expect(result.current.graph2dInitialZoom).toBe(0.67)
+    // 0 = automatico: o limiar e derivado do enquadramento no canvas.
+    expect(result.current.graph2dLabelZoom).toBe(0)
   })
 
   it('valores corrompidos caem nos fallbacks (paridade com o App antigo)', () => {

@@ -39,8 +39,6 @@ export type Graph2dCanvasProps = {
   onZoomChange?: (zoom: number) => void
   /** Comando de zoom vindo da barra: `id` muda a cada pedido. */
   zoomCommand?: { id: number; type: 'in' | 'out' | 'reset' } | null
-  /** Zoom da camera ao abrir e ao centralizar (1 = 100%). */
-  initialZoom?: number
   ariaLabel?: string
 }
 
@@ -81,7 +79,6 @@ export function Graph2dCanvas({
   onFocus,
   onZoomChange,
   zoomCommand,
-  initialZoom = 1,
   ariaLabel = 'Grafo de notas',
 }: Graph2dCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -131,11 +128,32 @@ export function Graph2dCanvas({
   }, [])
   /** Primeira vez: a camera enquadra o grafo quando ele assentar. */
   const enquadradoRef = useRef(false)
+  /** O usuario ja mexeu na camera: nao enquadrar por cima da escolha dele. */
+  const usuarioMexeuRef = useRef(false)
+  /** Zoom do enquadramento, para derivar o limiar dos nomes. */
+  const zoomEncaixeRef = useRef(0)
 
   const assinatura = useMemo(
     () => `${nodes.map((node) => node.path).join('|')}::${links.length}`,
     [nodes, links.length],
   )
+
+  /** Enquadra o grafo inteiro e deriva o limiar dos nomes a partir dai:
+   * "um zoom in acima do enquadramento" (1.15x, o mesmo passo dos botoes). */
+  const enquadrar = useCallback((sim: Graph2dSimulation) => {
+    const { width, height } = sizeRef.current
+    if (sim.count === 0 || width === 0 || height === 0) return
+    const c = sim.centroid()
+    let maior = 1
+    for (let i = 0; i < sim.count; i += 1) {
+      maior = Math.max(maior, Math.hypot(sim.xs[i] - c.x, sim.ys[i] - c.y))
+    }
+    const caber = Math.min(width, height) / (maior * 2.4)
+    const zoom = Math.max(0.12, Math.min(1.2, caber))
+    viewRef.current = { x: c.x, y: c.y, zoom }
+    zoomEncaixeRef.current = zoom
+    comunicarZoom()
+  }, [comunicarZoom])
 
   /** Aproxima o peso de cada no do alvo (1 no conjunto do hover, 0 fora) a
    * ~14% por frame. Devolve se ainda ha transicao em andamento — enquanto
@@ -175,8 +193,11 @@ export function Graph2dCanvas({
       view: viewRef.current,
       hovered: hoverRef.current,
       neighbors: vizinhosRef.current,
-      // O limiar de zoom dos nomes agora e configuracao ("Nomes ao aproximar").
-      labels: viewRef.current.zoom > sim.settings.labelZoom,
+      // Limiar dos nomes: 0 na configuracao = automatico, um passo de zoom
+      // acima do enquadramento (assim os nomes aparecem com um zoom in).
+      labels: viewRef.current.zoom > (sim.settings.labelZoom > 0
+        ? sim.settings.labelZoom
+        : (zoomEncaixeRef.current > 0 ? zoomEncaixeRef.current * 1.15 : 1.45)),
       colors: CORES,
       nodeStyles: estilosRef.current,
       nodeSizeMultiplier: sim.settings.nodeSizeMultiplier,
@@ -201,14 +222,13 @@ export function Graph2dCanvas({
         return
       }
       // Assentou: enquadra UMA vez e persiste UMA vez.
-      if (!enquadradoRef.current && sim.count > 0 && sim.alpha < 0.4) {
-        // Zoom fixo, configurado em "Zoom ao abrir": o enquadramento automatico
-        // variava com o tamanho do grafo (56 notas davam 67%, um vault maior
-        // caia para 30%) e o usuario queria abertura previsivel.
+      // Enquadra UMA vez, quando o layout se espalhou — e nunca por cima de uma
+      // camera que o usuario ja ajustou. Recriar a simulacao (mais notas
+      // chegaram) nao reinicia isso: era o que fazia o zoom pular sozinho
+      // depois de alguns segundos com o grafo aberto.
+      if (!enquadradoRef.current && !usuarioMexeuRef.current && sim.count > 0 && sim.alpha < 0.4) {
         enquadradoRef.current = true
-        const c = sim.centroid()
-        viewRef.current = { x: c.x, y: c.y, zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, initialZoom)) }
-        comunicarZoom()
+        enquadrar(sim)
       }
       desenhar()
       if (!persistidoRef.current && onSettledRef.current) {
@@ -221,7 +241,7 @@ export function Graph2dCanvas({
         onSettledRef.current(snapshot)
       }
     })
-  }, [animarFoco, comunicarZoom, desenhar, initialZoom])
+  }, [animarFoco, desenhar, enquadrar])
 
   // (Re)cria a simulacao quando o conjunto de nos muda — e so entao.
   useEffect(() => {
@@ -467,16 +487,15 @@ export function Graph2dCanvas({
     if (!sim) return
     const view = viewRef.current
     if (zoomCommand.type === 'reset') {
-      // Centralizar usa o mesmo zoom configurado para a abertura: previsivel.
-      const c = sim.centroid()
-      viewRef.current = { x: c.x, y: c.y, zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, initialZoom)) }
+      usuarioMexeuRef.current = false
+      enquadrar(sim)
     } else {
       const zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, view.zoom * (zoomCommand.type === 'in' ? 1.15 : 1 / 1.15)))
       viewRef.current = { zoom, x: view.x, y: view.y }
     }
     comunicarZoom()
     pedirFrame()
-  }, [zoomCommand, comunicarZoom, pedirFrame, initialZoom])
+  }, [zoomCommand, comunicarZoom, pedirFrame, enquadrar])
 
   const aoRolar = (event: React.WheelEvent<HTMLCanvasElement>) => {
     event.preventDefault()
@@ -491,6 +510,7 @@ export function Graph2dCanvas({
       x: antes.x - (ponto.x - width / 2) / zoom,
       y: antes.y - (ponto.y - height / 2) / zoom,
     }
+    usuarioMexeuRef.current = true
     comunicarZoom()
     pedirFrame()
   }

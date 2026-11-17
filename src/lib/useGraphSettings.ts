@@ -45,8 +45,7 @@ const parseCollideStrength2d = parseNonNegative(0.5)
 const parseRecentroSeconds2d = parsePositive(10)
 const parseDragAlpha2d = parseNonNegative(0.3)
 const parseEdgeLimit2d = parseNonNegative(0)
-const parseLabelZoom2d = parsePositive(0.7)
-const parseInitialZoom2d = parsePositive(0.67)
+const parseLabelZoom2d = parseNonNegative(0)
 
 /** Marca da migracao das forcas 2D. O motor 2D foi trocado pelo do Obsidian
  * (link 250, repulsao -1000, colisao 60), entao os numeros salvos pelo motor
@@ -54,7 +53,7 @@ const parseInitialZoom2d = parsePositive(0.67)
  * 200" vira repulsao fraca e o grafo abre comprimido. A migracao roda UMA vez
  * e devolve os cinco valores 2D ao padrao; 3D e exibicao nao sao tocados. */
 const CHAVE_MIGRACAO_FORCAS_2D = 'mirrormind.graph2d.physics-version'
-const MIGRACAO_FORCAS_2D = '4'
+const MIGRACAO_FORCAS_2D = '5'
 
 export function useGraphSettings() {
   const [graphRenderLimit, setGraphRenderLimit] = usePref(
@@ -112,10 +111,7 @@ export function useGraphSettings() {
     'mirrormind.graph2d.max-edge-length', 50, parseEdgeLimit2d, serializeNumber,
   )
   const [graph2dLabelZoom, setGraph2dLabelZoom] = usePref(
-    'mirrormind.graph2d.label-zoom', 0.7, parseLabelZoom2d, serializeNumber,
-  )
-  const [graph2dInitialZoom, setGraph2dInitialZoom] = usePref(
-    'mirrormind.graph2d.initial-zoom', 0.67, parseInitialZoom2d, serializeNumber,
+    'mirrormind.graph2d.label-zoom', 0, parseLabelZoom2d, serializeNumber,
   )
 
   useEffect(() => {
@@ -136,8 +132,7 @@ export function useGraphSettings() {
     setGraph2dDragAlpha(0.3)
     setGraph2dMinEdgeLength(0)
     setGraph2dMaxEdgeLength(50)
-    setGraph2dLabelZoom(0.7)
-    setGraph2dInitialZoom(0.67)
+    setGraph2dLabelZoom(0)
     // Roda uma vez, no mount: os setters do usePref sao estaveis.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -181,7 +176,5 @@ export function useGraphSettings() {
     setGraph2dMaxEdgeLength,
     graph2dLabelZoom,
     setGraph2dLabelZoom,
-    graph2dInitialZoom,
-    setGraph2dInitialZoom,
   }
 }
