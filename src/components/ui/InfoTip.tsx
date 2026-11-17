@@ -16,6 +16,12 @@ import { Popover, PopoverContent, PopoverTrigger } from './popover'
  * O icone nao e decorativo: e o alvo do foco. Por isso o `aria-label` diz de
  * que bloco se trata ("Como funciona: Prontidão para revisar") em vez de um
  * "?" generico repetido em toda a tela.
+ *
+ * ESTE E O PADRAO DE TOOLTIP DO APP (referencia: aba Desempenho da pagina
+ * Progresso): gatilho "?" de 20x20 ao lado do rotulo, corpo com um paragrafo
+ * de prosa que diz o que o numero significa e por que importa. Nao use o
+ * atributo `title=` para ajuda contextual. Regra completa em
+ * `docs/design-system-maturation.md`, secao "Padrao de tooltip".
  */
 type InfoTipProps = {
   /** Nome do bloco, usado no rotulo acessivel do gatilho. */

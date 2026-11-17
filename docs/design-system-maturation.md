@@ -44,6 +44,36 @@ tamanhos token a token contra o baseline. Adicoes e remocoes de
 declaracao sao registradas com posicao, valor e motivo (`ADICIONADOS` /
 `REMOVIDOS` no script): o gate nao aceita nem uma nem outra sem prova.
 
+## Padrao de tooltip (todo o app)
+
+Referencia: a aba **Desempenho** da pagina Progresso. A ajuda contextual do app
+inteiro segue esta anatomia, e o componente e `src/components/ui/InfoTip.tsx`
+(Radix Popover por baixo).
+
+- **Gatilho:** um "?" de **20x20** (raio 50%), ao lado do rotulo ou do titulo do
+  bloco — nunca um icone informativo solto no meio do conteudo. O alvo de
+  hover/toque tem 32px via `::after`, sem mudar o desenho.
+- **Conteudo:** um paragrafo de prosa (`<p>`), no maximo dois, dizendo o que
+  aquele numero ou campo significa **e por que ele importa**. Sem listas, sem
+  tabela, sem titulo interno, sem repetir o rotulo.
+- **Abertura:** hover com 160 ms de atraso e fechamento com 220 ms — o atraso
+  evita balao ao atravessar a tela, a espera ao fechar da tempo de levar o mouse
+  ate o texto. Clique/toque cobre tela sem hover; Escape e clique fora vem do
+  Radix.
+- **Rotulo acessivel:** `aria-label="Como funciona: <bloco>"`. Um "?" repetido
+  em toda a tela nao diz de que bloco se trata.
+- **Nunca** explique com o atributo `title=`: nao abre no toque, nao formata e
+  nao e anunciado de forma confiavel por leitor de tela.
+
+**Regra de convivencia:** quando o bloco ja tem uma explicacao visivel (um
+`<small>` embaixo do controle), o texto visivel mostra a **consequencia** da
+escolha atual e o tooltip explica o **conceito**. Os dois nao repetem a mesma
+frase.
+
+**Um cuidado de implementacao:** dentro de um `<label>` o clique no "?" ativa o
+controle do label (o checkbox liga/desliga sem querer). Por isso switch com
+checkbox nao leva tooltip no rotulo — a explicacao fica no `<small>` visivel.
+
 ## Pendencias conhecidas
 
 Medido em `camada3-primitivos` (2026-09-29), com os numeros de botao

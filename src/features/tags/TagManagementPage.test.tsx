@@ -207,6 +207,21 @@ describe('TagManagementPage', () => {
     expect(screen.getByText(/Primeira revisão em 1 dia ·/)).toBeInTheDocument()
   })
 
+  it('cada bloco do formulario tem ajuda contextual no padrao do app', async () => {
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Criar tag' }))
+    for (const bloco of ['Perfil de revisão', 'Prazo de estudo', 'Modo de revisão herdado']) {
+      expect(screen.getByRole('button', { name: `Como funciona: ${bloco}` })).toBeInTheDocument()
+    }
+
+    // Ritmo e prioridade so existem em Personalizada, e cada um tem a sua ajuda.
+    await user.click(screen.getByRole('radio', { name: /Personalizada/ }))
+    expect(screen.getByRole('button', { name: 'Como funciona: Ritmo de revisão da tag' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Como funciona: Prioridade na fila' })).toBeInTheDocument()
+  })
+
   it('creates a configured tag only after a zero-impact confirmation', async () => {
     const user = userEvent.setup()
     previewMock.mockResolvedValueOnce({ affectedNotePaths: [], markdownNotePaths: [] })

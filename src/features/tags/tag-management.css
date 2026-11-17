@@ -619,7 +619,8 @@
 .tag-name-label,
 .tag-presets legend,
 .tag-policy-fields legend,
-.tag-mode-field legend {
+.tag-mode-field legend,
+.tag-deadline-field legend {
   color: var(--mm-ink-900-21);
   font-size: 13px;
   font-weight: 700;
@@ -933,17 +934,21 @@
   font-size: 12px;
 }
 
-/* Prazo de estudo fica fora do bloco de ritmo: vale tambem quando o usuario
- * escolhe um perfil pronto (e ele nao pode sumir junto com os numeros). */
+/* Prazo de estudo e uma sessao propria do formulario (fieldset com legenda),
+ * porque vale tambem quando o usuario escolhe um perfil pronto — nao pode
+ * sumir junto com os numeros do ritmo. */
 .tag-deadline-field {
   display: grid;
   gap: 6px;
+  min-width: 0;
   max-width: 240px;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
-.tag-deadline-field > span {
-  color: var(--tag-muted);
-  font-size: 12px;
+.tag-deadline-field legend {
+  margin-bottom: 10px;
 }
 
 .tag-deadline-field > div {
