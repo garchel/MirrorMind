@@ -107,6 +107,9 @@ export function Graph2dCanvas({
   const persistidoRef = useRef(false)
   /** Timer do "arrasto parado": segurar o no sem mover deve esfriar o grafo. */
   const paradoRef = useRef<number | null>(null)
+  /** Peso 0..1 do destaque de hover por no (animado, nao instantaneo). */
+  const focoRef = useRef<Float32Array>(new Float32Array(0))
+  const focoIntensidadeRef = useRef(0)
   /** Primeira vez: a camera enquadra o grafo quando ele assentar. */
   const enquadradoRef = useRef(false)
 
@@ -114,6 +117,29 @@ export function Graph2dCanvas({
     () => `${nodes.map((node) => node.path).join('|')}::${links.length}`,
     [nodes, links.length],
   )
+
+  /** Aproxima o peso de cada no do alvo (1 no conjunto do hover, 0 fora) a
+   * ~14% por frame. Devolve se ainda ha transicao em andamento — enquanto
+   * houver, o loop nao pode dormir, senao o glow entra em corte seco. */
+  const animarFoco = useCallback((sim: Graph2dSimulation) => {
+    const foco = focoRef.current
+    if (foco.length !== sim.count) focoRef.current = new Float32Array(sim.count)
+    const atual = focoRef.current
+    const alvoNo = hoverRef.current
+    const vizinhos = vizinhosRef.current
+    let maior = 0
+    let animando = false
+    for (let i = 0; i < sim.count; i += 1) {
+      const alvo = alvoNo >= 0 && (i === alvoNo || (vizinhos?.has(i) ?? false)) ? 1 : 0
+      const antes = atual[i]
+      const depois = antes + (alvo - antes) * 0.14
+      atual[i] = Math.abs(alvo - depois) < 0.004 ? alvo : depois
+      if (atual[i] !== antes) animando = true
+      if (atual[i] > maior) maior = atual[i]
+    }
+    focoIntensidadeRef.current = maior
+    return animando
+  }, [])
 
   const desenhar = useCallback(() => {
     const canvas = canvasRef.current
@@ -135,6 +161,8 @@ export function Graph2dCanvas({
       colors: CORES,
       nodeStyles: estilosRef.current,
       nodeSizeMultiplier: sim.settings.nodeSizeMultiplier,
+      focus: focoRef.current,
+      focusIntensity: focoIntensidadeRef.current,
     })
   }, [])
 
@@ -145,9 +173,10 @@ export function Graph2dCanvas({
       frameRef.current = null
       const sim = simRef.current
       if (!sim) return
-      const ativo = arrastoRef.current !== null || !sim.settled
-      if (ativo) {
-        sim.step()
+      const animando = animarFoco(sim)
+      const simulando = arrastoRef.current !== null || !sim.settled
+      if (simulando || animando) {
+        if (simulando) sim.step()
         desenhar()
         pedirFrame()
         return
@@ -177,7 +206,7 @@ export function Graph2dCanvas({
         onSettledRef.current(snapshot)
       }
     })
-  }, [desenhar])
+  }, [animarFoco, desenhar])
 
   // (Re)cria a simulacao quando o conjunto de nos muda — e so entao.
   useEffect(() => {
@@ -221,6 +250,8 @@ export function Graph2dCanvas({
       sim.reheat(0.35)
     }
     simRef.current = sim
+    focoRef.current = new Float32Array(sim.count)
+    focoIntensidadeRef.current = 0
     persistidoRef.current = false
     estilosRef.current = nodes.map((node) => ({ color: node.color, isCurrent: node.isCurrent }))
     hoverRef.current = -1
