@@ -106,6 +106,8 @@ export function Graph2dCanvas({
   const onSettledRef = useRef(onSettled)
   onSettledRef.current = onSettled
   const persistidoRef = useRef(false)
+  /** Timer do "arrasto parado": segurar o no sem mover deve esfriar o grafo. */
+  const paradoRef = useRef<number | null>(null)
   /** Primeira vez: a camera enquadra o grafo quando ele assentar. */
   const enquadradoRef = useRef(false)
 
@@ -294,9 +296,28 @@ export function Graph2dCanvas({
         cancelAnimationFrame(frameRef.current)
         frameRef.current = null
       }
+      if (paradoRef.current !== null) {
+        window.clearTimeout(paradoRef.current)
+        paradoRef.current = null
+      }
     },
     [],
   )
+
+  /** `pin` reaquece para alphaTarget 0.3 a cada movimento. Se o ponteiro parar
+   * de andar (o usuario esta SEGURANDO o no), reaquecer a cada gesto deixava o
+   * grafo inteiro oscilando para sempre. Depois de 250 ms sem movimento o alvo
+   * volta a 0: o no continua preso no cursor, mas o resto para de se agitar. */
+  const agendarEsfriamento = useCallback(() => {
+    if (paradoRef.current !== null) window.clearTimeout(paradoRef.current)
+    paradoRef.current = window.setTimeout(() => {
+      paradoRef.current = null
+      const sim = simRef.current
+      if (!sim || !arrastoRef.current) return
+      sim.alphaTarget = 0
+      pedirFrame()
+    }, 250)
+  }, [pedirFrame])
 
   const pontoLocal = (event: { clientX: number; clientY: number }) => {
     const canvas = canvasRef.current
@@ -348,6 +369,7 @@ export function Graph2dCanvas({
         const mundo = screenToWorld(ponto.x, ponto.y, viewRef.current, width, height)
         // `pin` = forceNode{x,y} + alphaTarget .3 (app.js do Obsidian).
         simRef.current?.pin(arrasto.path, mundo.x, mundo.y)
+        agendarEsfriamento()
         persistidoRef.current = false
       }
       arrasto.x = ponto.x
@@ -369,6 +391,10 @@ export function Graph2dCanvas({
     arrastoRef.current = null
     const sim = simRef.current
     if (arrasto?.tipo === 'no' && sim) {
+      if (paradoRef.current !== null) {
+        window.clearTimeout(paradoRef.current)
+        paradoRef.current = null
+      }
       if (arrasto.movido) {
         // Soltar depois de arrastar: unpin + alphaTarget 0 (o par do app.js)
         // e a volta ao meio dos vizinhos.

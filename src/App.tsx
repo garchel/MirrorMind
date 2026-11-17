@@ -127,6 +127,7 @@ import {
 } from './lib/appearance'
 import { SettingsPage, type ReviewGapMode } from './features/settings/SettingsPage'
 import { GraphPage } from './features/graph/GraphPage'
+import { GRAPH_RENDER_LIMIT_DEFAULT } from './lib/graphCulling'
 import { ExplorerItemMenu, ExplorerSidebar, type ExplorerContextMenu } from './features/explorer/ExplorerSidebar'
 import { EditorHeader, HEADER_ACTION_KEYS, type HeaderActionKey } from './features/editor/EditorHeader'
 import { EditorContent } from './features/editor/EditorContent'
@@ -597,6 +598,7 @@ function App() {
   const graph = useGraphSettings()
   const {
     graphRenderLimit,
+    setGraphRenderLimit,
     setGraph3dNodeSize,
     setGraph3dNodeSpacing,
     setGraph3dOrbitSpeed,
@@ -613,6 +615,12 @@ function App() {
     setGraph2dLinkDistance,
     graph2dCenterForce,
     setGraph2dCenterForce,
+    setGraph2dCollideRadius,
+    setGraph2dCollideStrength,
+    setGraph2dRecentroSeconds,
+    setGraph2dDragAlpha,
+    setGraph2dMinEdgeLength,
+    setGraph2dMaxEdgeLength,
   } = graph
   const [graphSurfaceSize, setGraphSurfaceSize] = useState<{ width: number; height: number } | null>(null)
   const [graphMode3d, setGraphMode3d] = useState(false)
@@ -2517,6 +2525,13 @@ function App() {
     setGraph2dVelocityDecay(0.4)
     setGraph2dLinkDistance(30)
     setGraph2dCenterForce(100)
+    setGraph2dCollideRadius(60)
+    setGraph2dCollideStrength(0.5)
+    setGraph2dRecentroSeconds(2)
+    setGraph2dDragAlpha(0.3)
+    setGraph2dMinEdgeLength(0)
+    setGraph2dMaxEdgeLength(0)
+    setGraphRenderLimit(GRAPH_RENDER_LIMIT_DEFAULT)
   }
 
   /** Um passo da simulacao 2D (rAF): arrasto fluido (ancora fixo no cursor e
