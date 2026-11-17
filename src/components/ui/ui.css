@@ -207,13 +207,17 @@
   outline-offset: 2px;
 }
 
+/* Largura e ritmo de linha medidos: com 320px e `line-height` 1,55 um texto de
+ * ~200 caracteres virava 5 linhas (115px de altura). Em 360px com 1,5 o mesmo
+ * tipo de texto cabe em 3 linhas (77px) — o balao deixa de competir com o
+ * formulario. */
 .info-tip-content {
-  min-width: 220px;
-  max-width: 320px;
-  padding: 11px 13px;
+  min-width: 260px;
+  max-width: 360px;
+  padding: 10px 12px;
   color: var(--text-normal);
   font-size: var(--font-size-caption);
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .info-tip-content strong {

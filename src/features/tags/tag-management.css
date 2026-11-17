@@ -634,6 +634,15 @@
   position: relative;
 }
 
+/* Rotulo "Nome da tag" com a ajuda contextual ao lado (o "?" fica fora do
+ * <label>: dentro dele o botao tambem seria rotulado pela label e o campo
+ * deixaria de ter nome unico para leitor de tela e teste). */
+.tag-name-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .tag-name-field > div {
   display: flex;
   align-items: center;

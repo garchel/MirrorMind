@@ -56,6 +56,9 @@ inteiro segue esta anatomia, e o componente e `src/components/ui/InfoTip.tsx`
 - **Conteudo:** um paragrafo de prosa (`<p>`), no maximo dois, dizendo o que
   aquele numero ou campo significa **e por que ele importa**. Sem listas, sem
   tabela, sem titulo interno, sem repetir o rotulo.
+- **Tamanho:** `max-width` 360px e `line-height` 1,5 — alvo de 2 a 3 linhas.
+  Medido: com 320px/1,55 um texto de ~200 caracteres virava 5 linhas (115px de
+  altura); com 360px/1,5 cabe em 3 (75px). Balao alto compete com o formulario.
 - **Abertura:** hover com 160 ms de atraso e fechamento com 220 ms — o atraso
   evita balao ao atravessar a tela, a espera ao fechar da tempo de levar o mouse
   ate o texto. Clique/toque cobre tela sem hover; Escape e clique fora vem do

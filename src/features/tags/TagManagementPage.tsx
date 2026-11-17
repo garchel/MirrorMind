@@ -704,7 +704,15 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
 
               <div className="tag-form">
                 <div className="tag-name-field">
-                  <label className="tag-name-label" htmlFor="tag-name-input">Nome da tag</label>
+                  <div className="tag-name-heading">
+                    <label className="tag-name-label" htmlFor="tag-name-input">Nome da tag</label>
+                    <InfoTip label="Nome da tag">
+                      <p>
+                        Minúsculas e sem #; espaço vira hífen. A barra cria hierarquia:
+                        materia/biologia fica dentro de materia.
+                      </p>
+                    </InfoTip>
+                  </div>
                   <div className="tag-name-frame">
                     <Hash size={16} aria-hidden="true" />
                     <Field
@@ -727,7 +735,6 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                       onKeyDown={handleNameKeyDown}
                       onBlur={() => setSuggestOpen(false)}
                     />
-                  </div>
                   {suggestionsVisible ? (
                     <ul className="tag-suggest-menu" id="tag-name-suggestions" role="listbox" aria-label="Tags existentes">
                       {suggestions.map((entry, index) => (
@@ -756,7 +763,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                       ))}
                     </ul>
                   ) : null}
-                  <small>Use letras, números, hífen, sublinhado e / para criar hierarquia.</small>
+                  </div>
                 </div>
 
                 <label className="tag-review-switch">
@@ -772,9 +779,8 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     Perfil de revisão
                     <InfoTip label="Perfil de revisão">
                       <p>
-                        Um perfil pronto define de uma vez quanto você quer lembrar, de quanto
-                        em quanto tempo revisar e com que prioridade a nota entra na fila.
-                        Escolha um deles ou abra a Personalizada para decidir cada número.
+                        Define de uma vez quanto lembrar, de quanto em quanto revisar e a
+                        prioridade na fila. Para escolher cada número, abra a Personalizada.
                       </p>
                     </InfoTip>
                   </legend>
@@ -829,10 +835,9 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                       Ritmo de revisão
                       <InfoTip label="Ritmo de revisão da tag">
                         <p>
-                          Como as notas com esta tag são revisadas. A <em>primeira revisão</em> é o
-                          prazo até a estreia; a <em>retenção desejada</em> é quanto você quer
-                          lembrar na hora de revisar; e os <em>intervalos</em> limitam o
-                          espaçamento entre uma revisão e outra.
+                          A <em>primeira revisão</em> é o prazo até a estreia; a <em>retenção</em> é
+                          quanto você quer lembrar na hora de revisar; os <em>intervalos</em> limitam
+                          o espaçamento.
                         </p>
                       </InfoTip>
                     </legend>
@@ -848,9 +853,8 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     Prazo de estudo
                     <InfoTip label="Prazo de estudo">
                       <p>
-                        A data da prova ou do fim do estudo. Com prazo, o app antecipa as
-                        revisões que chegariam fracas demais nesse dia e coloca essas notas na
-                        frente da fila. Sem prazo, cada nota segue o espaçamento normal.
+                        Data da prova. Com prazo, o app antecipa as revisões que chegariam fracas
+                        nesse dia e põe essas notas na frente da fila.
                       </p>
                     </InfoTip>
                   </legend>
@@ -872,10 +876,9 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                       Prioridade na fila
                       <InfoTip label="Prioridade na fila">
                         <p>
-                          Decide quem aparece primeiro na fila. <em>Normal</em> entra pelo atraso,
-                          como as demais notas; <em>Alta</em> passa na frente delas; e
-                          <em> Urgente</em> vai para o topo, mesmo que outra nota esteja mais
-                          atrasada. Vale para todas as notas desta tag.
+                          Quem aparece primeiro na fila: <em>Normal</em> entra pelo atraso,
+                          <em> Alta</em> passa na frente e <em>Urgente</em> vai para o topo. Vale
+                          para as notas desta tag.
                         </p>
                       </InfoTip>
                     </span>
@@ -891,10 +894,8 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     Modo de revisão herdado
                     <InfoTip label="Modo de revisão herdado">
                       <p>
-                        O formato das perguntas que a tag transmite às notas. Em <em>Prova</em> as
-                        perguntas são independentes; em <em>Conversa</em> a revisão avança por
-                        exploração. Sem preferência, cada nota usa o próprio modo ou o padrão do
-                        vault.
+                        Formato das perguntas que a tag transmite: <em>Prova</em> (independentes)
+                        ou <em>Conversa</em> (exploração). Sem preferência, vale o modo da nota.
                       </p>
                     </InfoTip>
                   </legend>
@@ -923,7 +924,6 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   valid={validation.success}
                 />
 
-                {!validation.success ? <p className="field-error" role="alert">Revise o nome e os intervalos da tag.</p> : null}
                 {duplicate ? <p className="field-error" role="alert">Esta tag já existe no vault.</p> : null}
                 <div className="tag-form-actions">
                   <Button type="button" variant="secondary" size="md" onClick={cancelEditing} disabled={busy}>Cancelar</Button>
