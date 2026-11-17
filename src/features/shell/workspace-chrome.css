@@ -222,6 +222,15 @@
   font-size: 12px;
 }
 
+/* Fundo alternativo da area da nota (controlador DEV): o mesmo papel pontilhado
+ * do canvas do grafo 2D. So troca a superficie que o editor pinta; texto, fonte
+ * e cores internas continuam iguais. */
+.workspace-shell[data-editor-bg='graph'] .editor-surface {
+  background-color: var(--mm-gold-50);
+  background-image: radial-gradient(var(--mm-ink-350-3) 0.75px, transparent 0.75px);
+  background-size: 16px 16px;
+}
+
 .workspace-shell .editor-surface {
   display: grid;
   /* A barra de abas saiu da superficie: ela mora na barra de titulo. A

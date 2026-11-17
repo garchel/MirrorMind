@@ -102,6 +102,11 @@ export function useAppearanceSettings() {
   const [isPagesFullWidth, setPagesFullWidth] = usePref(
     'mirrormind.pages-full-width', false, parseDefaultFalse, serializeBoolean,
   )
+  // Fundo da area da nota: papel liso (padrao) ou o mesmo fundo pontilhado do
+  // grafo 2D. Controlado pelo painel DEV.
+  const [isEditorCanvasBackground, setEditorCanvasBackground] = usePref(
+    'mirrormind.notes.canvas-background', false, parseDefaultFalse, serializeBoolean,
+  )
 
   /** O `usePref` só aceita valor direto; esta é a ponte para os 6 campos de
    * captura de atalho do App (antes `setShortcuts((atual) => ...)`). */
@@ -146,5 +151,7 @@ export function useAppearanceSettings() {
     setSkipSoftDeleteConfirmation,
     isPagesFullWidth,
     setPagesFullWidth,
+    isEditorCanvasBackground,
+    setEditorCanvasBackground,
   }
 }

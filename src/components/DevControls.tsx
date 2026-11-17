@@ -76,6 +76,13 @@ export type DevCamera = {
   disabled: boolean
 }
 
+/** Controles da pagina de Notas. */
+export type DevNotes = {
+  /** Fundo da area da nota: papel liso ou o mesmo pontilhado do grafo 2D. */
+  canvasBackground: boolean
+  setCanvasBackground: (next: boolean) => void
+}
+
 export type DevExport = {
   scale: number
   setScale: (next: number) => void
@@ -89,6 +96,9 @@ export type DevControlsProps = {
   graph2d?: DevGraph2dSettings
   graph3d?: DevGraph3dSettings
   exportTools?: DevExport
+  /** Pagina aberta agora: o painel mostra so o que se aplica a ela. */
+  page?: string
+  notes?: DevNotes
   camera?: DevCamera
   graphMode?: DevGraphMode
   updateNumberSetting?: (raw: string, current: number, min: number, max: number) => number
@@ -113,7 +123,7 @@ function getInitialPosition() {
  * o limite de renderização. O que ficou no menu normal do grafo é só o que não
  * quebra nada: exibição, nomes, agrupamento e cores.
  */
-export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, exportTools, camera, graphMode, updateNumberSetting }: DevControlsProps) {
+export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, exportTools, page, notes, camera, graphMode, updateNumberSetting }: DevControlsProps) {
   const [position, setPosition] = useState(getInitialPosition)
   const [isDragging, setIsDragging] = useState(false)
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
@@ -170,6 +180,13 @@ export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, export
     setIsDragging(false)
   }
 
+  // Sem `page` (antes de abrir o vault) nao ha o que filtrar; com pagina, cada
+  // bloco so aparece onde ele faz sentido.
+  const naPaginaDoGrafo = page === undefined || page === 'graph'
+  const naPaginaDeNotas = page === undefined || page === 'notes'
+  const temAlgoParaAMinhaPagina = (naPaginaDoGrafo && Boolean(graph2d || graph3d || exportTools || camera || graphMode))
+    || (naPaginaDeNotas && Boolean(notes))
+
   const numero = (raw: string, current: number, min: number, max: number) =>
     updateNumberSetting ? updateNumberSetting(raw, current, min, max) : current
 
@@ -201,7 +218,7 @@ export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, export
           <span className="dev-controls-switch-label">Friendly names</span>
         </label>
 
-        {graph2d || graph3d || exportTools || camera || graphMode ? (
+        {temAlgoParaAMinhaPagina ? (
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -224,7 +241,23 @@ export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, export
                 <span className="dev-settings-badge">DEV</span>
               </header>
 
-              {graphMode ? (
+              {naPaginaDeNotas && notes ? (
+                <section className="dev-settings-group" aria-label="Página de notas">
+                  <p className="dev-settings-group-title">Notas</p>
+                  <label className="dev-settings-toggle">
+                    <span>Fundo do grafo no editor<small>Usa o mesmo papel pontilhado do grafo 2D na área da nota</small></span>
+                    <input
+                      type="checkbox"
+                      checked={notes.canvasBackground}
+                      onChange={(event) => notes.setCanvasBackground(event.target.checked)}
+                      aria-label="Fundo do grafo na área da nota"
+                    />
+                    <span className="dev-settings-toggle-track" aria-hidden="true" />
+                  </label>
+                </section>
+              ) : null}
+
+              {naPaginaDoGrafo && graphMode ? (
                 <section className="dev-settings-group" aria-label="Modo do grafo">
                   <p className="dev-settings-group-title">Modo do grafo</p>
                   <label className="dev-settings-row">
@@ -247,7 +280,7 @@ export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, export
                 </section>
               ) : null}
 
-              {camera ? (
+              {naPaginaDoGrafo && camera ? (
                 <section className="dev-settings-group" aria-label="Câmera do grafo 2D">
                   <p className="dev-settings-group-title">Câmera (2D)</p>
                   <div className="dev-camera">
@@ -264,7 +297,7 @@ export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, export
                 </section>
               ) : null}
 
-              {graph2d ? (
+              {naPaginaDoGrafo && graph2d ? (
               <section className="dev-settings-group" aria-label="Forças do grafo 2D">
                 <p className="dev-settings-group-title">Grafo 2D — forças</p>
                 <label className="dev-settings-row">
@@ -319,7 +352,7 @@ export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, export
 
               ) : null}
 
-              {graph3d ? (
+              {naPaginaDoGrafo && graph3d ? (
                 <section className="dev-settings-group" aria-label="Grafo 3D">
                   <p className="dev-settings-group-title">Grafo 3D</p>
                   <label className="dev-settings-row">
@@ -353,7 +386,7 @@ export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, export
                 </section>
               ) : null}
 
-              {exportTools ? (
+              {naPaginaDoGrafo && exportTools ? (
                 <section className="dev-settings-group" aria-label="Exportar grafo">
                   <p className="dev-settings-group-title">Exportar</p>
                   <label className="dev-settings-row">
@@ -371,7 +404,7 @@ export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, export
                 </section>
               ) : null}
 
-              {graph2d ? (
+              {naPaginaDoGrafo && graph2d ? (
                 <section className="dev-settings-group" aria-label="Desempenho do grafo 2D">
                   <p className="dev-settings-group-title">Desempenho</p>
                   <label className="dev-settings-row">
@@ -382,14 +415,18 @@ export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, export
               ) : null}
 
               <footer className="dev-settings-footer">
-                <p className="dev-settings-note">
-                  <TriangleAlert size={12} strokeWidth={1.75} aria-hidden="true" />
-                  Valores técnicos. Um número errado aqui espalha, amassa ou trava o grafo.
-                </p>
-                <Button type="button" variant="secondary" size="sm" onClick={() => graph2d?.reset()} disabled={!graph2d} title="Restaurar os padrões do grafo 2D">
-                  <RotateCcw size={12} strokeWidth={1.75} aria-hidden="true" />
-                  Padrões do 2D
-                </Button>
+                {naPaginaDoGrafo && graph2d ? (
+                  <p className="dev-settings-note">
+                    <TriangleAlert size={12} strokeWidth={1.75} aria-hidden="true" />
+                    Valores técnicos. Um número errado aqui espalha, amassa ou trava o grafo.
+                  </p>
+                ) : null}
+                {naPaginaDoGrafo && graph2d ? (
+                  <Button type="button" variant="secondary" size="sm" onClick={() => graph2d.reset()} title="Restaurar os padrões do grafo 2D">
+                    <RotateCcw size={12} strokeWidth={1.75} aria-hidden="true" />
+                    Padrões do 2D
+                  </Button>
+                ) : null}
               </footer>
             </PopoverContent>
           </Popover>

@@ -764,6 +764,8 @@ function App() {
     skipSoftDeleteConfirmation,
     setSkipSoftDeleteConfirmation,
     isPagesFullWidth,
+    isEditorCanvasBackground,
+    setEditorCanvasBackground,
   } = appearance
   // Navegação das Configurações (seções/grupos/menu) extraída para
   // features/settings/useSettingsNav — mesmo comportamento do App original.
@@ -5604,6 +5606,7 @@ function App() {
         } as CSSProperties}
         data-builder-name="workspace-shell"
         data-pages-width={isPagesFullWidth ? 'full' : 'spaced'}
+        data-editor-bg={isEditorCanvasBackground ? 'graph' : 'plain'}
       >
         <TitleBar>
           {workspacePage === 'notes' ? (
@@ -6481,6 +6484,11 @@ function App() {
             scale: graphExportScale,
             setScale: setGraphExportScale,
             run: handleGraphExport,
+          }}
+          page={workspacePage}
+          notes={{
+            canvasBackground: isEditorCanvasBackground,
+            setCanvasBackground: setEditorCanvasBackground,
           }}
           camera={{
             zoom: graph2dZoom,

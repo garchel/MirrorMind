@@ -260,3 +260,71 @@
   font-size: 10px;
   line-height: 1.35;
 }
+
+/* --- switch do painel DEV ------------------------------------------------ */
+
+.dev-settings-toggle {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  cursor: pointer;
+}
+
+.dev-settings-toggle > span:first-child {
+  display: grid;
+  gap: 1px;
+  color: var(--mm-ink-850-14);
+  font-size: var(--font-size-caption);
+  line-height: 1.25;
+}
+
+.dev-settings-toggle small {
+  color: var(--mm-ink-700-3);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.dev-settings-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dev-settings-toggle-track {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(28, 36, 39, 0.22);
+  transition: background 140ms ease;
+}
+
+.dev-settings-toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--mm-gold-50);
+  box-shadow: 0 1px 2px rgba(32, 32, 30, 0.3);
+  transition: transform 140ms ease;
+}
+
+.dev-settings-toggle input:checked + .dev-settings-toggle-track {
+  background: var(--mm-sage-850);
+}
+
+.dev-settings-toggle input:checked + .dev-settings-toggle-track::after {
+  transform: translateX(12px);
+}
+
+.dev-settings-toggle input:focus-visible + .dev-settings-toggle-track {
+  outline: 2px solid var(--mm-sage-850);
+  outline-offset: 2px;
+}
