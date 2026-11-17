@@ -101,6 +101,15 @@ vez de 40), o "?" de ajuda com 32×40 por causa do `min-height` da densidade
 para botão manual novo (os ~126 existentes estão no baseline); ao migrar uma
 tela, rode o mesmo script com `--update` para retirar as linhas migradas.
 
+## Cursor do sistema: a flag de composição existe por um motivo
+
+`src-tauri/tauri.conf.json` passa `--disable-gpu-compositing` para a janela. Sem
+ela o cursor do Windows perde o contorno preto (fica invisível) ao arrastar nó no
+grafo 2D, por conflito de plano de composição do WebView2 — não é CSS e nenhuma
+correção de estilo resolve. Diagnóstico completo, alternativas testadas e o que
+fazer se voltar: `docs/cursor-webview2.md`. **Não remova a flag** por parecer
+inócua.
+
 ## Medição: só o que foi medido pode virar número
 
 Um critério **não medido** aparece como "não medido", nunca como aprovado. Vale
