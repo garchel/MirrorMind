@@ -35,8 +35,10 @@ export type Graph2dSliderValues = {
   dragAlpha: number
   /** `graph2dMinEdgeLength` (default 0 = sem limite). */
   minEdgeLength: number
-  /** `graph2dMaxEdgeLength` (default 0 = sem limite). */
+  /** `graph2dMaxEdgeLength` (default 50). */
   maxEdgeLength: number
+  /** `graph2dLabelZoom` (default 1.45). */
+  labelZoom: number
 }
 
 export type Graph2dSimSettings = {
@@ -52,6 +54,7 @@ export type Graph2dSimSettings = {
   minEdgeLength: number
   maxEdgeLength: number
   velocityDecay: number
+  labelZoom: number
 }
 
 export function buildGraph2dSettings(values: Graph2dSliderValues): Graph2dSimSettings {
@@ -71,5 +74,6 @@ export function buildGraph2dSettings(values: Graph2dSliderValues): Graph2dSimSet
     velocityDecay: values.velocityDecay,
     minEdgeLength: (values.minEdgeLength / 30) * 250,
     maxEdgeLength: (values.maxEdgeLength / 30) * 250,
+    labelZoom: values.labelZoom,
   }
 }

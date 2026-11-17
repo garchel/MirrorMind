@@ -317,6 +317,8 @@ export function GraphPage({
     setGraph2dMinEdgeLength,
     graph2dMaxEdgeLength,
     setGraph2dMaxEdgeLength,
+    graph2dLabelZoom,
+    setGraph2dLabelZoom,
   } = graph
 
 
@@ -334,6 +336,7 @@ export function GraphPage({
     dragAlpha: graph2dDragAlpha,
     minEdgeLength: graph2dMinEdgeLength,
     maxEdgeLength: graph2dMaxEdgeLength,
+    labelZoom: graph2dLabelZoom,
   })
   const graphCanvasNeighbors = graphHoverNeighbors ?? graphFilterMatchPaths
 
@@ -424,6 +427,8 @@ export function GraphPage({
             setGraph2dMinEdgeLength={setGraph2dMinEdgeLength}
             graph2dMaxEdgeLength={graph2dMaxEdgeLength}
             setGraph2dMaxEdgeLength={setGraph2dMaxEdgeLength}
+            graph2dLabelZoom={graph2dLabelZoom}
+            setGraph2dLabelZoom={setGraph2dLabelZoom}
             updateNumberSetting={updateNumberSetting}
             showGraphOrphans={showGraphOrphans}
             setShowGraphOrphans={setShowGraphOrphans}

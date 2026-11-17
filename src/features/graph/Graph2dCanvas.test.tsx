@@ -25,6 +25,7 @@ function props(extra: Partial<Graph2dCanvasProps> = {}): Graph2dCanvasProps {
       minEdgeLength: 0,
       maxEdgeLength: 0,
       velocityDecay: 0.4,
+      labelZoom: 1.45,
     },
     hoveredPath: null,
     neighbors: null,

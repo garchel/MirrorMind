@@ -47,6 +47,8 @@ export type Graph2dSettings = {
   maxEdgeLength: number
   /** Freio: fracao da velocidade perdida por passo (0 a 0.95). */
   velocityDecay: number
+  /** Zoom a partir do qual TODOS os nomes aparecem (abaixo, so no hover). */
+  labelZoom: number
 }
 
 /** Constantes do `sim.js`, para os testes e para a UI partir delas. */
@@ -74,6 +76,8 @@ export const OBSIDIAN_PHYSICS = {
   /** Sem limites por padrao: o comportamento e o do `sim.js`. */
   minEdgeLength: 0,
   maxEdgeLength: 0,
+  /** Limiar de zoom dos rotulos. */
+  labelZoom: 1.45,
 } as const
 
 export const GRAPH2D_DEFAULT_SETTINGS: Graph2dSettings = {
@@ -89,6 +93,7 @@ export const GRAPH2D_DEFAULT_SETTINGS: Graph2dSettings = {
   minEdgeLength: OBSIDIAN_PHYSICS.minEdgeLength,
   maxEdgeLength: OBSIDIAN_PHYSICS.maxEdgeLength,
   velocityDecay: OBSIDIAN_PHYSICS.velocityDecay,
+  labelZoom: OBSIDIAN_PHYSICS.labelZoom,
 }
 
 export type Graph2dLink = { source: string; target: string }

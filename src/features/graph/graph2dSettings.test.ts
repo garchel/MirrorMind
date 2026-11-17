@@ -5,7 +5,7 @@ import { OBSIDIAN_PHYSICS } from '../../lib/graph2dSimulation'
 const PADRAO = {
   repelStrength: 2000, linkStiffness: 4, velocityDecay: 0.4, linkDistance: 30, centerForce: 100,
   collideRadius: 60, collideStrength: 0.5, recentroSeconds: 2, dragAlpha: 0.3,
-  minEdgeLength: 0, maxEdgeLength: 0,
+  minEdgeLength: 0, maxEdgeLength: 0, labelZoom: 1.45,
 }
 
 describe('buildGraph2dSettings', () => {

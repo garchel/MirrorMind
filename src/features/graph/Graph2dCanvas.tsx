@@ -40,13 +40,12 @@ export type Graph2dCanvasProps = {
 
 const ZOOM_MIN = 0.15
 const ZOOM_MAX = 6
-/** A partir daqui os nomes aparecem sem hover. */
-const ZOOM_LABELS = 1.45
 
 /** Cores concretas: o canvas nao resolve `var(--token)`. */
 const CORES = {
   link: 'rgb(120 138 125 / 40%)',
   linkDim: 'rgb(120 138 125 / 10%)',
+  linkFocus: 'rgb(74 104 88 / 78%)',
   node: 'rgb(226 214 178)',
   nodeRing: 'rgb(28 36 39 / 70%)',
   nodeCurrent: 'rgb(196 106 62)',
@@ -131,7 +130,8 @@ export function Graph2dCanvas({
       view: viewRef.current,
       hovered: hoverRef.current,
       neighbors: vizinhosRef.current,
-      labels: hoverRef.current >= 0 || viewRef.current.zoom > ZOOM_LABELS,
+      // O limiar de zoom dos nomes agora e configuracao ("Nomes ao aproximar").
+      labels: viewRef.current.zoom > sim.settings.labelZoom,
       colors: CORES,
       nodeStyles: estilosRef.current,
       nodeSizeMultiplier: sim.settings.nodeSizeMultiplier,

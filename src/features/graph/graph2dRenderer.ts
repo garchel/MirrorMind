@@ -24,6 +24,8 @@ export type Graph2dNodeStyle = {
 export type Graph2dColors = {
   link: string
   linkDim: string
+  /** Arestas do conjunto em hover. */
+  linkFocus: string
   node: string
   nodeRing: string
   nodeCurrent: string
@@ -125,14 +127,22 @@ export function drawGraph2d(
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, width, height)
 
-  const dim = neighbors !== null && hovered >= 0
-  const noVisivel = (i: number) => !dim || i === hovered || (neighbors?.has(i) ?? false)
+  const emHover = hovered >= 0
+  /**
+   * O "conjunto" do hover: o no apontado e os vizinhos dele. So eles ganham
+   * rotulo, halo e aresta destacada — o resto fica esmaecido. Antes o hover
+   * mostrava o nome do no e esmaecia o resto, mas o conjunto nao se distinguia.
+   */
+  const noConjunto = (i: number) => emHover && (i === hovered || (neighbors?.has(i) ?? false))
+  const dim = neighbors !== null && emHover
+  const noVisivel = (i: number) => !dim || noConjunto(i)
 
-  // --- links: 1px de tela, opacidade baixa; esmaece o que nao toca o hover ---
+  // --- links: 1px de tela; o conjunto do hover ganha espessura ------------
   ctx.lineWidth = 1
   ctx.strokeStyle = colors.link
   ctx.beginPath()
   const dimPath = new Path2D()
+  const focoPath = new Path2D()
   const { edgePairs } = sim
   for (let e = 0; e < edgePairs.length / 2; e += 1) {
     const a = edgePairs[e * 2]
@@ -142,9 +152,15 @@ export function drawGraph2d(
     // Descarta links fora da tela (culling).
     if (Math.max(pa.x, pb.x) < -20 || Math.min(pa.x, pb.x) > width + 20) continue
     if (Math.max(pa.y, pb.y) < -20 || Math.min(pa.y, pb.y) > height + 20) continue
-    if (dim && !(noVisivel(a) || noVisivel(b))) {
+    const tocaConjunto = noConjunto(a) || noConjunto(b)
+    if (emHover && !tocaConjunto) {
       dimPath.moveTo(pa.x, pa.y)
       dimPath.lineTo(pb.x, pb.y)
+      continue
+    }
+    if (emHover) {
+      focoPath.moveTo(pa.x, pa.y)
+      focoPath.lineTo(pb.x, pb.y)
       continue
     }
     ctx.moveTo(pa.x, pa.y)
@@ -155,44 +171,64 @@ export function drawGraph2d(
     ctx.strokeStyle = colors.linkDim
     ctx.stroke(dimPath)
   }
+  if (emHover) {
+    // Arestas do conjunto: mais grossas e mais opacas que as demais.
+    ctx.strokeStyle = colors.linkFocus
+    ctx.lineWidth = 2
+    ctx.stroke(focoPath)
+    ctx.lineWidth = 1
+  }
 
-  // --- nos: mesmo tamanho do Obsidian (piso 8, sqrt do grau, teto 30) ---
+  // --- nos: mesmo tamanho do Obsidian (piso 8, sqrt do grau, teto 30) ------
   for (let i = 0; i < sim.count; i += 1) {
     const s = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
-    const raio = Math.max(1.2, nodeRadiusPx(sim.degree[i], nodeSizeMultiplier, view.zoom))
-    if (s.x < -raio - 2 || s.x > width + raio + 2 || s.y < -raio - 2 || s.y > height + raio + 2) continue
+    const destacado = noConjunto(i)
+    // Destacado: um pouco maior (1.18x) para separar do resto sem mudar a
+    // leitura de tamanho por grau.
+    const raio = Math.max(1.2, nodeRadiusPx(sim.degree[i], nodeSizeMultiplier, view.zoom)) * (destacado ? 1.18 : 1)
+    if (s.x < -raio - 6 || s.x > width + raio + 6 || s.y < -raio - 6 || s.y > height + raio + 6) continue
     const estilo = nodeStyles[i]
     const visivel = noVisivel(i)
     ctx.globalAlpha = visivel ? 1 : 0.18
     ctx.beginPath()
     ctx.arc(s.x, s.y, raio, 0, Math.PI * 2)
-    ctx.fillStyle = estilo?.color ?? (estilo?.isCurrent ? colors.nodeCurrent : colors.node)
+    const corDoNo = estilo?.color ?? (estilo?.isCurrent ? colors.nodeCurrent : colors.node)
+    ctx.fillStyle = corDoNo
     ctx.fill()
-    ctx.lineWidth = i === hovered ? 2 : 1
+    ctx.lineWidth = destacado ? 2 : 1
     ctx.strokeStyle = colors.nodeRing
     ctx.stroke()
+    if (destacado) {
+      // Halo na cor do grupo: destaca o conjunto das demais notas.
+      ctx.beginPath()
+      ctx.arc(s.x, s.y, raio + 3, 0, Math.PI * 2)
+      ctx.globalAlpha = visivel ? 0.95 : 0.4
+      ctx.lineWidth = 2.5
+      ctx.strokeStyle = corDoNo
+      ctx.stroke()
+    }
   }
   ctx.globalAlpha = 1
 
-  // --- rotulos: hover sempre; zoom alto mostra todos; fade no meio ---
-  const mostraRotulos = labels || view.zoom > 1.15
-  if (mostraRotulos) {
-    ctx.font = '12px system-ui, sans-serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-    for (let i = 0; i < sim.count; i += 1) {
-      const destacado = i === hovered || (neighbors?.has(i) ?? false)
-      if (!destacado && !labels && view.zoom < 1.45) continue
-      const s = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
-      if (s.x < -80 || s.x > width + 80 || s.y < -30 || s.y > height + 30) continue
-      const raio = Math.max(1.2, nodeRadiusPx(sim.degree[i], nodeSizeMultiplier, view.zoom))
-      ctx.globalAlpha = destacado ? 1 : 0.75
-      ctx.fillStyle = destacado ? colors.label : colors.labelDim
-      const nome = sim.paths[i].replace(/^.*\//, '').replace(/\.md$/i, '')
-      ctx.fillText(nome, s.x, s.y + raio + 4)
-    }
-    ctx.globalAlpha = 1
+  // --- rotulos ------------------------------------------------------------
+  // No hover: SO o nome do no e dos vizinhos. Sem hover: todos, a partir do
+  // zoom configurado ("Nomes ao aproximar").
+  ctx.font = '12px system-ui, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'top'
+  for (let i = 0; i < sim.count; i += 1) {
+    const destacado = noConjunto(i)
+    if (emHover && !destacado) continue
+    if (!emHover && !labels) continue
+    const s = worldToScreen(sim.xs[i], sim.ys[i], view, width, height)
+    if (s.x < -80 || s.x > width + 80 || s.y < -30 || s.y > height + 30) continue
+    const raio = Math.max(1.2, nodeRadiusPx(sim.degree[i], nodeSizeMultiplier, view.zoom))
+    ctx.globalAlpha = destacado ? 1 : 0.75
+    ctx.fillStyle = destacado ? colors.label : colors.labelDim
+    const nome = sim.paths[i].replace(/^.*\//, '').replace(/\.md$/i, '')
+    ctx.fillText(nome, s.x, s.y + raio + 5)
   }
+  ctx.globalAlpha = 1
 
   ctx.restore()
 }
