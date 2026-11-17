@@ -313,6 +313,10 @@ export function GraphPage({
     setGraph2dRecentroSeconds,
     graph2dDragAlpha,
     setGraph2dDragAlpha,
+    graph2dMinEdgeLength,
+    setGraph2dMinEdgeLength,
+    graph2dMaxEdgeLength,
+    setGraph2dMaxEdgeLength,
   } = graph
 
 
@@ -328,6 +332,8 @@ export function GraphPage({
     collideStrength: graph2dCollideStrength,
     recentroSeconds: graph2dRecentroSeconds,
     dragAlpha: graph2dDragAlpha,
+    minEdgeLength: graph2dMinEdgeLength,
+    maxEdgeLength: graph2dMaxEdgeLength,
   })
   const graphCanvasNeighbors = graphHoverNeighbors ?? graphFilterMatchPaths
 
@@ -414,6 +420,10 @@ export function GraphPage({
             setGraph2dRecentroSeconds={setGraph2dRecentroSeconds}
             graph2dDragAlpha={graph2dDragAlpha}
             setGraph2dDragAlpha={setGraph2dDragAlpha}
+            graph2dMinEdgeLength={graph2dMinEdgeLength}
+            setGraph2dMinEdgeLength={setGraph2dMinEdgeLength}
+            graph2dMaxEdgeLength={graph2dMaxEdgeLength}
+            setGraph2dMaxEdgeLength={setGraph2dMaxEdgeLength}
             updateNumberSetting={updateNumberSetting}
             showGraphOrphans={showGraphOrphans}
             setShowGraphOrphans={setShowGraphOrphans}

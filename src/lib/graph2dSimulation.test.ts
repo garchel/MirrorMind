@@ -141,6 +141,20 @@ describe('graph2dSimulation (modelo do Obsidian)', () => {
     expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeGreaterThan(150)
   })
 
+  it('aresta maxima e minima limitam o comprimento do link', () => {
+    // maximo: puxa de volta para 200 em vez de deixar a mola esticar ate 250.
+    const preso = criar([['a', 0, 0], ['b', 900, 0]], [['a', 'b']])
+    preso.settings.maxEdgeLength = 200
+    rodar(preso, 900)
+    expect(distancia(preso, 'a', 'b')).toBeLessThan(400)
+
+    // minimo: nao deixa comprimir abaixo de 300.
+    const comprimido = criar([['a', 0, 0], ['b', 10, 0]], [['a', 'b']])
+    comprimido.settings.minEdgeLength = 300
+    rodar(comprimido, 900)
+    expect(distancia(comprimido, 'a', 'b')).toBeGreaterThan(250)
+  })
+
   it('centerStrength 0 nao puxa nada para o centro', () => {
     // Regressao: o mapeamento da UI tinha piso de 0.1, entao pedir "forca para
     // o centro = 0" continuava puxando o no solto para o meio.

@@ -22,6 +22,8 @@ function props(extra: Partial<Graph2dCanvasProps> = {}): Graph2dCanvasProps {
       nodeSizeMultiplier: 1,
       alphaTargetDrag: 0.3,
       recentroSeconds: 2,
+      minEdgeLength: 0,
+      maxEdgeLength: 0,
     },
     hoveredPath: null,
     neighbors: null,

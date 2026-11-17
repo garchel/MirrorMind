@@ -5,6 +5,7 @@ import { OBSIDIAN_PHYSICS } from '../../lib/graph2dSimulation'
 const PADRAO = {
   repelStrength: 2000, linkStiffness: 4, velocityDecay: 0.4, linkDistance: 30, centerForce: 100,
   collideRadius: 60, collideStrength: 0.5, recentroSeconds: 2, dragAlpha: 0.3,
+  minEdgeLength: 0, maxEdgeLength: 0,
 }
 
 describe('buildGraph2dSettings', () => {
@@ -18,6 +19,9 @@ describe('buildGraph2dSettings', () => {
     expect(s.collideStrength).toBe(OBSIDIAN_PHYSICS.collideStrength)
     expect(s.alphaTargetDrag).toBe(OBSIDIAN_PHYSICS.alphaTargetDrag)
     expect(s.recentroSeconds).toBe(2)
+    // 0 = sem limite; a escala e a mesma da distancia (30 -> 250).
+    expect(s.minEdgeLength).toBe(0)
+    expect(s.maxEdgeLength).toBe(0)
   })
 
   it('zero significa zero — nenhum controle tem piso', () => {
@@ -28,6 +32,12 @@ describe('buildGraph2dSettings', () => {
     expect(buildGraph2dSettings({ ...PADRAO, repelStrength: 0 }).repelStrength).toBe(0)
     expect(buildGraph2dSettings({ ...PADRAO, linkStiffness: 0 }).linkStrength).toBe(0)
     expect(buildGraph2dSettings({ ...PADRAO, linkDistance: 0 }).linkDistance).toBe(0)
+  })
+
+  it('limites de aresta usam a mesma escala da distancia', () => {
+    const s = buildGraph2dSettings({ ...PADRAO, minEdgeLength: 15, maxEdgeLength: 60 })
+    expect(s.minEdgeLength).toBeCloseTo(125, 10)
+    expect(s.maxEdgeLength).toBeCloseTo(500, 10)
   })
 
   it('escala proporcional nos valores intermediarios', () => {

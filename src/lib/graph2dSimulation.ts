@@ -41,6 +41,10 @@ export type Graph2dSettings = {
   alphaTargetDrag: number
   /** Tempo (s) que o no recem-solto leva para voltar ao meio dos vizinhos. */
   recentroSeconds: number
+  /** Aresta minima (0 = sem limite): a mola nao comprime abaixo disso. */
+  minEdgeLength: number
+  /** Aresta maxima (0 = sem limite): a mola nao estica alem disso. */
+  maxEdgeLength: number
 }
 
 /** Constantes do `sim.js`, para os testes e para a UI partir delas. */
@@ -65,6 +69,9 @@ export const OBSIDIAN_PHYSICS = {
   nodeSizeMultiplier: 1,
   /** Tempo de volta ao centroide: escolha do app (nao existe no Obsidian). */
   recentroSeconds: 2,
+  /** Sem limites por padrao: o comportamento e o do `sim.js`. */
+  minEdgeLength: 0,
+  maxEdgeLength: 0,
 } as const
 
 export const GRAPH2D_DEFAULT_SETTINGS: Graph2dSettings = {
@@ -77,6 +84,8 @@ export const GRAPH2D_DEFAULT_SETTINGS: Graph2dSettings = {
   nodeSizeMultiplier: OBSIDIAN_PHYSICS.nodeSizeMultiplier,
   alphaTargetDrag: OBSIDIAN_PHYSICS.alphaTargetDrag,
   recentroSeconds: OBSIDIAN_PHYSICS.recentroSeconds,
+  minEdgeLength: OBSIDIAN_PHYSICS.minEdgeLength,
+  maxEdgeLength: OBSIDIAN_PHYSICS.maxEdgeLength,
 }
 
 export type Graph2dLink = { source: string; target: string }
@@ -228,6 +237,8 @@ export class Graph2dSimulation {
     // 2) link: distance 250, strength = linkStrength * (1/min(grau)), bias 1/2
     const { edgePairs, degree } = this
     const distance = settings.linkDistance
+    const minEdge = settings.minEdgeLength
+    const maxEdge = settings.maxEdgeLength
     const strengthScale = settings.linkStrength * alpha
     for (let e = 0; e < edgePairs.length / 2; e += 1) {
       const a = edgePairs[e * 2]
@@ -240,7 +251,13 @@ export class Graph2dSimulation {
       let d = Math.sqrt(dx * dx + dy * dy)
       if (d < 1e-6) { dx = 1e-3; dy = 0; d = 1e-3 }
       const bias = 1 / Math.max(1, Math.min(degree[a], degree[b]))
-      const k = ((d - distance) / d) * strengthScale * bias * 0.5
+      // Limites opcionais: acima do maximo a mola mira o maximo (nao estica
+      // mais), abaixo do minimo mira o minimo (nao comprime mais). Dentro da
+      // faixa vale a distancia de descanso. 0 = sem limite.
+      let alvo = distance
+      if (maxEdge > 0 && d > maxEdge) alvo = maxEdge
+      else if (minEdge > 0 && d < minEdge) alvo = minEdge
+      const k = ((d - alvo) / d) * strengthScale * bias * 0.5
       const fx = dx * k
       const fy = dy * k
       vxs[a] += fx

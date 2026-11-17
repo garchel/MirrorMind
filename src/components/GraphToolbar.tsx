@@ -95,6 +95,10 @@ export type GraphToolbarProps = {
   setGraph2dRecentroSeconds: (next: number) => void
   graph2dDragAlpha: number
   setGraph2dDragAlpha: (next: number) => void
+  graph2dMinEdgeLength: number
+  setGraph2dMinEdgeLength: (next: number) => void
+  graph2dMaxEdgeLength: number
+  setGraph2dMaxEdgeLength: (next: number) => void
   updateNumberSetting: (raw: string, current: number, min: number, max: number) => number
   showGraphOrphans: boolean
   setShowGraphOrphans: Dispatch<SetStateAction<boolean>>
@@ -180,6 +184,10 @@ export function GraphToolbar(props: GraphToolbarProps) {
     setGraph2dRecentroSeconds,
     graph2dDragAlpha,
     setGraph2dDragAlpha,
+    graph2dMinEdgeLength,
+    setGraph2dMinEdgeLength,
+    graph2dMaxEdgeLength,
+    setGraph2dMaxEdgeLength,
     updateNumberSetting,
     showGraphOrphans,
     setShowGraphOrphans,
@@ -389,6 +397,14 @@ export function GraphToolbar(props: GraphToolbarProps) {
               <label className="graph-settings-row">
                 <span>Força para o centro<small>O quanto as notas são puxadas para o meio</small></span>
                 <Field type="number" size="xs" step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))} aria-label="Força central do grafo 2D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Aresta mínima<small>Distância mínima entre duas notas ligadas (0 = sem limite)</small></span>
+                <Field type="number" size="xs" min={0} step={1} value={graph2dMinEdgeLength} onChange={(event) => setGraph2dMinEdgeLength(updateNumberSetting(event.target.value, graph2dMinEdgeLength, 0, Infinity))} aria-label="Aresta mínima no grafo 2D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Aresta máxima<small>Distância máxima entre duas notas ligadas (0 = sem limite)</small></span>
+                <Field type="number" size="xs" min={0} step={1} value={graph2dMaxEdgeLength} onChange={(event) => setGraph2dMaxEdgeLength(updateNumberSetting(event.target.value, graph2dMaxEdgeLength, 0, Infinity))} aria-label="Aresta máxima no grafo 2D" />
               </label>
               <label className="graph-settings-row">
                 <span>Raio de colisão<small>Distância mínima entre dois nós; maior, mais espalhado</small></span>

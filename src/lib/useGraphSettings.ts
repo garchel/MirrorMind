@@ -44,6 +44,7 @@ const parseCollideRadius2d = parsePositive(60)
 const parseCollideStrength2d = parseNonNegative(0.5)
 const parseRecentroSeconds2d = parsePositive(2)
 const parseDragAlpha2d = parseNonNegative(0.3)
+const parseEdgeLimit2d = parseNonNegative(0)
 
 /** Marca da migracao das forcas 2D. O motor 2D foi trocado pelo do Obsidian
  * (link 250, repulsao -1000, colisao 60), entao os numeros salvos pelo motor
@@ -102,6 +103,12 @@ export function useGraphSettings() {
   const [graph2dDragAlpha, setGraph2dDragAlpha] = usePref(
     'mirrormind.graph2d.drag-alpha', 0.3, parseDragAlpha2d, serializeNumber,
   )
+  const [graph2dMinEdgeLength, setGraph2dMinEdgeLength] = usePref(
+    'mirrormind.graph2d.min-edge-length', 0, parseEdgeLimit2d, serializeNumber,
+  )
+  const [graph2dMaxEdgeLength, setGraph2dMaxEdgeLength] = usePref(
+    'mirrormind.graph2d.max-edge-length', 0, parseEdgeLimit2d, serializeNumber,
+  )
 
   useEffect(() => {
     try {
@@ -119,6 +126,8 @@ export function useGraphSettings() {
     setGraph2dCollideStrength(0.5)
     setGraph2dRecentroSeconds(2)
     setGraph2dDragAlpha(0.3)
+    setGraph2dMinEdgeLength(0)
+    setGraph2dMaxEdgeLength(0)
     // Roda uma vez, no mount: os setters do usePref sao estaveis.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -156,5 +165,9 @@ export function useGraphSettings() {
     setGraph2dRecentroSeconds,
     graph2dDragAlpha,
     setGraph2dDragAlpha,
+    graph2dMinEdgeLength,
+    setGraph2dMinEdgeLength,
+    graph2dMaxEdgeLength,
+    setGraph2dMaxEdgeLength,
   }
 }

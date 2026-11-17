@@ -33,6 +33,10 @@ export type Graph2dSliderValues = {
   recentroSeconds: number
   /** `graph2dDragAlpha` (default 0.3). */
   dragAlpha: number
+  /** `graph2dMinEdgeLength` (default 0 = sem limite). */
+  minEdgeLength: number
+  /** `graph2dMaxEdgeLength` (default 0 = sem limite). */
+  maxEdgeLength: number
 }
 
 export type Graph2dSimSettings = {
@@ -45,6 +49,8 @@ export type Graph2dSimSettings = {
   nodeSizeMultiplier: number
   alphaTargetDrag: number
   recentroSeconds: number
+  minEdgeLength: number
+  maxEdgeLength: number
 }
 
 export function buildGraph2dSettings(values: Graph2dSliderValues): Graph2dSimSettings {
@@ -60,5 +66,8 @@ export function buildGraph2dSettings(values: Graph2dSliderValues): Graph2dSimSet
     nodeSizeMultiplier: 1,
     alphaTargetDrag: values.dragAlpha,
     recentroSeconds: values.recentroSeconds,
+    // Mesma escala da distancia das conexoes (30 no app = 250 no motor).
+    minEdgeLength: (values.minEdgeLength / 30) * 250,
+    maxEdgeLength: (values.maxEdgeLength / 30) * 250,
   }
 }
