@@ -103,8 +103,9 @@ export function GraphToolbar(props: GraphToolbarProps) {
       role="toolbar"
       aria-label="Controles do grafo"
     >
-      {/* --- grupo 1: o que estou vendo (dimensao + filtro) --- */}
-      <h2 className="graph-header-title">Grafo das notas</h2>
+      {/* O titulo saiu da barra (pedido do usuario) mas continua no DOM para
+          leitores de tela e para o teste de regressao que ancora a pagina. */}
+      <h2 className="graph-header-title graph-sr-only">Grafo das notas</h2>
       <div className="graph-dimension-toggle" role="radiogroup" aria-label="Dimensao do grafo">
         <Button variant="bare" size="sm" role="radio" aria-checked={!graphMode3d} className={!graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(false)} title="Grafo em 2D">2D</Button>
         <Button variant="bare" size="sm" role="radio" aria-checked={graphMode3d} className={graphMode3d ? 'is-active' : ''} onClick={() => setGraphMode3d(true)} title="Grafo 3D com pulsos eletricos">3D</Button>

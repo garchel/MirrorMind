@@ -20,7 +20,9 @@ type GraphFilterSelectProps = {
   value: string
   options: GraphFilterOption[]
   onChange: (value: string) => void
-  /** Largura fixa do trigger: evita o shift de layout do <select> nativo. */
+  /** Largura fixa do trigger. Sem valor, o trigger encolhe ate o conteudo
+   * (o que a barra do grafo usa: o vao morto dentro do botao empurrava o texto
+   * para longe do icone). */
   width?: number
 }
 
@@ -34,7 +36,7 @@ export function GraphFilterSelect({
   value,
   options,
   onChange,
-  width = 148,
+  width,
 }: GraphFilterSelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -82,7 +84,7 @@ export function GraphFilterSelect({
         <Button
           type="button"
           className={`graph-filter-select${value !== '' ? ' is-active' : ''}`}
-          style={{ width }}
+          style={width === undefined ? undefined : { width }}
           aria-label={label}
           aria-haspopup="listbox"
           aria-expanded={open}

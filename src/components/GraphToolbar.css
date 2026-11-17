@@ -53,6 +53,9 @@
 .graph-filter-select-value {
   min-width: 0;
   flex: 1;
+  /* `<button>` centraliza o texto por padrao; com `flex: 1` isso jogava o
+     rotulo para o meio do vao e deixava o icone sozinho na esquerda. */
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -352,16 +355,24 @@
 
    A altura e 24px (nao 30) para o realce de hover flutuar dentro da pilula em
    vez de encostar nas bordas dela. */
-/* Icone colado no texto: 3px de gap, sem padding lateral no gatilho (o
-   padding do grupo ja separa da borda). Altura 100% do conteudo do grupo,
-   que fecha 24px com 2px de padding + 1px de borda — assim o realce de hover
-   fica com a mesma folga em cima e embaixo. */
+/* Gatilho do tamanho do conteudo: icone, rotulo e seta colados (gap 3px). O
+   espaco que sobra no grupo vai para a separacao entre pasta e tag, em vez de
+   virar vao morto dentro do botao. */
 .workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select {
+  width: auto;
+  max-width: 190px;
   height: 100%;
   min-height: 0;
+  flex: 0 0 auto;
   gap: 3px;
   padding: 0 4px;
   justify-content: flex-start;
+}
+
+/* Separa os dois filtros usando o espaco que sobrou: antes ficava dentro de
+   cada botao, entre o icone e o texto. */
+.workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select + .graph-filter-select {
+  margin-left: 14px;
 }
 
 .workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select-icon {
