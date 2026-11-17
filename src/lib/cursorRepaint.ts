@@ -12,10 +12,10 @@ import { nudgeCursor } from './nudgeCursor'
  * `color-scheme: light` no `:root` ja garante a variante preta do I-beam;
  * e o compositor que nao redesenha.
  *
- * A correcao definitiva do I-beam e o `--text-cursor` (index.css): uma
- * imagem SVG desenhada pelo Chromium, que nao depende do bitmap do SO.
- * Este vigia continua cobrindo os outros cursores (seta presa depois de
- * pagina/portal) e e barato.
+ * A correcao do bug nesta maquina e a flag `--disable-gpu-compositing` na
+ * janela (`tauri.conf.json`) — o problema era o plano de composicao, nao a
+ * cor do cursor. Este vigia ficou como segunda linha de defesa (custo baixo)
+ * e cobre o cursor preso depois de trocar de pagina ou abrir um portal.
  *
  * Por que global
  * --------------

@@ -24,7 +24,7 @@ transparência fica velha. O preenchimento branco aparece, o contorno preto não
 | tentativa | resultado |
 |---|---|
 | `color-scheme: light` no `:root` | já existia; garante a variante preta, **não** resolve o plano errado |
-| cursor de texto em SVG (`--text-cursor`) | resolve o I-beam; a forma do cursor deixa de vir do bitmap do SO |
+| cursor de texto em SVG (`--text-cursor`) | resolve o I-beam (bitmap do SO sai da jogada), mas era remendo por cursor e foi **removido** depois que a flag resolveu |
 | repintura do cursor (`nudgeCursor`) em qualquer troca de forma + `pointerdown` | **não resolve**: reenviar a forma não conserta o plano |
 | remover `backdrop-filter` dos overlays do grafo | reduz a frequência (a camada nova deixa de ser recriada a cada quadro), mas sozinho **não resolve** |
 | cursores de mão redesenhados em SVG | resolve, mas o produto **não quer** cursores customizados |
@@ -52,7 +52,11 @@ Trocar `--disable-gpu-compositing` por `--disable-gpu`. É o modo comprovado; o
 custo é a rasterização do grafo inteiro na CPU.
 
 **Não remova a flag** por achar que ela "não faz nada": o efeito é invisível no
-código e imediato no ponteiro. Há teste de regressão apenas para a repintura
+código e imediato no ponteiro.
+
+Os cursores voltaram a ser os **nativos do Windows** (o I-beam em SVG foi
+removido de `index.css` e dos quatro `cursor: text` que o usavam). Se a flag sair
+do lugar, o sintoma volta — e com ele a tentação de remediar cursor por cursor. Há teste de regressão apenas para a repintura
 (`src/lib/cursorRepaint.test.ts`); o comportamento do plano de composição não é
 testável fora do Windows real — a verificação é manual, arrastando um nó no grafo.
 

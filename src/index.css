@@ -16,16 +16,12 @@
  */
 :root {
   /* Superficie clara declarada: sem isso o valor inicial `normal` faz o
-   * Chromium herdar a preferencia do SO — com Windows em modo escuro, ele
-   * serve a variante BRANCA do I-beam nativo mesmo sobre o papel claro
-   * (invisivel), e nenhum `cursor:` muda isso (forma, nao cor). O bloco
-   * escuro abaixo reescopa para `dark`. */
+   * Chromium herdar a preferencia do SO. Ate 2026-11 o app desenhava o
+   * I-beam em SVG aqui porque o cursor do WebView2 perdia o contorno; o
+   * problema era plano de composicao do Windows e a correcao foi a flag
+   * `--disable-gpu-compositing` na janela (docs/cursor-webview2.md). Com isso
+   * os cursores voltaram a ser os nativos do sistema. */
   color-scheme: light;
-  /* I-beam identico ao do Windows 11 (o proprio sistema usa este SVG:
-   * 32x32, poligono branco com contorno preto, hotspot 15,16 do beam_r.cur).
-   * Desenhado pelo Chromium, nao depende do bitmap do SO — que e o que fica
-   * preso na variante branca no WebView2. */
-  --text-cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj48cG9seWdvbiBwb2ludHM9IjIxLDkuNSAyMSw3LjUgMTcsNy41IDE3LDggMTUsOCAxNSw3LjUgMTEsNy41IDExLDkuNSAxNSw5LjUgMTUsMjIuNSAxMSwyMi41IDExLDI0LjUgMTUsMjQuNSAxNSwyNCAxNywyNCAxNywyNC41IDIxLDI0LjUgMjEsMjIuNSAxNywyMi41IDE3LDkuNSIgZmlsbD0iI0ZGRkZGRSIgc3Ryb2tlPSIjMDAwMDAxIiBzdHJva2UtbWl0ZXJsaW1pdD0iMTAiLz48L3N2Zz4=") 15 16, text;
   --text: var(--mm-ink-900-32);
   --text-h: var(--mm-azure-950-4);
   --muted: var(--mm-ink-800-17);

@@ -166,7 +166,7 @@ input[type='color'] {
 input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']):not([type='file']):not([type='submit']):not([type='button']):not([type='reset']):not(:disabled),
 textarea:not(:disabled),
 [contenteditable='true'] {
-  cursor: var(--text-cursor);
+  cursor: text;
 }
 
 button {

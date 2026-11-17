@@ -1827,7 +1827,7 @@
    explicitamente mantem o estado do cursor deterministico na zona logo
    abaixo do header, onde o arrow down fica. */
 .markdown-mixed .cm-content {
-  cursor: var(--text-cursor);
+  cursor: text;
 }
 
 .markdown-mixed .cm-live-strong {
@@ -2565,7 +2565,7 @@
   outline-offset: -1px;
   border-radius: 2px;
   background: var(--mm-gold-50);
-  cursor: var(--text-cursor);
+  cursor: text;
 }
 
 .markdown-mixed .cm-live-fence-content {
