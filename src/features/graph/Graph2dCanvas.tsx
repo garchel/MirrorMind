@@ -322,13 +322,10 @@ export function Graph2dCanvas({
     const indice = noNoPonto(ponto)
     const sim = simRef.current
     if (indice >= 0 && sim) {
-      const { width, height } = sizeRef.current
-      const mundo = screenToWorld(ponto.x, ponto.y, viewRef.current, width, height)
-      // `pin` = forceNode{x,y} + alphaTarget .3 (app.js do Obsidian).
-      sim.pin(sim.paths[indice], mundo.x, mundo.y)
-      persistidoRef.current = false
+      // NAO fixa aqui: `pin` tambem reaquece o grafo (alphaTarget 0.3), e um
+      // clique simples fazia o grafo INTEIRO voltar a se mexer por segundos.
+      // O pino entra no primeiro movimento real (ver `aoMover`).
       arrastoRef.current = { tipo: 'no', path: sim.paths[indice], x: ponto.x, y: ponto.y, movido: false }
-      pedirFrame()
       return
     }
     arrastoRef.current = { tipo: 'pano', x: ponto.x, y: ponto.y, movido: false }
@@ -344,9 +341,12 @@ export function Graph2dCanvas({
       if (arrasto.tipo === 'pano') {
         const view = viewRef.current
         viewRef.current = { ...view, x: view.x - dx / view.zoom, y: view.y - dy / view.zoom }
-      } else {
+      } else if (arrasto.movido) {
+        // So depois de passar do limiar de 2px o gesto vira arrasto: fixar no
+        // primeiro pixel fazia um clique tremido aquecer o grafo inteiro.
         const { width, height } = sizeRef.current
         const mundo = screenToWorld(ponto.x, ponto.y, viewRef.current, width, height)
+        // `pin` = forceNode{x,y} + alphaTarget .3 (app.js do Obsidian).
         simRef.current?.pin(arrasto.path, mundo.x, mundo.y)
         persistidoRef.current = false
       }
@@ -369,11 +369,16 @@ export function Graph2dCanvas({
     arrastoRef.current = null
     const sim = simRef.current
     if (arrasto?.tipo === 'no' && sim) {
-      // Soltar: unpin + alphaTarget 0 (o par do app.js).
-      sim.unpin(arrasto.path)
-      // Clique simples abre o painel; arrastar nao abre nada.
-      if (!arrasto.movido) onFocus?.(arrasto.path)
-      pedirFrame()
+      if (arrasto.movido) {
+        // Soltar depois de arrastar: unpin + alphaTarget 0 (o par do app.js)
+        // e a volta ao meio dos vizinhos.
+        sim.unpin(arrasto.path)
+        pedirFrame()
+      } else {
+        // Clique simples: abre o painel e NAO toca na simulacao (nada foi
+        // fixado, entao nao ha o que soltar nem para onde voltar).
+        onFocus?.(arrasto.path)
+      }
     }
     try {
       event.currentTarget.releasePointerCapture(event.pointerId)

@@ -52,22 +52,39 @@ describe('Graph2dCanvas (modelo do Obsidian)', () => {
     expect(canvas.tagName).toBe('CANVAS')
   })
 
-  it('pointerdown fixa o no (forceNode) e pointerup sem mover abre o painel', async () => {
+  it('clique simples abre o painel SEM fixar o no nem reaquecer o grafo', async () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
     const pin = vi.spyOn(Graph2dSimulation.prototype, 'pin')
     const unpin = vi.spyOn(Graph2dSimulation.prototype, 'unpin')
     const onFocus = vi.fn()
     render(<Graph2dCanvas {...props({ onFocus })} />)
     const canvas = screen.getByRole('application', { name: 'Grafo de notas' })
-    // A simulacao nasce num efeito; sob carga da suite ela pode chegar depois.
-    await waitFor(() => {
-      fireEvent.pointerDown(canvas, { clientX: 0, clientY: 0, pointerId: 1 })
-      expect(pin).toHaveBeenCalled()
-    })
+    await waitFor(() => expect(canvas).toBeInTheDocument())
 
+    fireEvent.pointerDown(canvas, { clientX: 0, clientY: 0, pointerId: 1 })
     fireEvent.pointerUp(canvas, { clientX: 0, clientY: 0, pointerId: 1 })
-    expect(unpin).toHaveBeenCalled()
+
+    // `pin` reaquece o grafo inteiro (alphaTarget 0.3): num clique isso fazia
+    // todos os outros nos voltarem a se mexer.
+    expect(pin).not.toHaveBeenCalled()
+    expect(unpin).not.toHaveBeenCalled()
     expect(onFocus).toHaveBeenCalledWith('a.md')
+  })
+
+  it('arrastar fixa o no e, ao soltar, solta e volta ao centro', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+    const pin = vi.spyOn(Graph2dSimulation.prototype, 'pin')
+    const unpin = vi.spyOn(Graph2dSimulation.prototype, 'unpin')
+    render(<Graph2dCanvas {...props()} />)
+    const canvas = screen.getByRole('application', { name: 'Grafo de notas' })
+    await waitFor(() => expect(canvas).toBeInTheDocument())
+
+    fireEvent.pointerDown(canvas, { clientX: 0, clientY: 0, pointerId: 1 })
+    expect(pin).not.toHaveBeenCalled()
+    fireEvent.pointerMove(canvas, { clientX: 50, clientY: 30, pointerId: 1 })
+    expect(pin).toHaveBeenCalled()
+    fireEvent.pointerUp(canvas, { clientX: 50, clientY: 30, pointerId: 1 })
+    expect(unpin).toHaveBeenCalled()
   })
 
   it('arrastar NAO abre o painel', async () => {
