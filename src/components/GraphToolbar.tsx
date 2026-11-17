@@ -322,7 +322,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
               <SlidersHorizontal size={14} strokeWidth={1.75} aria-hidden="true" />
               <strong>Configurações do grafo</strong>
             </span>
-            <Button type="button" className="ui-button graph-settings-reset" onClick={() => { resetGraph3dSettings(); resetGraph2dSettings() }} title="Restaurar os valores padrão de 2D e 3D" aria-label="Restaurar os valores padrão">
+            <Button type="button" className="ui-button graph-settings-reset" onClick={() => { if (graphMode3d) resetGraph3dSettings(); else resetGraph2dSettings() }} title={graphMode3d ? 'Restaurar os padrões do grafo 3D' : 'Restaurar os padrões do grafo 2D'} aria-label={graphMode3d ? 'Restaurar os padrões do grafo 3D' : 'Restaurar os padrões do grafo 2D'}>
               <RotateCcw size={12} strokeWidth={1.75} aria-hidden="true" />
               <span>Padroes</span>
             </Button>
