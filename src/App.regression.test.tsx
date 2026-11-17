@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -1319,6 +1319,36 @@ describe('Regressao do editor no workspace', () => {
 
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'alvo.md' })))
     expect(screen.getByRole('tab', { name: 'alvo' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('[grafo] o menu do grafo volta ao mexer o mouse e nao some no mesmo tique', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+
+    await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
+    expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
+
+    const header = document.querySelector('.graph-immersive-header') as HTMLElement
+    const superficie = document.querySelector('.graph-page') as HTMLElement
+    expect(header).not.toBeNull()
+
+    // Os timers passam a ser falsos DEPOIS de abrir a pagina: trocar antes
+    // trava o carregamento do vault (que depende de promessas + tempo real).
+    vi.useFakeTimers()
+
+    // Mexer o mouse reabre e o menu FICA. `onPointerMove={poke}` passa o evento
+    // como 1o argumento; sem a guarda, o `setTimeout` recebia um MouseEvent,
+    // virava 0 e a barra piscava e sumia no mesmo tique.
+    fireEvent.pointerMove(superficie)
+    act(() => { vi.advanceTimersByTime(120) })
+    expect(header.className).not.toContain('is-hidden')
+
+    // E o tempo padrao continua valendo (nao virou "nunca mais esconde").
+    fireEvent.pointerMove(superficie)
+    act(() => { vi.advanceTimersByTime(3000) })
+    expect(header.className).toContain('is-hidden')
+    vi.useRealTimers()
   })
 
   it('[grafo] filtro por pasta destaca sem remover nos do layout', async () => {

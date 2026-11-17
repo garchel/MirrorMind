@@ -706,15 +706,21 @@ function App() {
   const graphSettingsOpenRef = useRef(false)
 
   /** Mantem o header visivel; `delayMs` maior serve para quem esta digitando na
-   * busca (2.6s some no meio da frase; digitando vale bem mais). */
-  function pokeGraphUi(delayMs = 2600) {
+   * busca (2.6s some no meio da frase; digitando vale bem mais).
+   *
+   * A guarda de tipo NAO e decorativa: `onPointerMove={poke}` passa o evento
+   * como primeiro argumento (a prop `poke` e tipada como `() => void`, entao o
+   * TS aceita). Sem filtrar, o `setTimeout` recebe um MouseEvent, vira 0 e o
+   * menu aparece e some no mesmo tique — foi o que sumiu com a barra do grafo. */
+  function pokeGraphUi(delayMs: number = 2600) {
+    const espera = Number.isFinite(delayMs) ? delayMs : 2600
     setGraphUiVisible(true)
     if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current)
     graphUiHideTimerRef.current = window.setTimeout(() => {
       // Nao esconde a UI no meio de um arrasto (evita re-render do React
       // durante a animacao) nem com o popover de configuracoes aberto.
       if (!graphSettingsOpenRef.current && !graphNodeDragRef.current) setGraphUiVisible(false)
-    }, delayMs)
+    }, espera)
   }
 
   function setGraphSettingsOpenSynced(open: boolean) {
