@@ -705,14 +705,16 @@ function App() {
   const [graphSettingsOpen, setGraphSettingsOpen] = useState(false)
   const graphSettingsOpenRef = useRef(false)
 
-  function pokeGraphUi() {
+  /** Mantem o header visivel; `delayMs` maior serve para quem esta digitando na
+   * busca (2.6s some no meio da frase; digitando vale bem mais). */
+  function pokeGraphUi(delayMs = 2600) {
     setGraphUiVisible(true)
     if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current)
     graphUiHideTimerRef.current = window.setTimeout(() => {
       // Nao esconde a UI no meio de um arrasto (evita re-render do React
       // durante a animacao) nem com o popover de configuracoes aberto.
       if (!graphSettingsOpenRef.current && !graphNodeDragRef.current) setGraphUiVisible(false)
-    }, 2600)
+    }, delayMs)
   }
 
   function setGraphSettingsOpenSynced(open: boolean) {
@@ -5943,6 +5945,7 @@ function App() {
                 }}
                 actions={{
                   zoom: comandarZoom2d,
+                  keepUi: (ms: number) => pokeGraphUi(ms),
                   poke: pokeGraphUi,
                   resetView: resetGraphView,
                   handle3dExport: handleGraph3dExport,

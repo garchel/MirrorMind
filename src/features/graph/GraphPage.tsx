@@ -139,6 +139,8 @@ export type GraphRefs = {
 /** Ações: callbacks do App (sem estado). */
 export type GraphActions = {
   zoom: (type: 'in' | 'out' | 'reset') => void
+  /** Reagenda o sumico do header (ms). Usado enquanto o usuario digita. */
+  keepUi: (ms: number) => void
   poke: () => void
   resetView: () => void
   handle3dExport: (requestId: number, scene: Graph3DExportScene | null) => void
@@ -259,6 +261,7 @@ export function GraphPage({
   } = refs
   const {
     poke: pokeGraphUi,
+    keepUi: manterUiVisivel,
     handle3dExport: handleGraph3dExport,
     revealInExplorer: revealNoteInExplorer,
     copyWikiLink: copyGraphWikiLink,
@@ -330,6 +333,7 @@ export function GraphPage({
             visible={graphUiVisible}
             onHoverStart={() => { setGraphUiVisible(true); if (graphUiHideTimerRef.current !== null) window.clearTimeout(graphUiHideTimerRef.current) }}
             onHoverEnd={pokeGraphUi}
+            onSearchTyping={() => manterUiVisivel(9000)}
             graphMode3d={graphMode3d}
             setGraphMode3d={setGraphMode3d}
             graphFolder={graphFolder}

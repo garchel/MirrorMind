@@ -235,16 +235,24 @@
   padding: 7px 9px;
 }
 
+/* Altura interna fechada por conta: 30 (caixa) - 2 (bordas) - 4 (padding) = 24.
+   Antes o botao tinha `min-height: 24` dentro de uma area de 22 e vazava 2px
+   para baixo — o modo selecionado ficava mais perto da base do que do topo. */
 .workspace-shell .graph-immersive-header .graph-dimension-toggle {
   height: var(--graph-ctl);
-  padding: 3px;
+  padding: 2px;
+  box-sizing: border-box;
   border-radius: 8px;
 }
 
 .workspace-shell .graph-immersive-header .graph-dimension-toggle :where(button, .ui-button) {
-  min-height: calc(var(--graph-ctl) - 6px);
+  height: 100%;
+  min-height: 0;
   padding: 0 11px;
   border-radius: 6px;
+  line-height: 1;
+  display: inline-grid;
+  place-items: center;
 }
 
 .workspace-shell .graph-immersive-header .graph-filter-select {
@@ -334,8 +342,34 @@
   padding: 0 8px 0 10px;
 }
 
+/* Icone colado no texto: caixa de 14px para pasta e "#" ocuparem o mesmo
+   espaco e gap de 4px. Antes eram 6px de gap mais a largura natural de cada
+   icone, e o texto comecava em posicoes diferentes nos dois seletores.
+
+   A altura e 24px (nao 30) para o realce de hover flutuar dentro da pilula em
+   vez de encostar nas bordas dela. */
 .workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select {
+  height: calc(var(--graph-ctl) - 6px);
+  gap: 4px;
   padding: 0 6px;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select:hover {
+  background: rgb(28 36 39 / 9%);
+  border-radius: 6px;
+}
+
+/* Valor vazio = placeholder (o filtro nao esta aplicado). */
+.workspace-shell .graph-immersive-header .graph-filter-select-value.is-placeholder {
+  color: var(--mm-ink-650);
+  font-weight: 400;
 }
 
 .workspace-shell .graph-immersive-header .graph-icon-button {

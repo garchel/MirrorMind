@@ -91,7 +91,7 @@ export function GraphFilterSelect({
           <span className="graph-filter-select-icon" aria-hidden="true">
             {icon}
           </span>
-          <span className="graph-filter-select-value">{selected?.label ?? allLabel}</span>
+          <span className={`graph-filter-select-value${value === '' ? ' is-placeholder' : ''}`}>{selected?.label ?? allLabel}</span>
           <ChevronDown size={13} strokeWidth={2} aria-hidden="true" />
         </Button>
       </PopoverTrigger>

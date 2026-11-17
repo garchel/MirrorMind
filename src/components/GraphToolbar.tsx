@@ -5,6 +5,7 @@ import { Eye, Folder, Hash, Info, ListFilter, Palette, Search, Settings, X } fro
 import type { TagIndex } from '../lib/tagIndex'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { GraphFilterSelect } from './GraphFilterSelect'
+import { useTypingPlaceholder } from '../lib/useTypingPlaceholder'
 import './GraphToolbar.css'
 
 /** Barra superior da pagina de grafos. Cuida do que o usuario pode mexer sem
@@ -15,6 +16,8 @@ export type GraphToolbarProps = {
   visible: boolean
   onHoverStart: () => void
   onHoverEnd: () => void
+  /** Chamado a cada tecla na busca: segura o header na tela por mais tempo. */
+  onSearchTyping: () => void
   graphMode3d: boolean
   setGraphMode3d: Dispatch<SetStateAction<boolean>>
   graphFolder: string
@@ -52,6 +55,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
     visible,
     onHoverStart,
     onHoverEnd,
+    onSearchTyping,
     graphMode3d,
     setGraphMode3d,
     graphFolder,
@@ -83,6 +87,10 @@ export function GraphToolbar(props: GraphToolbarProps) {
     graphColorOverrides,
     setGraphColorOverrides,
   } = props
+
+  // A busca aceita nota e tag: o placeholder alterna entre as duas para dizer
+  // isso sem ocupar espaco com texto fixo.
+  const searchPlaceholder = useTypingPlaceholder(['Buscar nota', 'Buscar tag'])
 
   const folderOptions = useMemo(() => graphFolders.map((folder) => ({ value: folder, label: folder })), [graphFolders])
   const tagOptions = useMemo(() => graphTags.map((tag) => ({ value: tag, label: `#${tag}` })), [graphTags])
@@ -137,7 +145,15 @@ export function GraphToolbar(props: GraphToolbarProps) {
             a barra fica identica nos dois modos (2D e 3D). */}
         <span className="graph-search">
           <Search size={13} strokeWidth={2} aria-hidden="true" />
-          <Field size="sm" className="graph-search-input" value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
+          <Field
+            size="sm"
+            className="graph-search-input"
+            value={graphQuery}
+            onChange={(event) => { setGraphQuery(event.target.value); onSearchTyping() }}
+            onFocus={onSearchTyping}
+            placeholder={searchPlaceholder}
+            aria-label="Buscar nota ou tag no grafo"
+          />
         </span>
         <Popover open={graphSettingsOpen} onOpenChange={setGraphSettingsOpenSynced}>
           <PopoverTrigger asChild>

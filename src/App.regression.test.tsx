@@ -1307,7 +1307,7 @@ describe('Regressao do editor no workspace', () => {
 
     expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
     expect(screen.getByText('2 notas')).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'Buscar nota no grafo' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Buscar nota ou tag no grafo' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Filtro do grafo por pasta e tag' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Reorganizar nos' })).not.toBeInTheDocument()
     // O zoom saiu da barra e mora no controlador DEV (mesma barra nos dois modos).
@@ -1416,11 +1416,11 @@ describe('Regressao do editor no workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Abrir grafo das notas' }))
     expect(await screen.findByRole('heading', { name: 'Grafo das notas' })).toBeInTheDocument()
 
-    await user.type(screen.getByRole('textbox', { name: 'Buscar nota no grafo' }), 'alvo')
+    await user.type(screen.getByRole('textbox', { name: 'Buscar nota ou tag no grafo' }), 'alvo')
     expect(screen.getByRole('button', { name: 'Abrir nota alvo no grafo' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Abrir nota inicial no grafo' })).not.toBeInTheDocument()
 
-    await user.clear(screen.getByRole('textbox', { name: 'Buscar nota no grafo' }))
+    await user.clear(screen.getByRole('textbox', { name: 'Buscar nota ou tag no grafo' }))
     await user.click(screen.getByRole('button', { name: 'Configurações do grafo' }))
     await user.click(await screen.findByRole('checkbox', { name: /Somente notas não conectadas/ }))
 
