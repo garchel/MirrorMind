@@ -622,6 +622,7 @@ function App() {
     setGraph2dMinEdgeLength,
     setGraph2dMaxEdgeLength,
     setGraph2dLabelZoom,
+    setGraph2dInitialZoom,
   } = graph
   const [graphSurfaceSize, setGraphSurfaceSize] = useState<{ width: number; height: number } | null>(null)
   const [graphMode3d, setGraphMode3d] = useState(false)
@@ -2521,7 +2522,7 @@ function App() {
   }
 
   function resetGraph2dSettings() {
-    setGraph2dRepulsionStrength(2000)
+    setGraph2dRepulsionStrength(1400)
     setGraph2dLinkStiffness(4.0)
     setGraph2dVelocityDecay(0.4)
     setGraph2dLinkDistance(30)
@@ -2532,7 +2533,8 @@ function App() {
     setGraph2dDragAlpha(0.3)
     setGraph2dMinEdgeLength(0)
     setGraph2dMaxEdgeLength(50)
-    setGraph2dLabelZoom(1.45)
+    setGraph2dLabelZoom(0.7)
+    setGraph2dInitialZoom(0.67)
     setGraphRenderLimit(GRAPH_RENDER_LIMIT_DEFAULT)
   }
 

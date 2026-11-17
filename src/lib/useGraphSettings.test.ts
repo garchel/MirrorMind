@@ -14,9 +14,14 @@ describe('useGraphSettings (extração do App)', () => {
     expect(result.current.graph3dNodeSize).toBe(0.55)
     expect(result.current.graph3dNodeSpacing).toBe(8)
     expect(result.current.graph3dMinEdgeLength).toBe(2.5)
-    expect(result.current.graph2dRepulsionStrength).toBe(2000)
+    expect(result.current.graph2dRepulsionStrength).toBe(1400)
     expect(result.current.graph2dLinkStiffness).toBe(4.0)
     expect(result.current.graph2dCenterForce).toBe(100)
+    expect(result.current.graph2dCollideRadius).toBe(15)
+    expect(result.current.graph2dMaxEdgeLength).toBe(50)
+    expect(result.current.graph2dRecentroSeconds).toBe(10)
+    expect(result.current.graph2dLabelZoom).toBe(0.7)
+    expect(result.current.graph2dInitialZoom).toBe(0.67)
   })
 
   it('valores corrompidos caem nos fallbacks (paridade com o App antigo)', () => {

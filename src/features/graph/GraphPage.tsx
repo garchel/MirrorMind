@@ -317,6 +317,8 @@ export function GraphPage({
     setGraph2dMaxEdgeLength,
     graph2dLabelZoom,
     setGraph2dLabelZoom,
+    graph2dInitialZoom,
+    setGraph2dInitialZoom,
   } = graph
 
 
@@ -438,6 +440,8 @@ export function GraphPage({
             setGraph2dMaxEdgeLength={setGraph2dMaxEdgeLength}
             graph2dLabelZoom={graph2dLabelZoom}
             setGraph2dLabelZoom={setGraph2dLabelZoom}
+            graph2dInitialZoom={graph2dInitialZoom}
+            setGraph2dInitialZoom={setGraph2dInitialZoom}
             updateNumberSetting={updateNumberSetting}
             showGraphOrphans={showGraphOrphans}
             setShowGraphOrphans={setShowGraphOrphans}
@@ -495,6 +499,7 @@ export function GraphPage({
             <Graph2dCanvas
               onZoomChange={setGraph2dZoom}
               zoomCommand={graph2dZoomCommand}
+              initialZoom={graph2dInitialZoom}
               nodes={renderedGraphDocuments.map((document) => ({
                 path: document.relativePath,
                 label: document.name.replace(/\.md$/i, ''),

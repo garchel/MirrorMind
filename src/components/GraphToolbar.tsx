@@ -99,6 +99,8 @@ export type GraphToolbarProps = {
   setGraph2dMaxEdgeLength: (next: number) => void
   graph2dLabelZoom: number
   setGraph2dLabelZoom: (next: number) => void
+  graph2dInitialZoom: number
+  setGraph2dInitialZoom: (next: number) => void
   /** Zoom atual da camera do canvas 2D (1 = 100%). */
   graph2dZoom: number
   onGraph2dZoomCommand: (type: 'in' | 'out' | 'reset') => void
@@ -191,6 +193,8 @@ export function GraphToolbar(props: GraphToolbarProps) {
     setGraph2dMaxEdgeLength,
     graph2dLabelZoom,
     setGraph2dLabelZoom,
+    graph2dInitialZoom,
+    setGraph2dInitialZoom,
     graph2dZoom,
     onGraph2dZoomCommand,
     updateNumberSetting,
@@ -413,6 +417,10 @@ export function GraphToolbar(props: GraphToolbarProps) {
               <label className="graph-settings-row">
                 <span>Aresta máxima<small>Distância máxima entre duas notas ligadas (0 = sem limite)</small></span>
                 <Field type="number" size="xs" min={0} step={1} value={graph2dMaxEdgeLength} onChange={(event) => setGraph2dMaxEdgeLength(updateNumberSetting(event.target.value, graph2dMaxEdgeLength, 0, Infinity))} aria-label="Aresta máxima no grafo 2D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Zoom ao abrir<small>Zoom do grafo ao abrir a pagina e ao centralizar (1 = 100%)</small></span>
+                <Field type="number" size="xs" min={0.1} max={3} step={0.05} value={graph2dInitialZoom} onChange={(event) => setGraph2dInitialZoom(updateNumberSetting(event.target.value, graph2dInitialZoom, 0.1, 3))} aria-label="Zoom ao abrir o grafo 2D" />
               </label>
               <label className="graph-settings-row">
                 <span>Nomes ao aproximar<small>Zoom em que os nomes de todas as notas aparecem</small></span>

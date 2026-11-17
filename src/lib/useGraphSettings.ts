@@ -35,7 +35,7 @@ const parseOrbitSpeed3d = parsePositive(1)
 const parseMaxEdgeLength3d = parsePositive(14)
 const parseMinEdgeLength3d = parseNonNegative(2.5)
 const parseDegreeGrowth3d = parseNonNegative(0.13)
-const parseRepulsion2d = parseNonNegative(2000)
+const parseRepulsion2d = parseNonNegative(1400)
 const parseLinkStiffness2d = parsePositive(4.0)
 const parseVelocityDecay2d = parseNonNegative(0.4)
 const parseLinkDistance2d = parsePositive(30)
@@ -45,7 +45,8 @@ const parseCollideStrength2d = parseNonNegative(0.5)
 const parseRecentroSeconds2d = parsePositive(10)
 const parseDragAlpha2d = parseNonNegative(0.3)
 const parseEdgeLimit2d = parseNonNegative(0)
-const parseLabelZoom2d = parsePositive(1.45)
+const parseLabelZoom2d = parsePositive(0.7)
+const parseInitialZoom2d = parsePositive(0.67)
 
 /** Marca da migracao das forcas 2D. O motor 2D foi trocado pelo do Obsidian
  * (link 250, repulsao -1000, colisao 60), entao os numeros salvos pelo motor
@@ -53,7 +54,7 @@ const parseLabelZoom2d = parsePositive(1.45)
  * 200" vira repulsao fraca e o grafo abre comprimido. A migracao roda UMA vez
  * e devolve os cinco valores 2D ao padrao; 3D e exibicao nao sao tocados. */
 const CHAVE_MIGRACAO_FORCAS_2D = 'mirrormind.graph2d.physics-version'
-const MIGRACAO_FORCAS_2D = '3'
+const MIGRACAO_FORCAS_2D = '4'
 
 export function useGraphSettings() {
   const [graphRenderLimit, setGraphRenderLimit] = usePref(
@@ -78,7 +79,7 @@ export function useGraphSettings() {
     'mirrormind.graph3d.degree-growth', 0.13, parseDegreeGrowth3d, serializeNumber,
   )
   const [graph2dRepulsionStrength, setGraph2dRepulsionStrength] = usePref(
-    'mirrormind.graph2d.repulsion-strength', 2000, parseRepulsion2d, serializeNumber,
+    'mirrormind.graph2d.repulsion-strength', 1400, parseRepulsion2d, serializeNumber,
   )
   const [graph2dLinkStiffness, setGraph2dLinkStiffness] = usePref(
     'mirrormind.graph2d.link-stiffness', 4.0, parseLinkStiffness2d, serializeNumber,
@@ -111,7 +112,10 @@ export function useGraphSettings() {
     'mirrormind.graph2d.max-edge-length', 50, parseEdgeLimit2d, serializeNumber,
   )
   const [graph2dLabelZoom, setGraph2dLabelZoom] = usePref(
-    'mirrormind.graph2d.label-zoom', 1.45, parseLabelZoom2d, serializeNumber,
+    'mirrormind.graph2d.label-zoom', 0.7, parseLabelZoom2d, serializeNumber,
+  )
+  const [graph2dInitialZoom, setGraph2dInitialZoom] = usePref(
+    'mirrormind.graph2d.initial-zoom', 0.67, parseInitialZoom2d, serializeNumber,
   )
 
   useEffect(() => {
@@ -121,7 +125,7 @@ export function useGraphSettings() {
     } catch {
       return
     }
-    setGraph2dRepulsionStrength(2000)
+    setGraph2dRepulsionStrength(1400)
     setGraph2dLinkStiffness(4)
     setGraph2dVelocityDecay(0.4)
     setGraph2dLinkDistance(30)
@@ -132,7 +136,8 @@ export function useGraphSettings() {
     setGraph2dDragAlpha(0.3)
     setGraph2dMinEdgeLength(0)
     setGraph2dMaxEdgeLength(50)
-    setGraph2dLabelZoom(1.45)
+    setGraph2dLabelZoom(0.7)
+    setGraph2dInitialZoom(0.67)
     // Roda uma vez, no mount: os setters do usePref sao estaveis.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -176,5 +181,7 @@ export function useGraphSettings() {
     setGraph2dMaxEdgeLength,
     graph2dLabelZoom,
     setGraph2dLabelZoom,
+    graph2dInitialZoom,
+    setGraph2dInitialZoom,
   }
 }

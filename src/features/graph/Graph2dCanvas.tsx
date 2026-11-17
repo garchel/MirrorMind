@@ -39,6 +39,8 @@ export type Graph2dCanvasProps = {
   onZoomChange?: (zoom: number) => void
   /** Comando de zoom vindo da barra: `id` muda a cada pedido. */
   zoomCommand?: { id: number; type: 'in' | 'out' | 'reset' } | null
+  /** Zoom da camera ao abrir e ao centralizar (1 = 100%). */
+  initialZoom?: number
   ariaLabel?: string
 }
 
@@ -79,6 +81,7 @@ export function Graph2dCanvas({
   onFocus,
   onZoomChange,
   zoomCommand,
+  initialZoom = 1,
   ariaLabel = 'Grafo de notas',
 }: Graph2dCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -199,17 +202,12 @@ export function Graph2dCanvas({
       }
       // Assentou: enquadra UMA vez e persiste UMA vez.
       if (!enquadradoRef.current && sim.count > 0 && sim.alpha < 0.4) {
+        // Zoom fixo, configurado em "Zoom ao abrir": o enquadramento automatico
+        // variava com o tamanho do grafo (56 notas davam 67%, um vault maior
+        // caia para 30%) e o usuario queria abertura previsivel.
         enquadradoRef.current = true
         const c = sim.centroid()
-        let maior = 1
-        for (let i = 0; i < sim.count; i += 1) {
-          maior = Math.max(maior, Math.hypot(sim.xs[i] - c.x, sim.ys[i] - c.y))
-        }
-        const { width, height } = sizeRef.current
-        const caber = Math.min(width, height) / (maior * 2.4)
-        // Piso de 0.3: enquadrar uma cadeia longa inteira levava o zoom a
-        // 0.15 e as bolinhas a 2px — o usuario abria o grafo e via um borrao.
-        viewRef.current = { x: c.x, y: c.y, zoom: Math.max(0.3, Math.min(1.1, caber)) }
+        viewRef.current = { x: c.x, y: c.y, zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, initialZoom)) }
         comunicarZoom()
       }
       desenhar()
@@ -223,7 +221,7 @@ export function Graph2dCanvas({
         onSettledRef.current(snapshot)
       }
     })
-  }, [animarFoco, comunicarZoom, desenhar])
+  }, [animarFoco, comunicarZoom, desenhar, initialZoom])
 
   // (Re)cria a simulacao quando o conjunto de nos muda — e so entao.
   useEffect(() => {
@@ -467,21 +465,18 @@ export function Graph2dCanvas({
     if (!zoomCommand) return
     const sim = simRef.current
     if (!sim) return
-    const { width, height } = sizeRef.current
     const view = viewRef.current
     if (zoomCommand.type === 'reset') {
+      // Centralizar usa o mesmo zoom configurado para a abertura: previsivel.
       const c = sim.centroid()
-      let maior = 1
-      for (let i = 0; i < sim.count; i += 1) maior = Math.max(maior, Math.hypot(sim.xs[i] - c.x, sim.ys[i] - c.y))
-      const caber = Math.min(width, height) / (maior * 2.4)
-      viewRef.current = { x: c.x, y: c.y, zoom: Math.max(0.3, Math.min(1.1, caber)) }
+      viewRef.current = { x: c.x, y: c.y, zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, initialZoom)) }
     } else {
       const zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, view.zoom * (zoomCommand.type === 'in' ? 1.15 : 1 / 1.15)))
       viewRef.current = { zoom, x: view.x, y: view.y }
     }
     comunicarZoom()
     pedirFrame()
-  }, [zoomCommand, comunicarZoom, pedirFrame])
+  }, [zoomCommand, comunicarZoom, pedirFrame, initialZoom])
 
   const aoRolar = (event: React.WheelEvent<HTMLCanvasElement>) => {
     event.preventDefault()
