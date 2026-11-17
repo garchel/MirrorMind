@@ -74,9 +74,22 @@ export const GRAPH2D_DEFAULT_SETTINGS: Graph2dSettings = {
 export type Graph2dLink = { source: string; target: string }
 
 /** Quanto tempo (ticks) o no recem-solto persegue o centroide dos vizinhos. */
-const RECENTRO_TICKS = 240
-/** Ganho por tick da busca pelo centroide (com o freio 0.6, converge suave). */
-const RECENTRO_FORCA = 0.12
+/** Teto de deslocamento por passo. Um no arrastado por cima de outro pode
+ * gerar forca enorme (o d3 nunca chega perto disso porque a colisao mantem os
+ * nos afastados; durante um arrasto, nao). Sem teto, medido: 993 unidades num
+ * unico frame — o "tremor" era isso amplificado pela mola. */
+const MAX_PASSO = 60
+/** Folga da colisao: sobreposicoes menores que isso sao ignoradas, senao o
+ * par fica corrigindo ruido numerico para sempre (chatter). */
+const COLISAO_SLOP = 8
+/** Teto do deslocamento total causado pela colisao em um passo. */
+const MAX_COLISAO_PASSO = 12
+
+const RECENTRO_TICKS = 260
+/** Ganho por tick da volta ao centroide. Com o freio 0.6 isso da ~3% da
+ * distancia restante por frame: o no DESLIZA de volta (~1,3 s), em vez de
+ * saltar (0.12 chegava em ~10 frames e parecia um teleporte). */
+const RECENTRO_FORCA = 0.004
 
 const THETA2 = OBSIDIAN_PHYSICS.theta * OBSIDIAN_PHYSICS.theta
 const MAX_DEPTH = 14
@@ -141,6 +154,11 @@ export class Graph2dSimulation {
   private readonly quad: Quad
   private readonly buckets = new Map<number, number[]>()
   private readonly bucketKeys: number[] = []
+  /** Correcoes de colisao acumuladas (Jacobi): aplicar depois do laco evita
+   * que o empurrao de um par mude a posicao usada pelo par seguinte — era daí
+   * que vinha o tremor quando um no arrastado passava por cima dos outros. */
+  private readonly accX: Float32Array
+  private readonly accY: Float32Array
 
   constructor(input: {
     paths: string[]
@@ -159,6 +177,8 @@ export class Graph2dSimulation {
     this.vxs = new Float32Array(n)
     this.vys = new Float32Array(n)
     this.buffer = new Float32Array(n * 2)
+    this.accX = new Float32Array(n)
+    this.accY = new Float32Array(n)
     this.degree = new Int32Array(n)
     // Sem posicoes salvas: disco aleatorio. Largar todos num pontinho faz a
     // colisao (raio 60) explodir o grafo em poucos frames — o Obsidian tambem
@@ -249,22 +269,24 @@ export class Graph2dSimulation {
         const body = quad.body[cell]
         if (body >= 0) {
           if (body === i) continue
-          // Dois nos na MESMA posicao davam d2 = 0 -> Infinity -> NaN, e o
-          // grafo inteiro sumia. O d3 resolve com jiggle; aqui um piso resolve.
-          if (d2 < 1e-9) d2 = 1e-9
-          const d = Math.sqrt(d2)
-          const f = repulsao / d2
-          fx += (dx / d) * f
-          fy += (dy / d) * f
+          // Forma do d3: forca = dx * strength / l, com l = d^2 e, abaixo de
+          // `distanceMin`, l = sqrt(dMin^2 * d^2) = dMin*d. Sem esse limite o
+          // par quase coincidente vira 1e12 e o grafo salta (medido: 6.683
+          // unidades num unico frame).
+          let l = d2
+          if (l < dMin2) l = Math.sqrt(dMin2 * l)
+          const f = repulsao / l
+          fx += dx * f
+          fy += dy * f
           continue
         }
         const size = quad.size[cell]
         if ((size * size) / d2 < THETA2) {
-          const dd = Math.max(d2, dMin2)
-          const d = Math.sqrt(dd)
-          const f = (repulsao * mass) / dd
-          fx += (dx / d) * f
-          fy += (dy / d) * f
+          let l = d2
+          if (l < dMin2) l = Math.sqrt(dMin2 * l)
+          const f = (repulsao * mass) / l
+          fx += dx * f
+          fy += dy * f
         } else if (top + 4 < stack.length) {
           const base = cell * 4
           const c0 = quad.child[base]
@@ -281,26 +303,31 @@ export class Graph2dSimulation {
       vys[i] += fy
     }
 
-    // 4) colisao: raio 60, strength 0.5 (d3 collide, com peso por massa)
-    const raio = settings.collideRadius
-    const raio2 = raio * raio
-    const cellSize = raio * 2
+    // 4) colisao: o `sim.js` usa u = raio_a + raio_o, strength 0.5 constante
+    // (sem alpha) e divisao por massa. A correcao e acumulada e aplicada no
+    // fim: mutar as velocidades durante o laco tornava o resultado dependente
+    // da ordem dos pares e fazia os nos tremerem ao serem atravessados.
+    const raioTotal = settings.collideRadius * 2
+    const raioTotal2 = raioTotal * raioTotal
+    const cellSize = raioTotal
     const buckets = this.buckets
     for (const key of this.bucketKeys) buckets.get(key)!.length = 0
     this.bucketKeys.length = 0
     const chave = (cx: number, cy: number) => (cx + 4096) * 16384 + (cy + 4096)
     for (let i = 0; i < count; i += 1) {
-      const key = chave(Math.floor((xs[i] + vxs[i]) / cellSize), Math.floor((ys[i] + vys[i]) / cellSize))
+      const key = chave(Math.floor(xs[i] / cellSize), Math.floor(ys[i] / cellSize))
       const bucket = buckets.get(key)
       if (bucket) bucket.push(i)
       else { buckets.set(key, [i]); this.bucketKeys.push(key) }
     }
-    const forca = settings.collideStrength * alpha
+    const accX = this.accX
+    const accY = this.accY
+    accX.fill(0)
+    accY.fill(0)
+    const forca = settings.collideStrength
     for (let i = 0; i < count; i += 1) {
-      const xi = xs[i] + vxs[i]
-      const yi = ys[i] + vys[i]
-      const cx = Math.floor(xi / cellSize)
-      const cy = Math.floor(yi / cellSize)
+      const cx = Math.floor(xs[i] / cellSize)
+      const cy = Math.floor(ys[i] / cellSize)
       for (let ox = -1; ox <= 1; ox += 1) {
         for (let oy = -1; oy <= 1; oy += 1) {
           const bucket = buckets.get(chave(cx + ox, cy + oy))
@@ -308,28 +335,60 @@ export class Graph2dSimulation {
           for (let k = 0; k < bucket.length; k += 1) {
             const j = bucket[k]
             if (j <= i) continue
-            const xj = xs[j] + vxs[j]
-            const yj = ys[j] + vys[j]
-            let dx = xj - xi
-            let dy = yj - yi
+            let dx = xs[j] - xs[i]
+            let dy = ys[j] - ys[i]
             let d2 = dx * dx + dy * dy
-            if (d2 >= raio2) continue
+            if (d2 >= raioTotal2) continue
             if (d2 < 1e-9) {
               dx = 0.001 * (((i + j) % 12) - 6)
               dy = 0.001 * (((i * 7 + j) % 12) - 6)
               d2 = dx * dx + dy * dy || 1e-9
             }
             const d = Math.sqrt(d2)
-            const scale = ((raio - d) / d) * forca * 0.5
-            const fx = dx * scale
-            const fy = dy * scale
-            vxs[i] -= fx
-            vys[i] -= fy
-            vxs[j] += fx
-            vys[j] += fy
+            const sobreposicao = raioTotal - d - COLISAO_SLOP
+            if (sobreposicao <= 0) continue
+            const nx = dx / d
+            const ny = dy / d
+            // 1) separa um pouco (posicao): resolve a sobreposicao sem somar
+            //    velocidade, entao nao ha "quique".
+            const corrigir = Math.min(sobreposicao * forca * 0.5, 20)
+            accX[i] -= nx * corrigir
+            accY[i] -= ny * corrigir
+            accX[j] += nx * corrigir
+            accY[j] += ny * corrigir
+            // 2) mata a velocidade de APROXIMACAO (contato inelastico). Sem
+            //    isso o par entra em ciclo: colisao empurra, mola puxa de
+            //    volta, colisao empurra — era o tremor rapido ao atravessar.
+            const vrel = (vxs[j] - vxs[i]) * nx + (vys[j] - vys[i]) * ny
+            if (vrel < 0) {
+              const imp = vrel * 0.5
+              vxs[i] += nx * imp
+              vys[i] += ny * imp
+              vxs[j] -= nx * imp
+              vys[j] -= ny * imp
+            }
           }
         }
       }
+    }
+    for (let i = 0; i < count; i += 1) {
+      if (this.pinned.has(i)) continue
+      // O limite por PAR nao basta: com 39 vizinhos sobrepostos a soma passava
+      // de 700 unidades num unico frame (medido). O teto e do deslocamento
+      // total do no neste passo.
+      const mx = accX[i]
+      const my = accY[i]
+      const m = Math.hypot(mx, my)
+      if (m > MAX_COLISAO_PASSO) {
+        accX[i] = (mx / m) * MAX_COLISAO_PASSO
+        accY[i] = (my / m) * MAX_COLISAO_PASSO
+      }
+      // Impulso de VELOCIDADE (com teto): da momento ao no empurrado, entao
+      // ele desliza para fora do caminho e volta devagar — projetar na posicao
+      // tirava o momento e o par ficava chacoalhando no lugar (medido: 67
+      // inversoes de velocidade em 120 frames).
+      vxs[i] += accX[i]
+      vys[i] += accY[i]
     }
 
     // 5) no recem-solto: puxa para o centroide dos vizinhos por alguns ticks.
@@ -369,6 +428,14 @@ export class Graph2dSimulation {
       }
       vxs[i] *= 1 - OBSIDIAN_PHYSICS.velocityDecay
       vys[i] *= 1 - OBSIDIAN_PHYSICS.velocityDecay
+      // Teto por passo: mantem o movimento fluido e impede que uma forca
+      // numerica grande vire um salto visivel.
+      const velocidade = Math.hypot(vxs[i], vys[i])
+      if (velocidade > MAX_PASSO) {
+        const escala = MAX_PASSO / velocidade
+        vxs[i] *= escala
+        vys[i] *= escala
+      }
       xs[i] += vxs[i]
       ys[i] += vys[i]
       // Rede de seguranca contra divergencia numerica (e contra um layout
