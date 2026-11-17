@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
 import { ReviewPriorityLevelPicker } from '../review/ReviewPriorityLevelPicker'
@@ -79,6 +80,38 @@ const PRESETS = {
     },
   },
 } as const
+
+/** Ordem dos perfis prontos na tela (a "Personalizada" vem depois, a parte). */
+const PROFILE_ORDER = ['intensive', 'balanced', 'light'] as const
+
+type PresetKey = keyof typeof PRESETS
+
+/**
+ * Perfil pronto cujo ritmo bate com o rascunho, ou null quando nenhum bate.
+ *
+ * Compara so os quatro campos de ritmo: a prioridade da fila tem bloco proprio
+ * logo abaixo e mudar so ela nao deve fazer o formulario dizer "Personalizada"
+ * — o usuario nunca escolheu um ritmo diferente.
+ */
+function presetKeyFor(
+  rule: Pick<
+    TagReviewPolicyRule,
+    'firstReviewIntervalDays' | 'targetRetention' | 'minIntervalDays' | 'maxIntervalDays'
+  >,
+): PresetKey | null {
+  for (const key of PROFILE_ORDER) {
+    const values = PRESETS[key].values
+    if (
+      rule.firstReviewIntervalDays === values.firstReviewIntervalDays
+      && Math.abs(rule.targetRetention - values.targetRetention) < 1e-9
+      && rule.minIntervalDays === values.minIntervalDays
+      && rule.maxIntervalDays === values.maxIntervalDays
+    ) {
+      return key
+    }
+  }
+  return null
+}
 
 function normalizeTagInput(value: string) {
   return value
@@ -277,6 +310,12 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const [mode, setMode] = useState<'view' | 'create' | 'edit'>('view')
   const [draft, setDraft] = useState<TagReviewPolicyRule>(() => draftFor(''))
+  /** Perfil "Personalizada" aberto: mostra os campos numericos de ritmo. */
+  const [customProfile, setCustomProfile] = useState(false)
+  /** Sugestoes de tag existente: qual esta destacada e se o menu esta aberto. */
+  const [suggestIndex, setSuggestIndex] = useState(0)
+  const [suggestOpen, setSuggestOpen] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [pending, setPending] = useState<PendingChange | null>(null)
   const [pendingDelete, setPendingDelete] = useState<PendingChange | null>(null)
@@ -351,6 +390,29 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   const duplicate = entries.some((entry) => (
     entry.tag === draft.tag && (mode === 'create' || entry.tag !== selectedTag)
   ))
+  /** Perfil pronto em uso (o rascunho pode ter sido personalizado a mao). */
+  const activePreset = presetKeyFor(draft)
+
+  /**
+   * Tags ja existentes que contem o texto digitado, para o usuario escolher e
+   * aninhar em vez de redigitar. So na criacao: renomear uma tag para dentro de
+   * uma existente continua sendo decisao consciente, nao sugestao de digitacao.
+   */
+  const suggestions = useMemo(() => {
+    const typed = draft.tag.trim()
+    if (mode !== 'create' || typed.length < 2) return []
+    const needle = typed.toLowerCase()
+    return entries
+      .filter((entry) => entry.tag.toLowerCase() !== needle && entry.tag.toLowerCase().includes(needle))
+      .sort((left, right) => {
+        const leftStarts = left.tag.toLowerCase().startsWith(needle) ? 0 : 1
+        const rightStarts = right.tag.toLowerCase().startsWith(needle) ? 0 : 1
+        return leftStarts - rightStarts || left.tag.localeCompare(right.tag, 'pt-BR')
+      })
+      .slice(0, 6)
+  }, [draft.tag, entries, mode])
+
+  const suggestionsVisible = suggestOpen && suggestions.length > 0
 
   /** Clique na arvore: mostra os dados da tag clicada e expande/colapsa os aninhados. */
   function handleTreeSelect(node: TagTreeNode) {
@@ -374,6 +436,8 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
     if (atRuleLimit) return
     setSelectedTag(null)
     setDraft(draftFor(prefillTag))
+    setCustomProfile(false)
+    setSuggestOpen(false)
     setMode('create')
     setPending(null)
     setError('')
@@ -383,6 +447,10 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   function startEdit() {
     if (!selected) return
     setDraft(draftFor(selected.tag, selected.rule))
+    // Regra antiga fora dos tres perfis abre direto em "Personalizada": esconder
+    // numeros que ja nao batem com preset nenhum seria mentir sobre o ritmo.
+    setCustomProfile(selected.rule ? presetKeyFor(selected.rule) === null : false)
+    setSuggestOpen(false)
     setMode('edit')
     setPending(null)
     setError('')
@@ -405,7 +473,40 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   }
 
   function applyPreset(values: typeof PRESETS[keyof typeof PRESETS]['values']) {
+    setCustomProfile(false)
     updateDraft({ ...values })
+  }
+
+  /** Escolhe uma tag existente como prefixo: `concurso` vira `concurso/`. */
+  function selectSuggestion(tag: string) {
+    updateDraft({ tag: `${tag}/` })
+    setSuggestOpen(false)
+    setSuggestIndex(0)
+    // Devolve o foco e o caret ao fim, para o usuario continuar digitando o
+    // ramo dentro da tag escolhida.
+    window.requestAnimationFrame(() => {
+      const input = nameInputRef.current
+      if (!input) return
+      input.focus()
+      input.setSelectionRange(input.value.length, input.value.length)
+    })
+  }
+
+  function handleNameKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (!suggestionsVisible) return
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setSuggestIndex((current) => (current + 1) % suggestions.length)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setSuggestIndex((current) => (current - 1 + suggestions.length) % suggestions.length)
+    } else if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault()
+      selectSuggestion(suggestions[Math.min(suggestIndex, suggestions.length - 1)].tag)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setSuggestOpen(false)
+    }
   }
 
   function nextRulesForSave(rule: TagReviewPolicyRule) {
@@ -601,11 +702,61 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
               </div>
 
               <div className="tag-form">
-                <label className="tag-name-field">
-                  <span>Nome da tag</span>
-                  <div><Hash size={16} aria-hidden="true" /><Field size="sm" autoFocus aria-label="Nome da tag" value={draft.tag} onChange={(event) => updateDraft({ tag: normalizeTagInput(event.target.value) })} placeholder="materia/biologia" /></div>
+                <div className="tag-name-field">
+                  <label className="tag-name-label" htmlFor="tag-name-input">Nome da tag</label>
+                  <div className="tag-name-frame">
+                    <Hash size={16} aria-hidden="true" />
+                    <Field
+                      id="tag-name-input"
+                      ref={nameInputRef}
+                      size="sm"
+                      autoFocus
+                      placeholder="materia/biologia"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded={suggestionsVisible}
+                      aria-controls="tag-name-suggestions"
+                      aria-activedescendant={suggestionsVisible ? `tag-name-suggestion-${suggestIndex}` : undefined}
+                      value={draft.tag}
+                      onChange={(event) => {
+                        updateDraft({ tag: normalizeTagInput(event.target.value) })
+                        setSuggestIndex(0)
+                        setSuggestOpen(true)
+                      }}
+                      onKeyDown={handleNameKeyDown}
+                      onBlur={() => setSuggestOpen(false)}
+                    />
+                  </div>
+                  {suggestionsVisible ? (
+                    <ul className="tag-suggest-menu" id="tag-name-suggestions" role="listbox" aria-label="Tags existentes">
+                      {suggestions.map((entry, index) => (
+                        <li key={entry.tag}>
+                          <button
+                            type="button"
+                            role="option"
+                            id={`tag-name-suggestion-${index}`}
+                            aria-selected={index === suggestIndex}
+                            // Sem rotulo proprio o leitor de tela anuncia
+                            // "concurso1": hash e contagem colam no nome.
+                            aria-label={`${entry.tag} · ${entry.notePaths.length} nota${entry.notePaths.length === 1 ? '' : 's'}`}
+                            className={`tag-suggest-item${index === suggestIndex ? ' is-active' : ''}`}
+                            // `preventDefault` no mousedown segura o foco no campo:
+                            // sem isso o blur fecha o menu antes do clique chegar.
+                            onMouseDown={(event) => {
+                              event.preventDefault()
+                              selectSuggestion(entry.tag)
+                            }}
+                          >
+                            <Hash size={13} aria-hidden="true" />
+                            <span>{entry.tag}</span>
+                            <small>{entry.notePaths.length}</small>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                   <small>Use letras, números, hífen, sublinhado e / para criar hierarquia.</small>
-                </label>
+                </div>
 
                 <label className="tag-review-switch">
                   <span>
@@ -617,14 +768,46 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
 
                 <fieldset className="tag-presets">
                   <legend>Perfil de revisão</legend>
-                  <div>
-                    {Object.values(PRESETS).map((preset) => (
-                      <Button type="button" variant="secondary" size="md" className="tag-preset-card" key={preset.label} onClick={() => applyPreset(preset.values)}>
-                        <strong>{preset.label}</strong>
-                        <small>{preset.description}</small>
-                      </Button>
-                    ))}
+                  <div role="radiogroup" aria-label="Perfil de revisão">
+                    {PROFILE_ORDER.map((key) => {
+                      const preset = PRESETS[key]
+                      const ativo = !customProfile && activePreset === key
+                      return (
+                        <Button
+                          key={key}
+                          type="button"
+                          variant="secondary"
+                          size="md"
+                          role="radio"
+                          aria-checked={ativo}
+                          className={`tag-preset-card${ativo ? ' is-active' : ''}`}
+                          onClick={() => applyPreset(preset.values)}
+                        >
+                          <strong>{preset.label}</strong>
+                          <small>{preset.description}</small>
+                        </Button>
+                      )
+                    })}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="md"
+                      role="radio"
+                      aria-checked={customProfile}
+                      className={`tag-preset-card${customProfile ? ' is-active' : ''}`}
+                      onClick={() => setCustomProfile(true)}
+                    >
+                      <strong>Personalizada</strong>
+                      <small>Defina cada campo do ritmo.</small>
+                    </Button>
                   </div>
+                  <p className="tag-profile-summary">
+                    {customProfile
+                      ? 'Escolha os números do ritmo logo abaixo.'
+                      : `Primeira revisão em ${draft.firstReviewIntervalDays} dia${draft.firstReviewIntervalDays === 1 ? '' : 's'} · `
+                        + `retenção ${Math.round(draft.targetRetention * 100)}% · `
+                        + `intervalos de ${draft.minIntervalDays} a ${draft.maxIntervalDays} dias.`}
+                  </p>
                 </fieldset>
 
                 <fieldset className="tag-mode-field">
@@ -645,40 +828,43 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   </div>
                 </fieldset>
 
-                <fieldset className="tag-policy-fields">
-                  <legend>
-                  Ritmo de revisão
-                  <InfoTip label="Ritmo de revisão da tag">
-                    <p>
-                      Como as notas com esta tag são revisadas. <em>Primeira revisão</em> é o
-                      prazo até a estreia; <em>retenção desejada</em> é quanto você quer lembrar
-                      na hora da revisão; os <em>intervalos</em> limitam o espaçamento entre uma
-                      revisão e outra.
-                    </p>
-                    <p>
-                      <em>Prioridade na fila</em> decide a ordem: 1 é neutro e maior aparece
-                      antes, mesmo que outra nota esteja mais atrasada.
-                    </p>
-                  </InfoTip>
-                </legend>
-                  <label><span>Primeira revisão</span><div><Field size="sm" aria-label="Primeira revisão" type="number" min="1" max="3650" value={draft.firstReviewIntervalDays} onChange={(event) => updateDraft({ firstReviewIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
-                  <label><span>Retenção desejada</span><div><Field size="sm" aria-label="Retenção desejada" type="number" min="50" max="99" value={Math.round(draft.targetRetention * 100)} onChange={(event) => updateDraft({ targetRetention: Number(event.target.value) / 100 })} /><small>%</small></div></label>
-                  <label><span>Intervalo mínimo</span><div><Field size="sm" aria-label="Intervalo mínimo" type="number" min="1" max="3650" value={draft.minIntervalDays} onChange={(event) => updateDraft({ minIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
-                  <label><span>Intervalo máximo</span><div><Field size="sm" aria-label="Intervalo máximo" type="number" min="1" max="36500" value={draft.maxIntervalDays} onChange={(event) => updateDraft({ maxIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
-                  <label className="tag-deadline-field">
-                    <span>Prazo de estudo</span>
-                    <div>
-                      <Field
-                        size="sm"
-                        aria-label="Prazo de estudo"
-                        type="date"
-                        value={deadlineDateValue(draft.deadlineAtUnixMs)}
-                        onChange={(event) => updateDraft({ deadlineAtUnixMs: deadlineFromDateInput(event.target.value) })}
-                      />
-                      <small>opcional</small>
-                    </div>
-                  </label>
-                </fieldset>
+                {customProfile ? (
+                  <fieldset className="tag-policy-fields">
+                    <legend>
+                      Ritmo de revisão
+                      <InfoTip label="Ritmo de revisão da tag">
+                        <p>
+                          Como as notas com esta tag são revisadas. <em>Primeira revisão</em> é o
+                          prazo até a estreia; <em>retenção desejada</em> é quanto você quer lembrar
+                          na hora da revisão; os <em>intervalos</em> limitam o espaçamento entre uma
+                          revisão e outra.
+                        </p>
+                        <p>
+                          <em>Prioridade na fila</em> decide a ordem: 1 é neutro e maior aparece
+                          antes, mesmo que outra nota esteja mais atrasada.
+                        </p>
+                      </InfoTip>
+                    </legend>
+                    <label><span>Primeira revisão</span><div><Field size="sm" aria-label="Primeira revisão" type="number" min="1" max="3650" value={draft.firstReviewIntervalDays} onChange={(event) => updateDraft({ firstReviewIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
+                    <label><span>Retenção desejada</span><div><Field size="sm" aria-label="Retenção desejada" type="number" min="50" max="99" value={Math.round(draft.targetRetention * 100)} onChange={(event) => updateDraft({ targetRetention: Number(event.target.value) / 100 })} /><small>%</small></div></label>
+                    <label><span>Intervalo mínimo</span><div><Field size="sm" aria-label="Intervalo mínimo" type="number" min="1" max="3650" value={draft.minIntervalDays} onChange={(event) => updateDraft({ minIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
+                    <label><span>Intervalo máximo</span><div><Field size="sm" aria-label="Intervalo máximo" type="number" min="1" max="36500" value={draft.maxIntervalDays} onChange={(event) => updateDraft({ maxIntervalDays: Number(event.target.value) })} /><small>dias</small></div></label>
+                  </fieldset>
+                ) : null}
+
+                <label className="tag-deadline-field">
+                  <span>Prazo de estudo</span>
+                  <div>
+                    <Field
+                      size="sm"
+                      aria-label="Prazo de estudo"
+                      type="date"
+                      value={deadlineDateValue(draft.deadlineAtUnixMs)}
+                      onChange={(event) => updateDraft({ deadlineAtUnixMs: deadlineFromDateInput(event.target.value) })}
+                    />
+                    <small>opcional</small>
+                  </div>
+                </label>
 
                 <div className="review-priority-field">
                   <span>Prioridade na fila</span>

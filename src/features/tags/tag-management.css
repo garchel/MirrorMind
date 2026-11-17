@@ -616,12 +616,21 @@
 }
 
 .tag-name-field > span,
+.tag-name-label,
 .tag-presets legend,
 .tag-policy-fields legend,
 .tag-mode-field legend {
   color: var(--mm-ink-900-21);
   font-size: 13px;
   font-weight: 700;
+}
+
+.tag-name-field {
+  position: relative;
+}
+
+.tag-name-frame {
+  position: relative;
 }
 
 .tag-name-field > div {
@@ -646,6 +655,70 @@
   background: transparent;
   color: var(--tag-ink);
   font: 13px var(--sans);
+}
+
+/* Sugestoes de tag existente ao digitar o nome: a lista sai da moldura do
+ * campo (absolute) para nao empurrar o formulario, e cada linha e uma tag
+ * com a contagem de notas que ela ja tem. */
+.tag-suggest-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  display: grid;
+  gap: 1px;
+  max-height: 244px;
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--mm-clay-400);
+  border-radius: var(--radius-md);
+  background: var(--mm-clay-50);
+  box-shadow: 0 12px 28px rgb(56 44 18 / 16%);
+  list-style: none;
+  scrollbar-width: none;
+}
+
+.tag-suggest-menu::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.tag-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--tag-ink);
+  font: 13px var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.tag-suggest-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-suggest-item small {
+  margin-left: auto;
+  color: var(--tag-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tag-suggest-item:hover,
+.tag-suggest-item.is-active {
+  background: var(--mm-moss-150-2);
+  color: var(--mm-sage-950);
 }
 
 .tag-name-field small,
@@ -744,7 +817,25 @@
 }
 
 .tag-presets > div {
+  /* Quatro perfis (tres prontos + Personalizada): `auto-fit` mantem a linha
+   * unica em tela larga e quebra em duas em tela estreita, sem deixar um
+   * cartao orfao numa terceira linha. */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   margin-top: 10px;
+}
+
+/* Perfil escolhido: borda de destaque e fundo suave, sem escurecer o cartao
+ * (a pilula escura e dos botoes de acao da pagina). */
+.tag-management-page.tag-management-page .tag-presets :is(button, .ui-button).tag-preset-card[aria-checked='true'] {
+  border-color: var(--tag-accent);
+  background: color-mix(in srgb, var(--tag-accent) 10%, var(--tag-surface));
+}
+
+.tag-profile-summary {
+  margin: 10px 0 0;
+  color: var(--tag-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .tag-presets :where(button, .ui-button) {
@@ -837,6 +928,52 @@
 }
 
 .tag-policy-fields small {
+  padding-right: 10px;
+  color: var(--tag-muted);
+  font-size: 12px;
+}
+
+/* Prazo de estudo fica fora do bloco de ritmo: vale tambem quando o usuario
+ * escolhe um perfil pronto (e ele nao pode sumir junto com os numeros). */
+.tag-deadline-field {
+  display: grid;
+  gap: 6px;
+  max-width: 240px;
+}
+
+.tag-deadline-field > span {
+  color: var(--tag-muted);
+  font-size: 12px;
+}
+
+.tag-deadline-field > div {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--mm-clay-400);
+  border-radius: var(--radius-md);
+  background: var(--tag-surface);
+  overflow: hidden;
+}
+
+.tag-deadline-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--tag-ink);
+  font: 13px var(--sans);
+}
+
+.tag-deadline-field > div:focus-within {
+  border-color: var(--mm-ink-500);
+  box-shadow: 0 0 0 3px rgb(115 137 121 / 14%);
+}
+
+.tag-deadline-field small {
   padding-right: 10px;
   color: var(--tag-muted);
   font-size: 12px;
@@ -1029,7 +1166,7 @@
  * próprio (0,3,0) — sem isso, esta regra (0,3,1) pinta o fundo delas de
  * escuro até no tema claro. O `.tag-tree-create` (botão Criar tag da
  * árvore) também tem estilo próprio. */
-.tag-management-page.tag-management-page :where(button, .ui-button):not(.modal-close):not(.tag-tree-row):not(.tag-tree-create):not(.tag-preset-card) {
+.tag-management-page.tag-management-page :where(button, .ui-button):not(.modal-close):not(.tag-tree-row):not(.tag-tree-create):not(.tag-preset-card):not(.info-tip-trigger):not(.review-priority-picker-option):not(.tag-suggest-item) {
   min-height: var(--button-size-sm-height);
   border-radius: var(--radius-md);
   background: var(--mm-ink-950-14);
@@ -1038,7 +1175,7 @@
   font-weight: 600;
 }
 
-.tag-management-page.tag-management-page :where(button, .ui-button):hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create):not(.tag-preset-card) {
+.tag-management-page.tag-management-page :where(button, .ui-button):hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create):not(.tag-preset-card):not(.info-tip-trigger):not(.review-priority-picker-option):not(.tag-suggest-item) {
   transform: none;
   background: var(--mm-ink-950);
 }

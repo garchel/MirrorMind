@@ -7,6 +7,10 @@
 
 .review-priority-picker-options {
   display: inline-flex;
+  /* `align-self` sozinho nao encolhia nada: dentro de um grid, o eixo
+   * horizontal e controlado por `justify-self`, e a pilula esticava por toda
+   * a largura da coluna (medido: 1113px num painel de 1113px). */
+  justify-self: start;
   align-self: start;
   gap: 2px;
   padding: 2px;

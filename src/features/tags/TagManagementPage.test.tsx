@@ -146,6 +146,51 @@ describe('TagManagementPage', () => {
     })))
   })
 
+  it('sugere tag existente enquanto o nome e digitado e aninha ao escolher', async () => {
+    getTagIndexMock.mockResolvedValue([
+      { tag: 'concurso', notePaths: ['concursos/edital.md'] },
+      { tag: 'concurso/matematica', notePaths: ['concursos/matematica.md'] },
+    ])
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Criar tag' }))
+    const campo = screen.getByLabelText('Nome da tag')
+    await user.type(campo, 'con')
+
+    const lista = await screen.findByRole('listbox', { name: 'Tags existentes' })
+    // As duas tags com "con" aparecem, com a contagem de notas de cada uma.
+    expect(within(lista).getByRole('option', { name: 'concurso · 1 nota' })).toBeInTheDocument()
+    expect(within(lista).getByRole('option', { name: 'concurso/matematica · 1 nota' })).toBeInTheDocument()
+
+    await user.click(within(lista).getByRole('option', { name: 'concurso · 1 nota' }))
+
+    // Escolher deixa o campo pronto para o ramo: `concurso/`.
+    await waitFor(() => expect(campo).toHaveValue('concurso/'))
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('perfil Personalizada mostra os campos de ritmo; perfil pronto esconde', async () => {
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Criar tag' }))
+
+    // Padrao e perfil pronto: os numeros ficam fora da tela, mas o resumo em
+    // palavras e o prazo continuam visiveis.
+    expect(screen.queryByLabelText('Primeira revisão')).toBeNull()
+    expect(screen.getByText(/Primeira revisão em 2 dias/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Prazo de estudo')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: /Personalizada/ }))
+    expect(screen.getByLabelText('Primeira revisão')).toHaveValue(2)
+    expect(screen.getByLabelText('Intervalo máximo')).toHaveValue(365)
+
+    await user.click(screen.getByRole('radio', { name: /Intensiva/ }))
+    expect(screen.queryByLabelText('Primeira revisão')).toBeNull()
+    expect(screen.getByText(/Primeira revisão em 1 dia ·/)).toBeInTheDocument()
+  })
+
   it('creates a configured tag only after a zero-impact confirmation', async () => {
     const user = userEvent.setup()
     previewMock.mockResolvedValueOnce({ affectedNotePaths: [], markdownNotePaths: [] })
