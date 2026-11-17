@@ -40,6 +40,10 @@ const parseLinkStiffness2d = parsePositive(4.0)
 const parseVelocityDecay2d = parseNonNegative(0.4)
 const parseLinkDistance2d = parsePositive(30)
 const parseCenterForce2d = parseNonNegative(100)
+const parseCollideRadius2d = parsePositive(60)
+const parseCollideStrength2d = parseNonNegative(0.5)
+const parseRecentroSeconds2d = parsePositive(2)
+const parseDragAlpha2d = parseNonNegative(0.3)
 
 /** Marca da migracao das forcas 2D. O motor 2D foi trocado pelo do Obsidian
  * (link 250, repulsao -1000, colisao 60), entao os numeros salvos pelo motor
@@ -86,6 +90,18 @@ export function useGraphSettings() {
   const [graph2dCenterForce, setGraph2dCenterForce] = usePref(
     'mirrormind.graph2d.center-force', 100, parseCenterForce2d, serializeNumber,
   )
+  const [graph2dCollideRadius, setGraph2dCollideRadius] = usePref(
+    'mirrormind.graph2d.collide-radius', 60, parseCollideRadius2d, serializeNumber,
+  )
+  const [graph2dCollideStrength, setGraph2dCollideStrength] = usePref(
+    'mirrormind.graph2d.collide-strength', 0.5, parseCollideStrength2d, serializeNumber,
+  )
+  const [graph2dRecentroSeconds, setGraph2dRecentroSeconds] = usePref(
+    'mirrormind.graph2d.recentro-seconds', 2, parseRecentroSeconds2d, serializeNumber,
+  )
+  const [graph2dDragAlpha, setGraph2dDragAlpha] = usePref(
+    'mirrormind.graph2d.drag-alpha', 0.3, parseDragAlpha2d, serializeNumber,
+  )
 
   useEffect(() => {
     try {
@@ -99,6 +115,10 @@ export function useGraphSettings() {
     setGraph2dVelocityDecay(0.4)
     setGraph2dLinkDistance(30)
     setGraph2dCenterForce(100)
+    setGraph2dCollideRadius(60)
+    setGraph2dCollideStrength(0.5)
+    setGraph2dRecentroSeconds(2)
+    setGraph2dDragAlpha(0.3)
     // Roda uma vez, no mount: os setters do usePref sao estaveis.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -128,5 +148,13 @@ export function useGraphSettings() {
     setGraph2dLinkDistance,
     graph2dCenterForce,
     setGraph2dCenterForce,
+    graph2dCollideRadius,
+    setGraph2dCollideRadius,
+    graph2dCollideStrength,
+    setGraph2dCollideStrength,
+    graph2dRecentroSeconds,
+    setGraph2dRecentroSeconds,
+    graph2dDragAlpha,
+    setGraph2dDragAlpha,
   }
 }

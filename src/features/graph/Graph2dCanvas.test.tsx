@@ -20,6 +20,8 @@ function props(extra: Partial<Graph2dCanvasProps> = {}): Graph2dCanvasProps {
       collideRadius: 60,
       collideStrength: 0.5,
       nodeSizeMultiplier: 1,
+      alphaTargetDrag: 0.3,
+      recentroSeconds: 2,
     },
     hoveredPath: null,
     neighbors: null,

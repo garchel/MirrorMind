@@ -87,6 +87,14 @@ export type GraphToolbarProps = {
   setGraph2dLinkDistance: (next: number) => void
   graph2dCenterForce: number
   setGraph2dCenterForce: (next: number) => void
+  graph2dCollideRadius: number
+  setGraph2dCollideRadius: (next: number) => void
+  graph2dCollideStrength: number
+  setGraph2dCollideStrength: (next: number) => void
+  graph2dRecentroSeconds: number
+  setGraph2dRecentroSeconds: (next: number) => void
+  graph2dDragAlpha: number
+  setGraph2dDragAlpha: (next: number) => void
   updateNumberSetting: (raw: string, current: number, min: number, max: number) => number
   showGraphOrphans: boolean
   setShowGraphOrphans: Dispatch<SetStateAction<boolean>>
@@ -164,6 +172,14 @@ export function GraphToolbar(props: GraphToolbarProps) {
     setGraph2dLinkDistance,
     graph2dCenterForce,
     setGraph2dCenterForce,
+    graph2dCollideRadius,
+    setGraph2dCollideRadius,
+    graph2dCollideStrength,
+    setGraph2dCollideStrength,
+    graph2dRecentroSeconds,
+    setGraph2dRecentroSeconds,
+    graph2dDragAlpha,
+    setGraph2dDragAlpha,
     updateNumberSetting,
     showGraphOrphans,
     setShowGraphOrphans,
@@ -304,11 +320,11 @@ export function GraphToolbar(props: GraphToolbarProps) {
             </Button>
           </header>
 
-          {/* ---------- 3D ---------- */}
-          <section className="graph-settings-mode" data-active={graphMode3d ? 'true' : 'false'} aria-labelledby="graph-settings-modo-3d">
+          {/* ---------- 3D: aparece so no modo 3D ---------- */}
+          {graphMode3d ? (
+          <section className="graph-settings-mode" aria-labelledby="graph-settings-modo-3d">
             <p className="graph-settings-mode-head" id="graph-settings-modo-3d">
               <span className="graph-settings-mode-name"><Box size={12} strokeWidth={1.75} aria-hidden="true" /> Grafo 3D</span>
-              {graphMode3d ? <span className="graph-settings-mode-badge">em uso</span> : null}
             </p>
             <section className="graph-settings-group" aria-label="Visual dos nós">
               <p className="graph-settings-group-title"><Palette size={12} strokeWidth={1.75} aria-hidden="true" /> Visual</p>
@@ -344,12 +360,13 @@ export function GraphToolbar(props: GraphToolbarProps) {
               </label>
             </section>
           </section>
+          ) : null}
 
-          {/* ---------- 2D ---------- */}
-          <section className="graph-settings-mode" data-active={graphMode3d ? 'false' : 'true'} aria-labelledby="graph-settings-modo-2d">
+          {/* ---------- 2D: aparece so no modo 2D ---------- */}
+          {graphMode3d ? null : (
+          <section className="graph-settings-mode" aria-labelledby="graph-settings-modo-2d">
             <p className="graph-settings-mode-head" id="graph-settings-modo-2d">
               <span className="graph-settings-mode-name"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Grafo 2D</span>
-              {graphMode3d ? null : <span className="graph-settings-mode-badge">em uso</span>}
             </p>
             <section className="graph-settings-group" aria-label="Forças do grafo 2D">
               <p className="graph-settings-group-title"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Forças</p>
@@ -373,6 +390,22 @@ export function GraphToolbar(props: GraphToolbarProps) {
                 <span>Força para o centro<small>O quanto as notas são puxadas para o meio</small></span>
                 <Field type="number" size="xs" step={5} value={graph2dCenterForce} onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))} aria-label="Força central do grafo 2D" />
               </label>
+              <label className="graph-settings-row">
+                <span>Raio de colisão<small>Distância mínima entre dois nós; maior, mais espalhado</small></span>
+                <Field type="number" size="xs" min={0} step={5} value={graph2dCollideRadius} onChange={(event) => setGraph2dCollideRadius(updateNumberSetting(event.target.value, graph2dCollideRadius, 0, Infinity))} aria-label="Raio de colisão no grafo 2D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Força da colisão<small>Quanto os nós se empurram ao se encostar; menor, menos tremor</small></span>
+                <Field type="number" size="xs" min={0} max={2} step={0.05} value={graph2dCollideStrength} onChange={(event) => setGraph2dCollideStrength(updateNumberSetting(event.target.value, graph2dCollideStrength, 0, 2))} aria-label="Força da colisão no grafo 2D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Aquecimento ao arrastar<small>Quanto o conjunto se agita enquanto você arrasta; menor, mais firme</small></span>
+                <Field type="number" size="xs" min={0} max={1} step={0.05} value={graph2dDragAlpha} onChange={(event) => setGraph2dDragAlpha(updateNumberSetting(event.target.value, graph2dDragAlpha, 0, 1))} aria-label="Aquecimento da simulação ao arrastar no grafo 2D" />
+              </label>
+              <label className="graph-settings-row">
+                <span>Volta ao centro (s)<small>Tempo que o nó solto leva para voltar ao meio dos vizinhos</small></span>
+                <Field type="number" size="xs" min={0.2} max={10} step={0.2} value={graph2dRecentroSeconds} onChange={(event) => setGraph2dRecentroSeconds(updateNumberSetting(event.target.value, graph2dRecentroSeconds, 0.2, 10))} aria-label="Tempo de volta ao centro no grafo 2D" />
+              </label>
             </section>
             <section className="graph-settings-group" aria-label="Desempenho do grafo 2D">
               <p className="graph-settings-group-title"><Zap size={12} strokeWidth={1.75} aria-hidden="true" /> Desempenho</p>
@@ -382,6 +415,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
               </label>
             </section>
           </section>
+          )}
 
           {/* ---------- comum aos dois ---------- */}
           <section className="graph-settings-mode" aria-labelledby="graph-settings-modo-comum">

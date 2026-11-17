@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { buildGraph2dSettings } from './graph2dSettings'
 import { OBSIDIAN_PHYSICS } from '../../lib/graph2dSimulation'
 
-const PADRAO = { repelStrength: 2000, linkStiffness: 4, velocityDecay: 0.4, linkDistance: 30, centerForce: 100 }
+const PADRAO = {
+  repelStrength: 2000, linkStiffness: 4, velocityDecay: 0.4, linkDistance: 30, centerForce: 100,
+  collideRadius: 60, collideStrength: 0.5, recentroSeconds: 2, dragAlpha: 0.3,
+}
 
 describe('buildGraph2dSettings', () => {
   it('os defaults do app caem exatamente nos valores do Obsidian', () => {
@@ -13,6 +16,8 @@ describe('buildGraph2dSettings', () => {
     expect(s.centerStrength).toBeCloseTo(OBSIDIAN_PHYSICS.centerStrength, 10)
     expect(s.collideRadius).toBe(OBSIDIAN_PHYSICS.collideRadius)
     expect(s.collideStrength).toBe(OBSIDIAN_PHYSICS.collideStrength)
+    expect(s.alphaTargetDrag).toBe(OBSIDIAN_PHYSICS.alphaTargetDrag)
+    expect(s.recentroSeconds).toBe(2)
   })
 
   it('zero significa zero — nenhum controle tem piso', () => {

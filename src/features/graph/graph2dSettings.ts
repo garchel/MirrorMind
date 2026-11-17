@@ -25,6 +25,14 @@ export type Graph2dSliderValues = {
   linkDistance: number
   /** `graph2dCenterForce` (default 100). */
   centerForce: number
+  /** `graph2dCollideRadius` (default 60). */
+  collideRadius: number
+  /** `graph2dCollideStrength` (default 0.5). */
+  collideStrength: number
+  /** `graph2dRecentroSeconds` (default 2). */
+  recentroSeconds: number
+  /** `graph2dDragAlpha` (default 0.3). */
+  dragAlpha: number
 }
 
 export type Graph2dSimSettings = {
@@ -35,6 +43,8 @@ export type Graph2dSimSettings = {
   collideRadius: number
   collideStrength: number
   nodeSizeMultiplier: number
+  alphaTargetDrag: number
+  recentroSeconds: number
 }
 
 export function buildGraph2dSettings(values: Graph2dSliderValues): Graph2dSimSettings {
@@ -45,9 +55,10 @@ export function buildGraph2dSettings(values: Graph2dSliderValues): Graph2dSimSet
     linkStrength: values.linkStiffness / 4,
     repelStrength: (values.repelStrength / 2000) * 1000,
     centerStrength: (values.centerForce / 100) * 0.1,
-    // Estes tres nao tem slider: sao as constantes do `sim.js`.
-    collideRadius: 60,
-    collideStrength: 0.5,
+    collideRadius: values.collideRadius,
+    collideStrength: values.collideStrength,
     nodeSizeMultiplier: 1,
+    alphaTargetDrag: values.dragAlpha,
+    recentroSeconds: values.recentroSeconds,
   }
 }

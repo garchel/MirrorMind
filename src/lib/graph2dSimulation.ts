@@ -37,6 +37,10 @@ export type Graph2dSettings = {
   collideStrength: number
   /** Multiplicador do tamanho do no (Obsidian: `fNodeSizeMult`, default 1). */
   nodeSizeMultiplier: number
+  /** `alphaTarget` enquanto arrasta (Obsidian: 0.3). Menor = menos agitacao. */
+  alphaTargetDrag: number
+  /** Tempo (s) que o no recem-solto leva para voltar ao meio dos vizinhos. */
+  recentroSeconds: number
 }
 
 /** Constantes do `sim.js`, para os testes e para a UI partir delas. */
@@ -59,6 +63,8 @@ export const OBSIDIAN_PHYSICS = {
   alphaSleep: 0.001,
   /** `fNodeSizeMult` do Obsidian. */
   nodeSizeMultiplier: 1,
+  /** Tempo de volta ao centroide: escolha do app (nao existe no Obsidian). */
+  recentroSeconds: 2,
 } as const
 
 export const GRAPH2D_DEFAULT_SETTINGS: Graph2dSettings = {
@@ -69,6 +75,8 @@ export const GRAPH2D_DEFAULT_SETTINGS: Graph2dSettings = {
   collideRadius: OBSIDIAN_PHYSICS.collideRadius,
   collideStrength: OBSIDIAN_PHYSICS.collideStrength,
   nodeSizeMultiplier: OBSIDIAN_PHYSICS.nodeSizeMultiplier,
+  alphaTargetDrag: OBSIDIAN_PHYSICS.alphaTargetDrag,
+  recentroSeconds: OBSIDIAN_PHYSICS.recentroSeconds,
 }
 
 export type Graph2dLink = { source: string; target: string }
@@ -85,11 +93,7 @@ const COLISAO_SLOP = 8
 /** Teto do deslocamento total causado pela colisao em um passo. */
 const MAX_COLISAO_PASSO = 12
 
-const RECENTRO_TICKS = 260
-/** Ganho por tick da volta ao centroide. Com o freio 0.6 isso da ~3% da
- * distancia restante por frame: o no DESLIZA de volta (~1,3 s), em vez de
- * saltar (0.12 chegava em ~10 frames e parecia um teleporte). */
-const RECENTRO_FORCA = 0.004
+const RECENTRO_TICKS = 300
 
 const THETA2 = OBSIDIAN_PHYSICS.theta * OBSIDIAN_PHYSICS.theta
 const MAX_DEPTH = 14
@@ -149,7 +153,7 @@ export class Graph2dSimulation {
   alpha: number
   alphaTarget = 0
   /** No solto que esta voltando para o meio dos proprios vizinhos. */
-  private recentro: { index: number; restante: number } | null = null
+  private recentro: { index: number; restante: number; ganho: number } | null = null
 
   private readonly quad: Quad
   private readonly buckets = new Map<number, number[]>()
@@ -324,7 +328,9 @@ export class Graph2dSimulation {
     const accY = this.accY
     accX.fill(0)
     accY.fill(0)
-    const forca = settings.collideStrength
+    // Escala com alpha: com forca constante a colisao continuava empurrando
+    // com a simulacao quente (alpha 0.3) e o aglomerado ficava vibrando.
+    const forca = settings.collideStrength * alpha
     for (let i = 0; i < count; i += 1) {
       const cx = Math.floor(xs[i] / cellSize)
       const cy = Math.floor(ys[i] / cellSize)
@@ -408,8 +414,8 @@ export class Graph2dSimulation {
         const dx = sx / n - xs[index]
         const dy = sy / n - ys[index]
         if (dx * dx + dy * dy > 4) {
-          vxs[index] += dx * RECENTRO_FORCA
-          vys[index] += dy * RECENTRO_FORCA
+          vxs[index] += dx * this.recentro.ganho
+          vys[index] += dy * this.recentro.ganho
         }
       }
       this.recentro.restante -= 1
@@ -464,8 +470,8 @@ export class Graph2dSimulation {
     const index = this.indexByPath.get(path)
     if (index === undefined) return
     this.pinned.set(index, { x, y })
-    this.alphaTarget = OBSIDIAN_PHYSICS.alphaTargetDrag
-    if (this.alpha < OBSIDIAN_PHYSICS.alphaTargetDrag) this.alpha = OBSIDIAN_PHYSICS.alphaTargetDrag
+    this.alphaTarget = this.settings.alphaTargetDrag
+    if (this.alpha < this.settings.alphaTargetDrag) this.alpha = this.settings.alphaTargetDrag
   }
 
   /** `forceNode{x:null,y:null}` + alphaTarget 0.
@@ -482,7 +488,10 @@ export class Graph2dSimulation {
     this.pinned.delete(index)
     this.alphaTarget = 0
     // Um vizinho so nao tem "meio": empurraria o no para dentro dele.
-    this.recentro = this.degree[index] >= 2 ? { index, restante: RECENTRO_TICKS } : null
+    // Ganho derivado do tempo pedido: com o freio 0.6 a distancia percorrida
+    // por frame converge para ~0.03*ganho... na pratica 0.008/s da o tempo.
+    const ganho = 0.008 / Math.max(0.2, this.settings.recentroSeconds)
+    this.recentro = this.degree[index] >= 2 ? { index, restante: RECENTRO_TICKS, ganho } : null
   }
 
   reheat(value = 0.3): void {

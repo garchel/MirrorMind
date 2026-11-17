@@ -305,6 +305,14 @@ export function GraphPage({
     setGraph2dLinkDistance,
     graph2dCenterForce,
     setGraph2dCenterForce,
+    graph2dCollideRadius,
+    setGraph2dCollideRadius,
+    graph2dCollideStrength,
+    setGraph2dCollideStrength,
+    graph2dRecentroSeconds,
+    setGraph2dRecentroSeconds,
+    graph2dDragAlpha,
+    setGraph2dDragAlpha,
   } = graph
 
 
@@ -316,6 +324,10 @@ export function GraphPage({
     velocityDecay: graph2dVelocityDecay,
     linkDistance: graph2dLinkDistance,
     centerForce: graph2dCenterForce,
+    collideRadius: graph2dCollideRadius,
+    collideStrength: graph2dCollideStrength,
+    recentroSeconds: graph2dRecentroSeconds,
+    dragAlpha: graph2dDragAlpha,
   })
   const graphCanvasNeighbors = graphHoverNeighbors ?? graphFilterMatchPaths
 
@@ -394,6 +406,14 @@ export function GraphPage({
             setGraph2dLinkDistance={setGraph2dLinkDistance}
             graph2dCenterForce={graph2dCenterForce}
             setGraph2dCenterForce={setGraph2dCenterForce}
+            graph2dCollideRadius={graph2dCollideRadius}
+            setGraph2dCollideRadius={setGraph2dCollideRadius}
+            graph2dCollideStrength={graph2dCollideStrength}
+            setGraph2dCollideStrength={setGraph2dCollideStrength}
+            graph2dRecentroSeconds={graph2dRecentroSeconds}
+            setGraph2dRecentroSeconds={setGraph2dRecentroSeconds}
+            graph2dDragAlpha={graph2dDragAlpha}
+            setGraph2dDragAlpha={setGraph2dDragAlpha}
             updateNumberSetting={updateNumberSetting}
             showGraphOrphans={showGraphOrphans}
             setShowGraphOrphans={setShowGraphOrphans}
