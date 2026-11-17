@@ -1310,7 +1310,11 @@ describe('Regressao do editor no workspace', () => {
     expect(screen.getByRole('textbox', { name: 'Buscar nota no grafo' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Filtro do grafo por pasta e tag' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Reorganizar nos' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Aproximar grafo' })).toBeInTheDocument()
+    // O zoom saiu da barra e mora no controlador DEV (mesma barra nos dois modos).
+    expect(screen.queryByRole('button', { name: 'Aproximar grafo' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Controles de desenvolvimento do grafo' }))
+    expect(await screen.findByRole('button', { name: 'Aproximar grafo' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
     await user.click(screen.getByRole('button', { name: 'Abrir nota alvo no grafo' }))
 
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('read_note', expect.objectContaining({ relativePath: 'alvo.md' })))

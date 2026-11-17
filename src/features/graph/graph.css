@@ -19,10 +19,11 @@
   align-items: center;
   justify-content: flex-start;
   gap: 7px;
-  /* Largura fixa (nao shrink-to-fit): com o grupo de acoes empurrado por
-     `margin-left: auto`, a barra precisa de largura propria para as duas
-     pontas aparecerem — filtro a esquerda, camera/menu a direita. */
-  width: min(94%, 1080px);
+  /* Largura = conteudo. Com o zoom fora da barra (foi para o controlador DEV)
+     sobrava um vao morto no meio quando ela era fixa em 1080px; agora a barra
+     encolhe junto com o que tem dentro e fica centralizada. */
+  width: max-content;
+  max-width: min(94%, 1080px);
   padding: 8px 10px;
   border: 1px solid rgb(28 36 39 / 14%);
   border-radius: var(--radius-lg);

@@ -641,6 +641,16 @@ function App() {
   const [graphPrimaryTag, setGraphPrimaryTag] = useState('')
   const [graphColorOverrides, setGraphColorOverrides] = useState<Record<string, string>>({})
   const [graphExportScale, setGraphExportScale] = useState(2)
+  // Camera do grafo 2D: o zoom e comandado pelo controlador DEV, mas quem
+  // desenha e o canvas. O estado mora aqui para os dois lados verem o mesmo
+  // numero (antes vivia na GraphPage, fora do alcance do controlador).
+  const [graph2dZoom, setGraph2dZoom] = useState(1)
+  const [graph2dZoomCommand, setGraph2dZoomCommand] = useState<{ id: number; type: 'in' | 'out' | 'reset' } | null>(null)
+  const graph2dZoomIdRef = useRef(0)
+  const comandarZoom2d = (type: 'in' | 'out' | 'reset') => {
+    graph2dZoomIdRef.current += 1
+    setGraph2dZoomCommand({ id: graph2dZoomIdRef.current, type })
+  }
   const [graphExportRequest, setGraphExportRequest] = useState<Graph3DExportRequest | null>(null)
   const graphExportRequestIdRef = useRef(0)
   // Espelho das configuracoes do grafo 2D para o loop rAF da fisica (lido em
@@ -5889,6 +5899,9 @@ function App() {
                 }}
                 view={{
                   loading: isGraphLoading,
+                  zoom: graph2dZoom,
+                  setZoom: setGraph2dZoom,
+                  zoomCommand: graph2dZoomCommand,
                   loadProgress: graphLoadProgress,
                   uiVisible: graphUiVisible,
                   setUiVisible: setGraphUiVisible,
@@ -5929,6 +5942,7 @@ function App() {
                   tagIndexRef: graphTagIndexRef,
                 }}
                 actions={{
+                  zoom: comandarZoom2d,
                   poke: pokeGraphUi,
                   resetView: resetGraphView,
                   handle3dExport: handleGraph3dExport,
@@ -6458,6 +6472,11 @@ function App() {
             scale: graphExportScale,
             setScale: setGraphExportScale,
             run: handleGraphExport,
+          }}
+          camera={{
+            zoom: graph2dZoom,
+            command: comandarZoom2d,
+            disabled: graphMode3d,
           }}
           graphMode={{
             mode: graphMode,

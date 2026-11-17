@@ -1,4 +1,4 @@
-import { Suspense, lazy, useRef, useState, type Dispatch, type PointerEvent, type RefObject, type SetStateAction } from 'react'
+import { Suspense, lazy, type Dispatch, type PointerEvent, type RefObject, type SetStateAction } from 'react'
 import { Button } from '../../components/ui/Button'
 import { ExternalLink, Link2, Network, PanelLeft, X } from 'lucide-react'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../components/ui/drawer'
@@ -87,6 +87,10 @@ export type GraphFilters = {
 /** Estado visual: loading, toolbar, exportação, 3D e viewport. */
 export type GraphView = {
   loading: boolean
+  /** Zoom atual da camera do canvas 2D (1 = 100%) e o comando vindo do DEV. */
+  zoom: number
+  setZoom: (zoom: number) => void
+  zoomCommand: { id: number; type: 'in' | 'out' | 'reset' } | null
   loadProgress: number | null
   uiVisible: boolean
   setUiVisible: (visible: boolean) => void
@@ -134,6 +138,7 @@ export type GraphRefs = {
 
 /** Ações: callbacks do App (sem estado). */
 export type GraphActions = {
+  zoom: (type: 'in' | 'out' | 'reset') => void
   poke: () => void
   resetView: () => void
   handle3dExport: (requestId: number, scene: Graph3DExportScene | null) => void
@@ -229,6 +234,8 @@ export function GraphPage({
     layoutVersion: graph3dLayoutVersion,
     mode3d: graphMode3d,
     setMode3d: setGraphMode3d,
+    setZoom: setGraph2dZoom,
+    zoomCommand: graph2dZoomCommand,
   } = view
   const {
     focusedPath: focusedGraphPath,
@@ -280,17 +287,6 @@ export function GraphPage({
     graph2dLabelZoom,
   } = graph
 
-
-  // Zoom da camera do canvas 2D: exibido no menu e comandado pelos botoes
-  // + / - / Centralizar da barra (antes eles mexiam no viewport do grafo
-  // antigo, que nao existe mais neste caminho).
-  const [graph2dZoom, setGraph2dZoom] = useState(1)
-  const [graph2dZoomCommand, setGraph2dZoomCommand] = useState<{ id: number; type: 'in' | 'out' | 'reset' } | null>(null)
-  const graph2dZoomIdRef = useRef(0)
-  const comandarZoom2d = (type: 'in' | 'out' | 'reset') => {
-    graph2dZoomIdRef.current += 1
-    setGraph2dZoomCommand({ id: graph2dZoomIdRef.current, type })
-  }
 
   // Fisica do Obsidian: os sliders do app sao convertidos para a escala do
   // simulador (link 250, repulsao -1000, centro 0.1) sem piso nenhum.
@@ -346,8 +342,6 @@ export function GraphPage({
             graphFilterMatchPaths={graphFilterMatchPaths}
             graphQuery={graphQuery}
             setGraphQuery={setGraphQuery}
-            graph2dZoom={graph2dZoom}
-            onGraph2dZoomCommand={comandarZoom2d}
             graphSettingsOpen={graphSettingsOpen}
             setGraphSettingsOpenSynced={setGraphSettingsOpenSynced}
             showGraphOrphans={showGraphOrphans}

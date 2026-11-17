@@ -66,6 +66,16 @@ export type DevGraphMode = {
   setLocalDepth: (depth: number) => void
 }
 
+/** Camera do canvas 2D: zoom e enquadramento. Saiu da barra do grafo (onde
+ * pesava e so existia no modo 2D) e mora aqui — por isso o menu fica igual nos
+ * dois modos. */
+export type DevCamera = {
+  zoom: number
+  command: (type: 'in' | 'out' | 'reset') => void
+  /** Verdadeiro no modo 3D: a camera do canvas 2D nao esta na tela. */
+  disabled: boolean
+}
+
 export type DevExport = {
   scale: number
   setScale: (next: number) => void
@@ -79,6 +89,7 @@ export type DevControlsProps = {
   graph2d?: DevGraph2dSettings
   graph3d?: DevGraph3dSettings
   exportTools?: DevExport
+  camera?: DevCamera
   graphMode?: DevGraphMode
   updateNumberSetting?: (raw: string, current: number, min: number, max: number) => number
 }
@@ -102,7 +113,7 @@ function getInitialPosition() {
  * o limite de renderização. O que ficou no menu normal do grafo é só o que não
  * quebra nada: exibição, nomes, agrupamento e cores.
  */
-export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, exportTools, graphMode, updateNumberSetting }: DevControlsProps) {
+export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, exportTools, camera, graphMode, updateNumberSetting }: DevControlsProps) {
   const [position, setPosition] = useState(getInitialPosition)
   const [isDragging, setIsDragging] = useState(false)
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
@@ -190,7 +201,7 @@ export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, export
           <span className="dev-controls-switch-label">Friendly names</span>
         </label>
 
-        {graph2d || graph3d || exportTools || graphMode ? (
+        {graph2d || graph3d || exportTools || camera || graphMode ? (
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -233,6 +244,23 @@ export function DevControls({ enabled, onEnabledChange, graph2d, graph3d, export
                       </Field>
                     </label>
                   ) : null}
+                </section>
+              ) : null}
+
+              {camera ? (
+                <section className="dev-settings-group" aria-label="Câmera do grafo 2D">
+                  <p className="dev-settings-group-title">Câmera (2D)</p>
+                  <div className="dev-camera">
+                    <Button type="button" variant="secondary" size="sm" onClick={() => camera.command('out')} disabled={camera.disabled} aria-label="Afastar grafo">−</Button>
+                    <span className="dev-camera-zoom" role="status" aria-label="Nível de zoom do grafo">{Math.round(camera.zoom * 100)}%</span>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => camera.command('in')} disabled={camera.disabled} aria-label="Aproximar grafo">+</Button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => camera.command('reset')} disabled={camera.disabled} aria-label="Centralizar grafo">Centralizar</Button>
+                  </div>
+                  <p className="dev-settings-hint">
+                    {camera.disabled
+                      ? 'No modo 3D a câmera é controlada pela órbita do mouse.'
+                      : 'Também vale com o mouse sobre o grafo: a roda aproxima e o fundo arrastado desloca.'}
+                  </p>
                 </section>
               ) : null}
 

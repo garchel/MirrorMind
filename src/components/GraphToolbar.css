@@ -223,3 +223,122 @@
   font-weight: 700;
   text-shadow: 0 0 8px rgb(143 227 255 / 65%);
 }
+
+/* --- Ritmo do header: uma altura e um gap para todos os controles ---------
+ * Antes cada peca tinha a sua: 2D/3D 28px, filtros 30px, busca 36px e o
+ * cluster de zoom 24px. O zoom parecia de outro componente e a busca, mais
+ * alta, dominava a barra. Tudo passa a ler `--graph-ctl`. */
+
+.workspace-shell .graph-immersive-header {
+  --graph-ctl: 30px;
+  gap: 8px;
+  padding: 7px 9px;
+}
+
+.workspace-shell .graph-immersive-header .graph-dimension-toggle {
+  height: var(--graph-ctl);
+  padding: 3px;
+  border-radius: 8px;
+}
+
+.workspace-shell .graph-immersive-header .graph-dimension-toggle :where(button, .ui-button) {
+  min-height: calc(var(--graph-ctl) - 6px);
+  padding: 0 11px;
+  border-radius: 6px;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-select {
+  height: var(--graph-ctl);
+  padding: 0 8px;
+  border-radius: 8px;
+}
+
+.workspace-shell .graph-immersive-header .graph-icon-button {
+  width: var(--graph-ctl);
+  height: var(--graph-ctl);
+}
+
+.workspace-shell .graph-immersive-header .graph-header-actions {
+  gap: 8px;
+}
+
+/* --- Busca: lupa dentro do campo, sem borda dura -------------------------- */
+
+.workspace-shell .graph-immersive-header .graph-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--graph-ctl);
+  padding: 0 9px;
+  border: 1px solid rgb(28 36 39 / 13%);
+  border-radius: 9px;
+  background: rgb(255 253 248 / 92%);
+  color: var(--mm-ink-700-3);
+  overflow: hidden;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.workspace-shell .graph-immersive-header .graph-search:focus-within {
+  border-color: var(--mm-sage-850);
+  box-shadow: 0 0 0 3px rgb(63 107 76 / 14%);
+}
+
+.workspace-shell .graph-immersive-header .graph-search > svg {
+  flex: 0 0 auto;
+}
+
+.workspace-shell .graph-immersive-header .graph-search .graph-search-input {
+  width: 190px;
+  /* O `ui-field--sm` mede 36px e vence por especificidade: sem zerar o
+     min-height o campo estoura a caixa de 30px e a barra volta a ter duas
+     alturas (medido no AX: 36px contra 30px dos vizinhos). */
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--mm-ink-950-11);
+  font: 12px var(--sans);
+}
+
+.workspace-shell .graph-immersive-header .graph-search .graph-search-input:focus,
+.workspace-shell .graph-immersive-header .graph-search .graph-search-input:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+
+/* --- Alinhamento fino: divisor, grupo de filtro e engrenagem --------------
+ * O respiro em volta do divisor vinha do `margin` das regras antigas somado ao
+ * `gap` do header, e o grupo de filtro tinha padding assimetrico (9px/6px) e
+ * gap 2px entre dois triggers com 4px de padding cada — o vao entre pastas e
+ * tags ficava maior que os outros. */
+
+.workspace-shell .graph-immersive-header {
+  padding: 8px;
+}
+
+.workspace-shell .graph-immersive-header .graph-header-sep {
+  width: 1px;
+  height: 18px;
+  align-self: center;
+  margin: 0;
+  background: rgb(28 36 39 / 12%);
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-group {
+  height: var(--graph-ctl);
+  gap: 0;
+  padding: 0 8px 0 10px;
+}
+
+.workspace-shell .graph-immersive-header .graph-filter-group .graph-filter-select {
+  padding: 0 6px;
+}
+
+.workspace-shell .graph-immersive-header .graph-icon-button {
+  padding: 0;
+  place-items: center;
+}

@@ -233,3 +233,30 @@
   font: 12px/1.25 var(--mono);
   pointer-events: none;
 }
+
+/* --- Camera 2D dentro do painel DEV -------------------------------------- */
+
+.dev-camera {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dev-camera-zoom {
+  min-width: 46px;
+  padding: 0 6px;
+  border: 1px solid rgba(28, 36, 39, 0.12);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 253, 248, 0.8);
+  color: var(--mm-ink-950-11);
+  font: 600 var(--font-size-caption) var(--mono);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.dev-settings-hint {
+  margin: 2px 0 0;
+  color: var(--mm-ink-700-3);
+  font-size: 10px;
+  line-height: 1.35;
+}

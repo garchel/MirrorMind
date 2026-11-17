@@ -1,7 +1,7 @@
 import { useMemo, type Dispatch, type SetStateAction } from 'react'
 import { Button } from './ui/Button'
 import { Field } from './ui/Field'
-import { Eye, Folder, Hash, Info, ListFilter, Palette, Settings, X } from 'lucide-react'
+import { Eye, Folder, Hash, Info, ListFilter, Palette, Search, Settings, X } from 'lucide-react'
 import type { TagIndex } from '../lib/tagIndex'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { GraphFilterSelect } from './GraphFilterSelect'
@@ -29,9 +29,6 @@ export type GraphToolbarProps = {
   setGraphQuery: Dispatch<SetStateAction<string>>
   graphSettingsOpen: boolean
   setGraphSettingsOpenSynced: (open: boolean) => void
-  /** Zoom atual da camera do canvas 2D (1 = 100%). */
-  graph2dZoom: number
-  onGraph2dZoomCommand: (type: 'in' | 'out' | 'reset') => void
   showGraphOrphans: boolean
   setShowGraphOrphans: Dispatch<SetStateAction<boolean>>
   showOnlyGraphOrphans: boolean
@@ -69,8 +66,6 @@ export function GraphToolbar(props: GraphToolbarProps) {
     setGraphQuery,
     graphSettingsOpen,
     setGraphSettingsOpenSynced,
-    graph2dZoom,
-    onGraph2dZoomCommand,
     showGraphOrphans,
     setShowGraphOrphans,
     showOnlyGraphOrphans,
@@ -137,17 +132,13 @@ export function GraphToolbar(props: GraphToolbarProps) {
 
       {/* --- grupo 2: buscar, camera e menu, colados na direita --- */}
       <div className="graph-header-actions">
-        <Field size="sm" value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
-        {!graphMode3d ? (
-          <span className="graph-zoom-cluster" aria-label="Zoom do grafo">
-            <Button type="button" variant="secondary" size="md" onClick={() => onGraph2dZoomCommand('out')} aria-label="Afastar grafo">−</Button>
-            <span className="graph-zoom-value" role="status" aria-label="Nível de zoom do grafo">
-              {Math.round(graph2dZoom * 100)}%
-            </span>
-            <Button type="button" variant="secondary" size="md" onClick={() => onGraph2dZoomCommand('in')} aria-label="Aproximar grafo">+</Button>
-            <Button type="button" variant="secondary" size="md" onClick={() => onGraph2dZoomCommand('reset')} aria-label="Centralizar grafo">Centralizar</Button>
-          </span>
-        ) : null}
+        {/* Busca: lupa dentro do campo, largura flexivel e sem borda dura. O
+            zoom e o "Centralizar" saíram daqui para o controlador DEV — por isso
+            a barra fica identica nos dois modos (2D e 3D). */}
+        <span className="graph-search">
+          <Search size={13} strokeWidth={2} aria-hidden="true" />
+          <Field size="sm" className="graph-search-input" value={graphQuery} onChange={(event) => setGraphQuery(event.target.value)} placeholder="Buscar nota" aria-label="Buscar nota no grafo" />
+        </span>
         <Popover open={graphSettingsOpen} onOpenChange={setGraphSettingsOpenSynced}>
           <PopoverTrigger asChild>
             <Button type="button" variant="secondary" size="md" className="graph-icon-button graph-settings-button" aria-label="Configurações do grafo" title="Configurações do grafo">
