@@ -27,9 +27,12 @@
   padding: 8px 10px;
   border: 1px solid rgb(28 36 39 / 14%);
   border-radius: var(--radius-lg);
-  background: rgb(251 250 246 / 88%);
+  /* Sem `backdrop-filter`: o desfoque promove uma camada composta grande em
+     cima de um canvas que redesenha a 60fps, e no WebView2/Windows isso
+     coincide com o cursor do SO perdendo o contorno preto (bug conhecido de
+     MPO). Fundo quase opaco entrega o mesmo efeito sem a camada extra. */
+  background: rgb(251 250 246 / 97%);
   box-shadow: 0 10px 30px rgb(44 54 45 / 18%);
-  backdrop-filter: blur(10px);
   transform: translateX(-50%);
   transition: opacity 220ms ease, transform 220ms ease;
 }
@@ -73,9 +76,8 @@
   padding: 5px 10px;
   border: 1px solid rgb(28 36 39 / 14%);
   border-radius: 999px;
-  background: rgb(251 250 246 / 85%);
+  background: rgb(251 250 246 / 96%);
   box-shadow: 0 6px 18px rgb(44 54 45 / 14%);
-  backdrop-filter: blur(10px);
   color: var(--mm-ink-850-14);
   font-size: var(--font-size-caption);
   white-space: nowrap;
@@ -113,9 +115,8 @@
   padding: 8px 10px;
   border: 1px solid rgb(28 36 39 / 14%);
   border-radius: var(--radius-lg);
-  background: rgb(251 250 246 / 88%);
+  background: rgb(251 250 246 / 96%);
   box-shadow: 0 6px 18px rgb(44 54 45 / 14%);
-  backdrop-filter: blur(10px);
 }
 
 .workspace-shell .graph-group-legend-row {

@@ -23,9 +23,16 @@ describe('shouldRepaintCursor', () => {
     expect(shouldRepaintCursor('text', 'auto')).toBe(true)
   })
 
-  it('nao dispara em transicoes fora do I-beam nem na primeira leitura', () => {
+  it('dispara em qualquer troca de forma — inclusive grab -> grabbing', () => {
+    // Era o buraco: o filtro antigo so olhava `text`, e arrastar um no no
+    // grafo (grab -> grabbing no pointerdown) ficava sem repintura.
+    expect(shouldRepaintCursor('grab', 'grabbing')).toBe(true)
+    expect(shouldRepaintCursor('auto', 'pointer')).toBe(true)
+    expect(shouldRepaintCursor('default', 'crosshair')).toBe(true)
+  })
+
+  it('nao dispara na primeira leitura nem quando a forma nao muda', () => {
     expect(shouldRepaintCursor(null, 'text')).toBe(false)
-    expect(shouldRepaintCursor('auto', 'pointer')).toBe(false)
     expect(shouldRepaintCursor('text', 'text')).toBe(false)
   })
 })
@@ -78,6 +85,18 @@ describe('installCursorRepaint', () => {
     // Movimento continuo dentro do I-beam nao reemite.
     for (let i = 0; i < 5; i++) moveOver(texto)
     expect(nudgeCount()).toBe(1)
+  })
+
+  it('reemite no pointerdown (arrasto de no: grab -> grabbing)', () => {
+    cleanup = installCursorRepaint()
+    const no = styled('grab')
+    vi.advanceTimersByTime(100)
+    moveOver(no)
+    const antes = nudgeCount()
+
+    no.style.cursor = 'grabbing'
+    no.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    expect(nudgeCount()).toBe(antes + 1)
   })
 
   it('reemite quando um portal e anexado ao body sob o ponteiro', async () => {

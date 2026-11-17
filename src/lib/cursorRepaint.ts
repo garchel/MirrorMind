@@ -37,10 +37,18 @@ import { nudgeCursor } from './nudgeCursor'
 export const CURSOR_CHECK_INTERVAL_MS = 80
 export const CURSOR_NUDGE_INTERVAL_MS = 120
 
-/** So a transicao para/de I-beam e o gatilho conhecido do cursor branco. */
+/**
+ * Qualquer TROCA de forma vale, nao so o I-beam.
+ *
+ * O gatilho do cursor branco no WebView2 e o compositor trocar o bitmap do
+ * cursor (seta -> I-beam, mao aberta -> mao fechada) com uma camada composta
+ * embaixo. O filtro anterior olhava so `text` e por isso o arrasto de no no
+ * grafo 2D (grab -> grabbing, no pointerdown) ficava de fora — e era o caso
+ * mais visivel do bug.
+ */
 export function shouldRepaintCursor(previous: string | null, next: string): boolean {
   if (previous === null || previous === next) return false
-  return previous === 'text' || next === 'text'
+  return true
 }
 
 /** Instala os vigias; devolve a funcao de limpeza (para o useEffect). */
@@ -79,9 +87,15 @@ export function installCursorRepaint(): () => void {
   })
   observer.observe(document.body, { childList: true })
 
+  // Pressionar o botao tambem troca a forma (`grab` -> `grabbing`) sem que o
+  // ponteiro se mova: arrastar um no no grafo 2D e exatamente este caminho.
+  const onPointerDown = () => nudge()
+
   document.addEventListener('pointermove', onPointerMove, true)
+  document.addEventListener('pointerdown', onPointerDown, true)
   return () => {
     document.removeEventListener('pointermove', onPointerMove, true)
+    document.removeEventListener('pointerdown', onPointerDown, true)
     observer.disconnect()
   }
 }
