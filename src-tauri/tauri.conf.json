@@ -20,7 +20,8 @@
         "resizable": true,
         "fullscreen": false,
         "maximized": true,
-        "decorations": false
+        "decorations": false,
+        "additionalBrowserArgs": "--disable-gpu-compositing --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"
       }
     ],
     "security": {
@@ -29,7 +30,11 @@
   },
   "plugins": {
     "deep-link": {
-      "desktop": { "schemes": ["mirrormind"] }
+      "desktop": {
+        "schemes": [
+          "mirrormind"
+        ]
+      }
     },
     "updater": {
       "endpoints": [
