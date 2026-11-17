@@ -223,9 +223,10 @@
 }
 
 /* Fundo alternativo da area da nota (controlador DEV): o mesmo papel pontilhado
- * do canvas do grafo 2D. So troca a superficie que o editor pinta; texto, fonte
- * e cores internas continuam iguais. */
-.workspace-shell[data-editor-bg='graph'] .editor-surface {
+ * do canvas do grafo 2D. Aplicado em `.editor-content` (a area de escrita) e
+ * nao em `.editor-surface` — a superficie inclui o cabecalho da nota (titulo,
+ * tags, modo de visualizacao), que deve continuar no papel liso. */
+.workspace-shell[data-editor-bg='graph'] .editor-content {
   background-color: var(--mm-gold-50);
   background-image: radial-gradient(var(--mm-ink-350-3) 0.75px, transparent 0.75px);
   background-size: 16px 16px;
