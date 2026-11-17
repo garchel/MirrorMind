@@ -964,11 +964,11 @@
   background-color: var(--mm-gold-50);
   background-image: radial-gradient(var(--mm-ink-350-3) 0.75px, transparent 0.75px);
   background-size: 16px 16px;
-  cursor: var(--cursor-grab);
+  cursor: grab;
   touch-action: none;
 }
 
-.workspace-shell .note-graph:active { cursor: var(--cursor-grabbing); }
+.workspace-shell .note-graph:active { cursor: grabbing; }
 
 /* Alternador 2D/3D do grafo (segmentado, como o controle de modo do editor). */
 .workspace-shell .graph-dimension-toggle {
@@ -1008,7 +1008,7 @@
   min-height: 0;
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 42%, var(--mm-azure-950-3) 0%, var(--mm-azure-950-2) 62%, var(--mm-azure-950) 100%);
-  cursor: var(--cursor-grab);
+  cursor: grab;
   touch-action: none;
 }
 
@@ -1569,14 +1569,14 @@
   display: block;
   width: 100%;
   height: 100%;
-  cursor: var(--cursor-grab);
+  cursor: grab;
   /* O canvas trata pan/zoom; sem isto o navegador rola/pinça a pagina. */
   touch-action: none;
   outline: none;
 }
 
 .workspace-shell .graph2d-canvas:active {
-  cursor: var(--cursor-grabbing);
+  cursor: grabbing;
 }
 
 .workspace-shell .graph2d-canvas:focus-visible {
