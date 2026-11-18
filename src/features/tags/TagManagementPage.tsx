@@ -697,9 +697,14 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   <p className="card-kicker">{mode === 'create' ? 'Nova tag' : 'Editando tag'}</p>
                   <h3>{mode === 'create' ? 'Defina a tag e seu ritmo' : `#${selectedTag}`}</h3>
                 </div>
-                <Button type="button" variant="secondary" size="md" className="tag-icon-button" onClick={cancelEditing} disabled={busy} aria-label="Cancelar edição">
-                  <X size={16} aria-hidden="true" />
-                </Button>
+                {/* No modo criar nao ha nada a descartar: o "Cancelar" do rodape
+                    ja sai do formulario, e um X no titulo viraria o terceiro
+                    caminho para a mesma saida. */}
+                {mode === 'edit' ? (
+                  <Button type="button" variant="secondary" size="md" className="tag-icon-button" onClick={cancelEditing} disabled={busy} aria-label="Cancelar edição">
+                    <X size={16} aria-hidden="true" />
+                  </Button>
+                ) : null}
               </div>
 
               <div className="tag-form">

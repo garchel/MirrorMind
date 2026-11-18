@@ -171,10 +171,15 @@
 
 /* O foco dos campos emoldurados e desenhado NA moldura: o input nao tem
  * borda propria, entao um anel nele fica solto dentro da caixa. */
-.tag-name-field > div:focus-within,
-.tag-policy-fields label > div:focus-within {
+.tag-policy-fields label > div:focus-within,
+.tag-deadline-field > div:focus-within {
   border-color: var(--tag-accent);
   box-shadow: 0 0 0 3px rgb(115 137 121 / 14%);
+}
+
+/* Sem caixa, o foco do nome vai na linha de base. */
+.tag-name-field > div:focus-within {
+  border-bottom-color: var(--tag-accent);
 }
 
 .tag-tree-summary {
@@ -643,14 +648,18 @@
   gap: 6px;
 }
 
+/* O nome da tag nao e uma caixa: e texto em linha, na altura do titulo do
+ * formulario. Sem moldura, sem fundo, sem raio — so uma linha de base que
+ * acende no foco (o foco precisa continuar visivel). */
 .tag-name-field > div {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px;
-  border: 1px solid var(--mm-clay-400);
-  border-radius: var(--radius-md);
-  background: var(--tag-surface);
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--mm-clay-400);
+  border-radius: 0;
+  background: transparent;
 }
 
 .tag-name-field input {
