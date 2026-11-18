@@ -206,7 +206,20 @@ export function SettingsPage({
   return (
     <section ref={settingsScrollRef} className="workspace-page" data-builder-name="settings-page">
       <div className="settings-layout">
-        <nav className="settings-nav" aria-label="Seções das configurações">
+        {/* A busca nao e navegacao: fica na coluna, fora do <nav>. */}
+        <div className="settings-sidebar">
+          <div className="settings-search">
+            <Search size={14} aria-hidden="true" />
+            <Field
+              size="sm"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar"
+              aria-label="Buscar configuração"
+            />
+          </div>
+          <nav className="settings-nav" aria-label="Seções das configurações">
+
           {SETTINGS_GROUPS.map((group) => (
             <div key={group.id} className="settings-nav-group" role="group" aria-label={group.label}>
               <p className="settings-nav-group-label" aria-hidden="true">{group.label}</p>
@@ -235,24 +248,16 @@ export function SettingsPage({
                 ))}
             </div>
           ))}
-        </nav>
+          </nav>
+        </div>
 
         <SettingsSearchContext.Provider value={{ query }}>
           <div className="settings-content" data-searching={query.trim() !== ''}>
-            <p className="card-kicker">Configurações</p>
-            <h2>Configurações do aplicativo</h2>
-            <p>Personalize a escrita, a leitura, a revisão e o comportamento do app.</p>
-
-            <div className="settings-toolbar">
-              <div className="settings-search">
-                <Search size={15} aria-hidden="true" />
-                <Field
-                  size="sm"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Buscar configuração"
-                  aria-label="Buscar configuração"
-                />
+            <header className="settings-page-header">
+              <div>
+                <p className="card-kicker">Configurações</p>
+                <h2>Configurações do aplicativo</h2>
+                <p>Personalize a escrita, a leitura, a revisão e o comportamento do app.</p>
               </div>
               <Button
                 type="button"
@@ -260,12 +265,12 @@ export function SettingsPage({
                 size="md"
                 onClick={resetInterface}
                 disabled={!anyInterfaceChange}
-                title="Volta aparência, editor e leitura ao padrão de fábrica"
+                title="Volta Aparência, Editor e Leitura aos padrões de fábrica"
               >
                 <RotateCcw size={14} aria-hidden="true" />
-                Restaurar aparência
+                Restaurar interface
               </Button>
-            </div>
+            </header>
 
             <p className="settings-empty" role="status">
               Nenhuma configuração corresponde a “{query}”.

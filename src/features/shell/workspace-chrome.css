@@ -650,17 +650,23 @@ label.settings-toggle {
   max-width: 1120px;
 }
 
-.settings-nav {
+/* Coluna da esquerda: busca + menu, com rolagem propria em janelas baixas. */
+.settings-sidebar {
   position: sticky;
   top: 0;
   display: grid;
-  gap: 16px;
+  gap: 14px;
   align-content: start;
-  /* Menu com rolagem propria em janelas baixas: nunca empurra o conteudo. */
   max-height: calc(100dvh - var(--titlebar-h, 40px) - 112px);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-bottom: 4px;
+}
+
+.settings-nav {
+  display: grid;
+  gap: 16px;
+  align-content: start;
 }
 
 .settings-nav-group {
@@ -858,27 +864,34 @@ label.settings-toggle {
 }
 
 /* Barra da busca + restaurar */
-.settings-toolbar {
+/* Cabecalho da pagina: titulo à esquerda, acao de restaurar à direita. */
+.settings-page-header {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
   width: min(720px, 100%);
-  margin-top: 14px;
 }
 
-/* A busca e a acao da pagina nao sao a mesma coisa: o botao vai para a ponta,
- * longe da caixa onde se digita. */
-.settings-toolbar > .ui-button {
-  margin-left: auto;
+.settings-page-header > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
 }
 
+.settings-page-header > .ui-button {
+  flex-shrink: 0;
+  margin-top: 22px;
+}
+
+/* Busca no alto da barra lateral: filtra a propria lista de secoes. */
 .settings-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
+  width: 100%;
   min-width: 0;
-  padding: 0 12px;
+  padding: 0 10px;
   border: 1px solid var(--mm-ink-350-3);
   border-radius: var(--radius-md);
   background: var(--mm-gold-50);
@@ -890,9 +903,14 @@ label.settings-toggle {
   box-shadow: 0 0 0 3px rgb(115 137 121 / 14%);
 }
 
+.settings-search input:focus-visible {
+  outline: none;
+  border-color: transparent;
+}
+
 .settings-search input {
   width: 100%;
-  min-height: 36px;
+  min-height: 34px;
   padding: 0;
   border: 0;
   outline: 0;
@@ -1032,7 +1050,10 @@ label.settings-toggle {
 }
 
 .settings-select {
-  min-width: 140px;
+  /* Largura do proprio conteudo: "Serif" nao precisa de 140px de caixa. */
+  min-width: 0;
+  max-width: 240px;
+  width: auto;
   min-height: 36px;
   padding: 0 30px 0 12px;
   border: 1px solid var(--mm-ink-350-3);
