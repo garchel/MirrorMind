@@ -6,8 +6,9 @@ export type ReviewAiProvider = 'gemini' | 'ollama' | 'openAiCompatible' | 'manag
 const aiConfigurationSchema = z.object({
   geminiConfigured: z.boolean(),
   geminiModel: z.string().min(1),
-  ollamaEndpoint: z.literal('http://127.0.0.1:11434/v1'),
-  ollamaModel: z.literal('qwen2.5:7b'),
+  // Endereco e modelo do Ollama local: configurados pelo usuario.
+  ollamaEndpoint: z.string().min(1),
+  ollamaModel: z.string().min(1),
   openAiCompatibleConfigured: z.boolean(),
   openAiCompatibleBaseUrl: z.string().nullable(),
   openAiCompatibleModel: z.string().nullable(),

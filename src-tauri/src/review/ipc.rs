@@ -12,8 +12,10 @@ use super::credentials::{
     credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
     delete_typesafe_api_key, has_gemini_consent, has_openai_compatible_consent,
     has_typesafe_consent, load_gemini_api_key, load_openai_compatible_provider,
-    load_typesafe_api_key, save_gemini_api_key, save_openai_compatible_provider,
-    save_typesafe_api_key, set_gemini_consent, set_openai_compatible_consent, set_typesafe_consent,
+    load_ollama_local_configuration, load_typesafe_api_key, save_gemini_api_key,
+    save_openai_compatible_provider,
+    save_ollama_local_configuration, save_typesafe_api_key, set_gemini_consent,
+    set_openai_compatible_consent, set_typesafe_consent,
     NativeCredentialStore,
 };
 use super::dashboard::{build_vault_review_dashboard, VaultReviewDashboard};
@@ -331,8 +333,10 @@ fn vision_describer_for_selection(
 pub struct AiConfiguration {
     gemini_configured: bool,
     gemini_model: &'static str,
-    ollama_endpoint: &'static str,
-    ollama_model: &'static str,
+    /// Endereco e modelo do Ollama local: configurados pelo usuario, com os
+    /// padroes compilados como resposta quando ainda nao ha configuracao.
+    ollama_endpoint: String,
+    ollama_model: String,
     open_ai_compatible_configured: bool,
     open_ai_compatible_base_url: Option<String>,
     open_ai_compatible_model: Option<String>,
@@ -375,6 +379,15 @@ pub struct SegmentationRecalcProgress {
     pub changed: usize,
 }
 
+/// Endereco e modelo do Ollama local. Nao ha chave: o servico roda na maquina
+/// do usuario (ou na rede privada dele).
+#[tauri::command]
+pub fn set_ollama_local_configuration(endpoint: String, model: String) -> Result<AiConfiguration, String> {
+    save_ollama_local_configuration(&NativeCredentialStore::new(), &endpoint, &model)
+        .map_err(|error| error.to_string())?;
+    get_review_ai_configuration()
+}
+
 #[tauri::command]
 pub fn get_review_ai_configuration() -> Result<AiConfiguration, String> {
     let store = NativeCredentialStore::new();
@@ -382,11 +395,14 @@ pub fn get_review_ai_configuration() -> Result<AiConfiguration, String> {
     let open_ai_compatible = load_openai_compatible_provider(&store)
         .map_err(|error| error.to_string())?
         .map(|configuration| (configuration.base_url, configuration.model));
+    let ollama = load_ollama_local_configuration(&store)
+        .map_err(|error| error.to_string())?
+        .unwrap_or_else(|| (OLLAMA_ENDPOINT.to_string(), OLLAMA_MODEL.to_string()));
     Ok(AiConfiguration {
         gemini_configured: status.gemini_configured,
         gemini_model: GEMINI_MODEL,
-        ollama_endpoint: OLLAMA_ENDPOINT,
-        ollama_model: OLLAMA_MODEL,
+        ollama_endpoint: ollama.0,
+        ollama_model: ollama.1,
         open_ai_compatible_configured: open_ai_compatible.is_some(),
         open_ai_compatible_base_url: open_ai_compatible
             .as_ref()

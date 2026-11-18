@@ -66,19 +66,28 @@ pub trait StructuredAiProvider: Send + Sync {
 pub struct OllamaProvider {
     client: Client,
     base_url: String,
+    model: String,
 }
 
 impl OllamaProvider {
+    /// Usa o endereco e o modelo que o usuario salvou nas Configuracoes; sem
+    /// configuracao, cai nos padroes compilados.
     pub fn new() -> Result<Self> {
-        Self::with_base_url(OLLAMA_ENDPOINT.to_string())
+        let saved = super::credentials::load_ollama_local_configuration(
+            &super::credentials::NativeCredentialStore::new(),
+        )
+        .ok()
+        .flatten();
+        let (base_url, model) = saved.unwrap_or_else(|| (OLLAMA_ENDPOINT.to_string(), OLLAMA_MODEL.to_string()));
+        Self::with_configuration(base_url, model)
     }
 
     #[cfg(test)]
     pub(crate) fn for_test(base_url: String) -> Self {
-        Self::with_base_url(base_url).expect("valid test provider")
+        Self::with_configuration(base_url, OLLAMA_MODEL.to_string()).expect("valid test provider")
     }
 
-    fn with_base_url(base_url: String) -> Result<Self> {
+    pub(crate) fn with_configuration(base_url: String, model: String) -> Result<Self> {
         let client = Client::builder()
             .no_proxy()
             .redirect(reqwest::redirect::Policy::none())
@@ -86,7 +95,7 @@ impl OllamaProvider {
             .timeout(REQUEST_TIMEOUT)
             .build()
             .map_err(|_| anyhow!("Nao foi possivel preparar o cliente local do Ollama."))?;
-        Ok(Self { client, base_url })
+        Ok(Self { client, base_url, model })
     }
 
     pub fn check_readiness(&self) -> std::result::Result<OllamaReadiness, ProviderFailure> {
@@ -126,7 +135,7 @@ impl OllamaProvider {
             })?;
         let model_installed = models
             .iter()
-            .any(|model| model.get("id").and_then(Value::as_str) == Some(OLLAMA_MODEL));
+            .any(|model| model.get("id").and_then(Value::as_str) == Some(self.model.as_str()));
         Ok(OllamaReadiness {
             reachable: true,
             model_installed,
@@ -148,7 +157,7 @@ impl OllamaProvider {
             "userContent": request.user_content,
         });
         let body = json!({
-            "model": OLLAMA_MODEL,
+            "model": self.model,
             "messages": [
                 {
                     "role": "system",

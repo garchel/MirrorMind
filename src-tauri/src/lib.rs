@@ -6446,6 +6446,7 @@ pub fn run() {
             unwatch_vault,
             append_knowledge_suggestion_to_note,
             review::ipc::get_review_ai_configuration,
+            review::ipc::set_ollama_local_configuration,
             review::ipc::configure_gemini_api_key,
             review::ipc::set_gemini_data_consent,
             review::ipc::confirm_gemini_data_consent,

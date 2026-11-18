@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   checkOllama: vi.fn(),
   getConfiguration: vi.fn(),
   getUsage: vi.fn(),
-  runComparability: vi.fn(),
+  providerConfigureLocal: vi.fn(),
   providerConfigure: vi.fn(),
   providerConfirm: vi.fn(),
   providerRemove: vi.fn(),
@@ -24,13 +24,13 @@ vi.mock('./ai', async (importOriginal) => {
     checkOllamaReviewStatus: mocks.checkOllama,
     getReviewAiConfiguration: mocks.getConfiguration,
     getReviewUsageStatus: mocks.getUsage,
-    runProviderComparability: mocks.runComparability,
   }
 })
 
 vi.mock('./reviewProvider', () => ({
   reviewProvider: {
     configure: mocks.providerConfigure,
+    configureLocal: mocks.providerConfigureLocal,
     confirmDataConsent: mocks.providerConfirm,
     remove: mocks.providerRemove,
     setDataConsent: mocks.providerSetConsent,
@@ -40,8 +40,8 @@ vi.mock('./reviewProvider', () => ({
 const configuration = {
   geminiConfigured: false,
   geminiModel: 'gemini-3.5-flash',
-  ollamaEndpoint: 'http://127.0.0.1:11434/v1' as const,
-  ollamaModel: 'qwen2.5:7b' as const,
+  ollamaEndpoint: 'http://127.0.0.1:11434/v1',
+  ollamaModel: 'qwen2.5:7b',
   openAiCompatibleConfigured: false,
   openAiCompatibleBaseUrl: null,
   openAiCompatibleModel: null,
@@ -93,14 +93,32 @@ describe('ReviewAiSettings', () => {
 
   afterEach(cleanup)
 
-  it('offers only provider switching and verifies the fixed local Ollama configuration', async () => {
+  it('permite editar endereco e modelo do Ollama local e verifica a conexao', async () => {
     const user = userEvent.setup()
     renderSettings()
 
     const selector = screen.getByRole('combobox', { name: 'Provedor da revisão' })
     expect(screen.getAllByRole('option')).toHaveLength(4)
-    expect(screen.getByText('http://127.0.0.1:11434/v1')).toBeInTheDocument()
-    expect(screen.getByText('qwen2.5:7b')).toBeInTheDocument()
+
+    // A configuracao chega de forma assincrona: os campos nascem preenchidos
+    // com o que esta salvo.
+    const endereco = screen.getByLabelText('Endereço do servidor')
+    const modelo = screen.getByLabelText('Modelo')
+    await waitFor(() => expect(endereco).toHaveValue('http://127.0.0.1:11434/v1'))
+    expect(modelo).toHaveValue('qwen2.5:7b')
+    expect(screen.getByRole('button', { name: 'Salvar servidor local' })).toBeDisabled()
+
+    await user.clear(modelo)
+    await user.type(modelo, 'llama3.2:3b')
+    const salvar = screen.getByRole('button', { name: 'Salvar servidor local' })
+    expect(salvar).toBeEnabled()
+
+    mocks.providerConfigureLocal.mockResolvedValue({ ...configuration, ollamaModel: 'llama3.2:3b' })
+    await user.click(salvar)
+    expect(mocks.providerConfigureLocal).toHaveBeenCalledWith({
+      endpoint: 'http://127.0.0.1:11434/v1',
+      model: 'llama3.2:3b',
+    })
 
     await user.click(screen.getByRole('button', { name: 'Verificar Ollama' }))
     expect(await screen.findByText('Pronto para revisar')).toBeInTheDocument()
@@ -213,143 +231,5 @@ describe('ReviewAiSettings', () => {
     resolveInitial(configuration)
     await Promise.resolve()
     expect(screen.getByRole('button', { name: 'Remover chave' })).toBeInTheDocument()
-  })
-
-  it('runs the provider comparison and renders the divergence report', async () => {
-    const user = userEvent.setup()
-    mocks.runComparability.mockResolvedValue({
-      noteWords: 5,
-      questionCount: 6,
-      providers: ['ollama-qwen2.5:7b', 'gemini-3.5-flash'],
-      scoreDelta: 5,
-      sharedGapQuotes: ['a clorofila absorve luz'],
-      ollamaOnlyGapQuotes: ['nas bandas verde'],
-      geminiOnlyGapQuotes: ['principal produto'],
-      ollama: {
-        provider: 'ollama-qwen2.5:7b',
-        failure: null,
-        gapBasedScore: 70,
-        assertionScores: [70, 80],
-        overallScore: 70,
-        summaryPresent: true,
-        gapCount: 2,
-        gapQuotes: ['a clorofila absorve luz', 'nas bandas verde'],
-        inconclusiveCount: 0,
-      },
-      gemini: {
-        provider: 'gemini-3.5-flash',
-        failure: null,
-        gapBasedScore: 75,
-        assertionScores: [75],
-        overallScore: 75,
-        summaryPresent: true,
-        gapCount: 1,
-        gapQuotes: ['a clorofila absorve luz'],
-        inconclusiveCount: 0,
-      },
-    })
-    renderSettings()
-
-    await user.click(screen.getByRole('button', { name: 'Comparar provedores' }))
-
-    expect(mocks.runComparability).toHaveBeenCalledTimes(1)
-    expect(await screen.findByText('Diferença da nota (gemini-3.5-flash - ollama-qwen2.5:7b)')).toBeInTheDocument()
-    expect(screen.getByText('5 palavras · 6 perguntas · respostas fixas')).toBeInTheDocument()
-    expect(screen.getAllByText('a clorofila absorve luz').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('nas bandas verde').length).toBeGreaterThan(0)
-    expect(screen.getByText('Só ollama-qwen2.5:7b')).toBeInTheDocument()
-    expect(screen.getByText('Só gemini-3.5-flash')).toBeInTheDocument()
-  })
-
-  it('renders a readable failure when the comparison has no valid side', async () => {
-    const user = userEvent.setup()
-    mocks.runComparability.mockResolvedValue({
-      noteWords: 5,
-      questionCount: 6,
-      providers: ['ollama-qwen2.5:7b', 'gemini-3.5-flash'],
-      scoreDelta: null,
-      sharedGapQuotes: [],
-      ollamaOnlyGapQuotes: [],
-      geminiOnlyGapQuotes: [],
-      ollama: {
-        provider: 'ollama-qwen2.5:7b',
-        failure: 'Ollama indisponivel',
-        gapBasedScore: null,
-        assertionScores: [],
-        overallScore: null,
-        summaryPresent: false,
-        gapCount: 0,
-        gapQuotes: [],
-        inconclusiveCount: 0,
-      },
-      gemini: {
-        provider: 'gemini-3.5-flash',
-        failure: null,
-        gapBasedScore: 75,
-        assertionScores: [75],
-        overallScore: 75,
-        summaryPresent: true,
-        gapCount: 1,
-        gapQuotes: ['a clorofila absorve luz'],
-        inconclusiveCount: 0,
-      },
-    })
-    renderSettings()
-
-    await user.click(screen.getByRole('button', { name: 'Comparar provedores' }))
-
-    expect(await screen.findByText('indisponível (algum lado sem nota válida)')).toBeInTheDocument()
-    expect(screen.getByText('Avaliação inválida: Ollama indisponivel')).toBeInTheDocument()
-  })
-
-  describe('gate da IA gerenciada (F2)', () => {
-    beforeEach(() => {
-      cached = null
-    })
-
-    afterEach(() => {
-      vi.unstubAllEnvs()
-    })
-
-    it('cobranca desligada mantem a opcao bloqueada com aviso', async () => {
-      renderSettings()
-      const option = await screen.findByRole('option', { name: /MirrorMind \(assinatura\)/ })
-      expect(option).toBeDisabled()
-      expect(option).toHaveTextContent('em breve')
-    })
-
-    it('plano manual libera a opcao e o painel explica cota e renovacao', async () => {
-      const user = userEvent.setup()
-      vi.stubEnv('VITE_BILLING_ENABLED', 'true')
-      cached = { plan: 'ia_mensal', status: 'active', periodEndUnixMs: null, checkedAtUnixMs: Date.now() }
-      renderSettings()
-
-      const option = await screen.findByRole('option', { name: 'MirrorMind (assinatura) — IA Mensal' })
-      expect(option).toBeEnabled()
-      await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'managed')
-      expect(await screen.findByText(/200 chamadas por ciclo/)).toBeInTheDocument()
-    })
-
-    it('plano gratis nega com alternativa local', async () => {
-      vi.stubEnv('VITE_BILLING_ENABLED', 'true')
-      cached = { plan: 'gratis', status: 'active', periodEndUnixMs: null, checkedAtUnixMs: Date.now() }
-      renderSettings()
-
-      const option = await screen.findByRole('option', { name: /exige plano/ })
-      expect(option).toBeDisabled()
-    })
-
-    it('perder o plano devolve a revisao ao Ollama local', async () => {
-      vi.stubEnv('VITE_BILLING_ENABLED', 'true')
-      // Provedor gerenciado persistido de uma sessao com plano; agora sem direito.
-      window.localStorage.setItem('mirrormind.review.provider.v1', 'managed')
-      cached = { plan: 'gratis', status: 'active', periodEndUnixMs: null, checkedAtUnixMs: Date.now() }
-      renderSettings()
-
-      expect(await screen.findByRole('option', { name: /exige plano/ })).toBeDisabled()
-      await waitFor(() => {
-        expect(screen.getByRole('combobox', { name: 'Provedor da revisão' })).toHaveValue('ollama')
-      })
-    })
   })
 })

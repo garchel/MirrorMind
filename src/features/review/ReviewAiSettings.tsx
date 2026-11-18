@@ -5,10 +5,9 @@ import {
   getReviewAiConfiguration,
   getReviewUsageStatus,
   reviewAiErrorMessage,
-  runProviderComparability,
 } from './ai'
 import { reviewProvider } from './reviewProvider'
-import type { DivergenceReport, OllamaStatus, ReviewAiConfiguration, ReviewAiProvider, UsageStatus } from './ai'
+import type { OllamaStatus, ReviewAiConfiguration, ReviewAiProvider, UsageStatus } from './ai'
 import { estimateManagedCallCostUsd } from './managedProvider'
 import { useReviewAiSettings } from './ReviewAiSettingsContext'
 import { SettingsSection } from '../../components/SettingsSection'
@@ -26,14 +25,15 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
   const { provider, selectProvider, geminiConsent, setGeminiConsent, openAiConsent, setOpenAiConsent, managedGate } = useReviewAiSettings()
   const [configuration, setConfiguration] = useState<ReviewAiConfiguration | null>(null)
   const [apiKey, setApiKey] = useState('')
+  /** Endereco e modelo do Ollama local: editar e salvar, como no servidor
+   * OpenAI-compatible (antes eram dois valores somente-leitura). */
+  const [ollamaEndpoint, setOllamaEndpoint] = useState('')
+  const [ollamaModel, setOllamaModel] = useState('')
   const [openAiBaseUrl, setOpenAiBaseUrl] = useState('')
   const [openAiModel, setOpenAiModel] = useState('')
   const [openAiApiKey, setOpenAiApiKey] = useState('')
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null)
   const [usage, setUsage] = useState<UsageStatus | null>(null)
-  const [comparison, setComparison] = useState<DivergenceReport | null>(null)
-  const [comparisonLoading, setComparisonLoading] = useState(false)
-  const [comparisonError, setComparisonError] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const configurationGenerationRef = useRef(0)
@@ -44,7 +44,11 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
     configurationGenerationRef.current = generation
     void getReviewAiConfiguration()
       .then((next) => {
-        if (active && configurationGenerationRef.current === generation) setConfiguration(next)
+        if (active && configurationGenerationRef.current === generation) {
+          setConfiguration(next)
+          setOllamaEndpoint(next.ollamaEndpoint)
+          setOllamaModel(next.ollamaModel)
+        }
       })
       .catch((cause) => {
         if (active && configurationGenerationRef.current === generation) setError(reviewAiErrorMessage(cause))
@@ -110,6 +114,21 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
     if (confirmed) setOpenAiConsent(true)
   }
 
+  async function saveOllamaLocal() {
+    configurationGenerationRef.current += 1
+    setBusy(true)
+    setError('')
+    try {
+      const next = await reviewProvider.configureLocal({ endpoint: ollamaEndpoint, model: ollamaModel })
+      setConfiguration(next)
+      setOllamaStatus(null)
+    } catch (cause) {
+      setError(reviewAiErrorMessage(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function saveOpenAiCompatible() {
     configurationGenerationRef.current += 1
     setBusy(true)
@@ -141,19 +160,6 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
       setError(reviewAiErrorMessage(cause))
     } finally {
       setBusy(false)
-    }
-  }
-
-  async function runComparison() {
-    setComparisonLoading(true)
-    setComparisonError('')
-    try {
-      setComparison(await runProviderComparability())
-    } catch (cause) {
-      setComparison(null)
-      setComparisonError(reviewAiErrorMessage(cause))
-    } finally {
-      setComparisonLoading(false)
     }
   }
 
@@ -314,12 +320,47 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
         </div>
       ) : (
         <div className="review-ai-provider-panel">
-          <p>O processamento usa somente o Ollama instalado neste computador.</p>
-          <dl>
-            <div><dt>Endereco</dt><dd>{configuration?.ollamaEndpoint ?? 'http://127.0.0.1:11434/v1'}</dd></div>
-            <div><dt>Modelo</dt><dd>{configuration?.ollamaModel ?? 'qwen2.5:7b'}</dd></div>
-          </dl>
+          <p>
+            O processamento usa somente o Ollama instalado neste computador. O endereço aceita
+            <code>http</code> apenas para localhost ou rede privada.
+          </p>
+          <label className="review-ai-key-field" htmlFor="ollama-endpoint">
+            <span>Endereço do servidor</span>
+            <Field
+              size="xs"
+              id="ollama-endpoint"
+              type="text"
+              value={ollamaEndpoint}
+              onChange={(event) => setOllamaEndpoint(event.target.value)}
+              placeholder="http://127.0.0.1:11434/v1"
+            />
+          </label>
+          <label className="review-ai-key-field" htmlFor="ollama-model">
+            <span>Modelo</span>
+            <Field
+              size="xs"
+              id="ollama-model"
+              type="text"
+              value={ollamaModel}
+              onChange={(event) => setOllamaModel(event.target.value)}
+              placeholder="qwen2.5:7b"
+            />
+          </label>
+          <small className="review-ai-hint">O nome precisa existir no servidor (<code>ollama list</code>).</small>
           <div className="review-ai-inline-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              onClick={() => void saveOllamaLocal()}
+              disabled={busy
+                || !ollamaEndpoint.trim()
+                || !ollamaModel.trim()
+                || (ollamaEndpoint.trim() === (configuration?.ollamaEndpoint ?? '')
+                  && ollamaModel.trim() === (configuration?.ollamaModel ?? ''))}
+            >
+              Salvar servidor local
+            </Button>
             <Button type="button" variant="secondary" size="md" onClick={() => void checkOllama()} disabled={busy}>
               Verificar Ollama
             </Button>
@@ -335,55 +376,6 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
           </div>
         </div>
       )}
-      <section className="review-ai-comparability" aria-labelledby="comparability-title">
-        <h3 id="comparability-title">Comparabilidade de provedores</h3>
-        <p className="review-ai-comparability-hint">
-          Mesma nota e perguntas no Ollama local e no provedor remoto;
-          falha em um lado não derruba o relatório.
-        </p>
-        <div className="review-ai-inline-actions">
-          <Button type="button" variant="secondary" size="md" onClick={() => void runComparison()} disabled={busy || comparisonLoading}>
-            {comparisonLoading ? 'Comparando…' : 'Comparar provedores'}
-          </Button>
-        </div>
-        {comparisonError ? <p className="field-error" role="alert">{comparisonError}</p> : null}
-        {comparison ? (
-          <div className="review-ai-comparison-report" role="region" aria-label="Relatório de divergência">
-            <dl>
-              <div><dt>Cenario</dt><dd>{comparison.noteWords} palavras · {comparison.questionCount} perguntas · respostas fixas</dd></div>
-              {comparison.scoreDelta !== null ? (
-                <div><dt>Diferença da nota ({comparison.providers[1]} - {comparison.providers[0]})</dt><dd>{comparison.scoreDelta}</dd></div>
-              ) : (
-                <div><dt>Diferença da nota</dt><dd>indisponível (algum lado sem nota válida)</dd></div>
-              )}
-              <div><dt>Lacunas compartilhadas</dt><dd>{comparison.sharedGapQuotes.length}</dd></div>
-              <div><dt>Só {comparison.providers[0]}</dt><dd>{comparison.ollamaOnlyGapQuotes.length}</dd></div>
-              <div><dt>Só {comparison.providers[1]}</dt><dd>{comparison.geminiOnlyGapQuotes.length}</dd></div>
-            </dl>
-            {[comparison.ollama, comparison.gemini].map((outcome) => (
-              <article key={outcome.provider} className="review-ai-comparison-provider">
-                <h4>{outcome.provider}</h4>
-                {outcome.failure ? (
-                  <p className="field-error">Avaliação inválida: {outcome.failure}</p>
-                ) : (
-                  <>
-                    <dl>
-                      <div><dt>Nota geral</dt><dd>{outcome.overallScore ?? '-'}</dd></div>
-                      <div><dt>Lacunas</dt><dd>{outcome.gapCount}</dd></div>
-                      <div><dt>Inconclusivas</dt><dd>{outcome.inconclusiveCount}</dd></div>
-                    </dl>
-                    {outcome.gapQuotes.length > 0 ? (
-                      <ul className="review-ai-comparison-quotes">
-                        {outcome.gapQuotes.map((quote) => <li key={quote}>{quote}</li>)}
-                      </ul>
-                    ) : null}
-                  </>
-                )}
-              </article>
-            ))}
-          </div>
-        ) : null}
-      </section>
       {usage ? (
         <dl className="review-ai-usage">
           <div><dt>Chamadas de IA hoje</dt><dd>{usage.totalCalls} de {usage.maxCallsPerDay}{usage.exceeded ? ' (orçamento atingido)' : ''}</dd></div>

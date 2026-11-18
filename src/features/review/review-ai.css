@@ -959,102 +959,6 @@
   font: 600 var(--font-size-small) var(--sans);
 }
 
-.review-ai-comparability {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid rgb(112 109 102 / 18%);
-}
-
-.review-ai-comparability h3 {
-  margin: 0 0 4px;
-  font-size: 13px;
-}
-
-.review-ai-comparability-hint {
-  margin: 0 0 8px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted, var(--mm-ink-800-4));
-}
-
-.review-ai-comparison-report {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.review-ai-comparison-report > dl {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
-  margin: 0;
-}
-
-.review-ai-comparison-report > dl div {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.review-ai-comparison-report > dl dt {
-  font-size: 12px;
-  color: var(--muted, var(--mm-ink-800-4));
-}
-
-.review-ai-comparison-report > dl dd {
-  margin: 0;
-  font: 600 var(--font-size-small) var(--sans);
-}
-
-.review-ai-comparison-provider {
-  border: 1px solid rgb(112 109 102 / 22%);
-  border-radius: var(--radius-md);
-  padding: 8px 10px;
-}
-
-.review-ai-comparison-provider h4 {
-  margin: 0 0 4px;
-  font: 600 12px var(--mono);
-}
-
-.review-ai-comparison-provider > dl {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  margin: 0 0 6px;
-}
-
-.review-ai-comparison-provider > dl div {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.review-ai-comparison-provider > dl dt {
-  font-size: var(--font-size-caption);
-  color: var(--muted, var(--mm-ink-800-4));
-}
-
-.review-ai-comparison-provider > dl dd {
-  margin: 0;
-  font: 600 12px var(--sans);
-}
-
-.review-ai-comparison-quotes {
-  margin: 0;
-  padding-left: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.review-ai-comparison-quotes li {
-  font-size: var(--font-size-caption);
-  color: var(--muted, var(--mm-ink-800-4));
-  list-style: disc;
-}
-
 /* --- Confianca do modelo no relatorio de prontidao ------------------------
  *
  * O numero e do **modelo**, nao da nota. O rotulo diz isso, e a distribuicao
@@ -1312,4 +1216,14 @@
 .review-calibration-consent select {
   font: var(--font-size-small) var(--sans);
   padding-right: 30px;
+}
+
+/* Dica logo abaixo do campo, fora do <label> para o nome acessivel do campo
+ * continuar sendo so o rotulo. */
+.review-ai-hint {
+  display: block;
+  margin-top: -4px;
+  color: var(--muted, var(--mm-ink-800-4));
+  font-size: 12px;
+  line-height: 1.4;
 }

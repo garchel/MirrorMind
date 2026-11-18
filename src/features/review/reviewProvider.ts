@@ -69,6 +69,16 @@ export function createReviewProvider(transport: ReviewProviderTransport = tauriT
       return parseReviewAiConfiguration(payload)
     },
 
+    /** Ollama local: endereco e modelo, sem chave — o servico roda na maquina
+     * do usuario (ou na rede privada dele). */
+    async configureLocal(input: { endpoint: string; model: string }): Promise<ReviewAiConfiguration> {
+      const payload = await transport('set_ollama_local_configuration', {
+        endpoint: input.endpoint,
+        model: input.model,
+      })
+      return parseReviewAiConfiguration(payload)
+    },
+
     async remove(kind: ConfigurableReviewProvider): Promise<ReviewAiConfiguration> {
       return parseReviewAiConfiguration(await transport(REMOVE_COMMAND[kind]))
     },

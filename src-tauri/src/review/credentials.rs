@@ -6,6 +6,10 @@ const SERVICE_NAME: &str = "com.mirrormind.desktop";
 const GEMINI_ACCOUNT: &str = "gemini-api-key";
 const GEMINI_CONSENT_ACCOUNT: &str = "gemini-content-consent-v1";
 const OPENAI_COMPATIBLE_BASE_URL_ACCOUNT: &str = "openai-compatible-base-url";
+/// Endereco e modelo do Ollama local. Ficam no mesmo cofre dos demais provedores
+/// (nao sao segredos, mas o cofre ja e o lugar das preferencias de IA).
+const OLLAMA_ENDPOINT_ACCOUNT: &str = "ollama-endpoint";
+const OLLAMA_MODEL_ACCOUNT: &str = "ollama-model";
 const OPENAI_COMPATIBLE_MODEL_ACCOUNT: &str = "openai-compatible-model";
 const OPENAI_COMPATIBLE_API_KEY_ACCOUNT: &str = "openai-compatible-api-key";
 const OPENAI_CONSENT_ACCOUNT: &str = "openai-compatible-consent-v1";
@@ -282,6 +286,89 @@ pub(crate) fn validate_openai_compatible_model(model: &str) -> Result<&str> {
         bail!("O modelo do servidor OpenAI-compatible e invalido.");
     }
     Ok(model)
+}
+
+/// Endereco do Ollama local: http so para loopback ou rede privada (o servico
+/// roda na maquina do usuario; um host publico em http seria envio em claro).
+pub(crate) fn validate_ollama_endpoint(endpoint: &str) -> Result<&str> {
+    let endpoint = endpoint.trim();
+    if endpoint.is_empty() || endpoint.len() > MAX_BASE_URL_LENGTH {
+        bail!("O endereco do Ollama local e invalido.");
+    }
+    let Some((scheme, rest)) = endpoint.split_once("://") else {
+        bail!("O endereco do Ollama precisa comecar com http:// ou https://.");
+    };
+    if scheme != "http" && scheme != "https" {
+        bail!("O endereco do Ollama precisa usar http ou https.");
+    }
+    let host = rest.split('/').next().unwrap_or("").split(':').next().unwrap_or("");
+    if host.is_empty() {
+        bail!("O endereco do Ollama precisa de um host.");
+    }
+    if scheme == "http" && !is_loopback_or_private(host) {
+        bail!("Use https para um host publico; http so para localhost ou rede privada.");
+    }
+    Ok(endpoint)
+}
+
+fn is_loopback_or_private(host: &str) -> bool {
+    let host = host.to_ascii_lowercase();
+    if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+        return true;
+    }
+    let mut partes = host.split('.');
+    let Some(a) = partes.next().and_then(|v| v.parse::<u8>().ok()) else {
+        return false;
+    };
+    let Some(b) = partes.next().and_then(|v| v.parse::<u8>().ok()) else {
+        return false;
+    };
+    a == 10 || (a == 192 && b == 168) || (a == 172 && (16..=31).contains(&b))
+}
+
+/// Nome do modelo no Ollama (`qwen2.5:7b`, `llama3.2:3b`...): sem espacos.
+pub(crate) fn validate_ollama_model(model: &str) -> Result<&str> {
+    let model = model.trim();
+    if model.is_empty() || model.len() > MAX_MODEL_LENGTH {
+        bail!("O modelo do Ollama local e invalido.");
+    }
+    if model
+        .bytes()
+        .any(|byte| !byte.is_ascii_graphic() || matches!(byte, b'"' | b'\\'))
+    {
+        bail!("O modelo do Ollama local e invalido.");
+    }
+    Ok(model)
+}
+
+pub fn save_ollama_local_configuration(
+    store: &dyn CredentialStore,
+    endpoint: &str,
+    model: &str,
+) -> Result<()> {
+    let endpoint = validate_ollama_endpoint(endpoint)?;
+    let model = validate_ollama_model(model)?;
+    store
+        .set_secret(OLLAMA_ENDPOINT_ACCOUNT, endpoint)
+        .and_then(|_| store.set_secret(OLLAMA_MODEL_ACCOUNT, model))
+        .map_err(|_| anyhow!("Nao foi possivel salvar a configuracao do Ollama local."))
+}
+
+/// Ausente, corrompido ou invalido: devolve `None` e o chamador usa o padrao.
+pub fn load_ollama_local_configuration(store: &dyn CredentialStore) -> Result<Option<(String, String)>> {
+    let endpoint = store
+        .get_secret(OLLAMA_ENDPOINT_ACCOUNT)
+        .map_err(|_| anyhow!("Nao foi possivel ler a configuracao do Ollama local."))?;
+    let model = store
+        .get_secret(OLLAMA_MODEL_ACCOUNT)
+        .map_err(|_| anyhow!("Nao foi possivel ler a configuracao do Ollama local."))?;
+    let (Some(endpoint), Some(model)) = (endpoint, model) else {
+        return Ok(None);
+    };
+    let (Ok(endpoint), Ok(model)) = (validate_ollama_endpoint(&endpoint), validate_ollama_model(&model)) else {
+        return Ok(None);
+    };
+    Ok(Some((endpoint.to_string(), model.to_string())))
 }
 
 pub fn save_openai_compatible_provider(
