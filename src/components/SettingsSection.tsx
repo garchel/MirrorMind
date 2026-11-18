@@ -17,7 +17,10 @@ export function SettingsSection({
   children,
 }: {
   id: string
-  kicker: string
+  /** Micro-caps acima do titulo. Opcional: dentro de uma secao que ja tem
+   * kicker (as de Revisao, por exemplo), repetir "Revisão" em cada bloco e
+   * ruido. */
+  kicker?: string
   title: string
   description?: string
   aside?: ReactNode
@@ -28,7 +31,7 @@ export function SettingsSection({
     <div className={['settings-section', className].filter(Boolean).join(' ')} aria-labelledby={id}>
       <div className="settings-section-heading">
         <div>
-          <p className="card-kicker">{kicker}</p>
+          {kicker ? <p className="card-kicker">{kicker}</p> : null}
           <h3 id={id}>{title}</h3>
           {description ? <small>{description}</small> : null}
         </div>

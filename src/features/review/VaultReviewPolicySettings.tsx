@@ -5,13 +5,11 @@ import { InfoTip } from '../../components/ui/InfoTip'
 import { ReviewPriorityLevelPicker } from './ReviewPriorityLevelPicker'
 import {
   getVaultReviewPolicyConfig,
-  previewVaultReviewDefaults,
   setVaultReviewDefaults,
   vaultReviewDefaultsSchema,
 } from './vaultReviewPolicy'
 import type {
   VaultReviewDefaults,
-  VaultReviewDefaultsPreview,
   VaultReviewPolicyConfig,
 } from './vaultReviewPolicy'
 import { PolicyWorkloadEstimate } from './PolicyWorkloadEstimate'
@@ -81,14 +79,12 @@ const PRESETS = {
 export function VaultReviewPolicySettings({ vaultPath }: Props) {
   const [config, setConfig] = useState<VaultReviewPolicyConfig | null>(null)
   const [form, setForm] = useState<VaultReviewDefaults | null>(null)
-  const [preview, setPreview] = useState<{
-    result: VaultReviewDefaultsPreview
-    defaults: VaultReviewDefaults
-  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  /** Resultado do ultimo ajuste aplicado (o padrão vale na hora). */
+  const [applied, setApplied] = useState<number | null>(null)
+  const applyTimerRef = useRef<number | undefined>(undefined)
   const [reloadToken, setReloadToken] = useState(0)
   /** "Personalizado" aberto: mostra os numeros do ritmo, como na pagina de Tags. */
   const [customProfile, setCustomProfile] = useState(false)
@@ -101,9 +97,8 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
     setBusy(false)
     setConfig(null)
     setForm(null)
-    setPreview(null)
     setError('')
-    setSuccess('')
+    setApplied(null)
     void getVaultReviewPolicyConfig(vaultPath)
       .then((next) => {
         if (generationRef.current !== generation) return
@@ -122,11 +117,29 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
 
   const validation = form ? vaultReviewDefaultsSchema.safeParse(form) : null
 
+  // O padrao vale na hora: nao existe "Salvar". Uma pausa de 450ms agrupa o
+  // arrasto de um numero em um unico IPC, e o efeito so dispara quando o
+  // formulario difere do que esta aplicado.
+  useEffect(() => {
+    if (!form || !config || !validation?.success) return
+    const mudou = (Object.keys(form) as (keyof VaultReviewDefaults)[])
+      .some((key) => form[key] !== config.defaults[key])
+    if (!mudou) return
+    window.clearTimeout(applyTimerRef.current)
+    applyTimerRef.current = window.setTimeout(() => {
+      void applyDefaults(form)
+    }, 450)
+    return () => window.clearTimeout(applyTimerRef.current)
+    // `applyDefaults` lê o config atual pela closure; recriar a cada mudanca de
+    // form/config é o gatilho certo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, config, validation?.success])
+
+  useEffect(() => () => window.clearTimeout(applyTimerRef.current), [])
+
   function updateForm(next: VaultReviewDefaults) {
     setForm(next)
-    setPreview(null)
     setError('')
-    setSuccess('')
   }
 
   function setNumber(field: keyof VaultReviewDefaults, value: number) {
@@ -144,30 +157,6 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
     updateForm({ ...form, preferredMode })
   }
 
-  async function requestSave() {
-    if (!config || !validation?.success) return
-    const generation = generationRef.current
-    const defaults = validation.data
-    setBusy(true)
-    setError('')
-    setSuccess('')
-    try {
-      const nextPreview = await previewVaultReviewDefaults(vaultPath, defaults)
-      if (generationRef.current !== generation) return
-      if (nextPreview.affectedNoteCount > 0) {
-        setPreview({ result: nextPreview, defaults })
-      } else {
-        await applyDefaults(defaults, generation)
-      }
-    } catch (cause) {
-      if (generationRef.current === generation) {
-        setError(errorMessage(cause, String(cause)))
-      }
-    } finally {
-      if (generationRef.current === generation) setBusy(false)
-    }
-  }
-
   async function applyDefaults(defaults: VaultReviewDefaults, generation = generationRef.current) {
     if (!config) return
     setBusy(true)
@@ -181,10 +170,7 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
       if (generationRef.current !== generation) return
       setConfig(updated)
       setForm(updated.defaults)
-      setPreview(null)
-      setSuccess(updated.affectedNoteCount === 0
-        ? 'Padrão do Vault salvo. Nenhuma nota existente precisou ser recalculada.'
-        : `Padrão do Vault salvo. ${updated.affectedNoteCount} nota(s) recalculada(s).`)
+      setApplied(updated.affectedNoteCount)
     } catch (cause) {
       if (generationRef.current === generation) {
         setError(errorMessage(cause, String(cause)))
@@ -197,10 +183,8 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
   return (
     <SettingsSection
       id="vault-review-policy-title"
-      kicker="Revisão"
       title="Padrão de revisão do Vault"
       description="Usado por notas sem uma sobrescrita própria ou regra de tag."
-      aside={config ? <span>revisão {config.revision}</span> : null}
       className="vault-review-policy-settings"
     >
 
@@ -341,26 +325,20 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
             />
           ) : null}
 
-          {preview ? (
-            <div className="vault-review-policy-confirmation" role="alertdialog" aria-label="Confirmar alteração do padrão do Vault">
-              <p><strong>{preview.result.affectedNoteCount} notas terão suas datas recalculadas.</strong> Sobrescritas próprias serão preservadas.</p>
-              <div>
-                <Button type="button" variant="secondary" size="md" disabled={busy} onClick={() => setPreview(null)}>Cancelar</Button>
-                <Button type="button" variant="primary" size="sm" disabled={busy} onClick={() => void applyDefaults(preview.defaults)}>{busy ? 'Aplicando…' : 'Confirmar alteração'}</Button>
-              </div>
-            </div>
-          ) : (
-            <div className="review-ai-inline-actions">
-              <Button type="button" variant="primary" size="sm" disabled={busy || !validation?.success} onClick={() => void requestSave()}>{busy ? 'Calculando impacto…' : 'Salvar padrão'}</Button>
-            </div>
-          )}
         </>
       ) : null}
 
 
 
       {error ? <p className="field-error" role="alert">{error}</p> : null}
-      {success ? <p className="vault-review-policy-success" role="status">{success}</p> : null}
+      {busy ? <p className="vault-review-policy-applied" role="status">Aplicando…</p> : null}
+      {!busy && applied !== null ? (
+        <p className="vault-review-policy-applied" role="status">
+          {applied === 0
+            ? 'Padrão aplicado. Nenhuma nota precisou ser reagendada.'
+            : `Padrão aplicado. ${applied} nota${applied === 1 ? '' : 's'} reagendada${applied === 1 ? '' : 's'}.`}
+        </p>
+      ) : null}
     </SettingsSection>
   )
 }

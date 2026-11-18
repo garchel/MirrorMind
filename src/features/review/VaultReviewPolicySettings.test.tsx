@@ -55,16 +55,12 @@ describe('VaultReviewPolicySettings', () => {
 
   afterEach(cleanup)
 
-  it('shows the affected-note count before applying a preset', async () => {
+  it('aplica o ritmo assim que a opcao muda, sem botao de salvar', async () => {
     const user = userEvent.setup()
     render(<VaultReviewPolicySettings vaultPath={'C:\\Vault'} />)
 
+    expect(screen.queryByRole('button', { name: 'Salvar padrão' })).toBeNull()
     await user.click(await screen.findByRole('radio', { name: 'Intensiva' }))
-    await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
-
-    expect(await screen.findByText(/3 notas terão suas datas recalculadas/i)).toBeInTheDocument()
-    expect(setDefaultsMock).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: 'Confirmar alteração' }))
 
     await waitFor(() => expect(setDefaultsMock).toHaveBeenCalledWith({
       vaultPath: 'C:\\Vault',
@@ -77,57 +73,51 @@ describe('VaultReviewPolicySettings', () => {
         maxIntervalDays: 90,
         preferredMode: 'exam',
       },
-    }))
+    }), { timeout: 2000 })
+    expect(previewMock).not.toHaveBeenCalled()
   })
 
-  it('applies exactly the defaults whose impact was previewed', async () => {
+  it('aplica o padrao escolhido em Personalizado (prioridade)', async () => {
     const user = userEvent.setup()
-    let resolvePreview: ((value: { affectedNoteCount: number }) => void) | undefined
-    previewMock.mockReturnValueOnce(new Promise((resolve) => {
-      resolvePreview = resolve
-    }))
     render(<VaultReviewPolicySettings vaultPath={'C:\\Vault'} />)
 
     await user.click(await screen.findByRole('radio', { name: 'Intensiva' }))
-    // A prioridade vive em "Personalizado", como no formulario de Tags.
     await user.click(screen.getByRole('radio', { name: 'Personalizado' }))
-    await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
-    // Prioridade agora e escolha de nivel: "Urgente" grava 3.
     const prioridadeVault = screen.getByRole('radiogroup', { name: 'Prioridade na fila' })
     await user.click(within(prioridadeVault).getByRole('radio', { name: 'Urgente' }))
-    resolvePreview?.({ affectedNoteCount: 3 })
-
-    await user.click(await screen.findByRole('button', { name: 'Confirmar alteração' }))
 
     await waitFor(() => expect(setDefaultsMock).toHaveBeenCalledWith(expect.objectContaining({
       defaults: expect.objectContaining({ priorityWeight: 3 }),
-    })))
+    })), { timeout: 2000 })
   })
-  it('does not keep a new Vault busy when an earlier preview finishes late', async () => {
+
+  it('nao aplica o ritmo do vault anterior ao trocar de vault', async () => {
     const user = userEvent.setup()
-    let resolvePreview: ((value: { affectedNoteCount: number }) => void) | undefined
-    previewMock.mockReturnValueOnce(new Promise((resolve) => {
-      resolvePreview = resolve
-    }))
     const { rerender } = render(<VaultReviewPolicySettings vaultPath={'C:\\Vault'} />)
 
-    await user.click(await screen.findByRole('button', { name: 'Salvar padrão' }))
+    await user.click(await screen.findByRole('radio', { name: 'Leve' }))
     rerender(<VaultReviewPolicySettings vaultPath={'D:\\Outro'} />)
 
     await waitFor(() => expect(getConfigMock).toHaveBeenCalledWith('D:\\Outro'))
-    expect(await screen.findByRole('button', { name: 'Salvar padrão' })).toBeEnabled()
-    resolvePreview?.({ affectedNoteCount: 1 })
+    // A espera do debounce morre junto com o componente do vault antigo.
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    expect(setDefaultsMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      vaultPath: 'C:\\Vault',
+    }))
   })
-  it('applies immediately when no existing note is affected', async () => {
+
+  it('mostra o resultado quando nenhuma nota precisa ser reagendada', async () => {
     const user = userEvent.setup()
-    previewMock.mockResolvedValueOnce({ affectedNoteCount: 0 })
+    setDefaultsMock.mockResolvedValueOnce({
+      ...config,
+      revision: 4,
+      affectedNoteCount: 0,
+    })
     render(<VaultReviewPolicySettings vaultPath={'C:\\Vault'} />)
 
     await user.click(await screen.findByRole('radio', { name: 'Leve' }))
-    await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
 
-    await waitFor(() => expect(setDefaultsMock).toHaveBeenCalledTimes(1))
-    expect(screen.getByRole('status')).toHaveTextContent(/Padrão do Vault salvo/i)
+    expect(await screen.findByText(/Nenhuma nota precisou ser reagendada/i)).toBeInTheDocument()
   })
 
   it('salva o metodo padrao das sessoes sem trocar o ritmo', async () => {
@@ -135,8 +125,6 @@ describe('VaultReviewPolicySettings', () => {
     render(<VaultReviewPolicySettings vaultPath={'C:\\Vault'} />)
 
     await user.click(await screen.findByRole('radio', { name: /Conversa/ }))
-    await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
-    await user.click(await screen.findByRole('button', { name: 'Confirmar alteração' }))
 
     await waitFor(() => expect(setDefaultsMock).toHaveBeenCalledWith(expect.objectContaining({
       defaults: expect.objectContaining({
@@ -145,7 +133,7 @@ describe('VaultReviewPolicySettings', () => {
         firstReviewIntervalDays: 2,
         targetRetention: 0.8,
       }),
-    })))
+    })), { timeout: 2000 })
   })
 
   it('trocar de ritmo preserva o metodo padrao escolhido', async () => {
@@ -154,14 +142,12 @@ describe('VaultReviewPolicySettings', () => {
 
     await user.click(await screen.findByRole('radio', { name: /Conversa/ }))
     await user.click(screen.getByRole('radio', { name: 'Leve' }))
-    await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
-    await user.click(await screen.findByRole('button', { name: 'Confirmar alteração' }))
 
     await waitFor(() => expect(setDefaultsMock).toHaveBeenCalledWith(expect.objectContaining({
       defaults: expect.objectContaining({
         preferredMode: 'conversation',
         firstReviewIntervalDays: 7,
       }),
-    })))
+    })), { timeout: 2000 })
   })
 })

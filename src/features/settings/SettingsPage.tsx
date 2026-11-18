@@ -504,6 +504,11 @@ export function SettingsPage({
               title="Atalhos"
               description="Selecione um campo e pressione a nova combinação de teclas."
               keywords="teclado combinacao comando ctrl"
+              aside={(
+                <Button type="button" variant="secondary" size="sm" onClick={resetShortcuts}>
+                  Restaurar atalhos
+                </Button>
+              )}
             >
               {shortcutConflicts.size > 0 ? (
                 <div className="settings-warning" role="alert">
@@ -537,12 +542,6 @@ export function SettingsPage({
                   </SettingRow>
                 )
               })}
-
-              <div className="settings-section-actions">
-                <Button type="button" variant="secondary" size="md" onClick={resetShortcuts}>
-                  Restaurar atalhos
-                </Button>
-              </div>
             </SettingSection>
 
             <SettingSection

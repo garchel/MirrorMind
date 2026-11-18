@@ -16,6 +16,8 @@ type Props = {
   /** Palavras extras para a busca (sinônimos que não aparecem no título). */
   keywords?: string
   tone?: 'default' | 'danger'
+  /** Adorno à direita do título — uma ação da seção (ex.: restaurar atalhos). */
+  aside?: ReactNode
   children: ReactNode
 }
 
@@ -25,6 +27,7 @@ export function SettingSection({
   description,
   keywords = '',
   tone = 'default',
+  aside,
   children,
 }: Props) {
   const { query } = useSettingsSearch()
@@ -43,7 +46,10 @@ export function SettingSection({
       data-match={match}
       data-tone={tone}
     >
-      <h3 className="card-kicker" id={`settings-${id}-title`}>{title}</h3>
+      <header className="settings-section-header">
+        <h3 className="card-kicker" id={`settings-${id}-title`}>{title}</h3>
+        {aside}
+      </header>
       {description ? <p className="settings-section-description">{description}</p> : null}
       {children}
     </section>

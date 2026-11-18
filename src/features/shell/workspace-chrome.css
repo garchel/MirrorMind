@@ -844,9 +844,15 @@ label.settings-toggle {
   line-height: 1.5;
 }
 
-.settings-section-actions {
+/* Titulo da secao com uma acao ancorada à direita. */
+.settings-section-header {
   display: flex;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  /* O titulo é o primeiro filho do grid da secao; a margem negativa do
+   * `.settings-section-description` continua valendo para o que vem depois. */
+  width: min(720px, 100%);
 }
 
 /* Secao de dados: o vermelho fica na acao, nao no titulo — "Dados" e uma

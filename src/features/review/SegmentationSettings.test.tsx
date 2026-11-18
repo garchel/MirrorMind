@@ -60,7 +60,9 @@ describe('SegmentationSettings', () => {
 
     const input = await screen.findByRole('spinbutton', { name: 'Máximo de palavras por nota inteira' })
     expect(input).toHaveValue(800)
-    expect(screen.getByText(/revisão 3/)).toBeInTheDocument()
+    // O selo "revisão N" saiu: o número de revisão do config é detalhe
+    // interno, não informação de tela.
+    expect(screen.queryByText(/^revisão \d/)).toBeNull()
   })
 
   it('requires a valid integer between the accepted bounds', async () => {
@@ -149,7 +151,7 @@ describe('SegmentationSettings', () => {
 
     await waitFor(() => expect(getConfigMock).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(input).toHaveValue(600))
-    expect(screen.getByText(/revisão 5/)).toBeInTheDocument()
+    expect(screen.queryByText(/^revisão \d/)).toBeNull()
   })
 
   it('reports when no existing note needed recalculation', async () => {

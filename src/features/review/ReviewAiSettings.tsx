@@ -173,7 +173,6 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
   return (
     <SettingsSection
       id="review-ai-settings-title"
-      kicker="Revisão"
       title="Revisão com IA"
       className="review-ai-settings"
     >

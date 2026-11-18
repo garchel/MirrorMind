@@ -143,10 +143,12 @@
   gap: 8px;
 }
 
-.vault-review-policy-success {
+/* Confirmacao discreta do ajuste: o padrao vale na hora, sem botao de salvar. */
+.vault-review-policy-applied {
   margin: 0;
   color: var(--success, var(--mm-sage-800));
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 @media (max-width: 720px) {
