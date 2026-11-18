@@ -154,7 +154,7 @@ export function SegmentationSettings({ vaultPath }: Props) {
       headingLevel={4}
       id="segmentation-settings-title"
       title="Segmentação de unidades"
-      description="Controla a partir de quantas palavras uma nota deixa de ser tratada como uma unidade única e passa a ser dividida em seções (notas com títulos) ou parágrafos (notas sem títulos), com identidade determinística."
+      description="Define o tamanho a partir do qual uma nota deixa de ser uma unidade só. A divisão é determinística: mesma nota, mesmas unidades."
       className="segmentation-settings"
     >
 
@@ -167,47 +167,53 @@ export function SegmentationSettings({ vaultPath }: Props) {
 
       {config ? (
         <>
-          <label className="settings-toggle segmentation-field">
-            <span>
-              <strong>Máximo de palavras por nota inteira</strong>
-              <small>Até este tamanho, a nota é uma única unidade; acima, cada seção (ou parágrafo, sem títulos) vira uma.</small>
-            </span>
-            <span className="segmentation-value">
-              <Field
-                size="xs"
-                type="number"
-                min={WORD_LIMIT_MIN}
-                max={WORD_LIMIT_MAX}
-                step={50}
-                value={draft}
-                disabled={busy}
-                onChange={(event) => setDraft(event.target.value)}
-                aria-label="Máximo de palavras por nota inteira"
-                aria-invalid={!draftValid}
-              />
-              <small>palavras</small>
-            </span>
-          </label>
-          {!draftValid ? (
-            <p className="field-error" role="alert">
-              O limite deve ser um número inteiro entre {WORD_LIMIT_MIN} e {WORD_LIMIT_MAX}.
-            </p>
-          ) : null}
-          <div className="settings-actions">
-            <Button type="button" variant="secondary" size="md" disabled={busy || !draftValid} onClick={() => void requestRecalculate()}>
-              {busy ? 'Recalculando…' : 'Recalcular notas'}
-            </Button>
-            <InfoTip label="Recalcular notas">
-              <p>
-                Percorre todas as notas do vault e atualiza as que mudarem com o novo limite. É preciso
-                depois de mexer no número acima: sem isso, as notas continuam divididas pelo limite antigo.
-              </p>
-            </InfoTip>
-            {draftValid && parsedDraft !== config.segmentation.maxWholeNoteWords ? (
-              <span className="segmentation-current">
-                Aplicado hoje: <strong>{config.segmentation.maxWholeNoteWords}</strong> palavras
+          {/* Um cartao so: o limite, a explicacao e a acao que aplica o limite.
+              Antes eram duas pecas soltas — cartao e botao separados por um vao,
+              com a explicacao repetida no titulo e na linha. */}
+          <div className="segmentation-card">
+            <label className="segmentation-card-main" htmlFor="segmentation-word-limit">
+              <span className="segmentation-card-text">
+                <strong>Nota inteira até</strong>
+                <small>Acima disso, cada seção vira uma unidade — ou cada parágrafo, se a nota não tiver títulos.</small>
               </span>
+              <span className="segmentation-value">
+                <Field
+                  size="xs"
+                  id="segmentation-word-limit"
+                  type="number"
+                  min={WORD_LIMIT_MIN}
+                  max={WORD_LIMIT_MAX}
+                  step={50}
+                  value={draft}
+                  disabled={busy}
+                  onChange={(event) => setDraft(event.target.value)}
+                  aria-label="Máximo de palavras por nota inteira"
+                  aria-invalid={!draftValid}
+                />
+                <small>palavras</small>
+              </span>
+            </label>
+            {!draftValid ? (
+              <p className="field-error" role="alert">
+                O limite deve ser um número inteiro entre {WORD_LIMIT_MIN} e {WORD_LIMIT_MAX}.
+              </p>
             ) : null}
+            <div className="segmentation-card-foot">
+              <Button type="button" variant="secondary" size="md" disabled={busy || !draftValid} onClick={() => void requestRecalculate()}>
+                {busy ? 'Recalculando…' : 'Recalcular notas'}
+              </Button>
+              <InfoTip label="Recalcular notas">
+                <p>
+                  Percorre todas as notas do vault e atualiza as que mudarem com o novo limite. É preciso
+                  depois de mexer no número: sem isso, as notas continuam divididas pelo limite antigo.
+                </p>
+              </InfoTip>
+              {draftValid && parsedDraft !== config.segmentation.maxWholeNoteWords ? (
+                <span className="segmentation-current">
+                  Aplicado hoje: <strong>{config.segmentation.maxWholeNoteWords}</strong> palavras
+                </span>
+              ) : null}
+            </div>
           </div>
         </>
       ) : null}

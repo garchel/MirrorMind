@@ -52,21 +52,23 @@ export function SettingRow({
           </strong>
           {description ? <small>{description}</small> : null}
         </span>
-        {children}
+        <div className="settings-toggle-end">
+          {children}
+          {changed && onReset ? (
+            <Button
+              type="button"
+              variant="bare"
+              size="sm"
+              className="settings-reset"
+              onClick={onReset}
+              title={`Restaurar ${label} para o padrão`}
+              aria-label={`Restaurar ${label} para o padrão`}
+            >
+              <RotateCcw size={14} aria-hidden="true" />
+            </Button>
+          ) : null}
+        </div>
       </div>
-      {changed && onReset ? (
-        <Button
-          type="button"
-          variant="bare"
-          size="sm"
-          className="settings-reset"
-          onClick={onReset}
-          title={`Restaurar ${label} para o padrão`}
-          aria-label={`Restaurar ${label} para o padrão`}
-        >
-          <RotateCcw size={14} aria-hidden="true" />
-        </Button>
-      ) : null}
     </div>
   )
 }

@@ -470,7 +470,15 @@ label.settings-toggle {
 /* Rotulo da linha: o mesmo ink do titulo de bloco. Antes herdava o corpo
  * (#4f4f49), entao um h4 de 13px era mais escuro que o rotulo de 18px. */
 .settings-toggle strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--settings-ink-title);
+  /* Herdava 18px do corpo da pagina: rotulo de linha maior que o titulo do
+   * bloco que o contem. */
+  font-size: var(--font-size-body-sm);
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 /* O glifo do toggle (checkbox, radio, range) e 18px. Campo de texto dentro
@@ -885,6 +893,15 @@ label.settings-toggle {
   min-width: 0;
 }
 
+/* Controle + restaurar: os dois dentro do cartao. O botao ficava no vao entre
+ * o cartao e a borda da coluna, lido como sobra da linha de cima. */
+.settings-toggle-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .settings-changed {
   display: inline-block;
   width: 6px;
@@ -897,12 +914,18 @@ label.settings-toggle {
 
 .settings-reset {
   flex: 0 0 auto;
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
   padding: 0;
-  color: var(--mm-ink-800-7);
+  border-radius: var(--radius-sm);
+  color: var(--settings-ink-label);
+}
+
+.settings-reset:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mm-ink-950-11) 7%, transparent);
+  color: var(--settings-ink-title);
 }
 
 .settings-control-group {
