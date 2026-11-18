@@ -116,6 +116,10 @@
   color: var(--mm-ink-600-5);
 }
 
+[data-theme='dark'] .field-error {
+  color: var(--mm-brick-650);
+}
+
 [data-theme='dark'] .settings-nav :where(button, .ui-button) {
   color: var(--mm-ink-450-2);
 }

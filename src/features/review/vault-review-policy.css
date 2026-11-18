@@ -144,9 +144,10 @@
 }
 
 /* Confirmacao discreta do ajuste: o padrao vale na hora, sem botao de salvar. */
+/* Verde de confirmacao: sage-800 (#3e7550) dava 3.1:1 em 12px. */
 .vault-review-policy-applied {
   margin: 0;
-  color: var(--success, var(--mm-sage-800));
+  color: var(--mm-sage-900);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -168,7 +169,7 @@
  * esconde a consequencia em numeros. */
 .vault-review-policy-summary {
   margin: 0;
-  color: var(--mm-ink-800-7);
+  color: var(--mm-ink-900-32);
   font-size: var(--font-size-caption);
   line-height: 1.5;
 }

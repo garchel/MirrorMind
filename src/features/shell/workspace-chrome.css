@@ -463,8 +463,14 @@ label.settings-toggle {
 }
 
 .settings-toggle small {
-  color: var(--mm-ink-800-7);
+  color: var(--settings-ink-body);
   font-size: 12px;
+}
+
+/* Rotulo da linha: o mesmo ink do titulo de bloco. Antes herdava o corpo
+ * (#4f4f49), entao um h4 de 13px era mais escuro que o rotulo de 18px. */
+.settings-toggle strong {
+  color: var(--settings-ink-title);
 }
 
 /* O glifo do toggle (checkbox, radio, range) e 18px. Campo de texto dentro
@@ -565,7 +571,7 @@ label.settings-toggle {
 
 .settings-font-sample-label {
   flex-shrink: 0;
-  color: var(--mm-ink-800-7);
+  color: var(--settings-ink-label);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -635,9 +641,44 @@ label.settings-toggle {
   border: 1px solid rgb(196 106 43 / 25%);
   border-radius: var(--radius-md);
   background: rgb(196 106 43 / 8%);
-  color: var(--mm-clay-850-12);
+  /* clay-850-12 (#8f5c2e) dava 4.2:1 em 12px sobre o proprio tom. */
+  color: var(--mm-clay-850-2);
   font-size: 12px;
   line-height: 1.55;
+}
+
+/* --- Cor de texto das Configuracoes ------------------------------------------
+ * Medido antes da correcao: quatro cinzas faziam o papel de texto secundario
+ * (#6f6e67, #7e7466, #6b6a63, #a3a097) e tres papeis ficavam abaixo de 4.5:1 em
+ * texto de 10–12px. Tres degraus, e so tres:
+ *
+ *   titulo   #24231f  ink-950-11   12.8:1 sobre o fundo da pagina
+ *   corpo    #4f4f49  ink-900-32    6.7:1
+ *   legenda  #5f5f58  ink-850-14    5.2:1
+ */
+.settings-content,
+.settings-sidebar {
+  --settings-ink-title: var(--mm-ink-950-11);
+  --settings-ink-body: var(--mm-ink-900-32);
+  --settings-ink-label: var(--mm-ink-850-14);
+}
+
+/* O tema escuro inverte a escala: os tres degraus continuam existindo, com os
+ * mesmos papeis, so que claros sobre o fundo escuro. */
+[data-theme='dark'] .settings-content,
+[data-theme='dark'] .settings-sidebar {
+  --settings-ink-title: var(--mm-gold-150);
+  --settings-ink-body: var(--mm-ink-450-2);
+  --settings-ink-label: var(--mm-ink-600-5);
+}
+
+/* Mensagem de erro de campo. So existia no CSS da pagina de Tags — nas outras
+ * telas o erro saia como texto comum, sem cor nem tamanho de aviso. */
+.field-error {
+  margin: 0;
+  color: var(--mm-brick-850-6);
+  font-size: var(--font-size-caption);
+  line-height: 1.5;
 }
 
 /* Layout da pagina de Configuracoes: menu lateral (sticky) + conteudo. */
@@ -678,7 +719,7 @@ label.settings-toggle {
 .settings-nav-group-label {
   margin: 0;
   padding: 0 11px 3px;
-  color: var(--mm-ink-650-6);
+  color: var(--settings-ink-label);
   font: 600 10px/1.4 var(--sans);
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -752,9 +793,16 @@ label.settings-toggle {
 
 .settings-section-description {
   margin: -4px 0 0;
-  color: var(--mm-ink-800-7);
+  color: var(--settings-ink-body);
   font-size: 12px;
   line-height: 1.5;
+}
+
+/* Kicker da pagina e titulos de secao: legenda, entao ink-850-14 — o global
+ * (--muted, #7e7466) dava 3.74:1 em texto de 10–12px. */
+.settings-content .card-kicker,
+.settings-content h3.card-kicker {
+  color: var(--settings-ink-label);
 }
 
 /* Titulo de secao: 12px em micro-caps, com ou sem acao à direita. Sem a regra
@@ -784,7 +832,7 @@ label.settings-toggle {
 .settings-group-legend {
   margin-left: 14px;
   padding: 0 4px;
-  color: var(--mm-ink-800-7);
+  color: var(--settings-ink-label);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.09em;

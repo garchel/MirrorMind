@@ -77,6 +77,29 @@ frase.
 controle do label (o checkbox liga/desliga sem querer). Por isso switch com
 checkbox nao leva tooltip no rotulo — a explicacao fica no `<small>` visivel.
 
+## Cor de texto (Configuracoes)
+
+Tres degraus neutros, e so tres. Medido com o CSS buildado sobre `--bg` (#f0e7d7)
+e sobre o cartao (#fdfcf8):
+
+| papel | token | contraste (pagina / cartao) |
+| --- | --- | --- |
+| titulo (h2, h4, rotulo de linha) | `--mm-ink-950-11` #24231f | 12,8 / 15,3 |
+| corpo (descricao de linha, resumo) | `--mm-ink-900-32` #4f4f49 | 6,7 / 8,0 |
+| legenda (kicker, legend, grupo do menu) | `--mm-ink-850-14` #5f5f58 | 5,2 / 6,3 |
+
+Estados: sucesso `--mm-sage-900`, aviso `--mm-clay-850-2`, erro `--mm-brick-850-6`.
+No tema escuro a escala inverte (`gold-150` / `ink-450-2` / `ink-600-5`).
+
+Antes havia quatro cinzas para o mesmo papel (#6f6e67, #7e7466, #6b6a63, #a3a097)
+e tres papeis abaixo de 4.5:1 em texto de 10-12px: o kicker e o titulo de secao
+(3,74), as descricoes de secao (4,17) e a confirmacao verde do ritmo (3,12).
+O rotulo da linha ainda herdava o ink do corpo, entao um `h4` de 13px era mais
+escuro que o rotulo de 18px logo abaixo.
+
+`field-error` era definido apenas no CSS da pagina de Tags; fora dela a mensagem
+de erro saia como texto comum. Virou classe compartilhada.
+
 ## Escala de titulos (Configuracoes e blocos de ajuste)
 
 Quatro degraus, medidos no CSS buildado — cada um se distingue por tamanho **e**

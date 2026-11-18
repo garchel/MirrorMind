@@ -25,14 +25,16 @@
  * micro-caps da secao: com o bloco em negrito (era 650), o filho parecia mais
  * importante que o pai e a hierarquia se quebrava na leitura. */
 .settings-section-heading :where(h2, h3, h4) {
-  color: var(--text-h);
+  /* Titulo de bloco no mesmo ink dos titulos da pagina (#24231f); `--text-h` e
+   * um azul-frio (#1c2427) que destoava do resto da tela creme. */
+  color: var(--mm-ink-950-11);
   font-size: 13px;
   font-weight: 550;
   letter-spacing: 0;
 }
 
 .settings-section-heading > div > small {
-  color: var(--muted);
+  color: var(--mm-ink-900-32);
   font-size: 12px;
   line-height: 1.5;
 }
