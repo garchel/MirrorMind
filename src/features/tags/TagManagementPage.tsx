@@ -784,12 +784,19 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     Perfil de revisão
                     <InfoTip label="Perfil de revisão">
                       <p>
-                        Define de uma vez quanto lembrar, de quanto em quanto revisar e a
-                        prioridade na fila. Para escolher cada número, abra a Personalizada.
+                        Perfil pronto define ritmo e prioridade de uma vez.
+                        <em>Intensiva</em>: data marcada. <em>Equilibrada</em>: manter sem
+                        apertar. <em>Leve</em>: leitura de fundo. <em>Personalizada</em>: você
+                        define cada número.
                       </p>
                     </InfoTip>
                   </legend>
-                  <div role="radiogroup" aria-label="Perfil de revisão">
+                  {/* Pilula segmentada, o mesmo desenho de "Prioridade na fila" e
+                      "Modo de revisão herdado": quatro rotulos, um ativo. As
+                      descricoes longas sairam daqui e foram para a ajuda — quatro
+                      paragrafos embaixo de quatro cartoes era o que empurrava o
+                      formulario para fora da tela. */}
+                  <div className="tag-profile-picker" role="radiogroup" aria-label="Perfil de revisão">
                     {PROFILE_ORDER.map((key) => {
                       const preset = PRESETS[key]
                       const ativo = !customProfile && activePreset === key
@@ -798,28 +805,26 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                           key={key}
                           type="button"
                           variant="secondary"
-                          size="md"
+                          size="sm"
                           role="radio"
                           aria-checked={ativo}
-                          className={`tag-preset-card${ativo ? ' is-active' : ''}`}
+                          className="tag-profile-option"
                           onClick={() => applyPreset(preset.values)}
                         >
-                          <strong>{preset.label}</strong>
-                          <small>{preset.description}</small>
+                          {preset.label}
                         </Button>
                       )
                     })}
                     <Button
                       type="button"
                       variant="secondary"
-                      size="md"
+                      size="sm"
                       role="radio"
                       aria-checked={customProfile}
-                      className={`tag-preset-card${customProfile ? ' is-active' : ''}`}
+                      className="tag-profile-option"
                       onClick={() => setCustomProfile(true)}
                     >
-                      <strong>Personalizada</strong>
-                      <small>Defina cada campo do ritmo.</small>
+                      Personalizada
                     </Button>
                   </div>
                   <p className="tag-profile-summary">

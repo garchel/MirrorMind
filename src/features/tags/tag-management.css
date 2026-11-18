@@ -742,7 +742,6 @@
 
 .tag-name-field small,
 .tag-mode-options small,
-.tag-presets :where(button, .ui-button) small,
 .tag-review-switch small {
   color: var(--tag-muted);
   font-size: 12px;
@@ -792,8 +791,7 @@
   margin-bottom: 10px;
 }
 
-.tag-mode-options,
-.tag-presets > div {
+.tag-mode-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 9px;
@@ -835,19 +833,53 @@
   font-size: 13px;
 }
 
+/* Perfil de revisao como pilula segmentada — o mesmo desenho de
+ * "Prioridade na fila" e "Modo de revisao herdado". Antes eram quatro cartoes
+ * com titulo e descricao: 4 x ~70px de altura mais quatro paragrafos. A
+ * descricao de cada perfil foi para a ajuda contextual, onde cabe a
+ * recomendacao de uso. */
 .tag-presets > div {
-  /* Quatro perfis (tres prontos + Personalizada): `auto-fit` mantem a linha
-   * unica em tela larga e quebra em duas em tela estreita, sem deixar um
-   * cartao orfao numa terceira linha. */
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   margin-top: 10px;
 }
 
-/* Perfil escolhido: borda de destaque e fundo suave, sem escurecer o cartao
- * (a pilula escura e dos botoes de acao da pagina). */
-.tag-management-page.tag-management-page .tag-presets :is(button, .ui-button).tag-preset-card[aria-checked='true'] {
-  border-color: var(--tag-accent);
-  background: color-mix(in srgb, var(--tag-accent) 10%, var(--tag-surface));
+.tag-profile-picker {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--tag-line);
+  border-radius: 999px;
+  background: var(--mm-clay-150-4);
+}
+
+.tag-management-page.tag-management-page .tag-profile-picker .tag-profile-option.tag-profile-option {
+  /* 26px igual a pilula de prioridade: com 28px o bloco ficava 2px mais alto
+   * que os vizinhos (medido 34 x 32). */
+  min-height: 26px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tag-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag-management-page.tag-management-page .tag-profile-picker .tag-profile-option.tag-profile-option:hover:not(:disabled):not([aria-checked='true']) {
+  background: color-mix(in srgb, var(--tag-accent) 14%, transparent);
+  color: var(--tag-ink);
+  transform: none;
+}
+
+.tag-management-page.tag-management-page .tag-profile-picker .tag-profile-option[aria-checked='true'] {
+  background: var(--tag-ink);
+  color: var(--tag-surface);
+}
+
+.tag-management-page.tag-management-page .tag-profile-picker .tag-profile-option:focus-visible {
+  outline: 2px solid var(--tag-accent);
+  outline-offset: 2px;
 }
 
 .tag-profile-summary {
@@ -855,15 +887,6 @@
   color: var(--tag-muted);
   font-size: 12px;
   line-height: 1.5;
-}
-
-.tag-presets :where(button, .ui-button) {
-  display: grid;
-  justify-content: normal;
-  gap: 5px;
-  padding: 12px;
-  font-size: inherit;
-  text-align: left;
 }
 
 /* Cards de perfil (Intensiva / Equilibrada / Leve): superficie clara com
@@ -1189,7 +1212,7 @@
  * próprio (0,3,0) — sem isso, esta regra (0,3,1) pinta o fundo delas de
  * escuro até no tema claro. O `.tag-tree-create` (botão Criar tag da
  * árvore) também tem estilo próprio. */
-.tag-management-page.tag-management-page :where(button, .ui-button):not(.modal-close):not(.tag-tree-row):not(.tag-tree-create):not(.tag-preset-card):not(.info-tip-trigger):not(.review-priority-picker-option):not(.tag-suggest-item) {
+.tag-management-page.tag-management-page :where(button, .ui-button):not(.modal-close):not(.tag-tree-row):not(.tag-tree-create):not(.tag-profile-option):not(.info-tip-trigger):not(.review-priority-picker-option):not(.tag-suggest-item) {
   min-height: var(--button-size-sm-height);
   border-radius: var(--radius-md);
   background: var(--mm-ink-950-14);
@@ -1198,7 +1221,7 @@
   font-weight: 600;
 }
 
-.tag-management-page.tag-management-page :where(button, .ui-button):hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create):not(.tag-preset-card):not(.info-tip-trigger):not(.review-priority-picker-option):not(.tag-suggest-item) {
+.tag-management-page.tag-management-page :where(button, .ui-button):hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create):not(.tag-profile-option):not(.info-tip-trigger):not(.review-priority-picker-option):not(.tag-suggest-item) {
   transform: none;
   background: var(--mm-ink-950);
 }
@@ -1325,7 +1348,6 @@
     padding: 22px 0 0;
   }
 
-  .tag-presets > div,
   .tag-mode-options,
   .tag-policy-summary,
   .tag-policy-fields {
