@@ -45,10 +45,8 @@ import { errorMessage } from '../../lib/tauri'
 
 /** Como destacar os trechos esquecidos/confundidos no editor (resultado mais
  * recente). Movido do `App.tsx` sem mudança — o App importa este tipo. */
-export type ReviewGapMode = 'always' | 'hover' | 'off'
 
 /** Padrão de fábrica do destaque de lacunas (o `usePref` do App usa `hover`). */
-const DEFAULT_REVIEW_GAP_MODE: ReviewGapMode = 'hover'
 
 /** O que o usuário precisa digitar para liberar a ação destrutiva. */
 const CONFIRM_CLEAR = 'APAGAR'
@@ -69,8 +67,6 @@ export type SettingsPageProps = {
   vaultPath: string
   obsidianAppearance: ObsidianAppearance | null
   appearance: ReturnType<typeof useAppearanceSettings>
-  reviewGapMode: ReviewGapMode
-  setReviewGapMode: (mode: ReviewGapMode) => void
   notificationLastCheck: ReviewNotificationCheck | null
   onCheckReviewNotifications: () => void
   appVersion: string | null
@@ -88,8 +84,6 @@ export function SettingsPage({
   vaultPath,
   obsidianAppearance,
   appearance,
-  reviewGapMode,
-  setReviewGapMode,
   notificationLastCheck,
   onCheckReviewNotifications,
   appVersion,
@@ -163,7 +157,6 @@ export function SettingsPage({
     readingWidth: readingWidth !== APPEARANCE_DEFAULTS.readingWidth,
     lineWrap: isReadingLineWrapEnabled !== APPEARANCE_DEFAULTS.isReadingLineWrapEnabled,
     spellCheck: isSpellCheckEnabled !== APPEARANCE_DEFAULTS.isSpellCheckEnabled,
-    reviewGap: reviewGapMode !== DEFAULT_REVIEW_GAP_MODE,
     autoUpdate: !autoUpdateEnabled,
   }
   const anyInterfaceChange = changed.theme || changed.pagesWidth || changed.fontFamily || changed.fontSize
@@ -556,27 +549,8 @@ export function SettingsPage({
               id="revisao"
               title="Revisão"
               description="Estes são os padrões do vault. Tags e notas podem sobrescrever retenção, intervalos e prazo — o que vale é sempre o mais específico."
-              keywords="retenção intervalo prioridade segmentação notificação lacunas ritmo"
+              keywords="retenção intervalo prioridade segmentação notificação ritmo"
             >
-              <SettingRow
-                label="Lacunas da última revisão no editor"
-                description="Como destacar os trechos esquecidos ou confundidos na nota, usando o resultado mais recente. O texto da nota nunca é modificado."
-                keywords="destaque trecho esquecido confundido"
-                changed={changed.reviewGap}
-                onReset={() => setReviewGapMode(DEFAULT_REVIEW_GAP_MODE)}
-              >
-                <Field as="select"
-                  className="settings-select"
-                  value={reviewGapMode}
-                  onChange={(event) => setReviewGapMode(event.target.value as ReviewGapMode)}
-                  aria-label="Exibição das lacunas da última revisão"
-                >
-                  <option value="always">Revisão (sempre visíveis)</option>
-                  <option value="hover">Misto (somente no hover)</option>
-                  <option value="off">Minhas cores (desativadas)</option>
-                </Field>
-              </SettingRow>
-
               <div className="settings-block" data-block-match={matchesQuery(query, 'ritmo do vault retenção intervalo prioridade padrão')}>
                 <VaultReviewPolicySettings vaultPath={vaultPath} />
               </div>

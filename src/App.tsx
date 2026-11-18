@@ -125,7 +125,8 @@ import {
   effectiveThemeMode,
   fontFamilyCss,
 } from './lib/appearance'
-import { SettingsPage, type ReviewGapMode } from './features/settings/SettingsPage'
+import { SettingsPage } from './features/settings/SettingsPage'
+import { DEFAULT_REVIEW_GAP_MODE, type ReviewGapMode } from './lib/reviewGapMode'
 import { GraphPage } from './features/graph/GraphPage'
 import { GRAPH_RENDER_LIMIT_DEFAULT } from './lib/graphCulling'
 import { ExplorerItemMenu, ExplorerSidebar, type ExplorerContextMenu } from './features/explorer/ExplorerSidebar'
@@ -540,7 +541,7 @@ function App() {
   const [reviewUnits, setReviewUnits] = useState<NoteReviewUnit[]>([])
   const [reviewGapMode, setReviewGapMode] = usePref<ReviewGapMode>(
     'mirrormind.review-gap-mode',
-    'hover',
+    DEFAULT_REVIEW_GAP_MODE,
     (raw) => {
       if (raw === 'off' || raw === 'hover' || raw === 'always') return raw
       throw new Error('valor inválido')
@@ -5972,8 +5973,6 @@ function App() {
                 vaultPath={vault.path}
                 obsidianAppearance={vault?.obsidianAppearance ?? null}
                 appearance={appearance}
-                reviewGapMode={reviewGapMode}
-                setReviewGapMode={setReviewGapMode}
                 notificationLastCheck={notificationLastCheck}
                 onCheckReviewNotifications={handleCheckReviewNotifications}
                 appVersion={appVersion}

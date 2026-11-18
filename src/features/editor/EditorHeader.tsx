@@ -14,7 +14,7 @@ import { NoteTagRow } from '../../components/NoteTagRow'
 import { FrontmatterPanelForm } from '../../components/FrontmatterPanelForm'
 import type { FrontmatterPanelData, FrontmatterRow } from '../../components/markdownLivePreview'
 import { formatNoteTitleAsPath, type CreateNoteForm, type TagSummary } from '../../lib/vault'
-import type { ReviewGapMode } from '../settings/SettingsPage'
+import type { ReviewGapMode } from '../../lib/reviewGapMode'
 import type { NoteReviewGap } from '../review/noteReviewGaps'
 import type { NoteReviewUnit } from '../review/noteReviewUnits'
 import { Field } from '../../components/ui/Field'
@@ -301,10 +301,10 @@ export function EditorHeader({
               aria-checked={reviewGapMode === 'off'}
               className={reviewGapMode === 'off' ? 'is-active' : ''}
               onClick={() => setReviewGapMode('off')}
-              title="Minhas cores: mostra só o marca-texto, sem as lacunas"
-              aria-label="Minhas cores (somente destaques)"
+              title="Nunca: só o marca-texto, sem as lacunas da revisão"
+              aria-label="Nunca (só o marca-texto)"
             >
-              Minhas cores
+              Nunca
             </Button>
             <Button
               variant="bare"
@@ -313,10 +313,10 @@ export function EditorHeader({
               aria-checked={reviewGapMode === 'always'}
               className={reviewGapMode === 'always' ? 'is-active' : ''}
               onClick={() => setReviewGapMode('always')}
-              title="Revisão: lacunas sempre visíveis, com halo em volta do marca-texto"
-              aria-label="Revisão (lacunas sempre visíveis)"
+              title="Sempre: as lacunas ficam visíveis, com halo em volta do marca-texto"
+              aria-label="Sempre (lacunas visíveis)"
             >
-              Revisão
+              Sempre
             </Button>
             <Button
               variant="bare"
@@ -325,10 +325,10 @@ export function EditorHeader({
               aria-checked={reviewGapMode === 'hover'}
               className={reviewGapMode === 'hover' ? 'is-active' : ''}
               onClick={() => setReviewGapMode('hover')}
-              title="Misto: nota limpa, lacunas aparecem no hover"
-              aria-label="Misto (lacunas somente no hover)"
+              title="Ao passar o mouse: a nota fica limpa e o halo aparece no hover"
+              aria-label="Ao passar o mouse (lacunas no hover)"
             >
-              Misto
+              Ao passar o mouse
             </Button>
           </div>
         ) : null}

@@ -50,7 +50,7 @@ import type { LinkTarget } from '../../components/markdownLivePreview'
 import type { ReviewGapData } from '../../components/markdownLivePreview'
 import type { DictionaryEntry } from '../dictionary/dictionarySchema'
 import type { EditorMode } from './EditorHeader'
-import type { ReviewGapMode } from '../settings/SettingsPage'
+import type { ReviewGapMode } from '../../lib/reviewGapMode'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
 
