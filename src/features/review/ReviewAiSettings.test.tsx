@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewAiSettings } from './ReviewAiSettings'
@@ -97,8 +97,10 @@ describe('ReviewAiSettings', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    const selector = screen.getByRole('combobox', { name: 'Provedor da revisão' })
-    expect(screen.getAllByRole('option')).toHaveLength(4)
+    const grupo = screen.getByRole('radiogroup', { name: 'Provedor da revisão' })
+    expect(within(grupo).getAllByRole('radio')).toHaveLength(4)
+    // Cada provedor e um radio; "MirrorMind" so existe com assinatura.
+    expect(within(grupo).getByRole('radio', { name: /MirrorMind/ })).toBeDisabled()
 
     // A configuracao chega de forma assincrona: os campos nascem preenchidos
     // com o que esta salvo.
@@ -121,15 +123,17 @@ describe('ReviewAiSettings', () => {
     })
 
     await user.click(screen.getByRole('button', { name: 'Verificar Ollama' }))
-    expect(await screen.findByText('Pronto para revisar')).toBeInTheDocument()
-    expect(selector).toHaveValue('ollama')
+    // O estado vive no selo do titulo ("Não verificado" -> "Pronto"), nao dentro
+    // do painel: dentro dele so aparece o que deu errado.
+    expect(await screen.findByText('Pronto')).toBeInTheDocument()
+    expect(within(grupo).getByRole('radio', { name: 'Ollama local' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('records consent through the native dialog and stores the Gemini key', async () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'gemini')
+    await user.click(screen.getByRole('radio', { name: 'Gemini' }))
     await user.click(screen.getByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' }))
     expect(mocks.providerConfirm).toHaveBeenCalledTimes(1)
     expect(mocks.providerConfirm).toHaveBeenCalledWith('gemini')
@@ -149,7 +153,7 @@ describe('ReviewAiSettings', () => {
     renderSettings()
     mocks.providerSetConsent.mockClear()
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'gemini')
+    await user.click(screen.getByRole('radio', { name: 'Gemini' }))
     await user.click(screen.getByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' }))
 
     expect(await screen.findByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' })).not.toBeChecked()
@@ -163,7 +167,7 @@ describe('ReviewAiSettings', () => {
     renderSettings()
     mocks.providerSetConsent.mockClear()
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'gemini')
+    await user.click(screen.getByRole('radio', { name: 'Gemini' }))
     await user.click(screen.getByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' }))
 
     expect(mocks.providerConfirm).not.toHaveBeenCalled()
@@ -186,7 +190,7 @@ describe('ReviewAiSettings', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'openAiCompatible')
+    await user.click(screen.getByRole('radio', { name: 'OpenAI-compatible' }))
     await user.type(screen.getByLabelText(/Endereço do servidor/), 'https://api.openai.com/v1')
     await user.type(screen.getByLabelText(/^Modelo$/), 'gpt-4o-mini')
     await user.type(screen.getByLabelText(/Chave da API/), 'sk-secret-key-123')
@@ -223,7 +227,7 @@ describe('ReviewAiSettings', () => {
     mocks.getConfiguration.mockReturnValue(new Promise((resolve) => { resolveInitial = resolve }))
     renderSettings()
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Provedor da revisão' }), 'gemini')
+    await user.click(screen.getByRole('radio', { name: 'Gemini' }))
     await user.type(screen.getByLabelText(/Chave da API Gemini/), 'valid-gemini-key-123')
     await user.click(screen.getByRole('button', { name: 'Salvar chave' }))
     expect(await screen.findByRole('button', { name: 'Remover chave' })).toBeInTheDocument()

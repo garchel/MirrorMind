@@ -1227,3 +1227,38 @@
   font-size: 12px;
   line-height: 1.4;
 }
+
+/* Seletor de provedor em pilula (versao A): a escolha fica visivel sem abrir
+ * uma lista, e o selo no titulo diz o estado do que esta escolhido. */
+.review-ai-provider-picker {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.review-ai-provider-hint {
+  color: var(--muted, var(--mm-ink-800-4));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.review-ai-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.review-ai-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.review-ai-status.is-ok { color: var(--success, var(--mm-sage-850)); }
+.review-ai-status.is-idle { color: var(--muted, var(--mm-ink-800-4)); }
+.review-ai-status.is-warn { color: var(--danger, var(--mm-brick-850-8)); }

@@ -14,6 +14,18 @@ import { SettingsSection } from '../../components/SettingsSection'
 import './review-ai.css'
 import { Field } from '../../components/ui/Field'
 
+/** Rotulos da pilula. O rotulo curto e o que cabe; o longo vira nome acessivel. */
+const PROVIDER_OPTIONS: ReadonlyArray<{
+  value: ReviewAiProvider
+  label: string
+  short: string
+}> = [
+  { value: 'ollama', label: 'Ollama local', short: 'Ollama local' },
+  { value: 'gemini', label: 'Gemini', short: 'Gemini' },
+  { value: 'openAiCompatible', label: 'OpenAI-compatible', short: 'Compatível' },
+  { value: 'managed', label: 'MirrorMind', short: 'MirrorMind' },
+]
+
 /** Contagem de caracteres do prompt estimado para a chamada gerenciada. */
 function estimatedManagedInputChars(): number {
   // Prompt estruturado tipico de uma avaliacao de revisao (instrucoes + nota
@@ -176,29 +188,66 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
     }
   }
 
+  /** Estado do provedor escolhido, resumido no titulo da secao. */
+  const providerStatus: { tone: 'ok' | 'idle' | 'warn'; label: string } = (() => {
+    if (provider === 'ollama') {
+      if (!ollamaStatus) return { tone: 'idle', label: 'Não verificado' }
+      return ollamaStatus.reachable && ollamaStatus.modelInstalled
+        ? { tone: 'ok', label: 'Pronto' }
+        : { tone: 'warn', label: 'Revisar conexão' }
+    }
+    if (provider === 'gemini') {
+      return configuration?.geminiConfigured
+        ? { tone: 'ok', label: 'Chave salva' }
+        : { tone: 'idle', label: 'Não configurado' }
+    }
+    if (provider === 'openAiCompatible') {
+      return configuration?.openAiCompatibleConfigured
+        ? { tone: 'ok', label: 'Configurado' }
+        : { tone: 'idle', label: 'Não configurado' }
+    }
+    return managedGate.allowed
+      ? { tone: 'ok', label: 'Disponível' }
+      : { tone: 'idle', label: 'Indisponível' }
+  })()
+
   return (
     <SettingsSection
       id="review-ai-settings-title"
       title="Revisão com IA"
       className="review-ai-settings"
-    >
-      <label className="settings-toggle">
-        <span>
-          <strong>Provedor da revisão</strong>
-          <small>A sessão usa somente o provedor escolhido. Não existe troca automática.</small>
+      aside={(
+        <span className={`review-ai-status is-${providerStatus.tone}`} role="status">
+          <span className="review-ai-status-dot" aria-hidden="true" />
+          {providerStatus.label}
         </span>
-        <Field as="select"
-          className="settings-select"
-          value={provider}
-          onChange={(event) => selectProvider(event.target.value as ReviewAiProvider)}
-          aria-label="Provedor da revisão"
-        >
-          <option value="ollama">Ollama local</option>
-          <option value="gemini">Gemini</option>
-          <option value="openAiCompatible">OpenAI-compatible</option>
-          <option value="managed" disabled={!managedGate.allowed}>{managedGate.label}</option>
-        </Field>
-      </label>
+      )}
+    >
+      {/* Versao A: pilula de provedor + selo de estado no titulo da secao. */}
+      <div className="review-ai-provider-picker">
+        <div className="settings-segmented" role="radiogroup" aria-label="Provedor da revisão">
+          {PROVIDER_OPTIONS.map((option) => (
+            <Button
+              key={option.value}
+              type="button"
+              variant="bare"
+              size="sm"
+              role="radio"
+              aria-checked={provider === option.value}
+              aria-label={option.value === 'managed' ? managedGate.label : option.label}
+              title={option.value === 'managed' ? managedGate.label : option.label}
+              className={provider === option.value ? 'is-active' : ''}
+              disabled={option.value === 'managed' && !managedGate.allowed}
+              onClick={() => selectProvider(option.value)}
+            >
+              {option.short}
+            </Button>
+          ))}
+        </div>
+        <small className="review-ai-provider-hint">
+          A sessão usa somente o provedor escolhido. Não existe troca automática.
+        </small>
+      </div>
 
       {provider === 'gemini' ? (
         <div className="review-ai-provider-panel">
@@ -364,13 +413,11 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
             <Button type="button" variant="secondary" size="md" onClick={() => void checkOllama()} disabled={busy}>
               Verificar Ollama
             </Button>
-            {ollamaStatus ? (
-              <span role="status">
-                {ollamaStatus.reachable && ollamaStatus.modelInstalled
-                  ? 'Pronto para revisar'
-                  : ollamaStatus.reachable
-                    ? <span>Modelo não encontrado. Execute <code>ollama pull qwen2.5:7b</code> no terminal.</span>
-                    : 'O Ollama local não respondeu. Inicie o serviço e tente novamente.'}
+            {ollamaStatus && !(ollamaStatus.reachable && ollamaStatus.modelInstalled) ? (
+              <span className="field-error" role="alert">
+                {ollamaStatus.reachable
+                  ? <>Modelo não encontrado. Execute <code>ollama pull {ollamaModel || 'qwen2.5:7b'}</code> no terminal.</>
+                  : 'O Ollama local não respondeu. Inicie o serviço e tente novamente.'}
               </span>
             ) : null}
           </div>
