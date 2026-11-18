@@ -196,7 +196,7 @@ describe('TagManagementPage', () => {
     // Ordem no formulario: ritmo e prioridade ANTES do modo herdado.
     const ritmo = screen.getByText(/^Ritmo de revisão$/i)
     const prioridadeRotulo = screen.getByText('Prioridade na fila')
-    const modo = screen.getByText('Modo de revisão herdado')
+    const modo = screen.getByText('Método de avaliação')
     const vemAntes = (a: HTMLElement, b: HTMLElement) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
     expect(vemAntes(ritmo, modo)).toBe(true)
     expect(vemAntes(prioridadeRotulo, modo)).toBe(true)
@@ -212,7 +212,7 @@ describe('TagManagementPage', () => {
     render(<TagManagementPage vaultPath={'C:\\Vault'} />)
 
     await user.click(await screen.findByRole('button', { name: 'Criar tag' }))
-    for (const bloco of ['Perfil de revisão', 'Prazo de estudo', 'Modo de revisão herdado']) {
+    for (const bloco of ['Perfil de revisão', 'Prazo de estudo', 'Método de avaliação']) {
       expect(screen.getByRole('button', { name: `Como funciona: ${bloco}` })).toBeInTheDocument()
     }
 

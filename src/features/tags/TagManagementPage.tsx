@@ -114,6 +114,13 @@ function presetKeyFor(
   return null
 }
 
+/** Metodos de avaliacao que a tag pode transmitir. `null` = sem preferencia. */
+const METHOD_OPTIONS = [
+  { key: 'exam', label: 'Prova', value: 'exam' },
+  { key: 'conversation', label: 'Conversa', value: 'conversation' },
+  { key: 'none', label: 'Sem preferência', value: null },
+] as const
+
 function normalizeTagInput(value: string) {
   return value
     .normalize('NFC')
@@ -719,7 +726,6 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     </InfoTip>
                   </div>
                   <div className="tag-name-frame">
-                    <Hash size={16} aria-hidden="true" />
                     <Field
                       id="tag-name-input"
                       ref={nameInputRef}
@@ -792,11 +798,11 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     </InfoTip>
                   </legend>
                   {/* Pilula segmentada, o mesmo desenho de "Prioridade na fila" e
-                      "Modo de revisão herdado": quatro rotulos, um ativo. As
+                      "Método de avaliação": quatro rotulos, um ativo. As
                       descricoes longas sairam daqui e foram para a ajuda — quatro
                       paragrafos embaixo de quatro cartoes era o que empurrava o
                       formulario para fora da tela. */}
-                  <div className="tag-profile-picker" role="radiogroup" aria-label="Perfil de revisão">
+                  <div className="tag-segmented" role="radiogroup" aria-label="Perfil de revisão">
                     {PROFILE_ORDER.map((key) => {
                       const preset = PRESETS[key]
                       const ativo = !customProfile && activePreset === key
@@ -808,7 +814,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                           size="sm"
                           role="radio"
                           aria-checked={ativo}
-                          className="tag-profile-option"
+                          className="tag-segmented-option"
                           onClick={() => applyPreset(preset.values)}
                         >
                           {preset.label}
@@ -821,7 +827,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                       size="sm"
                       role="radio"
                       aria-checked={customProfile}
-                      className="tag-profile-option"
+                      className="tag-segmented-option"
                       onClick={() => setCustomProfile(true)}
                     >
                       Personalizada
@@ -901,27 +907,29 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
 
                 <fieldset className="tag-mode-field">
                   <legend>
-                    Modo de revisão herdado
-                    <InfoTip label="Modo de revisão herdado">
+                    Método de avaliação
+                    <InfoTip label="Método de avaliação">
                       <p>
                         Formato das perguntas que a tag transmite: <em>Prova</em> (independentes)
                         ou <em>Conversa</em> (exploração). Sem preferência, vale o modo da nota.
                       </p>
                     </InfoTip>
                   </legend>
-                  <div className="tag-mode-options">
-                    <label>
-                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === null} onChange={() => updateDraft({ preferredMode: null })} />
-                      <span><strong>Sem preferência</strong><small>A nota usa o modo dela ou o padrão Prova.</small></span>
-                    </label>
-                    <label>
-                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === 'exam'} onChange={() => updateDraft({ preferredMode: 'exam' })} />
-                      <span><strong>Prova</strong><small>Perguntas independentes.</small></span>
-                    </label>
-                    <label>
-                      <input type="radio" name="tag-preferred-mode" checked={draft.preferredMode === 'conversation'} onChange={() => updateDraft({ preferredMode: 'conversation' })} />
-                      <span><strong>Conversa</strong><small>Exploração progressiva.</small></span>
-                    </label>
+                  <div className="tag-segmented" role="radiogroup" aria-label="Método de avaliação">
+                    {METHOD_OPTIONS.map((option) => (
+                      <Button
+                        key={option.key}
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        role="radio"
+                        aria-checked={draft.preferredMode === option.value}
+                        className="tag-segmented-option"
+                        onClick={() => updateDraft({ preferredMode: option.value })}
+                      >
+                        {option.label}
+                      </Button>
+                    ))}
                   </div>
                 </fieldset>
 
@@ -994,7 +1002,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     <div><dt>Intervalo mínimo</dt><dd>{selected.rule.minIntervalDays} dias</dd></div>
                     <div><dt>Intervalo máximo</dt><dd>{selected.rule.maxIntervalDays} dias</dd></div>
                     <div><dt>Prazo de estudo</dt><dd>{selected.rule.deadlineAtUnixMs === null ? 'Sem prazo' : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(selected.rule.deadlineAtUnixMs))}</dd></div>
-                    <div><dt>Modo herdado</dt><dd>{selected.rule.preferredMode === null ? 'Sem preferência' : selected.rule.preferredMode === 'exam' ? 'Prova' : 'Conversa'}</dd></div>
+                    <div><dt>Método de avaliação</dt><dd>{selected.rule.preferredMode === null ? 'Sem preferência' : selected.rule.preferredMode === 'exam' ? 'Prova' : 'Conversa'}</dd></div>
                   </dl>
                 </>
               ) : (

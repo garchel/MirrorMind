@@ -177,11 +177,6 @@
   box-shadow: 0 0 0 3px rgb(115 137 121 / 14%);
 }
 
-/* Sem caixa, o foco do nome vai na linha de base. */
-.tag-name-field > div:focus-within {
-  border-bottom-color: var(--tag-accent);
-}
-
 .tag-tree-summary {
   /* Rodape da arvore: fora do caminho (busca -> criar -> lista), aparece
    * como assinatura discreta embaixo. */
@@ -648,18 +643,22 @@
   gap: 6px;
 }
 
-/* O nome da tag nao e uma caixa: e texto em linha, na altura do titulo do
- * formulario. Sem moldura, sem fundo, sem raio — so uma linha de base que
- * acende no foco (o foco precisa continuar visivel). */
+/* O nome da tag nao e uma caixa nem tem linha embaixo: e texto solto, na
+ * altura do titulo do formulario, alinhado com o rotulo (sem o "#" que
+ * existia dentro da moldura — sem moldura ele so empurrava o texto para a
+ * direita). O foco continua visivel por um realce de fundo. */
 .tag-name-field > div {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0 2px;
   border: 0;
-  border-bottom: 1px solid var(--mm-clay-400);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
+}
+
+.tag-name-field > div:focus-within {
+  background: color-mix(in srgb, var(--tag-accent) 7%, transparent);
 }
 
 .tag-name-field input {
@@ -741,7 +740,6 @@
 }
 
 .tag-name-field small,
-.tag-mode-options small,
 .tag-review-switch small {
   color: var(--tag-muted);
   font-size: 12px;
@@ -791,48 +789,6 @@
   margin-bottom: 10px;
 }
 
-.tag-mode-options {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 9px;
-}
-
-.tag-mode-options label {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 11px 12px;
-  border: 1px solid var(--mm-clay-400);
-  border-radius: var(--radius-lg);
-  background: var(--tag-surface);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.tag-mode-options label:has(input:checked) {
-  border-color: var(--mm-ink-700-9);
-  background: var(--mm-clay-150-4);
-}
-
-.tag-mode-options label:hover {
-  border-color: var(--mm-clay-550);
-}
-
-.tag-mode-options input {
-  margin-top: 3px;
-  accent-color: var(--tag-accent);
-}
-
-.tag-mode-options span {
-  display: grid;
-  gap: 3px;
-}
-
-.tag-mode-options strong {
-  color: var(--mm-ink-900-17);
-  font-size: 13px;
-}
-
 /* Perfil de revisao como pilula segmentada — o mesmo desenho de
  * "Prioridade na fila" e "Modo de revisao herdado". Antes eram quatro cartoes
  * com titulo e descricao: 4 x ~70px de altura mais quatro paragrafos. A
@@ -842,8 +798,11 @@
   margin-top: 10px;
 }
 
-.tag-profile-picker {
-  display: inline-flex;
+.tag-segmented {
+  /* `flex` + `fit-content`, e nao `inline-flex`: como elemento inline, a linha
+   * de base somava 1px na caixa medidas 33 contra 32 da pilula de prioridade. */
+  display: flex;
+  width: fit-content;
   flex-wrap: wrap;
   gap: 2px;
   padding: 2px;
@@ -852,7 +811,7 @@
   background: var(--mm-clay-150-4);
 }
 
-.tag-management-page.tag-management-page .tag-profile-picker .tag-profile-option.tag-profile-option {
+.tag-management-page.tag-management-page .tag-segmented .tag-segmented-option.tag-segmented-option {
   /* 26px igual a pilula de prioridade: com 28px o bloco ficava 2px mais alto
    * que os vizinhos (medido 34 x 32). */
   min-height: 26px;
@@ -862,22 +821,66 @@
   background: transparent;
   color: var(--tag-muted);
   font-size: 12.5px;
+  /* `line-height: 1` como na pilula de prioridade: herdado do botao base dava
+   * 27px de altura e a pilula ficava 1px mais alta que as vizinhas. */
+  line-height: 1;
   font-weight: 600;
   white-space: nowrap;
 }
 
-.tag-management-page.tag-management-page .tag-profile-picker .tag-profile-option.tag-profile-option:hover:not(:disabled):not([aria-checked='true']) {
+.tag-management-page.tag-management-page .tag-segmented .tag-segmented-option.tag-segmented-option:hover:not(:disabled):not([aria-checked='true']) {
   background: color-mix(in srgb, var(--tag-accent) 14%, transparent);
   color: var(--tag-ink);
   transform: none;
 }
 
-.tag-management-page.tag-management-page .tag-profile-picker .tag-profile-option[aria-checked='true'] {
+.tag-management-page.tag-management-page .tag-segmented .tag-segmented-option[aria-checked='true'] {
   background: var(--tag-ink);
   color: var(--tag-surface);
 }
 
-.tag-management-page.tag-management-page .tag-profile-picker .tag-profile-option:focus-visible {
+.tag-management-page.tag-management-page .tag-segmented .tag-segmented-option:focus-visible {
+  outline: 2px solid var(--tag-accent);
+  outline-offset: 2px;
+}
+
+/* Prioridade na fila usa o componente compartilhado do vault
+ * (ReviewPriorityLevelPicker), com as cores do design system global. Dentro
+ * desta pagina ele veste o mesmo desenho das outras pilulas: mesma borda,
+ * mesmo fundo, opcao de 26px e o mesmo par de cores no estado ativo. */
+.tag-management-page.tag-management-page .review-priority-picker-options {
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--tag-line);
+  border-radius: 999px;
+  background: var(--mm-clay-150-4);
+}
+
+.tag-management-page.tag-management-page .review-priority-picker-option {
+  min-height: 26px;
+  padding: 0 13px;
+  border-radius: 999px;
+  color: var(--tag-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.tag-management-page.tag-management-page .review-priority-picker-option:hover:not(:disabled):not(.is-active) {
+  background: color-mix(in srgb, var(--tag-accent) 14%, transparent);
+  color: var(--tag-ink);
+}
+
+.tag-management-page.tag-management-page .review-priority-picker-option.is-active {
+  background: var(--tag-ink);
+  color: var(--tag-surface);
+}
+
+/* Urgente mantem o verde no estado ativo, como no resto do app. */
+.tag-management-page.tag-management-page .review-priority-picker-option.is-active[data-level='urgente'] {
+  background: var(--tag-accent);
+}
+
+.tag-management-page.tag-management-page .review-priority-picker-option:focus-visible {
   outline: 2px solid var(--tag-accent);
   outline-offset: 2px;
 }
@@ -1212,7 +1215,7 @@
  * próprio (0,3,0) — sem isso, esta regra (0,3,1) pinta o fundo delas de
  * escuro até no tema claro. O `.tag-tree-create` (botão Criar tag da
  * árvore) também tem estilo próprio. */
-.tag-management-page.tag-management-page :where(button, .ui-button):not(.modal-close):not(.tag-tree-row):not(.tag-tree-create):not(.tag-profile-option):not(.info-tip-trigger):not(.review-priority-picker-option):not(.tag-suggest-item) {
+.tag-management-page.tag-management-page :where(button, .ui-button):not(.modal-close):not(.tag-tree-row):not(.tag-tree-create):not(.tag-segmented-option):not(.info-tip-trigger):not(.review-priority-picker-option):not(.tag-suggest-item) {
   min-height: var(--button-size-sm-height);
   border-radius: var(--radius-md);
   background: var(--mm-ink-950-14);
@@ -1221,7 +1224,7 @@
   font-weight: 600;
 }
 
-.tag-management-page.tag-management-page :where(button, .ui-button):hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create):not(.tag-profile-option):not(.info-tip-trigger):not(.review-priority-picker-option):not(.tag-suggest-item) {
+.tag-management-page.tag-management-page :where(button, .ui-button):hover:not(:disabled):not(.tag-tree-row):not(.tag-tree-create):not(.tag-segmented-option):not(.info-tip-trigger):not(.review-priority-picker-option):not(.tag-suggest-item) {
   transform: none;
   background: var(--mm-ink-950);
 }
@@ -1348,7 +1351,6 @@
     padding: 22px 0 0;
   }
 
-  .tag-mode-options,
   .tag-policy-summary,
   .tag-policy-fields {
     grid-template-columns: 1fr;
