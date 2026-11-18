@@ -21,12 +21,14 @@
   margin: 0;
 }
 
-/* Titulo de bloco: 14px. Eram 16px — maiores que o titulo da secao que os
- * contem (12px em micro-caps), o que invertia a ordem que o olho segue. */
+/* Titulo de bloco: 13px e peso 550 — quase texto. O peso forte ficou com o
+ * micro-caps da secao: com o bloco em negrito (era 650), o filho parecia mais
+ * importante que o pai e a hierarquia se quebrava na leitura. */
 .settings-section-heading :where(h2, h3, h4) {
   color: var(--text-h);
-  font-size: 14px;
-  font-weight: 650;
+  font-size: 13px;
+  font-weight: 550;
+  letter-spacing: 0;
 }
 
 .settings-section-heading > div > small {

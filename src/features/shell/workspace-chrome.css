@@ -758,6 +758,62 @@ label.settings-toggle {
 .settings-section-header > .card-kicker {
   margin: 10px 0 -2px;
   font-size: var(--font-size-caption);
+  font-weight: 700;
+}
+
+/* Grupo dentro de uma secao (ex.: tipografia): uma moldura para os controles que
+ * formam um assunto so, com o exemplo de texto lá dentro. Sem a moldura, o
+ * exemplo parecia um bloco solto no meio das linhas. */
+.settings-group {
+  display: grid;
+  width: min(720px, 100%);
+  min-width: 0;
+  margin: 0;
+  padding: 4px 0 0;
+  border: 1px solid var(--mm-ink-350-3);
+  border-radius: var(--radius-lg);
+  background: var(--mm-gold-50);
+}
+
+.settings-group-legend {
+  margin-left: 14px;
+  padding: 0 4px;
+  color: var(--mm-ink-800-7);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* Dentro do grupo a linha nao e um cartao: e uma linha do cartao. */
+.settings-group .settings-row {
+  width: 100%;
+  padding: 10px 14px;
+}
+
+.settings-group .settings-row + .settings-row,
+.settings-group .settings-font-sample {
+  border-top: 1px solid var(--mm-ink-350-3);
+}
+
+.settings-group .settings-toggle {
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.settings-group .settings-toggle:hover {
+  border-color: transparent;
+}
+
+.settings-group .settings-font-sample {
+  width: 100%;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px);
+  background: transparent;
 }
 
 /* Linha de configuracao: o ~controle~ a direita, o botao "restaurar" fora do

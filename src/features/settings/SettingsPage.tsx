@@ -379,54 +379,58 @@ export function SettingsPage({
               title="Editor"
               keywords="fonte tipografia tamanho pixel historico desfazer salvar automatico autosave"
             >
-              <SettingRow
-                label="Fonte do editor"
-                description="Família aplicada aos modos Edição, Misto e Leitura."
-                changed={changed.fontFamily}
-                onReset={() => setEditorFontFamily(APPEARANCE_DEFAULTS.editorFontFamily)}
-              >
-                <Field as="select" className="settings-select" value={editorFontFamily} onChange={(event) => setEditorFontFamily(event.target.value as EditorFontFamily)} aria-label="Família da fonte do editor e da leitura">
-                  {FONT_FAMILIES.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </Field>
-              </SettingRow>
+              <fieldset className="settings-group">
+                <legend className="settings-group-legend">Tipografia do editor</legend>
 
-              <SettingRow
-                label="Tamanho da fonte"
-                description={obsidianAppearance?.baseFontSize
-                  ? `Medida base do texto em pixels. O vault define ${Math.round(obsidianAppearance.baseFontSize)}px — aplique com o botão ao lado.`
-                  : 'Medida base do texto do editor e da leitura em pixels.'}
-                keywords="tamanho vault obsidian pixel"
-                changed={changed.fontSize}
-                onReset={() => setEditorFontSize(APPEARANCE_DEFAULTS.editorFontSize)}
-              >
-                <div className="settings-control-group">
-                  <Field
-                    className="settings-number"
-                    type="number"
-                    min={MIN_FONT_SIZE}
-                    max={MAX_FONT_SIZE}
-                    step={1}
-                    value={editorFontSize}
-                    onChange={(event) => setEditorFontSize(clampFontSize(Number(event.target.value)))}
-                    aria-label="Tamanho da fonte do editor e da leitura"
-                  />
-                  {obsidianAppearance?.baseFontSize ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setEditorFontSize(clampFontSize(obsidianAppearance?.baseFontSize ?? DEFAULT_FONT_SIZE))}
-                      title="Aplicar o tamanho definido no vault, sem alterar os arquivos"
-                    >
-                      Usar {Math.round(obsidianAppearance.baseFontSize)}px do vault
-                    </Button>
-                  ) : null}
-                </div>
-              </SettingRow>
+                <SettingRow
+                  label="Fonte"
+                  description="Família aplicada aos modos Edição, Misto e Leitura."
+                  changed={changed.fontFamily}
+                  onReset={() => setEditorFontFamily(APPEARANCE_DEFAULTS.editorFontFamily)}
+                >
+                  <Field as="select" className="settings-select" value={editorFontFamily} onChange={(event) => setEditorFontFamily(event.target.value as EditorFontFamily)} aria-label="Família da fonte do editor e da leitura">
+                    {FONT_FAMILIES.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </Field>
+                </SettingRow>
 
-              <FontSample family={editorFontFamily} size={editorFontSize} label="Exemplo" />
+                <SettingRow
+                  label="Tamanho"
+                  description={obsidianAppearance?.baseFontSize
+                    ? `O vault define ${Math.round(obsidianAppearance.baseFontSize)}px — aplique com o botão ao lado.`
+                    : 'Medida base do texto em pixels.'}
+                  keywords="tamanho vault obsidian pixel"
+                  changed={changed.fontSize}
+                  onReset={() => setEditorFontSize(APPEARANCE_DEFAULTS.editorFontSize)}
+                >
+                  <div className="settings-control-group">
+                    <Field
+                      className="settings-number"
+                      type="number"
+                      min={MIN_FONT_SIZE}
+                      max={MAX_FONT_SIZE}
+                      step={1}
+                      value={editorFontSize}
+                      onChange={(event) => setEditorFontSize(clampFontSize(Number(event.target.value)))}
+                      aria-label="Tamanho da fonte do editor e da leitura"
+                    />
+                    {obsidianAppearance?.baseFontSize ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setEditorFontSize(clampFontSize(obsidianAppearance?.baseFontSize ?? DEFAULT_FONT_SIZE))}
+                        title="Aplicar o tamanho definido no vault, sem alterar os arquivos"
+                      >
+                        Usar {Math.round(obsidianAppearance.baseFontSize)}px
+                      </Button>
+                    ) : null}
+                  </div>
+                </SettingRow>
+
+                <FontSample family={editorFontFamily} size={editorFontSize} label="Exemplo" />
+              </fieldset>
 
               <SettingRow
                 label="Limite do histórico"
@@ -472,20 +476,24 @@ export function SettingsPage({
               title="Leitura"
               keywords="fonte linha quebra corretor ortográfico coluna"
             >
-              <SettingRow
-                label="Fonte de leitura"
-                description="Aplica a família tipográfica escolhida no modo Leitura."
-                changed={changed.readingFont}
-                onReset={() => setReadingFont(APPEARANCE_DEFAULTS.readingFont)}
-              >
-                <Field as="select" className="settings-select" value={readingFont} onChange={(event) => setReadingFont(event.target.value as ReadingFont)} aria-label="Fonte de leitura">
-                  <option value="sans">Sans serif</option>
-                  <option value="serif">Serif</option>
-                  <option value="mono">Monoespacada</option>
-                </Field>
-              </SettingRow>
+              <fieldset className="settings-group">
+                <legend className="settings-group-legend">Tipografia da leitura</legend>
 
-              <FontSample family={readingFont as EditorFontFamily} size={editorFontSize} label="Exemplo" />
+                <SettingRow
+                  label="Fonte"
+                  description="Família tipográfica usada no modo Leitura."
+                  changed={changed.readingFont}
+                  onReset={() => setReadingFont(APPEARANCE_DEFAULTS.readingFont)}
+                >
+                  <Field as="select" className="settings-select" value={readingFont} onChange={(event) => setReadingFont(event.target.value as ReadingFont)} aria-label="Fonte de leitura">
+                    <option value="sans">Sans serif</option>
+                    <option value="serif">Serif</option>
+                    <option value="mono">Monoespacada</option>
+                  </Field>
+                </SettingRow>
+
+                <FontSample family={readingFont as EditorFontFamily} size={editorFontSize} label="Exemplo" />
+              </fieldset>
 
               <SettingRow
                 label="Largura da leitura"

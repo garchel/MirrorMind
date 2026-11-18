@@ -77,6 +77,30 @@ frase.
 controle do label (o checkbox liga/desliga sem querer). Por isso switch com
 checkbox nao leva tooltip no rotulo — a explicacao fica no `<small>` visivel.
 
+## Escala de titulos (Configuracoes e blocos de ajuste)
+
+Quatro degraus, medidos no CSS buildado — cada um se distingue por tamanho **e**
+por caixa/peso, nunca so por negrito:
+
+| nivel | elemento | medida |
+| --- | --- | --- |
+| kicker da pagina | "Configuracoes" | 10px / 400, micro-caps |
+| `h2` | titulo da pagina | 32px / 600 |
+| `h3` | titulo de secao | 12px / **700**, micro-caps |
+| `h4` | titulo de bloco dentro da secao | 13px / **550**, caixa normal |
+
+Regra que veio dos erros: **o peso forte fica no micro-caps da secao**. Enquanto
+o titulo de bloco estava em 16px/650, o filho parecia mais importante que o pai e
+a leitura quebrava no meio da secao. O `h4` agora e quase texto.
+
+Um bloco que mora dentro de uma secao **nao** pode ser `h3` (mesmo nivel do pai):
+`SettingsSection` recebe `headingLevel` e os blocos das Configuracoes passam 4.
+
+Controles que formam um assunto so (fonte + tamanho + exemplo) vao dentro de um
+`fieldset.settings-group` com `legend` em 10px micro-caps. Dentro do grupo a linha
+perde o cartao proprio e ganha divisoria — senao o cartao dentro do cartao vira
+moldura dupla.
+
 ## Pendencias conhecidas
 
 Medido em `camada3-primitivos` (2026-09-29), com os numeros de botao
