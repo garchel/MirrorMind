@@ -9,17 +9,13 @@
   margin: 0;
 }
 
+/* A linha vem de `.settings-toggle` (workspace-chrome.css): o que muda e o
+ * campo numerico com o sufixo "palavras" dentro da moldura. */
 .segmentation-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border: 1px solid var(--border, var(--line));
-  border-radius: var(--radius-md);
-  padding: 11px 12px;
+  width: min(720px, 100%);
 }
 
-.segmentation-field > span {
+.segmentation-field > span:first-child {
   display: grid;
   gap: 4px;
 }
@@ -30,13 +26,28 @@
   line-height: 1.4;
 }
 
-.segmentation-field input {
-  width: 140px;
-  min-height: 36px;
+/* `.settings-toggle span` e `display: grid` (0,1,1) e vencia esta regra; com o
+ * pai no seletor o campo e o sufixo ficam na mesma linha. */
+.settings-toggle .segmentation-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Sem isto a legenda herda o `display: block` de `.settings-toggle small` e cai
+ * embaixo do campo. A especificidade sobe porque a regra da linha vem depois. */
+.segmentation-field .segmentation-value small {
+  white-space: nowrap;
+}
+
+.segmentation-value input {
+  width: 92px;
+  min-height: 34px;
   box-sizing: border-box;
   border: 1px solid var(--border, var(--line));
   border-radius: var(--radius-sm);
-  padding: 6px 8px;
+  padding: 0 8px;
   background: var(--surface);
   color: var(--text, var(--mm-ink-950-11));
   font: inherit;
@@ -44,14 +55,21 @@
   text-align: right;
 }
 
-.segmentation-field input[aria-invalid='true'] {
+.segmentation-value input[aria-invalid='true'] {
   border-color: var(--danger, var(--mm-brick-850-8));
 }
 
-.segmentation-hint {
+/* O limite que esta valendo agora, ao lado do botao que o aplica. */
+.segmentation-current {
+  margin-left: auto;
   color: var(--muted, var(--mm-ink-800-4));
   font-size: 12px;
   line-height: 1.4;
+}
+
+.segmentation-current strong {
+  color: var(--text, var(--mm-ink-950-11));
+  font-variant-numeric: tabular-nums;
 }
 
 .segmentation-toast {

@@ -12,6 +12,7 @@ import type {
   VaultReviewPolicyConfig,
 } from './vaultReviewPolicy'
 import { SettingsSection } from '../../components/SettingsSection'
+import { InfoTip } from '../../components/ui/InfoTip'
 import './segmentation-settings.css'
 import { errorMessage } from '../../lib/tauri'
 
@@ -167,34 +168,47 @@ export function SegmentationSettings({ vaultPath }: Props) {
 
       {config ? (
         <>
-          <label className="segmentation-field">
+          <label className="settings-toggle segmentation-field">
             <span>
               <strong>Máximo de palavras por nota inteira</strong>
-              <small>Até este tamanho, a nota é uma única unidade; acima, cada parágrafo vira uma.</small>
+              <small>Até este tamanho, a nota é uma única unidade; acima, cada seção (ou parágrafo, sem títulos) vira uma.</small>
             </span>
-            <Field
-              size="xs"
-              type="number"
-              min={WORD_LIMIT_MIN}
-              max={WORD_LIMIT_MAX}
-              step={50}
-              value={draft}
-              disabled={busy}
-              onChange={(event) => setDraft(event.target.value)}
-              aria-label="Máximo de palavras por nota inteira"
-              aria-invalid={!draftValid}
-            />
+            <span className="segmentation-value">
+              <Field
+                size="xs"
+                type="number"
+                min={WORD_LIMIT_MIN}
+                max={WORD_LIMIT_MAX}
+                step={50}
+                value={draft}
+                disabled={busy}
+                onChange={(event) => setDraft(event.target.value)}
+                aria-label="Máximo de palavras por nota inteira"
+                aria-invalid={!draftValid}
+              />
+              <small>palavras</small>
+            </span>
           </label>
           {!draftValid ? (
             <p className="field-error" role="alert">
               O limite deve ser um número inteiro entre {WORD_LIMIT_MIN} e {WORD_LIMIT_MAX}.
             </p>
           ) : null}
-          <div className="review-ai-inline-actions">
-            <Button type="button" variant="primary" size="sm" disabled={busy || !draftValid} onClick={() => void requestRecalculate()}>
+          <div className="settings-actions">
+            <Button type="button" variant="secondary" size="md" disabled={busy || !draftValid} onClick={() => void requestRecalculate()}>
               {busy ? 'Recalculando…' : 'Recalcular notas'}
             </Button>
-            <span className="segmentation-hint">Recalcular percorre todas as notas e atualiza as que se encaixarem no novo padrão.</span>
+            <InfoTip label="Recalcular notas">
+              <p>
+                Percorre todas as notas do vault e atualiza as que mudarem com o novo limite. É preciso
+                depois de mexer no número acima: sem isso, as notas continuam divididas pelo limite antigo.
+              </p>
+            </InfoTip>
+            {draftValid && parsedDraft !== config.segmentation.maxWholeNoteWords ? (
+              <span className="segmentation-current">
+                Aplicado hoje: <strong>{config.segmentation.maxWholeNoteWords}</strong> palavras
+              </span>
+            ) : null}
           </div>
         </>
       ) : null}

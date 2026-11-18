@@ -494,6 +494,10 @@ label.settings-toggle {
  * em verde, que so existia aqui. */
 .settings-segmented {
   display: inline-flex;
+  /* `justify-self` porque a secao das Configuracoes e um grid: sem isso a
+   * pilula estica ate a largura da coluna e vira uma barra vazia. */
+  justify-self: start;
+  max-width: 100%;
   flex-shrink: 0;
   gap: 2px;
   padding: 2px;
@@ -538,6 +542,14 @@ label.settings-toggle {
 }
 
 /* Teclas do atalho: chips de teclado em vez de campo somente-leitura. */
+/* Acao de uma secao com o que ela vai fazer ao lado (nao e tooltip de duvida). */
+.settings-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .settings-shortcut-keys {
   display: inline-flex;
   align-items: center;

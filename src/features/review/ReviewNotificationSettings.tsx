@@ -109,7 +109,7 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
       id="review-notification-settings-title"
       kicker="Revisão"
       title="Notificações de revisão"
-      description="Um único resumo diário com o total de revisões vencidas, em vez de uma notificação por nota."
+      description="Um aviso do sistema, uma vez por dia, com o total de revisões vencidas — não um aviso por nota."
       aside={<Bell size={16} strokeWidth={1.6} aria-hidden="true" />}
       className="review-notification-settings"
     >
@@ -117,7 +117,7 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
       <label className="settings-toggle">
         <span>
           <strong>Resumo diário</strong>
-          <small>Notifica uma vez por dia, na hora escolhida, quando houver revisões vencidas no vault aberto.</small>
+          <small>Notificação do Windows na hora escolhida, com quantas revisões estão vencidas neste vault. Só sai com o app aberto.</small>
         </span>
         <input
           type="checkbox"
