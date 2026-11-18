@@ -2678,11 +2678,25 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
     await openSettings(user)
 
-    const botao = await screen.findByRole('button', { name: 'Apagar dados locais' })
-    expect(botao).toBeDisabled()
+    // Primeiro passo: o gatilho. A lista e o campo de confirmacao so aparecem
+    // depois do clique.
+    const gatilho = await screen.findByRole('button', { name: 'Apagar dados locais…' })
+    expect(gatilho).toBeEnabled()
+    expect(screen.queryByLabelText(/Confirmação: digite APAGAR/i)).toBeNull()
+
+    await user.click(gatilho)
+    expect(screen.getByText(/Histórico de pastas e notas recentes/)).toBeVisible()
+    expect(screen.getByText(/não são tocados/i)).toBeVisible()
+
+    const confirmar = screen.getByRole('button', { name: 'Apagar de vez' })
+    expect(confirmar).toBeDisabled()
 
     await user.type(screen.getByLabelText(/Confirmação: digite APAGAR/i), 'apagar')
-    expect(botao).toBeEnabled()
+    expect(confirmar).toBeEnabled()
+
+    // Cancelar fecha sem apagar.
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByLabelText(/Confirmação: digite APAGAR/i)).toBeNull()
   })
 
   it('[aparência] renderiza blocos Dataview e Tasks somente leitura no modo Leitura', async () => {

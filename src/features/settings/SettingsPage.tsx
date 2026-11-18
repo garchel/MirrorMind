@@ -8,6 +8,7 @@ import {
   DEFAULT_FONT_SIZE,
   DEFAULT_HISTORY_LIMIT,
   FONT_FAMILIES,
+  fontFamilyCss,
   MAX_FONT_SIZE,
   MAX_HISTORY_LIMIT,
   MIN_FONT_SIZE,
@@ -80,6 +81,18 @@ export type SettingsPageProps = {
   accountClient: SessionClient | null
 }
 
+/** Amostra viva da fonte: o rótulo "Serif" não mostra como a nota fica. */
+function FontSample({ family, size, label }: { family: EditorFontFamily; size: number; label: string }) {
+  return (
+    <p className="settings-font-sample">
+      <span className="settings-font-sample-label">{label}</span>
+      <span className="settings-font-sample-text" style={{ fontFamily: fontFamilyCss(family), fontSize: `${size}px` }}>
+        Aa — O rato roeu a roupa do rei de Roma.
+      </span>
+    </p>
+  )
+}
+
 export function SettingsPage({
   vaultPath,
   obsidianAppearance,
@@ -129,6 +142,8 @@ export function SettingsPage({
 
   const [query, setQuery] = useState('')
   const [clearConfirm, setClearConfirm] = useState('')
+  /** Confirmacao em dois passos: a lista do que some aparece antes do campo. */
+  const [clearOpen, setClearOpen] = useState(false)
   const [clearBusy, setClearBusy] = useState(false)
   const [clearStatus, setClearStatus] = useState<{ kind: 'ok' | 'error'; message: string } | null>(null)
 
@@ -181,6 +196,7 @@ export function SettingsPage({
       await invoke('clear_local_app_data')
       localStorage.clear()
       setClearConfirm('')
+      setClearOpen(false)
       setClearStatus({ kind: 'ok', message: 'Dados locais apagados. Reinicie o app para aplicar.' })
     } catch (cause) {
       setClearStatus({ kind: 'error', message: errorMessage(cause, String(cause)) })
@@ -410,6 +426,8 @@ export function SettingsPage({
                 </div>
               </SettingRow>
 
+              <FontSample family={editorFontFamily} size={editorFontSize} label="Exemplo" />
+
               <SettingRow
                 label="Limite do histórico"
                 description={`Ações de desfazer/refazer mantidas por nota no editor (${DEFAULT_HISTORY_LIMIT} por padrão).`}
@@ -466,6 +484,8 @@ export function SettingsPage({
                   <option value="mono">Monoespacada</option>
                 </Field>
               </SettingRow>
+
+              <FontSample family={readingFont as EditorFontFamily} size={editorFontSize} label="Exemplo" />
 
               <SettingRow
                 label="Largura da leitura"
@@ -632,34 +652,71 @@ export function SettingsPage({
               keywords="apagar limpar privacidade cache chaves histórico recentes"
               tone="danger"
             >
-              <div className="settings-danger">
-                <div className="settings-danger-text">
-                  <strong>Apagar dados locais do app</strong>
-                  <p>
-                    Remove o histórico de pastas recentes, as chaves de acesso dos provedores de IA e as
-                    preferências locais. Suas notas e pastas não são apagadas.
-                  </p>
+                            <div className="settings-danger">
+                <div className="settings-danger-head">
+                  <div className="settings-danger-text">
+                    <strong>Apagar dados locais do app</strong>
+                    <p>Histórico de pastas recentes, chaves dos provedores de IA e preferências locais.</p>
+                  </div>
+                  {!clearOpen ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="md"
+                      className="settings-danger-open"
+                      onClick={() => setClearOpen(true)}
+                      disabled={clearBusy}
+                    >
+                      Apagar dados locais…
+                    </Button>
+                  ) : null}
                 </div>
-                <div className="settings-danger-controls">
-                  <Field
-                    size="sm"
-                    value={clearConfirm}
-                    onChange={(event) => setClearConfirm(event.target.value)}
-                    placeholder={`Digite ${CONFIRM_CLEAR}`}
-                    aria-label={`Confirmação: digite ${CONFIRM_CLEAR} para apagar dados locais`}
-                    disabled={clearBusy}
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="md"
-                    className="settings-danger-button"
-                    disabled={clearBusy || clearConfirm.trim().toUpperCase() !== CONFIRM_CLEAR}
-                    onClick={() => void clearLocalData()}
-                  >
-                    {clearBusy ? 'Apagando…' : 'Apagar dados locais'}
-                  </Button>
-                </div>
+
+                {clearOpen ? (
+                  <div className="settings-danger-confirm" role="group" aria-label="Confirmar exclusão dos dados locais">
+                    <p className="settings-danger-question">Apagar estes dados deste computador?</p>
+                    <ul className="settings-danger-list">
+                      <li>Histórico de pastas e notas recentes</li>
+                      <li>Chaves de acesso dos provedores de IA (cofre do sistema)</li>
+                      <li>Preferências locais — aparência, atalhos e orçamento de IA</li>
+                    </ul>
+                    <p className="settings-danger-keep">
+                      Suas notas, pastas e anexos do Vault não são tocados.
+                    </p>
+                    <div className="settings-danger-controls">
+                      <Field
+                        size="sm"
+                        value={clearConfirm}
+                        onChange={(event) => setClearConfirm(event.target.value)}
+                        placeholder={`Digite ${CONFIRM_CLEAR}`}
+                        aria-label={`Confirmação: digite ${CONFIRM_CLEAR} para apagar dados locais`}
+                        disabled={clearBusy}
+                      />
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="md"
+                        disabled={clearBusy || clearConfirm.trim().toUpperCase() !== CONFIRM_CLEAR}
+                        onClick={() => void clearLocalData()}
+                      >
+                        {clearBusy ? 'Apagando…' : 'Apagar de vez'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="md"
+                        disabled={clearBusy}
+                        onClick={() => {
+                          setClearOpen(false)
+                          setClearConfirm('')
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
                 {clearStatus ? (
                   <p className={clearStatus.kind === 'ok' ? 'settings-note' : 'field-error'} role="status">
                     {clearStatus.message}

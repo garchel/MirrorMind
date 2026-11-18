@@ -550,6 +550,37 @@ label.settings-toggle {
   gap: 10px;
 }
 
+/* Amostra tipografica: mostra a fonte escolhida com o tamanho real. */
+.settings-font-sample {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  width: min(720px, 100%);
+  margin: -6px 0 0;
+  padding: 10px 14px;
+  border: 1px dashed var(--mm-ink-350-3);
+  border-radius: var(--radius-md);
+  background: var(--mm-gold-50);
+}
+
+.settings-font-sample-label {
+  flex-shrink: 0;
+  color: var(--mm-ink-800-7);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-font-sample-text {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mm-ink-950-11);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .settings-shortcut-keys {
   display: inline-flex;
   align-items: center;
@@ -707,7 +738,9 @@ label.settings-toggle {
   display: grid;
   gap: 16px;
   width: min(720px, 100%);
-  margin-top: 12px;
+  /* Uma secao nao encosta na anterior: sem este respiro o titulo da proxima
+   * parecia pertencer ao ultimo bloco da anterior. */
+  margin-top: 40px;
   scroll-margin-top: 8px;
 }
 
@@ -859,7 +892,7 @@ label.settings-toggle {
  * categoria neutra; o perigo esta no botao de apagar. */
 .settings-danger {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   width: min(720px, 100%);
   padding: 16px;
   border: 1px solid var(--mm-brick-850-6);
@@ -882,12 +915,23 @@ label.settings-toggle {
 .settings-danger-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.settings-danger-button:not(:disabled) {
+.settings-danger-controls input {
+  width: 150px;
+}
+
+/* Gatilho: borda de perigo, sem preenchimento — o botao cheio e o do segundo
+ * passo ("Apagar de vez"), onde a decisao ja foi tomada. */
+.settings-danger-open:not(:disabled) {
   border-color: var(--mm-brick-850-6);
   color: var(--mm-brick-850-6);
+}
+
+.settings-danger-open:not(:disabled):hover {
+  background: color-mix(in srgb, var(--mm-brick-850-6) 10%, transparent);
 }
 
 .settings-select {
