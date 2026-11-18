@@ -104,8 +104,8 @@ describe('ReviewAiSettings', () => {
 
     // A configuracao chega de forma assincrona: os campos nascem preenchidos
     // com o que esta salvo.
-    const endereco = screen.getByLabelText('Endereço do servidor')
-    const modelo = screen.getByLabelText('Modelo')
+    const endereco = screen.getByLabelText('Endereço do Ollama')
+    const modelo = screen.getByLabelText('Modelo instalado')
     await waitFor(() => expect(endereco).toHaveValue('http://127.0.0.1:11434/v1'))
     expect(modelo).toHaveValue('qwen2.5:7b')
     expect(screen.getByRole('button', { name: 'Salvar servidor local' })).toBeDisabled()
@@ -140,11 +140,11 @@ describe('ReviewAiSettings', () => {
     expect(await screen.findByRole('checkbox', { name: 'Autorizo o envio desses dados ao Gemini.' })).toBeChecked()
     expect(window.localStorage.getItem('mirrormind.review.gemini-consent.v1')).toBe('accepted')
 
-    await user.type(screen.getByLabelText(/Chave da API Gemini/), 'valid-gemini-key-123')
+    await user.type(screen.getByLabelText(/Chave da API do Gemini/), 'valid-gemini-key-123')
     await user.click(screen.getByRole('button', { name: 'Salvar chave' }))
 
     expect(mocks.providerConfigure).toHaveBeenCalledWith({ kind: 'gemini', apiKey: 'valid-gemini-key-123' })
-    expect(screen.getByLabelText(/Chave da API Gemini/)).toHaveValue('')
+    expect(screen.getByLabelText(/Chave da API do Gemini/)).toHaveValue('')
   })
 
   it('keeps consent unchecked when the native dialog is cancelled', async () => {
@@ -191,8 +191,8 @@ describe('ReviewAiSettings', () => {
     renderSettings()
 
     await user.click(screen.getByRole('radio', { name: 'OpenAI-compatible' }))
-    await user.type(screen.getByLabelText(/Endereço do servidor/), 'https://api.openai.com/v1')
-    await user.type(screen.getByLabelText(/^Modelo$/), 'gpt-4o-mini')
+    await user.type(screen.getByLabelText('URL base do servidor'), 'https://api.openai.com/v1')
+    await user.type(screen.getByLabelText('Nome do modelo'), 'gpt-4o-mini')
     await user.type(screen.getByLabelText(/Chave da API/), 'sk-secret-key-123')
     await user.click(screen.getByRole('button', { name: 'Salvar servidor' }))
 
@@ -228,7 +228,7 @@ describe('ReviewAiSettings', () => {
     renderSettings()
 
     await user.click(screen.getByRole('radio', { name: 'Gemini' }))
-    await user.type(screen.getByLabelText(/Chave da API Gemini/), 'valid-gemini-key-123')
+    await user.type(screen.getByLabelText(/Chave da API do Gemini/), 'valid-gemini-key-123')
     await user.click(screen.getByRole('button', { name: 'Salvar chave' }))
     expect(await screen.findByRole('button', { name: 'Remover chave' })).toBeInTheDocument()
 

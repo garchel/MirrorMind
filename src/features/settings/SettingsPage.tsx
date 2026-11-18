@@ -31,6 +31,7 @@ import {
 import type { ObsidianAppearance } from '../../lib/vault'
 import type { AppUpdaterController } from '../../lib/useAppUpdater'
 import { SETTINGS_GROUPS, SETTINGS_SECTIONS, type SettingsSectionId } from './useSettingsNav'
+import { Modal } from '../../components/Modal'
 import { SettingRow } from './SettingRow'
 import { ShortcutKeys } from './ShortcutKeys'
 import { SettingSection } from './SettingSection'
@@ -50,7 +51,6 @@ import { errorMessage } from '../../lib/tauri'
 /** Padrão de fábrica do destaque de lacunas (o `usePref` do App usa `hover`). */
 
 /** O que o usuário precisa digitar para liberar a ação destrutiva. */
-const CONFIRM_CLEAR = 'APAGAR'
 
 /** Linhas de atalho, na ordem da tela. Uma lista só evita seis blocos iguais e
  * deixa a detecção de conflito e o "restaurar" valerem para todas. */
@@ -141,7 +141,6 @@ export function SettingsPage({
   } = appearance
 
   const [query, setQuery] = useState('')
-  const [clearConfirm, setClearConfirm] = useState('')
   /** Confirmacao em dois passos: a lista do que some aparece antes do campo. */
   const [clearOpen, setClearOpen] = useState(false)
   const [clearBusy, setClearBusy] = useState(false)
@@ -195,7 +194,6 @@ export function SettingsPage({
     try {
       await invoke('clear_local_app_data')
       localStorage.clear()
-      setClearConfirm('')
       setClearOpen(false)
       setClearStatus({ kind: 'ok', message: 'Dados locais apagados. Reinicie o app para aplicar.' })
     } catch (cause) {
@@ -660,77 +658,70 @@ export function SettingsPage({
               keywords="apagar limpar privacidade cache chaves histórico recentes"
               tone="danger"
             >
-                            <div className="settings-danger">
+              <div className="settings-danger">
                 <div className="settings-danger-head">
                   <div className="settings-danger-text">
                     <strong>Apagar dados locais do app</strong>
                     <p>Histórico de pastas recentes, chaves dos provedores de IA e preferências locais.</p>
                   </div>
-                  {!clearOpen ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="md"
-                      className="settings-danger-open"
-                      onClick={() => setClearOpen(true)}
-                      disabled={clearBusy}
-                    >
-                      Apagar dados locais…
-                    </Button>
-                  ) : null}
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="md"
+                    className="settings-danger-open"
+                    onClick={() => setClearOpen(true)}
+                    disabled={clearBusy}
+                  >
+                    Apagar dados locais
+                  </Button>
                 </div>
 
-                {clearOpen ? (
-                  <div className="settings-danger-confirm" role="group" aria-label="Confirmar exclusão dos dados locais">
-                    <p className="settings-danger-question">Apagar estes dados deste computador?</p>
-                    <ul className="settings-danger-list">
-                      <li>Histórico de pastas e notas recentes</li>
-                      <li>Chaves de acesso dos provedores de IA (cofre do sistema)</li>
-                      <li>Preferências locais — aparência, atalhos e orçamento de IA</li>
-                    </ul>
-                    <p className="settings-danger-keep">
-                      Suas notas, pastas e anexos do Vault não são tocados.
-                    </p>
-                    <div className="settings-danger-controls">
-                      <Field
-                        size="sm"
-                        value={clearConfirm}
-                        onChange={(event) => setClearConfirm(event.target.value)}
-                        placeholder={`Digite ${CONFIRM_CLEAR}`}
-                        aria-label={`Confirmação: digite ${CONFIRM_CLEAR} para apagar dados locais`}
-                        disabled={clearBusy}
-                      />
-                      <Button
-                        type="button"
-                        variant="danger"
-                        size="md"
-                        disabled={clearBusy || clearConfirm.trim().toUpperCase() !== CONFIRM_CLEAR}
-                        onClick={() => void clearLocalData()}
-                      >
-                        {clearBusy ? 'Apagando…' : 'Apagar de vez'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="md"
-                        disabled={clearBusy}
-                        onClick={() => {
-                          setClearOpen(false)
-                          setClearConfirm('')
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {clearStatus ? (
-                  <p className={clearStatus.kind === 'ok' ? 'settings-note' : 'field-error'} role="status">
-                    {clearStatus.message}
-                  </p>
+                {clearStatus?.kind === 'ok' ? (
+                  <p className="settings-note" role="status">{clearStatus.message}</p>
                 ) : null}
               </div>
+
+              {/* Confirmacao em modal: a lista do que some nao cabe numa linha e
+                  o botao que apaga nao pode estar a um clique do gatilho. */}
+              <Modal
+                open={clearOpen}
+                onClose={() => setClearOpen(false)}
+                labelledBy="settings-danger-title"
+                className="settings-danger-modal"
+                builderName="settings-danger-modal"
+                busy={clearBusy}
+              >
+                <h2 id="settings-danger-title">Apagar estes dados deste computador?</h2>
+                <ul className="settings-danger-list">
+                  <li>Histórico de pastas e notas recentes</li>
+                  <li>Chaves de acesso dos provedores de IA (cofre do sistema)</li>
+                  <li>Preferências locais — aparência, atalhos e orçamento de IA</li>
+                </ul>
+                <p className="settings-danger-keep">Suas notas, pastas e anexos do Vault não são tocados.</p>
+                {clearStatus?.kind === 'error' ? (
+                  <p className="field-error" role="alert">{clearStatus.message}</p>
+                ) : null}
+                <div className="settings-danger-actions">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="md"
+                    disabled={clearBusy}
+                    onClick={() => setClearOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="md"
+                    disabled={clearBusy}
+                    onClick={() => void clearLocalData()}
+                  >
+                    {clearBusy ? 'Apagando…' : 'Apagar de vez'}
+                  </Button>
+                </div>
+              </Modal>
             </SettingSection>
           </div>
         </SettingsSearchContext.Provider>

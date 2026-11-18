@@ -2697,33 +2697,34 @@ describe('Regressao do editor no workspace', () => {
     expect(within(linhaDoTema).queryByRole('button', { name: /Restaurar Tema/i })).toBeNull()
   })
 
-  it('[configurações] apagar dados só libera depois de digitar APAGAR', async () => {
+  it('[configurações] apagar dados locais pede confirmação em modal', async () => {
     const user = userEvent.setup()
     createTauriHarness()
     await openTestVault(user)
     await openSettings(user)
 
-    // Primeiro passo: o gatilho. A lista e o campo de confirmacao so aparecem
-    // depois do clique.
-    const gatilho = await screen.findByRole('button', { name: 'Apagar dados locais…' })
+    const gatilho = await screen.findByRole('button', { name: 'Apagar dados locais' })
     expect(gatilho).toBeEnabled()
-    expect(screen.queryByLabelText(/Confirmação: digite APAGAR/i)).toBeNull()
+
+    // O `<dialog>` do Modal fica no DOM sempre; o que muda e `open`.
+    const dialogo = document.querySelector('.settings-danger-modal') as HTMLDialogElement
+    expect(dialogo).not.toBeNull()
+    expect(dialogo.open).toBe(false)
 
     await user.click(gatilho)
-    expect(screen.getByText(/Histórico de pastas e notas recentes/)).toBeVisible()
-    expect(screen.getByText(/não são tocados/i)).toBeVisible()
+    await waitFor(() => expect(dialogo.open).toBe(true))
 
-    const confirmar = screen.getByRole('button', { name: 'Apagar de vez' })
-    expect(confirmar).toBeDisabled()
+    // O modal diz o que some e o que fica antes de qualquer clique destrutivo.
+    expect(within(dialogo).getByText('Apagar estes dados deste computador?')).toBeInTheDocument()
+    expect(within(dialogo).getByText(/Histórico de pastas e notas recentes/)).toBeInTheDocument()
+    expect(within(dialogo).getByText(/Chaves de acesso dos provedores de IA/)).toBeInTheDocument()
+    expect(within(dialogo).getByText(/Preferências locais/)).toBeInTheDocument()
+    expect(within(dialogo).getByText(/não são tocados/)).toBeInTheDocument()
+    expect(within(dialogo).getByRole('button', { name: 'Apagar de vez' })).toBeEnabled()
 
-    await user.type(screen.getByLabelText(/Confirmação: digite APAGAR/i), 'apagar')
-    expect(confirmar).toBeEnabled()
-
-    // Cancelar fecha sem apagar.
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
-    expect(screen.queryByLabelText(/Confirmação: digite APAGAR/i)).toBeNull()
+    await user.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(dialogo.open).toBe(false))
   })
-
   it('[aparência] renderiza blocos Dataview e Tasks somente leitura no modo Leitura', async () => {
     const user = userEvent.setup()
     createTauriHarness([

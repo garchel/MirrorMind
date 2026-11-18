@@ -972,26 +972,63 @@ label.settings-toggle {
   line-height: 1.5;
 }
 
-.settings-danger-controls {
+/* Gatilho: botao cheio de perigo, maior que o padrao — e a unica acao da secao
+ * e nao pode ser confundida com um link qualquer. */
+.settings-danger-open {
+  height: 44px;
+  padding: 0 24px;
+  font-size: var(--font-size-body-sm);
+  font-weight: 650;
+}
+
+/* Modal de confirmacao: mesma anatomia do modal do vault. */
+.settings-danger-modal {
+  display: grid;
+  gap: 14px;
+  width: min(480px, 100%);
+  padding: 26px;
+  border: 1px solid var(--mm-ink-350-3);
+  border-radius: var(--radius-lg);
+  background: var(--mm-gold-50);
+  box-shadow: 0 20px 60px rgb(32 32 30 / 18%);
+  color: var(--mm-ink-950-11);
+}
+
+.settings-danger-modal::backdrop {
+  background: rgb(32 32 30 / 24%);
+  backdrop-filter: blur(2px);
+}
+
+.settings-danger-modal h2 {
+  margin: 0;
+  font-size: var(--font-size-title-sm);
+  font-weight: 650;
+}
+
+/* Lista do que sera apagado, dentro do modal. */
+.settings-danger-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--mm-ink-900-32);
+  font-size: var(--font-size-body-sm);
+  line-height: 1.5;
+}
+
+/* A garantia e o que o usuario precisa ler: verde, com peso. */
+.settings-danger-keep {
+  margin: 0;
+  color: var(--mm-sage-850);
+  font-size: var(--font-size-caption);
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.settings-danger-actions {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.settings-danger-controls input {
-  width: 150px;
-}
-
-/* Gatilho: borda de perigo, sem preenchimento — o botao cheio e o do segundo
- * passo ("Apagar de vez"), onde a decisao ja foi tomada. */
-.settings-danger-open:not(:disabled) {
-  border-color: var(--mm-brick-850-6);
-  color: var(--mm-brick-850-6);
-}
-
-.settings-danger-open:not(:disabled):hover {
-  background: color-mix(in srgb, var(--mm-brick-850-6) 10%, transparent);
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .settings-select {

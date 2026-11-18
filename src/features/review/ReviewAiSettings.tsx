@@ -265,7 +265,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
             <span>Autorizo o envio desses dados ao Gemini.</span>
           </label>
           <label className="review-ai-key-field" htmlFor="gemini-api-key">
-            <span>Chave da API Gemini</span>
+            <span>Chave da API do Gemini</span>
             <Field
               size="xs"
               id="gemini-api-key"
@@ -324,7 +324,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
             </dl>
           ) : null}
           <label className="review-ai-key-field" htmlFor="openai-compatible-base-url">
-            <span>Endereço do servidor</span>
+            <span>URL base do servidor</span>
             <Field
               size="xs"
               id="openai-compatible-base-url"
@@ -334,8 +334,11 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
               placeholder="https://api.openai.com/v1"
             />
           </label>
+          <small className="review-ai-hint">
+            Termina em <code>/v1</code> na maioria dos servidores — ex.: <code>https://api.openai.com/v1</code>.
+          </small>
           <label className="review-ai-key-field" htmlFor="openai-compatible-model">
-            <span>Modelo</span>
+            <span>Nome do modelo</span>
             <Field
               size="xs"
               id="openai-compatible-model"
@@ -345,8 +348,11 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
               placeholder="gpt-4o-mini"
             />
           </label>
+          <small className="review-ai-hint">
+            O nome exato do modelo no provedor — ex.: <code>gpt-4o-mini</code>, <code>llama-3.1-70b</code>.
+          </small>
           <label className="review-ai-key-field" htmlFor="openai-compatible-api-key">
-            <span>Chave da API</span>
+            <span>Chave da API do servidor</span>
             <Field
               size="xs"
               id="openai-compatible-api-key"
@@ -375,7 +381,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
             <code>http</code> apenas para localhost ou rede privada.
           </p>
           <label className="review-ai-key-field" htmlFor="ollama-endpoint">
-            <span>Endereço do servidor</span>
+            <span>Endereço do Ollama</span>
             <Field
               size="xs"
               id="ollama-endpoint"
@@ -385,8 +391,11 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
               placeholder="http://127.0.0.1:11434/v1"
             />
           </label>
+          <small className="review-ai-hint">
+            Onde o serviço escuta. <code>http</code> só vale para localhost ou rede privada.
+          </small>
           <label className="review-ai-key-field" htmlFor="ollama-model">
-            <span>Modelo</span>
+            <span>Modelo instalado</span>
             <Field
               size="xs"
               id="ollama-model"
@@ -396,7 +405,9 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
               placeholder="qwen2.5:7b"
             />
           </label>
-          <small className="review-ai-hint">O nome precisa existir no servidor (<code>ollama list</code>).</small>
+          <small className="review-ai-hint">
+            Precisa existir no servidor — confira com <code>ollama list</code>.
+          </small>
           <div className="review-ai-inline-actions">
             <Button
               type="button"
