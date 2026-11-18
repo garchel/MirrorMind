@@ -19,7 +19,6 @@ import {
 } from '../../lib/appearance'
 import {
   DEFAULT_WORKSPACE_SHORTCUTS,
-  formatShortcut,
   type WorkspaceShortcuts,
 } from '../../lib/keyboard-shortcuts'
 import {
@@ -32,6 +31,7 @@ import type { ObsidianAppearance } from '../../lib/vault'
 import type { AppUpdaterController } from '../../lib/useAppUpdater'
 import { SETTINGS_GROUPS, SETTINGS_SECTIONS, type SettingsSectionId } from './useSettingsNav'
 import { SettingRow } from './SettingRow'
+import { ShortcutKeys } from './ShortcutKeys'
 import { SettingSection } from './SettingSection'
 import { SettingsSearchContext, matchesQuery } from './settingsSearch'
 import { ReviewAiSettings } from '../review/ReviewAiSettings'
@@ -440,8 +440,6 @@ export function SettingsPage({
                 label="Salvamento automático"
                 description="Salva após uma breve pausa na digitação, sem interromper a edição."
                 keywords="autosave salvar"
-                changed={changed.autoSave}
-                onReset={() => setAutoSaveEnabled(APPEARANCE_DEFAULTS.isAutoSaveEnabled)}
               >
                 <input
                   type="checkbox"
@@ -537,16 +535,11 @@ export function SettingsPage({
                     changed={!isDefault}
                     onReset={() => patchShortcuts({ [row.key]: DEFAULT_WORKSPACE_SHORTCUTS[row.key] })}
                   >
-                    <Field
-                      value={value}
-                      onKeyDown={(event) => {
-                        event.preventDefault()
-                        patchShortcuts({ [row.key]: formatShortcut(event.nativeEvent) })
-                      }}
-                      aria-label={`Atalho para ${row.label.toLowerCase()}`}
-                      aria-invalid={hasConflict || undefined}
-                      size="sm"
-                      readOnly
+                    <ShortcutKeys
+                      keys={value}
+                      label={row.label}
+                      invalid={hasConflict}
+                      onCapture={(combo) => patchShortcuts({ [row.key]: combo })}
                     />
                   </SettingRow>
                 )

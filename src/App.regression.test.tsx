@@ -890,8 +890,9 @@ describe('Regressao do editor no workspace', () => {
     await openSettings(user)
     await user.click(screen.getByRole('button', { name: 'Atalhos' }))
 
-    expect(screen.getByRole('textbox', { name: 'Atalho para salvar nota' })).toHaveValue('Ctrl+S')
-    expect(screen.getByRole('textbox', { name: 'Atalho para alternar modo de visualização' })).toHaveValue('Ctrl+M')
+    // As teclas aparecem como chips (`kbd`), nao como texto de um campo.
+    expect(screen.getByRole('button', { name: /Atalho para salvar nota/ })).toHaveTextContent('Ctrl+S')
+    expect(screen.getByRole('button', { name: /Atalho para alternar modo de visualização/ })).toHaveTextContent('Ctrl+M')
   })
 
   it('[atalhos] salva a nota e alterna o modo de visualização pelos atalhos configurados', async () => {
@@ -1012,10 +1013,10 @@ describe('Regressao do editor no workspace', () => {
 
     await openSettings(user)
     await user.click(screen.getByRole('button', { name: 'Atalhos' }))
-    const modeShortcutInput = screen.getByRole('textbox', { name: 'Atalho para alternar modo de visualização' })
-    await user.click(modeShortcutInput)
+    const modeShortcutKeys = screen.getByRole('button', { name: /Atalho para alternar modo de visualização/ })
+    await user.click(modeShortcutKeys)
     await user.keyboard('{Control>}{Alt>}v{/Alt}{/Control}')
-    expect(modeShortcutInput).toHaveValue('Ctrl+Alt+V')
+    await waitFor(() => expect(modeShortcutKeys).toHaveTextContent('Ctrl+Alt+V'))
 
     await user.click(screen.getByRole('button', { name: 'Voltar para notas' }))
     await user.keyboard('{Control>}{Alt>}v{/Alt}{/Control}')

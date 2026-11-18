@@ -23,6 +23,25 @@ type Props = {
   vaultPath: string
 }
 
+/** Ordem dos ritmos na tela e a chave do que esta em uso. */
+const PROFILE_ORDER = ['light', 'balanced', 'intensive'] as const
+type PresetKey = keyof typeof PRESETS
+
+function presetKeyFor(form: VaultReviewDefaults): PresetKey | null {
+  for (const key of PROFILE_ORDER) {
+    const values = PRESETS[key].defaults
+    if (
+      form.firstReviewIntervalDays === values.firstReviewIntervalDays
+      && Math.abs(form.targetRetention - values.targetRetention) < 1e-9
+      && form.minIntervalDays === values.minIntervalDays
+      && form.maxIntervalDays === values.maxIntervalDays
+    ) {
+      return key
+    }
+  }
+  return null
+}
+
 const PRESETS = {
   intensive: {
     label: 'Intensiva',
@@ -71,6 +90,8 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
+  /** "Personalizado" aberto: mostra os numeros do ritmo, como na pagina de Tags. */
+  const [customProfile, setCustomProfile] = useState(false)
   const generationRef = useRef(0)
 
   useEffect(() => {
@@ -115,6 +136,9 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
 
   /** Metodo padrao das sessoes (ritmos nao mexem nele: esforço e metodo sao
    * ortogonais). */
+  /** Ritmo pronto em uso (null quando os numeros sao personalizados). */
+  const activePreset = form ? presetKeyFor(form) : null
+
   function setPreferredMode(preferredMode: VaultReviewDefaults['preferredMode']) {
     if (!form) return
     updateForm({ ...form, preferredMode })
@@ -189,65 +213,123 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
 
       {form ? (
         <>
-          <div className="vault-review-policy-presets" aria-label="Ritmos padrão do Vault">
-            {Object.values(PRESETS).map((preset) => (
-              <Button
-                type="button"
-                key={preset.label}
-                variant="secondary" size="md"
-                disabled={busy}
-                onClick={() => {
-                  if (!form) return
-                  // Ritmos definem esforço; o metodo padrao e escolha separada
-                  // e sobrevive a troca de ritmo.
-                  updateForm({ ...preset.defaults, preferredMode: form.preferredMode })
-                }}
-              >
-                <strong>{preset.label}</strong>
-                <small>{preset.description}</small>
-              </Button>
-            ))}
+          <div className="settings-segmented" role="radiogroup" aria-label="Ritmo padrão do vault">
+            {PROFILE_ORDER.map((key) => {
+              const preset = PRESETS[key]
+              const ativo = !customProfile && activePreset === key
+              return (
+                <Button
+                  key={key}
+                  type="button"
+                  variant="bare"
+                  size="sm"
+                  role="radio"
+                  aria-checked={ativo}
+                  className={ativo ? 'is-active' : ''}
+                  disabled={busy}
+                  onClick={() => {
+                    if (!form) return
+                    setCustomProfile(false)
+                    // Ritmos definem esforço; o metodo padrao e escolha separada
+                    // e sobrevive a troca de ritmo.
+                    updateForm({ ...preset.defaults, preferredMode: form.preferredMode })
+                  }}
+                >
+                  {preset.label}
+                </Button>
+              )
+            })}
+            <Button
+              type="button"
+              variant="bare"
+              size="sm"
+              role="radio"
+              aria-checked={customProfile}
+              className={customProfile ? 'is-active' : ''}
+              disabled={busy}
+              onClick={() => setCustomProfile(true)}
+            >
+              Personalizado
+            </Button>
           </div>
 
+          <p className="vault-review-policy-summary">
+            {customProfile
+              ? 'Ajuste os números do ritmo logo abaixo.'
+              : `Primeira revisão em ${form.firstReviewIntervalDays} dia${form.firstReviewIntervalDays === 1 ? '' : 's'} · `
+                + `retenção ${Math.round(form.targetRetention * 100)}% · `
+                + `intervalos de ${form.minIntervalDays} a ${form.maxIntervalDays} dias · `
+                + `prioridade ${form.priorityWeight === 3 ? 'alta' : form.priorityWeight === 2 ? 'normal' : 'baixa'}.`}
+          </p>
+
+          {customProfile ? (
+            <fieldset className="vault-review-policy-fields">
+              <legend>
+                Ritmo de revisão
+                <InfoTip label="Ritmo de revisão padrão do vault">
+                  <p>
+                    A <em>primeira revisão</em> é o prazo até a estreia; a <em>retenção</em> é
+                    quanto você quer lembrar na hora de revisar; os <em>intervalos</em> limitam o
+                    espaçamento.
+                  </p>
+                </InfoTip>
+              </legend>
+              <label><span>Primeira revisão</span><div><Field size="sm" type="number" min="1" max="3650" value={form.firstReviewIntervalDays} onChange={(event) => setNumber('firstReviewIntervalDays', Number(event.target.value))} aria-label="Primeira revisão em dias" /><small>dias</small></div></label>
+              <label><span>Retenção desejada</span><div><Field size="sm" type="number" min="50" max="99" value={Math.round(form.targetRetention * 100)} onChange={(event) => setNumber('targetRetention', Number(event.target.value) / 100)} aria-label="Retenção desejada em porcentagem" /><small>%</small></div></label>
+              <label><span>Intervalo mínimo</span><div><Field size="sm" type="number" min="1" max="3650" value={form.minIntervalDays} onChange={(event) => setNumber('minIntervalDays', Number(event.target.value))} aria-label="Intervalo mínimo em dias" /><small>dias</small></div></label>
+              <label><span>Intervalo máximo</span><div><Field size="sm" type="number" min="1" max="36500" value={form.maxIntervalDays} onChange={(event) => setNumber('maxIntervalDays', Number(event.target.value))} aria-label="Intervalo máximo em dias" /><small>dias</small></div></label>
+            </fieldset>
+          ) : null}
+
+          {customProfile ? (
+            <div className="review-priority-field">
+              <span className="review-priority-field-label">
+                Prioridade na fila
+                <InfoTip label="Prioridade padrão na fila">
+                  <p>
+                    Quem aparece primeiro na fila: <em>Normal</em> entra pelo atraso,
+                    <em> Alta</em> passa na frente e <em>Urgente</em> vai para o topo.
+                  </p>
+                </InfoTip>
+              </span>
+              <ReviewPriorityLevelPicker
+                value={form.priorityWeight}
+                onChange={(weight) => setNumber('priorityWeight', weight)}
+              />
+            </div>
+          ) : null}
+
           <fieldset className="vault-review-policy-modes">
-            <legend>Método de Revisão</legend>
-            <p className="vault-review-policy-modes-hint">Método padrão das sessões de notas novas. Tags e a própria nota podem sobrescrever.</p>
-            <div>
-              <label><input type="radio" name="vault-default-review-mode" checked={form.preferredMode === 'exam'} onChange={() => setPreferredMode('exam')} /> <span><strong>Prova</strong><small>Perguntas independentes.</small></span></label>
-              <label><input type="radio" name="vault-default-review-mode" checked={form.preferredMode === 'conversation'} onChange={() => setPreferredMode('conversation')} /> <span><strong>Conversa</strong><small>Exploração progressiva.</small></span></label>
+            <legend>
+              Método de avaliação
+              <InfoTip label="Método de avaliação padrão">
+                <p>
+                  Formato das perguntas nas sessões de notas novas: <em>Prova</em> (independentes)
+                  ou <em>Conversa</em> (exploração). Tags e a própria nota podem sobrescrever.
+                </p>
+              </InfoTip>
+            </legend>
+            <div className="settings-segmented" role="radiogroup" aria-label="Método de avaliação padrão">
+              <Button
+                type="button" variant="bare" size="sm" role="radio"
+                aria-checked={form.preferredMode === 'exam'}
+                className={form.preferredMode === 'exam' ? 'is-active' : ''}
+                onClick={() => setPreferredMode('exam')}
+              >
+                Prova
+              </Button>
+              <Button
+                type="button" variant="bare" size="sm" role="radio"
+                aria-checked={form.preferredMode === 'conversation'}
+                className={form.preferredMode === 'conversation' ? 'is-active' : ''}
+                onClick={() => setPreferredMode('conversation')}
+              >
+                Conversa
+              </Button>
             </div>
           </fieldset>
 
-          <details className="vault-review-policy-advanced">
-            <summary>
-              Opções avançadas
-              <InfoTip label="Opções avançadas do ritmo">
-                <p>
-                  Só precisa mexer aqui para afinar o ritmo padrão do vault. Retenção desejada
-                  mais alta significa mais revisões (e mais tempo estudando).
-                </p>
-                <p>
-                  Intervalo mínimo impede duas revisões da mesma nota em sequência; o máximo
-                  impede que uma nota fique meses sem voltar.
-                </p>
-              </InfoTip>
-            </summary>
-            <div>
-              <label>Primeira revisão (dias)<Field size="xs" type="number" min="1" max="3650" value={form.firstReviewIntervalDays} onChange={(event) => setNumber('firstReviewIntervalDays', Number(event.target.value))} /></label>
-              <label>Retenção desejada (%)<Field size="xs" type="number" min="50" max="99" value={Math.round(form.targetRetention * 100)} onChange={(event) => setNumber('targetRetention', Number(event.target.value) / 100)} /></label>
-              <label>Intervalo mínimo (dias)<Field size="xs" type="number" min="1" max="3650" value={form.minIntervalDays} onChange={(event) => setNumber('minIntervalDays', Number(event.target.value))} /></label>
-              <label>Intervalo máximo (dias)<Field size="xs" type="number" min="1" max="36500" value={form.maxIntervalDays} onChange={(event) => setNumber('maxIntervalDays', Number(event.target.value))} /></label>
-            </div>
-
-              <div className="review-priority-field">
-                <span>Prioridade na fila</span>
-                <ReviewPriorityLevelPicker
-                  value={form.priorityWeight}
-                  onChange={(weight) => setNumber('priorityWeight', weight)}
-                />
-              </div>
-            {form.maxIntervalDays < form.minIntervalDays ? <p className="field-error" role="alert">O intervalo máximo deve ser igual ou maior que o mínimo.</p> : null}
-          </details>
+          {form.maxIntervalDays < form.minIntervalDays ? <p className="field-error" role="alert">O intervalo máximo deve ser igual ou maior que o mínimo.</p> : null}
 
           {form ? (
             <PolicyWorkloadEstimate

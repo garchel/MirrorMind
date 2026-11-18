@@ -59,7 +59,7 @@ describe('VaultReviewPolicySettings', () => {
     const user = userEvent.setup()
     render(<VaultReviewPolicySettings vaultPath={'C:\\Vault'} />)
 
-    await user.click(await screen.findByRole('button', { name: /^Intensiva/ }))
+    await user.click(await screen.findByRole('radio', { name: 'Intensiva' }))
     await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
 
     expect(await screen.findByText(/3 notas terão suas datas recalculadas/i)).toBeInTheDocument()
@@ -88,8 +88,9 @@ describe('VaultReviewPolicySettings', () => {
     }))
     render(<VaultReviewPolicySettings vaultPath={'C:\\Vault'} />)
 
-    await user.click(await screen.findByRole('button', { name: /^Intensiva/ }))
-    await user.click(screen.getByText('Opções avançadas'))
+    await user.click(await screen.findByRole('radio', { name: 'Intensiva' }))
+    // A prioridade vive em "Personalizado", como no formulario de Tags.
+    await user.click(screen.getByRole('radio', { name: 'Personalizado' }))
     await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
     // Prioridade agora e escolha de nivel: "Urgente" grava 3.
     const prioridadeVault = screen.getByRole('radiogroup', { name: 'Prioridade na fila' })
@@ -122,7 +123,7 @@ describe('VaultReviewPolicySettings', () => {
     previewMock.mockResolvedValueOnce({ affectedNoteCount: 0 })
     render(<VaultReviewPolicySettings vaultPath={'C:\\Vault'} />)
 
-    await user.click(await screen.findByRole('button', { name: /^Leve/ }))
+    await user.click(await screen.findByRole('radio', { name: 'Leve' }))
     await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
 
     await waitFor(() => expect(setDefaultsMock).toHaveBeenCalledTimes(1))
@@ -152,7 +153,7 @@ describe('VaultReviewPolicySettings', () => {
     render(<VaultReviewPolicySettings vaultPath={'C:\\Vault'} />)
 
     await user.click(await screen.findByRole('radio', { name: /Conversa/ }))
-    await user.click(screen.getByRole('button', { name: /^Leve/ }))
+    await user.click(screen.getByRole('radio', { name: 'Leve' }))
     await user.click(screen.getByRole('button', { name: 'Salvar padrão' }))
     await user.click(await screen.findByRole('button', { name: 'Confirmar alteração' }))
 

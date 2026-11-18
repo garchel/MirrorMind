@@ -488,44 +488,102 @@ label.settings-toggle {
   width: 100%;
 }
 
-/* Controle segmentado das Configuracoes (ex.: tema claro/escuro). */
+/* Controle segmentado das Configuracoes: capsula com as opcoes em pilula e a
+ * escolhida em fundo escuro — o mesmo desenho de "Perfil de revisao" na pagina
+ * de Tags e da prioridade da fila. Antes eram botoes colados com a opcao ativa
+ * em verde, que so existia aqui. */
 .settings-segmented {
   display: inline-flex;
   flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
   border: 1px solid var(--mm-ink-350-3);
-  border-radius: var(--radius-sm);
-  background: var(--mm-gold-50);
-  overflow: hidden;
+  border-radius: 999px;
+  background: var(--mm-clay-150-4);
 }
 
 .settings-segmented :where(button, .ui-button) {
-  padding: 8px 14px;
-  border: none;
-  border-right: 1px solid var(--mm-ink-350-3);
+  min-height: 26px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 999px;
   background: transparent;
-  color: var(--mm-ink-850-14);
-  font: var(--font-size-small) var(--sans);
+  color: var(--mm-ink-800-7);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
 }
 
-.settings-segmented :where(button, .ui-button):last-child {
-  border-right: none;
+.settings-segmented :where(button, .ui-button):hover:not(:disabled):not(.is-active) {
+  background: color-mix(in srgb, var(--mm-sage-850) 12%, transparent);
+  color: var(--mm-ink-950-11);
+  transform: none;
 }
 
 .settings-segmented :where(button, .ui-button).is-active {
-  background: var(--mm-sage-850);
+  background: var(--mm-ink-950-11);
   color: var(--mm-gold-50);
 }
 
 .settings-segmented :where(button, .ui-button).is-active:hover:not(:disabled) {
-  background: var(--mm-sage-850);
+  background: var(--mm-ink-950-11);
   color: var(--mm-gold-50);
 }
 
 .settings-segmented :where(button, .ui-button):focus-visible {
-  outline: 2px solid rgb(46 107 79 / 45%);
-  outline-offset: -2px;
+  outline: 2px solid var(--mm-sage-850);
+  outline-offset: 2px;
+}
+
+/* Teclas do atalho: chips de teclado em vez de campo somente-leitura. */
+.settings-shortcut-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  /* O botao global tem min-height 46; aqui e um campo de 34px. */
+  height: 34px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--mm-ink-350-3);
+  border-radius: var(--radius-md);
+  background: var(--mm-gold-50);
+  color: var(--mm-ink-900-23);
+  font: var(--font-size-small) var(--sans);
+  cursor: text;
+}
+
+.settings-shortcut-keys:hover {
+  border-color: var(--mm-ink-450-2);
+}
+
+.settings-shortcut-keys:focus-visible {
+  outline: 2px solid var(--mm-sage-850);
+  outline-offset: 2px;
+}
+
+.settings-shortcut-keys kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--mm-ink-350-3);
+  /* Profundidade de tecla pela sombra, nao por borda mais grossa embaixo:
+   * a borda de 2px empurrava o chip 1px para baixo e desalinhava o "+". */
+  box-shadow: inset 0 -1px 0 var(--mm-ink-350-3);
+  border-radius: 5px;
+  background: var(--mm-clay-150-4);
+  color: var(--mm-ink-950-11);
+  font: 600 11px var(--mono);
+  line-height: 1;
+}
+
+.settings-shortcut-keys .settings-shortcut-plus {
+  color: var(--mm-ink-650-4);
+  font-size: 11px;
 }
 
 .settings-note {

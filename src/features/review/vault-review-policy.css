@@ -161,3 +161,92 @@
   
 }
 
+
+/* Resumo do ritmo em palavras, como o formulario de Tags: o perfil pronto nao
+ * esconde a consequencia em numeros. */
+.vault-review-policy-summary {
+  margin: 0;
+  color: var(--mm-ink-800-7);
+  font-size: var(--font-size-caption);
+  line-height: 1.5;
+}
+
+/* Campos numericos do ritmo: mesma anatomia do bloco "Ritmo de revisao" da
+ * pagina de Tags (legenda 13/700, tres colunas, marco do campo). */
+.vault-review-policy-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.vault-review-policy-fields legend {
+  margin-bottom: 10px;
+  color: var(--mm-ink-900-21);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vault-review-policy-fields > label {
+  display: grid;
+  gap: 6px;
+}
+
+.vault-review-policy-fields > label > span {
+  color: var(--mm-ink-800-7);
+  font-size: 12px;
+}
+
+.vault-review-policy-fields > label > div {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--mm-clay-400);
+  border-radius: var(--radius-md);
+  background: var(--mm-gold-50);
+  overflow: hidden;
+}
+
+.vault-review-policy-fields > label > div:focus-within {
+  border-color: var(--mm-sage-850);
+  box-shadow: 0 0 0 3px rgb(115 137 121 / 14%);
+}
+
+.vault-review-policy-fields input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--mm-ink-950-11);
+  font: 13px var(--sans);
+}
+
+.vault-review-policy-fields small {
+  padding-right: 10px;
+  color: var(--mm-ink-800-7);
+  font-size: 12px;
+}
+
+/* Metodo de avaliacao: legenda 13/700 como os outros blocos. */
+.vault-review-policy-modes {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.vault-review-policy-modes legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: var(--mm-ink-900-21);
+  font-size: 13px;
+  font-weight: 700;
+}
