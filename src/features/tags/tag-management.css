@@ -600,6 +600,7 @@
 }
 
 .tag-name-field > span,
+.tag-name-field legend,
 .tag-name-label,
 .tag-presets legend,
 .tag-policy-fields legend,
@@ -610,70 +611,53 @@
   font-weight: 700;
 }
 
+/* "Nome da tag" e fieldset como "Perfil de revisao" e "Metodo de avaliacao":
+ * mesma legenda (13px/700) com a ajuda ao lado. O contorno fica SO no campo
+ * onde se digita — a legenda e texto, como as outras. */
 .tag-name-field {
   position: relative;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.tag-name-field legend,
+.tag-presets legend {
+  margin-bottom: 10px;
 }
 
 .tag-name-frame {
   position: relative;
 }
 
-/* Rotulo "Nome da tag" com a ajuda contextual ao lado (o "?" fica fora do
- * <label>: dentro dele o botao tambem seria rotulado pela label e o campo
- * deixaria de ter nome unico para leitor de tela e teste). */
-.tag-name-heading {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* O nome da tag nao tem contorno, mas precisa parecer campo: fundo
- * preenchido, raio e recuo interno — o mesmo vocabulario dos campos de ritmo,
- * sem a borda. Contorno saiu por pedido; o preenchimento e o que devolve a
- * leitura de "aqui se escreve". */
-.tag-name-field > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.tag-name-input {
+  width: 100%;
+  min-height: 40px;
   padding: 0 12px;
-  border: 0;
+  border: 1px solid var(--tag-border);
   border-radius: var(--radius-md);
-  /* Branco do cartao, nao o creme do painel: com `--mm-clay-150-4` o campo
-   * ficava a 1 unidade de luminosidade do fundo e sumia (medido). */
   background: var(--tag-surface);
-  /* Sem contorno: o campo se destaca do painel pelo branco e por uma sombra
-   * de 1px — nao por uma linha em volta. */
-  box-shadow: 0 1px 3px rgb(56 44 18 / 9%);
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  color: var(--tag-ink);
+  font: 13px var(--sans);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.tag-name-field > div:hover {
-  box-shadow: 0 2px 6px rgb(56 44 18 / 12%);
+.tag-name-input:hover {
+  border-color: var(--mm-clay-550);
 }
 
-.tag-name-field > div:focus-within {
-  box-shadow: 0 0 0 3px rgb(115 137 121 / 16%);
+.tag-name-input:focus-visible {
+  border-color: var(--tag-accent);
+  box-shadow: 0 0 0 3px rgb(115 137 121 / 14%);
+  outline: 0;
 }
 
 /* Placeholder em `--tag-muted`: o tom anterior (--mm-ink-650-4) dava 2,4:1
  * sobre o campo, abaixo de AA. Este fica em ~4,9:1 e continua mais claro que
  * o texto digitado. */
-.tag-name-field input::placeholder {
+.tag-name-input::placeholder {
   color: var(--tag-muted);
-}
-
-.tag-name-field input {
-  width: 100%;
-  min-height: 40px;
-  /* Onda 2 `<Field>`: o cru usava o padding UA (1px 2px) dentro da
-   * moldura que ja tem 12px; o primitivo injeta 0 12px e empurraria o
-   * texto. Preserva o recuo medido. */
-  padding: 1px 2px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--tag-ink);
-  font: 13px var(--sans);
 }
 
 /* Sugestoes de tag existente ao digitar o nome: a lista sai da moldura do
@@ -796,7 +780,9 @@
  * descricao de cada perfil foi para a ajuda contextual, onde cabe a
  * recomendacao de uso. */
 .tag-presets > div {
-  margin-top: 10px;
+  /* O respiro abaixo da legenda vem dela (`margin-bottom`), igual nos outros
+   * blocos — antes vinha de `margin-top` neste div, e so aqui. */
+  margin-top: 0;
 }
 
 .tag-segmented {

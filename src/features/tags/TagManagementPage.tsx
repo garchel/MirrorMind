@@ -5,7 +5,7 @@ import { Field } from '../../components/ui/Field'
 import { ReviewPriorityLevelPicker } from '../review/ReviewPriorityLevelPicker'
 import { priorityLevelFor } from '../review/reviewPriorityLevels'
 import { InfoTip } from '../../components/ui/InfoTip'
-import { AlertTriangle, ChevronRight, FileText, Hash, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
+import { AlertTriangle, ChevronRight, FileText, Hash, Pencil, Plus, Search, Settings, Trash2 } from 'lucide-react'
 import {
   getVaultReviewPolicyConfig,
   tagReviewPolicyRuleSchema,
@@ -128,9 +128,9 @@ function presetKeyFor(
 
 /** Metodos de avaliacao que a tag pode transmitir. `null` = sem preferencia. */
 const METHOD_OPTIONS = [
+  { key: 'none', label: 'Sem preferência', value: null },
   { key: 'exam', label: 'Prova', value: 'exam' },
   { key: 'conversation', label: 'Conversa', value: 'conversation' },
-  { key: 'none', label: 'Sem preferência', value: null },
 ] as const
 
 function normalizeTagInput(value: string) {
@@ -734,30 +734,24 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   <p className="card-kicker">{mode === 'create' ? 'Nova tag' : 'Editando tag'}</p>
                   <h3>{mode === 'create' ? 'Defina a tag e seu ritmo' : `#${selectedTag}`}</h3>
                 </div>
-                {/* No modo criar nao ha nada a descartar: o "Cancelar" do rodape
-                    ja sai do formulario, e um X no titulo viraria o terceiro
-                    caminho para a mesma saida. */}
-                {mode === 'edit' ? (
-                  <Button type="button" variant="secondary" size="md" className="tag-icon-button" onClick={cancelEditing} disabled={busy} aria-label="Cancelar edição">
-                    <X size={16} aria-hidden="true" />
-                  </Button>
-                ) : null}
               </div>
 
               <div className="tag-form">
-                <div className="tag-name-field">
-                  <div className="tag-name-heading">
-                    <label className="tag-name-label" htmlFor="tag-name-input">Nome da tag</label>
+                <fieldset className="tag-name-field">
+                  <legend>
+                    Nome da tag
                     <InfoTip label="Nome da tag">
                       <p>
                         Minúsculas e sem #; espaço vira hífen. A barra cria hierarquia:
                         materia/biologia fica dentro de materia.
                       </p>
                     </InfoTip>
-                  </div>
+                  </legend>
                   <div className="tag-name-frame">
                     <Field
                       id="tag-name-input"
+                      aria-label="Nome da tag"
+                      className="tag-name-input"
                       ref={nameInputRef}
                       size="sm"
                       autoFocus
@@ -805,7 +799,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     </ul>
                   ) : null}
                   </div>
-                </div>
+                </fieldset>
 
                 <fieldset className="tag-presets">
                   <legend>
