@@ -295,7 +295,7 @@ describe('TagManagementPage', () => {
     await user.click(within(tree).getByRole('button', { name: /^#extras · 1 nota$/ }))
     expect(await screen.findByRole('heading', { name: 'extras' })).toBeInTheDocument()
     expect(screen.getByText('Hierarquia de tags')).toBeInTheDocument()
-    expect(screen.getByText('Pasta sem regra própria')).toBeInTheDocument()
+    expect(screen.getByText(/esta hierarquia ainda não define um ritmo/i)).toBeInTheDocument()
     expect(screen.getByText(/1 nota em 1 tag aninhada/)).toBeInTheDocument()
     expect(screen.queryByText('Notas nesta hierarquia')).toBeNull()
     expect(screen.queryByText('Tags abaixo')).toBeNull()

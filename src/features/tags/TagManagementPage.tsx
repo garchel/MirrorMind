@@ -807,14 +807,6 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   </div>
                 </div>
 
-                <label className="tag-review-switch">
-                  <span>
-                    <strong>Habilitar revisão automaticamente</strong>
-                    <small>Notas prontas com esta tag entram no aprendizado sem ativação manual.</small>
-                  </span>
-                  <input type="checkbox" checked={draft.autoEnroll} onChange={(event) => updateDraft({ autoEnroll: event.target.checked })} />
-                </label>
-
                 <fieldset className="tag-presets">
                   <legend>
                     Perfil de revisão
@@ -986,23 +978,79 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
           ) : selectedTag && selectedNode ? (
             <div className="tag-folder-detail">
               <div className="tag-detail-heading">
-                <div>
+                <div className="tag-detail-title">
                   <p className="card-kicker">{selected ? 'Tag selecionada' : 'Hierarquia de tags'}</p>
                   <h3>
                     {selected ? <Hash size={20} aria-hidden="true" /> : null}
                     {selectedTag}
                   </h3>
-                  <p>
-                    {selected
-                      ? `${selected.notePaths.length} nota${selected.notePaths.length === 1 ? '' : 's'} usa${selected.notePaths.length === 1 ? '' : 'm'} esta tag.`
-                      : `${folderNotePaths.length} nota${folderNotePaths.length === 1 ? '' : 's'} em ${folderEntries.length} tag${folderEntries.length === 1 ? '' : 's'} aninhada${folderEntries.length === 1 ? '' : 's'}.`}
-                  </p>
+                  {selected ? (
+                    /* Estado e resumo do ritmo em fichas, na linha abaixo do
+                     * titulo: sete numeros em lista viravam um bloco de texto. */
+                    <div className="tag-detail-chips">
+                      {selected.rule ? (
+                        <>
+                          <span className="tag-chip">
+                            <span className="tag-chip-rot">Retenção</span>
+                            <strong>{Math.round(selected.rule.targetRetention * 100)}%</strong>
+                          </span>
+                          <span className="tag-chip">
+                            <span className="tag-chip-rot">1ª revisão</span>
+                            <strong>{selected.rule.firstReviewIntervalDays} d</strong>
+                          </span>
+                          <span className="tag-chip">
+                            <span className="tag-chip-rot">Intervalos</span>
+                            <strong>{selected.rule.minIntervalDays}–{selected.rule.maxIntervalDays} d</strong>
+                          </span>
+                          {selected.rule.deadlineAtUnixMs === null ? null : (
+                            <span className="tag-chip">
+                              <span className="tag-chip-rot">Prazo</span>
+                              <strong>{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(selected.rule.deadlineAtUnixMs))}</strong>
+                            </span>
+                          )}
+                          <span className="tag-chip">
+                            <span className="tag-chip-rot">Método</span>
+                            <strong>{selected.rule.preferredMode === null ? 'Sem preferência' : selected.rule.preferredMode === 'exam' ? 'Prova' : 'Conversa'}</strong>
+                          </span>
+                          <span className="tag-chip">
+                            <strong>{selected.notePaths.length}</strong>
+                            <span className="tag-chip-rot">nota{selected.notePaths.length === 1 ? '' : 's'}</span>
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="tag-chip is-warn">Sem ritmo próprio</span>
+                          <span className="tag-chip">
+                            <strong>{selected.notePaths.length}</strong>
+                            <span className="tag-chip-rot">nota{selected.notePaths.length === 1 ? '' : 's'}</span>
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <p>
+                      {`${folderNotePaths.length} nota${folderNotePaths.length === 1 ? '' : 's'} em ${folderEntries.length} tag${folderEntries.length === 1 ? '' : 's'} aninhada${folderEntries.length === 1 ? '' : 's'}.`}
+                    </p>
+                  )}
                 </div>
                 <div className="tag-detail-actions">
                   {selected ? (
                     <>
-                      <Button type="button" variant="secondary" size="md" onClick={startEdit} disabled={busy}><Pencil size={15} aria-hidden="true" />Editar</Button>
-                      <Button type="button" variant="secondary" size="md" onClick={() => void requestDelete()} disabled={busy}><Trash2 size={15} aria-hidden="true" />Excluir</Button>
+                      <Button type="button" variant="primary" size="md" onClick={startEdit} disabled={busy}>
+                        <Pencil size={15} aria-hidden="true" />Editar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="md"
+                        className="tag-icon-button"
+                        onClick={() => void requestDelete()}
+                        disabled={busy}
+                        aria-label="Excluir"
+                        title={`Excluir #${selectedTag}`}
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                      </Button>
                     </>
                   ) : (
                     <Button
@@ -1018,27 +1066,22 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 </div>
               </div>
 
-              {selected?.rule ? (
-                <>
-                  <dl className="tag-policy-summary">
-                    <div><dt>Primeira revisão</dt><dd>{selected.rule.firstReviewIntervalDays} dias</dd></div>
-                    <div><dt>Retenção desejada</dt><dd>{Math.round(selected.rule.targetRetention * 100)}%</dd></div>
-                    <div><dt>Prioridade</dt><dd>{selected.rule.priorityWeight}</dd></div>
-                    <div><dt>Intervalo mínimo</dt><dd>{selected.rule.minIntervalDays} dias</dd></div>
-                    <div><dt>Intervalo máximo</dt><dd>{selected.rule.maxIntervalDays} dias</dd></div>
-                    <div><dt>Prazo de estudo</dt><dd>{selected.rule.deadlineAtUnixMs === null ? 'Sem prazo' : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(selected.rule.deadlineAtUnixMs))}</dd></div>
-                    <div><dt>Método de avaliação</dt><dd>{selected.rule.preferredMode === null ? 'Sem preferência' : selected.rule.preferredMode === 'exam' ? 'Prova' : 'Conversa'}</dd></div>
-                  </dl>
-                </>
-              ) : (
-                <div className="tag-unconfigured">
-                  <AlertTriangle size={18} aria-hidden="true" />
-                  <div>
-                    <strong>{selected ? 'Sem ritmo próprio' : 'Pasta sem regra própria'}</strong>
-                    <p>{selected
-                      ? 'Esta tag existe nas notas, mas ainda não altera o agendamento. Clique em Editar para configurá-la.'
-                      : 'As tags abaixo existem nas notas, mas esta hierarquia ainda não define um ritmo. Clique em Configurar para criar a regra.'}</p>
-                  </div>
+              {selected?.rule ? null : (
+                <div className="tag-hint-strip">
+                  <span>
+                    {selected
+                      ? 'Esta tag existe nas notas, mas ainda não altera o agendamento.'
+                      : 'As tags abaixo existem nas notas, mas esta hierarquia ainda não define um ritmo.'}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => startCreate(selectedTag)}
+                    disabled={busy || atRuleLimit}
+                  >
+                    Configurar ritmo
+                  </Button>
                 </div>
               )}
 
