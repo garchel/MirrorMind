@@ -5,8 +5,6 @@ import {
   Cpu,
   Keyboard,
   MonitorSmartphone,
-  Network,
-  Orbit,
   Palette,
   SlidersHorizontal,
 } from 'lucide-react'
@@ -22,8 +20,6 @@ export const SETTINGS_SECTIONS = [
   { id: 'workspace', label: 'Workspace', icon: SlidersHorizontal },
   { id: 'leitura', label: 'Leitura', icon: BookOpenCheck },
   { id: 'atalhos', label: 'Atalhos', icon: Keyboard },
-  { id: 'grafo3d', label: 'Grafo 3D', icon: Orbit },
-  { id: 'grafo2d', label: 'Grafo 2D', icon: Network },
   { id: 'revisao', label: 'Revisão', icon: ClipboardList },
   { id: 'aplicativo', label: 'Aplicativo', icon: MonitorSmartphone },
   { id: 'provedor-ia', label: 'Provedor de IA', icon: Cpu },
@@ -34,7 +30,7 @@ export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id']
 /** Menu lateral das Configuracoes, agrupado por afinidade para leitura rapida. */
 export const SETTINGS_GROUPS = [
   { id: 'interface', label: 'Interface', sections: ['aparencia', 'workspace', 'leitura', 'atalhos'] },
-  { id: 'conhecimento', label: 'Conhecimento', sections: ['grafo3d', 'grafo2d', 'revisao'] },
+  { id: 'conhecimento', label: 'Conhecimento', sections: ['revisao'] },
   { id: 'sistema', label: 'Sistema', sections: ['aplicativo', 'provedor-ia'] },
 ] as const
 

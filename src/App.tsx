@@ -227,14 +227,6 @@ function buildNoteGraphLinksFromIndex(snapshot: ReturnType<typeof buildWikilinkI
   return links
 }
 
-/** Atualiza um numero de configuracao: campo vazio mantem o valor atual,
- * valores invalidos sao ignorados e o resultado e limitado a [min, max]. */
-function updateNumberSetting(raw: string, current: number, min: number, max: number) {
-  if (raw.trim() === '') return current
-  const next = Number(raw)
-  return Number.isFinite(next) ? Math.max(min, Math.min(max, next)) : current
-}
-
 const AUTO_SAVE_DELAY_MS = 650
 
 /** Acoes do cabecalho da nota que podem ir para o menu "Mais acoes" quando a
@@ -5977,11 +5969,9 @@ function App() {
               />
             ) : (
               <SettingsPage
-                updateNumberSetting={updateNumberSetting}
                 vaultPath={vault.path}
                 obsidianAppearance={vault?.obsidianAppearance ?? null}
                 appearance={appearance}
-                graph={graph}
                 reviewGapMode={reviewGapMode}
                 setReviewGapMode={setReviewGapMode}
                 notificationLastCheck={notificationLastCheck}

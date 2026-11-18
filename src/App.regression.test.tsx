@@ -2625,7 +2625,7 @@ describe('Regressao do editor no workspace', () => {
     // do limiar de 140px (as seguintes ficam bem abaixo).
     vi.spyOn(panel, 'getBoundingClientRect').mockReturnValue({ top: 0 } as DOMRect)
     const tops: Record<string, number> = { aparencia: 0, workspace: 50, leitura: 100 }
-    for (const section of ['aparencia', 'workspace', 'leitura', 'atalhos', 'grafo3d', 'grafo2d', 'revisao', 'aplicativo', 'provedor-ia']) {
+    for (const section of ['aparencia', 'workspace', 'leitura', 'atalhos', 'revisao', 'aplicativo', 'provedor-ia']) {
       const element = document.getElementById(`settings-${section}`)!
       vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({ top: tops[section] ?? 1000 } as DOMRect)
     }

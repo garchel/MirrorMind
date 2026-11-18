@@ -20,7 +20,6 @@ import type {
   ReadingWidth,
   useAppearanceSettings,
 } from '../../lib/useAppearanceSettings'
-import type { useGraphSettings } from '../../lib/useGraphSettings'
 import type { ObsidianAppearance } from '../../lib/vault'
 import type { AppUpdaterController } from '../../lib/useAppUpdater'
 import { SETTINGS_GROUPS, SETTINGS_SECTIONS, type SettingsSectionId } from './useSettingsNav'
@@ -46,7 +45,6 @@ export type SettingsPageProps = {
   vaultPath: string
   obsidianAppearance: ObsidianAppearance | null
   appearance: ReturnType<typeof useAppearanceSettings>
-  graph: ReturnType<typeof useGraphSettings>
   reviewGapMode: ReviewGapMode
   setReviewGapMode: (mode: ReviewGapMode) => void
   notificationLastCheck: ReviewNotificationCheck | null
@@ -55,7 +53,6 @@ export type SettingsPageProps = {
   appUpdater: AppUpdaterController
   autoUpdateEnabled: boolean
   onToggleAutoUpdate: (enabled: boolean) => void
-  updateNumberSetting: (raw: string, current: number, min: number, max: number) => number
   activeSettingsSection: SettingsSectionId
   onNavigateSettingsSection: (sectionId: SettingsSectionId) => void
   settingsScrollRef: RefObject<HTMLElement | null>
@@ -67,7 +64,6 @@ export function SettingsPage({
   vaultPath,
   obsidianAppearance,
   appearance,
-  graph,
   reviewGapMode,
   setReviewGapMode,
   notificationLastCheck,
@@ -76,7 +72,6 @@ export function SettingsPage({
   appUpdater,
   autoUpdateEnabled,
   onToggleAutoUpdate,
-  updateNumberSetting,
   activeSettingsSection,
   onNavigateSettingsSection,
   settingsScrollRef,
@@ -113,30 +108,6 @@ export function SettingsPage({
     isPagesFullWidth,
     setPagesFullWidth,
   } = appearance
-  const {
-    graph3dNodeSize,
-    setGraph3dNodeSize,
-    graph3dNodeSpacing,
-    setGraph3dNodeSpacing,
-    graph3dOrbitSpeed,
-    setGraph3dOrbitSpeed,
-    graph3dMaxEdgeLength,
-    setGraph3dMaxEdgeLength,
-    graph3dMinEdgeLength,
-    setGraph3dMinEdgeLength,
-    graph3dDegreeGrowth,
-    setGraph3dDegreeGrowth,
-    graph2dRepulsionStrength,
-    setGraph2dRepulsionStrength,
-    graph2dLinkStiffness,
-    setGraph2dLinkStiffness,
-    graph2dVelocityDecay,
-    setGraph2dVelocityDecay,
-    graph2dLinkDistance,
-    setGraph2dLinkDistance,
-    graph2dCenterForce,
-    setGraph2dCenterForce,
-  } = graph
 
   return (
     <section ref={settingsScrollRef} className="workspace-page" data-builder-name="settings-page">
@@ -479,179 +450,6 @@ export function SettingsPage({
                 Restaurar padroes
               </Button>
             </div>
-          </div>
-          <div className="settings-section" id="settings-grafo3d" aria-labelledby="graph3d-preferences-title">
-            <p className="card-kicker" id="graph3d-preferences-title">Grafo 3D</p>
-            <label className="settings-toggle">
-              <span>
-                <strong>Tamanho dos nós</strong>
-                <small>Raio base dos orbes 3D no grafo.</small>
-              </span>
-              <Field
-                className="settings-number"
-                type="number"
-                min={0.2}
-                max={3}
-                step={0.05}
-                value={graph3dNodeSize}
-                onChange={(event) => setGraph3dNodeSize(updateNumberSetting(event.target.value, graph3dNodeSize, 0.2, 3))}
-                aria-label="Tamanho dos nós no grafo 3D"
-              />
-            </label>
-            <label className="settings-toggle">
-              <span>
-                <strong>Distância entre nós</strong>
-                <small>Raio das órbitas dos elétrons ao redor do elemento com mais conexões.</small>
-              </span>
-              <Field
-                className="settings-number"
-                type="number"
-                min={2}
-                max={20}
-                step={0.5}
-                value={graph3dNodeSpacing}
-                onChange={(event) => setGraph3dNodeSpacing(updateNumberSetting(event.target.value, graph3dNodeSpacing, 2, 20))}
-                aria-label="Distância entre nós no grafo 3D"
-              />
-            </label>
-            <label className="settings-toggle">
-              <span>
-                <strong>Velocidade de orbitação</strong>
-                <small>Multiplicador da velocidade com que os elétrons orbitam o núcleo.</small>
-              </span>
-              <Field
-                className="settings-number"
-                type="number"
-                min={0.1}
-                max={5}
-                step={0.1}
-                value={graph3dOrbitSpeed}
-                onChange={(event) => setGraph3dOrbitSpeed(updateNumberSetting(event.target.value, graph3dOrbitSpeed, 0.1, 5))}
-                aria-label="Velocidade de orbitação no grafo 3D"
-              />
-            </label>
-            <label className="settings-toggle">
-              <span>
-                <strong>Tamanho máximo das arestas</strong>
-                <small>Distância máxima entre nós conectados; além dela, a aresta puxa os extremos de volta.</small>
-              </span>
-              <Field
-                className="settings-number"
-                type="number"
-                min={4}
-                max={40}
-                step={1}
-                value={graph3dMaxEdgeLength}
-                onChange={(event) => setGraph3dMaxEdgeLength(updateNumberSetting(event.target.value, graph3dMaxEdgeLength, 4, 40))}
-                aria-label="Tamanho máximo das arestas no grafo 3D"
-              />
-            </label>
-            <label className="settings-toggle">
-              <span>
-                <strong>Tamanho mínimo das arestas</strong>
-                <small>Distância mínima entre nós conectados; abaixo dela, a aresta empurra os extremos para longe.</small>
-              </span>
-              <Field
-                className="settings-number"
-                type="number"
-                min={0}
-                max={30}
-                step={0.5}
-                value={graph3dMinEdgeLength}
-                onChange={(event) => setGraph3dMinEdgeLength(updateNumberSetting(event.target.value, graph3dMinEdgeLength, 0, 30))}
-                aria-label="Tamanho mínimo das arestas no grafo 3D"
-              />
-            </label>
-            <label className="settings-toggle">
-              <span>
-                <strong>Fator de aumento por conexão</strong>
-                <small>Quanto cada conexão adicional aumenta o raio do nó.</small>
-              </span>
-              <Field
-                className="settings-number"
-                type="number"
-                min={0}
-                max={1}
-                step={0.01}
-                value={graph3dDegreeGrowth}
-                onChange={(event) => setGraph3dDegreeGrowth(updateNumberSetting(event.target.value, graph3dDegreeGrowth, 0, 1))}
-                aria-label="Fator de aumento por conexão no grafo 3D"
-              />
-            </label>
-          </div>
-          <div className="settings-section" id="settings-grafo2d" aria-labelledby="graph2d-preferences-title">
-            <p className="card-kicker" id="graph2d-preferences-title">Grafo 2D</p>
-            <p className="settings-section-description">Forças da simulação do grafo 2D: repulsão entre os nós, molas das arestas (rigidez e descanso), amortecimento da velocidade e atração ao anel central.</p>
-            <label className="settings-toggle">
-              <span>
-                <strong>Repulsão</strong>
-                <small>Força com que os nós se repelem entre si (inversa ao quadrado da distância).</small>
-              </span>
-              <Field
-                className="settings-number"
-                type="number"
-                step={50}
-                value={graph2dRepulsionStrength}
-                onChange={(event) => setGraph2dRepulsionStrength(updateNumberSetting(event.target.value, graph2dRepulsionStrength, -Infinity, Infinity))}
-                aria-label="Força de repulsão dos nós no grafo 2D"
-              />
-            </label>
-            <label className="settings-toggle">
-              <span>
-                <strong>Rigidez da mola</strong>
-                <small>Força das arestas por unidade de distância além do descanso.</small>
-              </span>
-              <Field
-                className="settings-number"
-                type="number"
-                step={0.1}
-                value={graph2dLinkStiffness}
-                onChange={(event) => setGraph2dLinkStiffness(updateNumberSetting(event.target.value, graph2dLinkStiffness, -Infinity, Infinity))}
-                aria-label="Rigidez da mola das arestas no grafo 2D"
-              />
-            </label>
-            <label className="settings-toggle">
-              <span>
-                <strong>Amortecimento</strong>
-                <small>Decaimento da velocidade por segundo; mais alto = movimento mais "gredoso".</small>
-              </span>
-              <Field
-                className="settings-number"
-                type="number"
-                step={0.05}
-                value={graph2dVelocityDecay}
-                onChange={(event) => setGraph2dVelocityDecay(updateNumberSetting(event.target.value, graph2dVelocityDecay, -Infinity, Infinity))}
-                aria-label="Amortecimento da velocidade no grafo 2D"
-              />
-            </label>
-            <label className="settings-toggle">
-              <span>
-                <strong>Distância do link</strong>
-                <small>Comprimento de descanso das molas entre nós conectados.</small>
-              </span>
-              <Field
-                className="settings-number"
-                type="number"
-                step={0.5}
-                value={graph2dLinkDistance}
-                onChange={(event) => setGraph2dLinkDistance(updateNumberSetting(event.target.value, graph2dLinkDistance, -Infinity, Infinity))}
-                aria-label="Distância do link no grafo 2D"
-              />
-            </label>
-            <label className="settings-toggle">
-              <span>
-                <strong>Força central</strong>
-                <small>Atração ao anel no meio do grafo; nós dentro do anel ficam soltos.</small>
-              </span>
-              <Field
-                className="settings-number"
-                type="number"
-                step={5}
-                value={graph2dCenterForce}
-                onChange={(event) => setGraph2dCenterForce(updateNumberSetting(event.target.value, graph2dCenterForce, -Infinity, Infinity))}
-                aria-label="Força central do grafo 2D"
-              />
-            </label>
           </div>
           <div className="settings-section" id="settings-revisao" aria-labelledby="review-gap-preferences-title">
             <p className="card-kicker" id="review-gap-preferences-title">Revisão</p>
