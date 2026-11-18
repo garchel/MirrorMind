@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TagManagementPage } from './TagManagementPage'
@@ -172,39 +172,52 @@ describe('TagManagementPage', () => {
     expect(screen.queryByRole('listbox')).toBeNull()
   })
 
-  it('perfil Personalizada mostra os campos de ritmo; perfil pronto esconde', async () => {
+  it('tag nova nasce sem revisão e o prazo só aparece com revisão ligada', async () => {
     const user = userEvent.setup()
     render(<TagManagementPage vaultPath={'C:\\Vault'} />)
 
     await user.click(await screen.findByRole('button', { name: 'Criar tag' }))
 
-    // Padrao e perfil pronto: os numeros ficam fora da tela, mas o resumo em
-    // palavras e o prazo continuam visiveis.
+    // Nasce desligada, como antes: nada entra na fila sem o usuário escolher.
+    expect(screen.getByRole('radio', { name: 'Sem revisão' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByLabelText('Prazo de estudo')).toBeNull()
     expect(screen.queryByLabelText('Primeira revisão')).toBeNull()
-    expect(screen.getByText(/Primeira revisão em 2 dias/)).toBeInTheDocument()
-    expect(screen.getByLabelText('Prazo de estudo')).toBeInTheDocument()
-    // Prioridade tambem so existe em Personalizada; no perfil pronto o nivel do
-    // preset aparece no resumo em palavras.
-    expect(screen.queryByRole('radiogroup', { name: 'Prioridade na fila' })).toBeNull()
-    expect(screen.getByText(/prioridade alta/i)).toBeInTheDocument()
+    expect(screen.getByText(/não entram na fila sozinhas/i)).toBeInTheDocument()
 
+    // Um perfil liga a revisão: o prazo volta e o resumo dá os números.
+    await user.click(screen.getByRole('radio', { name: 'Equilibrada' }))
+    expect(screen.getByLabelText('Prazo de estudo')).toBeInTheDocument()
+    expect(screen.getByText(/Primeira revisão em 2 dias/)).toBeInTheDocument()
+
+    // Personalizada abre os números do ritmo e a prioridade.
     await user.click(screen.getByRole('radio', { name: /Personalizada/ }))
     expect(screen.getByLabelText('Primeira revisão')).toHaveValue(2)
     expect(screen.getByLabelText('Intervalo máximo')).toHaveValue(365)
     expect(screen.getByRole('radiogroup', { name: 'Prioridade na fila' })).toBeInTheDocument()
 
-    // Ordem no formulario: ritmo e prioridade ANTES do modo herdado.
-    const ritmo = screen.getByText(/^Ritmo de revisão$/i)
-    const prioridadeRotulo = screen.getByText('Prioridade na fila')
-    const modo = screen.getByText('Método de avaliação')
-    const vemAntes = (a: HTMLElement, b: HTMLElement) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(vemAntes(ritmo, modo)).toBe(true)
-    expect(vemAntes(prioridadeRotulo, modo)).toBe(true)
-
+    // Perfil pronto esconde os números.
     await user.click(screen.getByRole('radio', { name: /Intensiva/ }))
     expect(screen.queryByLabelText('Primeira revisão')).toBeNull()
-    expect(screen.queryByRole('radiogroup', { name: 'Prioridade na fila' })).toBeNull()
     expect(screen.getByText(/Primeira revisão em 1 dia ·/)).toBeInTheDocument()
+  })
+
+  it('voltar para Sem revisão descarta o prazo já escolhido', async () => {
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Criar tag' }))
+    await user.click(screen.getByRole('radio', { name: 'Intensiva' }))
+
+    const prazo = screen.getByLabelText('Prazo de estudo')
+    fireEvent.change(prazo, { target: { value: '2027-03-12' } })
+    expect(prazo).toHaveValue('2027-03-12')
+
+    await user.click(screen.getByRole('radio', { name: 'Sem revisão' }))
+    expect(screen.queryByLabelText('Prazo de estudo')).toBeNull()
+
+    // Voltando para um perfil, o prazo não volta: foi descartado no caminho.
+    await user.click(screen.getByRole('radio', { name: 'Leve' }))
+    expect(screen.getByLabelText('Prazo de estudo')).toHaveValue('')
   })
 
   it('cada bloco do formulario tem ajuda contextual no padrao do app', async () => {
@@ -212,9 +225,13 @@ describe('TagManagementPage', () => {
     render(<TagManagementPage vaultPath={'C:\\Vault'} />)
 
     await user.click(await screen.findByRole('button', { name: 'Criar tag' }))
-    for (const bloco of ['Perfil de revisão', 'Prazo de estudo', 'Método de avaliação']) {
+    for (const bloco of ['Perfil de revisão', 'Método de avaliação']) {
       expect(screen.getByRole('button', { name: `Como funciona: ${bloco}` })).toBeInTheDocument()
     }
+
+    // O prazo só tem ajuda quando existe — ele depende de a revisão estar ligada.
+    await user.click(screen.getByRole('radio', { name: 'Equilibrada' }))
+    expect(screen.getByRole('button', { name: 'Como funciona: Prazo de estudo' })).toBeInTheDocument()
 
     // Ritmo e prioridade so existem em Personalizada, e cada um tem a sua ajuda.
     await user.click(screen.getByRole('radio', { name: /Personalizada/ }))

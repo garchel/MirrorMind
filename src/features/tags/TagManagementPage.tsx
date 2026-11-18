@@ -87,6 +87,18 @@ const PROFILE_ORDER = ['intensive', 'balanced', 'light'] as const
 
 type PresetKey = keyof typeof PRESETS
 
+/** Estado do seletor de perfil: os tres prontos, o personalizado, ou sem revisao. */
+type ProfileKey = PresetKey | 'custom' | 'none'
+
+/** Um eixo so, do zero ao maximo: "Sem revisao" e o estado desligado, nao um
+ *  perfil. Assim nao existe a contradicao de escolher Intensiva com a revisao
+ *  automatica desligada. */
+const PROFILE_OPTIONS: { key: ProfileKey; label: string }[] = [
+  { key: 'none', label: 'Sem revisão' },
+  ...PROFILE_ORDER.map((key) => ({ key: key as ProfileKey, label: PRESETS[key].label })),
+  { key: 'custom', label: 'Personalizada' },
+]
+
 /**
  * Perfil pronto cujo ritmo bate com o rascunho, ou null quando nenhum bate.
  *
@@ -318,8 +330,8 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const [mode, setMode] = useState<'view' | 'create' | 'edit'>('view')
   const [draft, setDraft] = useState<TagReviewPolicyRule>(() => draftFor(''))
-  /** Perfil "Personalizada" aberto: mostra os campos numericos de ritmo. */
-  const [customProfile, setCustomProfile] = useState(false)
+  /** Perfil escolhido: os tres prontos, "custom" ou "none" (sem revisao). */
+  const [profileKey, setProfileKey] = useState<ProfileKey>('none')
   /** Sugestoes de tag existente: qual esta destacada e se o menu esta aberto. */
   const [suggestIndex, setSuggestIndex] = useState(0)
   const [suggestOpen, setSuggestOpen] = useState(false)
@@ -398,8 +410,8 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   const duplicate = entries.some((entry) => (
     entry.tag === draft.tag && (mode === 'create' || entry.tag !== selectedTag)
   ))
-  /** Perfil pronto em uso (o rascunho pode ter sido personalizado a mao). */
-  const activePreset = presetKeyFor(draft)
+  /** Revisao desligada: nenhuma nota entra na fila sozinha por esta tag. */
+  const reviewOff = !draft.autoEnroll
 
   /**
    * Tags ja existentes que contem o texto digitado, para o usuario escolher e
@@ -444,7 +456,9 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
     if (atRuleLimit) return
     setSelectedTag(null)
     setDraft(draftFor(prefillTag))
-    setCustomProfile(false)
+    // Tag nova nasce sem matricula automatica, como antes: nada entra na fila
+    // sem o usuario escolher um perfil.
+    setProfileKey('none')
     setSuggestOpen(false)
     setMode('create')
     setPending(null)
@@ -455,9 +469,13 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
   function startEdit() {
     if (!selected) return
     setDraft(draftFor(selected.tag, selected.rule))
-    // Regra antiga fora dos tres perfis abre direto em "Personalizada": esconder
-    // numeros que ja nao batem com preset nenhum seria mentir sobre o ritmo.
-    setCustomProfile(selected.rule ? presetKeyFor(selected.rule) === null : false)
+    // Sem matricula automatica, o seletor abre em "Sem revisao"; com ela, abre no
+    // perfil correspondente ou em "Personalizada" (regra antiga fora dos tres).
+    setProfileKey(
+      !selected.rule || !selected.rule.autoEnroll
+        ? 'none'
+        : presetKeyFor(selected.rule) ?? 'custom',
+    )
     setSuggestOpen(false)
     setMode('edit')
     setPending(null)
@@ -480,9 +498,21 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
     setSuccess('')
   }
 
-  function applyPreset(values: typeof PRESETS[keyof typeof PRESETS]['values']) {
-    setCustomProfile(false)
-    updateDraft({ ...values })
+  function applyPreset(key: PresetKey) {
+    setProfileKey(key)
+    updateDraft({ ...PRESETS[key].values, autoEnroll: true })
+  }
+
+  function chooseCustomProfile() {
+    setProfileKey('custom')
+    updateDraft({ autoEnroll: true })
+  }
+
+  /** "Sem revisao": a tag deixa de matricular sozinha e o prazo perde sentido —
+   *  ele so existe para puxar revisoes, que sem matricula nao acontecem. */
+  function chooseNoReview() {
+    setProfileKey('none')
+    updateDraft({ autoEnroll: false, deadlineAtUnixMs: null })
   }
 
   /** Escolhe uma tag existente como prefixo: `concurso` vira `concurso/`. */
@@ -790,7 +820,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     Perfil de revisão
                     <InfoTip label="Perfil de revisão">
                       <p>
-                        Perfil pronto define ritmo e prioridade de uma vez.
+                        <em>Sem revisão</em>: a tag não coloca ninguém na fila.
                         <em>Intensiva</em>: data marcada. <em>Equilibrada</em>: manter sem
                         apertar. <em>Leve</em>: leitura de fundo. <em>Personalizada</em>: você
                         define cada número.
@@ -803,38 +833,34 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                       paragrafos embaixo de quatro cartoes era o que empurrava o
                       formulario para fora da tela. */}
                   <div className="tag-segmented" role="radiogroup" aria-label="Perfil de revisão">
-                    {PROFILE_ORDER.map((key) => {
-                      const preset = PRESETS[key]
-                      const ativo = !customProfile && activePreset === key
+                    {PROFILE_OPTIONS.map((option) => {
+                      const ativo = option.key === 'none'
+                        ? reviewOff
+                        : !reviewOff && profileKey === option.key
                       return (
                         <Button
-                          key={key}
+                          key={option.key}
                           type="button"
                           variant="secondary"
                           size="sm"
                           role="radio"
                           aria-checked={ativo}
                           className="tag-segmented-option"
-                          onClick={() => applyPreset(preset.values)}
+                          onClick={() => {
+                            if (option.key === 'none') chooseNoReview()
+                            else if (option.key === 'custom') chooseCustomProfile()
+                            else applyPreset(option.key)
+                          }}
                         >
-                          {preset.label}
+                          {option.label}
                         </Button>
                       )
                     })}
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      role="radio"
-                      aria-checked={customProfile}
-                      className="tag-segmented-option"
-                      onClick={() => setCustomProfile(true)}
-                    >
-                      Personalizada
-                    </Button>
                   </div>
                   <p className="tag-profile-summary">
-                    {customProfile
+                    {reviewOff
+                      ? 'As notas com esta tag não entram na fila sozinhas — dá para ativar uma por uma no menu da nota.'
+                      : profileKey === 'custom'
                       ? 'Escolha os números do ritmo logo abaixo.'
                       : `Primeira revisão em ${draft.firstReviewIntervalDays} dia${draft.firstReviewIntervalDays === 1 ? '' : 's'} · `
                         + `retenção ${Math.round(draft.targetRetention * 100)}% · `
@@ -845,7 +871,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   </p>
                 </fieldset>
 
-                {customProfile ? (
+                {!reviewOff && profileKey === 'custom' ? (
                   <fieldset className="tag-policy-fields">
                     <legend>
                       Ritmo de revisão
@@ -864,29 +890,33 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                   </fieldset>
                 ) : null}
 
-                <fieldset className="tag-deadline-field">
-                  <legend>
-                    Prazo de estudo
-                    <InfoTip label="Prazo de estudo">
-                      <p>
-                        Data da prova. Com prazo, o app antecipa as revisões que chegariam fracas
-                        nesse dia e põe essas notas na frente da fila.
-                      </p>
-                    </InfoTip>
-                  </legend>
-                  <div>
-                    <Field
-                      size="sm"
-                      aria-label="Prazo de estudo"
-                      type="date"
-                      value={deadlineDateValue(draft.deadlineAtUnixMs)}
-                      onChange={(event) => updateDraft({ deadlineAtUnixMs: deadlineFromDateInput(event.target.value) })}
-                    />
-                    <small>opcional</small>
-                  </div>
-                </fieldset>
+                {/* Prazo so existe quando a tag matricula: sem matricula, nao ha
+                    revisao para antecipar. */}
+                {reviewOff ? null : (
+                  <fieldset className="tag-deadline-field">
+                    <legend>
+                      Prazo de estudo
+                      <InfoTip label="Prazo de estudo">
+                        <p>
+                          Data da prova. Com prazo, o app antecipa as revisões que chegariam fracas
+                          nesse dia e põe essas notas na frente da fila.
+                        </p>
+                      </InfoTip>
+                    </legend>
+                    <div>
+                      <Field
+                        size="sm"
+                        aria-label="Prazo de estudo"
+                        type="date"
+                        value={deadlineDateValue(draft.deadlineAtUnixMs)}
+                        onChange={(event) => updateDraft({ deadlineAtUnixMs: deadlineFromDateInput(event.target.value) })}
+                      />
+                      <small>opcional</small>
+                    </div>
+                  </fieldset>
+                )}
 
-                {customProfile ? (
+                {!reviewOff && profileKey === 'custom' ? (
                   <div className="review-priority-field">
                     <span className="review-priority-field-label">
                       Prioridade na fila
@@ -934,13 +964,15 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 </fieldset>
 
 
-                <PolicyWorkloadEstimate
-                  firstReviewIntervalDays={draft.firstReviewIntervalDays}
-                  targetRetention={draft.targetRetention}
-                  minIntervalDays={draft.minIntervalDays}
-                  maxIntervalDays={draft.maxIntervalDays}
-                  valid={validation.success}
-                />
+                {reviewOff ? null : (
+                  <PolicyWorkloadEstimate
+                    firstReviewIntervalDays={draft.firstReviewIntervalDays}
+                    targetRetention={draft.targetRetention}
+                    minIntervalDays={draft.minIntervalDays}
+                    maxIntervalDays={draft.maxIntervalDays}
+                    valid={validation.success}
+                  />
+                )}
 
                 {duplicate ? <p className="field-error" role="alert">Esta tag já existe no vault.</p> : null}
                 <div className="tag-form-actions">
