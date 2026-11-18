@@ -91,7 +91,7 @@ describe('TagManagementPage', () => {
     await user.click(screen.getByRole('radio', { name: /Personalizada/ }))
     const prioridade = screen.getByRole('radiogroup', { name: 'Prioridade na fila' })
     await user.click(within(prioridade).getByRole('radio', { name: 'Urgente' }))
-    await user.click(screen.getByRole('button', { name: 'Revisar alterações' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }))
 
     expect(await screen.findByRole('dialog', { name: /Salvar alterações em #prova/i })).toBeInTheDocument()
     expect(screen.getByText('materias/biologia.md')).toBeInTheDocument()
@@ -138,7 +138,7 @@ describe('TagManagementPage', () => {
 
     await user.click(await screen.findByRole('button', { name: /Editar/i }))
     await user.click(screen.getByRole('radio', { name: /Conversa/i }))
-    await user.click(screen.getByRole('button', { name: 'Revisar alterações' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }))
 
     await screen.findByRole('dialog', { name: /Salvar alterações em #prova/i })
     await user.click(screen.getByRole('button', { name: 'Confirmar alteração' }))
@@ -239,17 +239,31 @@ describe('TagManagementPage', () => {
     expect(screen.getByRole('button', { name: 'Como funciona: Prioridade na fila' })).toBeInTheDocument()
   })
 
-  it('creates a configured tag only after a zero-impact confirmation', async () => {
+  it('pilula de perfil vai de Sem revisão a Personalizada, do zero ao máximo', async () => {
+    const user = userEvent.setup()
+    render(<TagManagementPage vaultPath={'C:\\Vault'} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Criar tag' }))
+    const grupos = screen.getAllByRole('radiogroup', { name: 'Perfil de revisão' })
+    const opcoes = within(grupos[0]).getAllByRole('radio').map((radio) => radio.textContent)
+
+    expect(opcoes).toEqual(['Sem revisão', 'Leve', 'Equilibrada', 'Intensiva', 'Personalizada'])
+  })
+
+  it('cria tag sem impacto direto, sem abrir o modal', async () => {
     const user = userEvent.setup()
     previewMock.mockResolvedValueOnce({ affectedNotePaths: [], markdownNotePaths: [] })
     render(<TagManagementPage vaultPath={'C:\\Vault'} />)
 
     await user.click(await screen.findByRole('button', { name: 'Criar tag' }))
     await user.type(screen.getByLabelText('Nome da tag'), 'Biologia Celular')
-    await user.click(screen.getByRole('button', { name: 'Revisar criação' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }))
 
-    const dialog = await screen.findByRole('dialog', { name: /Criar #biologia-celular/i })
-    expect(dialog).toHaveTextContent('Nenhuma nota existente será alterada')
+    // O modal existe para conferir impacto. Sem nota impactada, salva direto.
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() => expect(applyMock).toHaveBeenCalledWith(expect.objectContaining({
+      change: expect.objectContaining({ nextTag: 'biologia-celular' }),
+    })))
   })
 
   it('renders nested tags as a tree: click expands children and shows the tag data', async () => {
@@ -383,7 +397,7 @@ describe('TagManagementPage', () => {
     render(<TagManagementPage vaultPath={'C:\\Vault'} />)
 
     await user.click(await screen.findByRole('button', { name: /Editar/i }))
-    const reviewButton = screen.getByRole('button', { name: 'Revisar alterações' })
+    const reviewButton = screen.getByRole('button', { name: 'Confirmar' })
     await user.click(reviewButton)
 
     const dialog = await screen.findByRole('dialog', { name: /Salvar alterações em #prova/i })

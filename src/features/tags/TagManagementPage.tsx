@@ -95,7 +95,9 @@ type ProfileKey = PresetKey | 'custom' | 'none'
  *  automatica desligada. */
 const PROFILE_OPTIONS: { key: ProfileKey; label: string }[] = [
   { key: 'none', label: 'Sem revisão' },
-  ...PROFILE_ORDER.map((key) => ({ key: key as ProfileKey, label: PRESETS[key].label })),
+  { key: 'light', label: PRESETS.light.label },
+  { key: 'balanced', label: PRESETS.balanced.label },
+  { key: 'intensive', label: PRESETS.intensive.label },
   { key: 'custom', label: 'Personalizada' },
 ]
 
@@ -568,7 +570,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
     setSuccess('')
     try {
       const preview = await previewTagManagementChange(vaultPath, change)
-      setPending({
+      const pendingChange = {
         title: mode === 'create' ? `Criar #${rule.tag}` : `Salvar alterações em #${selectedTag}`,
         description: currentTag && currentTag !== rule.tag
           ? `A tag será renomeada para #${rule.tag} nas notas abaixo e seu ritmo será recalculado.`
@@ -576,7 +578,14 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
         change,
         preview,
         tagRules: nextRulesForSave(rule),
-      })
+      }
+      // Confirmação existe para mostrar impacto. Sem nota impactada, nao ha o
+      // que conferir: salva direto.
+      if (preview.affectedNotePaths.length === 0 && preview.markdownNotePaths.length === 0) {
+        await applyPendingChange(pendingChange)
+        return
+      }
+      setPending(pendingChange)
     } catch (cause) {
       setError(errorMessage(cause, String(cause)))
     } finally {
@@ -638,10 +647,12 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
       setPending(null)
       setPendingDelete(null)
       setSuccess(
-        `${pendingChange.preview.affectedNotePaths.length} nota(s) atualizada(s).`
-        + (result.markdownNotePaths.length > 0
-          ? ` A tag foi alterada no Markdown de ${result.markdownNotePaths.length} nota(s).`
-          : ''),
+        pendingChange.preview.affectedNotePaths.length === 0
+          ? `${pendingChange.change.currentTag === null ? 'Tag criada' : 'Tag atualizada'}: nenhuma nota foi impactada.`
+          : `${pendingChange.preview.affectedNotePaths.length} nota(s) atualizada(s).`
+            + (result.markdownNotePaths.length > 0
+              ? ` A tag foi alterada no Markdown de ${result.markdownNotePaths.length} nota(s).`
+              : ''),
       )
       await onTagsChanged?.(result.markdownNotePaths)
     } catch (cause) {
@@ -964,7 +975,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                 <div className="tag-form-actions">
                   <Button type="button" variant="secondary" size="md" onClick={cancelEditing} disabled={busy}>Cancelar</Button>
                   <Button type="button" variant="primary" size="sm" onClick={() => void requestSave()} disabled={busy || !validation.success || duplicate}>
-                    {busy ? 'Calculando impacto…' : mode === 'create' ? 'Revisar criação' : 'Revisar alterações'}
+                    {busy ? 'Confirmando…' : 'Confirmar'}
                   </Button>
                 </div>
               </div>
@@ -978,12 +989,11 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                     {selected ? <Hash size={20} aria-hidden="true" /> : null}
                     {selectedTag}
                   </h3>
-                  {selected ? (
-                    /* Estado e resumo do ritmo em fichas, na linha abaixo do
-                     * titulo: sete numeros em lista viravam um bloco de texto. */
+                  {selected?.rule ? (
+                    /* Resumo do ritmo em fichas, na linha abaixo do titulo: sete
+                     * numeros em lista viravam um bloco de texto. */
                     <div className="tag-detail-chips">
-                      {selected.rule ? (
-                        <>
+                      <>
                           <span className="tag-chip">
                             <span className="tag-chip-rot">Retenção</span>
                             <strong>{Math.round(selected.rule.targetRetention * 100)}%</strong>
@@ -1006,20 +1016,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                             <span className="tag-chip-rot">Método</span>
                             <strong>{selected.rule.preferredMode === null ? 'Sem preferência' : selected.rule.preferredMode === 'exam' ? 'Prova' : 'Conversa'}</strong>
                           </span>
-                          <span className="tag-chip">
-                            <strong>{selected.notePaths.length}</strong>
-                            <span className="tag-chip-rot">nota{selected.notePaths.length === 1 ? '' : 's'}</span>
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="tag-chip is-warn">Sem ritmo próprio</span>
-                          <span className="tag-chip">
-                            <strong>{selected.notePaths.length}</strong>
-                            <span className="tag-chip-rot">nota{selected.notePaths.length === 1 ? '' : 's'}</span>
-                          </span>
-                        </>
-                      )}
+                      </>
                     </div>
                   ) : (
                     <p>
@@ -1043,7 +1040,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                         aria-label="Excluir"
                         title={`Excluir #${selectedTag}`}
                       >
-                        <Trash2 size={16} aria-hidden="true" />
+                        <Trash2 size={18} aria-hidden="true" />
                       </Button>
                     </>
                   ) : (
