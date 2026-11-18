@@ -5,7 +5,7 @@ import { Field } from '../../components/ui/Field'
 import { ReviewPriorityLevelPicker } from '../review/ReviewPriorityLevelPicker'
 import { priorityLevelFor } from '../review/reviewPriorityLevels'
 import { InfoTip } from '../../components/ui/InfoTip'
-import { AlertTriangle, Check, ChevronRight, FileText, Hash, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
+import { AlertTriangle, ChevronRight, FileText, Hash, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
 import {
   getVaultReviewPolicyConfig,
   tagReviewPolicyRuleSchema,
@@ -761,7 +761,7 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
                       ref={nameInputRef}
                       size="sm"
                       autoFocus
-                      placeholder="materia/biologia"
+                      placeholder="ex.: concurso/trt"
                       role="combobox"
                       aria-autocomplete="list"
                       aria-expanded={suggestionsVisible}
@@ -1020,13 +1020,6 @@ export function TagManagementPage({ vaultPath, onTagsChanged }: Props) {
 
               {selected?.rule ? (
                 <>
-                  <div className={`tag-review-status ${selected.rule.autoEnroll ? 'is-active' : ''}`}>
-                    <span><Check size={15} aria-hidden="true" /></span>
-                    <div>
-                      <strong>{selected.rule.autoEnroll ? 'Revisão automática ativa' : 'Apenas ajusta o ritmo'}</strong>
-                      <p>{selected.rule.autoEnroll ? 'Notas prontas entram automaticamente na fila de aprendizado.' : 'O ritmo é herdado apenas por notas que já participam da revisão.'}</p>
-                    </div>
-                  </div>
                   <dl className="tag-policy-summary">
                     <div><dt>Primeira revisão</dt><dd>{selected.rule.firstReviewIntervalDays} dias</dd></div>
                     <div><dt>Retenção desejada</dt><dd>{Math.round(selected.rule.targetRetention * 100)}%</dd></div>

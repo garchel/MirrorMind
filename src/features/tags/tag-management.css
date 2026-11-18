@@ -378,7 +378,6 @@
   padding: 0;
 }
 
-.tag-review-status,
 .tag-unconfigured,
 .tag-policy-summary,
 .tag-note-list,
@@ -389,7 +388,6 @@
   box-shadow: 0 1px 2px rgb(0 0 0 / 3%);
 }
 
-.tag-review-status,
 .tag-unconfigured {
   display: flex;
   align-items: flex-start;
@@ -409,28 +407,11 @@
   color: var(--mm-ink-50);
 }
 
-.tag-review-status > span {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
-  place-items: center;
-  border-radius: 50%;
-  color: var(--mm-ink-50);
-  background: var(--mm-ink-750-5);
-}
-
-.tag-review-status.is-active > span {
-  background: var(--mm-sage-800-2);
-}
-
-.tag-review-status strong,
 .tag-unconfigured strong {
   color: var(--mm-ink-900-17);
   font-size: var(--font-size-body-sm);
 }
 
-.tag-review-status p,
 .tag-unconfigured p {
   margin: 4px 0 0;
   color: var(--tag-muted);
@@ -643,22 +624,37 @@
   gap: 6px;
 }
 
-/* O nome da tag nao e uma caixa nem tem linha embaixo: e texto solto, na
- * altura do titulo do formulario, alinhado com o rotulo (sem o "#" que
- * existia dentro da moldura — sem moldura ele so empurrava o texto para a
- * direita). O foco continua visivel por um realce de fundo. */
+/* O nome da tag nao tem contorno, mas precisa parecer campo: fundo
+ * preenchido, raio e recuo interno — o mesmo vocabulario dos campos de ritmo,
+ * sem a borda. Contorno saiu por pedido; o preenchimento e o que devolve a
+ * leitura de "aqui se escreve". */
 .tag-name-field > div {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 2px;
+  padding: 0 12px;
   border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
+  border-radius: var(--radius-md);
+  /* Branco do cartao, nao o creme do painel: com `--mm-clay-150-4` o campo
+   * ficava a 1 unidade de luminosidade do fundo e sumia (medido). */
+  background: var(--tag-surface);
+  box-shadow: inset 0 0 0 1px var(--tag-border);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tag-name-field > div:hover {
+  box-shadow: inset 0 0 0 1px var(--mm-clay-550);
 }
 
 .tag-name-field > div:focus-within {
-  background: color-mix(in srgb, var(--tag-accent) 7%, transparent);
+  box-shadow: inset 0 0 0 1px var(--tag-accent), 0 0 0 3px rgb(115 137 121 / 14%);
+}
+
+/* Placeholder em `--tag-muted`: o tom anterior (--mm-ink-650-4) dava 2,4:1
+ * sobre o campo, abaixo de AA. Este fica em ~4,9:1 e continua mais claro que
+ * o texto digitado. */
+.tag-name-field input::placeholder {
+  color: var(--tag-muted);
 }
 
 .tag-name-field input {
