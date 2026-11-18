@@ -3,10 +3,11 @@ import {
   BookOpenCheck,
   ClipboardList,
   Cpu,
+  Database,
   Keyboard,
   MonitorSmartphone,
   Palette,
-  SlidersHorizontal,
+  Type,
 } from 'lucide-react'
 
 /** Domínio de Configurações: seções, grupos do menu lateral e navegação.
@@ -17,21 +18,22 @@ import {
 
 export const SETTINGS_SECTIONS = [
   { id: 'aparencia', label: 'Aparência', icon: Palette },
-  { id: 'workspace', label: 'Workspace', icon: SlidersHorizontal },
+  { id: 'editor', label: 'Editor', icon: Type },
   { id: 'leitura', label: 'Leitura', icon: BookOpenCheck },
   { id: 'atalhos', label: 'Atalhos', icon: Keyboard },
   { id: 'revisao', label: 'Revisão', icon: ClipboardList },
-  { id: 'aplicativo', label: 'Aplicativo', icon: MonitorSmartphone },
-  { id: 'provedor-ia', label: 'Provedor de IA', icon: Cpu },
+  { id: 'ia', label: 'IA da revisão', icon: Cpu },
+  { id: 'sistema', label: 'Sistema', icon: MonitorSmartphone },
+  { id: 'dados', label: 'Dados', icon: Database },
 ] as const
 
 export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id']
 
 /** Menu lateral das Configuracoes, agrupado por afinidade para leitura rapida. */
 export const SETTINGS_GROUPS = [
-  { id: 'interface', label: 'Interface', sections: ['aparencia', 'workspace', 'leitura', 'atalhos'] },
-  { id: 'conhecimento', label: 'Conhecimento', sections: ['revisao'] },
-  { id: 'sistema', label: 'Sistema', sections: ['aplicativo', 'provedor-ia'] },
+  { id: 'interface', label: 'Interface', sections: ['aparencia', 'editor', 'leitura', 'atalhos'] },
+  { id: 'revisao', label: 'Revisão', sections: ['revisao', 'ia'] },
+  { id: 'sistema', label: 'Sistema', sections: ['sistema', 'dados'] },
 ] as const
 
 /** Navegação das Configurações: seção ativa (destaque do menu conforme o

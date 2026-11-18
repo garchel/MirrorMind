@@ -650,6 +650,168 @@ label.settings-toggle {
 
 .settings-section > .card-kicker {
   margin: 10px 0 -2px;
+  font-size: var(--font-size-caption);
+}
+
+/* Linha de configuracao: o ~controle~ a direita, o botao "restaurar" fora do
+ * <label> (dentro dele, o clique no botao tambem ativaria o controle). */
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(720px, 100%);
+}
+
+.settings-row .settings-toggle {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+
+.settings-changed {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--mm-sage-850);
+  vertical-align: middle;
+}
+
+.settings-reset {
+  flex: 0 0 auto;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  color: var(--mm-ink-800-7);
+}
+
+.settings-control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Barra da busca + restaurar */
+.settings-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(720px, 100%);
+  margin-top: 14px;
+}
+
+/* A busca e a acao da pagina nao sao a mesma coisa: o botao vai para a ponta,
+ * longe da caixa onde se digita. */
+.settings-toolbar > .ui-button {
+  margin-left: auto;
+}
+
+.settings-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid var(--mm-ink-350-3);
+  border-radius: var(--radius-md);
+  background: var(--mm-gold-50);
+  color: var(--mm-ink-800-7);
+}
+
+.settings-search:focus-within {
+  border-color: var(--mm-ink-750);
+  box-shadow: 0 0 0 3px rgb(115 137 121 / 14%);
+}
+
+.settings-search input {
+  width: 100%;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--mm-ink-900-23);
+  font: var(--font-size-small) var(--sans);
+}
+
+/* Resultado vazio da busca: so aparece quando nenhuma secao sobrou. */
+.settings-empty {
+  display: none;
+  margin: 18px 0 0;
+  color: var(--mm-ink-800-7);
+  font-size: var(--font-size-small);
+}
+
+.settings-content[data-searching='true']:not(:has(.settings-section[data-match='true'])):not(:has(.settings-row[data-match='true'])) .settings-empty {
+  display: block;
+}
+
+/* Busca: some a linha que nao casa; some a secao que nao casa e nao tem linha. */
+.settings-content[data-searching='true'] .settings-section[data-match='false']:not(:has(.settings-row[data-match='true'])):not(:has([data-block-match='true'])) {
+  display: none;
+}
+
+.settings-content[data-searching='true'] .settings-block[data-block-match='false'] {
+  display: none;
+}
+
+/* Aviso de conflito de atalho */
+.settings-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: min(720px, 100%);
+  padding: 10px 12px;
+  border: 1px solid var(--mm-clay-350-4);
+  border-radius: var(--radius-md);
+  background: var(--mm-clay-150-8);
+  color: var(--mm-clay-850-8);
+  font-size: var(--font-size-caption);
+  line-height: 1.5;
+}
+
+.settings-section-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* Secao de dados: o vermelho fica na acao, nao no titulo — "Dados" e uma
+ * categoria neutra; o perigo esta no botao de apagar. */
+.settings-danger {
+  display: grid;
+  gap: 12px;
+  width: min(720px, 100%);
+  padding: 16px;
+  border: 1px solid var(--mm-brick-850-6);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--mm-brick-850-6) 4%, var(--mm-gold-50));
+}
+
+.settings-danger-text strong {
+  color: var(--mm-ink-900-17);
+  font-size: var(--font-size-body-sm);
+}
+
+.settings-danger-text p {
+  margin: 4px 0 0;
+  color: var(--mm-ink-800-7);
+  font-size: var(--font-size-caption);
+  line-height: 1.5;
+}
+
+.settings-danger-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-danger-button:not(:disabled) {
+  border-color: var(--mm-brick-850-6);
+  color: var(--mm-brick-850-6);
 }
 
 .settings-select {

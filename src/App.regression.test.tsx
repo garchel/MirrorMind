@@ -2585,7 +2585,7 @@ describe('Regressao do editor no workspace', () => {
     await openTestVault(user)
 
     await openSettings(user)
-    expect(await screen.findByRole('heading', { name: 'Configurações do vault' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Configurações do aplicativo' })).toBeInTheDocument()
 
     // Menu lateral navega entre as sessoes (destaque acompanha o clique).
     const nav = screen.getByRole('navigation', { name: 'Seções das configurações' })
@@ -2625,7 +2625,7 @@ describe('Regressao do editor no workspace', () => {
     // do limiar de 140px (as seguintes ficam bem abaixo).
     vi.spyOn(panel, 'getBoundingClientRect').mockReturnValue({ top: 0 } as DOMRect)
     const tops: Record<string, number> = { aparencia: 0, workspace: 50, leitura: 100 }
-    for (const section of ['aparencia', 'workspace', 'leitura', 'atalhos', 'revisao', 'aplicativo', 'provedor-ia']) {
+    for (const section of ['aparencia', 'editor', 'leitura', 'atalhos', 'revisao', 'ia', 'sistema', 'dados']) {
       const element = document.getElementById(`settings-${section}`)!
       vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({ top: tops[section] ?? 1000 } as DOMRect)
     }
@@ -2633,6 +2633,55 @@ describe('Regressao do editor no workspace', () => {
 
     await waitFor(() => expect(within(nav).getByRole('button', { name: 'Leitura' })).toHaveAttribute('aria-current', 'true'))
     expect(within(nav).getByRole('button', { name: 'Aparência' })).not.toHaveAttribute('aria-current', 'true')
+  })
+
+  it('[configurações] a busca filtra linhas e some com seções vazias', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+    await openSettings(user)
+
+    const busca = await screen.findByLabelText('Buscar configuração')
+    await user.type(busca, 'hover')
+
+    // Linha de cor continua; o tema (sem "hover") sai de vista.
+    expect(screen.getByText('Cor do hover das notas').closest('.settings-row')).toBeVisible()
+    expect(screen.getByText('Tema').closest('.settings-row')).not.toBeVisible()
+
+    // Sem correspondência, a mensagem de vazio aparece.
+    await user.clear(busca)
+    await user.type(busca, 'zzzz')
+    expect(screen.getByText(/Nenhuma configuração corresponde/)).toBeVisible()
+  })
+
+  it('[configurações] linha alterada mostra o ponto e restaura pelo botão', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+    await openSettings(user)
+
+    const linhaDoTema = (await screen.findByText('Tema')).closest('.settings-row') as HTMLElement
+    expect(within(linhaDoTema).queryByRole('button', { name: /Restaurar Tema/i })).toBeNull()
+
+    await user.click(screen.getByRole('radio', { name: 'Escuro' }))
+    await waitFor(() => expect(within(linhaDoTema).getByRole('button', { name: /Restaurar Tema/i })).toBeInTheDocument())
+
+    await user.click(within(linhaDoTema).getByRole('button', { name: /Restaurar Tema/i }))
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe('light'))
+    expect(within(linhaDoTema).queryByRole('button', { name: /Restaurar Tema/i })).toBeNull()
+  })
+
+  it('[configurações] apagar dados só libera depois de digitar APAGAR', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+    await openSettings(user)
+
+    const botao = await screen.findByRole('button', { name: 'Apagar dados locais' })
+    expect(botao).toBeDisabled()
+
+    await user.type(screen.getByLabelText(/Confirmação: digite APAGAR/i), 'apagar')
+    expect(botao).toBeEnabled()
   })
 
   it('[aparência] renderiza blocos Dataview e Tasks somente leitura no modo Leitura', async () => {

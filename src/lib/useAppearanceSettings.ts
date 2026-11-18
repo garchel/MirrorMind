@@ -56,51 +56,74 @@ const parseEditorFontFamily = (raw: string): EditorFontFamily => normalizeFontFa
 const parseEditorFontSize = (raw: string): number => clampFontSize(Number(raw))
 const parseHistoryLimit = (raw: string): number => clampHistoryLimit(Number(raw))
 
+/**
+ * Valores padrao das preferencias de interface — fonte unica.
+ *
+ * Estavam espalhados como literais dentro dos `usePref`, e a pagina de
+ * Configuracoes precisava deles para dizer "isto esta fora do padrao" e para
+ * restaurar uma linha. Agora os dois lados leem daqui.
+ */
+export const APPEARANCE_DEFAULTS = {
+  themeMode: 'light' as ThemeMode,
+  editorFontFamily: 'sans' as EditorFontFamily,
+  editorFontSize: DEFAULT_FONT_SIZE,
+  historyLimit: DEFAULT_HISTORY_LIMIT,
+  readingFont: 'sans' as ReadingFont,
+  readingWidth: 'comfortable' as ReadingWidth,
+  isReadingLineWrapEnabled: true,
+  isSpellCheckEnabled: true,
+  isAutoSaveEnabled: true,
+  isPagesFullWidth: false,
+  noteHoverColor: '#171716',
+  tabHoverColor: '#171716',
+  tabHoverTextColor: '#fbfaf6',
+} as const
+
 export function useAppearanceSettings() {
   const [shortcuts, setShortcuts] = usePref(
     'mirrormind.shortcuts', DEFAULT_WORKSPACE_SHORTCUTS, parseShortcuts, serializeJson,
   )
   const [isAutoSaveEnabled, setAutoSaveEnabled] = usePref(
-    'mirrormind.auto-save', true, parseDefaultTrue, serializeBoolean,
+    'mirrormind.auto-save', APPEARANCE_DEFAULTS.isAutoSaveEnabled, parseDefaultTrue, serializeBoolean,
   )
   const [noteHoverColor, setNoteHoverColor] = usePref(
-    'mirrormind.note-hover-color', '#171716', parseIdentity, serializeString,
+    'mirrormind.note-hover-color', APPEARANCE_DEFAULTS.noteHoverColor, parseIdentity, serializeString,
   )
   const [tabHoverColor, setTabHoverColor] = usePref(
-    'mirrormind.tab-hover-color', '#171716', parseIdentity, serializeString,
+    'mirrormind.tab-hover-color', APPEARANCE_DEFAULTS.tabHoverColor, parseIdentity, serializeString,
   )
   const [tabHoverTextColor, setTabHoverTextColor] = usePref(
-    'mirrormind.tab-hover-text-color', '#fbfaf6', parseIdentity, serializeString,
+    'mirrormind.tab-hover-text-color', APPEARANCE_DEFAULTS.tabHoverTextColor, parseIdentity, serializeString,
   )
   const [readingFont, setReadingFont] = usePref<ReadingFont>(
-    'mirrormind.reading-font', 'sans', parseIdentity as (raw: string) => ReadingFont, serializeString,
+    'mirrormind.reading-font', APPEARANCE_DEFAULTS.readingFont, parseIdentity as (raw: string) => ReadingFont, serializeString,
   )
   const [themeMode, setThemeMode] = usePref(
-    'mirrormind.appearance.theme', 'light' as ThemeMode, parseThemeMode, serializeString,
+    'mirrormind.appearance.theme', APPEARANCE_DEFAULTS.themeMode, parseThemeMode, serializeString,
   )
   const [editorFontFamily, setEditorFontFamily] = usePref(
-    'mirrormind.appearance.font-family', 'sans' as EditorFontFamily, parseEditorFontFamily, serializeString,
+    'mirrormind.appearance.font-family', APPEARANCE_DEFAULTS.editorFontFamily, parseEditorFontFamily, serializeString,
   )
   const [editorFontSize, setEditorFontSize] = usePref(
-    'mirrormind.appearance.font-size', DEFAULT_FONT_SIZE, parseEditorFontSize, serializeNumber,
+    'mirrormind.appearance.font-size', APPEARANCE_DEFAULTS.editorFontSize, parseEditorFontSize, serializeNumber,
   )
   const [historyLimit, setHistoryLimit] = usePref(
-    'mirrormind.appearance.history-limit', DEFAULT_HISTORY_LIMIT, parseHistoryLimit, serializeNumber,
+    'mirrormind.appearance.history-limit', APPEARANCE_DEFAULTS.historyLimit, parseHistoryLimit, serializeNumber,
   )
   const [readingWidth, setReadingWidth] = usePref<ReadingWidth>(
-    'mirrormind.reading-width', 'comfortable', parseIdentity as (raw: string) => ReadingWidth, serializeString,
+    'mirrormind.reading-width', APPEARANCE_DEFAULTS.readingWidth, parseIdentity as (raw: string) => ReadingWidth, serializeString,
   )
   const [isReadingLineWrapEnabled, setReadingLineWrapEnabled] = usePref(
-    'mirrormind.reading-line-wrap', true, parseDefaultTrue, serializeBoolean,
+    'mirrormind.reading-line-wrap', APPEARANCE_DEFAULTS.isReadingLineWrapEnabled, parseDefaultTrue, serializeBoolean,
   )
   const [isSpellCheckEnabled, setSpellCheckEnabled] = usePref(
-    'mirrormind.spell-check', true, parseDefaultTrue, serializeBoolean,
+    'mirrormind.spell-check', APPEARANCE_DEFAULTS.isSpellCheckEnabled, parseDefaultTrue, serializeBoolean,
   )
   const [skipSoftDeleteConfirmation, setSkipSoftDeleteConfirmation] = usePref(
     'mirrormind.skip-soft-delete-confirmation', false, parseDefaultFalse, serializeBoolean,
   )
   const [isPagesFullWidth, setPagesFullWidth] = usePref(
-    'mirrormind.pages-full-width', false, parseDefaultFalse, serializeBoolean,
+    'mirrormind.pages-full-width', APPEARANCE_DEFAULTS.isPagesFullWidth, parseDefaultFalse, serializeBoolean,
   )
   // Fundo da area da nota: papel liso (padrao) ou o mesmo fundo pontilhado do
   // grafo 2D. Controlado pelo painel DEV.
