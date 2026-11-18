@@ -151,6 +151,7 @@ export function SegmentationSettings({ vaultPath }: Props) {
 
   return (
     <SettingsSection
+      headingLevel={4}
       id="segmentation-settings-title"
       title="Segmentação de unidades"
       description="Controla a partir de quantas palavras uma nota deixa de ser tratada como uma unidade única e passa a ser dividida em seções (notas com títulos) ou parágrafos (notas sem títulos), com identidade determinística."

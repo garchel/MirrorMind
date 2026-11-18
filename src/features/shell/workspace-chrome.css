@@ -751,7 +751,11 @@ label.settings-toggle {
   line-height: 1.5;
 }
 
-.settings-section > .card-kicker {
+/* Titulo de secao: 12px em micro-caps, com ou sem acao à direita. Sem a regra
+ * do header, "Atalhos" (que tem o botao de restaurar) saia em 10px enquanto
+ * "Aparência" saia em 12px — dois pesos para o mesmo nivel. */
+.settings-section > .card-kicker,
+.settings-section-header > .card-kicker {
   margin: 10px 0 -2px;
   font-size: var(--font-size-caption);
 }

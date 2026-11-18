@@ -2636,6 +2636,31 @@ describe('Regressao do editor no workspace', () => {
     expect(within(nav).getByRole('button', { name: 'Aparência' })).not.toHaveAttribute('aria-current', 'true')
   })
 
+  it('[configurações] a hierarquia de títulos segue h2 da página, h3 das seções e h4 dos blocos', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+    await openSettings(user)
+
+    // Nivel 2: o titulo da pagina (o h1 e o nome do vault, no chrome do app).
+    expect(await screen.findByRole('heading', { level: 2, name: 'Configurações do aplicativo' })).toBeInTheDocument()
+
+    // Nivel 3: cada secao da pagina.
+    for (const secao of ['Aparência', 'Editor', 'Leitura', 'Atalhos', 'Revisão', 'Sistema', 'Dados']) {
+      expect(screen.getByRole('heading', { level: 3, name: secao })).toBeInTheDocument()
+    }
+
+    // Nivel 4: os blocos que moram DENTRO de uma secao. Antes eram h3 — o mesmo
+    // nivel do pai, entao o outline mentia sobre a estrutura.
+    expect(screen.getByRole('heading', { level: 3, name: 'Revisão' })).toBeInTheDocument()
+    for (const bloco of ['Padrão de revisão do Vault', 'Segmentação de unidades', 'Notificações de revisão']) {
+      expect(screen.getByRole('heading', { level: 4, name: bloco })).toBeInTheDocument()
+    }
+    // Nenhum bloco aninhado sobrou como h3.
+    const h3 = screen.getAllByRole('heading', { level: 3 }).map((node) => node.textContent)
+    expect(h3).not.toContain('Segmentação de unidades')
+  })
+
   it('[configurações] a busca filtra linhas e some com seções vazias', async () => {
     const user = userEvent.setup()
     createTauriHarness()

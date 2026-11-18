@@ -213,6 +213,7 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
 
   return (
     <SettingsSection
+      headingLevel={4}
       id="review-ai-settings-title"
       title="Revisão com IA"
       className="review-ai-settings"

@@ -15,15 +15,18 @@
   min-width: 0;
 }
 
+.settings-section-heading :where(h2, h3, h4),
 .settings-section-heading p,
-.settings-section-heading h3,
 .settings-section-heading small {
   margin: 0;
 }
 
-.settings-section-heading h3 {
+/* Titulo de bloco: 14px. Eram 16px — maiores que o titulo da secao que os
+ * contem (12px em micro-caps), o que invertia a ordem que o olho segue. */
+.settings-section-heading :where(h2, h3, h4) {
   color: var(--text-h);
-  font-size: var(--font-size-body-md);
+  font-size: 14px;
+  font-weight: 650;
 }
 
 .settings-section-heading > div > small {

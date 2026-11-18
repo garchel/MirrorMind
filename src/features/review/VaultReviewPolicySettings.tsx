@@ -182,6 +182,7 @@ export function VaultReviewPolicySettings({ vaultPath }: Props) {
 
   return (
     <SettingsSection
+      headingLevel={4}
       id="vault-review-policy-title"
       title="Padrão de revisão do Vault"
       description="Usado por notas sem uma sobrescrita própria ou regra de tag."

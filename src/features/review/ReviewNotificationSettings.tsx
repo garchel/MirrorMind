@@ -93,8 +93,9 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
   if (!settings) {
     return (
       <SettingsSection
+        headingLevel={4}
         id="review-notification-settings-title"
-          title="Notificações de revisão"
+        title="Notificações de revisão"
         className="review-notification-settings"
       >
         <p role="status">Carregando preferências de notificação...</p>
@@ -105,6 +106,7 @@ export function ReviewNotificationSettings({ lastCheck, onRequestCheck }: Props)
 
   return (
     <SettingsSection
+      headingLevel={4}
       id="review-notification-settings-title"
       title="Notificações de revisão"
       description="Um aviso do sistema, uma vez por dia, com o total de revisões vencidas — não um aviso por nota."

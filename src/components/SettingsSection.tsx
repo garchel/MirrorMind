@@ -10,6 +10,7 @@ import './SettingsSection.css'
 export function SettingsSection({
   id,
   kicker,
+  headingLevel = 3,
   title,
   description,
   aside,
@@ -21,18 +22,23 @@ export function SettingsSection({
    * kicker (as de Revisao, por exemplo), repetir "Revisão" em cada bloco e
    * ruido. */
   kicker?: string
+  /** Nivel do titulo no outline. 3 quando o bloco abre a area; 4 quando mora
+   * dentro de uma secao das Configuracoes (que ja tem o h3). */
+  headingLevel?: 2 | 3 | 4
   title: string
   description?: string
   aside?: ReactNode
   className?: string
   children: ReactNode
 }) {
+  const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4'
+
   return (
     <div className={['settings-section', className].filter(Boolean).join(' ')} aria-labelledby={id}>
       <div className="settings-section-heading">
         <div>
           {kicker ? <p className="card-kicker">{kicker}</p> : null}
-          <h3 id={id}>{title}</h3>
+          <Heading id={id}>{title}</Heading>
           {description ? <small>{description}</small> : null}
         </div>
         {aside}
