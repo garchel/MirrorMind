@@ -1,0 +1,124 @@
+/* Página de conta: cartão centrado no mesmo respiro das outras páginas.
+ *
+ * A página é uma das rotas do workspace (trilho e barra continuam), então o
+ * usuário não fica "preso": dá para sair pelo trilho ou pelo "Continuar sem
+ * conta". */
+.login-page {
+  display: grid;
+  place-items: start center;
+  padding-top: max(48px, 8vh);
+}
+
+.login-card {
+  display: grid;
+  gap: 12px;
+  width: min(420px, 100%);
+  padding: 26px 26px 30px;
+  border: 1px solid var(--mm-ink-350-3);
+  border-radius: var(--radius-lg);
+  background: var(--mm-gold-50);
+  box-shadow: 0 18px 50px rgb(56 44 18 / 8%);
+}
+
+.login-card .card-kicker {
+  margin: 0;
+  color: var(--mm-ink-850-14);
+}
+
+.login-card h2 {
+  margin: 0;
+  color: var(--mm-ink-950-11);
+  font-size: var(--font-size-title-sm);
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.login-subtitle {
+  margin: 0 0 4px;
+  color: var(--mm-ink-900-32);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.login-tabs {
+  justify-self: start;
+}
+
+.login-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.login-field {
+  display: grid;
+  gap: 5px;
+}
+
+.login-field > span {
+  color: var(--mm-ink-900-32);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.login-error {
+  margin: 0;
+  color: var(--mm-brick-850-6);
+  font-size: var(--font-size-caption);
+  line-height: 1.5;
+}
+
+.login-legal {
+  margin: 0;
+  color: var(--mm-ink-850-14);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Divisor com "ou" no meio: separa os dois caminhos sem parágrafo explicando. */
+.login-divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 0;
+  color: var(--mm-ink-850-14);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  height: 1px;
+  background: var(--mm-ink-350-3);
+}
+
+.login-google {
+  width: 100%;
+}
+
+.login-hint {
+  margin: 0;
+  color: var(--mm-ink-850-14);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Dica do Google acompanha o botão, que é centralizado. */
+.login-google + .login-hint {
+  margin-top: -6px;
+  text-align: center;
+}
+
+/* "Continuar sem conta" é ação de primeira classe: fica no fim, com respiro
+ * próprio e sem parecer link escondido. */
+.login-skip {
+  justify-self: center;
+  margin-top: 10px;
+  color: var(--mm-sage-850);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

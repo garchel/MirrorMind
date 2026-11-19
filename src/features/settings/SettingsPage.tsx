@@ -79,6 +79,8 @@ export type SettingsPageProps = {
   settingsScrollRef: RefObject<HTMLElement | null>
   /** Cliente de conta (null = seção oculta; App injeta quando a cobrança liga). */
   accountClient: SessionClient | null
+  /** Abre a página de conta (formulários saíram daqui). */
+  onOpenAccount: () => void
 }
 
 /** Amostra viva da fonte: o rótulo "Serif" não mostra como a nota fica. */
@@ -107,6 +109,7 @@ export function SettingsPage({
   onNavigateSettingsSection,
   settingsScrollRef,
   accountClient,
+  onOpenAccount,
 }: SettingsPageProps) {
   const {
     shortcuts,
@@ -609,7 +612,7 @@ export function SettingsPage({
               title="Sistema"
               keywords="versão atualização update conta login assinatura"
             >
-              {accountClient ? <AccountSettings client={accountClient} /> : null}
+              {accountClient ? <AccountSettings client={accountClient} onOpenAccount={onOpenAccount} /> : null}
 
               <SettingRow
                 label="Versão do MirrorMind"

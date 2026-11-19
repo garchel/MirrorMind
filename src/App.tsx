@@ -134,6 +134,8 @@ import { EditorHeader, HEADER_ACTION_KEYS, type HeaderActionKey } from './featur
 import { EditorContent } from './features/editor/EditorContent'
 import { VaultSelection } from './features/vault/VaultSelection'
 import { createSupabaseSessionClient, supabaseConfigFromEnv } from './lib/supabaseSession'
+import { LoginPage } from './features/account/LoginPage'
+import { useSession, disabledSessionClient } from './lib/session'
 import { TabStrip, WorkspaceRail, WorkspaceTopbar, type WorkspacePage } from './features/shell/WorkspaceChrome'
 import { TrashPage } from './features/trash/TrashPage'
 import { DictionaryPage } from './features/dictionary/DictionaryPage'
@@ -269,6 +271,27 @@ type DictionarySearchEntry = {
   status: DictionarySearchStatus
   suggestion: DictionaryConceptSuggestion | null
   error: string
+}
+
+/** Flag de "continuar sem conta": a pergunta de login aparece uma vez. */
+const LOGIN_SKIPPED_KEY = 'mirrormind.account.login-skipped'
+
+function readLoginSkipped(): boolean {
+  try {
+    return localStorage.getItem(LOGIN_SKIPPED_KEY) === 'true'
+  } catch {
+    // Sem localStorage (WebView restrito): trata como ja respondido para nao
+    // abrir a pagina em loop.
+    return true
+  }
+}
+
+function markLoginSkipped() {
+  try {
+    localStorage.setItem(LOGIN_SKIPPED_KEY, 'true')
+  } catch {
+    // melhor esforco
+  }
 }
 
 function App() {
@@ -540,6 +563,10 @@ function App() {
     const config = supabaseConfigFromEnv()
     return config ? createSupabaseSessionClient(config) : null
   }, [])
+  const accountSession = useSession(accountSessionClient ?? disabledSessionClient)
+  /** "Continuar sem conta" na primeira abertura: nao perguntar de novo. */
+  const [loginSkipped, setLoginSkipped] = useState(() => readLoginSkipped())
+  const autoLoginShownRef = useRef(false)
   const headerActionsRef = useRef<HTMLDivElement | null>(null)
   const headerActionsWidthRef = useRef(0)
   const [reviewGaps, setReviewGaps] = useState<NoteReviewGap[]>([])
@@ -779,6 +806,16 @@ function App() {
     requestSettingsSection(sectionId)
     setWorkspacePage('settings')
   }
+  /** Primeira abertura com sessão anônima: mostra a página de conta uma vez.
+   * Não bloqueia nada — "Continuar sem conta" está na própria página. */
+  useEffect(() => {
+    if (autoLoginShownRef.current) return
+    if (!accountSessionClient || !vault) return
+    autoLoginShownRef.current = true
+    if (accountSession.snapshot.status === 'auth' || loginSkipped) return
+    setWorkspacePage('account')
+  }, [accountSessionClient, accountSession.snapshot.status, loginSkipped, vault])
+
   /** Verificação manual do resumo diário (botão em Configurações → Revisão). */
   function handleCheckReviewNotifications() {
     if (!vault) return
@@ -5966,6 +6003,16 @@ function App() {
                   setConnectSource: setGraphConnectSource,
                 }}
               />
+            ) : workspacePage === 'account' && accountSessionClient ? (
+              <LoginPage
+                client={accountSessionClient}
+                onAuthenticated={() => setWorkspacePage('notes')}
+                onSkip={() => {
+                  markLoginSkipped()
+                  setLoginSkipped(true)
+                  setWorkspacePage('notes')
+                }}
+              />
             ) : workspacePage === 'trash' ? (
               <TrashPage
                 trashItems={trashItems}
@@ -5988,6 +6035,7 @@ function App() {
                 onNavigateSettingsSection={scrollToSettingsSection}
                 settingsScrollRef={settingsScrollRef}
                 accountClient={accountSessionClient}
+                onOpenAccount={() => setWorkspacePage('account')}
               />
             )}
           </section>

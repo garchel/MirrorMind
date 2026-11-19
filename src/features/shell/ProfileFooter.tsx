@@ -21,9 +21,12 @@ import { disabledSessionClient, useSession, type SessionClient } from '../../lib
 export function ProfileFooter({
   accountClient,
   onOpenSettings,
+  onOpenAccount,
 }: {
   accountClient: SessionClient | null
   onOpenSettings: () => void
+  /** Abre a página de conta (entrar, criar, sair). */
+  onOpenAccount: () => void
 }) {
   const { resolved } = useEntitlement()
   const { snapshot, signOut } = useSession(accountClient ?? disabledSessionClient)
@@ -67,22 +70,33 @@ export function ProfileFooter({
           </Button>
           {accountClient ? (
             profile.signedIn ? (
-              <Button
-                type="button"
-                variant="bare"
-                size="sm"
-                className="rail-profile-menu-item"
-                onClick={() => void signOut()}
-              >
-                Sair
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="bare"
+                  size="sm"
+                  className="rail-profile-menu-item"
+                  onClick={onOpenAccount}
+                >
+                  Conta
+                </Button>
+                <Button
+                  type="button"
+                  variant="bare"
+                  size="sm"
+                  className="rail-profile-menu-item"
+                  onClick={() => void signOut()}
+                >
+                  Sair
+                </Button>
+              </>
             ) : (
               <Button
                 type="button"
                 variant="bare"
                 size="sm"
                 className="rail-profile-menu-item"
-                onClick={onOpenSettings}
+                onClick={onOpenAccount}
               >
                 Entrar na conta
               </Button>

@@ -23,7 +23,7 @@ function renderFooter(accountClient: SessionClient | null, entitlement: Entitlem
   const onOpenSettings = vi.fn()
   render(
     <EntitlementProvider store={storeWith(entitlement)}>
-      <ProfileFooter accountClient={accountClient} onOpenSettings={onOpenSettings} />
+      <ProfileFooter accountClient={accountClient} onOpenSettings={onOpenSettings} onOpenAccount={() => {}} />
     </EntitlementProvider>,
   )
   return { onOpenSettings }

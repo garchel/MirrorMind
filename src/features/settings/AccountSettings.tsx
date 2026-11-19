@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { useSession, type SessionClient } from '../../lib/session'
 import { useEntitlement } from '../../lib/entitlement'
@@ -16,11 +15,16 @@ import { Field } from '../../components/ui/Field'
  * Com a cobranca ligada, o painel de plano e o controle manual da F2: concede
  * ou revoga os direitos cacheados sem passar por checkout (o servidor assume
  * o lugar dele na F3). */
-export function AccountSettings({ client }: { client: SessionClient }) {
-  const { snapshot, error, signIn, signUp, signInWithGoogle, signOut } = useSession(client)
+export function AccountSettings({
+  client,
+  onOpenAccount,
+}: {
+  client: SessionClient
+  /** Os formulários de entrar/criar moraram aqui; agora vivem na página de conta. */
+  onOpenAccount: () => void
+}) {
+  const { snapshot, signOut } = useSession(client)
   const { resolved, billingEnabled, grantPlan, clearPlan } = useEntitlement()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
 
   function planPanel() {
     if (!billingEnabled) return null
@@ -62,18 +66,11 @@ export function AccountSettings({ client }: { client: SessionClient }) {
             <small>Conectado como {snapshot.email ?? 'conta local'}.</small>
           </span>
           <div className="settings-account-actions">
+            <Button type="button" variant="secondary" size="md" onClick={onOpenAccount}>
+              Abrir conta
+            </Button>
             <Button type="button" variant="secondary" size="md" onClick={() => void signOut()}>
               Sair
-            </Button>
-            <Button
-              type="button"
-              variant="secondary" size="md"
-              onClick={() => {
-                if (!confirm('Excluir a conta neste aparelho? Isso encerra a sessão local.')) return
-                void signOut()
-              }}
-            >
-              Excluir conta
             </Button>
           </div>
         </div>
@@ -85,48 +82,15 @@ export function AccountSettings({ client }: { client: SessionClient }) {
   return (
     <>
       <div className="settings-toggle">
-      <span>
-        <strong>Conta</strong>
-        <small>Entre para sincronizar plano e cotas quando a cobrança ativar.</small>
-      </span>
-      <form
-        className="settings-account-form"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void signIn(email, password)
-        }}
-      >
-        <Field
-          size="sm"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="voce@exemplo.com"
-          aria-label="E-mail da conta"
-          autoComplete="email"
-        />
-        <Field
-          size="sm"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="Senha"
-          aria-label="Senha da conta"
-          autoComplete="current-password"
-        />
-        {error ? <p role="alert" className="settings-note">{error}</p> : null}
+        <span>
+          <strong>Conta</strong>
+          <small>Sem conta o app funciona igual: notas, revisão com Ollama e BYOK.</small>
+        </span>
         <div className="settings-account-actions">
-          <Button type="button" variant="secondary" size="md" onClick={() => void signInWithGoogle()}>
-            Entrar com Google
-          </Button>
-          <Button type="submit" variant="primary" size="sm">
-            Entrar
-          </Button>
-          <Button type="button" variant="secondary" size="md" onClick={() => void signUp(email, password)}>
-            Criar conta
+          <Button type="button" variant="primary" size="sm" onClick={onOpenAccount}>
+            Entrar ou criar conta
           </Button>
         </div>
-      </form>
       </div>
       {planPanel()}
     </>

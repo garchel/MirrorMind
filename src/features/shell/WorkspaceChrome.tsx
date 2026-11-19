@@ -20,6 +20,7 @@ import { ProfileFooter } from './ProfileFooter'
 
 /** Páginas do workspace (movido do `App.tsx` sem mudança — o App importa). */
 export type WorkspacePage =
+  | 'account'
   | 'notes'
   | 'review'
   | 'dashboard'
@@ -234,6 +235,7 @@ export function WorkspaceRail({
       <ProfileFooter
         accountClient={accountClient}
         onOpenSettings={() => setWorkspacePage('settings')}
+        onOpenAccount={() => setWorkspacePage('account')}
       />
     </aside>
   )

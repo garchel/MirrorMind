@@ -132,6 +132,9 @@ function createTauriHarness(
   extraNotes: StoredNote[] = [],
   reviewStates: Record<string, unknown> = {},
 ) {
+  // Usuário que já respondeu "continuar sem conta": a página de login não abre
+  // sozinha e os testes medem o app em uso, não a primeira abertura.
+  localStorage.setItem('mirrormind.account.login-skipped', 'true')
   const notes = new Map<string, StoredNote>([
     ['inicial.md', { name: 'inicial.md', relativePath: 'inicial.md', content: '---\ndescription: Inicial\nloop: &loop [*loop]\n---\n\n# Inicial\n\nTexto inicial. Veja [[alvo]], volte para [[#Inicial]] e crie [[nova/página]].\n\n**Equação Geral**\n\n$$\n6\\text{CO}_2 + 6\\text{H}_2\\text{O} \\xrightarrow{\\text{Luz, Clorofila}} \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2\n$$' }],
     ['alvo.md', { name: 'alvo.md', relativePath: 'alvo.md', content: '# Alvo\n\n> [!warning]- **Aviso** *seguro*\n> Conteúdo do callout.\n\n> [!note] # Título inline\n> Sem heading no cabeçalho.\n\n- Item da lista\n  > [!tip] **Dica interna**\n  > Conteúdo aninhado.\n\n- Item multinivel\n  > Contexto comum\n  >\n  > > [!example] Exemplo profundo\n  > > Conteúdo profundo.\n\n![[inicial]]\n\n![[media/manual.pdf|Manual]]\n\n![[.obsidian/plugins/segredo.pdf|Segredo]]\n\n![Remote](https://example.com/image.png)\n\n<kbd>Ctrl K</kbd><script>danger()</script><a href="https://mirrormind.local/note/%E0%A4%A">URL quebrada</a>' }],

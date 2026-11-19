@@ -78,6 +78,10 @@ Estimativa: **7–10 semanas**, 1 dev focado. Risco nº 1: Pix recorrente (se F0
   - [x] projeto `sa-east-1` + migrations aplicadas + RLS verificada de fora
   - [x] login e cadastro por **e-mail e senha** (`src-tauri/src/account.rs` +
         `src/lib/supabaseSession.ts`), tokens no keyring, sessão renovada no Rust
+  - [x] **página de conta** (`src/features/account/LoginPage.tsx`): abre sozinha na
+        primeira vez com sessão anônima, tem "Continuar sem conta" como ação de
+        primeira classe (o app inteiro continua local) e é o destino do item
+        "Entrar na conta" do menu do perfil
   - [ ] login com **Google** (PKCE com loopback no Rust)
   - [ ] **SMTP próprio + `Confirm email` ligado** antes de abrir o cadastro ao
         público (o beta roda com a confirmação desligada) — bloqueante em M4 do
