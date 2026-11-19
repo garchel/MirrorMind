@@ -49,7 +49,6 @@ export function AccountForm({
 
   return (
     <div className="account-form">
-      <p className="card-kicker">Conta</p>
       <h2>{mode === 'entrar' ? 'Entrar no MirrorMind' : 'Criar sua conta'}</h2>
       <p className="login-subtitle">
         A conta guarda seu plano e o consumo de IA. Suas notas continuam neste computador —

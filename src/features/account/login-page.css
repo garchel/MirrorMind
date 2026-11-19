@@ -36,8 +36,8 @@
 .login-subtitle {
   margin: 0 0 4px;
   color: var(--mm-ink-900-32);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.58;
 }
 
 .login-tabs {
@@ -46,18 +46,18 @@
 
 .login-form {
   display: grid;
-  gap: 10px;
+  gap: 14px;
   margin-top: 2px;
 }
 
 .login-field {
   display: grid;
-  gap: 5px;
+  gap: 7px;
 }
 
 .login-field > span {
   color: var(--mm-ink-900-32);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
 }
 

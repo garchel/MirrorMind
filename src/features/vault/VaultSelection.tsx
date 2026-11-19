@@ -51,11 +51,12 @@ export type VaultSelectionProps = {
 
 type Step = 'account' | 'vault'
 
-/** Pilares do produto — texto curto, sem promessa que o app não cumpre. */
+/** Pilares do produto — texto curto, sem promessa que o app não cumpre.
+ * Sem numeração: 01/02/03 sugeria uma sequência que não existe. */
 const PILLARS = [
-  ['01', 'Tudo local', 'Notas, anexos e histórico no seu disco.'],
-  ['02', 'Revisão por retenção', 'Cada nota volta no dia em que você estaria esquecendo.'],
-  ['03', 'IA quando quiser', 'Modelo no seu computador ou a sua própria chave.'],
+  ['Tudo local', 'Notas, anexos e histórico no seu disco.'],
+  ['Revisão por retenção', 'Cada nota volta no dia em que você estaria esquecendo.'],
+  ['IA quando quiser', 'Modelo no seu computador ou a sua própria chave.'],
 ] as const
 
 export function VaultSelection({
@@ -120,9 +121,8 @@ export function VaultSelection({
           </p>
 
           <ul className="welcome-pillars">
-            {PILLARS.map(([numero, titulo, texto]) => (
-              <li key={numero}>
-                <span className="welcome-pillar-number">{numero}</span>
+            {PILLARS.map(([titulo, texto]) => (
+              <li key={titulo}>
                 <strong>{titulo}</strong>
                 <em>{texto}</em>
               </li>
@@ -142,7 +142,6 @@ export function VaultSelection({
           </div>
         ) : (
           <div className="welcome-card">
-            <p className="card-kicker">Vault</p>
             <h2>Onde ficam suas notas?</h2>
             <p className="login-subtitle">
               Um vault é só uma pasta no seu computador. Você pode abrir uma que já tem ou começar
@@ -194,7 +193,7 @@ export function VaultSelection({
                   </div>
                 </div>
                 <small className="welcome-path">
-                  {buildVaultPathPreview(createForm.parentPath, createForm.name)}
+                  Vai criar em {buildVaultPathPreview(createForm.parentPath, createForm.name)}
                 </small>
                 <Button variant="primary" size="md" onClick={createVault} disabled={loading}>
                   Criar vault
