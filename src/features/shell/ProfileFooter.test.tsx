@@ -46,6 +46,29 @@ describe('ProfileFooter', () => {
     localStorage.setItem('mirrormind.billing-enabled', 'true')
   })
 
+  it('convidado vê "Sair" e o botão leva à tela de login', async () => {
+    const onOpenAccount = vi.fn()
+    const anonClient: SessionClient = {
+      ...authClient('paulo@exemplo.com'),
+      getSession: async () => ({ status: 'anon', email: null, expiresAtUnixMs: null }),
+    }
+    render(
+      <EntitlementProvider store={storeWith(null)}>
+        <ProfileFooter
+          accountClient={anonClient}
+          onOpenSettings={() => {}}
+          onOpenAccount={onOpenAccount}
+        />
+      </EntitlementProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Abrir menu do perfil/ }))
+    // Sem conta não existe "Entrar na conta": o caminho de volta é "Sair".
+    expect(screen.queryByRole('button', { name: 'Entrar na conta' })).not.toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: 'Sair' }))
+    await waitFor(() => expect(onOpenAccount).toHaveBeenCalledTimes(1))
+  })
+
   it('mostra o perfil local no lugar da conta e oferece trocar de perfil', async () => {
     const onSwitchProfile = vi.fn()
     renderFooter(authClient('paulo@exemplo.com'), null, {

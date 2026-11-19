@@ -95,8 +95,8 @@ export function ProfileFooter({
             Configurações
           </Button>
           {accountClient ? (
-            profile.signedIn ? (
-              <>
+            <>
+              {profile.signedIn ? (
                 <Button
                   type="button"
                   variant="bare"
@@ -106,27 +106,26 @@ export function ProfileFooter({
                 >
                   Conta
                 </Button>
-                <Button
-                  type="button"
-                  variant="bare"
-                  size="sm"
-                  className="rail-profile-menu-item"
-                  onClick={() => void signOut()}
-                >
-                  Sair
-                </Button>
-              </>
-            ) : (
+              ) : null}
+              {/* "Sair" existe nos dois estados: com conta, encerra a sessão;
+                  como convidado, leva à tela de login. Antes o convidado via
+                  "Entrar na conta" e o logado via "Sair" — dois rótulos para a
+                  mesma porta, e nenhum caminho de volta para o login. */}
               <Button
                 type="button"
                 variant="bare"
                 size="sm"
                 className="rail-profile-menu-item"
-                onClick={onOpenAccount}
+                onClick={() => {
+                  void (async () => {
+                    if (profile.signedIn) await signOut()
+                    onOpenAccount()
+                  })()
+                }}
               >
-                Entrar na conta
+                Sair
               </Button>
-            )
+            </>
           ) : null}
         </PopoverContent>
       </Popover>

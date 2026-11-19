@@ -111,13 +111,27 @@ describe('VaultSelection (abertura do app)', () => {
     expect(await screen.findByRole('heading', { name: 'Usar o último vault?' })).toBeInTheDocument()
   })
 
-  it('convidado que já dispensou a conta vê o modal do último vault na abertura', async () => {
+  it('quem já dispensou a conta entra direto no vault, sem modal por cima', async () => {
     localStorage.setItem('mirrormind.account.login-skipped', 'true')
     renderSelection({
       showRecentVaultModal: true,
       recentVaultPreference: { lastVaultPath: 'C:/notas/vault' } as never,
     })
 
+    // O "Usar o último vault?" só aparece depois de a pessoa concluir a escolha
+    // de conta nesta sessão; para quem já dispensou, a tela é o vault e ponto.
+    expect(await screen.findByRole('heading', { name: 'Onde ficam suas notas?' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Usar o último vault?' })).not.toBeInTheDocument()
+  })
+
+  it('convidado que acabou de escolher entra e vê o modal do último vault', async () => {
+    const user = userEvent.setup()
+    renderSelection({
+      showRecentVaultModal: true,
+      recentVaultPreference: { lastVaultPath: 'C:/notas/vault' } as never,
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
     expect(await screen.findByRole('heading', { name: 'Usar o último vault?' })).toBeInTheDocument()
   })
 
