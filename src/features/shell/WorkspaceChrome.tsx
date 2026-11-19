@@ -109,6 +109,7 @@ export function WorkspaceRail({
   dueReviewCount,
   localProfile,
   onSwitchProfile,
+  onLeaveAccount,
 }: {
   isSidebarExpanded: boolean
   setSidebarExpanded: Dispatch<SetStateAction<boolean>>
@@ -125,6 +126,8 @@ export function WorkspaceRail({
   localProfile?: { name: string; color: string } | null
   /** Reabre a escolha de perfil sem fechar o app. */
   onSwitchProfile?: () => void
+  /** Fecha o vault e volta à tela de login inicial. */
+  onLeaveAccount?: () => void
 }) {
   const dueReviewLabel = dueReviewCount !== null && dueReviewCount > 0
     ? `${dueReviewCount} ${dueReviewCount === 1 ? 'nota vencida' : 'notas vencidas'}`
@@ -244,6 +247,7 @@ export function WorkspaceRail({
         onOpenAccount={() => setWorkspacePage('account')}
         localProfile={localProfile}
         onSwitchProfile={onSwitchProfile}
+        onLeaveAccount={onLeaveAccount}
       />
     </aside>
   )

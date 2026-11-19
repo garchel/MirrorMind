@@ -24,3 +24,12 @@ export function markLoginSkipped() {
     // melhor esforço: sem localStorage não há o que gravar
   }
 }
+
+/** "Sair" devolve o app à tela de login: a pergunta precisa voltar a aparecer. */
+export function clearLoginSkipped() {
+  try {
+    localStorage.removeItem(LOGIN_SKIPPED_KEY)
+  } catch {
+    // melhor esforço
+  }
+}

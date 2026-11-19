@@ -24,6 +24,7 @@ export function ProfileFooter({
   onOpenAccount,
   localProfile,
   onSwitchProfile,
+  onLeaveAccount,
 }: {
   accountClient: SessionClient | null
   onOpenSettings: () => void
@@ -33,6 +34,8 @@ export function ProfileFooter({
   localProfile?: { name: string; color: string } | null
   /** Reabre "Quem está usando este vault?" para trocar de perfil a quente. */
   onSwitchProfile?: () => void
+  /** Encerra a sessão, fecha o vault e volta à tela de login inicial. */
+  onLeaveAccount?: () => void
 }) {
   const { resolved } = useEntitlement()
   const { snapshot, signOut } = useSession(accountClient ?? disabledSessionClient)
@@ -119,7 +122,8 @@ export function ProfileFooter({
                 onClick={() => {
                   void (async () => {
                     if (profile.signedIn) await signOut()
-                    onOpenAccount()
+                    if (onLeaveAccount) onLeaveAccount()
+                    else onOpenAccount()
                   })()
                 }}
               >

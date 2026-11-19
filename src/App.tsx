@@ -137,7 +137,7 @@ import { createSupabaseSessionClient, supabaseConfigFromEnv } from './lib/supaba
 import { LoginPage } from './features/account/LoginPage'
 import { ProfileGate } from './features/profiles/ProfileGate'
 import { needsProfileChoice, profileClientFromInvoke, type ProfileSummary } from './lib/profiles'
-import { markLoginSkipped } from './lib/loginGate'
+import { clearLoginSkipped, markLoginSkipped } from './lib/loginGate'
 import { TabStrip, WorkspaceRail, WorkspaceTopbar, type WorkspacePage } from './features/shell/WorkspaceChrome'
 import { TrashPage } from './features/trash/TrashPage'
 import { DictionaryPage } from './features/dictionary/DictionaryPage'
@@ -1027,6 +1027,21 @@ function App() {
     // autocomplete sem depender do grafo aberto).
     void buildVaultWikilinkIndex(selectedVault.path)
   })
+  /**
+   * "Sair" do menu: encerra a sessão (quem chama já fez signOut), fecha o vault e
+   * devolve o app à tela de login inicial — a mesma da abertura, com a pergunta
+   * de conta. Fecha o vault de propósito: é o único jeito de voltar àquela tela
+   * sem inventar uma rota paralela.
+   */
+  const handleLeaveAccount = useEffectEvent(async () => {
+    if (isDirty) await saveActiveNote(false)
+    clearLoginSkipped()
+    setActiveProfile(null)
+    setProfileGate(null)
+    setVault(null)
+    setWorkspacePage('notes')
+  })
+
   /** Reabre "Quem está usando?" com o vault já aberto (troca a quente). */
   const openProfileSwitcher = useEffectEvent(async () => {
     if (!vault) return
@@ -5678,6 +5693,7 @@ function App() {
           dueReviewCount={dueReviewCount}
           localProfile={activeProfile}
           onSwitchProfile={openProfileSwitcher}
+          onLeaveAccount={handleLeaveAccount}
         />
         <WorkspaceTopbar
           vault={vault}

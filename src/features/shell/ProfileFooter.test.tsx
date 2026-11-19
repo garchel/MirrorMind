@@ -22,7 +22,11 @@ const authClient = (email: string): SessionClient => ({
 function renderFooter(
   accountClient: SessionClient | null,
   entitlement: Entitlement | null,
-  extras: { localProfile?: { name: string; color: string } | null; onSwitchProfile?: () => void } = {},
+  extras: {
+    localProfile?: { name: string; color: string } | null
+    onSwitchProfile?: () => void
+    onLeaveAccount?: () => void
+  } = {},
 ) {
   const onOpenSettings = vi.fn()
   render(
@@ -33,6 +37,7 @@ function renderFooter(
         onOpenAccount={() => {}}
         localProfile={extras.localProfile}
         onSwitchProfile={extras.onSwitchProfile}
+        onLeaveAccount={extras.onLeaveAccount}
       />
     </EntitlementProvider>,
   )
@@ -67,6 +72,27 @@ describe('ProfileFooter', () => {
     expect(screen.queryByRole('button', { name: 'Entrar na conta' })).not.toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: 'Sair' }))
     await waitFor(() => expect(onOpenAccount).toHaveBeenCalledTimes(1))
+  })
+
+  it('"Sair" fecha o vault e volta ao login em vez de abrir a página de conta', async () => {
+    const onOpenAccount = vi.fn()
+    const onLeaveAccount = vi.fn()
+    render(
+      <EntitlementProvider store={storeWith({ plan: 'gratis' } as Entitlement)}>
+        <ProfileFooter
+          accountClient={authClient('paulo@exemplo.com')}
+          onOpenSettings={() => {}}
+          onOpenAccount={onOpenAccount}
+          onLeaveAccount={onLeaveAccount}
+        />
+      </EntitlementProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Abrir menu do perfil/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Sair' }))
+
+    await waitFor(() => expect(onLeaveAccount).toHaveBeenCalledTimes(1))
+    expect(onOpenAccount).not.toHaveBeenCalled()
   })
 
   it('mostra o perfil local no lugar da conta e oferece trocar de perfil', async () => {
