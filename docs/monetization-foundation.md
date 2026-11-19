@@ -48,6 +48,12 @@ Pagamento nunca toca nossos servidores (Stripe/MoR). Região BR. Log de consenti
 | Fase | Escopo | Aceite |
 |------|--------|--------|
 | **F0** | Pix no Stripe (ou 2º trilho), região SP no Supabase, emissor NF + contador | 3 linhas acima verdes por escrito; nada abaixo começa com F0 vermelha |
+
+> **F0 parcialmente resolvida (2026-11-18):** a Stripe passou a suportar **Pix
+> Automático** (recorrente) — changelog `2026-04-22`, com liquidação em BRL — e o
+> Supabase tem região **`sa-east-1` (São Paulo)**. Falta só validar Pix
+> Automático dentro de `subscriptions` no sandbox e fechar NF/contador.
+> Desenho do backend: [`monetization-backend-plan.md`](monetization-backend-plan.md).
 | **F1** | Auth fim-a-fim: PKCE + deep-link, sessão no keyring, tela Conta, excluir conta (local) | criar conta → reabrir logado → sair/entrar; token fora de plaintext; testes com backend mockado |
 | **F2** | Catálogo (`gratis`, `essencial`, `pro`), `useEntitlement()`, graça 30 dias, flags nos 2 pontos (sem cobrar) | plano manual libera/nega com copy; expiração simulada; core sem flags |
 | **F3** | Checkout + webhooks + portal, sandbox primeiro | assinar via Pix/cartão ativa em <60s; cancelar rebaixa sem perder dados; webhook duplicado idempotente |
@@ -68,6 +74,9 @@ Estimativa: **7–10 semanas**, 1 dev focado. Risco nº 1: Pix recorrente (se F0
 - [x] Decisão de pacotes do beta: Essencial R$ 69, Pro R$ 109, fair use e BYOK/Ollama — ver `monetization-beta-decision.md`
 - [ ] F0 (humano): verificações de mercado acima
 - [ ] F1b (com Supabase): PKCE real, tela Conta, refresh, excluir conta
+  - [x] desenho do backend + migration `supabase/migrations/0001_accounts.sql`
+  - [ ] projeto `sa-east-1`, migration aplicada, RLS revisada
+  - [ ] `SupabaseSessionClient` (loopback PKCE) + tela Conta ligada
 - [ ] F2 (ponto de uso 2): gate nos comandos de backup — o backup/sync pago ainda não existe; entra junto da F3
 - [ ] F3–F5: conforme tabela
 
