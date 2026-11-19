@@ -31,6 +31,19 @@ teste do beta, não decisão final.
 ### 1. Identidade
 Signup/login com e-mail+senha e Google; sessão via PKCE com callback `mirrormind://auth` (`tauri-plugin-deep-link` + esquema registrado); tokens **no OS keyring** (nunca localStorage); "excluir minha conta" em 2 cliques (LGPD Art. 18, com cascata no servidor). Hook `useSession()`: `{ status: 'anon' | 'auth', email, expiresAt }`.
 
+**A conta não é dona do vault.** Nenhum dado local é indexado por `user_id`
+(não há uma única referência a isso no Rust): notas e anexos são arquivos na
+pasta do vault, o estado de revisão/políticas/metas vive em `.mirmind/`, as
+chaves de IA no keyring do Windows e as preferências no localStorage. Entrar
+acrescenta plano e cota de IA gerenciada; sair devolve exatamente o mesmo estado
+local, sem plano. Um convidado que cria 300 notas e só depois entra não perde
+nada — e a promessa vale para sempre, não só enquanto não existe nuvem.
+
+> Pendência declarada: quando a **sincronização** chegar, o merge local ↔ conta
+> vira decisão de produto (o que fazer quando o mesmo vault já tem histórico
+> anônimo e a conta tem outro). Enquanto isso, nada sincroniza — e o desenho
+> acima é o que impede a conta de "engolir" o vault.
+
 ### 2. Direitos (entitlements)
 Servidor emite JWT com `{plano, cotas, expiração}` (`app_metadata.plan`); app guarda cache de **30 dias offline** e trata expirado como grátis (fail-open + aviso). Checagem só em 2 pontos: `provider_for_selection('managed')` e comandos de backup. Core não sabe que plano existe.
 
