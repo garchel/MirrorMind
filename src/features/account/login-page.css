@@ -95,8 +95,48 @@
   background: var(--mm-ink-350-3);
 }
 
-.login-google {
+/* Botão do Google no padrão do provedor: superfície branca, contorno neutro,
+ * 40px de altura, raio discreto, marca à esquerda do rótulo. `.login-google.ui-button`
+ * (0,2,0) vence `.ui-button--secondary` (0,1,0) sem `!important`. */
+.login-google.ui-button {
+  justify-content: center;
+  gap: 12px;
   width: 100%;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--mm-google-line);
+  border-radius: 6px;
+  background: var(--mm-google-surface);
+  color: var(--mm-google-ink);
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.login-google.ui-button:hover:not(:disabled) {
+  background: var(--mm-google-hover);
+}
+
+.login-google.ui-button:active:not(:disabled) {
+  background: var(--mm-google-pressed);
+}
+
+.login-google.ui-button:disabled {
+  border-color: var(--mm-ink-350-3);
+  background: var(--mm-google-surface);
+  color: var(--mm-ink-800-7);
+  opacity: 0.7;
+}
+
+/* O glifo não encolhe quando o rótulo muda para "Abrindo o navegador…": sem
+ * `flex: none` o flex do botão comprimia o "G" de 18 para 16px. */
+.login-google .ui-button__icon,
+.login-google .ui-button__icon svg {
+  display: inline-flex;
+  flex: none;
+  width: 18px;
+  height: 18px;
 }
 
 .login-hint {

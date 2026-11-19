@@ -304,4 +304,22 @@
   --mm-ink-aa-text: #5e5d57;    /* --text-muted claro */
   --mm-ink-aa-faint: #62615b;   /* --faint claro */
   --mm-ink-aa-subtle: #686661;  /* --text-subtle claro */
+
+  /* ---------------------------------------------------------------------------
+   * Marca do Google (botão de login).
+   *
+   * Estas cinco cores não são da paleta do app: são o contrato visual do
+   * provedor. O botão "Continuar com Google" só é reconhecido como oficial se o
+   * "G" sair nas quatro cores e a superfície for branca com contorno neutro.
+   * Trocar por token do tema descaracteriza a marca.
+   * ------------------------------------------------------------------------- */
+  --mm-google-blue: #4285f4;
+  --mm-google-red: #ea4335;
+  --mm-google-yellow: #fbbc05;
+  --mm-google-green: #34a853;
+  --mm-google-ink: #1f1f1f;
+  --mm-google-line: #747775;
+  --mm-google-surface: #ffffff;
+  --mm-google-hover: #f8f9fa;
+  --mm-google-pressed: #f1f3f4;
 }

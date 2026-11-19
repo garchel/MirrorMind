@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
+import { GoogleMark } from '../../components/ui/GoogleMark'
 import { useSession, type SessionClient } from '../../lib/session'
 
 /**
@@ -129,13 +130,14 @@ export function AccountForm({
         variant="secondary"
         size="md"
         className="login-google"
+        icon={<GoogleMark />}
         disabled={googleBusy || busy}
         onClick={() => {
           setGoogleBusy(true)
           void signInWithGoogle().finally(() => setGoogleBusy(false))
         }}
       >
-        {googleBusy ? 'Abrindo o navegador…' : 'Continuar com Google'}
+        {googleBusy ? 'Abrindo o navegador…' : 'Continuar com o Google'}
       </Button>
 
       {onSkip ? (

@@ -118,7 +118,7 @@ describe('LoginPage', () => {
     const user = userEvent.setup()
     renderPage(client)
 
-    const google = screen.getByRole('button', { name: 'Continuar com Google' })
+    const google = screen.getByRole('button', { name: 'Continuar com o Google' })
     expect(google).toBeEnabled()
 
     await user.click(google)
