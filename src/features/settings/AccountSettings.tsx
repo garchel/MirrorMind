@@ -5,8 +5,12 @@ import { useEntitlement } from '../../lib/entitlement'
 import { PLANS, type PlanId } from '../../lib/billing'
 import { Field } from '../../components/ui/Field'
 
-/** Conta (fundacao F1a): login/cadastro/saida sobre `useSession`, atras da
- * flag de cobranca. Sem backend (F1b), o App injeta um cliente desabilitado.
+/** Conta (F1b): login, cadastro e saída sobre `useSession`.
+ *
+ * O App injeta o cliente do Supabase quando o build tem `VITE_SUPABASE_URL` e a
+ * chave publicável; sem elas a seção nem aparece. Login com Google ainda não
+ * está ligado — o cliente responde com mensagem honesta nesse caso.
+ *
  * Excluir conta hoje encerra localmente; a cascata no servidor chega na F5.
  *
  * Com a cobranca ligada, o painel de plano e o controle manual da F2: concede

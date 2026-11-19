@@ -133,8 +133,7 @@ import { ExplorerItemMenu, ExplorerSidebar, type ExplorerContextMenu } from './f
 import { EditorHeader, HEADER_ACTION_KEYS, type HeaderActionKey } from './features/editor/EditorHeader'
 import { EditorContent } from './features/editor/EditorContent'
 import { VaultSelection } from './features/vault/VaultSelection'
-import { disabledSessionClient } from './lib/session'
-import { isBillingEnabled } from './lib/billing'
+import { createSupabaseSessionClient, supabaseConfigFromEnv } from './lib/supabaseSession'
 import { TabStrip, WorkspaceRail, WorkspaceTopbar, type WorkspacePage } from './features/shell/WorkspaceChrome'
 import { TrashPage } from './features/trash/TrashPage'
 import { DictionaryPage } from './features/dictionary/DictionaryPage'
@@ -535,6 +534,12 @@ function App() {
   // ResizeObserver; em ordem de prioridade, da ultima para a primeira).
   const [hiddenActions, setHiddenActions] = useState<HeaderActionKey[]>([])
   const hiddenActionsRef = useRef<HeaderActionKey[]>([])
+  /** Cliente de conta: existe só quando o build trouxe URL e chave publicável.
+   * Sem elas, a seção Conta não aparece — em vez de aparecer e falhar. */
+  const accountSessionClient = useMemo(() => {
+    const config = supabaseConfigFromEnv()
+    return config ? createSupabaseSessionClient(config) : null
+  }, [])
   const headerActionsRef = useRef<HTMLDivElement | null>(null)
   const headerActionsWidthRef = useRef(0)
   const [reviewGaps, setReviewGaps] = useState<NoteReviewGap[]>([])
@@ -5624,7 +5629,7 @@ function App() {
           openTagManagementPage={openTagManagementPage}
           openGraphPage={openGraphPage}
           openTrashPage={openTrashPage}
-          accountClient={isBillingEnabled() ? disabledSessionClient : null}
+          accountClient={accountSessionClient}
           dueReviewCount={dueReviewCount}
         />
         <WorkspaceTopbar
@@ -5982,7 +5987,7 @@ function App() {
                 activeSettingsSection={activeSettingsSection}
                 onNavigateSettingsSection={scrollToSettingsSection}
                 settingsScrollRef={settingsScrollRef}
-                accountClient={isBillingEnabled() ? disabledSessionClient : null}
+                accountClient={accountSessionClient}
               />
             )}
           </section>

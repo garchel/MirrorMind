@@ -93,6 +93,16 @@ apagado no fim — o banco voltou a 0 usuários / 0 perfis):
 O 403 do "me promove para pro" é o teste que mais importa: sem o `revoke update` +
 `grant update (display_name)`, aquela chamada teria virado um upgrade grátis.
 
+### Ciclo de conta no app (2026-11-19)
+
+`cargo test --lib account::tests::live_ciclo_de_conta -- --ignored` roda contra o
+servidor real e passa: cadastro → retrato `auth` → login → retrato → saída →
+`anon`, com os tokens gravados no cofre do Windows.
+
+O teste ao vivo achou um bug de premissa: o `session.rs` exigia refresh token de
+≥ 16 caracteres, mas o Supabase devolve um token opaco de **12**. Agora o piso é 8
+(serve para recusar vazio, não para medir entropia).
+
 ### O que falta para o app falar com esse backend
 
 1. Chaves no build: `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`

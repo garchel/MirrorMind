@@ -9,7 +9,10 @@ use serde::Serialize;
 
 const SESSION_ACCESS_ACCOUNT: &str = "session-access-token";
 const SESSION_REFRESH_ACCOUNT: &str = "session-refresh-token";
-const MIN_TOKEN_LENGTH: usize = 16;
+/// Piso do tamanho: o refresh token do Supabase Auth e opaco e **curto** —
+/// 12 caracteres no formato observado em 2026-11. O minimo aqui serve para
+/// recusar vazio/lixo, nao para medir entropia (essa e do servidor).
+const MIN_TOKEN_LENGTH: usize = 8;
 const MAX_TOKEN_LENGTH: usize = 8_192;
 
 /// Par de tokens da sessao (Supabase Auth: JWT de acesso + refresh opaco).

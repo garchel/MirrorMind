@@ -75,8 +75,10 @@ Estimativa: **7–10 semanas**, 1 dev focado. Risco nº 1: Pix recorrente (se F0
 - [ ] F0 (humano): verificações de mercado acima
 - [ ] F1b (com Supabase): PKCE real, tela Conta, refresh, excluir conta
   - [x] desenho do backend + migration `supabase/migrations/0001_accounts.sql`
-  - [ ] projeto `sa-east-1`, migration aplicada, RLS revisada
-  - [ ] `SupabaseSessionClient` (loopback PKCE) + tela Conta ligada
+  - [x] projeto `sa-east-1` + migrations aplicadas + RLS verificada de fora
+  - [x] login e cadastro por **e-mail e senha** (`src-tauri/src/account.rs` +
+        `src/lib/supabaseSession.ts`), tokens no keyring, sessão renovada no Rust
+  - [ ] login com **Google** (PKCE com loopback no Rust)
   - [ ] **SMTP próprio + `Confirm email` ligado** antes de abrir o cadastro ao
         público (o beta roda com a confirmação desligada) — bloqueante em M4 do
         `launch-roadmap.md`
