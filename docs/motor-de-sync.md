@@ -199,8 +199,14 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib cloud
 # contra a nuvem de verdade (conta de teste com o add-on ligado)
 MIRRORMIND_TEST_SUPABASE_URL=... MIRRORMIND_TEST_SUPABASE_KEY=... \
 MIRRORMIND_TEST_EMAIL=... MIRRORMIND_TEST_PASSWORD=... \
-cargo test --manifest-path src-tauri/Cargo.toml --lib cloud_api::tests::live -- --ignored --nocapture
+cargo test --manifest-path src-tauri/Cargo.toml --lib _::tests::live -- \
+  --ignored --test-threads=1 --nocapture
 ```
+
+`--test-threads=1` não é preferência: os testes ao vivo compartilham a trava de
+ciclo (`SyncGuard`, um `static` do processo) e a mesma conta na nuvem. Em
+paralelo, o segundo recebe "Uma sincronização já está em andamento" e falha por
+motivo alheio ao que estava medindo.
 
 O teste `live_duas_maquinas` é o que importa: duas pastas temporárias, o mesmo
 `local_id`, e o ciclo completo — A sobe, B baixa, B edita, A recebe, e a terceira

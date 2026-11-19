@@ -39,3 +39,6 @@ __pycache__/
 
 # Worktrees de agentes paralelos (1 por agente)
 .worktrees/
+
+# artefatos do CLI do Supabase (vínculo com o projeto remoto)
+supabase/.temp/

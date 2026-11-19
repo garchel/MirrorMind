@@ -535,6 +535,11 @@ pub async fn cloud_sync_now(
 mod tests {
     use super::*;
 
+    // Os testes ao vivo (`live_*`) compartilham a trava de ciclo (`SyncGuard`, um
+    // `static` do processo) e a mesma conta na nuvem. Rodando em paralelo, o
+    // segundo recebe "Uma sincronização já está em andamento" e o teste falha por
+    // motivo alheio ao que ele mede. Rode-os com `--test-threads=1`.
+
     /// Caminho que a interface percorre, com sessão de verdade no cofre: entrar,
     /// ler o retrato, ligar o vault, sincronizar e desligar.
     #[test]

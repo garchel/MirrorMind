@@ -123,14 +123,23 @@ function subjectDo(evento: StripeEvent): string | null {
   return typeof cliente === "string" ? cliente : null;
 }
 
-/** Grava o evento. `false` = já existia (reentrega). */
+/** Grava o evento. `false` = já existia (reentrega).
+ *
+ * A detecção é pelo **corpo devolvido**, não pelo status: com
+ * `resolution=ignore-duplicates` o PostgREST responde 201 mesmo quando ignora o
+ * insert. Pedir `return=representation` faz a diferença aparecer — lista vazia
+ * quando o evento já estava lá, uma linha quando ele foi criado agora. (Antes eu
+ * comparava com 409, que nunca chega, e toda reentrega era reprocessada.)
+ */
 async function registrarEvento(
   evento: StripeEvent,
   subject: string | null,
 ): Promise<boolean> {
   const resposta = await rest("/stripe_events", {
     method: "POST",
-    headers: { Prefer: "return=minimal,resolution=ignore-duplicates" },
+    headers: {
+      Prefer: "return=representation,resolution=ignore-duplicates",
+    },
     body: JSON.stringify({
       id: evento.id,
       type: evento.type,
@@ -141,7 +150,9 @@ async function registrarEvento(
   if (!resposta.ok && resposta.status !== 409) {
     throw new Error(`não foi possível registrar o evento (${resposta.status})`);
   }
-  return resposta.status !== 409;
+  if (resposta.status === 409) return false;
+  const linhas = await resposta.json().catch(() => []);
+  return Array.isArray(linhas) && linhas.length > 0;
 }
 
 /** Desfaz o registro: usado quando os efeitos falham, para o retry reprocessar. */

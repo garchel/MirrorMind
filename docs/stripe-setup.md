@@ -45,63 +45,57 @@ Três decisões que não são detalhe:
 3. **`cloud_plan` é escrito apenas pelo webhook**, com a service role. A policy de
    leitura do próprio perfil é a única coisa que o app precisa.
 
-### O que já está no ar
+### O que está no ar (tudo verificado)
 
 | peça | estado |
 |---|---|
-| migration `0006`/`0007` (ids do Stripe, `stripe_events`, `my_entitlements`) | aplicada |
+| migrations `0006`, `0007`, `0008` | aplicadas |
+| endpoint do webhook no Stripe | `we_1UddWzHd1smsjlx77dJw3MuA`, **enabled**, 5 eventos |
+| segredos das funções (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, os dois `price_…`) | gravados |
 | função `stripe-checkout` | deployada (`verify_jwt: true`) |
 | função `checkout-return` | deployada (`verify_jwt: false`) |
-| função `stripe-webhook` | **falta subir** (ver abaixo) |
+| função `stripe-webhook` | deployada (`verify_jwt: false`) |
 | botões "Assinar R$ 30/mês" e "Assinar R$ 300/ano" | no app |
 
-Medido hoje: sem sessão a função responde **401**; com sessão e sem a chave do
-Stripe, **501** com a frase "O checkout ainda não está configurado neste
-ambiente." — e é isso que o app mostra, em vez de fingir que tentou.
+Medições feitas contra o Stripe e o Supabase reais:
 
-## O que falta fazer (5 minutos, uma vez)
+- **checkout**: `POST /stripe-checkout` com sessão devolveu `https://checkout.stripe.com/…`
+  para mensal **e** anual (sessões `cs_test_…` criadas de verdade);
+- **webhook**: evento `checkout.session.completed` assinado com o `whsec_…` →
+  `cloud_plan` virou `nuvem` no perfil; reentrega do mesmo evento → `duplicate`;
+  evento mais antigo que um já aplicado → `stale` (e o acesso **não** voltou);
+  assinatura errada → **400**;
+- **vazamento**: `grep` no `dist/` depois do build → **0** ocorrências de
+  `sk_test`/`whsec_`. O `.env` é ignorado pelo git e não é rastreado.
 
-Precisa de duas chaves do painel do Stripe (modo de teste): a **secret key**
-(`sk_test_…`) e o **signing secret** do webhook (`whsec_…`, criado no passo 2).
+## Teste com cartão (opcional, o único passo que gasta dinheiro fictício)
 
-```bash
-# 1. login no Supabase (abre o navegador)
-npx supabase login
-
-# 2. criar o webhook no painel do Stripe
-#    Developers → Webhooks → Add endpoint
-#    URL: https://uzxpeoxrvdcptvbepzua.supabase.co/functions/v1/stripe-webhook
-#    Eventos:
-#      checkout.session.completed
-#      customer.subscription.created
-#      customer.subscription.updated
-#      customer.subscription.deleted
-#      invoice.payment_failed
-#    Copie o "Signing secret" (whsec_…) que o painel mostra.
-
-# 3. gravar os segredos nas funções
-npx supabase secrets set --project-ref uzxpeoxrvdcptvbepzua \
-  STRIPE_SECRET_KEY=sk_test_... \
-  STRIPE_WEBHOOK_SECRET=whsec_... \
-  STRIPE_PRICE_CLOUD_MONTH=price_1UdZvfHd1smsjlx7lCoo8QKT \
-  STRIPE_PRICE_CLOUD_YEAR=price_1UdZxHHd1smsjlx7cfOaz7vd
-
-# 4. subir o webhook (as outras duas já estão no ar)
-npx supabase functions deploy stripe-webhook \
-  --project-ref uzxpeoxrvdcptvbepzua --no-verify-jwt
-```
-
-Depois disso, testar com o cartão de teste do Stripe **4242 4242 4242 4242**
-(qualquer validade futura, qualquer CVC):
+Cartão de teste do Stripe: **4242 4242 4242 4242**, qualquer validade futura,
+qualquer CVC.
 
 1. Configurações → Nuvem → **Assinar R$ 30/mês**;
 2. pagar no navegador;
 3. voltar ao app e clicar em **Já paguei** (ou reabrir Configurações);
 4. o bloco passa a dizer **Add-on ativo — válido até …**.
 
-Se ficar em "Assinar", o evento não chegou: veja **Edge Functions → stripe-webhook
-→ Logs** no painel do Supabase. A causa mais comum é o `whsec_…` de outro
-endpoint (o segredo é por endpoint, não da conta).
+Se ficar em "Assinar", o evento não chegou: **Edge Functions → stripe-webhook →
+Logs** no painel do Supabase. A causa mais comum é `whsec_…` de outro endpoint.
+
+### Para limpar depois do teste
+
+```sql
+-- desfaz a assinatura de teste e os eventos sintéticos
+delete from public.stripe_events where id like 'evt_%';
+update public.profiles
+   set cloud_plan = 'nenhum', plan_status = 'canceled',
+       stripe_customer_id = null, stripe_subscription_id = null
+ where email = 'seu-email@teste';
+```
+
+> `stripe_events.received_at` é quando a função aplicou; `stripe_created` é quando
+> o Stripe gerou. A 0008 renomeia `processed_at` → `received_at` num banco que já
+> tinha a tabela de uma versão anterior — sem ela, o `create if not exists` da 0006
+> não faz nada e o repositório descreve uma coluna inexistente.
 
 ## Custo por assinatura (para conferir margem)
 
