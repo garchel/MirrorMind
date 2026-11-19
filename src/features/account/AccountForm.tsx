@@ -27,7 +27,8 @@ export function AccountForm({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
-  const { snapshot, error, signIn, signUp } = useSession(client)
+  const { snapshot, error, signIn, signUp, signInWithGoogle } = useSession(client)
+  const [googleBusy, setGoogleBusy] = useState(false)
 
   useEffect(() => {
     if (snapshot.status === 'auth') onAuthenticated()
@@ -127,13 +128,15 @@ export function AccountForm({
         type="button"
         variant="secondary"
         size="md"
-        disabled
-        title="Entrar com Google chega na próxima versão"
         className="login-google"
+        disabled={googleBusy || busy}
+        onClick={() => {
+          setGoogleBusy(true)
+          void signInWithGoogle().finally(() => setGoogleBusy(false))
+        }}
       >
-        Continuar com Google
+        {googleBusy ? 'Abrindo o navegador…' : 'Continuar com Google'}
       </Button>
-      <p className="login-hint">Em breve. Por enquanto, use e-mail e senha.</p>
 
       {onSkip ? (
         <>

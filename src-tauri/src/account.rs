@@ -36,7 +36,7 @@ fn anon() -> AccountSnapshot {
     AccountSnapshot { status: "anon", email: None, expires_at_unix_ms: None }
 }
 
-fn client() -> Result<Client> {
+pub(crate) fn client() -> Result<Client> {
     Client::builder()
         .timeout(HTTP_TIMEOUT)
         .build()
@@ -45,7 +45,7 @@ fn client() -> Result<Client> {
 
 /// `https://projeto.supabase.co` + caminho. Recusa qualquer coisa que não seja
 /// http(s) para não enviar credencial a um esquema local (file:, jar:, ...).
-fn endpoint(base_url: &str, path: &str) -> Result<String> {
+pub(crate) fn endpoint(base_url: &str, path: &str) -> Result<String> {
     let base_url = base_url.trim().trim_end_matches('/');
     if base_url.is_empty() {
         bail!("Endereço do servidor de contas ausente.");
@@ -56,7 +56,7 @@ fn endpoint(base_url: &str, path: &str) -> Result<String> {
     Ok(format!("{base_url}{path}"))
 }
 
-fn require_key(api_key: &str) -> Result<&str> {
+pub(crate) fn require_key(api_key: &str) -> Result<&str> {
     let api_key = api_key.trim();
     if api_key.len() < 16 {
         bail!("Chave pública do servidor de contas ausente.");
@@ -103,7 +103,7 @@ pub(crate) fn friendly_error(status: u16, body: &Value) -> String {
     format!("Não foi possível concluir: {raw}")
 }
 
-fn json_body(response: Response) -> Value {
+pub(crate) fn json_body(response: Response) -> Value {
     response.json::<Value>().unwrap_or(Value::Null)
 }
 
@@ -120,7 +120,7 @@ pub(crate) fn expires_at_from_jwt(access_token: &str) -> Option<i64> {
     Some(exp * 1000)
 }
 
-fn snapshot_from_session(email: Option<String>, access_token: &str) -> AccountSnapshot {
+pub(crate) fn snapshot_from_session(email: Option<String>, access_token: &str) -> AccountSnapshot {
     AccountSnapshot {
         status: "auth",
         email,
@@ -128,14 +128,14 @@ fn snapshot_from_session(email: Option<String>, access_token: &str) -> AccountSn
     }
 }
 
-fn store_session(access_token: &str, refresh_token: &str) -> Result<()> {
+pub(crate) fn store_session(access_token: &str, refresh_token: &str) -> Result<()> {
     let store = NativeCredentialStore::new();
     session::save_session(&store, access_token, refresh_token)
         .map_err(|error| anyhow::anyhow!(error.to_string()))
 }
 
 /// Extrai `(access_token, refresh_token, email)` de uma resposta de token.
-fn read_tokens(body: &Value) -> Option<(String, String, Option<String>)> {
+pub(crate) fn read_tokens(body: &Value) -> Option<(String, String, Option<String>)> {
     let access = body.get("access_token")?.as_str()?.to_string();
     let refresh = body.get("refresh_token")?.as_str()?.to_string();
     let email = body
@@ -146,7 +146,7 @@ fn read_tokens(body: &Value) -> Option<(String, String, Option<String>)> {
     Some((access, refresh, email))
 }
 
-fn read_email(base_url: &str, api_key: &str, access_token: &str) -> Option<String> {
+pub(crate) fn read_email(base_url: &str, api_key: &str, access_token: &str) -> Option<String> {
     let url = endpoint(base_url, "/auth/v1/user").ok()?;
     let response = client()
         .ok()?
@@ -368,6 +368,17 @@ pub async fn account_sign_in(
 ) -> Result<AccountSnapshot, String> {
     tauri::async_runtime::spawn_blocking(move || {
         sign_in(&url, &api_key, &email, &password).map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+/// Login com Google (PKCE + loopback). O fluxo é longo — abre navegador e espera
+/// até três minutos — por isso roda em `spawn_blocking` como os demais.
+#[tauri::command]
+pub async fn account_sign_in_google(url: String, api_key: String) -> Result<AccountSnapshot, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::account_oauth::sign_in_with_google(&url, &api_key).map_err(|error| error.to_string())
     })
     .await
     .map_err(|error| error.to_string())?

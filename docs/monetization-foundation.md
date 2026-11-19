@@ -82,7 +82,10 @@ Estimativa: **7–10 semanas**, 1 dev focado. Risco nº 1: Pix recorrente (se F0
         primeira vez com sessão anônima, tem "Continuar sem conta" como ação de
         primeira classe (o app inteiro continua local) e é o destino do item
         "Entrar na conta" do menu do perfil
-  - [ ] login com **Google** (PKCE com loopback no Rust)
+  - [x] login com **Google** (`src-tauri/src/account_oauth.rs`): PKCE S256 com
+        `code_verifier` gerado no processo, escuta em `127.0.0.1:<porta efêmera>`,
+        `state` conferido na volta e troca do código no Rust — o renderer não vê
+        token em nenhum passo
   - [ ] **SMTP próprio + `Confirm email` ligado** antes de abrir o cadastro ao
         público (o beta roda com a confirmação desligada) — bloqueante em M4 do
         `launch-roadmap.md`

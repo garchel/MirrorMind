@@ -9,8 +9,8 @@ import type { SessionClient, SessionSnapshot } from './session'
  * o retrato `{ status, email, expiração }` — nenhum token passa por este módulo,
  * então um XSS no WebView não consegue roubar a sessão.
  *
- * Google é o próximo passo (PKCE com loopback no Rust); até lá `signInWithGoogle`
- * falha com mensagem honesta em vez de abrir um fluxo pela metade.
+ * Google usa PKCE com loopback: o Rust abre o navegador, escuta 127.0.0.1 e
+ * troca o código por tokens no cofre — o renderer não vê token em nenhum passo.
  */
 
 export type SupabaseConfig = {
@@ -61,7 +61,9 @@ export function createSupabaseSessionClient(
     },
 
     async signInWithGoogle(): Promise<SessionSnapshot> {
-      throw new Error('Entrar com Google ainda não está disponível nesta versão.')
+      // O fluxo inteiro (navegador, porta local, troca do código) acontece no
+      // Rust: aqui só esperamos o retrato da sessão.
+      return call<SessionSnapshot>('account_sign_in_google', { url, apiKey })
     },
 
     async signOut(): Promise<void> {

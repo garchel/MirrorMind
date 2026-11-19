@@ -113,10 +113,15 @@ describe('LoginPage', () => {
     expect(client.signUp).not.toHaveBeenCalled()
   })
 
-  it('Google aparece desabilitado e diz por quê, em vez de sumir', () => {
-    renderPage(makeClient())
+  it('Google abre o fluxo do sistema e não some da tela', async () => {
+    const client = makeClient()
+    const user = userEvent.setup()
+    renderPage(client)
+
     const google = screen.getByRole('button', { name: 'Continuar com Google' })
-    expect(google).toBeDisabled()
-    expect(google).toHaveAttribute('title', expect.stringMatching(/próxima versão/i))
+    expect(google).toBeEnabled()
+
+    await user.click(google)
+    await waitFor(() => expect(client.signInWithGoogle).toHaveBeenCalledTimes(1))
   })
 })

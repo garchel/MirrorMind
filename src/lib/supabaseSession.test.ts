@@ -85,12 +85,16 @@ describe('cliente de sessão do Supabase', () => {
     expect(chamadas[0].command).toBe('account_sign_out')
   })
 
-  it('Google falha com mensagem honesta, sem abrir fluxo pela metade', async () => {
+  it('Google chama o fluxo do Rust e devolve só o retrato da sessão', async () => {
     const { call } = fakeInvoke()
     const client = createSupabaseSessionClient(config, call)
 
-    await expect(client.signInWithGoogle()).rejects.toThrow(/Google ainda não está disponível/i)
-    expect(call).not.toHaveBeenCalled()
+    await expect(client.signInWithGoogle()).resolves.toEqual(snapshot)
+    // O renderer pede o fluxo e recebe o retrato: nenhum token atravessa o IPC.
+    expect(call).toHaveBeenCalledWith('account_sign_in_google', {
+      url: config.url,
+      apiKey: config.apiKey,
+    })
   })
 
   it('onChange devolve um cancelamento inofensivo (uma janela só)', () => {

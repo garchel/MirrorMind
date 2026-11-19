@@ -241,9 +241,14 @@ Depois, apague esse usuário de teste (menu de três pontos na lista de usuário
 
 ## Quando terminar
 
-Me diga **"feito"**. Eu então:
+Já feito. O que existe hoje no app:
 
-1. coloco as duas variáveis no `.env`;
-2. implemento o `SupabaseSessionClient` (login com e-mail+senha e Google, tokens
-   só no keyring do Windows);
-3. ligo a tela **Conta** que já existe, hoje atrás da flag desligada.
+1. as duas variáveis entram pelo `.env` no build (`VITE_SUPABASE_URL` e a chave
+   publicável) — sem elas a tela de conta nem aparece;
+2. login e cadastro por e-mail e senha (`src-tauri/src/account.rs`) e login com
+   Google (`src-tauri/src/account_oauth.rs`), tokens só no keyring do Windows;
+3. a tela de conta é a primeira tela do app, antes da escolha do vault.
+
+Para testar o Google de ponta a ponta: rode `npm run tauri:dev`, clique em
+**Continuar com Google** e confirme que o navegador abre, que a volta cai numa
+página "Conta conectada" e que o e-mail aparece no menu do perfil.

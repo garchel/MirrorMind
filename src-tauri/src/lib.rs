@@ -22,6 +22,7 @@ use tauri_plugin_dialog::DialogExt;
 use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
 pub(crate) mod account;
+pub(crate) mod account_oauth;
 pub(crate) mod dictionary;
 pub(crate) mod goals;
 pub mod review;
@@ -6407,6 +6408,7 @@ pub fn run() {
             account_clear_session,
             account::account_sign_up,
             account::account_sign_in,
+            account::account_sign_in_google,
             account::account_snapshot,
             account::account_sign_out,
             select_vault_parent,
