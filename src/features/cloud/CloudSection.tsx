@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { supabaseConfigFromEnv } from '../../lib/supabaseSession'
 import {
   formatBytes,
+  formatLastSync,
   linkVault,
   readCloudStatus,
   reportCount,
@@ -23,7 +24,7 @@ import './cloud-section.css'
  * resolve sozinho (conflito vira cópia, nada e sobrescrito calado). */
 export function CloudSection({
   vaultPath,
-  config = supabaseConfigFromEnv(),
+  config,
   deps = { readCloudStatus, linkVault, unlinkVault, syncNow },
 }: {
   vaultPath: string
@@ -35,6 +36,11 @@ export function CloudSection({
     syncNow: typeof syncNow
   }
 }) {
+  // A config vem do ambiente, uma vez: recriar o objeto a cada render faria o
+  // efeito de carga rodar sem parar (o objeto muda de identidade, não de valor).
+  const envConfig = useMemo(() => supabaseConfigFromEnv(), [])
+  const resolvedConfig = config === undefined ? envConfig : config
+
   const [status, setStatus] = useState<CloudStatus | null>(null)
   const [report, setReport] = useState<CloudReport | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -42,29 +48,29 @@ export function CloudSection({
   const [escolhendo, setEscolhendo] = useState(false)
 
   const load = useCallback(async () => {
-    if (!config) return
+    if (!resolvedConfig) return
     setBusy('status')
     setError(null)
     try {
-      setStatus(await deps.readCloudStatus({ path: vaultPath, ...config }))
+      setStatus(await deps.readCloudStatus({ path: vaultPath, ...resolvedConfig }))
     } catch (problema) {
       setError(errorMessage(problema, 'Não foi possível falar com a nuvem.'))
     } finally {
       setBusy(null)
     }
-  }, [config, deps, vaultPath])
+  }, [deps, resolvedConfig, vaultPath])
 
   useEffect(() => {
     void load()
   }, [load])
 
   async function ligar(strategy: 'merge' | 'separate') {
-    if (!config) return
+    if (!resolvedConfig) return
     setBusy('link')
     setError(null)
     setEscolhendo(false)
     try {
-      const novo = await deps.linkVault({ path: vaultPath, ...config }, strategy)
+      const novo = await deps.linkVault({ path: vaultPath, ...resolvedConfig }, strategy)
       setStatus(novo)
       setReport(null)
     } catch (problema) {
@@ -75,13 +81,13 @@ export function CloudSection({
   }
 
   async function sincronizar() {
-    if (!config) return
+    if (!resolvedConfig) return
     setBusy('sync')
     setError(null)
     try {
-      const resultado = await deps.syncNow({ path: vaultPath, ...config })
+      const resultado = await deps.syncNow({ path: vaultPath, ...resolvedConfig })
       setReport(resultado)
-      setStatus(await deps.readCloudStatus({ path: vaultPath, ...config }))
+      setStatus(await deps.readCloudStatus({ path: vaultPath, ...resolvedConfig }))
     } catch (problema) {
       setError(errorMessage(problema, 'Não foi possível falar com a nuvem.'))
     } finally {
@@ -102,7 +108,7 @@ export function CloudSection({
     }
   }
 
-  if (!config) {
+  if (!resolvedConfig) {
     return (
       <div className="cloud-block" data-cloud="sem-configuracao">
         <p className="cloud-hint">
@@ -281,8 +287,10 @@ export function CloudSection({
       )}
 
       <p className="cloud-hint">
-        O conteúdo das notas é enviado para a nuvem quando você sincroniza. Tudo o
-        que é local continua funcionando sem conta.
+        Sincroniza sozinho ao abrir o vault e alguns segundos depois de salvar.
+        Última sincronização: {formatLastSync(status.lastSyncedAt)}. O conteúdo das
+        notas é enviado para a nuvem quando você sincroniza; tudo o que é local
+        continua funcionando sem conta.
       </p>
 
       {error && (

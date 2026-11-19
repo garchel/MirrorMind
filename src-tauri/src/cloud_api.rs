@@ -11,6 +11,7 @@
 
 use anyhow::{bail, Result};
 use reqwest::blocking::Client;
+use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::account::{client, endpoint, json_body};
@@ -18,6 +19,7 @@ use crate::cloud::{FileKind, RemoteFile};
 
 const BUCKET: &str = "vault-files";
 
+#[derive(Debug, Clone)]
 pub struct CloudAuth {
     pub base_url: String,
     pub api_key: String,
@@ -69,10 +71,10 @@ fn travar_se_erro(response: reqwest::blocking::Response) -> Result<reqwest::bloc
 /// Vaults que a conta já tem, com a contagem de arquivos. A tela de vínculo usa
 /// isto para dizer "já existe um vault na nuvem" antes de qualquer sincronização —
 /// é o que evita a pessoa ligar dois vaults diferentes sem perceber.
-pub fn list_vaults(auth: &CloudAuth) -> Result<Vec<(String, String, usize)>> {
+pub fn list_vaults(auth: &CloudAuth) -> Result<Vec<VaultRow>> {
     let url = rest(
         &auth.base_url,
-        "/vaults?select=id,name,vault_files(count)&order=created_at.desc",
+        "/vaults?select=id,name,last_synced_at,vault_files(count)&order=created_at.desc",
     )?;
     let response = http()?
         .get(url)
@@ -99,9 +101,44 @@ pub fn list_vaults(auth: &CloudAuth) -> Result<Vec<(String, String, usize)>> {
                 .and_then(|primeiro| primeiro.get("count"))
                 .and_then(Value::as_u64)
                 .unwrap_or(0) as usize;
-            Some((id, nome, arquivos))
+            let ultima = linha
+                .get("last_synced_at")
+                .and_then(Value::as_str)
+                .map(str::to_string);
+            Some(VaultRow {
+                id,
+                name: nome,
+                files: arquivos,
+                last_synced_at: ultima,
+            })
         })
         .collect())
+}
+
+/// Linha da tabela `vaults` que a interface consome.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultRow {
+    pub id: String,
+    pub name: String,
+    pub files: usize,
+    /// ISO-8601 da última sincronização concluída (`None` = nunca).
+    pub last_synced_at: Option<String>,
+}
+
+/// Marca agora como a última sincronização concluída deste vault.
+pub fn touch_vault_synced(auth: &CloudAuth, vault_id: &str) -> Result<()> {
+    let url = rest(&auth.base_url, &format!("/vaults?id=eq.{vault_id}"))?;
+    let response = http()?
+        .patch(url)
+        .header("apikey", &auth.api_key)
+        .bearer_auth(&auth.access_token)
+        .header("Prefer", "return=minimal")
+        .json(&json!({ "last_synced_at": iso8601_now() }))
+        .send()
+        .map_err(|_| anyhow::anyhow!("Sem conexão com a nuvem."))?;
+    travar_se_erro(response)?;
+    Ok(())
 }
 
 /// Cria (ou reaproveita) o vault na nuvem e devolve o id remoto.

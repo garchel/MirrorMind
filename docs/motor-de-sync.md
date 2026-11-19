@@ -101,12 +101,43 @@ O IPC não transporta token nenhum: `cloud_commands.rs` pega o par do cofre do
 sistema (`account::load_session`), usa e descarta. O frontend recebe contagens e
 relatório.
 
+## Sincronização automática
+
+Duas ocasiões, uma espera:
+
+| quando | o quê |
+|---|---|
+| ao abrir o vault | um ciclo imediato, se o vault está ligado |
+| depois de salvar (ou criar) uma nota | um ciclo, **8 s depois do último salvamento** |
+
+A espera existe porque arrumar uma frase gera dez salvamentos em vinte segundos;
+dez ciclos seriam dez vezes o mesmo trabalho. Vários pedidos seguidos viram um só.
+
+**Falha é silenciosa.** Sem rede, sessão vencida ou servidor fora, o ciclo
+simplesmente não acontece: nada de alerta no meio da escrita. O motivo só aparece
+quando o usuário clica em "Sincronizar agora" na tela de Nuvem.
+
+Duas travas, em camadas diferentes:
+
+- **Rust** (`SyncGuard`): dois ciclos no mesmo processo não rodam juntos. Sem ela,
+  abrir o app, salvar e clicar no botão ao mesmo tempo multiplicariam uploads e
+  poderiam produzir duas cópias de conflito para a mesma divergência.
+- **Frontend** (`runningRef`): enquanto um ciclo está em andamento, pedidos novos
+  não empilham.
+
+Quem decide se há o que sincronizar é o motor, não o relógio: o hash de cada
+arquivo. Um ciclo sem nada a fazer custa uma listagem de metadados e zero bytes.
+
+`vaults.last_synced_at` é gravado ao fim do ciclo — mas só quando ele terminou sem
+falha de rede. Arquivo que falhou individualmente aparece no relatório, não na data.
+
 ## O que ainda falta
 
 - varredura de objetos órfãos (versões que nenhuma linha referencia);
-- sincronização automática (hoje é botão);
 - um teste de interface no app real: a tela está coberta por testes de componente
-  e pelo build, não por medição visual.
+  e pelo build, não por medição visual;
+- indicador de "sincronizando" fora de Configurações (hoje o estado do ciclo
+  automático não aparece em lugar nenhum da janela principal).
 
 ## Como testar
 

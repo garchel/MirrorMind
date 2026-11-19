@@ -20,6 +20,8 @@ export type CloudStatus = {
   accountVaults: RemoteVault[]
   /** Há dados dos dois lados: a tela precisa perguntar antes de ligar. */
   needsChoice: boolean
+  /** ISO-8601 da última sincronização concluída (`null` = nunca). */
+  lastSyncedAt: string | null
 }
 
 export type CloudFail = { path: string; reason: string }
@@ -101,4 +103,17 @@ export function summarizeReport(report: CloudReport): string {
 
   if (!partes.length) return 'Tudo já estava sincronizado.'
   return `Tudo em dia: ${partes.join(', ')}.`
+}
+
+/** "19/11 às 17:30" a partir do ISO da nuvem. `null` = nunca sincronizou. */
+export function formatLastSync(iso: string | null): string {
+  if (!iso) return 'nunca'
+  const data = new Date(iso)
+  if (Number.isNaN(data.getTime())) return 'nunca'
+  return data.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }

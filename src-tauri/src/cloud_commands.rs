@@ -41,6 +41,8 @@ pub struct CloudStatus {
     pub account_vaults: Vec<RemoteVault>,
     /// `true` quando vale perguntar antes de ligar: há dados dos dois lados.
     pub needs_choice: bool,
+    /// ISO-8601 da última sincronização concluída deste vault.
+    pub last_synced_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -132,13 +134,23 @@ pub fn status(vault_root: &Path, base_url: &str, api_key: &str) -> Result<CloudS
             remote_files: None,
             account_vaults: Vec::new(),
             needs_choice: false,
+            last_synced_at: None,
         });
     };
 
-    let account_vaults: Vec<RemoteVault> = cloud_api::list_vaults(&auth)
-        .unwrap_or_default()
+    let linhas = cloud_api::list_vaults(&auth).unwrap_or_default();
+    let last_synced_at = identidade
+        .vault_id
+        .as_ref()
+        .and_then(|id| linhas.iter().find(|linha| &linha.id == id))
+        .and_then(|linha| linha.last_synced_at.clone());
+    let account_vaults: Vec<RemoteVault> = linhas
         .into_iter()
-        .map(|(id, name, files)| RemoteVault { id, name, files })
+        .map(|linha| RemoteVault {
+            id: linha.id,
+            name: linha.name,
+            files: linha.files,
+        })
         .collect();
     let remote_files = identidade
         .vault_id
@@ -160,6 +172,7 @@ pub fn status(vault_root: &Path, base_url: &str, api_key: &str) -> Result<CloudS
         remote_files,
         account_vaults,
         needs_choice,
+        last_synced_at,
     })
 }
 
@@ -216,7 +229,38 @@ pub fn unlink(vault_root: &Path) -> Result<CloudStatus> {
         remote_files: None,
         account_vaults: Vec::new(),
         needs_choice: false,
+        last_synced_at: None,
     })
+}
+
+/// Impede dois ciclos simultâneos no mesmo processo.
+///
+/// A sincronização automática pode ser disparada pelo app abrindo, pelo salvamento
+/// de uma nota e pelo botão — ao mesmo tempo. Dois ciclos concorrentes sobre o
+/// mesmo arquivo de estado não corrompem nada (as escritas são atômicas e o plano
+/// é idempotente), mas multiplicam uploads e podem produzir duas cópias de
+/// conflito para a mesma divergência. Uma trava simples resolve.
+static SYNC_RUNNING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+struct SyncGuard;
+
+impl SyncGuard {
+    fn acquire() -> Result<Self> {
+        use std::sync::atomic::Ordering;
+        if SYNC_RUNNING
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            bail!("Uma sincronização já está em andamento.");
+        }
+        Ok(Self)
+    }
+}
+
+impl Drop for SyncGuard {
+    fn drop(&mut self) {
+        SYNC_RUNNING.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
 }
 
 pub fn sync(
@@ -225,13 +269,27 @@ pub fn sync(
     api_key: &str,
     options: &SyncOptions,
 ) -> Result<CloudReport> {
+    let _guarda = SyncGuard::acquire()?;
     let auth = auth(base_url, api_key)?;
     let identidade = load_or_create_identity(vault_root, &vault_name(vault_root))?;
     let Some(vault_id) = identidade.vault_id else {
         bail!("Este vault ainda não está ligado à nuvem.");
     };
-    let transporte = transport(auth, vault_id)?;
+    let marcador = auth.clone();
+    let transporte = transport(auth, vault_id.clone())?;
     let relatorio = run_sync(vault_root, &transporte, options)?;
+
+    // A data só é gravada quando o ciclo terminou sem falha de rede — o ciclo pode
+    // ter arquivos que falharam individualmente, e isso não é "sincronizado".
+    if !relatorio.uploaded.is_empty()
+        || !relatorio.downloaded.is_empty()
+        || !relatorio.conflicts.is_empty()
+        || !relatorio.deleted.is_empty()
+        || relatorio.failed.is_empty()
+    {
+        let _ = cloud_api::touch_vault_synced(&marcador, &vault_id);
+    }
+
     Ok(relatorio.into())
 }
 
@@ -346,9 +404,13 @@ mod tests {
         assert_eq!(relatorio.uploaded, vec!["nota.md".to_string()]);
         assert!(relatorio.failed.is_empty(), "{:?}", relatorio.failed);
 
-        // 4. o retrato agora vê o arquivo na nuvem
+        // 4. o retrato agora vê o arquivo na nuvem e a data da sincronização
         let depois = status(vault.path(), &url, &key).expect("status 2");
         assert_eq!(depois.remote_files, Some(1));
+        assert!(
+            depois.last_synced_at.is_some(),
+            "o servidor deve registrar quando o ciclo terminou"
+        );
 
         // 5. segunda passada não faz nada
         let ociosa = sync(vault.path(), &url, &key, &SyncOptions::default()).expect("sync 2");
@@ -363,6 +425,18 @@ mod tests {
         assert!(vault.path().join("nota.md").exists());
 
         crate::account::sign_out(&url, &key).expect("sair");
+    }
+
+    #[test]
+    fn dois_ciclos_simultaneos_nao_rodam_juntos() {
+        let primeiro = SyncGuard::acquire().expect("o primeiro entra");
+        assert!(
+            SyncGuard::acquire().is_err(),
+            "o segundo tem que ser recusado enquanto o primeiro roda"
+        );
+        drop(primeiro);
+        // liberado: o próximo ciclo pode entrar
+        assert!(SyncGuard::acquire().is_ok());
     }
 
     #[test]

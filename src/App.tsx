@@ -11,6 +11,7 @@ import type { EditorState } from '@codemirror/state'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { getVersion } from '@tauri-apps/api/app'
 import { errorMessage, invoke, isTauriRuntime } from './lib/tauri'
+import { useCloudAutoSync } from './lib/useCloudAutoSync'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -1045,6 +1046,19 @@ function App() {
     setVault(null)
     setWorkspacePage('notes')
   }
+
+  /** Sincronização automática: ao abrir o vault e depois de salvar, com espera.
+   *
+   * Silenciosa quando falha: estar sem rede não pode virar alerta no meio da
+   * escrita. A configuração é memoizada porque `supabaseConfigFromEnv()` devolve
+   * um objeto novo a cada chamada — como dependência de efeito, isso bastaria
+   * para o ciclo rodar sem parar.
+   */
+  const cloudConfig = useMemo(() => supabaseConfigFromEnv(), [])
+  const cloudAutoSync = useCloudAutoSync({
+    vaultPath: vault?.path ?? null,
+    config: cloudConfig,
+  })
 
   /** Reabre "Quem está usando?" com o vault já aberto (troca a quente). */
   async function openProfileSwitcher() {
@@ -3921,6 +3935,7 @@ function App() {
           return remainingDrafts
         })
         await refreshNotes(vault.path)
+        cloudAutoSync.requestSync()
         return true
       } catch (caughtError) {
         // Colisao de nome, pasta removida por fora, disco cheio: a nota
@@ -3989,6 +4004,9 @@ function App() {
       void loadBacklinks(parsedNote.relativePath, vault.path)
       void loadBrokenLinks(parsedNote.relativePath, vault.path)
       void refreshHistoryStatus(vault.path)
+      // A sincronização automática espera oito segundos: escrever uma frase gera
+      // vários salvamentos e o ciclo acontece uma vez só.
+      cloudAutoSync.requestSync()
       void invoke<TagSummary[]>('get_tag_index', { path: vault.path })
         .then(setTagIndex)
         .catch(() => undefined)

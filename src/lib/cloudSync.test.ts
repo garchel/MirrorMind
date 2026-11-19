@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { formatBytes, reportCount, summarizeReport, type CloudReport } from './cloudSync'
+import {
+  formatBytes,
+  formatLastSync,
+  reportCount,
+  summarizeReport,
+  type CloudReport,
+} from './cloudSync'
 
 function relatorio(over: Partial<CloudReport> = {}): CloudReport {
   return {
@@ -56,5 +62,18 @@ describe('tamanho legível', () => {
     expect(formatBytes(2048)).toBe('2 KB')
     expect(formatBytes(5 * 1024 * 1024)).toBe('5.0 MB')
     expect(formatBytes(3 * 1024 * 1024 * 1024)).toBe('3.0 GB')
+  })
+})
+
+describe('última sincronização', () => {
+  it('sem data, diz que nunca aconteceu', () => {
+    expect(formatLastSync(null)).toBe('nunca')
+    expect(formatLastSync('não é data')).toBe('nunca')
+  })
+
+  it('formata no padrão brasileiro, dia e hora', () => {
+    const texto = formatLastSync('2026-11-19T17:30:00Z')
+    expect(texto).toMatch(/\d{2}\/\d{2}/)
+    expect(texto).toMatch(/\d{2}:\d{2}/)
   })
 })

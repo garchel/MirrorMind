@@ -33,6 +33,7 @@ function baseStatus(over: Partial<CloudStatus> = {}): CloudStatus {
     remoteFiles: null,
     accountVaults: [],
     needsChoice: false,
+    lastSyncedAt: null,
     ...over,
   }
 }
