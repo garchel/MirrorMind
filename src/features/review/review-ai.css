@@ -1230,16 +1230,37 @@
 
 /* Seletor de provedor em pilula (versao A): a escolha fica visivel sem abrir
  * uma lista, e o selo no titulo diz o estado do que esta escolhido. */
+/* Pilula + ajuda contextual na mesma linha de base. */
 .review-ai-provider-picker {
-  display: grid;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-  justify-items: start;
 }
 
-.review-ai-provider-hint {
-  color: var(--muted, var(--mm-ink-800-4));
+/* A linha de "envio internacional" e um aviso, nao um paragrafo: uma frase e a
+ * ajuda do lado para quem quiser o detalhe (Art. 33/11 da LGPD). */
+.review-ai-legal {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--mm-clay-850-2);
   font-size: 12px;
+  font-weight: 600;
   line-height: 1.45;
+}
+
+/* Rotulo do campo com a ajuda ao lado do texto, nao embaixo. */
+.review-ai-key-field > span,
+.review-ai-consent > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.review-ai-consent > span {
+  align-items: flex-start;
 }
 
 .review-ai-status {

@@ -680,6 +680,20 @@ label.settings-toggle {
   --settings-ink-label: var(--mm-ink-600-5);
 }
 
+/* Subsecoes dentro de uma secao (Revisão tem quatro): fio entre uma e outra e
+ * respiro maior que o de uma linha — o bloco nao encosta no anterior. */
+.settings-section > .settings-block + .settings-block {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--mm-ink-350-3);
+}
+
+/* O bloco ja esta dentro de uma secao: a margem de 40px e para a secao, nao
+ * para o bloco. */
+.settings-block > .settings-section {
+  margin-top: 0;
+}
+
 /* Mensagem de erro de campo. So existia no CSS da pagina de Tags — nas outras
  * telas o erro saia como texto comum, sem cor nem tamanho de aviso. */
 .field-error {
@@ -948,11 +962,6 @@ label.settings-toggle {
   display: grid;
   gap: 6px;
   min-width: 0;
-}
-
-.settings-page-header > .ui-button {
-  flex-shrink: 0;
-  margin-top: 22px;
 }
 
 /* Busca no alto da barra lateral: filtra a propria lista de secoes. */

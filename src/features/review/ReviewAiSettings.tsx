@@ -13,6 +13,7 @@ import { useReviewAiSettings } from './ReviewAiSettingsContext'
 import { SettingsSection } from '../../components/SettingsSection'
 import './review-ai.css'
 import { Field } from '../../components/ui/Field'
+import { InfoTip } from '../../components/ui/InfoTip'
 
 /** Rotulos da pilula. O rotulo curto e o que cabe; o longo vira nome acessivel. */
 const PROVIDER_OPTIONS: ReadonlyArray<{
@@ -245,24 +246,31 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
             </Button>
           ))}
         </div>
-        <small className="review-ai-provider-hint">
-          A sessão usa somente o provedor escolhido. Não existe troca automática.
-        </small>
+        <InfoTip label="Provedor da revisão">
+          <p>
+            A sessão usa somente o provedor escolhido — não existe troca automática no meio de uma
+            revisão. Trocar aqui vale para a próxima sessão; o histórico já avaliado não é refeito.
+          </p>
+        </InfoTip>
       </div>
 
       {provider === 'gemini' ? (
         <div className="review-ai-provider-panel">
-          <p>
-            O Gemini recebe apenas o texto da nota selecionada e os dados necessários da sessão atual.
-            O restante da pasta permanece local.
-          </p>
           <label className="review-ai-consent">
             <input
               type="checkbox"
               checked={geminiConsent}
               onChange={(event) => void toggleConsent(event.target.checked)}
             />
-            <span>Autorizo o envio desses dados ao Gemini.</span>
+            <span>
+              Autorizo o envio desses dados ao Gemini.
+              <InfoTip label="O que vai para o Gemini">
+                <p>
+                  Vai o texto da nota selecionada e o necessário da sessão atual. O restante da pasta
+                  fica no computador. A autorização pode ser revogada aqui a qualquer momento.
+                </p>
+              </InfoTip>
+            </span>
           </label>
           <label className="review-ai-key-field" htmlFor="gemini-api-key">
             <span>Chave da API do Gemini</span>
@@ -298,16 +306,16 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
         </div>
       ) : provider === 'openAiCompatible' ? (
         <div className="review-ai-provider-panel">
-          <p>
-            Qualquer servidor com a API de chat completions OpenAI-compatible (OpenAI, OpenRouter,
-            LM Studio, vLLM...). A chave fica no cofre nativo e nunca no Vault.
-          </p>
-          <p className="field-hint" style={{ color: 'var(--text-muted, #6b6b6b)', marginTop: 6 }}>
-            <strong>LGPD Art.33 — Transferência internacional:</strong> o conteúdo da nota selecionada
-            e os dados da sessão sairão do seu computador para o endereço configurado acima e serão
-            tratados segundo a política do provedor. Use <code>https</code> para servidores remotos
-            (<code>http</code> só para <code>127.0.0.1/localhost</code>). Não envie notas com dados
-            sensíveis (Art.11) sem necessidade.
+          <p className="review-ai-legal">
+            Envio internacional de dados: o texto da nota sai deste computador.
+            <InfoTip label="Transferência internacional (LGPD Art. 33)">
+              <p>
+                O conteúdo da nota selecionada e os dados da sessão vão para o endereço configurado
+                acima e seguem a política do provedor. Use <code>https</code> para servidores remotos
+                (<code>http</code> só em <code>127.0.0.1</code> ou <code>localhost</code>). Evite notas
+                com dados sensíveis (Art. 11) sem necessidade.
+              </p>
+            </InfoTip>
           </p>
           <label className="review-ai-consent">
             <input
@@ -317,6 +325,12 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
             />
             <span>Autorizo o envio desses dados ao servidor OpenAI-compatible.</span>
           </label>
+          <InfoTip label="Quais servidores este campo aceita">
+            <p>
+              Qualquer servidor com a API de chat completions OpenAI-compatible: OpenAI, OpenRouter,
+              LM Studio, vLLM. A chave fica no cofre nativo do sistema, nunca no Vault.
+            </p>
+          </InfoTip>
           {configuration?.openAiCompatibleConfigured ? (
             <dl>
               <div><dt>Endereco</dt><dd>{configuration.openAiCompatibleBaseUrl}</dd></div>
@@ -376,12 +390,16 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
         </div>
       ) : (
         <div className="review-ai-provider-panel">
-          <p>
-            O processamento usa somente o Ollama instalado neste computador. O endereço aceita
-            <code>http</code> apenas para localhost ou rede privada.
-          </p>
           <label className="review-ai-key-field" htmlFor="ollama-endpoint">
-            <span>Endereço do Ollama</span>
+            <span>
+              Endereço do Ollama
+              <InfoTip label="Endereço do Ollama">
+                <p>
+                  Onde o serviço escuta. <code>http</code> só é aceito para localhost ou rede privada;
+                  qualquer host fora da máquina precisa de <code>https</code>.
+                </p>
+              </InfoTip>
+            </span>
             <Field
               size="xs"
               id="ollama-endpoint"
@@ -391,9 +409,6 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
               placeholder="http://127.0.0.1:11434/v1"
             />
           </label>
-          <small className="review-ai-hint">
-            Onde o serviço escuta. <code>http</code> só vale para localhost ou rede privada.
-          </small>
           <label className="review-ai-key-field" htmlFor="ollama-model">
             <span>Modelo instalado</span>
             <Field

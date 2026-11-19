@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { RefObject } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { AlertTriangle, RotateCcw, Search } from 'lucide-react'
+import { AlertTriangle, Search } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
 import {
@@ -173,16 +173,13 @@ export function SettingsPage({
     spellCheck: isSpellCheckEnabled !== APPEARANCE_DEFAULTS.isSpellCheckEnabled,
     autoUpdate: !autoUpdateEnabled,
   }
-  const anyInterfaceChange = changed.theme || changed.pagesWidth || changed.fontFamily || changed.fontSize
-    || changed.history || changed.autoSave || changed.noteHover || changed.tabHover || changed.tabHoverText
+  const anyAppearanceChange = changed.theme || changed.pagesWidth
+    || changed.noteHover || changed.tabHover || changed.tabHoverText
 
-  function resetInterface() {
+  /** So a Aparência: Editor e Leitura tem restaurar por linha. */
+  function resetAppearance() {
     setThemeMode(APPEARANCE_DEFAULTS.themeMode)
     setPagesFullWidth(APPEARANCE_DEFAULTS.isPagesFullWidth)
-    setEditorFontFamily(APPEARANCE_DEFAULTS.editorFontFamily)
-    setEditorFontSize(APPEARANCE_DEFAULTS.editorFontSize)
-    setHistoryLimit(APPEARANCE_DEFAULTS.historyLimit)
-    setAutoSaveEnabled(APPEARANCE_DEFAULTS.isAutoSaveEnabled)
     setNoteHoverColor(APPEARANCE_DEFAULTS.noteHoverColor)
     setTabHoverColor(APPEARANCE_DEFAULTS.tabHoverColor)
     setTabHoverTextColor(APPEARANCE_DEFAULTS.tabHoverTextColor)
@@ -259,17 +256,6 @@ export function SettingsPage({
                 <h2>Configurações do aplicativo</h2>
                 <p>Personalize a escrita, a leitura, a revisão e o comportamento do app.</p>
               </div>
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                onClick={resetInterface}
-                disabled={!anyInterfaceChange}
-                title="Volta Aparência, Editor e Leitura aos padrões de fábrica"
-              >
-                <RotateCcw size={14} aria-hidden="true" />
-                Restaurar interface
-              </Button>
             </header>
 
             <p className="settings-empty" role="status">
@@ -280,6 +266,18 @@ export function SettingsPage({
               id="aparencia"
               title="Aparência"
               keywords="tema claro escuro cores interface hover visual"
+              aside={(
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={resetAppearance}
+                  disabled={!anyAppearanceChange}
+                  title="Volta tema, largura das páginas e cores de hover ao padrão"
+                >
+                  Restaurar aparência
+                </Button>
+              )}
             >
               <SettingRow
                 label="Tema"

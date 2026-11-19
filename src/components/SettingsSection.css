@@ -28,8 +28,8 @@
   /* Titulo de bloco no mesmo ink dos titulos da pagina (#24231f); `--text-h` e
    * um azul-frio (#1c2427) que destoava do resto da tela creme. */
   color: var(--mm-ink-950-11);
-  font-size: 13px;
-  font-weight: 550;
+  font-size: 14px;
+  font-weight: 600;
   letter-spacing: 0;
 }
 

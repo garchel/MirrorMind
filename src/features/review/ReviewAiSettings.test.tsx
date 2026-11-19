@@ -104,8 +104,10 @@ describe('ReviewAiSettings', () => {
 
     // A configuracao chega de forma assincrona: os campos nascem preenchidos
     // com o que esta salvo.
-    const endereco = screen.getByLabelText('Endereço do Ollama')
-    const modelo = screen.getByLabelText('Modelo instalado')
+    // O rotulo agora carrega a ajuda contextual ao lado, entao o nome acessivel
+    // do campo e procurado por prefixo.
+    const endereco = screen.getByRole('textbox', { name: /^Endereço do Ollama/ })
+    const modelo = screen.getByRole('textbox', { name: /^Modelo instalado/ })
     await waitFor(() => expect(endereco).toHaveValue('http://127.0.0.1:11434/v1'))
     expect(modelo).toHaveValue('qwen2.5:7b')
     expect(screen.getByRole('button', { name: 'Salvar servidor local' })).toBeDisabled()

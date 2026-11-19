@@ -34,7 +34,11 @@ export function SettingsSection({
   const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4'
 
   return (
-    <div className={['settings-section', className].filter(Boolean).join(' ')} aria-labelledby={id}>
+    <div
+      className={['settings-section', className].filter(Boolean).join(' ')}
+      data-level={headingLevel}
+      aria-labelledby={id}
+    >
       <div className="settings-section-heading">
         <div>
           {kicker ? <p className="card-kicker">{kicker}</p> : null}
