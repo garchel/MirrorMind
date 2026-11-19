@@ -1,0 +1,76 @@
+/* Indicador da nuvem no topo do workspace.
+ *
+ * Discreto por desenho: texto pequeno, cor secundária, sem borda própria — ele
+ * divide a linha com "Trocar vault" e não deve competir com o título do vault.
+ * Só tokens; nenhum hex. */
+
+.cloud-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 8px;
+  border-radius: 999px;
+  color: var(--mm-ink-600);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.cloud-indicator:hover {
+  color: var(--mm-ink-900);
+  background: var(--mm-surface-sunken);
+}
+
+.cloud-indicator[data-state='syncing'] {
+  color: var(--mm-ink-700);
+}
+
+.cloud-indicator[data-state='syncing'] svg {
+  animation: cloud-indicator-pulse 1.6s ease-in-out infinite;
+}
+
+.cloud-indicator[data-state='error'] {
+  color: var(--mm-brick-650);
+}
+
+.cloud-indicator-label {
+  /* Janela estreita: fica só o ícone, e o `aria-label` continua dizendo tudo. */
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes cloud-indicator-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloud-indicator[data-state='syncing'] svg {
+    animation: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .cloud-indicator-label {
+    display: none;
+  }
+}
+
+[data-theme='dark'] .cloud-indicator {
+  color: var(--mm-ink-400);
+}
+
+[data-theme='dark'] .cloud-indicator:hover {
+  color: var(--mm-ink-100);
+  background: var(--mm-ink-950-7);
+}
+
+[data-theme='dark'] .cloud-indicator[data-state='error'] {
+  color: var(--mm-brick-400);
+}

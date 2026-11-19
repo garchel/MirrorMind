@@ -12,6 +12,8 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import { getVersion } from '@tauri-apps/api/app'
 import { errorMessage, invoke, isTauriRuntime } from './lib/tauri'
 import { useCloudAutoSync } from './lib/useCloudAutoSync'
+import { CloudIndicator } from './features/cloud/CloudIndicator'
+import { cloudIndicatorState } from './lib/cloudSync'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -5724,6 +5726,13 @@ function App() {
           saving={saving}
           chooseExistingVault={chooseExistingVault}
           error={error}
+          cloudSlot={
+            <CloudIndicator
+              state={cloudIndicatorState(cloudAutoSync)}
+              lastSyncedAt={cloudAutoSync.lastSyncedAt}
+              onOpen={() => openSettingsSection('nuvem')}
+            />
+          }
         />
 
         <section className="workspace-grid">

@@ -117,3 +117,20 @@ export function formatLastSync(iso: string | null): string {
     minute: '2-digit',
   })
 }
+
+/** Estado do indicador do topo, a partir do que o hook sabe. */
+export type CloudIndicatorState = 'off' | 'syncing' | 'synced' | 'error'
+
+export function cloudIndicatorState({
+  linked,
+  syncing,
+  lastError,
+}: {
+  linked: boolean
+  syncing: boolean
+  lastError: string | null
+}): CloudIndicatorState {
+  if (!linked) return 'off'
+  if (syncing) return 'syncing'
+  return lastError ? 'error' : 'synced'
+}

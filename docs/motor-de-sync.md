@@ -131,13 +131,32 @@ arquivo. Um ciclo sem nada a fazer custa uma listagem de metadados e zero bytes.
 `vaults.last_synced_at` é gravado ao fim do ciclo — mas só quando ele terminou sem
 falha de rede. Arquivo que falhou individualmente aparece no relatório, não na data.
 
+## O indicador do topo
+
+`CloudIndicator` (no topo do workspace, ao lado de "Trocar vault") responde a
+pergunta que a sincronização automática deixava sem resposta: *o que escrevi já
+saiu deste computador?*
+
+| estado | aparência |
+|---|---|
+| vault não ligado | nada — não ocupa espaço nem vira ruído |
+| ciclo em andamento | "Sincronizando…", ícone pulsando (desligado em `prefers-reduced-motion`) |
+| concluído | "Sincronizado 19/11 às 17:33" |
+| falhou | "Sem sincronizar" em cor de alerta; o **motivo** fica na seção Nuvem |
+
+Clicar leva a Configurações → Nuvem. Em janela estreita fica só o ícone, e o
+`aria-label` continua dizendo o estado completo.
+
+O componente é apresentacional: recebe o estado pronto. O seletor
+(`cloudIndicatorState`) mora em `src/lib/cloudSync.ts`, porque é função pura — e
+porque um arquivo que exporta componente **e** função quebra o fast refresh (o
+lint cobra isso).
+
 ## O que ainda falta
 
 - varredura de objetos órfãos (versões que nenhuma linha referencia);
 - um teste de interface no app real: a tela está coberta por testes de componente
-  e pelo build, não por medição visual;
-- indicador de "sincronizando" fora de Configurações (hoje o estado do ciclo
-  automático não aparece em lugar nenhum da janela principal).
+  e pelo build, não por medição visual.
 
 ## Como testar
 

@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import { Button } from '../../components/ui/Button'
 import {
   BookMarked,
@@ -261,6 +261,7 @@ export function WorkspaceTopbar({
   saving,
   chooseExistingVault,
   error,
+  cloudSlot,
 }: {
   vault: VaultSummary
   initializeMetadata: () => void
@@ -268,6 +269,8 @@ export function WorkspaceTopbar({
   saving: boolean
   chooseExistingVault: () => void
   error: string | null
+  /** Indicador da nuvem; o App injeta para o chrome não depender do motor. */
+  cloudSlot?: ReactNode
 }) {
   return (
     <>
@@ -277,6 +280,7 @@ export function WorkspaceTopbar({
           <h1 className="workspace-title">{vault.name}</h1>
         </div>
         <div className="workspace-actions">
+          {cloudSlot}
           {!vault.metadata.isInitialized ? (
             <Button
               type="button"

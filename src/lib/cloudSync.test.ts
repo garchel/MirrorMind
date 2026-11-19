@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cloudIndicatorState,
   formatBytes,
   formatLastSync,
   reportCount,
@@ -75,5 +76,24 @@ describe('última sincronização', () => {
     const texto = formatLastSync('2026-11-19T17:30:00Z')
     expect(texto).toMatch(/\d{2}\/\d{2}/)
     expect(texto).toMatch(/\d{2}:\d{2}/)
+  })
+})
+
+describe('estado do indicador da nuvem', () => {
+  it('sem vínculo, nada aparece', () => {
+    expect(cloudIndicatorState({ linked: false, syncing: true, lastError: null })).toBe('off')
+  })
+
+  it('sincronizando vence erro anterior', () => {
+    expect(cloudIndicatorState({ linked: true, syncing: true, lastError: 'falhou' })).toBe(
+      'syncing',
+    )
+  })
+
+  it('erro recente aparece até o próximo ciclo dar certo', () => {
+    expect(cloudIndicatorState({ linked: true, syncing: false, lastError: 'falhou' })).toBe(
+      'error',
+    )
+    expect(cloudIndicatorState({ linked: true, syncing: false, lastError: null })).toBe('synced')
   })
 })
