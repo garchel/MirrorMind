@@ -6,7 +6,7 @@
 
 ## Resumo
 
-O MirrorMind é um aplicativo de **notas local-first**: seus arquivos Markdown e seus dados ficam no seu computador, dentro do Vault que você escolhe. O app não cria conta, não coleta telemetria e não transmite conteúdo de notas por padrão. Recursos de IA são opcionais e exigem consentimento explícito antes de qualquer envio.
+O MirrorMind é um aplicativo de **notas local-first**: seus arquivos Markdown e seus dados ficam no seu computador, dentro do Vault que você escolhe. **Conta é opcional** — o app funciona inteiro sem ela, e sem conta nada do seu conteúdo sai da máquina. Conta serve para plano, cota de IA gerenciada e, nos planos com nuvem, para sincronizar o vault entre os seus computadores. Telemetria não existe. Recursos de IA são opcionais e exigem consentimento explícito antes de qualquer envio.
 
 **Controlador:** MirrorMind (projeto garchel/MirrorMind — enquanto pessoa jurídica não constituída, o mantenedor atua como controlador para fins de LGPD).  
 **Encarregado (DPO) — Art.41 LGPD:** `privacidade@mirrormind.local` (placeholder até nomeação formal; enquanto isso use [GitHub Issues](https://github.com/garchel/MirrorMind/issues) com label `privacidade`).  
@@ -22,6 +22,28 @@ O MirrorMind é um aplicativo de **notas local-first**: seus arquivos Markdown e
 | Cofre do sistema operacional (OS keyring) | Chave Gemini, `base_url/model/api_key` do provedor OpenAI-compatible e flags de consentimento (`gemini-content-consent-v1`, `openai-compatible-consent-v1`) | Até você remover em **Configurações > Revisão com IA** ou via **Apagar meus dados locais** (remove do keyring). Nunca gravado dentro do Vault. |
 
 Os seus arquivos `.md` e anexos **nunca** são movidos ou copiados para fora do Vault pelo app. A desinstalação remove o programa e não apaga Vaults, notas ou conteúdo do usuário.
+
+## 1b. Conta e nuvem (opcionais) — o que passa a ficar no servidor
+
+Sem conta, esta seção não se aplica: nada é enviado. Com conta, o servidor
+(Supabase, região `sa-east-1`) guarda:
+
+| O que | Para quê | Retenção |
+| --- | --- | --- |
+| E-mail e id da conta; data de aceite dos termos e da política | identificar quem é e provar o consentimento (Art.8) | até você excluir a conta |
+| Plano, status da assinatura e fim do ciclo | saber o que está contratado | até você excluir a conta |
+| Contadores de uso de IA (quantidade por dia/mês, provedor) | cobrar a cota e mostrar "Meu uso" | 90 dias no detalhe; totais mensais até excluir a conta |
+| **Conteúdo do vault** — notas e anexos — **somente em plano com nuvem** | sincronizar entre os seus computadores | enquanto o arquivo existir no vault; exclusão no app vira marca de exclusão na nuvem e o conteúdo é removido do armazenamento |
+
+O conteúdo do vault só sobe **por ação sua**: a sincronização precisa ser aceita
+no vínculo do perfil com a conta, e a primeira sincronização oferece "manter os
+dois" em vez de mesclar em silêncio. Nenhum outro usuário acessa o seu vault: cada
+conta enxerga apenas os próprios dados (RLS por dono, verificada no banco).
+
+**Transferência internacional (Art.33):** a nuvem e a autenticação rodam em
+infraestrutura do Supabase fora do Brasil; o consentimento é dado no momento em
+que você cria a conta ou ativa a nuvem, e pode ser revogado deslogando e
+excluindo os dados na nuvem.
 
 ## 2. IA (opcional, sob seu controle) — Consentimento Art.8 e Transferência Internacional Art.33
 
@@ -42,7 +64,9 @@ Em todos os casos remotos:
 
 Ao abrir, **se a opção estiver ativa** (padrão: ativa), o app verifica se há versão nova consultando o manifesto `latest.json` no GitHub Releases (`github.com/garchel/MirrorMind`). Essa verificação:
 
-- é a **única** conexão de rede automática do app e pode ser **desativada** em **Configurações > Aplicativo > Verificação automática de atualizações** (LGPD Art.9 — transparência; seu IP será enviado ao GitHub se a verificação estiver ativa);
+- é a única conexão de rede automática do app (com conta, o app também renova a
+  sessão e sincroniza, quando você ativa a nuvem) e pode ser **desativada** em
+  **Configurações > Aplicativo > Verificação automática de atualizações** (LGPD Art.9 — transparência; seu IP será enviado ao GitHub se a verificação estiver ativa);
 - envia apenas a requisição HTTP padrão (sem identificadores, sem dados de uso, sem conteúdo de notas);
 - é assinada criptograficamente: o app só instala pacotes cuja assinatura minisign corresponde à chave pública embarcada no binário;
 - pode ser disparada manualmente em **Configurações > Aplicativo > Verificar atualizações**. A instalação pede confirmação — nada é instalado sem seu clique em "Baixar e instalar".
@@ -53,10 +77,11 @@ O MirrorMind **não possui relatório automático de falhas** (crash reporting).
 
 ## 5. O que o app NÃO faz
 
-- Não cria conta nem exige cadastro.
+- Não exige conta: sem ela, tudo funciona e nada sai da máquina.
 - Não envia telemetria, métricas de uso nem diagnósticos para servidores do projeto.
 - Não lê, copia ou transmite suas notas sem ação explícita sua.
-- Não armazena conteúdo de notas fora do seu computador.
+- Não sobe conteúdo de notas sem plano com nuvem **e** sincronização aceita.
+- Não compartilha vault entre contas: cada conta acessa apenas os próprios dados.
 - Não rastreia sua atividade fora do app.
 
 ## 6. Seus direitos (Art.18 LGPD) — como exercer

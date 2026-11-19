@@ -68,7 +68,18 @@ Consequência direta: **hoje, duas pessoas que abrem a mesma pasta compartilham 
 mesmo histórico de revisão.** É exatamente o problema que os perfis resolvem — e
 resolvê-lo exige particionar `.mirmind/learning/` por perfil.
 
-## Decisões que travam o código (precisam antes da primeira linha)
+## Decisão tomada (2026-11-19)
+
+**Uma pessoa por conta, cada usuário com o seu vault.** O app é de estudo
+individual; não existe vault compartilhado entre contas. Consequência aceita: o
+histórico de revisão continua no formato de resumo (FSRS) e **não** vira diário
+de eventos. Se um dia houver compartilhamento, só as revisões feitas a partir
+daquele dia poderão ser separadas por pessoa — o passado fica como bloco único.
+
+Schema aplicado em `supabase/migrations/0002_cloud_vaults.sql` (vaults,
+vault_files, bucket privado, cota por plano recusada pelo banco).
+
+## Decisões que travavam o código (histórico)
 
 1. **Onde mora o estado do perfil.** Duas opções:
    - dentro do vault: `<vault>/.mirmind/learning/<perfil>/…` — o histórico viaja

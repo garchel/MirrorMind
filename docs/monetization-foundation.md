@@ -44,6 +44,29 @@ nada — e a promessa vale para sempre, não só enquanto não existe nuvem.
 > anônimo e a conta tem outro). Enquanto isso, nada sincroniza — e o desenho
 > acima é o que impede a conta de "engolir" o vault.
 
+### 1b. Nuvem do vault (decisão 2026-11-19)
+
+**Uma pessoa por conta, cada usuário com o seu vault.** O app é de estudo
+individual: não há vault compartilhado entre contas, e é isso que mantém o
+histórico de revisão no formato atual (resumo FSRS) em vez de exigir um diário de
+eventos.
+
+Migration `0002_cloud_vaults.sql`: `vaults` (dono único, `local_id` para
+reconhecer o mesmo vault em outra máquina), `vault_files` (caminho, hash do
+conteúdo, tamanho, `deleted_at` como marca de exclusão) e o bucket privado
+`vault-files` com caminho começando pelo id do dono. RLS por dono nas duas
+tabelas e no bucket.
+
+| plano | nuvem incluída | custo de armazenamento (Supabase Pro: US$ 0,0213/GB acima de 100 GB) |
+| --- | --- | --- |
+| grátis | **0** (o app segue 100% local) | US$ 0 |
+| essencial | 2 GB | ~US$ 0,04/mês |
+| pro | 10 GB | ~US$ 0,21/mês |
+
+A cota não é sugestão de interface: `enforce_vault_quota` recusa no banco o que
+passa do plano (testado: 11 GB num plano de 10 GB falha com `check_violation`;
+plano grátis falha com `insufficient_privilege`).
+
 ### 2. Direitos (entitlements)
 Servidor emite JWT com `{plano, cotas, expiração}` (`app_metadata.plan`); app guarda cache de **30 dias offline** e trata expirado como grátis (fail-open + aviso). Checagem só em 2 pontos: `provider_for_selection('managed')` e comandos de backup. Core não sabe que plano existe.
 
