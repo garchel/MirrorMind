@@ -232,6 +232,134 @@ fn windows_url_arg(url: &str) -> String {
     format!("\"{url}\"")
 }
 
+/// Navegador que o Windows escolheu para `http`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BrowserKind {
+    Chrome,
+    Edge,
+    Brave,
+    Firefox,
+    Outro,
+}
+
+/// Traduz o ProgId do registro para o navegador. O Windows guarda o padrão em
+/// `UserChoice\ProgId`; o sufixo `HTML` é o formato antigo e ainda é o que
+/// aparece para Chrome/Edge/Brave.
+pub(crate) fn browser_kind_from_prog_id(prog_id: &str) -> BrowserKind {
+    let id = prog_id.trim().to_ascii_lowercase();
+    if id.starts_with("chromehtml") {
+        BrowserKind::Chrome
+    } else if id.starts_with("msedgehtm") {
+        BrowserKind::Edge
+    } else if id.starts_with("bravehtml") {
+        BrowserKind::Brave
+    } else if id.starts_with("firefoxurl") {
+        BrowserKind::Firefox
+    } else {
+        BrowserKind::Outro
+    }
+}
+
+/// Argumentos de janela própria. `--app=` abre uma janela sem abas nem barra de
+/// endereço — é o mais próximo de um popup de login, e continua sendo o navegador
+/// de verdade (o Google recusa OAuth em WebView embutida).
+pub(crate) fn app_window_args(url: &str) -> Vec<String> {
+    vec![format!("--app={url}"), "--window-size=520,760".to_string()]
+}
+
+pub(crate) fn firefox_window_args(url: &str) -> Vec<String> {
+    vec!["-new-window".to_string(), url.to_string()]
+}
+
+/// Procura o executável do navegador nos caminhos usuais do Windows.
+#[cfg(target_os = "windows")]
+fn browser_executable(kind: BrowserKind) -> Option<std::path::PathBuf> {
+    use std::path::PathBuf;
+
+    let var = |nome: &str| std::env::var_os(nome).map(PathBuf::from);
+    let mut candidatos: Vec<PathBuf> = Vec::new();
+    let mut push = |base: Option<PathBuf>, resto: &str| {
+        if let Some(base) = base {
+            candidatos.push(base.join(resto));
+        }
+    };
+
+    match kind {
+        BrowserKind::Chrome => {
+            push(var("ProgramFiles"), "Google/Chrome/Application/chrome.exe");
+            push(var("ProgramFiles(x86)"), "Google/Chrome/Application/chrome.exe");
+            push(var("LOCALAPPDATA"), "Google/Chrome/Application/chrome.exe");
+        }
+        BrowserKind::Edge => {
+            push(var("ProgramFiles(x86)"), "Microsoft/Edge/Application/msedge.exe");
+            push(var("ProgramFiles"), "Microsoft/Edge/Application/msedge.exe");
+        }
+        BrowserKind::Brave => {
+            push(var("ProgramFiles"), "BraveSoftware/Brave-Browser/Application/brave.exe");
+            push(var("LOCALAPPDATA"), "BraveSoftware/Brave-Browser/Application/brave.exe");
+        }
+        BrowserKind::Firefox => {
+            push(var("ProgramFiles"), "Mozilla Firefox/firefox.exe");
+            push(var("ProgramFiles(x86)"), "Mozilla Firefox/firefox.exe");
+        }
+        BrowserKind::Outro => {}
+    }
+
+    candidatos.into_iter().find(|caminho| caminho.exists())
+}
+
+/// Lê o navegador padrão do registro. `None` quando não dá para saber.
+#[cfg(target_os = "windows")]
+fn default_browser_prog_id() -> Option<String> {
+    let saida = std::process::Command::new("reg")
+        .args([
+            "query",
+            r"HKCU\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice",
+            "/v",
+            "ProgId",
+        ])
+        .output()
+        .ok()?;
+    let texto = String::from_utf8_lossy(&saida.stdout);
+    texto
+        .lines()
+        .find(|linha| linha.contains("ProgId"))
+        .and_then(|linha| linha.split_whitespace().last())
+        .map(str::to_string)
+}
+
+/// Abre o login numa **janela própria** do navegador padrão, não numa aba.
+///
+/// Antes usávamos `start <url>`, que entrega a URL ao navegador já aberto e o
+/// login caía numa aba no meio das abas do usuário. Aqui o Chromium abre com
+/// `--app=`, uma janela sem abas e sem barra de endereço; o Firefox com
+/// `-new-window`. Sem navegador identificado, cai no comportamento antigo.
+pub(crate) fn open_browser_window(url: &str) -> Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(prog_id) = default_browser_prog_id() {
+            let kind = browser_kind_from_prog_id(&prog_id);
+            if let Some(exe) = browser_executable(kind) {
+                let args = if kind == BrowserKind::Firefox {
+                    firefox_window_args(url)
+                } else {
+                    app_window_args(url)
+                };
+                if std::process::Command::new(exe).args(&args).spawn().is_ok() {
+                    return Ok(());
+                }
+            }
+        }
+        // Sem navegador identificado: `start` é o que o Windows sabe fazer.
+        return open_browser(url);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        open_browser(url)
+    }
+}
+
 /// Abre a URL no navegador padrão do sistema.
 pub(crate) fn open_browser(url: &str) -> Result<()> {
     #[cfg(target_os = "windows")]
@@ -278,7 +406,7 @@ pub fn sign_in_with_google(base_url: &str, api_key: &str) -> Result<AccountSnaps
     let state = random_state();
     let url = authorize_url(base_url, &redirect_uri, &code_challenge(&verifier), &state)?;
 
-    open_browser(url.as_str())?;
+    open_browser_window(url.as_str())?;
     let code = wait_for_callback(&listener, &state)?;
     drop(listener); // a porta fecha antes de falar com o servidor
 
@@ -376,6 +504,44 @@ mod tests {
         assert!(check_state("esperado", Some("outro")).is_err());
         assert!(check_state("esperado", None).is_err());
         assert!(check_state("esperado", Some("esperado")).is_ok());
+    }
+
+    #[test]
+    fn prog_id_vira_navegador() {
+        assert_eq!(browser_kind_from_prog_id("ChromeHTML"), BrowserKind::Chrome);
+        assert_eq!(browser_kind_from_prog_id("MSEdgeHTM"), BrowserKind::Edge);
+        assert_eq!(browser_kind_from_prog_id("BraveHTML"), BrowserKind::Brave);
+        assert_eq!(browser_kind_from_prog_id("FirefoxURL-308046B0AF4A39CB"), BrowserKind::Firefox);
+        assert_eq!(browser_kind_from_prog_id("OperaStable"), BrowserKind::Outro);
+    }
+
+    /// Cadeia real desta máquina: ProgId do registro → navegador → executável.
+    /// Ignorado porque depende do Windows de quem roda (aqui é o Brave).
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore = "depende do navegador padrão da máquina"]
+    fn live_navegador_padrao_tem_executavel_mapeado() {
+        let prog_id = default_browser_prog_id().expect("ProgId no registro");
+        let kind = browser_kind_from_prog_id(&prog_id);
+        println!("prog_id = {prog_id} -> {kind:?}");
+        assert!(
+            browser_executable(kind).is_some(),
+            "navegador padrão {prog_id} sem executável mapeado"
+        );
+    }
+
+    #[test]
+    fn janela_de_app_vai_sem_abas_e_com_tamanho_de_popup() {
+        let url = "https://projeto.supabase.co/auth/v1/authorize?provider=google&state=abc";
+        let args = app_window_args(url);
+        assert_eq!(args[0], format!("--app={url}"));
+        assert!(args.iter().any(|arg| arg == "--window-size=520,760"));
+    }
+
+    #[test]
+    fn firefox_abre_janela_nova() {
+        let args = firefox_window_args("https://exemplo/x");
+        assert_eq!(args, vec!["-new-window".to_string(), "https://exemplo/x".to_string()]);
     }
 
     /// A URL de autorização tem `&`; sem aspas o `cmd` cortaria a linha ali.

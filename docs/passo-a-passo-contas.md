@@ -250,5 +250,11 @@ Já feito. O que existe hoje no app:
 3. a tela de conta é a primeira tela do app, antes da escolha do vault.
 
 Para testar o Google de ponta a ponta: rode `npm run tauri:dev`, clique em
-**Continuar com Google** e confirme que o navegador abre, que a volta cai numa
-página "Conta conectada" e que o e-mail aparece no menu do perfil.
+**Continuar com Google** e confirme que abre uma **janela própria** do navegador
+padrão (sem abas, 520×760 — o Chromium recebe `--app=`, o Firefox `-new-window`),
+que a volta cai numa página "Conta conectada" e que o e-mail aparece no menu do
+perfil.
+
+A janela do login não é aba: o app lê o navegador padrão em
+`HKCU\...\UrlAssociations\http\UserChoice` e abre o executável dele. Se não
+conseguir identificar, cai no `start <url>` do Windows (aba no navegador aberto).
