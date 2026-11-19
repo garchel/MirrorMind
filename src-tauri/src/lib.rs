@@ -25,6 +25,8 @@ pub(crate) mod account;
 pub(crate) mod account_oauth;
 pub(crate) mod dictionary;
 pub(crate) mod goals;
+pub(crate) mod cloud;
+pub(crate) mod cloud_api;
 pub(crate) mod profiles;
 pub mod review;
 pub(crate) mod session;
