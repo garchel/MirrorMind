@@ -11,12 +11,10 @@ use super::coverage::{select_session_units, SessionPlan};
 use super::credentials::{
     credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
     delete_typesafe_api_key, has_gemini_consent, has_openai_compatible_consent,
-    has_typesafe_consent, load_gemini_api_key, load_openai_compatible_provider,
-    load_ollama_local_configuration, load_typesafe_api_key, save_gemini_api_key,
-    save_openai_compatible_provider,
-    save_ollama_local_configuration, save_typesafe_api_key, set_gemini_consent,
-    set_openai_compatible_consent, set_typesafe_consent,
-    NativeCredentialStore,
+    has_typesafe_consent, load_gemini_api_key, load_ollama_local_configuration,
+    load_openai_compatible_provider, load_typesafe_api_key, save_gemini_api_key,
+    save_ollama_local_configuration, save_openai_compatible_provider, save_typesafe_api_key,
+    set_gemini_consent, set_openai_compatible_consent, set_typesafe_consent, NativeCredentialStore,
 };
 use super::dashboard::{build_vault_review_dashboard, VaultReviewDashboard};
 use super::evaluation::{
@@ -382,7 +380,10 @@ pub struct SegmentationRecalcProgress {
 /// Endereco e modelo do Ollama local. Nao ha chave: o servico roda na maquina
 /// do usuario (ou na rede privada dele).
 #[tauri::command]
-pub fn set_ollama_local_configuration(endpoint: String, model: String) -> Result<AiConfiguration, String> {
+pub fn set_ollama_local_configuration(
+    endpoint: String,
+    model: String,
+) -> Result<AiConfiguration, String> {
     save_ollama_local_configuration(&NativeCredentialStore::new(), &endpoint, &model)
         .map_err(|error| error.to_string())?;
     get_review_ai_configuration()

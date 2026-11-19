@@ -33,7 +33,11 @@ pub struct AccountSnapshot {
 }
 
 fn anon() -> AccountSnapshot {
-    AccountSnapshot { status: "anon", email: None, expires_at_unix_ms: None }
+    AccountSnapshot {
+        status: "anon",
+        email: None,
+        expires_at_unix_ms: None,
+    }
 }
 
 pub(crate) fn client() -> Result<Client> {
@@ -328,7 +332,6 @@ pub fn sign_out(base_url: &str, api_key: &str) -> Result<()> {
     clear_session()
 }
 
-
 // -----------------------------------------------------------------------------
 // Comandos IPC. Vivem neste modulo (e nao no `lib.rs`) pelo mesmo motivo dos
 // `review::ipc::*`: o atributo `#[tauri::command]` em `async fn` na raiz do crate
@@ -376,7 +379,10 @@ pub async fn account_sign_in(
 /// Login com Google (PKCE + loopback). O fluxo é longo — abre navegador e espera
 /// até três minutos — por isso roda em `spawn_blocking` como os demais.
 #[tauri::command]
-pub async fn account_sign_in_google(url: String, api_key: String) -> Result<AccountSnapshot, String> {
+pub async fn account_sign_in_google(
+    url: String,
+    api_key: String,
+) -> Result<AccountSnapshot, String> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::account_oauth::sign_in_with_google(&url, &api_key).map_err(|error| error.to_string())
     })
@@ -407,8 +413,7 @@ mod tests {
     use super::*;
 
     fn jwt_with_exp(exp: i64) -> String {
-        let header = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(br#"{"alg":"HS256"}"#);
+        let header = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(br#"{"alg":"HS256"}"#);
         let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(format!(r#"{{"exp":{exp},"sub":"abc"}}"#).as_bytes());
         format!("{header}.{payload}.assinatura")
@@ -436,13 +441,22 @@ mod tests {
     #[test]
     fn traduz_erros_do_provedor() {
         let credenciais = json!({ "msg": "Invalid login credentials" });
-        assert_eq!(friendly_error(400, &credenciais), "E-mail ou senha incorretos.");
+        assert_eq!(
+            friendly_error(400, &credenciais),
+            "E-mail ou senha incorretos."
+        );
 
         let ja_existe = json!({ "msg": "User already registered" });
-        assert_eq!(friendly_error(422, &ja_existe), "Este e-mail já tem conta. Use entrar.");
+        assert_eq!(
+            friendly_error(422, &ja_existe),
+            "Este e-mail já tem conta. Use entrar."
+        );
 
         let sem_confirmar = json!({ "msg": "Email not confirmed" });
-        assert_eq!(friendly_error(400, &sem_confirmar), "Confirme seu e-mail antes de entrar.");
+        assert_eq!(
+            friendly_error(400, &sem_confirmar),
+            "Confirme seu e-mail antes de entrar."
+        );
 
         let queda = Value::Null;
         assert_eq!(
@@ -450,7 +464,6 @@ mod tests {
             "O servidor de contas não respondeu. Tente de novo em instantes."
         );
     }
-
 
     /// Ciclo real contra o Supabase, fora do app: cadastro → retrato → saída.
     ///
@@ -472,7 +485,14 @@ mod tests {
         };
 
         // Cadastro: se a conta já existir, o erro tem que ser o traduzido.
-        match sign_up(&url, &key, &email, &password, Some("2026-11-19T00:00:00Z"), Some("2026-11-19T00:00:00Z")) {
+        match sign_up(
+            &url,
+            &key,
+            &email,
+            &password,
+            Some("2026-11-19T00:00:00Z"),
+            Some("2026-11-19T00:00:00Z"),
+        ) {
             Ok(snapshot) => {
                 assert_eq!(snapshot.status, "auth");
                 assert_eq!(snapshot.email.as_deref(), Some(email.as_str()));
@@ -489,7 +509,10 @@ mod tests {
         assert_eq!(atual.status, "auth");
 
         sign_out(&url, &key).expect("saida");
-        assert_eq!(snapshot(&url, &key).expect("retrato pos-saida").status, "anon");
+        assert_eq!(
+            snapshot(&url, &key).expect("retrato pos-saida").status,
+            "anon"
+        );
     }
 
     #[test]

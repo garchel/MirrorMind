@@ -207,10 +207,7 @@ pub(crate) fn wait_for_callback(listener: &TcpListener, expected_state: &str) ->
                         respond(&mut stream, &page("MirrorMind", "Nada para ver aqui."));
                     }
                     Err(error) => {
-                        respond(
-                            &mut stream,
-                            &page("Não deu certo", &error.to_string()),
-                        );
+                        respond(&mut stream, &page("Não deu certo", &error.to_string()));
                         return Err(error);
                     }
                 }
@@ -287,16 +284,28 @@ fn browser_executable(kind: BrowserKind) -> Option<std::path::PathBuf> {
     match kind {
         BrowserKind::Chrome => {
             push(var("ProgramFiles"), "Google/Chrome/Application/chrome.exe");
-            push(var("ProgramFiles(x86)"), "Google/Chrome/Application/chrome.exe");
+            push(
+                var("ProgramFiles(x86)"),
+                "Google/Chrome/Application/chrome.exe",
+            );
             push(var("LOCALAPPDATA"), "Google/Chrome/Application/chrome.exe");
         }
         BrowserKind::Edge => {
-            push(var("ProgramFiles(x86)"), "Microsoft/Edge/Application/msedge.exe");
+            push(
+                var("ProgramFiles(x86)"),
+                "Microsoft/Edge/Application/msedge.exe",
+            );
             push(var("ProgramFiles"), "Microsoft/Edge/Application/msedge.exe");
         }
         BrowserKind::Brave => {
-            push(var("ProgramFiles"), "BraveSoftware/Brave-Browser/Application/brave.exe");
-            push(var("LOCALAPPDATA"), "BraveSoftware/Brave-Browser/Application/brave.exe");
+            push(
+                var("ProgramFiles"),
+                "BraveSoftware/Brave-Browser/Application/brave.exe",
+            );
+            push(
+                var("LOCALAPPDATA"),
+                "BraveSoftware/Brave-Browser/Application/brave.exe",
+            );
         }
         BrowserKind::Firefox => {
             push(var("ProgramFiles"), "Mozilla Firefox/firefox.exe");
@@ -452,7 +461,9 @@ mod tests {
         let segundo = random_verifier();
         assert_ne!(primeiro, segundo);
         assert!((43..=128).contains(&primeiro.len()));
-        assert!(primeiro.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
+        assert!(primeiro
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
         assert_ne!(random_state(), random_state());
     }
 
@@ -467,8 +478,14 @@ mod tests {
         .expect("url");
         let params: std::collections::HashMap<_, _> = url.query_pairs().into_owned().collect();
         assert_eq!(params.get("provider").map(String::as_str), Some("google"));
-        assert_eq!(params.get("code_challenge_method").map(String::as_str), Some("s256"));
-        assert_eq!(params.get("code_challenge").map(String::as_str), Some("abc"));
+        assert_eq!(
+            params.get("code_challenge_method").map(String::as_str),
+            Some("s256")
+        );
+        assert_eq!(
+            params.get("code_challenge").map(String::as_str),
+            Some("abc")
+        );
         assert_eq!(params.get("state").map(String::as_str), Some("xyz"));
         assert_eq!(
             params.get("redirect_to").map(String::as_str),
@@ -488,9 +505,15 @@ mod tests {
 
     #[test]
     fn requisicao_que_nao_e_callback_e_ignorada() {
-        assert!(parse_callback("GET /favicon.ico HTTP/1.1").expect("parse").is_none());
-        assert!(parse_callback("POST /?code=abc HTTP/1.1").expect("parse").is_none());
-        assert!(parse_callback("GET /sem-codigo HTTP/1.1").expect("parse").is_none());
+        assert!(parse_callback("GET /favicon.ico HTTP/1.1")
+            .expect("parse")
+            .is_none());
+        assert!(parse_callback("POST /?code=abc HTTP/1.1")
+            .expect("parse")
+            .is_none());
+        assert!(parse_callback("GET /sem-codigo HTTP/1.1")
+            .expect("parse")
+            .is_none());
     }
 
     #[test]
@@ -511,7 +534,10 @@ mod tests {
         assert_eq!(browser_kind_from_prog_id("ChromeHTML"), BrowserKind::Chrome);
         assert_eq!(browser_kind_from_prog_id("MSEdgeHTM"), BrowserKind::Edge);
         assert_eq!(browser_kind_from_prog_id("BraveHTML"), BrowserKind::Brave);
-        assert_eq!(browser_kind_from_prog_id("FirefoxURL-308046B0AF4A39CB"), BrowserKind::Firefox);
+        assert_eq!(
+            browser_kind_from_prog_id("FirefoxURL-308046B0AF4A39CB"),
+            BrowserKind::Firefox
+        );
         assert_eq!(browser_kind_from_prog_id("OperaStable"), BrowserKind::Outro);
     }
 
@@ -541,7 +567,10 @@ mod tests {
     #[test]
     fn firefox_abre_janela_nova() {
         let args = firefox_window_args("https://exemplo/x");
-        assert_eq!(args, vec!["-new-window".to_string(), "https://exemplo/x".to_string()]);
+        assert_eq!(
+            args,
+            vec!["-new-window".to_string(), "https://exemplo/x".to_string()]
+        );
     }
 
     /// A URL de autorização tem `&`; sem aspas o `cmd` cortaria a linha ali.
@@ -633,7 +662,10 @@ mod tests {
             .json(&json!({ "auth_code": "codigo-inventado", "code_verifier": random_verifier() }))
             .send()
             .expect("resposta");
-        assert!(!response.status().is_success(), "código inventado não pode entrar");
+        assert!(
+            !response.status().is_success(),
+            "código inventado não pode entrar"
+        );
         let mensagem = friendly_error(response.status().as_u16(), &json_body(response));
         assert!(!mensagem.is_empty());
     }

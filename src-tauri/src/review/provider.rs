@@ -78,7 +78,8 @@ impl OllamaProvider {
         )
         .ok()
         .flatten();
-        let (base_url, model) = saved.unwrap_or_else(|| (OLLAMA_ENDPOINT.to_string(), OLLAMA_MODEL.to_string()));
+        let (base_url, model) =
+            saved.unwrap_or_else(|| (OLLAMA_ENDPOINT.to_string(), OLLAMA_MODEL.to_string()));
         Self::with_configuration(base_url, model)
     }
 
@@ -95,7 +96,11 @@ impl OllamaProvider {
             .timeout(REQUEST_TIMEOUT)
             .build()
             .map_err(|_| anyhow!("Nao foi possivel preparar o cliente local do Ollama."))?;
-        Ok(Self { client, base_url, model })
+        Ok(Self {
+            client,
+            base_url,
+            model,
+        })
     }
 
     pub fn check_readiness(&self) -> std::result::Result<OllamaReadiness, ProviderFailure> {

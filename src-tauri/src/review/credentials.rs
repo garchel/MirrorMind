@@ -301,7 +301,13 @@ pub(crate) fn validate_ollama_endpoint(endpoint: &str) -> Result<&str> {
     if scheme != "http" && scheme != "https" {
         bail!("O endereco do Ollama precisa usar http ou https.");
     }
-    let host = rest.split('/').next().unwrap_or("").split(':').next().unwrap_or("");
+    let host = rest
+        .split('/')
+        .next()
+        .unwrap_or("")
+        .split(':')
+        .next()
+        .unwrap_or("");
     if host.is_empty() {
         bail!("O endereco do Ollama precisa de um host.");
     }
@@ -355,7 +361,9 @@ pub fn save_ollama_local_configuration(
 }
 
 /// Ausente, corrompido ou invalido: devolve `None` e o chamador usa o padrao.
-pub fn load_ollama_local_configuration(store: &dyn CredentialStore) -> Result<Option<(String, String)>> {
+pub fn load_ollama_local_configuration(
+    store: &dyn CredentialStore,
+) -> Result<Option<(String, String)>> {
     let endpoint = store
         .get_secret(OLLAMA_ENDPOINT_ACCOUNT)
         .map_err(|_| anyhow!("Nao foi possivel ler a configuracao do Ollama local."))?;
@@ -365,7 +373,10 @@ pub fn load_ollama_local_configuration(store: &dyn CredentialStore) -> Result<Op
     let (Some(endpoint), Some(model)) = (endpoint, model) else {
         return Ok(None);
     };
-    let (Ok(endpoint), Ok(model)) = (validate_ollama_endpoint(&endpoint), validate_ollama_model(&model)) else {
+    let (Ok(endpoint), Ok(model)) = (
+        validate_ollama_endpoint(&endpoint),
+        validate_ollama_model(&model),
+    ) else {
         return Ok(None);
     };
     Ok(Some((endpoint.to_string(), model.to_string())))

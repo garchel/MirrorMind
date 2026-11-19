@@ -235,8 +235,7 @@ pub fn build_retention_report(
                 None
             } else {
                 Some(
-                    (accumulator.target_sum / accumulator.note_ids.len() as f64 * 10_000.0)
-                        .round()
+                    (accumulator.target_sum / accumulator.note_ids.len() as f64 * 10_000.0).round()
                         / 10_000.0,
                 )
             },
@@ -672,7 +671,10 @@ mod tests {
 
         let tag = &retention.per_tag[0];
         assert_eq!(tag.tag, "revisao/prova");
-        assert_eq!(tag.due_count, 1, "nota com next_review no passado conta como vencida");
+        assert_eq!(
+            tag.due_count, 1,
+            "nota com next_review no passado conta como vencida"
+        );
         assert_eq!(
             tag.target_retention,
             Some(0.93),

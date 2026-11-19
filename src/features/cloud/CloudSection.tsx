@@ -8,10 +8,12 @@ import {
   readCloudStatus,
   reportCount,
   summarizeReport,
+  sweepOrphans,
   syncNow,
   unlinkVault,
   type CloudReport,
   type CloudStatus,
+  type SweepReport,
 } from '../../lib/cloudSync'
 import { errorMessage } from '../../lib/tauri'
 import './cloud-section.css'
@@ -25,7 +27,7 @@ import './cloud-section.css'
 export function CloudSection({
   vaultPath,
   config,
-  deps = { readCloudStatus, linkVault, unlinkVault, syncNow },
+  deps = { readCloudStatus, linkVault, unlinkVault, syncNow, sweepOrphans },
 }: {
   vaultPath: string
   config?: { url: string; apiKey: string } | null
@@ -34,6 +36,7 @@ export function CloudSection({
     linkVault: typeof linkVault
     unlinkVault: typeof unlinkVault
     syncNow: typeof syncNow
+    sweepOrphans: typeof sweepOrphans
   }
 }) {
   // A config vem do ambiente, uma vez: recriar o objeto a cada render faria o
@@ -46,6 +49,8 @@ export function CloudSection({
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<'status' | 'link' | 'sync' | 'unlink' | null>('status')
   const [escolhendo, setEscolhendo] = useState(false)
+  const [varredura, setVarredura] = useState<SweepReport | null>(null)
+  const [limpando, setLimpando] = useState(false)
 
   const load = useCallback(async () => {
     if (!resolvedConfig) return
@@ -105,6 +110,21 @@ export function CloudSection({
       setError(errorMessage(problema, 'Não foi possível falar com a nuvem.'))
     } finally {
       setBusy(null)
+    }
+  }
+
+  async function procurarOrfaos(apagar: boolean) {
+    if (!resolvedConfig) return
+    setLimpando(true)
+    setError(null)
+    try {
+      setVarredura(
+        await deps.sweepOrphans({ path: vaultPath, ...resolvedConfig }, !apagar),
+      )
+    } catch (problema) {
+      setError(errorMessage(problema, 'Não foi possível verificar a nuvem.'))
+    } finally {
+      setLimpando(false)
     }
   }
 
@@ -285,6 +305,56 @@ export function CloudSection({
           )}
         </div>
       )}
+
+      <div className="cloud-space">
+        <div className="cloud-space-head">
+          <div>
+            <strong>Espaço ocupado</strong>
+            <p className="cloud-hint">
+              Versões antigas de notas ficam na nuvem depois de cada edição. A
+              verificação procura as que nenhuma nota usa mais.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            disabled={limpando}
+            onClick={() => void procurarOrfaos(false)}
+          >
+            {limpando ? 'Verificando…' : 'Verificar espaço'}
+          </Button>
+        </div>
+
+        {varredura && (
+          <div className="cloud-space-result" role="status">
+            <p>
+              {varredura.orphans.length === 0
+                ? `Nada a limpar: ${varredura.scanned} objeto(s) na nuvem, todos em uso.`
+                : `${varredura.orphans.length} versão(ões) antiga(s), ${formatBytes(
+                    varredura.freedBytes,
+                  )} — nenhuma nota usa.`}
+            </p>
+            {varredura.orphans.length > 0 &&
+              (varredura.dryRun ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="md"
+                  disabled={limpando}
+                  onClick={() => void procurarOrfaos(true)}
+                >
+                  Remover {formatBytes(varredura.freedBytes)}
+                </Button>
+              ) : (
+                <p className="cloud-note">
+                  {formatBytes(varredura.freedBytes)} liberados. Suas notas não foram
+                  tocadas.
+                </p>
+              ))}
+          </div>
+        )}
+      </div>
 
       <p className="cloud-hint">
         Sincroniza sozinho ao abrir o vault e alguns segundos depois de salvar.

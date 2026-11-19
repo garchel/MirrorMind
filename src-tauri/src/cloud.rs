@@ -159,6 +159,64 @@ pub struct RemoteFile {
     pub deleted: bool,
 }
 
+/// Objeto que existe no bucket — é o que a varredura de órfãos olha.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredObject {
+    /// Caminho completo dentro do bucket (`<dono>/<vault>/<hash>`).
+    pub full_path: String,
+    /// Último segmento do caminho.
+    pub name: String,
+    pub size_bytes: u64,
+    /// Segundos desde a época, quando o Storage informa.
+    pub updated_at_unix: Option<i64>,
+    /// Preenchido quando a entrada é uma pasta (a listagem do Storage é por
+    /// pasta, e a varredura precisa descer para achar objetos de vaults que já
+    /// não existem).
+    pub folder_name: Option<String>,
+}
+
+/// Carência antes de considerar um objeto órfão.
+///
+/// O conteúdo sobe **antes** do metadado, então existe uma janela em que há
+/// objeto no bucket sem nenhuma linha apontando para ele. Vinte e quatro horas
+/// são folga absurda para essa janela — e a varredura também não roda junto com
+/// um ciclo de sincronização, o que fecha o caso de corrida por outro lado.
+pub const ORPHAN_GRACE_SECONDS: i64 = 24 * 60 * 60;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OrphanObject {
+    pub full_path: String,
+    pub name: String,
+    pub size_bytes: u64,
+}
+
+/// Objetos que nenhuma linha de metadado referencia e que já passaram da carência.
+///
+/// **Conservador de propósito**: objeto sem data legível é mantido. Apagar bytes
+/// por engano custa dados; manter bytes por engano custa espaço — e a
+/// assimetria decide sozinha.
+pub fn find_orphans(
+    objects: &[StoredObject],
+    referenced_paths: &std::collections::BTreeSet<String>,
+    now_unix: i64,
+    grace_seconds: i64,
+) -> Vec<OrphanObject> {
+    objects
+        .iter()
+        .filter(|objeto| objeto.folder_name.is_none())
+        .filter(|objeto| !referenced_paths.contains(&objeto.full_path))
+        .filter(|objeto| match objeto.updated_at_unix {
+            Some(quando) => now_unix - quando >= grace_seconds,
+            None => false,
+        })
+        .map(|objeto| OrphanObject {
+            full_path: objeto.full_path.clone(),
+            name: objeto.name.clone(),
+            size_bytes: objeto.size_bytes,
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileKind {
     Note,
@@ -415,6 +473,63 @@ mod tests {
                 path: "n.md".into()
             }]
         );
+    }
+
+    fn objeto(nome: &str, tamanho: u64, quando: Option<i64>) -> StoredObject {
+        StoredObject {
+            full_path: format!("dono/vault/{nome}"),
+            name: nome.to_string(),
+            size_bytes: tamanho,
+            updated_at_unix: quando,
+            folder_name: None,
+        }
+    }
+
+    #[test]
+    fn varredura_de_orfaos_respeita_referencia_e_carencia() {
+        let agora = 1_000_000i64;
+        let caro = ORPHAN_GRACE_SECONDS;
+        let objetos = vec![
+            // referenciado: fica, mesmo sendo antigo
+            objeto("aaa", 100, Some(agora - caro * 10)),
+            // sem referência e recente: fica (pode ser upload em andamento)
+            objeto("bbb", 200, Some(agora - 60)),
+            // sem referência e antigo: órfão
+            objeto("ccc", 300, Some(agora - caro - 1)),
+            // sem data: fica (não dá para saber a idade)
+            objeto("ddd", 400, None),
+        ];
+        let referenciados = ["dono/vault/aaa".to_string()].into_iter().collect();
+
+        let orfaos = find_orphans(&objetos, &referenciados, agora, caro);
+        assert_eq!(
+            orfaos,
+            vec![OrphanObject {
+                full_path: "dono/vault/ccc".to_string(),
+                name: "ccc".to_string(),
+                size_bytes: 300
+            }]
+        );
+    }
+
+    #[test]
+    fn sem_nada_referenciado_so_os_antigos_saem() {
+        let agora = 1_000_000i64;
+        let objetos = vec![
+            objeto("velho", 10, Some(agora - ORPHAN_GRACE_SECONDS * 2)),
+            objeto("novo", 20, Some(agora - 10)),
+        ];
+        let orfaos = find_orphans(&objetos, &Default::default(), agora, ORPHAN_GRACE_SECONDS);
+        assert_eq!(orfaos.len(), 1);
+        assert_eq!(orfaos[0].name, "velho");
+    }
+
+    #[test]
+    fn carrencia_zero_libera_tudo_que_nao_tem_dono() {
+        // é o que o teste ao vivo usa: não espera 24 h para provar a varredura
+        let objetos = vec![objeto("x", 1, Some(1_000))];
+        let orfaos = find_orphans(&objetos, &Default::default(), 1_000, 0);
+        assert_eq!(orfaos.len(), 1);
     }
 
     #[test]

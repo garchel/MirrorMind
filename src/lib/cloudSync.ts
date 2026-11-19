@@ -26,6 +26,18 @@ export type CloudStatus = {
 
 export type CloudFail = { path: string; reason: string }
 
+export type OrphanItem = { name: string; sizeBytes: number }
+
+export type SweepReport = {
+  /** Objetos que o bucket tem para esta conta. */
+  scanned: number
+  /** Objetos que nenhuma linha de metadado referencia. */
+  orphans: OrphanItem[]
+  /** Em conferência, quanto sairia; na limpeza, quanto saiu. */
+  freedBytes: number
+  dryRun: boolean
+}
+
 export type CloudReport = {
   uploaded: string[]
   downloaded: string[]
@@ -66,6 +78,14 @@ export function unlinkVault(path: string): Promise<CloudStatus> {
 
 export function syncNow(t: CloudTarget): Promise<CloudReport> {
   return invoke<CloudReport>('cloud_sync_now', target(t))
+}
+
+/** Procura objetos que nenhuma linha referencia. `dryRun` só conta.
+ *
+ * Dois passos de propósito: apagar bytes na nuvem não pode ser efeito de um
+ * clique só, e o número precisa aparecer antes da confirmação. */
+export function sweepOrphans(t: CloudTarget, dryRun: boolean): Promise<SweepReport> {
+  return invoke<SweepReport>('cloud_sweep_orphans', { ...target(t), dryRun })
 }
 
 /** Quantos itens o relatório mexeu — é o número que interessa mostrar. */

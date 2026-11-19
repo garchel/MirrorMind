@@ -23,12 +23,12 @@ use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
 pub(crate) mod account;
 pub(crate) mod account_oauth;
-pub(crate) mod dictionary;
-pub(crate) mod goals;
 pub(crate) mod cloud;
 pub(crate) mod cloud_api;
 pub(crate) mod cloud_commands;
 pub(crate) mod cloud_sync;
+pub(crate) mod dictionary;
+pub(crate) mod goals;
 pub(crate) mod profiles;
 pub mod review;
 pub(crate) mod session;
@@ -6428,6 +6428,7 @@ pub fn run() {
             cloud_commands::cloud_link_vault,
             cloud_commands::cloud_unlink_vault,
             cloud_commands::cloud_sync_now,
+            cloud_commands::cloud_sweep_orphans,
             account::account_sign_out,
             select_vault_parent,
             initialize_vault_metadata,

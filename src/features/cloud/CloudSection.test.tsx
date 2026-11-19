@@ -7,6 +7,7 @@ import type {
   CloudStatus,
   CloudTarget,
   LinkStrategy,
+  SweepReport,
 } from '../../lib/cloudSync'
 
 const CONFIG = { url: 'https://projeto.supabase.co', apiKey: 'chave-publica' }
@@ -44,6 +45,11 @@ type Deps = {
   linkVault: Mock<(t: CloudTarget, strategy: LinkStrategy) => Promise<CloudStatus>>
   unlinkVault: Mock<(path: string) => Promise<CloudStatus>>
   syncNow: Mock<(t: CloudTarget) => Promise<CloudReport>>
+  sweepOrphans: Mock<(t: CloudTarget, dryRun: boolean) => Promise<SweepReport>>
+}
+
+function emptySweep(over: Partial<SweepReport> = {}): SweepReport {
+  return { scanned: 0, orphans: [], freedBytes: 0, dryRun: true, ...over }
 }
 
 function makeDeps(status: CloudStatus, over: Partial<Deps> = {}): Deps {
@@ -57,6 +63,9 @@ function makeDeps(status: CloudStatus, over: Partial<Deps> = {}): Deps {
       linked: false,
     })),
     syncNow: vi.fn<(t: CloudTarget) => Promise<CloudReport>>(async () => emptyReport()),
+    sweepOrphans: vi.fn<(t: CloudTarget, dryRun: boolean) => Promise<SweepReport>>(
+      async () => emptySweep(),
+    ),
     ...over,
   }
 }
@@ -149,6 +158,62 @@ describe('CloudSection', () => {
     })
 
     await userEvent.click(await screen.findByRole('button', { name: /sincronizar agora/i }))
+    expect(await screen.findByRole('alert')).toHaveProperty(
+      'textContent',
+      'Sem conexão com a nuvem.',
+    )
+  })
+})
+
+describe('verificação de espaço', () => {
+  it('confere primeiro e só apaga depois de um segundo clique', async () => {
+    const conferencia = emptySweep({
+      scanned: 12,
+      orphans: [{ name: 'aaa', sizeBytes: 2 * 1024 * 1024 }],
+      freedBytes: 2 * 1024 * 1024,
+      dryRun: true,
+    })
+    const limpeza = { ...conferencia, orphanCount: undefined, freedBytes: 2 * 1024 * 1024, dryRun: false }
+    const sweep = vi
+      .fn<(t: CloudTarget, dryRun: boolean) => Promise<SweepReport>>()
+      .mockResolvedValueOnce(conferencia)
+      .mockResolvedValueOnce(limpeza)
+
+    const { deps } = renderSection(baseStatus({ linked: true, remoteFiles: 12 }), {
+      sweepOrphans: sweep,
+    })
+
+    await userEvent.click(await screen.findByRole('button', { name: /verificar espaço/i }))
+    await waitFor(() => expect(sweep).toHaveBeenCalledTimes(1))
+    // primeiro clique é conferência, nunca apagamento
+    expect(sweep.mock.calls[0][1]).toBe(true)
+    expect(await screen.findByText(/1 versão\(ões\) antiga\(s\)/)).toBeTruthy()
+
+    await userEvent.click(screen.getByRole('button', { name: /remover 2\.0 MB/i }))
+    await waitFor(() => expect(sweep).toHaveBeenCalledTimes(2))
+    expect(sweep.mock.calls[1][1]).toBe(false)
+    expect(await screen.findByText(/liberados/i)).toBeTruthy()
+    expect(deps.sweepOrphans).toBe(sweep)
+  })
+
+  it('nada a limpar: diz que está tudo em uso, sem oferecer remoção', async () => {
+    renderSection(baseStatus({ linked: true, remoteFiles: 3 }), {
+      sweepOrphans: vi.fn(async () => emptySweep({ scanned: 3 })),
+    })
+
+    await userEvent.click(await screen.findByRole('button', { name: /verificar espaço/i }))
+    expect(await screen.findByText(/todos em uso/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /remover/i })).toBeNull()
+  })
+
+  it('falha na verificação vira mensagem, não lista vazia', async () => {
+    renderSection(baseStatus({ linked: true, remoteFiles: 3 }), {
+      sweepOrphans: vi.fn(async () => {
+        throw 'Sem conexão com a nuvem.'
+      }),
+    })
+
+    await userEvent.click(await screen.findByRole('button', { name: /verificar espaço/i }))
     expect(await screen.findByRole('alert')).toHaveProperty(
       'textContent',
       'Sem conexão com a nuvem.',

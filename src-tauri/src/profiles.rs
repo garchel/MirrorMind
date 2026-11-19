@@ -344,7 +344,11 @@ pub fn set_pin(vault_root: &Path, profile_id: &str, pin: Option<&str>) -> Result
 
 /// Liga o perfil à conta. Recusa quando a conta já está em outro perfil deste
 /// vault — duas trilhas locais para a mesma conta não têm merge possível.
-pub fn link_account(vault_root: &Path, profile_id: &str, account_id: &str) -> Result<ProfileSummary> {
+pub fn link_account(
+    vault_root: &Path,
+    profile_id: &str,
+    account_id: &str,
+) -> Result<ProfileSummary> {
     let account_id = account_id.trim();
     if account_id.is_empty() {
         bail!("Conta inválida para vincular.");
@@ -528,16 +532,16 @@ pub fn profiles_verify_pin(vault_root: String, id: String, pin: String) -> Resul
 /// O frontend chama antes de abrir o vault e a cada troca de perfil. `force`
 /// ignora o aviso de "aberto em outra janela".
 #[tauri::command]
-pub fn profiles_select(
-    vault_root: String,
-    id: String,
-    force: Option<bool>,
-) -> Result<(), String> {
+pub fn profiles_select(vault_root: String, id: String, force: Option<bool>) -> Result<(), String> {
     let anterior = active_profile();
     if anterior != id {
         release_session(Path::new(&vault_root), &anterior);
     }
-    como_erro(acquire_session(Path::new(&vault_root), &id, force.unwrap_or(false)))?;
+    como_erro(acquire_session(
+        Path::new(&vault_root),
+        &id,
+        force.unwrap_or(false),
+    ))?;
     set_active_profile(&id);
     Ok(())
 }
@@ -748,7 +752,10 @@ mod tests {
         // Simula outro processo com marcador fresco.
         let caminho = session_path(vault.path(), &perfil.id);
         fs::create_dir_all(caminho.parent().expect("pai")).expect("pasta");
-        let outro = SessionMarker { pid: std::process::id() + 1, opened_at_unix_ms: now_ms() };
+        let outro = SessionMarker {
+            pid: std::process::id() + 1,
+            opened_at_unix_ms: now_ms(),
+        };
         fs::write(&caminho, serde_json::to_string(&outro).expect("json")).expect("gravar");
 
         let erro = acquire_session(vault.path(), &perfil.id, false).unwrap_err();
@@ -758,7 +765,10 @@ mod tests {
         assert!(acquire_session(vault.path(), &perfil.id, true).is_ok());
 
         // Marcador antigo não bloqueia (evita travar quem sofreu um crash).
-        let velho = SessionMarker { pid: std::process::id() + 1, opened_at_unix_ms: now_ms() - SESSION_STALE_MS - 1000 };
+        let velho = SessionMarker {
+            pid: std::process::id() + 1,
+            opened_at_unix_ms: now_ms() - SESSION_STALE_MS - 1000,
+        };
         fs::write(&caminho, serde_json::to_string(&velho).expect("json")).expect("gravar");
         assert!(acquire_session(vault.path(), &perfil.id, false).is_ok());
 
@@ -779,7 +789,11 @@ mod tests {
                 metadata_dir_for_active(vault.path()),
             )
         });
-        let esperado = vault.path().join(METADATA_DIRECTORY).join("profiles").join("maria");
+        let esperado = vault
+            .path()
+            .join(METADATA_DIRECTORY)
+            .join("profiles")
+            .join("maria");
         assert!(sob_maria.0.starts_with(&esperado), "{:?}", sob_maria.0);
         assert!(sob_maria.1.starts_with(&esperado), "{:?}", sob_maria.1);
         assert_eq!(sob_maria.2, esperado);
@@ -789,7 +803,10 @@ mod tests {
         });
         assert_eq!(
             sob_padrao,
-            vault.path().join(METADATA_DIRECTORY).join("review-usage.json")
+            vault
+                .path()
+                .join(METADATA_DIRECTORY)
+                .join("review-usage.json")
         );
     }
 
@@ -806,7 +823,11 @@ mod tests {
         assert!(erro.to_string().contains("já está vinculada"), "{erro}");
 
         // Desvincular libera a conta para outro perfil.
-        assert!(!unlink_account(vault.path(), &maria.id).expect("desvincular").linked);
+        assert!(
+            !unlink_account(vault.path(), &maria.id)
+                .expect("desvincular")
+                .linked
+        );
         assert!(link_account(vault.path(), &joao.id, "conta-1").is_ok());
     }
 

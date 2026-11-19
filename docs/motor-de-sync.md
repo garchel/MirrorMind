@@ -152,9 +152,41 @@ O componente é apresentacional: recebe o estado pronto. O seletor
 porque um arquivo que exporta componente **e** função quebra o fast refresh (o
 lint cobra isso).
 
+## Varredura de objetos órfãos
+
+Quando um arquivo é editado, o objeto novo é criado (o nome é o hash) e o antigo
+deixa de ser referenciado. Ele **não** é apagado na hora em que outro arquivo
+passou a usar o mesmo conteúdo — e nunca é apagado quando a remoção poderia ser
+insegura. Sobram bytes, não dados errados.
+
+A varredura acha esses objetos:
+
+| etapa | o que acontece |
+|---|---|
+| conferir | lista o bucket da **conta inteira** e diz quantos objetos nada referencia e quanto isso ocupa |
+| remover | apaga só esses; as notas não são tocadas |
+
+Três decisões que fazem a diferença:
+
+1. **A conta inteira, não um vault.** Apagar um vault na nuvem remove as linhas em
+   cascata mas **não** os objetos no bucket. Uma varredura por vault nunca os
+   acharia — e foram exatamente esses (mais os objetos do layout antigo, nomeados
+   pelo caminho da nota) que apareceram no primeiro teste real.
+2. **Referência é qualquer linha, inclusive excluída.** Uma linha marcada como
+   apagada ainda aponta para um objeto; remover o conteúdo deixaria o metadado
+   pendurado no vazio.
+3. **Carência de 24 h e trava de ciclo.** O conteúdo sobe antes do metadado, então
+   existe uma janela em que há objeto sem dono. A varredura não roda junto com uma
+   sincronização (`SyncGuard`) e ignora objeto com menos de 24 h. Objeto **sem data
+   legível** é mantido: apagar por engano custa dados, manter por engano custa
+   espaço.
+
+Medido no projeto de teste, depois da primeira limpeza: **de ~15 objetos para 3, e
+os 3 com dono** (`exists` conferido no banco, não por download — baixar objeto
+apagado devolve cópia em cache e foi isso que quase fez o teste mentir).
+
 ## O que ainda falta
 
-- varredura de objetos órfãos (versões que nenhuma linha referencia);
 - um teste de interface no app real: a tela está coberta por testes de componente
   e pelo build, não por medição visual.
 

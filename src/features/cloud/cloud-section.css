@@ -144,3 +144,55 @@
 [data-theme='dark'] .cloud-error {
   color: var(--mm-brick-400);
 }
+
+/* Verificação de espaço: um bloco por baixo do ciclo, com a mesma leitura de
+ * "primeiro me conta, depois eu decido". O botão de remover só existe depois que
+ * o número apareceu. */
+.cloud-space {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--mm-line-soft);
+  border-radius: 12px;
+}
+
+.cloud-space-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.cloud-space-head strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--mm-ink-900);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.cloud-space-result {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.cloud-space-result p {
+  margin: 0;
+  color: var(--mm-ink-700);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+[data-theme='dark'] .cloud-space {
+  border-color: var(--mm-ink-900-20);
+}
+
+[data-theme='dark'] .cloud-space-head strong {
+  color: var(--mm-ink-100);
+}
+
+[data-theme='dark'] .cloud-space-result p {
+  color: var(--mm-ink-350);
+}

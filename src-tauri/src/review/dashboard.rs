@@ -1654,9 +1654,13 @@ mod tests {
         medida.units[0].fsrs = Some(memoria_medida.clone());
         // Uma sessao por nota: o validador do documento cobra que a memoria da
         // unidade, o agendamento e a ultima sessao descrevam o mesmo instante.
-        medida.sessions = vec![
-            sessao(&medida, deadline - 15 * DAY_MS, "antes", &memoria_medida, deadline - 14 * DAY_MS),
-        ];
+        medida.sessions = vec![sessao(
+            &medida,
+            deadline - 15 * DAY_MS,
+            "antes",
+            &memoria_medida,
+            deadline - 14 * DAY_MS,
+        )];
         // A unidade precisa espelhar a ultima avaliacao do historico (outra
         // invariante do documento).
         medida.units[0].latest_evaluation =
@@ -1680,8 +1684,20 @@ mod tests {
         };
         tardia.units[0].fsrs = Some(memoria_tardia.clone());
         tardia.sessions = vec![
-            sessao(&tardia, deadline - 12 * DAY_MS, "antes", &memoria_tardia, deadline - 11 * DAY_MS),
-            sessao(&tardia, deadline + 5 * DAY_MS, "depois", &memoria_tardia, deadline + 6 * DAY_MS),
+            sessao(
+                &tardia,
+                deadline - 12 * DAY_MS,
+                "antes",
+                &memoria_tardia,
+                deadline - 11 * DAY_MS,
+            ),
+            sessao(
+                &tardia,
+                deadline + 5 * DAY_MS,
+                "depois",
+                &memoria_tardia,
+                deadline + 6 * DAY_MS,
+            ),
         ];
         tardia.units[0].latest_evaluation =
             Some(tardia.sessions[1].unit_results[0].evaluation.clone());
@@ -1692,8 +1708,8 @@ mod tests {
         write_learning_document(vault.path(), &id_tardia, Some(revision_tardia), &tardia)
             .expect("persist tardia");
 
-        let dashboard = build_vault_review_dashboard(vault.path(), now, now - DAY_MS)
-            .expect("dashboard");
+        let dashboard =
+            build_vault_review_dashboard(vault.path(), now, now - DAY_MS).expect("dashboard");
 
         let medida_item = dashboard
             .expired_deadlines

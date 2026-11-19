@@ -58,6 +58,27 @@ pub struct CloudReport {
     pub bytes_down: u64,
 }
 
+/// Resultado da varredura de objetos órfãos.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SweepReport {
+    /// Objetos que o bucket tem neste vault.
+    pub scanned: usize,
+    /// Objetos que nenhuma linha referencia.
+    pub orphans: Vec<OrphanItem>,
+    pub freed_bytes: u64,
+    /// `true` quando nada foi apagado (só a conta).
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrphanItem {
+    /// Caminho dentro do bucket (o último segmento é o hash, no layout atual).
+    pub name: String,
+    pub size_bytes: u64,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FailItem {
@@ -293,6 +314,82 @@ pub fn sync(
     Ok(relatorio.into())
 }
 
+/// Procura (e, se pedido, apaga) objetos que nenhuma linha de metadado referencia.
+///
+/// Pega a mesma trava do ciclo: varrer no meio de uma sincronização poderia
+/// apagar conteúdo que acabou de subir e ainda não teve metadado gravado. A
+/// carência de 24 h é a segunda camada dessa mesma proteção.
+pub fn sweep_orphans(
+    vault_root: &Path,
+    base_url: &str,
+    api_key: &str,
+    dry_run: bool,
+    grace_seconds: i64,
+) -> Result<SweepReport> {
+    let _guarda = SyncGuard::acquire()?;
+    let auth = auth(base_url, api_key)?;
+    let identidade = load_or_create_identity(vault_root, &vault_name(vault_root))?;
+    if identidade.vault_id.is_none() {
+        bail!("Este vault ainda não está ligado à nuvem.");
+    }
+    let Some(owner_id) = cloud_api::user_id_from_jwt(&auth.access_token) else {
+        bail!("A sessão não identifica o dono da nuvem. Entre na conta de novo.");
+    };
+
+    // Referência = caminho do objeto que alguma linha sustenta, em **qualquer**
+    // vault da conta. Duas razões:
+    //
+    // - linha marcada como excluída também conta: apagar o conteúdo de uma linha
+    //   que existe deixaria um metadado apontando para o vazio;
+    // - vault apagado na nuvem remove as linhas em cascata mas não os objetos, e
+    //   esses só podem ser encontrados olhando a conta inteira.
+    let mut referenciados: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for linha in cloud_api::list_vaults(&auth)? {
+        for arquivo in cloud_api::list_files(&auth, &linha.id)? {
+            referenciados.insert(crate::cloud::storage_path(
+                &owner_id,
+                &linha.id,
+                &arquivo.hash,
+            ));
+        }
+    }
+
+    let objetos = cloud_api::list_all_objects(&auth, &owner_id)?;
+    let agora = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duracao| duracao.as_secs() as i64)
+        .unwrap_or(0);
+    let orfaos = crate::cloud::find_orphans(&objetos, &referenciados, agora, grace_seconds);
+
+    let total_orfaos: u64 = orfaos.iter().map(|orfao| orfao.size_bytes).sum();
+    let mut liberados = 0u64;
+    if !dry_run {
+        for orfao in &orfaos {
+            // Apaga pelo caminho completo: o órfão pode ser de um vault que já não
+            // existe, ou de um layout antigo (objeto nomeado pelo caminho da nota).
+            if cloud_api::delete_object(&auth, &orfao.full_path).is_ok() {
+                liberados += orfao.size_bytes;
+            }
+            // Objeto que já não existe (ou já foi apagado) não é erro de varredura:
+            // a lista foi tirada antes, e outra máquina pode ter limpado antes.
+        }
+    }
+
+    Ok(SweepReport {
+        scanned: objetos.len(),
+        orphans: orfaos
+            .into_iter()
+            .map(|orfao| OrphanItem {
+                name: orfao.full_path,
+                size_bytes: orfao.size_bytes,
+            })
+            .collect(),
+        // Em modo de conferência o número é "quanto sairia", não "quanto saiu".
+        freed_bytes: if dry_run { total_orfaos } else { liberados },
+        dry_run,
+    })
+}
+
 // -----------------------------------------------------------------------------
 // Comandos Tauri
 // -----------------------------------------------------------------------------
@@ -345,6 +442,29 @@ pub async fn cloud_unlink_vault(
     tauri::async_runtime::spawn_blocking(move || unlink(&raiz).map_err(|erro| erro.to_string()))
         .await
         .map_err(|erro| erro.to_string())?
+}
+
+#[tauri::command]
+pub async fn cloud_sweep_orphans(
+    path: String,
+    url: String,
+    api_key: String,
+    dry_run: bool,
+    authorized_paths: tauri::State<'_, crate::AuthorizedPaths>,
+) -> Result<SweepReport, String> {
+    let raiz = root_for(&path, &authorized_paths).map_err(|erro| erro.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        sweep_orphans(
+            &raiz,
+            &url,
+            &api_key,
+            dry_run,
+            crate::cloud::ORPHAN_GRACE_SECONDS,
+        )
+        .map_err(|erro| erro.to_string())
+    })
+    .await
+    .map_err(|erro| erro.to_string())?
 }
 
 #[tauri::command]
@@ -424,6 +544,151 @@ mod tests {
         assert!(!desligado.linked);
         assert!(vault.path().join("nota.md").exists());
 
+        crate::account::sign_out(&url, &key).expect("sair");
+    }
+
+    /// Varredura contra a nuvem de verdade: um objeto sem dono é encontrado na
+    /// conferência e removido de fato; o objeto referenciado sobrevive.
+    #[test]
+    #[ignore = "rede + cofre do sistema: fala com o Supabase de verdade"]
+    fn live_varredura_de_orfaos() {
+        let (Ok(url), Ok(key), Ok(email), Ok(senha)) = (
+            std::env::var("MIRRORMIND_TEST_SUPABASE_URL"),
+            std::env::var("MIRRORMIND_TEST_SUPABASE_KEY"),
+            std::env::var("MIRRORMIND_TEST_EMAIL"),
+            std::env::var("MIRRORMIND_TEST_PASSWORD"),
+        ) else {
+            panic!("defina MIRRORMIND_TEST_SUPABASE_URL/KEY/EMAIL/PASSWORD");
+        };
+
+        crate::account::sign_in(&url, &key, &email, &senha).expect("entrar");
+        let auth = auth(&url, &key).expect("sessao");
+        let owner = cloud_api::user_id_from_jwt(&auth.access_token).expect("dono");
+        let local_id = format!(
+            "orfaos-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duracao| duracao.as_secs())
+                .unwrap_or(0)
+        );
+        let vault_id =
+            cloud_api::register_vault(&auth, &local_id, "Vault de orfaos").expect("registrar");
+
+        // 1. um arquivo com metadado (referenciado)
+        let conteudo = b"# nota referenciada".to_vec();
+        let hash = crate::cloud::content_hash(&conteudo);
+        cloud_api::upload_blob(&auth, &owner, &vault_id, &hash, &conteudo).expect("subir nota");
+        cloud_api::upsert_file(
+            &auth,
+            &vault_id,
+            &crate::cloud::RemoteFile {
+                path: "nota.md".to_string(),
+                kind: crate::cloud::FileKind::Note,
+                hash: hash.clone(),
+                size_bytes: conteudo.len() as u64,
+                deleted: false,
+            },
+        )
+        .expect("metadado");
+
+        // 2. um objeto sem nenhuma linha apontando para ele
+        let sobra = b"conteudo orfao".to_vec();
+        let hash_orfao = crate::cloud::content_hash(&sobra);
+        cloud_api::upload_blob(&auth, &owner, &vault_id, &hash_orfao, &sobra).expect("subir orfao");
+
+        // o vault precisa existir no disco para a identidade ser lida
+        let vault = tempfile::tempdir().expect("vault");
+        let mut identidade =
+            crate::cloud::load_or_create_identity(vault.path(), "Vault de orfaos").expect("id");
+        identidade.vault_id = Some(vault_id.clone());
+        crate::cloud::save_identity(vault.path(), &identidade).expect("salvar id");
+
+        let caminho_orfao = format!("{owner}/{vault_id}/{hash_orfao}");
+        let caminho_nota = format!("{owner}/{vault_id}/{hash}");
+
+        // 3. conferência: encontra o órfão e não apaga nada
+        let conferencia = sweep_orphans(vault.path(), &url, &key, true, 0).expect("conferir");
+        assert!(
+            conferencia.scanned >= 2,
+            "conta inteira: {}",
+            conferencia.scanned
+        );
+        assert!(
+            conferencia
+                .orphans
+                .iter()
+                .any(|orfao| orfao.name == caminho_orfao),
+            "o objeto sem metadado tem que estar na lista: {:?}",
+            conferencia.orphans
+        );
+        assert!(
+            !conferencia
+                .orphans
+                .iter()
+                .any(|orfao| orfao.name == caminho_nota),
+            "o arquivo com metadado não pode ser candidato"
+        );
+        assert!(conferencia.freed_bytes >= sobra.len() as u64);
+        assert!(conferencia.dry_run);
+
+        // a conferência não apagou: o objeto continua listado no bucket
+        let ainda_la = cloud_api::list_all_objects(&auth, &owner).expect("listar");
+        assert!(ainda_la
+            .iter()
+            .any(|objeto| objeto.full_path == caminho_orfao));
+
+        // 4. varredura de verdade: apaga o órfão e preserva o referenciado
+        let limpeza = sweep_orphans(vault.path(), &url, &key, false, 0).expect("limpar");
+        assert!(!limpeza.dry_run);
+        assert!(
+            limpeza.freed_bytes >= sobra.len() as u64,
+            "liberou {} bytes",
+            limpeza.freed_bytes
+        );
+
+        // a listagem do bucket é a fonte da verdade — baixar um objeto apagado pode
+        // devolver cópia em cache, e foi isso que quase fez o teste mentir
+        let depois = cloud_api::list_all_objects(&auth, &owner).expect("listar 2");
+        assert!(
+            !depois
+                .iter()
+                .any(|objeto| objeto.full_path == caminho_orfao),
+            "o órfão tem que ter saído do bucket"
+        );
+        assert!(
+            depois.iter().any(|objeto| objeto.full_path == caminho_nota),
+            "o objeto referenciado tem que continuar lá"
+        );
+        assert_eq!(
+            cloud_api::download_blob(&auth, &owner, &vault_id, &hash).expect("referenciado"),
+            conteudo,
+            "o arquivo com metadado continua baixando igual"
+        );
+
+        // 5. nada de órfão sobrando na conferência seguinte
+        let repetida = sweep_orphans(vault.path(), &url, &key, true, 0).expect("conferir 2");
+        assert!(
+            !repetida
+                .orphans
+                .iter()
+                .any(|orfao| orfao.name == caminho_orfao),
+            "já foi apagado; {:?}",
+            repetida.orphans
+        );
+
+        // limpeza do teste
+        let _ = cloud_api::delete_blob(&auth, &owner, &vault_id, &hash);
+        let apagado = crate::account::client()
+            .expect("cliente")
+            .delete(format!(
+                "{}/rest/v1/vaults?id=eq.{vault_id}",
+                crate::account::endpoint(&url, "").expect("endpoint")
+            ))
+            .header("apikey", &key)
+            .bearer_auth(&auth.access_token)
+            .send()
+            .expect("apagar vault");
+        assert!(apagado.status().is_success());
         crate::account::sign_out(&url, &key).expect("sair");
     }
 

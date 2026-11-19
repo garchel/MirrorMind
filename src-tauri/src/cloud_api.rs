@@ -15,7 +15,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::account::{client, endpoint, json_body};
-use crate::cloud::{FileKind, RemoteFile};
+use crate::cloud::{FileKind, RemoteFile, StoredObject};
 
 const BUCKET: &str = "vault-files";
 
@@ -249,6 +249,153 @@ fn iso8601_now() -> String {
     iso8601_from_unix(segundos)
 }
 
+/// Caminho inverso do formatador acima: `2026-11-19T19:06:48.123456+00:00` (e
+/// variações com `Z`) viram segundos desde a época.
+///
+/// O Storage devolve a data nesse formato e a varredura de órfãos precisa dela
+/// para não apagar conteúdo recém-enviado. Só a parte `YYYY-MM-DDTHH:MM:SS` é
+/// lida: frações e fuso são irrelevantes para uma carência de horas ou dias.
+pub fn parse_iso8601_to_unix(texto: &str) -> Option<i64> {
+    let bytes = texto.as_bytes();
+    if bytes.len() < 19 {
+        return None;
+    }
+    let numero = |inicio: usize, fim: usize| -> Option<i64> {
+        let pedaco = texto.get(inicio..fim)?;
+        if !pedaco.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        pedaco.parse::<i64>().ok()
+    };
+    if bytes[10] != b'T' && bytes[10] != b' ' {
+        return None;
+    }
+    let (ano, mes, dia) = (numero(0, 4)?, numero(5, 7)?, numero(8, 10)?);
+    let (hora, minuto, segundo) = (numero(11, 13)?, numero(14, 16)?, numero(17, 19)?);
+    if !(1..=12).contains(&mes)
+        || !(1..=31).contains(&dia)
+        || hora > 23
+        || minuto > 59
+        || segundo > 60
+    {
+        return None;
+    }
+
+    // dias civis desde 1970-01-01 (inverso do algoritmo de `iso8601_from_unix`)
+    let ano = if mes <= 2 { ano - 1 } else { ano };
+    let era = if ano >= 0 { ano } else { ano - 399 } / 400;
+    let yoe = ano - era * 400;
+    let mp = if mes > 2 { mes - 3 } else { mes + 9 };
+    let doy = (153 * mp + 2) / 5 + dia - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let dias = era * 146_097 + doe - 719_468;
+
+    Some(dias * 86_400 + hora * 3_600 + minuto * 60 + segundo)
+}
+
+/// Lista **todos** os objetos do dono no bucket, descendo as pastas.
+///
+/// Tem de ser a conta inteira, não um vault: apagar um vault na nuvem remove as
+/// linhas em cascata mas **não** os objetos, e um objeto de vault inexistente não
+/// pertence a nenhuma varredura por vault. Foi assim que apareceram sobras reais
+/// durante a implementação — vaults de teste apagados, conteúdo ainda no bucket.
+///
+/// A API de listagem é por pasta (prefixo), então a descida é explícita, com
+/// profundidade limitada: o desenho é `<dono>/<vault>/<hash>`, e um layout antigo
+/// (por caminho de nota) tem um nível a mais. Nada além disso é esperado, e o
+/// limite evita laço infinito se algum dia aparecer uma pasta inesperada.
+pub fn list_all_objects(auth: &CloudAuth, owner_id: &str) -> Result<Vec<StoredObject>> {
+    const PROFUNDIDADE_MAXIMA: usize = 4;
+    let mut todos: Vec<StoredObject> = Vec::new();
+    let mut fila: Vec<(String, usize)> = vec![(owner_id.to_string(), 0)];
+
+    while let Some((prefixo, nivel)) = fila.pop() {
+        for entrada in list_prefix(auth, &prefixo)? {
+            todos.push(entrada.clone());
+            if let Some(pasta) = entrada.folder_name {
+                if nivel + 1 < PROFUNDIDADE_MAXIMA {
+                    fila.push((format!("{prefixo}/{pasta}"), nivel + 1));
+                }
+            }
+        }
+    }
+
+    Ok(todos)
+}
+
+/// Uma página de listagem de um prefixo. `folder_name` vem preenchido quando a
+/// entrada é uma pasta (`id = null` nesta API).
+fn list_prefix(auth: &CloudAuth, prefixo: &str) -> Result<Vec<StoredObject>> {
+    const PAGINA: usize = 1_000;
+    let base = endpoint(&auth.base_url, "")?;
+    let url = format!("{base}/storage/v1/object/list/{BUCKET}");
+
+    let mut todos: Vec<StoredObject> = Vec::new();
+    let mut deslocamento = 0usize;
+    loop {
+        let response = http()?
+            .post(&url)
+            .header("apikey", &auth.api_key)
+            .bearer_auth(&auth.access_token)
+            .json(&json!({
+                "prefix": prefixo,
+                "limit": PAGINA,
+                "offset": deslocamento,
+                "sortBy": { "column": "name", "order": "asc" },
+            }))
+            .send()
+            .map_err(|_| anyhow::anyhow!("Sem conexão com a nuvem."))?;
+
+        let linhas = json_body(travar_se_erro(response)?);
+        let linhas = linhas
+            .as_array()
+            .ok_or_else(|| anyhow::anyhow!("A nuvem devolveu uma lista inválida."))?;
+        if linhas.is_empty() {
+            break;
+        }
+
+        for linha in linhas {
+            let Some(nome) = linha.get("name").and_then(Value::as_str) else {
+                continue;
+            };
+            let eh_pasta = linha.get("id").map(Value::is_null).unwrap_or(false);
+            if eh_pasta {
+                todos.push(StoredObject {
+                    full_path: format!("{prefixo}/{nome}"),
+                    name: nome.to_string(),
+                    size_bytes: 0,
+                    updated_at_unix: None,
+                    folder_name: Some(nome.to_string()),
+                });
+                continue;
+            }
+            let tamanho = linha
+                .get("metadata")
+                .and_then(|meta| meta.get("size"))
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            let atualizado = linha
+                .get("updated_at")
+                .and_then(Value::as_str)
+                .and_then(parse_iso8601_to_unix);
+            todos.push(StoredObject {
+                full_path: format!("{prefixo}/{nome}"),
+                name: nome.to_string(),
+                size_bytes: tamanho,
+                updated_at_unix: atualizado,
+                folder_name: None,
+            });
+        }
+
+        deslocamento += linhas.len();
+        if linhas.len() < PAGINA {
+            break;
+        }
+    }
+
+    Ok(todos)
+}
+
 fn iso8601_from_unix(segundos: i64) -> String {
     let dias = segundos.div_euclid(86_400);
     let resto = segundos.rem_euclid(86_400);
@@ -320,6 +467,28 @@ pub fn download_blob(
         .bytes()
         .map_err(|_| anyhow::anyhow!("A nuvem enviou um conteúdo ilegível."))?;
     Ok(bytes.to_vec())
+}
+
+/// Apaga um objeto pelo caminho completo dentro do bucket.
+///
+/// A varredura de órfãos precisa disto: o objeto sem dono pode estar em um vault
+/// que já não existe, então montar o caminho a partir de `owner/vault/hash` não
+/// serve — o caminho vem da listagem.
+pub fn delete_object(auth: &CloudAuth, full_path: &str) -> Result<()> {
+    let base = endpoint(&auth.base_url, "")?;
+    let url = format!("{base}/storage/v1/object/{BUCKET}/{full_path}");
+    let response = http()?
+        .delete(url)
+        .header("apikey", &auth.api_key)
+        .bearer_auth(&auth.access_token)
+        .send()
+        .map_err(|_| anyhow::anyhow!("Sem conexão com a nuvem."))?;
+    // Apagar o que já não existe não é erro de varredura.
+    if response.status().is_success() || response.status().as_u16() == 404 {
+        return Ok(());
+    }
+    travar_se_erro(response)?;
+    Ok(())
 }
 
 pub fn delete_blob(
@@ -663,6 +832,36 @@ conteudo qualquer"
             .expect("apagar vault");
         assert!(apagado.status().is_success());
         let _ = content_hash(b"");
+    }
+
+    #[test]
+    fn le_a_data_que_o_storage_devolve() {
+        // formato do Storage: com fração e fuso
+        assert_eq!(
+            parse_iso8601_to_unix("2026-11-19T00:00:00.123456+00:00"),
+            Some(1_795_046_400)
+        );
+        // 19:06:48 = 68 808 s depois da meia-noite
+        assert_eq!(
+            parse_iso8601_to_unix("2026-11-19T19:06:48.081564+00:00"),
+            Some(1_795_046_400 + 68_808)
+        );
+        assert_eq!(parse_iso8601_to_unix("1970-01-01T00:00:00Z"), Some(0));
+        assert_eq!(
+            parse_iso8601_to_unix("2024-02-29T12:00:00Z"),
+            Some(1_709_208_000)
+        );
+
+        // e o caminho de ida e volta fecha
+        for instante in [0, 1_795_046_400, 1_709_208_000] {
+            let texto = iso8601_from_unix(instante);
+            assert_eq!(parse_iso8601_to_unix(&texto), Some(instante), "{texto}");
+        }
+
+        // lixo não vira data
+        assert_eq!(parse_iso8601_to_unix(""), None);
+        assert_eq!(parse_iso8601_to_unix("ontem"), None);
+        assert_eq!(parse_iso8601_to_unix("2026-13-01T00:00:00Z"), None);
     }
 
     #[test]

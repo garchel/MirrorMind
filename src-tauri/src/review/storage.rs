@@ -1680,17 +1680,21 @@ mod tests {
         std::fs::create_dir_all(&legado).expect("pasta legada");
         std::fs::write(legado.join("nota-um.json"), "{}").expect("nota legada");
 
-        let maria = raiz.join(".mirmind").join("profiles").join("maria").join("learning");
+        let maria = raiz
+            .join(".mirmind")
+            .join("profiles")
+            .join("maria")
+            .join("learning");
         std::fs::create_dir_all(&maria).expect("pasta da maria");
         std::fs::write(maria.join("nota-dois.json"), "{}").expect("nota da maria");
 
         let perfis = crate::profiles::load_profiles(raiz).expect("perfis");
         assert_eq!(perfis[0].id, crate::profiles::DEFAULT_PROFILE_ID);
 
-        let do_padrao = crate::profiles::with_profile_for_test(
-            crate::profiles::DEFAULT_PROFILE_ID,
-            || super::list_learning_storage_keys(raiz).expect("listar padrao"),
-        );
+        let do_padrao =
+            crate::profiles::with_profile_for_test(crate::profiles::DEFAULT_PROFILE_ID, || {
+                super::list_learning_storage_keys(raiz).expect("listar padrao")
+            });
         assert_eq!(do_padrao, vec!["nota-um".to_string()]);
 
         let da_maria = crate::profiles::with_profile_for_test("maria", || {
