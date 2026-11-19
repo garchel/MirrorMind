@@ -54,6 +54,36 @@ Regras que não são negociáveis no schema:
 
 Arquivo pronto para aplicar: [`supabase/migrations/0001_accounts.sql`](../supabase/migrations/0001_accounts.sql).
 
+## Estado atual do backend (2026-11-19)
+
+| item | valor |
+| --- | --- |
+| projeto | `mirrormind` — ref `uzxpeoxrvdcptvbepzua` |
+| região | `sa-east-1` (São Paulo) |
+| URL | `https://uzxpeoxrvdcptvbepzua.supabase.co` |
+| plano | Free (R$ 0) |
+| migrations aplicadas | `accounts_and_usage`, `accounts_rls_and_usage_view` |
+
+Verificado no banco:
+- criar usuário em `auth.users` **cria o perfil** (trigger `on_auth_user_created`),
+  com `plan = gratis` e `plan_status = active`;
+- RLS ligada nas 5 tabelas; 7 policies (leitura do próprio em `profiles`,
+  `subscriptions`, `ai_usage` e `devices`; escrita em `devices`; update de perfil);
+- `authenticated` **não** escreve em `ai_usage` (revoquei insert/update/delete) e
+  **só** altera `display_name` em `profiles` (privilégio de coluna);
+- `stripe_events` sem policy para `authenticated` = nenhum acesso pelo cliente;
+- `ai_usage_summary` com `security_invoker`, então herda a RLS.
+
+### O que falta para o app falar com esse backend
+
+1. Chaves no build: `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`
+   (Settings → API no painel). **`service_role` nunca no cliente.**
+2. Google OAuth: client ID/secret do Google Cloud + URL de callback do Supabase
+   (`https://uzxpeoxrvdcptvbepzua.supabase.co/auth/v1/callback`). Depende de
+   decisão humana (criar o app no Google Cloud).
+3. `SupabaseSessionClient` (F1b-2): PKCE com loopback no Rust, credenciais no
+   keyring, `useSession` já pronto para consumir.
+
 ## Onde a cota é decidida
 
 O gate do cliente (`managedAiGate`) é **UX**: ele evita oferecer um botão que
