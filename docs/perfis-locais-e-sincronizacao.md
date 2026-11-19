@@ -1,7 +1,17 @@
 # Perfis locais (convidado) e sincronização — decisões
 
-> Estado: **proposta em discussão**, nada implementado. Este documento existe para
-> que as decisões fiquem registradas antes do código, não depois.
+> Estado: **fase 1 em implementação** — decisões aprovadas em 2026-11-19
+> (perfis sem nuvem; PIN opcional; troca a quente; mesma conta em dois perfis
+> bloqueada). Sincronização continua só no papel.
+>
+> **Feito (backend):** `src-tauri/src/profiles.rs` com store em
+> `<vault>/.mirmind/profiles.json`, CRUD, PIN salgado + iterado (120k SHA-256) e
+> contexto de perfil ativo. Aprendizado, calibração, consumo de IA, metas e
+> notificações já resolvem caminho por perfil; o **perfil padrão herda os
+> caminhos antigos** (nenhum arquivo de quem já usa o app é movido).
+>
+> **Falta:** a interface (tela "Quem está usando?", criar/renomear/excluir, PIN na
+> troca) e a trava por vault+perfil.
 
 ## A proposta
 

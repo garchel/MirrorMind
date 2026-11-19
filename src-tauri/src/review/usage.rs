@@ -196,7 +196,8 @@ fn provider_label(kind: ProviderKind) -> &'static str {
 }
 
 pub fn usage_file_path(vault_root: &Path) -> PathBuf {
-    vault_root.join(METADATA_DIRECTORY).join(USAGE_FILE)
+    // Consumo de IA é de quem usa: cada perfil tem o seu.
+    crate::profiles::metadata_dir_for_active(vault_root).join(USAGE_FILE)
 }
 
 fn fresh_record(day: u64, now_unix: u64) -> UsageRecord {

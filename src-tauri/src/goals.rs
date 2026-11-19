@@ -88,7 +88,7 @@ fn now_unix_ms() -> Result<u64> {
 
 fn goals_directory(vault_root: &Path) -> Result<PathBuf> {
     let canonical = crate::canonicalize_directory(vault_root)?;
-    Ok(canonical.join(METADATA_DIR).join(GOALS_DIR))
+    Ok(crate::profiles::metadata_dir_for_active(&canonical).join(GOALS_DIR))
 }
 
 fn ensure_goals_directory(vault_root: &Path) -> Result<PathBuf> {

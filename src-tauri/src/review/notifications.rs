@@ -90,10 +90,14 @@ pub struct ReviewNotificationCheckView {
 }
 
 fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf> {
-    Ok(app
-        .path()
-        .app_config_dir()?
-        .join(NOTIFICATION_SETTINGS_FILE))
+    // Preferência de notificação é da pessoa: no app_config_dir, mas numa pasta
+    // por perfil (`profiles/<id>`), com o padrão usando o caminho de sempre.
+    let raiz = crate::profiles::app_state_dir_for(
+        &app.path().app_config_dir()?,
+        &crate::profiles::active_profile(),
+    );
+    std::fs::create_dir_all(&raiz).ok();
+    Ok(raiz.join(NOTIFICATION_SETTINGS_FILE))
 }
 
 pub fn load_settings(app: &tauri::AppHandle) -> ReviewNotificationSettings {

@@ -1458,7 +1458,9 @@ fn learning_directory(vault_root: &Path) -> Result<PathBuf> {
         bail!("O caminho do Vault nao e uma pasta.");
     }
 
-    let metadata = canonical_root.join(METADATA_DIRECTORY);
+    // Perfil ativo decide a pasta: o padrão herda `.mirmind/learning` (nada é
+    // movido de quem já usa o app) e os demais ficam em `.mirmind/profiles/<id>`.
+    let metadata = crate::profiles::metadata_dir_for_active(&canonical_root);
     ensure_directory(&canonical_root, &metadata)?;
     let learning = metadata.join(LEARNING_DIRECTORY);
     ensure_directory(&canonical_root, &learning)?;

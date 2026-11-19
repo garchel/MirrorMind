@@ -190,7 +190,8 @@ pub struct CalibrationConfig {
 }
 
 pub fn calibration_file_path(vault_root: &Path) -> PathBuf {
-    vault_root.join(METADATA_DIRECTORY).join(CALIBRATION_FILE)
+    // Calibração é de quem estuda, não do vault: segue o perfil ativo.
+    crate::profiles::metadata_dir_for_active(vault_root).join(CALIBRATION_FILE)
 }
 
 /// Le a configuracao. Arquivo ausente, ilegivel ou corrompido devolve o

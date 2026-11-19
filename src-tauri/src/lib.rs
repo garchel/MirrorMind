@@ -25,6 +25,7 @@ pub(crate) mod account;
 pub(crate) mod account_oauth;
 pub(crate) mod dictionary;
 pub(crate) mod goals;
+pub(crate) mod profiles;
 pub mod review;
 pub(crate) mod session;
 mod tag_management;
@@ -6409,6 +6410,13 @@ pub fn run() {
             account::account_sign_up,
             account::account_sign_in,
             account::account_sign_in_google,
+            profiles::profiles_list,
+            profiles::profiles_create,
+            profiles::profiles_rename,
+            profiles::profiles_delete,
+            profiles::profiles_set_pin,
+            profiles::profiles_verify_pin,
+            profiles::profiles_select,
             account::account_snapshot,
             account::account_sign_out,
             select_vault_parent,
@@ -6549,8 +6557,8 @@ mod tests {
     use super::{
         append_knowledge_suggestion_in_root, apply_history_command, apply_vault_scan_change,
         attachment_directory_for_note, build_tag_index_for_note_paths,
-        classify_vault_file_system_change, close_was_acknowledged, collect_attachment_files, collect_folders,
-        collect_markdown_files, collect_special_vault_files, copy_file_synced,
+        classify_vault_file_system_change, close_was_acknowledged, collect_attachment_files,
+        collect_folders, collect_markdown_files, collect_special_vault_files, copy_file_synced,
         delete_vault_item_in_root, diagnose_unreadable_notes, ensure_metadata_layout, extract_tags,
         extract_wiki_links, get_backlinks_in_root, get_broken_links_in_root,
         get_note_broken_links_in_root, get_tag_index_in_root, hard_link_or_copy,
