@@ -57,11 +57,13 @@ conteúdo, tamanho, `deleted_at` como marca de exclusão) e o bucket privado
 `vault-files` com caminho começando pelo id do dono. RLS por dono nas duas
 tabelas e no bucket.
 
-| plano | nuvem incluída | custo de armazenamento (Supabase Pro: US$ 0,0213/GB acima de 100 GB) |
+A nuvem é **add-on**, não parte do plano de IA: quem usa Ollama ou a própria chave
+pode assinar só a nuvem, e o plano de IA mais caro **não** dá nuvem de graça.
+
+| assinatura | nuvem | custo de armazenamento (Supabase Pro: US$ 0,0213/GB acima de 100 GB) |
 | --- | --- | --- |
-| grátis | **0** (o app segue 100% local) | US$ 0 |
-| essencial | 2 GB | ~US$ 0,04/mês |
-| pro | 10 GB | ~US$ 0,21/mês |
+| sem add-on | **0** (o app segue 100% local) | US$ 0 |
+| **nuvem** (R$ 30/mês ou R$ 300/ano) | **10 GB** | ~US$ 0,21/mês = ~R$ 1,15 |
 
 A cota não é sugestão de interface: `enforce_vault_quota` recusa no banco o que
 passa do plano (testado: 11 GB num plano de 10 GB falha com `check_violation`;
