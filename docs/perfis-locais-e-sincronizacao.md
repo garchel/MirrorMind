@@ -25,7 +25,22 @@
 > seguir mesmo assim. Não é trava de SO — é aviso com prazo, para um arquivo
 > órfão de um travamento não bloquear a abertura para sempre.
 >
-> **Falta:** só a fase 2 (sincronização com a conta), que depende de plano/cloud.
+> **Invariante provada:** teste de integração escreve o aprendizado em dois
+> lugares e confirma, pela **API pública de listagem**, que o perfil padrão vê só
+> o que é dele e o perfil "maria" só o que é dela. Calibração, consumo de IA e
+> metas também resolvem na pasta do perfil. Se alguém voltar a resolver
+> `.mirmind/learning` direto, o teste quebra.
+>
+> **Vínculo perfil ↔ conta (modelo, sem interface):** o perfil ganhou
+> `accountId` opcional (`linked` no resumo). `link_account` recusa a mesma conta
+> em dois perfis do mesmo vault — duas trilhas locais para a mesma conta não têm
+> merge possível. `unlink_account` libera. A interface entra junto com a
+> sincronização, para não existir botão que não faz nada.
+>
+> **Falta:** a fase 2 (sincronização), que depende de duas coisas fora do app:
+> (a) decisão **single vs multiusuário** na nuvem — ela decide se o histórico de
+> revisão precisa de log de eventos; (b) tabelas de nuvem + cobrança de
+> armazenamento no servidor.
 
 ## A proposta
 

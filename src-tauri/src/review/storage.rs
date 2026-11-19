@@ -1667,6 +1667,38 @@ mod tests {
     #[cfg(windows)]
     use super::ensure_learning_note_inside_vault;
 
+    /// O ponto da feature: dois perfis no mesmo vault **não dividem** o
+    /// aprendizado. Prova pela API pública (listagem), não pela constante de
+    /// caminho — se alguém voltar a resolver `.mirmind/learning` direto, isto
+    /// quebra.
+    #[test]
+    fn aprendizado_e_listado_por_perfil_ativo() {
+        let vault = tempfile::tempdir().expect("vault temporario");
+        let raiz = vault.path();
+
+        let legado = raiz.join(".mirmind").join("learning");
+        std::fs::create_dir_all(&legado).expect("pasta legada");
+        std::fs::write(legado.join("nota-um.json"), "{}").expect("nota legada");
+
+        let maria = raiz.join(".mirmind").join("profiles").join("maria").join("learning");
+        std::fs::create_dir_all(&maria).expect("pasta da maria");
+        std::fs::write(maria.join("nota-dois.json"), "{}").expect("nota da maria");
+
+        let perfis = crate::profiles::load_profiles(raiz).expect("perfis");
+        assert_eq!(perfis[0].id, crate::profiles::DEFAULT_PROFILE_ID);
+
+        let do_padrao = crate::profiles::with_profile_for_test(
+            crate::profiles::DEFAULT_PROFILE_ID,
+            || super::list_learning_storage_keys(raiz).expect("listar padrao"),
+        );
+        assert_eq!(do_padrao, vec!["nota-um".to_string()]);
+
+        let da_maria = crate::profiles::with_profile_for_test("maria", || {
+            super::list_learning_storage_keys(raiz).expect("listar maria")
+        });
+        assert_eq!(da_maria, vec!["nota-dois".to_string()]);
+    }
+
     const VALID_DOCUMENT: &str = include_str!("../../../tests/fixtures/review-learning-v1.json");
     const LEGACY_DOCUMENT: &str = include_str!("../../../tests/fixtures/review-learning-v0.json");
 

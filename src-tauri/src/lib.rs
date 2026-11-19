@@ -6415,6 +6415,8 @@ pub fn run() {
             profiles::profiles_rename,
             profiles::profiles_delete,
             profiles::profiles_set_pin,
+            profiles::profiles_link_account,
+            profiles::profiles_unlink_account,
             profiles::profiles_verify_pin,
             profiles::profiles_select,
             account::account_snapshot,

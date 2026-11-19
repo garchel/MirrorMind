@@ -50,6 +50,9 @@ pub struct Profile {
     pub color: String,
     #[serde(default)]
     pub created_at_unix_ms: i64,
+    /// Conta vinculada (id do usuário no servidor). Ausente = perfil convidado.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pin_salt: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -65,6 +68,8 @@ pub struct ProfileSummary {
     pub color: String,
     pub is_default: bool,
     pub has_pin: bool,
+    /// O perfil já está ligado a uma conta (a sincronização usa isso depois).
+    pub linked: bool,
 }
 
 impl Profile {
@@ -75,6 +80,7 @@ impl Profile {
             color: self.color.clone(),
             is_default: self.id == DEFAULT_PROFILE_ID,
             has_pin: self.pin_hash.is_some(),
+            linked: self.account_id.is_some(),
         }
     }
 }
@@ -108,6 +114,7 @@ fn profile_with_default() -> Profile {
         name: "Eu".to_string(),
         color: "sage".to_string(),
         created_at_unix_ms: now_ms(),
+        account_id: None,
         pin_salt: None,
         pin_hash: None,
     }
@@ -243,6 +250,7 @@ pub fn create_profile(
             color.trim().to_string()
         },
         created_at_unix_ms: now_ms(),
+        account_id: None,
         pin_hash: pin.map(|pin| hash_pin(pin, salt.as_deref().unwrap_or_default())),
         pin_salt: salt,
     };
@@ -324,6 +332,51 @@ pub fn set_pin(vault_root: &Path, profile_id: &str, pin: Option<&str>) -> Result
         }
     }
     save_profiles(vault_root, &profiles)
+}
+
+// -----------------------------------------------------------------------------
+// Vínculo perfil ↔ conta.
+//
+// O vínculo é local: diz "este perfil é desta conta". A sincronização (fase 2)
+// usa esse campo para decidir o que subir; hoje ele só impede a confusão de ter
+// a mesma conta em dois perfis da mesma máquina, que tornaria o merge ambíguo.
+// -----------------------------------------------------------------------------
+
+/// Liga o perfil à conta. Recusa quando a conta já está em outro perfil deste
+/// vault — duas trilhas locais para a mesma conta não têm merge possível.
+pub fn link_account(vault_root: &Path, profile_id: &str, account_id: &str) -> Result<ProfileSummary> {
+    let account_id = account_id.trim();
+    if account_id.is_empty() {
+        bail!("Conta inválida para vincular.");
+    }
+    let mut profiles = load_profiles(vault_root)?;
+    if let Some(outro) = profiles
+        .iter()
+        .find(|p| p.id != profile_id && p.account_id.as_deref() == Some(account_id))
+    {
+        bail!(
+            "Esta conta já está vinculada ao perfil \"{}\". Desvincule lá antes.",
+            outro.name
+        );
+    }
+    let Some(perfil) = profiles.iter_mut().find(|p| p.id == profile_id) else {
+        bail!("Este perfil não existe mais.");
+    };
+    perfil.account_id = Some(account_id.to_string());
+    let resumo = perfil.summary();
+    save_profiles(vault_root, &profiles)?;
+    Ok(resumo)
+}
+
+pub fn unlink_account(vault_root: &Path, profile_id: &str) -> Result<ProfileSummary> {
+    let mut profiles = load_profiles(vault_root)?;
+    let Some(perfil) = profiles.iter_mut().find(|p| p.id == profile_id) else {
+        bail!("Este perfil não existe mais.");
+    };
+    perfil.account_id = None;
+    let resumo = perfil.summary();
+    save_profiles(vault_root, &profiles)?;
+    Ok(resumo)
 }
 
 // -----------------------------------------------------------------------------
@@ -447,6 +500,20 @@ pub fn profiles_delete(vault_root: String, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn profiles_link_account(
+    vault_root: String,
+    id: String,
+    account_id: String,
+) -> Result<ProfileSummary, String> {
+    como_erro(link_account(Path::new(&vault_root), &id, &account_id))
+}
+
+#[tauri::command]
+pub fn profiles_unlink_account(vault_root: String, id: String) -> Result<ProfileSummary, String> {
+    como_erro(unlink_account(Path::new(&vault_root), &id))
+}
+
+#[tauri::command]
 pub fn profiles_set_pin(vault_root: String, id: String, pin: Option<String>) -> Result<(), String> {
     como_erro(set_pin(Path::new(&vault_root), &id, pin.as_deref()))
 }
@@ -502,10 +569,37 @@ pub fn set_active_profile(profile_id: &str) {
 }
 
 pub fn active_profile() -> String {
+    // Nos testes, o perfil pode ser fixado **por thread**: a suíte roda em
+    // paralelo e trocar o contexto global num teste mudaria o caminho de todos
+    // os outros ao mesmo tempo.
+    #[cfg(test)]
+    if let Some(fixo) = test_profile_override() {
+        return fixo;
+    }
+
     active_slot()
         .lock()
         .map(|guarda| guarda.clone())
         .unwrap_or_else(|_| DEFAULT_PROFILE_ID.to_string())
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_PROFILE: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn test_profile_override() -> Option<String> {
+    TEST_PROFILE.with(|valor| valor.borrow().clone())
+}
+
+/// Roda `f` como se o perfil ativo fosse `profile_id` — só em testes.
+#[cfg(test)]
+pub fn with_profile_for_test<R>(profile_id: &str, f: impl FnOnce() -> R) -> R {
+    let anterior = TEST_PROFILE.with(|valor| valor.replace(Some(profile_id.to_string())));
+    let resultado = f();
+    TEST_PROFILE.with(|valor| *valor.borrow_mut() = anterior);
+    resultado
 }
 
 /// Pasta de estado **dentro do vault**: o `.mirmind` para o perfil padrão (compatível
@@ -670,6 +764,50 @@ mod tests {
 
         release_session(vault.path(), &perfil.id);
         assert!(!caminho.exists());
+    }
+
+    /// Tudo que é da pessoa precisa resolver na pasta do perfil, não só o
+    /// aprendizado: calibração, consumo de IA e metas também são individuais.
+    #[test]
+    fn estado_pessoal_resolve_na_pasta_do_perfil() {
+        let vault = vault_temporario();
+
+        let sob_maria = with_profile_for_test("maria", || {
+            (
+                crate::review::calibration::calibration_file_path(vault.path()),
+                crate::review::usage::usage_file_path(vault.path()),
+                metadata_dir_for_active(vault.path()),
+            )
+        });
+        let esperado = vault.path().join(METADATA_DIRECTORY).join("profiles").join("maria");
+        assert!(sob_maria.0.starts_with(&esperado), "{:?}", sob_maria.0);
+        assert!(sob_maria.1.starts_with(&esperado), "{:?}", sob_maria.1);
+        assert_eq!(sob_maria.2, esperado);
+
+        let sob_padrao = with_profile_for_test(DEFAULT_PROFILE_ID, || {
+            crate::review::usage::usage_file_path(vault.path())
+        });
+        assert_eq!(
+            sob_padrao,
+            vault.path().join(METADATA_DIRECTORY).join("review-usage.json")
+        );
+    }
+
+    #[test]
+    fn vinculo_recusa_a_mesma_conta_em_dois_perfis() {
+        let vault = vault_temporario();
+        let maria = create_profile(vault.path(), "Maria", "sage", None).expect("criar");
+        let joao = create_profile(vault.path(), "João", "sage", None).expect("criar");
+
+        let vinculado = link_account(vault.path(), &maria.id, "conta-1").expect("vincular");
+        assert!(vinculado.linked);
+
+        let erro = link_account(vault.path(), &joao.id, "conta-1").unwrap_err();
+        assert!(erro.to_string().contains("já está vinculada"), "{erro}");
+
+        // Desvincular libera a conta para outro perfil.
+        assert!(!unlink_account(vault.path(), &maria.id).expect("desvincular").linked);
+        assert!(link_account(vault.path(), &joao.id, "conta-1").is_ok());
     }
 
     #[test]
