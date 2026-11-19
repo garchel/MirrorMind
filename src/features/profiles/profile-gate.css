@@ -1,0 +1,141 @@
+/* Tela "Quem está usando este vault?" — cartão centrado, mesma linguagem da
+ * abertura (papel claro, tinta escura, sage de destaque). */
+.profile-gate-shell {
+  margin: 0;
+  padding: 0;
+  background: var(--mm-gold-50);
+}
+
+.profile-gate {
+  --selection-paper: var(--mm-gold-50);
+  --selection-line: var(--mm-ink-350-3);
+  --selection-muted: var(--mm-ink-800-7);
+  display: grid;
+  place-content: safe center;
+  justify-items: center;
+  height: calc(100dvh - var(--titlebar-h, 40px));
+  padding: 32px clamp(24px, 4vw, 56px);
+  overflow-y: auto;
+  background: var(--mm-gold-50);
+}
+
+.profile-gate-card {
+  display: grid;
+  gap: 12px;
+  width: min(460px, 100%);
+}
+
+.profile-gate-card .card-kicker {
+  margin: 0;
+  color: var(--mm-ink-850-19);
+}
+
+.profile-gate-card h1 {
+  margin: 0;
+  color: var(--mm-ink-950-11);
+  font-size: clamp(22px, 2vw, 28px);
+  font-weight: 650;
+  letter-spacing: -0.018em;
+  line-height: 1.15;
+}
+
+.profile-gate-lede {
+  margin: 0 0 4px;
+  color: var(--mm-ink-900-32);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.profile-gate-list {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Item de escolha: alvo grande, avatar com iniciais, estado de foco visível.
+ * É um botão de verdade (não div clicável) para teclado e leitor de tela. */
+.profile-gate-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--mm-ink-350-3);
+  border-radius: 12px;
+  background: var(--mm-gold-100);
+  color: var(--mm-ink-950-11);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.profile-gate-item:hover:not(:disabled) {
+  border-color: var(--mm-sage-500);
+  background: var(--mm-sage-150-2);
+}
+
+.profile-gate-item:focus-visible {
+  outline: 2px solid var(--mm-sage-850);
+  outline-offset: 2px;
+}
+
+.profile-gate-item:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.profile-gate-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--mm-sage-200-2);
+  color: var(--mm-ink-950-14);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.profile-gate-item[data-color='brick'] .profile-gate-avatar {
+  background: var(--mm-brick-150);
+}
+
+.profile-gate-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.profile-gate-lock {
+  color: var(--mm-ink-850-19);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.profile-gate-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.profile-gate-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.profile-gate-new {
+  justify-self: start;
+  margin-top: 4px;
+}

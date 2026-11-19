@@ -135,6 +135,8 @@ import { EditorContent } from './features/editor/EditorContent'
 import { VaultSelection } from './features/vault/VaultSelection'
 import { createSupabaseSessionClient, supabaseConfigFromEnv } from './lib/supabaseSession'
 import { LoginPage } from './features/account/LoginPage'
+import { ProfileGate } from './features/profiles/ProfileGate'
+import { needsProfileChoice, profileClientFromInvoke, type ProfileSummary } from './lib/profiles'
 import { markLoginSkipped } from './lib/loginGate'
 import { TabStrip, WorkspaceRail, WorkspaceTopbar, type WorkspacePage } from './features/shell/WorkspaceChrome'
 import { TrashPage } from './features/trash/TrashPage'
@@ -538,6 +540,10 @@ function App() {
   const hiddenActionsRef = useRef<HeaderActionKey[]>([])
   /** Cliente de conta: existe só quando o build trouxe URL e chave publicável.
    * Sem elas, a seção Conta não aparece — em vez de aparecer e falhar. */
+  /** Cliente de perfis locais (IPC). */
+  const profileClient = useMemo(() => profileClientFromInvoke(invoke), [])
+  /** Quando preenchido, a tela "Quem está usando este vault?" ocupa o lugar do app. */
+  const [profileGate, setProfileGate] = useState<{ vaultRoot: string; profiles: ProfileSummary[] } | null>(null)
   const accountSessionClient = useMemo(() => {
     const config = supabaseConfigFromEnv()
     return config ? createSupabaseSessionClient(config) : null
@@ -991,6 +997,20 @@ function App() {
     '--reading-font-size': `${editorFontSize}px`,
   } as CSSProperties
   const handleVaultSelection = useEffectEvent(async (selectedVault: VaultSummary) => {
+    // Perfis: com um perfil só e sem PIN, entrar direto; havendo escolha (ou PIN),
+    // a tela aparece antes de qualquer leitura — os caminhos de estado dependem do
+    // perfil ativo.
+    try {
+      const perfis = await profileClient.list(selectedVault.path)
+      if (needsProfileChoice(perfis)) {
+        setProfileGate({ vaultRoot: selectedVault.path, profiles: perfis })
+        return
+      }
+      if (perfis[0]) await profileClient.select(perfis[0].id)
+    } catch {
+      // Vault sem perfis legíveis não pode impedir o uso das notas: segue como
+      // perfil padrão (os caminhos legados).
+    }
     await refreshNotes(selectedVault.path)
     // Constroi o indice de wikilinks do Vault em segundo plano (backlinks e
     // autocomplete sem depender do grafo aberto).
@@ -6515,6 +6535,24 @@ function App() {
             // garante que o rascunho ativo esteja salvo em disco antes.
             if (!isDirty) return
             await saveActiveNote(false)
+          }}
+        />
+      </main>
+    )
+  }
+
+  if (profileGate) {
+    return (
+      <main className="profile-gate-shell" data-builder-name="profile-gate-shell">
+        <TitleBar />
+        <ProfileGate
+          vaultRoot={profileGate.vaultRoot}
+          client={profileClient}
+          initialProfiles={profileGate.profiles}
+          onReady={() => {
+            const alvo = profileGate.vaultRoot
+            setProfileGate(null)
+            void refreshNotes(alvo)
           }}
         />
       </main>

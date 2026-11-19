@@ -10,8 +10,13 @@
 > notificações já resolvem caminho por perfil; o **perfil padrão herda os
 > caminhos antigos** (nenhum arquivo de quem já usa o app é movido).
 >
-> **Falta:** a interface (tela "Quem está usando?", criar/renomear/excluir, PIN na
-> troca) e a trava por vault+perfil.
+> **Feito também:** a tela "Quem está usando este vault?" (`features/profiles/`) —
+> lista, escolha, criação offline e PIN na entrada; aparece só quando há escolha
+> de verdade (um perfil sem PIN entra direto).
+>
+> **Falta:** troca de perfil pelo menu do perfil (a quente), renomear/excluir na
+> interface (o backend já tem), indicador de perfil no trilho e a trava por
+> vault+perfil.
 
 ## A proposta
 
