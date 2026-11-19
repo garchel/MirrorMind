@@ -227,6 +227,36 @@ Depois, apague esse usuário de teste (menu de três pontos na lista de usuário
 
 ---
 
+## Etapa 6 — O que o usuário vê na tela do Google (corrigir antes do lançamento)
+
+Depois que tudo funciona, a tela de consentimento ainda não parece de produto.
+
+**O que aparece hoje**
+
+- "Prosseguir para: `uzxpeoxrvdcptvbepzua.supabase.co`" — o Google mostra sempre o
+  **domínio que vai receber o login**, e o nosso é o endereço do projeto Supabase
+  (`uzxpeoxrvdcptvbepzua` é o ID sorteado na criação do projeto).
+- Aviso de **app não verificado**, porque a tela de consentimento está em modo de
+  teste e só os e-mails da lista de teste entram.
+
+**Não é bug nem redirecionamento**: o app conversa com o Supabase, e o Supabase
+conversa com o Google. O Google avisa onde a autorização vai ser entregue.
+
+**Como corrigir (bloqueante para lançamento público)**
+
+1. Supabase → Settings → **Custom Domains** (`auth.mirrormind.com.br`; é add-on
+   pago). O login passa a terminar no nosso domínio.
+2. Google Cloud → OAuth consent screen: nome, logo, domínio autorizado
+   (`mirrormind.com.br`), e **Publish**.
+3. Trocar o redirect URI no Google Console para
+   `https://auth.mirrormind.com.br/auth/v1/callback`.
+4. Atualizar `VITE_SUPABASE_URL` no `.env` (o app passa a falar com o domínio
+   próprio) e conferir o login de ponta a ponta.
+
+Mesmo depois disso, o Google mostra "Prosseguir para: **auth.mirrormind.com.br**"
+— ele nunca mostra só "MirrorMind". O que muda é a marca aparecer na tela de
+consentimento e o domínio deixar de ser um código aleatório.
+
 ## Erros comuns (e o que significam)
 
 | Mensagem / sintoma | Causa provável |
