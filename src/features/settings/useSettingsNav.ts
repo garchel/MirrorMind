@@ -38,6 +38,10 @@ export const SETTINGS_GROUPS = [
 
 /** Navegação das Configurações: seção ativa (destaque do menu conforme o
  * painel rola), rolagem por clique e abertura pendente vinda da palette. */
+/** Respiro acima da secao depois de rolar (o `scroll-margin-top` que o
+ * `scrollIntoView` respeitava sozinho). */
+const SCROLL_GAP = 8
+
 export function useSettingsNav(isSettingsOpen: boolean) {
   const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>('aparencia')
   const settingsScrollRef = useRef<HTMLElement>(null)
@@ -67,13 +71,27 @@ export function useSettingsNav(isSettingsOpen: boolean) {
     return () => panel.removeEventListener('scroll', updateActiveSection)
   }, [isSettingsOpen])
 
+  /** Rola SO o painel ate a secao escolhida.
+   *
+   * `scrollIntoView` arrasta todos os ancestrais rolaveis — inclusive a janela —
+   * e a casca do app subia junto, saindo da tela. Aqui a conta e feita com o
+   * `scrollTop` do proprio painel. */
+  function scrollSectionIntoPanel(sectionId: SettingsSectionId) {
+    const panel = settingsScrollRef.current
+    const element = document.getElementById(`settings-${sectionId}`)
+    if (!panel || !element) return
+    if (typeof panel.scrollTo !== 'function') return
+    const top = element.getBoundingClientRect().top
+      - panel.getBoundingClientRect().top
+      + panel.scrollTop
+      - SCROLL_GAP
+    panel.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+  }
+
   /** Rola o painel de Configuracoes ate a secao escolhida no menu lateral. */
   function scrollToSettingsSection(sectionId: SettingsSectionId) {
     setActiveSettingsSection(sectionId)
-    const element = document.getElementById(`settings-${sectionId}`)
-    if (element && typeof element.scrollIntoView === 'function') {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
+    scrollSectionIntoPanel(sectionId)
   }
 
   /** Registra a secao pedida (ex.: palette "atalhos"); o efeito abaixo rola
@@ -89,10 +107,7 @@ export function useSettingsNav(isSettingsOpen: boolean) {
     pendingSettingsSectionRef.current = null
     setActiveSettingsSection(pending)
     const frame = window.requestAnimationFrame(() => {
-      const element = document.getElementById(`settings-${pending}`)
-      if (element && typeof element.scrollIntoView === 'function') {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
+      scrollSectionIntoPanel(pending)
     })
     return () => window.cancelAnimationFrame(frame)
   }, [isSettingsOpen])

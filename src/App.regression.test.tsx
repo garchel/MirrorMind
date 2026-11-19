@@ -2636,6 +2636,38 @@ describe('Regressao do editor no workspace', () => {
     expect(within(nav).getByRole('button', { name: 'Aparência' })).not.toHaveAttribute('aria-current', 'true')
   })
 
+  it('[configurações] o menu lateral rola só o painel, sem arrastar a janela', async () => {
+    const user = userEvent.setup()
+    createTauriHarness()
+    await openTestVault(user)
+    await openSettings(user)
+
+    const painel = document.querySelector('.workspace-page') as HTMLElement
+    expect(painel).not.toBeNull()
+    const rolagemDoPainel = vi.fn()
+    painel.scrollTo = rolagemDoPainel as unknown as typeof painel.scrollTo
+    const rolagemDaJanela = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+
+    for (const secao of ['Revisão', 'Sistema', 'Dados']) {
+      await user.click(screen.getByRole('button', { name: secao }))
+    }
+
+    // A rolagem e do painel — `scrollIntoView` arrastava a janela e tirava o app
+    // da tela.
+    await waitFor(() => expect(rolagemDoPainel).toHaveBeenCalledTimes(3))
+    expect(rolagemDaJanela).not.toHaveBeenCalled()
+    expect(scrollIntoView).not.toHaveBeenCalled()
+    for (const chamada of rolagemDoPainel.mock.calls) {
+      expect(Number.isFinite(chamada[0].top)).toBe(true)
+      expect(chamada[0].top).toBeGreaterThanOrEqual(0)
+    }
+
+    rolagemDaJanela.mockRestore()
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+  })
+
   it('[configurações] a hierarquia de títulos segue h2 da página, h3 das seções e h4 dos blocos', async () => {
     const user = userEvent.setup()
     createTauriHarness()
