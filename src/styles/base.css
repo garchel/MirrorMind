@@ -24,37 +24,6 @@
   padding: 32px;
 }
 
-.hero-panel,
-.vault-panel,
-.action-card,
-.sub-panel {
-  border: 1px solid var(--border);
-  background: var(--panel);
-  box-shadow: var(--panel-shadow);
-}
-
-.hero-panel {
-  position: relative;
-  overflow: hidden;
-  padding: 36px;
-  /* Raios literais de propósito: o anel interno (22px) acompanha o painel
-   * (28px) descontado o `inset` — fora da escala `--radius-*`. */
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at top right, rgba(255, 184, 107, 0.18), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(64, 145, 108, 0.16), transparent 30%),
-    var(--hero-bg);
-}
-
-.hero-panel::after {
-  content: '';
-  position: absolute;
-  inset: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 22px;
-  pointer-events: none;
-}
-
 .eyebrow,
 .card-kicker,
 .metric-label {
@@ -62,10 +31,6 @@
   letter-spacing: 0.12em;
   font-size: 10px;
   color: var(--muted);
-}
-
-.hero-copy {
-  max-width: 58rem;
 }
 
 .status-strip {
@@ -91,35 +56,6 @@
   background: var(--accent);
   box-shadow: 0 0 0 8px rgba(196, 106, 43, 0.16);
   animation: pulse 1.3s infinite;
-}
-
-.vault-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-}
-
-.action-card,
-.vault-panel,
-.sub-panel {
-  border-radius: var(--radius-2xl);
-}
-
-.action-card {
-  display: grid;
-  gap: 18px;
-  padding: 24px;
-}
-
-.action-card--accent {
-  background:
-    linear-gradient(180deg, rgba(196, 106, 43, 0.12), transparent 45%),
-    var(--panel);
-}
-
-.card-header {
-  display: grid;
-  gap: 4px;
 }
 
 .field {
@@ -490,7 +426,6 @@ button:disabled {
     padding: 20px;
   }
 
-  .vault-grid,
   .vault-columns,
   .vault-meta-grid,
   .panel-header,
@@ -501,9 +436,6 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .hero-panel,
-  .vault-panel,
-  .action-card,
   .workspace-topbar,
   .editor-surface,
   .notes-sidebar {

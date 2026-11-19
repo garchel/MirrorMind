@@ -1,0 +1,349 @@
+/* Tela de abertura: conta à direita, marca à esquerda.
+ *
+ * Duas colunas ocupando a janela inteira. A esquerda é a única superfície
+ * escura do app fora do editor — ela existe para dar peso ao primeiro contato,
+ * então nada de cartão flutuante sobre fundo claro ali.
+ */
+.welcome-shell {
+  --selection-paper: var(--mm-gold-50);
+  --selection-line: var(--mm-ink-350-3);
+  --selection-muted: var(--mm-ink-800-7);
+  --selection-ink: var(--mm-ink-950-11);
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(430px, 0.92fr);
+  /* O #root ja reserva a altura da barra de titulo. */
+  height: calc(100dvh - var(--titlebar-h, 40px));
+  overflow: hidden;
+  background: var(--mm-gold-50);
+  color: var(--mm-ink-950-11);
+}
+
+/* ---------- coluna da marca ---------- */
+
+.welcome-brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  padding: 56px 56px 48px;
+  background:
+    radial-gradient(120% 80% at 18% 8%, rgb(143 196 176 / 22%), transparent 62%),
+    radial-gradient(90% 70% at 92% 92%, rgb(201 162 39 / 18%), transparent 58%),
+    linear-gradient(158deg, #17151a 0%, var(--mm-sage-950) 58%, #14201a 100%);
+  color: var(--mm-gold-100);
+}
+
+/* Órbita desenhada, não imagem: fica nítida em qualquer escala e acompanha o
+ * tema sem asset extra. */
+.welcome-orbit {
+  position: absolute;
+  top: 50%;
+  right: -26%;
+  width: min(72%, 560px);
+  aspect-ratio: 1;
+  transform: translateY(-50%);
+  /* Desvanece na borda: os anéis não competem com a coluna de texto. */
+  mask-image: radial-gradient(closest-side, #000 62%, transparent 100%);
+  fill: none;
+  stroke: rgb(143 196 176 / 16%);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.welcome-orbit path {
+  stroke: rgb(230 216 173 / 10%);
+}
+
+.welcome-brand-copy {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  max-width: 30ch;
+}
+
+.welcome-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--mm-gold-350);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.welcome-mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgb(230 216 173 / 34%);
+  border-radius: 7px;
+  color: var(--mm-gold-100);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+  text-transform: none;
+}
+
+.welcome-brand h1 {
+  margin: 0;
+  color: var(--mm-gold-50);
+  font-size: clamp(30px, 2.9vw, 42px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.06;
+  text-wrap: balance;
+}
+
+.welcome-lede {
+  margin: 0;
+  max-width: 34ch;
+  color: rgb(248 246 240 / 62%);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.welcome-pillars {
+  display: grid;
+  gap: 14px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.welcome-pillars li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: baseline;
+}
+
+.welcome-pillar-number {
+  grid-row: 1 / 3;
+  color: var(--mm-gold-350);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  opacity: 0.72;
+}
+
+.welcome-pillars strong {
+  color: var(--mm-gold-50);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.welcome-pillars em {
+  color: rgb(248 246 240 / 54%);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.5;
+}
+
+/* ---------- coluna da conta / vault ---------- */
+
+.welcome-panel {
+  display: grid;
+  /* `safe center`: centraliza quando cabe e alinha no topo quando não cabe —
+   * sem isso o topo do cartão era cortado ao rolar. */
+  place-items: safe center;
+  min-width: 0;
+  padding: 32px clamp(24px, 3vw, 44px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--mm-gold-50);
+}
+
+.welcome-card {
+  display: grid;
+  gap: 10px;
+  width: min(420px, 100%);
+  padding: 26px 26px 32px;
+  border: 1px solid var(--mm-ink-350-3);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: 0 20px 60px rgb(56 44 18 / 9%);
+}
+
+.welcome-card > .card-kicker,
+.account-form > .card-kicker {
+  margin: 0;
+  color: var(--mm-ink-850-19);
+}
+
+.welcome-card h2,
+.account-form h2 {
+  margin: 0;
+  color: var(--mm-ink-950-11);
+  font-size: var(--font-size-title-sm);
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.account-form {
+  display: grid;
+  gap: 12px;
+}
+
+/* Metades iguais: "Entrar"/"Criar conta" não podem parecer botões de pesos
+ * diferentes por causa do texto. */
+.login-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  justify-self: stretch;
+  width: 100%;
+}
+
+.login-tabs :where(button, .ui-button) {
+  justify-content: center;
+  width: 100%;
+}
+
+/* ---------- passo do vault ---------- */
+
+.welcome-vault-options {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.welcome-vault-option {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--mm-ink-350-3);
+  border-radius: 12px;
+  background: var(--mm-gold-100);
+}
+
+.welcome-vault-option--accent {
+  border-color: var(--mm-sage-500);
+  background: var(--mm-sage-150-2);
+}
+
+/* Nome e pasta pai lado a lado: o passo do vault fica ~50px mais baixo e cabe
+ * na janela de um notebook 13". */
+.welcome-vault-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.welcome-vault-option h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mm-ink-950-11);
+}
+
+.welcome-vault-option p {
+  margin: 3px 0 0;
+  color: var(--mm-ink-850-14);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.welcome-vault-option code {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.welcome-path {
+  color: var(--mm-ink-800-7);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.welcome-back {
+  justify-self: center;
+  color: var(--mm-sage-850);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- janela estreita: marca vira faixa ---------- */
+
+@media (max-width: 900px) {
+  .welcome-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  .welcome-brand {
+    align-items: center;
+    padding: 26px 24px 22px;
+  }
+
+  .welcome-orbit {
+    top: -30%;
+    right: -34%;
+    width: 76%;
+  }
+
+  .welcome-brand-copy {
+    max-width: none;
+  }
+
+  .welcome-brand h1 {
+    font-size: 24px;
+  }
+
+  .welcome-pillars {
+    display: none;
+  }
+
+  .welcome-panel {
+    padding: 20px 16px 32px;
+  }
+}
+
+/* Janela baixa (notebook 13"): o cartão inteiro tem que caber sem rolagem.
+ * A dica do Google sai primeiro — o botão desabilitado já traz o motivo no
+ * `title`, e rolar um formulário de login é pior que perder a frase. */
+@media (max-height: 800px) {
+  .welcome-panel {
+    padding: 16px clamp(20px, 3vw, 32px);
+  }
+
+  .welcome-card {
+    gap: 8px;
+    padding: 20px 24px 22px;
+  }
+
+  .welcome-vault-options {
+    gap: 8px;
+  }
+
+  .welcome-vault-option {
+    gap: 6px;
+    padding: 12px;
+  }
+
+  .welcome-vault-option p {
+    margin-bottom: 0;
+  }
+
+  .account-form {
+    gap: 9px;
+  }
+
+  .login-google + .login-hint {
+    display: none;
+  }
+
+  .welcome-card .status-strip {
+    margin-top: 16px;
+    padding: 6px 0;
+  }
+}
