@@ -94,6 +94,33 @@ describe('VaultSelection (abertura do app)', () => {
     expect(await screen.findByRole('heading', { name: 'Entrar no MirrorMind' })).toBeInTheDocument()
   })
 
+
+  it('o modal do último vault só aparece depois da escolha de conta', async () => {
+    const user = userEvent.setup()
+    renderSelection({
+      showRecentVaultModal: true,
+      recentVaultPreference: { lastVaultPath: 'C:/notas/vault' } as never,
+    })
+
+    // Ainda decidindo conta: nada de modal por cima da pergunta.
+    expect(await screen.findByRole('heading', { name: 'Entrar no MirrorMind' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Usar o último vault?' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Continuar sem conta' }))
+
+    expect(await screen.findByRole('heading', { name: 'Usar o último vault?' })).toBeInTheDocument()
+  })
+
+  it('convidado que já dispensou a conta vê o modal do último vault na abertura', async () => {
+    localStorage.setItem('mirrormind.account.login-skipped', 'true')
+    renderSelection({
+      showRecentVaultModal: true,
+      recentVaultPreference: { lastVaultPath: 'C:/notas/vault' } as never,
+    })
+
+    expect(await screen.findByRole('heading', { name: 'Usar o último vault?' })).toBeInTheDocument()
+  })
+
   it('as ações do vault continuam funcionando depois do login', async () => {
     localStorage.setItem('mirrormind.account.login-skipped', 'true')
     const user = userEvent.setup()

@@ -224,7 +224,10 @@ export function VaultSelection({
         )}
       </section>
 
-      {showRecentVaultModal && recentVaultPreference?.lastVaultPath ? (
+      {/* Só depois da escolha de conta (entrar, Google ou convidado): antes disso
+          o usuário ainda está decidindo se quer conta, e um modal por cima da
+          pergunta é ruído. */}
+      {step === 'vault' && showRecentVaultModal && recentVaultPreference?.lastVaultPath ? (
         <Modal
           open
           onClose={() => void dismissRecentVault()}

@@ -106,8 +106,10 @@
   line-height: 1.5;
 }
 
-/* Dica do Google acompanha o botão, que é centralizado. */
-.login-google + .login-hint {
+/* Dicas e "continuar sem conta" acompanham o botão do Google, que é
+ * centralizado: alinhamento trocado no fim do formulário quebrava a leitura. */
+.login-google + .login-hint,
+.login-skip + .login-hint {
   margin-top: -6px;
   text-align: center;
 }
@@ -116,7 +118,7 @@
  * próprio e sem parecer link escondido. */
 .login-skip {
   justify-self: center;
-  margin-top: 10px;
+  margin-top: 16px;
   color: var(--mm-sage-850);
   font-weight: 600;
   text-decoration: underline;

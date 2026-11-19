@@ -152,23 +152,25 @@
   display: grid;
   /* `safe center`: centraliza quando cabe e alinha no topo quando não cabe —
    * sem isso o topo do cartão era cortado ao rolar. */
-  place-items: safe center;
+  place-content: safe center;
+  justify-items: center;
   min-width: 0;
-  padding: 32px clamp(24px, 3vw, 44px);
+  padding: 32px clamp(28px, 3.4vw, 56px);
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--mm-gold-50);
 }
 
+/* Sem moldura: a metade direita já é o espaço do formulário. Cartão aqui era
+ * uma caixa dentro de uma caixa — a página inteira é o palco. */
 .welcome-card {
   display: grid;
   gap: 10px;
-  width: min(420px, 100%);
-  padding: 26px 26px 32px;
-  border: 1px solid var(--mm-ink-350-3);
-  border-radius: var(--radius-lg);
-  background: #fff;
-  box-shadow: 0 20px 60px rgb(56 44 18 / 9%);
+  width: min(460px, 100%);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .welcome-card > .card-kicker,
@@ -181,9 +183,10 @@
 .account-form h2 {
   margin: 0;
   color: var(--mm-ink-950-11);
-  font-size: var(--font-size-title-sm);
+  font-size: clamp(24px, 2vw, 29px);
   font-weight: 650;
-  line-height: 1.15;
+  letter-spacing: -0.018em;
+  line-height: 1.12;
 }
 
 .account-form {
