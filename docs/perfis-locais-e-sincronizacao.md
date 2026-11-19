@@ -14,9 +14,18 @@
 > lista, escolha, criação offline e PIN na entrada; aparece só quando há escolha
 > de verdade (um perfil sem PIN entra direto).
 >
-> **Falta:** troca de perfil pelo menu do perfil (a quente), renomear/excluir na
-> interface (o backend já tem), indicador de perfil no trilho e a trava por
-> vault+perfil.
+> **Feito também:** troca de perfil a quente pelo menu do perfil (o workspace é
+> remontado por chave, então nada do perfil anterior vaza), renomear/excluir na
+> própria tela, e o rodapé do trilho mostra **quem está estudando** (a conta vira
+> a segunda linha).
+>
+> **Aviso de uso simultâneo:** `profiles_select` grava um marcador de sessão
+> (`session.json` com pid e horário) na pasta do perfil. Se outra janela do app
+> abriu o mesmo perfil há menos de 30 minutos, a segunda vê o aviso e pode
+> seguir mesmo assim. Não é trava de SO — é aviso com prazo, para um arquivo
+> órfão de um travamento não bloquear a abertura para sempre.
+>
+> **Falta:** só a fase 2 (sincronização com a conta), que depende de plano/cloud.
 
 ## A proposta
 

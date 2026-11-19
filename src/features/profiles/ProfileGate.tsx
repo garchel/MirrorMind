@@ -21,28 +21,34 @@ export function ProfileGate({
   client,
   initialProfiles,
   onReady,
+  onCancel,
 }: {
   vaultRoot: string
   client: ProfileClient
   initialProfiles: ProfileSummary[]
   /** Chamado quando um perfil foi escolhido e marcado como ativo. */
   onReady: (profile: ProfileSummary) => void
+  /** Só existe quando há um vault já aberto por trás (troca de perfil). */
+  onCancel?: () => void
 }) {
   const [profiles, setProfiles] = useState(initialProfiles)
   const [criando, setCriando] = useState(initialProfiles.length === 0)
+  const [gerenciando, setGerenciando] = useState(false)
   const [pedindoPin, setPedindoPin] = useState<ProfileSummary | null>(null)
   const [nome, setNome] = useState('')
   const [pin, setPin] = useState('')
   const [pinDoNovo, setPinDoNovo] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  const [podeForcar, setPodeForcar] = useState(false)
   const [ocupado, setOcupado] = useState(false)
 
   useEffect(() => {
     setProfiles(initialProfiles)
   }, [initialProfiles])
 
-  async function entrar(profile: ProfileSummary, pinInformado?: string) {
+  async function entrar(profile: ProfileSummary, pinInformado?: string, force = false) {
     setErro(null)
+    setPodeForcar(false)
     setOcupado(true)
     try {
       if (profile.hasPin && pinInformado === undefined) {
@@ -56,11 +62,14 @@ export function ProfileGate({
           return
         }
       }
-      await client.select(profile.id)
+      await client.select(vaultRoot, profile.id, { force })
       writeLastProfileId(vaultRoot, profile.id)
       onReady(profile)
     } catch (causa) {
-      setErro(mensagem(causa, 'Não foi possível abrir este perfil.'))
+      const texto = mensagem(causa, 'Não foi possível abrir este perfil.')
+      setErro(texto)
+      // "Aberto em outra janela" é o único erro que a pessoa pode resolver sozinha.
+      setPodeForcar(/outra janela/i.test(texto))
     } finally {
       setOcupado(false)
     }
@@ -84,6 +93,29 @@ export function ProfileGate({
       setErro(mensagem(causa, 'Não foi possível criar o perfil.'))
     } finally {
       setOcupado(false)
+    }
+  }
+
+  async function salvarNome(profile: ProfileSummary, novoNome: string) {
+    setErro(null)
+    try {
+      const atualizado = await client.rename(vaultRoot, profile.id, {
+        name: novoNome,
+        color: profile.color,
+      })
+      setProfiles((atuais) => atuais.map((p) => (p.id === profile.id ? atualizado : p)))
+    } catch (causa) {
+      setErro(mensagem(causa, 'Não foi possível renomear o perfil.'))
+    }
+  }
+
+  async function excluir(profile: ProfileSummary) {
+    setErro(null)
+    try {
+      await client.remove(vaultRoot, profile.id)
+      setProfiles((atuais) => atuais.filter((p) => p.id !== profile.id))
+    } catch (causa) {
+      setErro(mensagem(causa, 'Não foi possível excluir o perfil.'))
     }
   }
 
@@ -129,6 +161,16 @@ export function ProfileGate({
               >
                 Voltar
               </Button>
+              {podeForcar ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  onClick={() => void entrar(pedindoPin, pin, true)}
+                >
+                  Continuar mesmo assim
+                </Button>
+              ) : null}
               <Button type="submit" variant="primary" size="md" disabled={ocupado || pin.length < 4}>
                 Abrir perfil
               </Button>
@@ -149,25 +191,52 @@ export function ProfileGate({
           quem estudou o quê.
         </p>
 
-        <ul className="profile-gate-list">
-          {profiles.map((profile) => (
-            <li key={profile.id}>
-              <button
-                type="button"
-                className="profile-gate-item"
-                data-color={profile.color}
-                disabled={ocupado}
-                onClick={() => void entrar(profile)}
-              >
-                <span className="profile-gate-avatar" aria-hidden="true">
-                  {iniciais(profile.name)}
-                </span>
-                <span className="profile-gate-name">{profile.name}</span>
-                {profile.hasPin ? <span className="profile-gate-lock">PIN</span> : null}
-              </button>
-            </li>
-          ))}
-        </ul>
+        {gerenciando ? (
+          <ul className="profile-gate-list">
+            {profiles.map((profile) => (
+              <li key={profile.id} className="profile-gate-manage">
+                <Field
+                  size="sm"
+                  defaultValue={profile.name}
+                  aria-label={`Nome do perfil ${profile.name}`}
+                  onBlur={(event) => {
+                    const valor = event.target.value.trim()
+                    if (valor && valor !== profile.name) void salvarNome(profile, valor)
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  disabled={profiles.length <= 1}
+                  onClick={() => void excluir(profile)}
+                >
+                  Excluir
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ul className="profile-gate-list">
+            {profiles.map((profile) => (
+              <li key={profile.id}>
+                <button
+                  type="button"
+                  className="profile-gate-item"
+                  data-color={profile.color}
+                  disabled={ocupado}
+                  onClick={() => void entrar(profile)}
+                >
+                  <span className="profile-gate-avatar" aria-hidden="true">
+                    {iniciais(profile.name)}
+                  </span>
+                  <span className="profile-gate-name">{profile.name}</span>
+                  {profile.hasPin ? <span className="profile-gate-lock">PIN</span> : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {criando ? (
           <form
@@ -213,18 +282,48 @@ export function ProfileGate({
             </div>
           </form>
         ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            className="profile-gate-new"
-            onClick={() => setCriando(true)}
-          >
-            Novo perfil neste computador
-          </Button>
+          <div className="profile-gate-tools">
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              onClick={() => setCriando(true)}
+            >
+              Novo perfil neste computador
+            </Button>
+            <Button
+              type="button"
+              variant="bare"
+              size="sm"
+              onClick={() => {
+                setErro(null)
+                setGerenciando((atual) => !atual)
+              }}
+            >
+              {gerenciando ? 'Concluir' : 'Gerenciar perfis'}
+            </Button>
+          </div>
         )}
 
         {criando ? null : erro ? <p className="login-error" role="alert">{erro}</p> : null}
+
+        {/* Um perfil aberto em outra janela: seguir é escolha de quem está aqui. */}
+        {!criando && podeForcar && profiles.length === 1 ? (
+          <Button
+            type="button"
+            variant="bare"
+            size="sm"
+            onClick={() => void entrar(profiles[0], undefined, true)}
+          >
+            Continuar mesmo assim
+          </Button>
+        ) : null}
+
+        {onCancel ? (
+          <Button type="button" variant="bare" size="sm" className="profile-gate-cancel" onClick={onCancel}>
+            Voltar para as notas
+          </Button>
+        ) : null}
       </div>
     </main>
   )

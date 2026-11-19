@@ -2,7 +2,7 @@ import { Settings } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 import { useEntitlement } from '../../lib/entitlement'
-import { deriveProfile } from '../../lib/profile'
+import { deriveProfile, initialsFrom } from '../../lib/profile'
 import { disabledSessionClient, useSession, type SessionClient } from '../../lib/session'
 
 /**
@@ -22,15 +22,30 @@ export function ProfileFooter({
   accountClient,
   onOpenSettings,
   onOpenAccount,
+  localProfile,
+  onSwitchProfile,
 }: {
   accountClient: SessionClient | null
   onOpenSettings: () => void
   /** Abre a página de conta (entrar, criar, sair). */
   onOpenAccount: () => void
+  /** Perfil local em uso neste vault (quem está estudando), se houver. */
+  localProfile?: { name: string; color: string } | null
+  /** Reabre "Quem está usando este vault?" para trocar de perfil a quente. */
+  onSwitchProfile?: () => void
 }) {
   const { resolved } = useEntitlement()
   const { snapshot, signOut } = useSession(accountClient ?? disabledSessionClient)
-  const profile = deriveProfile(snapshot, resolved.plan)
+  const conta = deriveProfile(snapshot, resolved.plan)
+  // O rodapé mostra **quem está usando o vault**; a conta vira a segunda linha
+  // (plano) e o menu. Sem perfil local, cai na identidade de antes.
+  const profile = localProfile
+    ? {
+        ...conta,
+        name: localProfile.name,
+        initials: initialsFrom(localProfile.name),
+      }
+    : conta
 
   return (
     <div className="rail-profile">
@@ -58,6 +73,17 @@ export function ProfileFooter({
               <span className="rail-profile-plan">{profile.planLabel}</span>
             </span>
           </div>
+          {onSwitchProfile ? (
+            <Button
+              type="button"
+              variant="bare"
+              size="sm"
+              className="rail-profile-menu-item"
+              onClick={onSwitchProfile}
+            >
+              Trocar de perfil
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="bare"

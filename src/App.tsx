@@ -544,6 +544,8 @@ function App() {
   const profileClient = useMemo(() => profileClientFromInvoke(invoke), [])
   /** Quando preenchido, a tela "Quem está usando este vault?" ocupa o lugar do app. */
   const [profileGate, setProfileGate] = useState<{ vaultRoot: string; profiles: ProfileSummary[] } | null>(null)
+  /** Perfil local em uso (quem está estudando neste vault). */
+  const [activeProfile, setActiveProfile] = useState<ProfileSummary | null>(null)
   const accountSessionClient = useMemo(() => {
     const config = supabaseConfigFromEnv()
     return config ? createSupabaseSessionClient(config) : null
@@ -1006,7 +1008,16 @@ function App() {
         setProfileGate({ vaultRoot: selectedVault.path, profiles: perfis })
         return
       }
-      if (perfis[0]) await profileClient.select(perfis[0].id)
+      if (perfis[0]) {
+        try {
+          await profileClient.select(selectedVault.path, perfis[0].id)
+          setActiveProfile(perfis[0])
+        } catch {
+          // Perfil aberto em outra janela: deixa a pessoa decidir na tela.
+          setProfileGate({ vaultRoot: selectedVault.path, profiles: perfis })
+          return
+        }
+      }
     } catch {
       // Vault sem perfis legíveis não pode impedir o uso das notas: segue como
       // perfil padrão (os caminhos legados).
@@ -1016,6 +1027,17 @@ function App() {
     // autocomplete sem depender do grafo aberto).
     void buildVaultWikilinkIndex(selectedVault.path)
   })
+  /** Reabre "Quem está usando?" com o vault já aberto (troca a quente). */
+  const openProfileSwitcher = useEffectEvent(async () => {
+    if (!vault) return
+    try {
+      const perfis = await profileClient.list(vault.path)
+      setProfileGate({ vaultRoot: vault.path, profiles: perfis })
+    } catch {
+      // Sem lista de perfis não há o que trocar: mantém o perfil atual.
+    }
+  })
+
   const handleWorkspaceShortcut = useEffectEvent((event: KeyboardEvent) => {
     if (vault && matchesShortcut(event, shortcuts.openCommandPalette)) {
       event.preventDefault()
@@ -5617,6 +5639,7 @@ function App() {
 
     return (
       <main
+        key={`perfil-${activeProfile?.id ?? 'padrao'}`}
         className={`workspace-shell${isSidebarExpanded ? ' is-sidebar-expanded' : ' is-sidebar-collapsed'}${isExplorerExpanded ? ' is-explorer-expanded' : ' is-explorer-collapsed'}${draggedNotePath ? ' is-note-dragging' : ''}${justReleasedDrag ? ' is-note-released' : ''}`}
         style={{
           '--note-hover-color': noteHoverColor,
@@ -5653,6 +5676,8 @@ function App() {
           openTrashPage={openTrashPage}
           accountClient={accountSessionClient}
           dueReviewCount={dueReviewCount}
+          localProfile={activeProfile}
+          onSwitchProfile={openProfileSwitcher}
         />
         <WorkspaceTopbar
           vault={vault}
@@ -6549,10 +6574,14 @@ function App() {
           vaultRoot={profileGate.vaultRoot}
           client={profileClient}
           initialProfiles={profileGate.profiles}
-          onReady={() => {
+          onCancel={vault ? () => setProfileGate(null) : undefined}
+          onReady={(perfil: ProfileSummary) => {
             const alvo = profileGate.vaultRoot
+            setActiveProfile(perfil)
             setProfileGate(null)
             void refreshNotes(alvo)
+            void buildVaultWikilinkIndex(alvo)
+            setWorkspacePage('notes')
           }}
         />
       </main>

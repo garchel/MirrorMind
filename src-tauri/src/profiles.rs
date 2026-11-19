@@ -327,6 +327,74 @@ pub fn set_pin(vault_root: &Path, profile_id: &str, pin: Option<&str>) -> Result
 }
 
 // -----------------------------------------------------------------------------
+// Sessão aberta: aviso de uso simultâneo.
+//
+// Não é trava de sistema operacional — é um aviso com prazo. Se duas janelas do
+// app abrirem o mesmo perfil, a segunda vê o aviso e pode seguir mesmo assim
+// (o usuário sabe o que está fazendo). O prazo de 30 minutos evita o pior caso:
+// um arquivo de sessão órfão deixado por um travamento, que impediria a abertura
+// para sempre.
+// -----------------------------------------------------------------------------
+
+const SESSION_FILE: &str = "session.json";
+const SESSION_STALE_MS: i64 = 30 * 60 * 1000;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionMarker {
+    pid: u32,
+    opened_at_unix_ms: i64,
+}
+
+fn session_path(vault_root: &Path, profile_id: &str) -> PathBuf {
+    metadata_dir_for(vault_root, profile_id).join(SESSION_FILE)
+}
+
+/// Registra que este processo abriu o perfil. Devolve o aviso quando outra janela
+/// (outro processo) já tinha aberto o mesmo perfil e o marcador está fresco.
+pub fn acquire_session(vault_root: &Path, profile_id: &str, force: bool) -> Result<Option<String>> {
+    let path = session_path(vault_root, profile_id);
+    let meu_pid = std::process::id();
+
+    if !force {
+        if let Ok(bruto) = fs::read_to_string(&path) {
+            if let Ok(marcador) = serde_json::from_str::<SessionMarker>(&bruto) {
+                let idade = now_ms() - marcador.opened_at_unix_ms;
+                if marcador.pid != meu_pid && idade >= 0 && idade < SESSION_STALE_MS {
+                    bail!(
+                        "Este perfil parece estar aberto em outra janela do app. \
+                         Feche a outra janela ou continue mesmo assim."
+                    );
+                }
+            }
+        }
+    }
+
+    if let Some(pai) = path.parent() {
+        fs::create_dir_all(pai)?;
+    }
+    let conteudo = serde_json::to_string(&SessionMarker {
+        pid: meu_pid,
+        opened_at_unix_ms: now_ms(),
+    })?;
+    fs::write(&path, conteudo)?;
+    Ok(None)
+}
+
+/// Solta o marcador da sessão (chamado ao trocar de perfil ou fechar o app).
+pub fn release_session(vault_root: &Path, profile_id: &str) {
+    let path = session_path(vault_root, profile_id);
+    if let Ok(bruto) = fs::read_to_string(&path) {
+        if let Ok(marcador) = serde_json::from_str::<SessionMarker>(&bruto) {
+            if marcador.pid != std::process::id() {
+                return; // não apaga sessão de outro processo
+            }
+        }
+    }
+    let _ = fs::remove_file(&path);
+}
+
+// -----------------------------------------------------------------------------
 // Comandos IPC. Moram no modulo (como `account::*`) para nao duplicar o macro
 // `__cmd__*` no namespace da raiz do crate.
 // -----------------------------------------------------------------------------
@@ -388,11 +456,23 @@ pub fn profiles_verify_pin(vault_root: String, id: String, pin: String) -> Resul
     como_erro(verify_pin(Path::new(&vault_root), &id, &pin))
 }
 
-/// Define o perfil ativo deste processo. O frontend chama antes de abrir o vault,
-/// e de novo a cada troca de perfil.
+/// Define o perfil ativo deste processo e registra a sessão aberta.
+///
+/// O frontend chama antes de abrir o vault e a cada troca de perfil. `force`
+/// ignora o aviso de "aberto em outra janela".
 #[tauri::command]
-pub fn profiles_select(id: String) {
+pub fn profiles_select(
+    vault_root: String,
+    id: String,
+    force: Option<bool>,
+) -> Result<(), String> {
+    let anterior = active_profile();
+    if anterior != id {
+        release_session(Path::new(&vault_root), &anterior);
+    }
+    como_erro(acquire_session(Path::new(&vault_root), &id, force.unwrap_or(false)))?;
     set_active_profile(&id);
+    Ok(())
 }
 
 // -----------------------------------------------------------------------------
@@ -564,6 +644,32 @@ mod tests {
             metadata_dir_for_active(vault.path()),
             vault.path().join(METADATA_DIRECTORY)
         );
+    }
+
+    #[test]
+    fn sessao_avisa_outra_janela_e_solta_ao_sair() {
+        let vault = vault_temporario();
+        let perfil = create_profile(vault.path(), "Maria", "sage", None).expect("criar");
+
+        // Simula outro processo com marcador fresco.
+        let caminho = session_path(vault.path(), &perfil.id);
+        fs::create_dir_all(caminho.parent().expect("pai")).expect("pasta");
+        let outro = SessionMarker { pid: std::process::id() + 1, opened_at_unix_ms: now_ms() };
+        fs::write(&caminho, serde_json::to_string(&outro).expect("json")).expect("gravar");
+
+        let erro = acquire_session(vault.path(), &perfil.id, false).unwrap_err();
+        assert!(erro.to_string().contains("outra janela"));
+
+        // `force` passa por cima do aviso.
+        assert!(acquire_session(vault.path(), &perfil.id, true).is_ok());
+
+        // Marcador antigo não bloqueia (evita travar quem sofreu um crash).
+        let velho = SessionMarker { pid: std::process::id() + 1, opened_at_unix_ms: now_ms() - SESSION_STALE_MS - 1000 };
+        fs::write(&caminho, serde_json::to_string(&velho).expect("json")).expect("gravar");
+        assert!(acquire_session(vault.path(), &perfil.id, false).is_ok());
+
+        release_session(vault.path(), &perfil.id);
+        assert!(!caminho.exists());
     }
 
     #[test]

@@ -38,8 +38,11 @@ export type ProfileClient = {
   remove(vaultRoot: string, id: string): Promise<void>
   setPin(vaultRoot: string, id: string, pin: string | null): Promise<void>
   verifyPin(vaultRoot: string, id: string, pin: string): Promise<boolean>
-  /** Marca o perfil ativo no processo do app (os caminhos passam a ser os dele). */
-  select(id: string): Promise<void>
+  /**
+   * Marca o perfil ativo no processo do app (os caminhos passam a ser os dele).
+   * `force` ignora o aviso de "este perfil está aberto em outra janela".
+   */
+  select(vaultRoot: string, id: string, options?: { force?: boolean }): Promise<void>
 }
 
 const LAST_PROFILE_KEY = 'mirrormind.profile.last'
@@ -65,7 +68,8 @@ export function createProfileClient(invoke: InvokeFn): ProfileClient {
     setPin: (vaultRoot, id, pin) => invoke<void>('profiles_set_pin', { vaultRoot, id, pin }),
     verifyPin: (vaultRoot, id, pin) =>
       invoke<boolean>('profiles_verify_pin', { vaultRoot, id, pin }),
-    select: (id) => invoke<void>('profiles_select', { id }),
+    select: (vaultRoot, id, options) =>
+      invoke<void>('profiles_select', { vaultRoot, id, force: options?.force ?? false }),
   }
 }
 

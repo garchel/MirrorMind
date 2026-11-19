@@ -57,8 +57,19 @@ describe('cliente de perfis', () => {
       pin: '2468',
     })
 
-    await client.select('ana')
-    expect(invoke).toHaveBeenCalledWith('profiles_select', { id: 'ana' })
+    await client.select(vault, 'ana')
+    expect(invoke).toHaveBeenCalledWith('profiles_select', {
+      vaultRoot: vault,
+      id: 'ana',
+      force: false,
+    })
+
+    await client.select(vault, 'ana', { force: true })
+    expect(invoke).toHaveBeenLastCalledWith('profiles_select', {
+      vaultRoot: vault,
+      id: 'ana',
+      force: true,
+    })
   })
 })
 

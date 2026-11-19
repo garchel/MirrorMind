@@ -19,11 +19,21 @@ const authClient = (email: string): SessionClient => ({
   onChange: () => () => {},
 })
 
-function renderFooter(accountClient: SessionClient | null, entitlement: Entitlement | null) {
+function renderFooter(
+  accountClient: SessionClient | null,
+  entitlement: Entitlement | null,
+  extras: { localProfile?: { name: string; color: string } | null; onSwitchProfile?: () => void } = {},
+) {
   const onOpenSettings = vi.fn()
   render(
     <EntitlementProvider store={storeWith(entitlement)}>
-      <ProfileFooter accountClient={accountClient} onOpenSettings={onOpenSettings} onOpenAccount={() => {}} />
+      <ProfileFooter
+        accountClient={accountClient}
+        onOpenSettings={onOpenSettings}
+        onOpenAccount={() => {}}
+        localProfile={extras.localProfile}
+        onSwitchProfile={extras.onSwitchProfile}
+      />
     </EntitlementProvider>,
   )
   return { onOpenSettings }
@@ -34,6 +44,20 @@ describe('ProfileFooter', () => {
     // `resolveEntitlement` devolve Grátis com a cobranca desligada; para
     // exercitar o plano pago, ligamos o kill-switch pelo override local.
     localStorage.setItem('mirrormind.billing-enabled', 'true')
+  })
+
+  it('mostra o perfil local no lugar da conta e oferece trocar de perfil', async () => {
+    const onSwitchProfile = vi.fn()
+    renderFooter(authClient('paulo@exemplo.com'), null, {
+      localProfile: { name: 'Maria Silva', color: 'sage' },
+      onSwitchProfile,
+    })
+
+    // Quem está estudando é a Maria; a conta continua sendo a mesma.
+    expect(await screen.findByText('Maria Silva')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Abrir menu do perfil/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Trocar de perfil' }))
+    expect(onSwitchProfile).toHaveBeenCalledTimes(1)
   })
 
   afterEach(() => {

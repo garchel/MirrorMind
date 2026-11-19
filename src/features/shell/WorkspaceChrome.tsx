@@ -107,6 +107,8 @@ export function WorkspaceRail({
   openTrashPage,
   accountClient,
   dueReviewCount,
+  localProfile,
+  onSwitchProfile,
 }: {
   isSidebarExpanded: boolean
   setSidebarExpanded: Dispatch<SetStateAction<boolean>>
@@ -119,6 +121,10 @@ export function WorkspaceRail({
   accountClient: SessionClient | null
   /** Notas vencidas na fila; null = ainda nao medido. */
   dueReviewCount: number | null
+  /** Perfil local em uso neste vault (quem esta estudando agora). */
+  localProfile?: { name: string; color: string } | null
+  /** Reabre a escolha de perfil sem fechar o app. */
+  onSwitchProfile?: () => void
 }) {
   const dueReviewLabel = dueReviewCount !== null && dueReviewCount > 0
     ? `${dueReviewCount} ${dueReviewCount === 1 ? 'nota vencida' : 'notas vencidas'}`
@@ -236,6 +242,8 @@ export function WorkspaceRail({
         accountClient={accountClient}
         onOpenSettings={() => setWorkspacePage('settings')}
         onOpenAccount={() => setWorkspacePage('account')}
+        localProfile={localProfile}
+        onSwitchProfile={onSwitchProfile}
       />
     </aside>
   )

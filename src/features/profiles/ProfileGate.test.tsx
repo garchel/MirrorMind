@@ -50,7 +50,7 @@ describe('ProfileGate', () => {
     expect(screen.getByRole('heading', { name: /Quem está usando/i })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Maria/ }))
 
-    await waitFor(() => expect(client.select).toHaveBeenCalledWith('maria'))
+    await waitFor(() => expect(client.select).toHaveBeenCalledWith(VAULT, 'maria', { force: false }))
     expect(onReady).toHaveBeenCalledTimes(1)
     // A escolha fica lembrada na máquina para a próxima abertura deste vault.
     expect(JSON.parse(localStorage.getItem('mirrormind.profile.last') ?? '{}')).toEqual({
@@ -84,7 +84,7 @@ describe('ProfileGate', () => {
     await user.click(screen.getByRole('button', { name: 'Abrir perfil' }))
 
     await waitFor(() => expect(onReady).toHaveBeenCalledTimes(1))
-    expect(client.select).toHaveBeenCalledWith('joao')
+    expect(client.select).toHaveBeenCalledWith(VAULT, 'joao', { force: false })
   })
 
   it('cria um perfil novo offline e já entra nele', async () => {
@@ -138,6 +138,68 @@ describe('ProfileGate', () => {
     // Sem perfis não há "cancelar": o primeiro perfil é obrigatório.
     expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Criar e entrar' })).toBeDisabled()
+  })
+
+  it('gerencia perfis: renomeia e exclui pelo próprio fluxo', async () => {
+    const user = userEvent.setup()
+    const client = makeClient({
+      rename: vi.fn(async (_root, id, input) => perfil({ id, name: input.name, isDefault: false })),
+    })
+    render(
+      <ProfileGate
+        vaultRoot={VAULT}
+        client={client}
+        initialProfiles={[perfil(), perfil({ id: 'maria', name: 'Maria', isDefault: false })]}
+        onReady={() => {}}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Gerenciar perfis' }))
+    const campo = screen.getByLabelText('Nome do perfil Maria')
+    await user.clear(campo)
+    await user.type(campo, 'Maria Silva')
+    await user.tab()
+    await waitFor(() =>
+      expect(client.rename).toHaveBeenCalledWith(VAULT, 'maria', {
+        name: 'Maria Silva',
+        color: 'sage',
+      }),
+    )
+
+    const excluir = screen.getAllByRole('button', { name: 'Excluir' })
+    await user.click(excluir[1])
+    await waitFor(() => expect(client.remove).toHaveBeenCalledWith(VAULT, 'maria'))
+  })
+
+  it('não deixa excluir quando é o único perfil', async () => {
+    const user = userEvent.setup()
+    render(
+      <ProfileGate vaultRoot={VAULT} client={makeClient()} initialProfiles={[perfil()]} onReady={() => {}} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Gerenciar perfis' }))
+    expect(screen.getByRole('button', { name: 'Excluir' })).toBeDisabled()
+  })
+
+  it('aviso de "aberto em outra janela" oferece continuar mesmo assim', async () => {
+    const user = userEvent.setup()
+    const client = makeClient({
+      select: vi
+        .fn()
+        .mockRejectedValueOnce('Este perfil parece estar aberto em outra janela do app.')
+        .mockResolvedValue(undefined),
+    })
+    const onReady = vi.fn()
+    render(
+      <ProfileGate vaultRoot={VAULT} client={client} initialProfiles={[perfil()]} onReady={onReady} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Eu/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('outra janela')
+
+    await user.click(screen.getByRole('button', { name: 'Continuar mesmo assim' }))
+    await waitFor(() => expect(onReady).toHaveBeenCalledTimes(1))
+    expect(client.select).toHaveBeenLastCalledWith(VAULT, 'padrao', { force: true })
   })
 
   it('erro do servidor aparece na tela em vez de sumir', async () => {

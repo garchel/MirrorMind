@@ -135,7 +135,27 @@
   margin-top: 2px;
 }
 
-.profile-gate-new {
-  justify-self: start;
+.profile-gate-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 4px;
+}
+
+/* Modo "Gerenciar": nome editável + exclusão. O campo é o mesmo primitivo das
+ * outras telas; o botão de excluir fica desabilitado quando é o único perfil. */
+.profile-gate-manage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.profile-gate-cancel {
+  justify-self: center;
+  margin-top: 10px;
+  color: var(--mm-sage-850);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
