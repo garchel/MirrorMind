@@ -27,6 +27,7 @@ pub(crate) mod dictionary;
 pub(crate) mod goals;
 pub(crate) mod cloud;
 pub(crate) mod cloud_api;
+pub(crate) mod cloud_commands;
 pub(crate) mod cloud_sync;
 pub(crate) mod profiles;
 pub mod review;
@@ -6423,6 +6424,10 @@ pub fn run() {
             profiles::profiles_verify_pin,
             profiles::profiles_select,
             account::account_snapshot,
+            cloud_commands::cloud_status,
+            cloud_commands::cloud_link_vault,
+            cloud_commands::cloud_unlink_vault,
+            cloud_commands::cloud_sync_now,
             account::account_sign_out,
             select_vault_parent,
             initialize_vault_metadata,

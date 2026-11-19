@@ -77,12 +77,36 @@ A ordem de cada subida é **conteúdo, depois metadado**: se o metadado for recu
 (cota, por exemplo), o conteúdo recém-enviado é apagado. O contrário deixaria um
 arquivo "existindo" na nuvem sem bytes.
 
+## A interface
+
+Configurações → **Nuvem** (`src/features/cloud/CloudSection.tsx`). Quatro estados,
+e cada um diz a verdade sobre o que está acontecendo:
+
+| estado | o que aparece |
+|---|---|
+| sem conta | "a nuvem é um complemento da conta"; o local segue funcionando |
+| não ligado | "Ligar este vault à nuvem" |
+| não ligado **com dados dos dois lados** | a escolha: **Manter os dois** ou **Juntar neste vault** |
+| ligado | contagens, "Sincronizar agora", "Desligar" e o resumo do ciclo |
+
+`needsChoice` só é verdadeiro quando existe arquivo **aqui** e um vault **com
+arquivos na conta** e este vault ainda não está ligado. Depois de ligado a
+pergunta não volta: o motor já sabe resolver conflito.
+
+"Manter os dois" grava um `local_id` novo, então a nuvem trata esta pasta como
+outro vault e nada é mesclado. "Juntar" mantém o `local_id` e deixa o motor criar
+cópia de conflito onde os dois lados mudaram.
+
+O IPC não transporta token nenhum: `cloud_commands.rs` pega o par do cofre do
+sistema (`account::load_session`), usa e descarta. O frontend recebe contagens e
+relatório.
+
 ## O que ainda falta
 
-- comando IPC e a tela de vínculo (primeira sincronização com "manter os dois");
-- verificar a cota antes de começar, para o erro aparecer no primeiro arquivo e
-  não no meio;
-- varredura de objetos órfãos (versões que nenhuma linha referencia).
+- varredura de objetos órfãos (versões que nenhuma linha referencia);
+- sincronização automática (hoje é botão);
+- um teste de interface no app real: a tela está coberta por testes de componente
+  e pelo build, não por medição visual.
 
 ## Como testar
 

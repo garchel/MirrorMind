@@ -201,7 +201,7 @@ fn clear_session() -> Result<()> {
     session::clear_session(&store).map_err(|error| anyhow::anyhow!(error.to_string()))
 }
 
-fn load_session() -> Result<Option<session::Session>> {
+pub(crate) fn load_session() -> Result<Option<session::Session>> {
     let store = NativeCredentialStore::new();
     session::load_session(&store).map_err(|error| anyhow::anyhow!(error.to_string()))
 }

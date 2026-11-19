@@ -1032,18 +1032,22 @@ function App() {
    * devolve o app à tela de login inicial — a mesma da abertura, com a pergunta
    * de conta. Fecha o vault de propósito: é o único jeito de voltar àquela tela
    * sem inventar uma rota paralela.
+   *
+   * Função comum, não `useEffectEvent`: ela nasce de um clique, e o valor de um
+   * Effect Event não pode ser repassado como prop (o hook exige uso só dentro de
+   * efeitos).
    */
-  const handleLeaveAccount = useEffectEvent(async () => {
+  async function handleLeaveAccount() {
     if (isDirty) await saveActiveNote(false)
     clearLoginSkipped()
     setActiveProfile(null)
     setProfileGate(null)
     setVault(null)
     setWorkspacePage('notes')
-  })
+  }
 
   /** Reabre "Quem está usando?" com o vault já aberto (troca a quente). */
-  const openProfileSwitcher = useEffectEvent(async () => {
+  async function openProfileSwitcher() {
     if (!vault) return
     try {
       const perfis = await profileClient.list(vault.path)
@@ -1051,7 +1055,7 @@ function App() {
     } catch {
       // Sem lista de perfis não há o que trocar: mantém o perfil atual.
     }
-  })
+  }
 
   const handleWorkspaceShortcut = useEffectEvent((event: KeyboardEvent) => {
     if (vault && matchesShortcut(event, shortcuts.openCommandPalette)) {

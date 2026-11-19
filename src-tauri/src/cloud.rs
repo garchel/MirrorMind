@@ -99,7 +99,7 @@ pub fn save_identity(vault_root: &Path, identity: &CloudIdentity) -> Result<()> 
     Ok(())
 }
 
-fn random_id() -> String {
+pub(crate) fn random_id() -> String {
     let mut bytes = [0u8; 16];
     getrandom::fill(&mut bytes).expect("o sistema precisa fornecer entropia");
     use base64::Engine;

@@ -1,0 +1,146 @@
+/* Nuvem (add-on): bloco dentro de Configurações → Nuvem.
+ *
+ * Só tokens: nenhum hex literal aqui (a paleta mora em `primitive.css`). O bloco
+ * ocupa a largura toda da seção, porque o texto explicativo da escolha é longo e
+ * precisa respirar. */
+
+.cloud-block {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+}
+
+.cloud-summary p {
+  margin: 0;
+  color: var(--mm-ink-700);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.cloud-summary strong {
+  color: var(--mm-ink-900);
+  font-weight: 600;
+}
+
+.cloud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.cloud-hint {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--mm-ink-600);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.cloud-hint strong {
+  color: var(--mm-ink-800);
+  font-weight: 600;
+}
+
+/* Escolha do primeiro vínculo: fica visualmente separada do resto, porque é uma
+ * decisão que muda o destino dos arquivos, não um ajuste de preferência. */
+.cloud-choice {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--mm-line-soft);
+  border-radius: 14px;
+  background: var(--mm-surface-sunken);
+}
+
+.cloud-choice-title {
+  margin: 0;
+  color: var(--mm-ink-900);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cloud-choice-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--mm-ink-700);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.cloud-choice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cloud-report {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--mm-line-soft);
+  border-radius: 12px;
+  background: var(--mm-surface-sunken);
+}
+
+.cloud-report p {
+  margin: 0;
+  color: var(--mm-ink-800);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.cloud-note {
+  color: var(--mm-ink-600);
+  font-size: 13px;
+}
+
+.cloud-failures {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--mm-ink-700);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.cloud-failures code {
+  font-family: var(--mm-font-mono);
+  font-size: 12.5px;
+  color: var(--mm-ink-900);
+}
+
+.cloud-error {
+  margin: 0;
+  color: var(--mm-brick-650);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+[data-theme='dark'] .cloud-summary p,
+[data-theme='dark'] .cloud-choice-list,
+[data-theme='dark'] .cloud-report p,
+[data-theme='dark'] .cloud-failures {
+  color: var(--mm-ink-350);
+}
+
+[data-theme='dark'] .cloud-summary strong,
+[data-theme='dark'] .cloud-choice-title,
+[data-theme='dark'] .cloud-hint strong,
+[data-theme='dark'] .cloud-failures code {
+  color: var(--mm-ink-100);
+}
+
+[data-theme='dark'] .cloud-hint,
+[data-theme='dark'] .cloud-note {
+  color: var(--mm-ink-600);
+}
+
+[data-theme='dark'] .cloud-choice,
+[data-theme='dark'] .cloud-report {
+  border-color: var(--mm-ink-900-20);
+  background: var(--mm-ink-950-7);
+}
+
+[data-theme='dark'] .cloud-error {
+  color: var(--mm-brick-400);
+}

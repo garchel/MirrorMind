@@ -18,10 +18,10 @@ use crate::cloud::{FileKind, RemoteFile};
 
 const BUCKET: &str = "vault-files";
 
-pub struct CloudAuth<'a> {
-    pub base_url: &'a str,
-    pub api_key: &'a str,
-    pub access_token: &'a str,
+pub struct CloudAuth {
+    pub base_url: String,
+    pub api_key: String,
+    pub access_token: String,
 }
 
 /// Id do usuário a partir do JWT (claim `sub`). O servidor valida a assinatura a
@@ -66,21 +66,59 @@ fn travar_se_erro(response: reqwest::blocking::Response) -> Result<reqwest::bloc
     bail!("A nuvem respondeu {status}: {detalhe}")
 }
 
+/// Vaults que a conta já tem, com a contagem de arquivos. A tela de vínculo usa
+/// isto para dizer "já existe um vault na nuvem" antes de qualquer sincronização —
+/// é o que evita a pessoa ligar dois vaults diferentes sem perceber.
+pub fn list_vaults(auth: &CloudAuth) -> Result<Vec<(String, String, usize)>> {
+    let url = rest(
+        &auth.base_url,
+        "/vaults?select=id,name,vault_files(count)&order=created_at.desc",
+    )?;
+    let response = http()?
+        .get(url)
+        .header("apikey", &auth.api_key)
+        .bearer_auth(&auth.access_token)
+        .send()
+        .map_err(|_| anyhow::anyhow!("Sem conexão com a nuvem."))?;
+
+    let linhas = json_body(travar_se_erro(response)?);
+    let linhas = linhas
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("A nuvem devolveu uma lista inválida."))?;
+
+    Ok(linhas
+        .iter()
+        .filter_map(|linha| {
+            let id = linha.get("id")?.as_str()?.to_string();
+            let nome = linha.get("name")?.as_str()?.to_string();
+            // o agregado vem como `[{ "count": N }]`
+            let arquivos = linha
+                .get("vault_files")
+                .and_then(Value::as_array)
+                .and_then(|lista| lista.first())
+                .and_then(|primeiro| primeiro.get("count"))
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize;
+            Some((id, nome, arquivos))
+        })
+        .collect())
+}
+
 /// Cria (ou reaproveita) o vault na nuvem e devolve o id remoto.
 ///
 /// `local_id` é a chave de reconhecimento: o mesmo vault aberto em outro
 /// computador manda o mesmo `local_id` e recebe o mesmo registro, em vez de
 /// criar um segundo vault.
 pub fn register_vault(auth: &CloudAuth, local_id: &str, name: &str) -> Result<String> {
-    let Some(owner_id) = user_id_from_jwt(auth.access_token) else {
+    let Some(owner_id) = user_id_from_jwt(&auth.access_token) else {
         bail!("Sessão sem identificação de usuário. Entre na conta novamente.");
     };
 
-    let url = rest(auth.base_url, "/vaults?on_conflict=owner_id,local_id")?;
+    let url = rest(&auth.base_url, "/vaults?on_conflict=owner_id,local_id")?;
     let response = http()?
         .post(url)
-        .header("apikey", auth.api_key)
-        .bearer_auth(auth.access_token)
+        .header("apikey", &auth.api_key)
+        .bearer_auth(&auth.access_token)
         .header(
             "Prefer",
             "resolution=merge-duplicates,return=representation",
@@ -102,15 +140,15 @@ pub fn register_vault(auth: &CloudAuth, local_id: &str, name: &str) -> Result<St
 /// Metadados dos arquivos do vault (inclusive os marcados como excluídos).
 pub fn list_files(auth: &CloudAuth, vault_id: &str) -> Result<Vec<RemoteFile>> {
     let url = rest(
-        auth.base_url,
+        &auth.base_url,
         &format!(
             "/vault_files?select=path,kind,content_hash,size_bytes,deleted_at&vault_id=eq.{vault_id}"
         ),
     )?;
     let response = http()?
         .get(url)
-        .header("apikey", auth.api_key)
-        .bearer_auth(auth.access_token)
+        .header("apikey", &auth.api_key)
+        .bearer_auth(&auth.access_token)
         .send()
         .map_err(|_| anyhow::anyhow!("Sem conexão com a nuvem."))?;
 
@@ -138,11 +176,11 @@ pub fn list_files(auth: &CloudAuth, vault_id: &str) -> Result<Vec<RemoteFile>> {
 
 /// Grava (ou atualiza) a linha de metadado de um arquivo.
 pub fn upsert_file(auth: &CloudAuth, vault_id: &str, file: &RemoteFile) -> Result<()> {
-    let url = rest(auth.base_url, "/vault_files?on_conflict=vault_id,path")?;
+    let url = rest(&auth.base_url, "/vault_files?on_conflict=vault_id,path")?;
     let response = http()?
         .post(url)
-        .header("apikey", auth.api_key)
-        .bearer_auth(auth.access_token)
+        .header("apikey", &auth.api_key)
+        .bearer_auth(&auth.access_token)
         .header("Prefer", "resolution=merge-duplicates,return=minimal")
         .json(&json!({
             "vault_id": vault_id,
@@ -206,12 +244,12 @@ pub fn upload_blob(
     let caminho = crate::cloud::storage_path(owner_id, vault_id, content_hash);
     let url = format!(
         "{}/storage/v1/object/{BUCKET}/{caminho}",
-        endpoint(auth.base_url, "")?
+        endpoint(&auth.base_url, "")?
     );
     let response = http()?
         .post(url)
-        .header("apikey", auth.api_key)
-        .bearer_auth(auth.access_token)
+        .header("apikey", &auth.api_key)
+        .bearer_auth(&auth.access_token)
         .header("Content-Type", "application/octet-stream")
         // Subir duas vezes o mesmo caminho é normal (arquivo editado); sem isso o
         // Storage responde 409 e o sync falha em vez de atualizar.
@@ -232,12 +270,12 @@ pub fn download_blob(
     let caminho = crate::cloud::storage_path(owner_id, vault_id, content_hash);
     let url = format!(
         "{}/storage/v1/object/{BUCKET}/{caminho}",
-        endpoint(auth.base_url, "")?
+        endpoint(&auth.base_url, "")?
     );
     let response = http()?
         .get(url)
-        .header("apikey", auth.api_key)
-        .bearer_auth(auth.access_token)
+        .header("apikey", &auth.api_key)
+        .bearer_auth(&auth.access_token)
         .send()
         .map_err(|_| anyhow::anyhow!("Sem conexão com a nuvem."))?;
     let response = travar_se_erro(response)?;
@@ -256,12 +294,12 @@ pub fn delete_blob(
     let caminho = crate::cloud::storage_path(owner_id, vault_id, content_hash);
     let url = format!(
         "{}/storage/v1/object/{BUCKET}/{caminho}",
-        endpoint(auth.base_url, "")?
+        endpoint(&auth.base_url, "")?
     );
     let response = http()?
         .delete(url)
-        .header("apikey", auth.api_key)
-        .bearer_auth(auth.access_token)
+        .header("apikey", &auth.api_key)
+        .bearer_auth(&auth.access_token)
         .send()
         .map_err(|_| anyhow::anyhow!("Sem conexão com a nuvem."))?;
     // Apagar o que já não existe não é erro de sincronização.
@@ -273,15 +311,15 @@ pub fn delete_blob(
 }
 
 /// Transporte real: liga o executor (`cloud_sync::CloudTransport`) ao cliente HTTP.
-pub struct HttpTransport<'a> {
-    auth: CloudAuth<'a>,
+pub struct HttpTransport {
+    auth: CloudAuth,
     vault_id: String,
     owner_id: String,
 }
 
-impl<'a> HttpTransport<'a> {
-    pub fn new(auth: CloudAuth<'a>, vault_id: String) -> Result<Self> {
-        let owner_id = user_id_from_jwt(auth.access_token)
+impl HttpTransport {
+    pub fn new(auth: CloudAuth, vault_id: String) -> Result<Self> {
+        let owner_id = user_id_from_jwt(&auth.access_token)
             .ok_or_else(|| anyhow::anyhow!("Sessão sem identificação de usuário."))?;
         Ok(Self {
             auth,
@@ -291,7 +329,7 @@ impl<'a> HttpTransport<'a> {
     }
 }
 
-impl crate::cloud_sync::CloudTransport for HttpTransport<'_> {
+impl crate::cloud_sync::CloudTransport for HttpTransport {
     fn list(&self) -> Result<Vec<RemoteFile>> {
         list_files(&self.auth, &self.vault_id)
     }
@@ -382,9 +420,9 @@ mod tests {
             .to_string();
 
         let auth = CloudAuth {
-            base_url: &url,
-            api_key: &key,
-            access_token: &token,
+            base_url: url.clone(),
+            api_key: key.clone(),
+            access_token: token.clone(),
         };
         let owner = user_id_from_jwt(&token).expect("sub do jwt");
 
@@ -483,9 +521,9 @@ conteudo qualquer"
             .to_string();
 
         let auth = CloudAuth {
-            base_url: &url,
-            api_key: &key,
-            access_token: &token,
+            base_url: url.clone(),
+            api_key: key.clone(),
+            access_token: token.clone(),
         };
         // id único por execução: rodar duas vezes não pode reaproveitar o vault
         // da execução anterior (os arquivos já estariam lá e o plano viria vazio)
@@ -513,9 +551,9 @@ conteudo qualquer"
 
         let transporte = HttpTransport::new(
             CloudAuth {
-                base_url: &url,
-                api_key: &key,
-                access_token: &token,
+                base_url: url.clone(),
+                api_key: key.clone(),
+                access_token: token.clone(),
             },
             vault_id.clone(),
         )

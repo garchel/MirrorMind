@@ -6,6 +6,7 @@ import {
   Database,
   Keyboard,
   MonitorSmartphone,
+  Cloud,
   Palette,
   Type,
 } from 'lucide-react'
@@ -25,6 +26,7 @@ export const SETTINGS_SECTIONS = [
   { id: 'ia', label: 'IA da revisão', icon: Cpu },
   { id: 'sistema', label: 'Sistema', icon: MonitorSmartphone },
   { id: 'dados', label: 'Dados', icon: Database },
+  { id: 'nuvem', label: 'Nuvem', icon: Cloud },
 ] as const
 
 export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id']
@@ -33,7 +35,7 @@ export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id']
 export const SETTINGS_GROUPS = [
   { id: 'interface', label: 'Interface', sections: ['aparencia', 'editor', 'leitura', 'atalhos'] },
   { id: 'revisao', label: 'Revisão', sections: ['revisao', 'ia'] },
-  { id: 'sistema', label: 'Sistema', sections: ['sistema', 'dados'] },
+  { id: 'sistema', label: 'Sistema', sections: ['sistema', 'dados', 'nuvem'] },
 ] as const
 
 /** Navegação das Configurações: seção ativa (destaque do menu conforme o

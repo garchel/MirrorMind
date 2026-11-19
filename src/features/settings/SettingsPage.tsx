@@ -42,6 +42,7 @@ import type { ReviewNotificationCheck } from '../review/reviewNotifications'
 import { SegmentationSettings } from '../review/SegmentationSettings'
 import { VaultReviewPolicySettings } from '../review/VaultReviewPolicySettings'
 import { AccountSettings } from './AccountSettings'
+import { CloudSection } from '../cloud/CloudSection'
 import type { SessionClient } from '../../lib/session'
 import { errorMessage } from '../../lib/tauri'
 
@@ -655,6 +656,15 @@ export function SettingsPage({
                   aria-label="Verificação automática de atualizações"
                 />
               </SettingRow>
+            </SettingSection>
+
+            <SettingSection
+              id="nuvem"
+              title="Nuvem"
+              description="Sincronize este vault entre computadores. Complemento opcional: tudo funciona sem conta."
+              keywords="sincronizacao nuvem backup add-on armazenamento conflito conta google"
+            >
+              <CloudSection vaultPath={vaultPath} />
             </SettingSection>
 
             <SettingSection
