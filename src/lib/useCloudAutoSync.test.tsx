@@ -15,6 +15,9 @@ function status(over: Partial<CloudStatus> = {}): CloudStatus {
     accountVaults: [],
     needsChoice: false,
     lastSyncedAt: null,
+    cloudPlan: 'nenhum',
+    planStatus: 'active',
+    planPeriodEnd: null,
     ...over,
   }
 }

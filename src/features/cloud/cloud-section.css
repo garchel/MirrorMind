@@ -196,3 +196,55 @@
 [data-theme='dark'] .cloud-space-result p {
   color: var(--mm-ink-350);
 }
+
+/* Assinatura do add-on: fica acima do estado do vault porque é o que decide se
+ * a nuvem existe para esta pessoa. Ativa vira uma linha só; inativa mostra as
+ * duas opções com o preço. */
+.cloud-subscription {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--mm-line-soft);
+  border-radius: 12px;
+  background: var(--mm-surface-sunken);
+}
+
+.cloud-subscription p {
+  margin: 0;
+  color: var(--mm-ink-700);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.cloud-subscription strong {
+  color: var(--mm-ink-900);
+  font-weight: 600;
+}
+
+.cloud-subscription-head strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 13.5px;
+}
+
+.cloud-subscription-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.cloud-subscription[data-cloud-plan='ativo'] {
+  border-color: var(--mm-line-soft);
+  background: transparent;
+}
+
+[data-theme='dark'] .cloud-subscription {
+  border-color: var(--mm-ink-900-20);
+  background: var(--mm-ink-950-7);
+}
+
+[data-theme='dark'] .cloud-subscription p,
+[data-theme='dark'] .cloud-subscription strong {
+  color: var(--mm-ink-350);
+}

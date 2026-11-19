@@ -141,6 +141,86 @@ pub fn touch_vault_synced(auth: &CloudAuth, vault_id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Pede ao servidor a URL do Checkout do Stripe.
+///
+/// A chave secreta do Stripe fica só na Edge Function: um binário distribuído é
+/// um arquivo que qualquer um abre, então preço e cobrança não podem depender do
+/// que o app envia. Aqui só viaja o quê (mensal/anual).
+pub fn create_checkout(auth: &CloudAuth, kind: &str) -> Result<String> {
+    let base = endpoint(&auth.base_url, "")?;
+    let response = http()?
+        .post(format!("{base}/functions/v1/stripe-checkout"))
+        .header("apikey", &auth.api_key)
+        .bearer_auth(&auth.access_token)
+        .json(&json!({ "kind": kind }))
+        .send()
+        .map_err(|_| anyhow::anyhow!("Sem conexão com o servidor de cobrança."))?;
+
+    let status = response.status().as_u16();
+    let corpo = json_body(response);
+    if !(200..300).contains(&status) {
+        let detalhe = corpo
+            .get("error")
+            .and_then(Value::as_str)
+            .unwrap_or("O servidor de cobrança não respondeu.");
+        bail!("{detalhe}");
+    }
+
+    corpo
+        .get("url")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| anyhow::anyhow!("O servidor não devolveu o endereço do checkout."))
+}
+
+/// Direitos do usuário logado (plano de IA, add-on de nuvem e validade).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Entitlements {
+    pub plan: String,
+    pub plan_status: String,
+    pub plan_period_end: Option<String>,
+    pub cloud_plan: String,
+}
+
+pub fn my_entitlements(auth: &CloudAuth) -> Result<Entitlements> {
+    let url = rest(&auth.base_url, "/rpc/my_entitlements")?;
+    let response = http()?
+        .post(url)
+        .header("apikey", &auth.api_key)
+        .bearer_auth(&auth.access_token)
+        .send()
+        .map_err(|_| anyhow::anyhow!("Sem conexão com a nuvem."))?;
+
+    let corpo = json_body(travar_se_erro(response)?);
+    let linha = corpo
+        .as_array()
+        .and_then(|linhas| linhas.first())
+        .ok_or_else(|| anyhow::anyhow!("A conta não devolveu os direitos."))?;
+
+    Ok(Entitlements {
+        plan: linha
+            .get("plan")
+            .and_then(Value::as_str)
+            .unwrap_or("gratis")
+            .to_string(),
+        plan_status: linha
+            .get("plan_status")
+            .and_then(Value::as_str)
+            .unwrap_or("active")
+            .to_string(),
+        plan_period_end: linha
+            .get("plan_period_end")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        cloud_plan: linha
+            .get("cloud_plan")
+            .and_then(Value::as_str)
+            .unwrap_or("nenhum")
+            .to_string(),
+    })
+}
+
 /// Cria (ou reaproveita) o vault na nuvem e devolve o id remoto.
 ///
 /// `local_id` é a chave de reconhecimento: o mesmo vault aberto em outro

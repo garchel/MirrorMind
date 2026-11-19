@@ -22,6 +22,11 @@ export type CloudStatus = {
   needsChoice: boolean
   /** ISO-8601 da última sincronização concluída (`null` = nunca). */
   lastSyncedAt: string | null
+  /** `nuvem` quando o add-on está pago. Escrito **só** pelo webhook do Stripe. */
+  cloudPlan: string
+  planStatus: string
+  /** Fim do período pago (ISO-8601) ou `null`. */
+  planPeriodEnd: string | null
 }
 
 export type CloudFail = { path: string; reason: string }
@@ -78,6 +83,24 @@ export function unlinkVault(path: string): Promise<CloudStatus> {
 
 export function syncNow(t: CloudTarget): Promise<CloudReport> {
   return invoke<CloudReport>('cloud_sync_now', target(t))
+}
+
+export type CheckoutKind = 'cloud_month' | 'cloud_year'
+
+/** Abre o Checkout do Stripe no navegador do sistema.
+ *
+ * A chave secreta do Stripe nunca está no app: este comando só pede a URL ao
+ * servidor e abre. Quem ativa o add-on é o webhook, não o retorno do navegador. */
+export function startCheckout(kind: CheckoutKind, t: CloudTarget): Promise<void> {
+  return invoke<void>('cloud_start_checkout', { kind, url: t.url, apiKey: t.apiKey })
+}
+
+/** O add-on está pago e válido? */
+export function hasCloudPlan(status: {
+  cloudPlan: string
+  planStatus: string
+}): boolean {
+  return status.cloudPlan === 'nuvem' && status.planStatus !== 'canceled'
 }
 
 /** Procura objetos que nenhuma linha referencia. `dryRun` só conta.

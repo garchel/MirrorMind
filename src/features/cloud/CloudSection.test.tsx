@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { CloudSection } from './CloudSection'
 import type {
+  CheckoutKind,
   CloudReport,
   CloudStatus,
   CloudTarget,
@@ -35,6 +36,9 @@ function baseStatus(over: Partial<CloudStatus> = {}): CloudStatus {
     accountVaults: [],
     needsChoice: false,
     lastSyncedAt: null,
+    cloudPlan: 'nenhum',
+    planStatus: 'active',
+    planPeriodEnd: null,
     ...over,
   }
 }
@@ -46,6 +50,7 @@ type Deps = {
   unlinkVault: Mock<(path: string) => Promise<CloudStatus>>
   syncNow: Mock<(t: CloudTarget) => Promise<CloudReport>>
   sweepOrphans: Mock<(t: CloudTarget, dryRun: boolean) => Promise<SweepReport>>
+  startCheckout: Mock<(kind: CheckoutKind, t: CloudTarget) => Promise<void>>
 }
 
 function emptySweep(over: Partial<SweepReport> = {}): SweepReport {
@@ -65,6 +70,9 @@ function makeDeps(status: CloudStatus, over: Partial<Deps> = {}): Deps {
     syncNow: vi.fn<(t: CloudTarget) => Promise<CloudReport>>(async () => emptyReport()),
     sweepOrphans: vi.fn<(t: CloudTarget, dryRun: boolean) => Promise<SweepReport>>(
       async () => emptySweep(),
+    ),
+    startCheckout: vi.fn<(kind: CheckoutKind, t: CloudTarget) => Promise<void>>(
+      async () => undefined,
     ),
     ...over,
   }
@@ -217,6 +225,66 @@ describe('verificação de espaço', () => {
     expect(await screen.findByRole('alert')).toHaveProperty(
       'textContent',
       'Sem conexão com a nuvem.',
+    )
+  })
+})
+
+describe('assinatura do add-on', () => {
+  it('sem add-on, oferece mensal e anual com o preço', async () => {
+    renderSection(baseStatus({ linked: true, remoteFiles: 2 }))
+    expect(await screen.findByText(/assinar a nuvem/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /assinar r\$ 30\/mês/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /assinar r\$ 300\/ano/i })).toBeTruthy()
+    expect(screen.getByText(/10 GB/i)).toBeTruthy()
+  })
+
+  it('clicar em mensal pede o checkout mensal', async () => {
+    const { deps } = renderSection(baseStatus({ linked: true, remoteFiles: 2 }))
+    await userEvent.click(await screen.findByRole('button', { name: /assinar r\$ 30\/mês/i }))
+    await waitFor(() => expect(deps.startCheckout).toHaveBeenCalledTimes(1))
+    expect(deps.startCheckout.mock.calls[0][0]).toBe('cloud_month')
+  })
+
+  it('clicar em anual pede o checkout anual', async () => {
+    const { deps } = renderSection(baseStatus({ linked: true, remoteFiles: 2 }))
+    await userEvent.click(await screen.findByRole('button', { name: /assinar r\$ 300\/ano/i }))
+    await waitFor(() => expect(deps.startCheckout).toHaveBeenCalledTimes(1))
+    expect(deps.startCheckout.mock.calls[0][0]).toBe('cloud_year')
+  })
+
+  it('com add-on ativo, mostra a validade e não oferece assinar de novo', async () => {
+    renderSection(
+      baseStatus({
+        linked: true,
+        remoteFiles: 2,
+        cloudPlan: 'nuvem',
+        planStatus: 'active',
+        planPeriodEnd: '2026-12-19T12:00:00Z',
+      }),
+    )
+    expect(await screen.findByText(/add-on ativo/i)).toBeTruthy()
+    expect(screen.getByText(/válido até/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /assinar r\$/i })).toBeNull()
+  })
+
+  it('assinatura cancelada oferece reativar', async () => {
+    renderSection(
+      baseStatus({ linked: true, cloudPlan: 'nenhum', planStatus: 'canceled' }),
+    )
+    expect(await screen.findByText(/assinatura foi encerrada/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /assinar r\$ 30\/mês/i })).toBeTruthy()
+  })
+
+  it('checkout indisponível no servidor vira mensagem, não botão travado', async () => {
+    renderSection(baseStatus({ linked: true }), {
+      startCheckout: vi.fn(async () => {
+        throw 'O checkout ainda não está configurado neste ambiente.'
+      }),
+    })
+    await userEvent.click(await screen.findByRole('button', { name: /assinar r\$ 30\/mês/i }))
+    expect(await screen.findByRole('alert')).toHaveProperty(
+      'textContent',
+      'O checkout ainda não está configurado neste ambiente.',
     )
   })
 })

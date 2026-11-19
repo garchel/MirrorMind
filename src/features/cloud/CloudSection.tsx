@@ -8,15 +8,26 @@ import {
   readCloudStatus,
   reportCount,
   summarizeReport,
+  hasCloudPlan,
+  startCheckout,
   sweepOrphans,
   syncNow,
   unlinkVault,
   type CloudReport,
   type CloudStatus,
+  type CheckoutKind,
   type SweepReport,
 } from '../../lib/cloudSync'
 import { errorMessage } from '../../lib/tauri'
 import './cloud-section.css'
+
+/** Preços do add-on, como aparecem para o usuário. O valor real vem do Stripe —
+ *  estes textos existem para a pessoa saber o que vai encontrar na página de
+ *  pagamento. */
+const PRECOS: Record<CheckoutKind, string> = {
+  cloud_month: 'R$ 30/mês',
+  cloud_year: 'R$ 300/ano',
+}
 
 /** Nuvem (add-on): ligar este vault a conta, sincronizar e desligar.
  *
@@ -27,7 +38,7 @@ import './cloud-section.css'
 export function CloudSection({
   vaultPath,
   config,
-  deps = { readCloudStatus, linkVault, unlinkVault, syncNow, sweepOrphans },
+  deps = { readCloudStatus, linkVault, unlinkVault, syncNow, sweepOrphans, startCheckout },
 }: {
   vaultPath: string
   config?: { url: string; apiKey: string } | null
@@ -37,6 +48,7 @@ export function CloudSection({
     unlinkVault: typeof unlinkVault
     syncNow: typeof syncNow
     sweepOrphans: typeof sweepOrphans
+    startCheckout: typeof startCheckout
   }
 }) {
   // A config vem do ambiente, uma vez: recriar o objeto a cada render faria o
@@ -50,6 +62,7 @@ export function CloudSection({
   const [busy, setBusy] = useState<'status' | 'link' | 'sync' | 'unlink' | null>('status')
   const [escolhendo, setEscolhendo] = useState(false)
   const [varredura, setVarredura] = useState<SweepReport | null>(null)
+  const [assinando, setAssinando] = useState<CheckoutKind | null>(null)
   const [limpando, setLimpando] = useState(false)
 
   const load = useCallback(async () => {
@@ -110,6 +123,19 @@ export function CloudSection({
       setError(errorMessage(problema, 'Não foi possível falar com a nuvem.'))
     } finally {
       setBusy(null)
+    }
+  }
+
+  async function assinar(kind: CheckoutKind) {
+    if (!resolvedConfig) return
+    setAssinando(kind)
+    setError(null)
+    try {
+      await deps.startCheckout(kind, { path: vaultPath, ...resolvedConfig })
+    } catch (problema) {
+      setError(errorMessage(problema, 'Não foi possível abrir o checkout.'))
+    } finally {
+      setAssinando(null)
     }
   }
 
@@ -244,6 +270,56 @@ export function CloudSection({
 
   return (
     <div className="cloud-block" data-cloud="ligado">
+      <div className="cloud-subscription" data-cloud-plan={hasCloudPlan(status) ? 'ativo' : 'inativo'}>
+        {hasCloudPlan(status) ? (
+          <p>
+            <strong>Add-on ativo</strong>
+            {status.planPeriodEnd
+              ? ` — ${status.planStatus === 'past_due' ? 'pagamento pendente, ' : ''}válido até ${formatLastSync(status.planPeriodEnd)}.`
+              : '.'}
+          </p>
+        ) : (
+          <>
+            <div className="cloud-subscription-head">
+              <div>
+                <strong>Assinar a nuvem</strong>
+                <p className="cloud-hint">
+                  {status.planStatus === 'canceled'
+                    ? 'A assinatura foi encerrada. Você pode reativar quando quiser.'
+                    : 'A nuvem é um add-on: 10 GB para o vault inteiro, independente do plano de IA.'}
+                </p>
+              </div>
+            </div>
+            <div className="cloud-subscription-actions">
+              {(['cloud_month', 'cloud_year'] as const).map((kind) => (
+                <Button
+                  key={kind}
+                  type="button"
+                  variant={kind === 'cloud_month' ? 'primary' : 'secondary'}
+                  size="md"
+                  disabled={assinando !== null}
+                  onClick={() => void assinar(kind)}
+                >
+                  {assinando === kind ? 'Abrindo…' : `Assinar ${PRECOS[kind]}`}
+                </Button>
+              ))}
+              <Button
+                type="button"
+                variant="bare"
+                size="md"
+                onClick={() => void load()}
+              >
+                Já paguei
+              </Button>
+            </div>
+            <p className="cloud-hint">
+              O pagamento abre no seu navegador. A nuvem aparece ativa aqui em
+              alguns segundos, quando o pagamento é confirmado.
+            </p>
+          </>
+        )}
+      </div>
+
       <div className="cloud-summary">
         <p>
           <strong>{status.vaultName}</strong> está na nuvem com{' '}

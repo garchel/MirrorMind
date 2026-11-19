@@ -43,6 +43,11 @@ pub struct CloudStatus {
     pub needs_choice: bool,
     /// ISO-8601 da última sincronização concluída deste vault.
     pub last_synced_at: Option<String>,
+    /// `nuvem` quando o add-on está pago; `nenhum` caso contrário. **Só o webhook
+    /// do Stripe escreve isto** — o app lê e obedece.
+    pub cloud_plan: String,
+    pub plan_status: String,
+    pub plan_period_end: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -156,8 +161,20 @@ pub fn status(vault_root: &Path, base_url: &str, api_key: &str) -> Result<CloudS
             account_vaults: Vec::new(),
             needs_choice: false,
             last_synced_at: None,
+            cloud_plan: "nenhum".to_string(),
+            plan_status: "active".to_string(),
+            plan_period_end: None,
         });
     };
+
+    // Direitos vêm do servidor; se a chamada falhar, o status do add-on é "nenhum"
+    // (e a tela oferece assinar) em vez de inventar um plano.
+    let direitos = cloud_api::my_entitlements(&auth).unwrap_or(cloud_api::Entitlements {
+        plan: "gratis".to_string(),
+        plan_status: "active".to_string(),
+        plan_period_end: None,
+        cloud_plan: "nenhum".to_string(),
+    });
 
     let linhas = cloud_api::list_vaults(&auth).unwrap_or_default();
     let last_synced_at = identidade
@@ -194,6 +211,9 @@ pub fn status(vault_root: &Path, base_url: &str, api_key: &str) -> Result<CloudS
         account_vaults,
         needs_choice,
         last_synced_at,
+        cloud_plan: direitos.cloud_plan,
+        plan_status: direitos.plan_status,
+        plan_period_end: direitos.plan_period_end,
     })
 }
 
@@ -251,6 +271,9 @@ pub fn unlink(vault_root: &Path) -> Result<CloudStatus> {
         account_vaults: Vec::new(),
         needs_choice: false,
         last_synced_at: None,
+        cloud_plan: "nenhum".to_string(),
+        plan_status: "active".to_string(),
+        plan_period_end: None,
     })
 }
 
@@ -282,6 +305,18 @@ impl Drop for SyncGuard {
     fn drop(&mut self) {
         SYNC_RUNNING.store(false, std::sync::atomic::Ordering::SeqCst);
     }
+}
+
+/// Pede a URL do Checkout e devolve — abrir o navegador é do comando.
+///
+/// O `kind` é `cloud_month` ou `cloud_year`; qualquer outro valor é recusado aqui
+/// antes de sair, para o servidor não precisar confiar no cliente.
+pub fn checkout(base_url: &str, api_key: &str, kind: &str) -> Result<String> {
+    if kind != "cloud_month" && kind != "cloud_year" {
+        bail!("Plano de assinatura desconhecido: {kind}");
+    }
+    let auth = auth(base_url, api_key)?;
+    cloud_api::create_checkout(&auth, kind)
 }
 
 pub fn sync(
@@ -442,6 +477,20 @@ pub async fn cloud_unlink_vault(
     tauri::async_runtime::spawn_blocking(move || unlink(&raiz).map_err(|erro| erro.to_string()))
         .await
         .map_err(|erro| erro.to_string())?
+}
+
+#[tauri::command]
+pub async fn cloud_start_checkout(
+    url: String,
+    api_key: String,
+    kind: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let endereco = checkout(&url, &api_key, &kind).map_err(|erro| erro.to_string())?;
+        crate::account_oauth::open_browser(&endereco).map_err(|erro| erro.to_string())
+    })
+    .await
+    .map_err(|erro| erro.to_string())?
 }
 
 #[tauri::command]
@@ -689,6 +738,49 @@ mod tests {
             .send()
             .expect("apagar vault");
         assert!(apagado.status().is_success());
+        crate::account::sign_out(&url, &key).expect("sair");
+    }
+
+    #[test]
+    fn plano_desconhecido_e_recusado_antes_de_falar_com_o_servidor() {
+        // sem sessão nem rede: a validação vem primeiro
+        let erro = checkout("http://127.0.0.1:9", "", "cloud_vitalicio").unwrap_err();
+        assert!(erro.to_string().contains("desconhecido"), "{erro}");
+    }
+
+    /// Enquanto o Stripe não estiver configurado (falta `STRIPE_SECRET_KEY` na
+    /// função), o checkout tem de devolver uma frase clara — não um 500 nem um
+    /// silêncio. É o estado real do ambiente hoje.
+    #[test]
+    #[ignore = "rede + cofre do sistema: fala com o Supabase de verdade"]
+    fn live_checkout_sem_chave_responde_com_mensagem_clara() {
+        let (Ok(url), Ok(key), Ok(email), Ok(senha)) = (
+            std::env::var("MIRRORMIND_TEST_SUPABASE_URL"),
+            std::env::var("MIRRORMIND_TEST_SUPABASE_KEY"),
+            std::env::var("MIRRORMIND_TEST_EMAIL"),
+            std::env::var("MIRRORMIND_TEST_PASSWORD"),
+        ) else {
+            panic!("defina MIRRORMIND_TEST_SUPABASE_URL/KEY/EMAIL/PASSWORD");
+        };
+
+        crate::account::sign_in(&url, &key, &email, &senha).expect("entrar");
+        match checkout(&url, &key, "cloud_month") {
+            Ok(endereco) => {
+                // se o segredo já estiver configurado, o Stripe devolve uma URL real
+                assert!(
+                    endereco.starts_with("https://checkout.stripe.com/"),
+                    "endereço inesperado: {endereco}"
+                );
+            }
+            Err(erro) => {
+                let texto = erro.to_string();
+                assert!(
+                    texto.contains("não está configurado")
+                        || texto.contains("Preço não configurado"),
+                    "mensagem inesperada: {texto}"
+                );
+            }
+        }
         crate::account::sign_out(&url, &key).expect("sair");
     }
 

@@ -6429,6 +6429,7 @@ pub fn run() {
             cloud_commands::cloud_unlink_vault,
             cloud_commands::cloud_sync_now,
             cloud_commands::cloud_sweep_orphans,
+            cloud_commands::cloud_start_checkout,
             account::account_sign_out,
             select_vault_parent,
             initialize_vault_metadata,
