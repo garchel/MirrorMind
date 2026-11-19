@@ -150,6 +150,8 @@ pub fn upsert_file(auth: &CloudAuth, vault_id: &str, file: &RemoteFile) -> Resul
             "kind": file.kind.as_str(),
             "content_hash": file.hash,
             "size_bytes": file.size_bytes,
+            // o objeto no bucket é nomeado pelo hash (ver cloud::storage_path)
+            "storage_path": file.hash,
             "deleted_at": if file.deleted { Some(iso8601_now()) } else { None::<String> },
         }))
         .send()
@@ -192,15 +194,16 @@ fn iso8601_from_unix(segundos: i64) -> String {
     format!("{ano:04}-{mes:02}-{dia:02}T{hora:02}:{minuto:02}:{segundo:02}Z")
 }
 
-/// Sobe o conteúdo de um arquivo para o bucket.
+/// Sobe o conteúdo para o bucket, nomeado pelo hash. Subir o mesmo conteúdo duas
+/// vezes é inofensivo: cai no mesmo objeto.
 pub fn upload_blob(
     auth: &CloudAuth,
     owner_id: &str,
     vault_id: &str,
-    relative_path: &str,
+    content_hash: &str,
     bytes: &[u8],
 ) -> Result<()> {
-    let caminho = crate::cloud::storage_path(owner_id, vault_id, relative_path);
+    let caminho = crate::cloud::storage_path(owner_id, vault_id, content_hash);
     let url = format!(
         "{}/storage/v1/object/{BUCKET}/{caminho}",
         endpoint(auth.base_url, "")?
@@ -224,9 +227,9 @@ pub fn download_blob(
     auth: &CloudAuth,
     owner_id: &str,
     vault_id: &str,
-    relative_path: &str,
+    content_hash: &str,
 ) -> Result<Vec<u8>> {
-    let caminho = crate::cloud::storage_path(owner_id, vault_id, relative_path);
+    let caminho = crate::cloud::storage_path(owner_id, vault_id, content_hash);
     let url = format!(
         "{}/storage/v1/object/{BUCKET}/{caminho}",
         endpoint(auth.base_url, "")?
@@ -248,9 +251,9 @@ pub fn delete_blob(
     auth: &CloudAuth,
     owner_id: &str,
     vault_id: &str,
-    relative_path: &str,
+    content_hash: &str,
 ) -> Result<()> {
-    let caminho = crate::cloud::storage_path(owner_id, vault_id, relative_path);
+    let caminho = crate::cloud::storage_path(owner_id, vault_id, content_hash);
     let url = format!(
         "{}/storage/v1/object/{BUCKET}/{caminho}",
         endpoint(auth.base_url, "")?
@@ -267,6 +270,53 @@ pub fn delete_blob(
     }
     travar_se_erro(response)?;
     Ok(())
+}
+
+/// Transporte real: liga o executor (`cloud_sync::CloudTransport`) ao cliente HTTP.
+pub struct HttpTransport<'a> {
+    auth: CloudAuth<'a>,
+    vault_id: String,
+    owner_id: String,
+}
+
+impl<'a> HttpTransport<'a> {
+    pub fn new(auth: CloudAuth<'a>, vault_id: String) -> Result<Self> {
+        let owner_id = user_id_from_jwt(auth.access_token)
+            .ok_or_else(|| anyhow::anyhow!("Sessão sem identificação de usuário."))?;
+        Ok(Self {
+            auth,
+            vault_id,
+            owner_id,
+        })
+    }
+}
+
+impl crate::cloud_sync::CloudTransport for HttpTransport<'_> {
+    fn list(&self) -> Result<Vec<RemoteFile>> {
+        list_files(&self.auth, &self.vault_id)
+    }
+
+    fn upsert_metadata(&self, file: &RemoteFile) -> Result<()> {
+        upsert_file(&self.auth, &self.vault_id, file)
+    }
+
+    fn upload(&self, content_hash: &str, bytes: &[u8]) -> Result<()> {
+        upload_blob(
+            &self.auth,
+            &self.owner_id,
+            &self.vault_id,
+            content_hash,
+            bytes,
+        )
+    }
+
+    fn download(&self, content_hash: &str) -> Result<Vec<u8>> {
+        download_blob(&self.auth, &self.owner_id, &self.vault_id, content_hash)
+    }
+
+    fn delete_content(&self, content_hash: &str) -> Result<()> {
+        delete_blob(&self.auth, &self.owner_id, &self.vault_id, content_hash)
+    }
 }
 
 #[cfg(test)]
@@ -362,7 +412,7 @@ conteudo qualquer"
             deleted: false,
         };
         upsert_file(&auth, &vault_id, &arquivo).expect("gravar metadado");
-        upload_blob(&auth, &owner, &vault_id, &arquivo.path, &conteudo).expect("subir conteudo");
+        upload_blob(&auth, &owner, &vault_id, &arquivo.hash, &conteudo).expect("subir conteudo");
 
         // 4. o metadado volta na listagem, com o mesmo hash
         let lista = list_files(&auth, &vault_id).expect("listar");
@@ -375,11 +425,11 @@ conteudo qualquer"
         assert!(!remoto.deleted);
 
         // 5. o conteúdo volta byte a byte
-        let baixado = download_blob(&auth, &owner, &vault_id, &arquivo.path).expect("baixar");
+        let baixado = download_blob(&auth, &owner, &vault_id, &arquivo.hash).expect("baixar");
         assert_eq!(baixado, conteudo, "o conteúdo baixado tem que ser idêntico");
 
         // 6. limpeza: apaga o blob e o vault (metadados caem em cascata)
-        delete_blob(&auth, &owner, &vault_id, &arquivo.path).expect("apagar blob");
+        delete_blob(&auth, &owner, &vault_id, &arquivo.hash).expect("apagar blob");
         let apagado = http()
             .expect("cliente")
             .delete(format!(
@@ -395,6 +445,149 @@ conteudo qualquer"
             "limpeza falhou: {:?}",
             apagado.status()
         );
+    }
+
+    /// Simula **dois computadores** com o mesmo vault: sobe da máquina A, desce
+    /// na B, edita na B e a alteração volta para a A. É o ciclo que o produto
+    /// promete, contra a nuvem de verdade.
+    #[test]
+    #[ignore = "rede: fala com o Supabase de verdade"]
+    fn live_duas_maquinas() {
+        use crate::cloud::content_hash;
+        use crate::cloud_sync::SyncOptions;
+
+        let (Ok(url), Ok(key), Ok(email), Ok(senha)) = (
+            std::env::var("MIRRORMIND_TEST_SUPABASE_URL"),
+            std::env::var("MIRRORMIND_TEST_SUPABASE_KEY"),
+            std::env::var("MIRRORMIND_TEST_EMAIL"),
+            std::env::var("MIRRORMIND_TEST_PASSWORD"),
+        ) else {
+            panic!("defina MIRRORMIND_TEST_SUPABASE_URL/KEY/EMAIL/PASSWORD");
+        };
+
+        let resposta = http()
+            .expect("cliente")
+            .post(format!(
+                "{}/auth/v1/token?grant_type=password",
+                endpoint(&url, "").expect("endpoint")
+            ))
+            .header("apikey", &key)
+            .json(&serde_json::json!({ "email": email, "password": senha }))
+            .send()
+            .expect("login");
+        assert!(resposta.status().is_success(), "login falhou");
+        let token = json_body(resposta)
+            .get("access_token")
+            .and_then(Value::as_str)
+            .expect("access_token")
+            .to_string();
+
+        let auth = CloudAuth {
+            base_url: &url,
+            api_key: &key,
+            access_token: &token,
+        };
+        // id único por execução: rodar duas vezes não pode reaproveitar o vault
+        // da execução anterior (os arquivos já estariam lá e o plano viria vazio)
+        let local_id = format!(
+            "live-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+        );
+        // nome fixo não serve: o teste roda várias vezes e o vault anterior fica
+        let nome = format!("Vault duas maquinas {}", &local_id[5..]);
+        let vault_id = register_vault(&auth, &local_id, &nome).expect("registrar");
+
+        let maquina_a = tempfile::tempdir().expect("a");
+        let maquina_b = tempfile::tempdir().expect("b");
+        for (dir, nota, texto) in [
+            (&maquina_a, "estudo/nota-1.md", "# nota um"),
+            (&maquina_a, "estudo/nota-2.md", "# nota dois"),
+        ] {
+            let caminho = dir.path().join(nota);
+            std::fs::create_dir_all(caminho.parent().expect("pai")).expect("pasta");
+            std::fs::write(caminho, texto).expect("escrever");
+        }
+
+        let transporte = HttpTransport::new(
+            CloudAuth {
+                base_url: &url,
+                api_key: &key,
+                access_token: &token,
+            },
+            vault_id.clone(),
+        )
+        .expect("transporte");
+
+        // A sobe as duas notas
+        let envio =
+            crate::cloud_sync::run_sync(maquina_a.path(), &transporte, &SyncOptions::default())
+                .expect("sync A");
+        assert_eq!(envio.uploaded.len(), 2);
+        assert!(envio.failed.is_empty(), "{:?}", envio.failed);
+
+        // B baixa as duas
+        let recebimento =
+            crate::cloud_sync::run_sync(maquina_b.path(), &transporte, &SyncOptions::default())
+                .expect("sync B");
+        assert_eq!(recebimento.downloaded.len(), 2);
+        assert_eq!(
+            std::fs::read_to_string(maquina_b.path().join("estudo/nota-1.md")).expect("nota"),
+            "# nota um"
+        );
+
+        // B edita; A recebe a alteração
+        std::fs::write(
+            maquina_b.path().join("estudo/nota-1.md"),
+            "# nota um editada",
+        )
+        .expect("editar");
+        let envio_b =
+            crate::cloud_sync::run_sync(maquina_b.path(), &transporte, &SyncOptions::default())
+                .expect("sync B 2");
+        assert_eq!(envio_b.uploaded, vec!["estudo/nota-1.md".to_string()]);
+
+        let recebimento_a =
+            crate::cloud_sync::run_sync(maquina_a.path(), &transporte, &SyncOptions::default())
+                .expect("sync A 2");
+        assert_eq!(
+            recebimento_a.downloaded,
+            vec!["estudo/nota-1.md".to_string()]
+        );
+        assert_eq!(
+            std::fs::read_to_string(maquina_a.path().join("estudo/nota-1.md")).expect("nota"),
+            "# nota um editada"
+        );
+
+        // nada mudou: a terceira passada não faz nada
+        let ociosa =
+            crate::cloud_sync::run_sync(maquina_a.path(), &transporte, &SyncOptions::default())
+                .expect("sync A 3");
+        assert!(ociosa.is_empty(), "{ociosa:?}");
+
+        // limpeza (o conteúdo do bucket cai junto com o vault? não: apaga antes)
+        for conteudo in ["# nota um editada", "# nota dois"] {
+            let _ = delete_blob(
+                &auth,
+                &user_id_from_jwt(&token).expect("sub"),
+                &vault_id,
+                &crate::cloud::content_hash(conteudo.as_bytes()),
+            );
+        }
+        let apagado = http()
+            .expect("cliente")
+            .delete(format!(
+                "{}/rest/v1/vaults?id=eq.{vault_id}",
+                endpoint(&url, "").expect("endpoint")
+            ))
+            .header("apikey", &key)
+            .bearer_auth(&token)
+            .send()
+            .expect("apagar vault");
+        assert!(apagado.status().is_success());
+        let _ = content_hash(b"");
     }
 
     #[test]

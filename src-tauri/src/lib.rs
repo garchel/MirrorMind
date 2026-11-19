@@ -27,6 +27,7 @@ pub(crate) mod dictionary;
 pub(crate) mod goals;
 pub(crate) mod cloud;
 pub(crate) mod cloud_api;
+pub(crate) mod cloud_sync;
 pub(crate) mod profiles;
 pub mod review;
 pub(crate) mod session;

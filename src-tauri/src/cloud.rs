@@ -274,13 +274,19 @@ pub fn plan_sync(
     acoes
 }
 
-/// Caminho do objeto no bucket: `<dono>/<vault>/<caminho>`, que é o formato que a
-/// policy de storage confere (`foldername(name)[1] = auth.uid()`).
-pub fn storage_path(owner_id: &str, vault_id: &str, relative_path: &str) -> String {
-    format!(
-        "{owner_id}/{vault_id}/{}",
-        relative_path.trim_start_matches('/')
-    )
+/// Caminho do objeto no bucket: `<dono>/<vault>/<hash>`.
+///
+/// O nome do objeto é o **hash do conteúdo**, não o caminho da nota, e isso é
+/// deliberado: um arquivo editado vira outro objeto. Guardar por caminho fazia o
+/// segundo computador baixar a versão antiga — o Storage servia o objeto em cache
+/// para o mesmo caminho enquanto o metadado já apontava para o hash novo. O hash no
+/// nome elimina a classe do problema em vez de contorná-la com cache-busting: o
+/// que se pede é sempre o que se quer, e conteúdo repetido é guardado uma vez só.
+///
+/// O primeiro segmento continua sendo o id do dono, que é o que a policy do bucket
+/// confere (`foldername(name)[1] = auth.uid()`).
+pub fn storage_path(owner_id: &str, vault_id: &str, content_hash: &str) -> String {
+    format!("{owner_id}/{vault_id}/{content_hash}")
 }
 
 #[cfg(test)]
@@ -439,10 +445,16 @@ mod tests {
     }
 
     #[test]
-    fn caminho_no_bucket_comeca_pelo_dono() {
+    fn caminho_no_bucket_e_dono_vault_e_hash() {
+        let hash = content_hash(b"conteudo");
         assert_eq!(
-            storage_path("user-1", "vault-1", "/notas/a.md"),
-            "user-1/vault-1/notas/a.md"
+            storage_path("user-1", "vault-1", &hash),
+            format!("user-1/vault-1/{hash}")
+        );
+        // duas notas com o mesmo conteúdo caem no mesmo objeto
+        assert_eq!(
+            storage_path("u", "v", &content_hash(b"igual")),
+            storage_path("u", "v", &content_hash(b"igual"))
         );
     }
 }
