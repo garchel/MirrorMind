@@ -66,11 +66,31 @@ Esta é a etapa chata: quatro telas no console do Google.
 > revisão do Google. Para abrir ao público, é um botão **Publish** — os escopos
 > que usamos (`email`, `profile`) não são sensíveis, então não há auditoria.
 
+### Por que "Web application" e não "Desktop app"
+
+O produto é instalado no computador, mas **quem conversa com o Google é o
+Supabase**, não o app: o Supabase é o cliente OAuth que recebe o código de
+autorização em `https://<projeto>.supabase.co/auth/v1/callback` e troca esse
+código por um token usando o *client secret*. O app nunca vê esse secret.
+
+A documentação do Google diz que apps de desktop usam **redirect local** (loopback)
+— o tipo "Desktop app" só aceita `http://localhost`/`http://127.0.0.1` como
+retorno, e não tem "Authorized JavaScript origins". Como o retorno aqui é um
+endereço `https` do Supabase, o tipo correto é **Web application**.
+
+| se escolher | o que acontece |
+| --- | --- |
+| Web application | funciona: o callback `https://…supabase.co/auth/v1/callback` é aceito |
+| Desktop app | `redirect_uri_mismatch`: o Google não aceita o callback HTTPS do Supabase |
+
+O tipo do cliente **não pode ser alterado** depois de criado: se escolheu errado,
+delete o cliente e crie outro (o projeto continua o mesmo).
+
 ### 2.3 Criar o cliente OAuth
 
 1. Abra <https://console.cloud.google.com/auth/clients>
 2. **Create client**
-3. **Application type:** **Web application**
+3. **Application type:** **Web application** — **não** "Desktop app" (ver abaixo)
 4. **Name:** `MirrorMind Desktop`
 5. Em **Authorized JavaScript origins**, adicione:
    ```
