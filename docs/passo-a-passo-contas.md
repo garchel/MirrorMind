@@ -171,9 +171,15 @@ poucos usuários, não aceitável ao abrir.
 
 ---
 
-> **Decisão do beta (2026-11-19):** a confirmação de e-mail está **desligada**
-> enquanto o beta for fechado (poucos usuários, todos conhecidos). Isso é uma
-> dívida com prazo, não uma escolha permanente:
+> **Estado real (medido em 2026-11-19):** `Confirm email` está **LIGADO** e o
+> envio usa o **SMTP padrão do Supabase** (limitado por hora, cai em spam com
+> frequência). Consequência prática: quem se cadastrar hoje cria a conta, fica
+> **sem sessão** e depende de um e-mail que pode não chegar.
+>
+> Duas saídas, e o beta precisa de uma delas antes de convidar alguém:
+> **(A)** desligar `Confirm email` enquanto o acesso for fechado, ou
+> **(B)** configurar o Resend e religar com SMTP próprio. O item é bloqueante de
+> lançamento público (M4 do `launch-roadmap.md`). Checklist:
 >
 > - [ ] criar conta no Resend e verificar o domínio de envio;
 > - [ ] configurar **SMTP próprio** no Supabase (Auth → SMTP Settings);

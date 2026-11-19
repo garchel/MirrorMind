@@ -74,6 +74,25 @@ Verificado no banco:
 - `stripe_events` sem policy para `authenticated` = nenhum acesso pelo cliente;
 - `ai_usage_summary` com `security_invoker`, então herda a RLS.
 
+### Verificação de ponta a ponta (2026-11-19, feito de fora do app)
+
+Com a `publishable` key do `.env` e um usuário descartável (`smoke…@mirrormind.com.br`,
+apagado no fim — o banco voltou a 0 usuários / 0 perfis):
+
+| teste | resultado |
+| --- | --- |
+| `GET /auth/v1/settings` com a chave do app | 200 · `email` e `google` habilitados |
+| `POST /auth/v1/signup` | 200 · usuário criado, **sem sessão** (confirmação de e-mail exigida) |
+| perfil criado pelo trigger | `plan = gratis`, `status = active`, termos e privacidade registrados com data |
+| `POST /auth/v1/token?grant_type=password` | 200 · devolve `access_token` |
+| `GET /rest/v1/profiles` com o token do usuário | devolve **só a linha dele** |
+| `PATCH /rest/v1/profiles` tentando `plan = pro` | **403** (privilégio de coluna) |
+| `POST /rest/v1/ai_usage` com o token do usuário | **403** |
+| `GET /rest/v1/stripe_events` com o token do usuário | `[]` (sem policy, sem acesso) |
+
+O 403 do "me promove para pro" é o teste que mais importa: sem o `revoke update` +
+`grant update (display_name)`, aquela chamada teria virado um upgrade grátis.
+
 ### O que falta para o app falar com esse backend
 
 1. Chaves no build: `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`
