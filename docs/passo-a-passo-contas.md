@@ -171,6 +171,21 @@ poucos usuários, não aceitável ao abrir.
 
 ---
 
+> **Decisão do beta (2026-11-19):** a confirmação de e-mail está **desligada**
+> enquanto o beta for fechado (poucos usuários, todos conhecidos). Isso é uma
+> dívida com prazo, não uma escolha permanente:
+>
+> - [ ] criar conta no Resend e verificar o domínio de envio;
+> - [ ] configurar **SMTP próprio** no Supabase (Auth → SMTP Settings);
+> - [ ] religar **Confirm email** (Auth → Providers → Email);
+> - [ ] testar cadastro real recebendo o e-mail (caixa de entrada **e** spam);
+> - [ ] trocar o remetente padrão (`noreply@`) pelo domínio próprio.
+>
+> Enquanto isso não acontece, **não abrir o cadastro ao público**: sem
+> confirmação, um e-mail digitado errado cria uma conta que a pessoa não
+> consegue recuperar. O item está no checklist bloqueante de lançamento
+> (`docs/launch-roadmap.md`, M4).
+
 ## O que colocar no app (posso fazer por você)
 
 Duas variáveis, no arquivo `.env` da raiz do projeto:

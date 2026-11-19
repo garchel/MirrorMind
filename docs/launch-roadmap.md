@@ -135,6 +135,7 @@ instalador assinado e notas, sem intervenção manual.
 | Onboarding de primeiro uso: tela de boas-vindas + escolha/criação de Vault guiada | M | 🟡 a tela existe (hero + abrir/criar + modal de vault recente) e recebeu copy de produto (textos de dev removidos); validar jornada completa no gate M1 |
 | Guia do usuário mínimo: primeiros passos + guia de migração do Obsidian (público, fora de `docs/` interno) | M | ✅ `docs/user-guide.md` + `docs/obsidian-migration-guide.md`, linkados de `download.md` |
 | Canal de suporte/comunidade mínimo: GitHub Discussions habilitado + templates de issue (bug/feedback) | S | ✅ Discussions habilitado no repositório (2026-08-31) + `.github/ISSUE_TEMPLATE/bug_report.yml` + `feature_feedback.yml` + `flaky-test.yml` |
+| **Conta de usuário: confirmação de e-mail com SMTP próprio** (Resend ou equivalente) no domínio, com `Confirm email` ligado no Supabase | S | ❌ pendente — o beta roda com a confirmação **desligada** de propósito (ver `docs/passo-a-passo-contas.md`, Etapa 5) |
 
 **Critério de saída**: download público leva a um instalador assinado com
 termos/privacidade acessíveis e instalação sem fricção, e um usuário novo

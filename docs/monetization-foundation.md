@@ -77,6 +77,9 @@ Estimativa: **7–10 semanas**, 1 dev focado. Risco nº 1: Pix recorrente (se F0
   - [x] desenho do backend + migration `supabase/migrations/0001_accounts.sql`
   - [ ] projeto `sa-east-1`, migration aplicada, RLS revisada
   - [ ] `SupabaseSessionClient` (loopback PKCE) + tela Conta ligada
+  - [ ] **SMTP próprio + `Confirm email` ligado** antes de abrir o cadastro ao
+        público (o beta roda com a confirmação desligada) — bloqueante em M4 do
+        `launch-roadmap.md`
 - [ ] F2 (ponto de uso 2): gate nos comandos de backup — o backup/sync pago ainda não existe; entra junto da F3
 - [ ] F3–F5: conforme tabela
 
