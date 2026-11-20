@@ -233,6 +233,51 @@ pub fn verify_pin(vault_root: &Path, profile_id: &str, pin: &str) -> Result<bool
     Ok(compare_constant_time(&hash_pin(pin, salt), hash))
 }
 
+/// Nasce a identidade do perfil criado **dentro do vault**.
+///
+/// O portão de perfis criava só a cópia da pasta; ela virava identidade apenas na
+/// abertura seguinte do vault (pela migração) — e como a abertura pergunta "quem
+/// está entrando" **antes** de abrir, a pessoa recém-criada ficava de fora da
+/// lista por uma sessão inteira.
+///
+/// Reaproveita identidade de mesmo nome: criar "Ana" no vault B quando já existe
+/// "Ana" na máquina é a mesma pessoa, não uma segunda.
+pub fn ensure_identity_for_profile(
+    app_config_dir: &Path,
+    vault_root: &Path,
+    profile_id: &str,
+    nome: &str,
+    cor: &str,
+    pin: Option<&str>,
+) -> Result<Option<String>> {
+    let existentes = crate::identities::load_machine(app_config_dir)?;
+    let identidade = match existentes
+        .iter()
+        .find(|item| item.account_id.is_none() && item.name.eq_ignore_ascii_case(nome))
+        .cloned()
+    {
+        Some(pronta) => pronta,
+        None => crate::identities::create(
+            app_config_dir,
+            Some(vault_root),
+            None,
+            nome,
+            cor,
+            pin,
+        )?,
+    };
+
+    let mut perfis = load_profiles(vault_root)?;
+    let Some(perfil) = perfis.iter_mut().find(|item| item.id == profile_id) else {
+        return Ok(None);
+    };
+    perfil.identity_id = Some(identidade.id.clone());
+    perfil.updated_at_unix_ms = now_ms();
+    save_profiles(vault_root, &perfis)?;
+    crate::identities::gravar_espelho(app_config_dir, Some(vault_root), &identidade)?;
+    Ok(Some(identidade.id))
+}
+
 pub fn create_profile(
     vault_root: &Path,
     name: &str,
@@ -585,17 +630,22 @@ pub fn profiles_list(vault_root: String) -> Result<Vec<ProfileSummary>, String> 
 
 #[tauri::command]
 pub fn profiles_create(
+    app: tauri::AppHandle,
     vault_root: String,
     name: String,
     color: String,
     pin: Option<String>,
 ) -> Result<ProfileSummary, String> {
-    como_erro(create_profile(
-        Path::new(&vault_root),
-        &name,
-        &color,
-        pin.as_deref(),
-    ))
+    use tauri::Manager;
+    let root = Path::new(&vault_root);
+    let resumo = como_erro(create_profile(root, &name, &color, pin.as_deref()))?;
+
+    // Identidade na hora, não na próxima abertura: senão a pessoa criada aqui não
+    // aparece na lista de "quem está entrando" até um segundo lançamento do app.
+    if let Ok(app_dir) = app.path().app_config_dir() {
+        let _ = ensure_identity_for_profile(&app_dir, root, &resumo.id, &name, &color, pin.as_deref());
+    }
+    Ok(resumo)
 }
 
 /// Espelha na identidade da máquina uma edição feita no perfil do vault.
@@ -839,6 +889,42 @@ mod tests {
         tempfile::tempdir().expect("vault temporario")
     }
 
+
+    #[test]
+    fn perfil_criado_no_vault_ja_nasce_com_identidade() {
+        let vault = vault_temporario();
+        let app = tempfile::tempdir().expect("app dir");
+        let criado = create_profile(vault.path(), "Ana", "brick", Some("1234")).expect("perfil");
+
+        let id = ensure_identity_for_profile(
+            app.path(),
+            vault.path(),
+            &criado.id,
+            "Ana",
+            "brick",
+            Some("1234"),
+        )
+        .expect("identidade")
+        .expect("vinculo");
+
+        // a pessoa aparece na máquina imediatamente, com o PIN valendo
+        let identidades = crate::identities::load_machine(app.path()).unwrap();
+        assert_eq!(identidades.len(), 1);
+        assert_eq!(identidades[0].id, id);
+        assert!(crate::identities::verify_pin(app.path(), &id, "1234").unwrap());
+        // e o perfil guardou o vínculo (a migração não duplica depois)
+        let perfis = load_profiles(vault.path()).unwrap();
+        let ana = perfis.iter().find(|item| item.id == criado.id).unwrap();
+        assert_eq!(ana.identity_id.as_deref(), Some(id.as_str()));
+
+        // criar "Ana" de novo reusa a identidade em vez de duplicar a pessoa
+        let outro = create_profile(vault.path(), "Ana 2", "sage", None).expect("segundo");
+        let id2 = ensure_identity_for_profile(app.path(), vault.path(), &outro.id, "ana", "sage", None)
+            .unwrap()
+            .unwrap();
+        assert_eq!(id2, id);
+        assert_eq!(crate::identities::load_machine(app.path()).unwrap().len(), 1);
+    }
 
     #[test]
     fn migracao_leva_perfil_nomeado_para_identidade_e_pula_o_de_fabrica() {
