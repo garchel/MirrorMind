@@ -890,6 +890,39 @@ mod tests {
     }
 
 
+
+    #[test]
+    fn entrar_com_identidade_numa_vault_de_fabrica_cria_o_perfil_e_seleciona() {
+        // reproduz o que `identity_enter_vault` faz, sem AppHandle
+        let vault = vault_temporario();
+        let app = tempfile::tempdir().expect("app dir");
+
+        // vault recém-criado: só o perfil de fábrica
+        let antes = load_profiles(vault.path()).expect("perfis");
+        assert_eq!(antes.len(), 1);
+        assert_eq!(antes[0].id, DEFAULT_PROFILE_ID);
+
+        let identidade = crate::identities::create(
+            app.path(),
+            Some(vault.path()),
+            Some("conta-1"),
+            "sync-teste",
+            "sage",
+            None,
+        )
+        .expect("identidade");
+
+        let perfil = ensure_profile_for_identity(vault.path(), &identidade).expect("perfil do vinculo");
+        assert_eq!(perfil.name, "sync-teste");
+        assert_eq!(perfil.identity_id.as_deref(), Some(identidade.id.as_str()));
+        assert_ne!(perfil.id, DEFAULT_PROFILE_ID);
+
+        crate::identities::gravar_espelho(app.path(), Some(vault.path()), &identidade).expect("espelho");
+        assert!(vault.path().join(".mirmind").join("identities.json").exists());
+
+        acquire_session(vault.path(), &perfil.id, false).expect("sessao do perfil novo");
+    }
+
     #[test]
     fn perfil_criado_no_vault_ja_nasce_com_identidade() {
         let vault = vault_temporario();

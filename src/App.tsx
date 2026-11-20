@@ -1047,8 +1047,11 @@ function App() {
         return
       } catch (causa) {
         // Identidade ilegível não pode impedir o uso das notas: segue o caminho
-        // normal (portão de perfis do vault decide).
-        setGuestIdentityError(errorMessage(causa, 'Não foi possível entrar com esse perfil.'))
+        // normal (portão de perfis do vault decide). O motivo vai para o status —
+        // escondido só neste painel, ele ficava invisível fora da tela de abertura.
+        const motivo = errorMessage(causa, 'Não foi possível entrar com esse perfil.')
+        setGuestIdentityError(motivo)
+        setStatus(`Perfil da conta não abriu (${motivo}). Seguindo com o perfil do vault.`)
       }
     }
 
