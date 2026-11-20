@@ -32,6 +32,8 @@ export type IdentityClient = {
   rename(id: string, name: string, color?: string): Promise<IdentitySummary>
   setPin(id: string, pin: string | null): Promise<IdentitySummary>
   verifyPin(id: string, pin: string): Promise<boolean>
+  /** Identidade da conta logada (criada na primeira entrada); `null` sem sessão. */
+  ensureAccount(): Promise<IdentitySummary | null>
   /** Abre o vault como esta identidade e devolve o perfil correspondente. */
   enterVault(vaultRoot: string, id: string): Promise<ProfileSummary>
 }
@@ -53,6 +55,8 @@ export function createIdentityClient(invoke: InvokeFn): IdentityClient {
       invoke<IdentitySummary>('identity_rename', { id, name, color: color ?? null }),
     setPin: (id, pin) => invoke<IdentitySummary>('identity_set_pin', { id, pin }),
     verifyPin: (id, pin) => invoke<boolean>('identity_verify_pin', { id, pin }),
+    ensureAccount: () =>
+      invoke<IdentitySummary | null>('identity_ensure_account').then((item) => item ?? null),
     enterVault: (vaultRoot, id) =>
       invoke<ProfileSummary>('identity_enter_vault', { vaultRoot, identityId: id }),
   }

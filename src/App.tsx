@@ -1942,6 +1942,17 @@ function App() {
     }
   }
 
+  /** Conta acabou de entrar: a identidade dela passa a ser a da sessão. */
+  async function handleAccountAuthenticated() {
+    try {
+      const daConta = await identityClient.ensureAccount()
+      if (daConta) pendingIdentityRef.current = daConta
+    } catch {
+      // Falha aqui não pode impedir o login: a identidade é conveniência, a
+      // sessão já está válida e o vault abre normalmente.
+    }
+  }
+
   /** Escolhe uma identidade na abertura; o vault aberto em seguida entra com ela. */
   async function handleIdentitySelect(identity: IdentitySummary, pin?: string) {
     setGuestIdentityBusy(true)
@@ -6753,6 +6764,7 @@ function App() {
       createForm={createForm}
       setCreateForm={setCreateForm}
       onAccountSettled={() => setContaResolvida(true)}
+      onAccountAuthenticated={handleAccountAuthenticated}
       knownVaults={sortKnownVaults(recentVaultPreference?.knownVaults ?? [])}
       onOpenKnownVault={(path) => void openKnownVault(path)}
       guestIdentities={guestIdentities}

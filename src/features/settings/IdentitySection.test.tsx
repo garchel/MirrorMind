@@ -30,6 +30,7 @@ function fakeClient(overrides: Partial<IdentityClient> = {}): IdentityClient {
     rename: vi.fn(async (id: string, name: string) => ({ ...paulo, id, name })),
     setPin: vi.fn(async (id: string, pin: string | null) => ({ ...paulo, id, hasPin: pin !== null })),
     verifyPin: vi.fn(async () => true),
+    ensureAccount: vi.fn(async () => null),
     enterVault: vi.fn(async () => ({ ...paulo, isDefault: false })),
     ...overrides,
   }

@@ -230,6 +230,19 @@ describe('VaultSelection (abertura do app)', () => {
     expect(await screen.findByRole('heading', { name: 'Onde ficam suas notas?' })).toBeInTheDocument()
   })
 
+  it('entrar com conta avisa o App para garantir a identidade da conta', async () => {
+    const user = userEvent.setup()
+    const onAccountAuthenticated = vi.fn(async () => {})
+    renderSelection({ onAccountAuthenticated })
+
+    // O formulário de login do harness autentica ao clicar em "Entrar".
+    await user.type(await screen.findByLabelText('E-mail'), 'a@b.c')
+    await user.type(screen.getByLabelText('Senha'), 'segredo123')
+    await user.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    await waitFor(() => expect(onAccountAuthenticated).toHaveBeenCalledTimes(1))
+  })
+
   it('avisa o App uma vez quando a pergunta de conta termina', async () => {
     localStorage.setItem('mirrormind.account.login-skipped', 'true')
     const onAccountSettled = vi.fn()

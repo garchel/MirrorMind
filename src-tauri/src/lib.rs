@@ -455,6 +455,30 @@ fn identities_adopt(
         .collect())
 }
 
+/// Identidade da conta que está logada, criada na primeira entrada.
+///
+/// `None` quando não há sessão: convidado não tem conta para espelhar.
+#[tauri::command]
+fn identity_ensure_account(
+    app: AppHandle,
+) -> Result<Option<identities::IdentitySummary>, String> {
+    let sessao = account::load_session().map_err(|error| error.to_string())?;
+    let Some(sessao) = sessao else {
+        return Ok(None);
+    };
+    let Some(account_id) = account::account_id_from_jwt(&sessao.access_token) else {
+        return Ok(None);
+    };
+    let email = account::email_from_jwt(&sessao.access_token);
+    let identidade = identities::ensure_account_identity(
+        &identities_dir(&app)?,
+        &account_id,
+        email.as_deref(),
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(Some(identidade.summary()))
+}
+
 #[tauri::command]
 fn identity_create(
     app: AppHandle,
@@ -6641,6 +6665,7 @@ pub fn run() {
             identities_adopt,
             identities_list,
             identity_create,
+            identity_ensure_account,
             identity_enter_vault,
             identity_rename,
             identity_set_pin,

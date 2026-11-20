@@ -124,6 +124,28 @@ pub(crate) fn expires_at_from_jwt(access_token: &str) -> Option<i64> {
     Some(exp * 1000)
 }
 
+/// Id do usuário no servidor (`sub` do JWT).
+///
+/// O frontend nunca recebe isto — token fica no cofre do Windows. Quem precisa
+/// (a identidade local) lê aqui, no processo Rust.
+pub(crate) fn account_id_from_jwt(access_token: &str) -> Option<String> {
+    claim_from_jwt(access_token, "sub")
+}
+
+/// E-mail do usuário no JWT (a sessão guarda só os tokens).
+pub(crate) fn email_from_jwt(access_token: &str) -> Option<String> {
+    claim_from_jwt(access_token, "email")
+}
+
+fn claim_from_jwt(access_token: &str, nome: &str) -> Option<String> {
+    let payload = access_token.split('.').nth(1)?;
+    let decoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload)
+        .ok()?;
+    let claims: Value = serde_json::from_slice(&decoded).ok()?;
+    claims.get(nome).and_then(Value::as_str).map(str::to_string)
+}
+
 pub(crate) fn snapshot_from_session(email: Option<String>, access_token: &str) -> AccountSnapshot {
     AccountSnapshot {
         status: "auth",

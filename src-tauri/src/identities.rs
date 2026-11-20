@@ -359,6 +359,51 @@ pub fn gravar_espelho(
     Ok(())
 }
 
+/// Garante a identidade de uma conta que acabou de entrar.
+///
+/// Sem isto, quem entra com e-mail/Google e depois usa "sem conta" vira **duas
+/// pessoas** — e o histórico de um lado não conversa com o outro. A identidade da
+/// conta usa o id do usuário no servidor (`accountId`) e nasce com o nome tirado
+/// do e-mail.
+///
+/// Idempotente e **sem sobrescrever**: se a pessoa já renomeou a identidade em
+/// Configurações › Perfil, entrar de novo não devolve o nome do e-mail.
+pub fn ensure_account_identity(
+    app_config_dir: &Path,
+    account_id: &str,
+    email: Option<&str>,
+) -> Result<Identity> {
+    let mut lista = load_machine(app_config_dir)?;
+    if let Some(existente) = lista
+        .iter()
+        .find(|item| item.account_id.as_deref() == Some(account_id))
+        .cloned()
+    {
+        return Ok(existente);
+    }
+
+    let nome = email
+        .and_then(|valor| valor.split('@').next())
+        .map(str::trim)
+        .filter(|valor| !valor.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| "Conta".to_string());
+
+    let identidade = Identity {
+        id: random_id(),
+        name: nome,
+        color: "sage".to_string(),
+        account_id: Some(account_id.to_string()),
+        pin_salt: None,
+        pin_hash: None,
+        updated_at_unix_ms: now_ms(),
+    };
+    lista.push(identidade.clone());
+    ordenar(&mut lista);
+    save_machine(app_config_dir, &lista)?;
+    Ok(identidade)
+}
+
 /// Registro vindo de um perfil do vault, para o caso de a edição ter sido
 /// feita lá (renomear, trocar PIN no portão de perfis).
 pub struct IdentitySnapshot<'a> {
@@ -589,6 +634,33 @@ mod tests {
         .expect("sync");
         assert!(!reverteu);
         assert_eq!(load_machine(app.path()).unwrap()[0].name, "Paulo H.");
+    }
+
+    #[test]
+    fn conta_entra_uma_vez_so_e_nao_perde_o_nome_escolhido() {
+        let app = tempdir().expect("app dir");
+
+        let primeira =
+            ensure_account_identity(app.path(), "acc-1", Some("paulo@exemplo.com")).unwrap();
+        assert_eq!(primeira.name, "paulo");
+        assert_eq!(primeira.account_id.as_deref(), Some("acc-1"));
+
+        // segunda entrada: mesma identidade, sem duplicar
+        let segunda = ensure_account_identity(app.path(), "acc-1", Some("paulo@exemplo.com")).unwrap();
+        assert_eq!(segunda.id, primeira.id);
+        assert_eq!(load_machine(app.path()).unwrap().len(), 1);
+
+        // renomeou em Configurações › Perfil? entrar de novo não devolve o e-mail
+        update(app.path(), None, &primeira.id, Some("Paulo H."), None, None).unwrap();
+        let terceira = ensure_account_identity(app.path(), "acc-1", Some("paulo@exemplo.com")).unwrap();
+        assert_eq!(terceira.name, "Paulo H.");
+    }
+
+    #[test]
+    fn conta_sem_email_ainda_ganha_nome() {
+        let app = tempdir().expect("app dir");
+        let criada = ensure_account_identity(app.path(), "acc-2", None).unwrap();
+        assert_eq!(criada.name, "Conta");
     }
 
     #[test]

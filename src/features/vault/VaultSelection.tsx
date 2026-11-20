@@ -38,6 +38,12 @@ export type VaultSelectionProps = {
   setCreateForm: Dispatch<SetStateAction<CreateVaultForm>>
   /** Chamado uma vez, quando a pergunta de conta (entrar ou seguir sem) termina. */
   onAccountSettled?: () => void
+  /**
+   * Alguém acabou de entrar com conta. O App usa isto para garantir a identidade
+   * da conta antes de abrir o vault — sem isso, quem entra com conta e depois
+   * usa "sem conta" vira duas pessoas.
+   */
+  onAccountAuthenticated?: () => Promise<void>
   /** Vaults que o app já abriu aqui — a lista é a tela, não um modal por cima. */
   knownVaults: KnownVault[]
   onOpenKnownVault: (path: string) => void
@@ -77,6 +83,7 @@ export function VaultSelection({
   createForm,
   setCreateForm,
   onAccountSettled,
+  onAccountAuthenticated,
   knownVaults,
   onOpenKnownVault,
   guestIdentities,
@@ -194,7 +201,10 @@ export function VaultSelection({
           <div className="welcome-card">
             <AccountForm
               client={accountClient}
-              onAuthenticated={() => setStep('vault')}
+              onAuthenticated={async () => {
+                await onAccountAuthenticated?.()
+                setStep('vault')
+              }}
               onSkip={handleGuestSkip}
             />
           </div>
