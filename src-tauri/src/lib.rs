@@ -98,20 +98,110 @@ struct Attachment {
     is_image: bool,
 }
 
+/// Um vault que o app já abriu nesta máquina.
+///
+/// A lista existe para decidir a abertura sem perguntar: **um** vault conhecido
+/// abre direto; **dois ou mais** viram escolha. Antes só havia um caminho
+/// lembrado e uma pergunta — o app sabia a resposta e mesmo assim perguntava,
+/// todo dia.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct KnownVault {
+    path: String,
+    /// Nome da pasta, guardado para a lista não depender de ler o disco.
+    name: String,
+    last_opened_at_ms: i64,
+}
+
+/// Teto da lista: além disso o "recente" deixa de significar alguma coisa.
+const KNOWN_VAULTS_LIMIT: usize = 8;
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct RecentVaultPreference {
     last_vault_path: Option<String>,
+    /// Mantido para builds antigos lerem o arquivo; a abertura não pergunta mais.
+    #[serde(default)]
     ask_before_reopen: bool,
+    #[serde(default)]
+    known_vaults: Vec<KnownVault>,
 }
 
 impl Default for RecentVaultPreference {
     fn default() -> Self {
         Self {
             last_vault_path: None,
-            ask_before_reopen: true,
+            // A pergunta saiu do caminho: quem decide é a contagem de vaults
+            // conhecidos (ver `decide_vault_startup` no front). O campo continua
+            // existindo só para não invalidar arquivos de versões anteriores.
+            ask_before_reopen: false,
+            known_vaults: Vec::new(),
         }
     }
+}
+
+impl RecentVaultPreference {
+    /// Registra (ou atualiza) um vault aberto: entra no topo da lista, sem
+    /// duplicar caminho, respeitando o teto.
+    fn remember(&mut self, root: &Path) {
+        let path = root.display().to_string();
+        let name = root
+            .file_name()
+            .and_then(|nome| nome.to_str())
+            .unwrap_or(&path)
+            .to_string();
+        self.known_vaults.retain(|vault| vault.path != path);
+        self.known_vaults.insert(
+            0,
+            KnownVault {
+                path: path.clone(),
+                name,
+                last_opened_at_ms: now_unix_ms(),
+            },
+        );
+        self.known_vaults.truncate(KNOWN_VAULTS_LIMIT);
+        self.last_vault_path = Some(path);
+    }
+
+    /// Remove um caminho que não abre mais (pasta movida, apagada, sem
+    /// permissão). Sem isso a lista oferece para sempre um vault que falha.
+    fn forget(&mut self, path: &str) {
+        self.known_vaults.retain(|vault| vault.path != path);
+        if self.last_vault_path.as_deref() == Some(path) {
+            self.last_vault_path = self
+                .known_vaults
+                .first()
+                .map(|vault| vault.path.clone());
+        }
+    }
+
+    /// Arquivo de versão anterior só tinha `lastVaultPath`: vira uma entrada da
+    /// lista, senão a tela de escolha apareceria vazia para quem já usava o app.
+    fn migrate_legacy_entry(&mut self) {
+        if !self.known_vaults.is_empty() {
+            return;
+        }
+        let Some(path) = self.last_vault_path.clone() else {
+            return;
+        };
+        let nome = Path::new(&path)
+            .file_name()
+            .and_then(|nome| nome.to_str())
+            .unwrap_or(&path)
+            .to_string();
+        self.known_vaults.push(KnownVault {
+            path,
+            name: nome,
+            last_opened_at_ms: 0,
+        });
+    }
+}
+
+fn now_unix_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duracao| duracao.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 #[derive(Serialize)]
@@ -325,26 +415,44 @@ fn get_recent_vault_preference(app: AppHandle) -> Result<RecentVaultPreference, 
     read_recent_vault_preference(&app).map_err(|error| error.to_string())
 }
 
+/// Abre um vault **conhecido** (da lista lembrada), sem passar pelo diálogo.
+///
+/// A lista vem do próprio app, mas o caminho ainda é canonicalizado e autorizado:
+/// arquivo de preferência é dado no disco, e dado no disco pode ser editado.
+#[tauri::command]
+fn open_known_vault(
+    app: AppHandle,
+    path: String,
+    authorized_paths: State<AuthorizedPaths>,
+) -> Result<VaultSummary, String> {
+    let root = canonicalize_directory(Path::new(&path)).map_err(|error| error.to_string())?;
+    authorized_paths
+        .authorize_vault_root(&root)
+        .map_err(|error| error.to_string())?;
+    ensure_metadata_layout(&root).map_err(|error| error.to_string())?;
+    let vault = inspect_vault_path(&root).map_err(|error| error.to_string())?;
+    let _ = persist_recent_vault(&app, &root);
+    Ok(vault)
+}
+
 #[tauri::command]
 fn reopen_recent_vault(
     app: AppHandle,
     authorized_paths: State<AuthorizedPaths>,
 ) -> Result<Option<VaultSummary>, String> {
     let preference = read_recent_vault_preference(&app).map_err(|error| error.to_string())?;
-    let Some(path) = preference.last_vault_path else {
+    let Some(path) = preference.last_vault_path.clone() else {
         return Ok(None);
     };
 
     let root = match canonicalize_directory(Path::new(&path)) {
         Ok(root) => root,
         Err(_) => {
-            let _ = write_recent_vault_preference(
-                &app,
-                &RecentVaultPreference {
-                    last_vault_path: None,
-                    ..preference
-                },
-            );
+            // Caminho morto sai da lista: oferecer de novo um vault que não abre
+            // é a pior forma de "lembrar" dele.
+            let mut limpo = preference.clone();
+            limpo.forget(&path);
+            let _ = write_recent_vault_preference(&app, &limpo);
             return Ok(None);
         }
     };
@@ -355,16 +463,6 @@ fn reopen_recent_vault(
     inspect_vault_path(&root)
         .map(Some)
         .map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-fn set_recent_vault_prompt_preference(
-    app: AppHandle,
-    ask_before_reopen: bool,
-) -> Result<(), String> {
-    let mut preference = read_recent_vault_preference(&app).map_err(|error| error.to_string())?;
-    preference.ask_before_reopen = ask_before_reopen;
-    write_recent_vault_preference(&app, &preference).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -4517,7 +4615,10 @@ fn read_recent_vault_preference(app: &AppHandle) -> Result<RecentVaultPreference
 
     let content = fs::read_to_string(&path)
         .with_context(|| format!("Nao foi possivel ler '{}'.", path.display()))?;
-    Ok(serde_json::from_str::<RecentVaultPreference>(&content).unwrap_or_default())
+    let mut preference =
+        serde_json::from_str::<RecentVaultPreference>(&content).unwrap_or_default();
+    preference.migrate_legacy_entry();
+    Ok(preference)
 }
 
 fn write_recent_vault_preference(
@@ -4536,7 +4637,7 @@ fn write_recent_vault_preference(
 
 fn persist_recent_vault(app: &AppHandle, root: &Path) -> Result<()> {
     let mut preference = read_recent_vault_preference(app)?;
-    preference.last_vault_path = Some(root.display().to_string());
+    preference.remember(root);
     write_recent_vault_preference(app, &preference)
 }
 
@@ -5626,6 +5727,7 @@ fn ipc_contract_fixture() -> serde_json::Value {
             "recentVaultPreference": RecentVaultPreference {
                 last_vault_path: Some("C:\\Vaults\\Estudos".to_string()),
                 ask_before_reopen: true,
+            ..Default::default()
             },
             "nullableRecentVaultPreference": RecentVaultPreference::default(),
             "historyStatus": HistoryStatus {
@@ -6406,7 +6508,7 @@ pub fn run() {
             select_existing_vault,
             get_recent_vault_preference,
             reopen_recent_vault,
-            set_recent_vault_prompt_preference,
+            open_known_vault,
             clear_local_app_data,
             account_save_session,
             account_load_session,
@@ -10819,11 +10921,15 @@ mod tests {
     }
 
     #[test]
-    fn recent_vault_preference_defaults_to_confirmation() {
+    fn recent_vault_preference_nao_nasce_perguntando() {
+        // O padrão antigo era perguntar mesmo sabendo a resposta, e isso virava
+        // um modal por dia. Hoje quem decide é a contagem de vaults conhecidos
+        // (`decideVaultStartup`): um abre direto, dois ou mais viram escolha.
         let preference = RecentVaultPreference::default();
 
         assert!(preference.last_vault_path.is_none());
-        assert!(preference.ask_before_reopen);
+        assert!(preference.known_vaults.is_empty());
+        assert!(!preference.ask_before_reopen);
     }
 
     #[test]
@@ -10858,5 +10964,80 @@ mod tests {
         assert!(close_was_acknowledged(1, 1));
         assert!(close_was_acknowledged(2, 1));
         assert!(!close_was_acknowledged(1, 2));
+    }
+}
+
+#[cfg(test)]
+mod vault_preference_tests {
+    use super::*;
+
+    fn root(pasta: &str) -> PathBuf {
+        PathBuf::from(pasta)
+    }
+
+    #[test]
+    fn lembrar_poe_no_topo_e_nao_duplica() {
+        let mut preferencia = RecentVaultPreference::default();
+        preferencia.remember(&root("C:/vaults/Estudo"));
+        preferencia.remember(&root("C:/vaults/Medicina"));
+        preferencia.remember(&root("C:/vaults/Estudo"));
+
+        assert_eq!(preferencia.known_vaults.len(), 2);
+        assert_eq!(preferencia.known_vaults[0].path, "C:/vaults/Estudo");
+        assert_eq!(preferencia.known_vaults[1].path, "C:/vaults/Medicina");
+        assert_eq!(preferencia.last_vault_path.as_deref(), Some("C:/vaults/Estudo"));
+        assert_eq!(preferencia.known_vaults[0].name, "Estudo");
+    }
+
+    #[test]
+    fn lista_respeita_o_teto() {
+        let mut preferencia = RecentVaultPreference::default();
+        for indice in 0..(KNOWN_VAULTS_LIMIT + 4) {
+            preferencia.remember(&root(&format!("C:/vaults/v{indice}")));
+        }
+        assert_eq!(preferencia.known_vaults.len(), KNOWN_VAULTS_LIMIT);
+        // o mais recente continua na frente
+        assert_eq!(
+            preferencia.known_vaults[0].path,
+            format!("C:/vaults/v{}", KNOWN_VAULTS_LIMIT + 3)
+        );
+    }
+
+    #[test]
+    fn esquecer_o_ultimo_aponta_para_o_proximo_da_lista() {
+        let mut preferencia = RecentVaultPreference::default();
+        preferencia.remember(&root("C:/vaults/Estudo"));
+        preferencia.remember(&root("C:/vaults/Medicina"));
+
+        preferencia.forget("C:/vaults/Medicina");
+        assert_eq!(preferencia.known_vaults.len(), 1);
+        assert_eq!(preferencia.last_vault_path.as_deref(), Some("C:/vaults/Estudo"));
+
+        preferencia.forget("C:/vaults/Estudo");
+        assert!(preferencia.known_vaults.is_empty());
+        assert!(preferencia.last_vault_path.is_none());
+    }
+
+    #[test]
+    fn arquivo_antigo_vira_uma_entrada_da_lista() {
+        // formato da versão anterior: só o caminho, sem lista
+        let antigo = r#"{"lastVaultPath":"C:/Vaults/Teses","askBeforeReopen":true}"#;
+        let mut preferencia: RecentVaultPreference = serde_json::from_str(antigo).unwrap();
+        assert!(preferencia.known_vaults.is_empty());
+
+        preferencia.migrate_legacy_entry();
+        assert_eq!(preferencia.known_vaults.len(), 1);
+        assert_eq!(preferencia.known_vaults[0].path, "C:/Vaults/Teses");
+        assert_eq!(preferencia.known_vaults[0].name, "Teses");
+        assert_eq!(preferencia.known_vaults[0].last_opened_at_ms, 0);
+    }
+
+    #[test]
+    fn migrar_nao_mexe_em_lista_que_ja_tem_conteudo() {
+        let mut preferencia = RecentVaultPreference::default();
+        preferencia.remember(&root("C:/vaults/Estudo"));
+        let antes = preferencia.known_vaults.clone();
+        preferencia.migrate_legacy_entry();
+        assert_eq!(preferencia.known_vaults, antes);
     }
 }

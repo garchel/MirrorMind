@@ -128,9 +128,17 @@ const vault = {
   metadata: { isInitialized: true, rootPath: 'C:\\Vault de testes\\.mirmind', missing: [] },
 }
 
+type StartupPreference = {
+  lastVaultPath: string | null
+  askBeforeReopen: boolean
+  knownVaults: { path: string; name: string; lastOpenedAtMs: number }[]
+}
+
 function createTauriHarness(
   extraNotes: StoredNote[] = [],
   reviewStates: Record<string, unknown> = {},
+  /** O que o Rust responde em `get_recent_vault_preference`; sem isso, primeiro uso. */
+  startupPreference: StartupPreference | null = null,
 ) {
   // Usuário que já respondeu "continuar sem conta": a página de login não abre
   // sozinha e os testes medem o app em uso, não a primeira abertura.
@@ -144,8 +152,10 @@ function createTauriHarness(
   invokeMock.mockImplementation(async (command: string, args?: { relativePath?: string; content?: string }) => {
     switch (command) {
       case 'get_recent_vault_preference':
-        return { lastVaultPath: null, askBeforeReopen: true }
+        return startupPreference ?? { lastVaultPath: null, askBeforeReopen: true }
       case 'select_existing_vault':
+      case 'reopen_recent_vault':
+      case 'open_known_vault':
         return { ...vault, noteCount: notes.size }
       case 'list_notes':
         return [...notes.values()].map(({ name, relativePath }) => ({ name, relativePath }))
@@ -361,6 +371,21 @@ function createTauriHarness(
   })
 
   return { notes }
+}
+
+const umVaultConhecido: StartupPreference = {
+  lastVaultPath: vault.path,
+  askBeforeReopen: true,
+  knownVaults: [{ path: vault.path, name: vault.name, lastOpenedAtMs: 10 }],
+}
+
+const doisVaultsConhecidos: StartupPreference = {
+  lastVaultPath: vault.path,
+  askBeforeReopen: true,
+  knownVaults: [
+    { path: vault.path, name: vault.name, lastOpenedAtMs: 10 },
+    { path: 'C:\\Outro vault', name: 'Outro vault', lastOpenedAtMs: 5 },
+  ],
 }
 
 async function openTestVault(user: ReturnType<typeof userEvent.setup>) {
@@ -2803,5 +2828,44 @@ describe('Regressao do editor no workspace', () => {
 
     await user.click(within(viewer).getByRole('button', { name: 'Fechar visualização do arquivo especial' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Visualizar Planejamento.canvas' })).not.toBeInTheDocument())
+  })
+
+  it('com um único vault conhecido, abre sozinho — sem tela de escolha', async () => {
+    createTauriHarness([], {}, umVaultConhecido)
+    render(
+      <EntitlementProvider>
+        <ReviewAiSettingsProvider>
+          <App />
+        </ReviewAiSettingsProvider>
+      </EntitlementProvider>,
+    )
+
+    // O ponto do pedido: zero cliques para voltar ao trabalho.
+    expect(await screen.findByRole('button', { name: 'Abrir nota inicial' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Onde ficam suas notas?' })).not.toBeInTheDocument()
+    expect(invokeMock.mock.calls.some((chamada) => chamada[0] === 'reopen_recent_vault')).toBe(true)
+  })
+
+  it('com dois vaults, mostra a lista em vez de escolher por você', async () => {
+    createTauriHarness([], {}, doisVaultsConhecidos)
+    const user = userEvent.setup()
+    render(
+      <EntitlementProvider>
+        <ReviewAiSettingsProvider>
+          <App />
+        </ReviewAiSettingsProvider>
+      </EntitlementProvider>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Onde ficam suas notas?' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Abrir nota inicial' })).not.toBeInTheDocument()
+
+    await user.click(await screen.findByRole('button', { name: /Outro vault/ }))
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('open_known_vault', {
+        path: 'C:\\Outro vault',
+      }),
+    )
+    expect(await screen.findByRole('button', { name: 'Abrir nota inicial' })).toBeInTheDocument()
   })
 })

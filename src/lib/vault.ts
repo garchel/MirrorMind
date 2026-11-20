@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { KnownVault } from './vaultStartup'
 
 export type NotePreview = {
   name: string
@@ -65,7 +66,10 @@ export type CreateNoteForm = {
 
 export type RecentVaultPreference = {
   lastVaultPath: string | null
+  /** Legado: a abertura não pergunta mais; quem decide é a contagem de vaults. */
   askBeforeReopen: boolean
+  /** Vaults que o app já abriu nesta máquina (mais recente primeiro). */
+  knownVaults: KnownVault[]
 }
 
 export type HistoryStatus = { canUndo: boolean; canRedo: boolean }
@@ -258,9 +262,18 @@ const vaultInventorySchema = z.object({
   diagnostics: scanDiagnosticsSchema.default(EMPTY_SCAN_DIAGNOSTICS),
 })
 
+const knownVaultSchema = z.object({
+  path: z.string().min(1),
+  name: z.string(),
+  lastOpenedAtMs: z.number(),
+})
+
 const recentVaultPreferenceSchema = z.object({
   lastVaultPath: z.string().nullable(),
   askBeforeReopen: z.boolean(),
+  // `.default([])` mantém fixtures antigas válidas e cobre o app rodando sem
+  // a lista (build anterior do binário).
+  knownVaults: z.array(knownVaultSchema).default([]),
 })
 
 const historyStatusSchema = z.object({ canUndo: z.boolean(), canRedo: z.boolean() })

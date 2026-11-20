@@ -211,6 +211,72 @@
 
 /* ---------- passo do vault ---------- */
 
+/* Lista dos vaults que o app já abriu aqui. Só aparece quando há mais de um:
+   com um único vault o App abre direto, sem passar por esta tela. */
+.welcome-vault-list {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.welcome-vault-list-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.welcome-vault-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.welcome-vault-row:hover,
+.welcome-vault-row:focus-visible {
+  background: var(--mm-gold-100);
+  border-color: var(--mm-ink-350-3);
+}
+
+.welcome-vault-row:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.welcome-vault-row-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.welcome-vault-row-path {
+  grid-column: 1;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.welcome-vault-row-open {
+  grid-row: 1 / span 2;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.welcome-vault-row:hover .welcome-vault-row-open {
+  color: var(--foreground);
+}
+
 .welcome-vault-options {
   display: grid;
   gap: 10px;

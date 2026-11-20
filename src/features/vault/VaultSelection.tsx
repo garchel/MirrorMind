@@ -3,14 +3,10 @@ import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
 import { TitleBar } from '../../components/TitleBar'
 import { UpdateBanner } from '../../components/UpdateBanner'
-import { Modal } from '../../components/Modal'
 import { DevControls } from '../../components/DevControls'
 import { AccountForm } from '../account/AccountForm'
-import {
-  buildVaultPathPreview,
-  type CreateVaultForm,
-  type RecentVaultPreference,
-} from '../../lib/vault'
+import { buildVaultPathPreview, type CreateVaultForm } from '../../lib/vault'
+import type { KnownVault } from '../../lib/vaultStartup'
 import { markLoginSkipped, readLoginSkipped } from '../../lib/loginGate'
 import { disabledSessionClient, useSession, type SessionClient } from '../../lib/session'
 import type { AppUpdaterController } from '../../lib/useAppUpdater'
@@ -38,14 +34,11 @@ export type VaultSelectionProps = {
   createVault: () => void
   createForm: CreateVaultForm
   setCreateForm: Dispatch<SetStateAction<CreateVaultForm>>
-  showRecentVaultModal: boolean
   /** Chamado uma vez, quando a pergunta de conta (entrar ou seguir sem) termina. */
   onAccountSettled?: () => void
-  recentVaultPreference: RecentVaultPreference | null
-  dismissRecentVault: () => void
-  confirmRecentVault: () => void
-  skipRecentVaultPrompt: boolean
-  setSkipRecentVaultPrompt: (skip: boolean) => void
+  /** Vaults que o app já abriu aqui — a lista é a tela, não um modal por cima. */
+  knownVaults: KnownVault[]
+  onOpenKnownVault: (path: string) => void
   appUpdater: AppUpdaterController
   isBuilderModeEnabled: boolean
   setBuilderModeEnabled: (enabled: boolean) => void
@@ -71,13 +64,9 @@ export function VaultSelection({
   createVault,
   createForm,
   setCreateForm,
-  showRecentVaultModal,
   onAccountSettled,
-  recentVaultPreference,
-  dismissRecentVault,
-  confirmRecentVault,
-  skipRecentVaultPrompt,
-  setSkipRecentVaultPrompt,
+  knownVaults,
+  onOpenKnownVault,
   appUpdater,
   isBuilderModeEnabled,
   setBuilderModeEnabled,
@@ -168,6 +157,25 @@ export function VaultSelection({
               uma nova.
             </p>
 
+            {knownVaults.length > 0 ? (
+              <div className="welcome-vault-list">
+                <p className="welcome-vault-list-label">Vaults neste computador</p>
+                {knownVaults.map((vault) => (
+                  <button
+                    key={vault.path}
+                    type="button"
+                    className="welcome-vault-row"
+                    onClick={() => onOpenKnownVault(vault.path)}
+                    disabled={loading}
+                  >
+                    <span className="welcome-vault-row-name">{vault.name}</span>
+                    <span className="welcome-vault-row-path">{vault.path}</span>
+                    <span className="welcome-vault-row-open">Abrir</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
             <div className="welcome-vault-options">
               <article className="welcome-vault-option">
                 <div>
@@ -243,42 +251,6 @@ export function VaultSelection({
         )}
       </section>
 
-      {/* Só depois da escolha de conta (entrar, Google ou convidado): antes disso
-          o usuário ainda está decidindo se quer conta, e um modal por cima da
-          pergunta é ruído. */}
-      {step === 'vault' && showRecentVaultModal && recentVaultPreference?.lastVaultPath ? (
-        <Modal
-          open
-          onClose={() => void dismissRecentVault()}
-          labelledBy="recent-vault-title"
-          className="recent-vault-modal"
-          builderName="recent-vault-modal"
-          dismissable={false}
-        >
-          <p className="card-kicker">Continuar de onde parou</p>
-          <h2 id="recent-vault-title">Usar o último vault?</h2>
-          <p>
-            O MirrorMind encontrou o vault usado anteriormente em{' '}
-            <code>{recentVaultPreference.lastVaultPath}</code>.
-          </p>
-          <label className="recent-vault-checkbox">
-            <input
-              type="checkbox"
-              checked={skipRecentVaultPrompt}
-              onChange={(event) => setSkipRecentVaultPrompt(event.target.checked)}
-            />
-            <span>Não perguntar novamente e abrir este vault automaticamente.</span>
-          </label>
-          <div className="recent-vault-actions">
-            <Button type="button" variant="secondary" size="md" onClick={() => void dismissRecentVault()}>
-              Escolher outro vault
-            </Button>
-            <Button variant="primary" size="sm" onClick={() => void confirmRecentVault()}>
-              Usar este vault
-            </Button>
-          </div>
-        </Modal>
-      ) : null}
       <DevControls enabled={isBuilderModeEnabled} onEnabledChange={setBuilderModeEnabled} />
     </main>
   )

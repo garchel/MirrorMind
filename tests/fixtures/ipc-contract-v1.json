@@ -11,8 +11,14 @@
       "path": "C:\\Vaults\\Estudos",
       "noteCount": 2,
       "notePreviews": [
-        { "name": "aula.md", "relativePath": "notas/aula.md" },
-        { "name": "projeto.md", "relativePath": "projetos/projeto.md" }
+        {
+          "name": "aula.md",
+          "relativePath": "notas/aula.md"
+        },
+        {
+          "name": "projeto.md",
+          "relativePath": "projetos/projeto.md"
+        }
       ],
       "isObsidianVault": true,
       "obsidianPreferences": {
@@ -25,7 +31,9 @@
         "showUnsupportedFiles": true,
         "promptDelete": false,
         "trashOption": "local",
-        "userIgnoreFilters": ["Arquivo/"],
+        "userIgnoreFilters": [
+          "Arquivo/"
+        ],
         "ignoredPreferenceFields": []
       },
       "obsidianAppearance": null,
@@ -41,8 +49,14 @@
       "path": "C:\\Vaults\\Estudos",
       "noteCount": 2,
       "notePreviews": [
-        { "name": "aula.md", "relativePath": "notas/aula.md" },
-        { "name": "projeto.md", "relativePath": "projetos/projeto.md" }
+        {
+          "name": "aula.md",
+          "relativePath": "notas/aula.md"
+        },
+        {
+          "name": "projeto.md",
+          "relativePath": "projetos/projeto.md"
+        }
       ],
       "isObsidianVault": true,
       "obsidianPreferences": {
@@ -65,13 +79,20 @@
         "rootPath": "C:\\Vaults\\Estudos\\.mirmind",
         "missing": []
       }
-    },    "nullableVaultSummary": {
+    },
+    "nullableVaultSummary": {
       "name": "Estudos sem preferencias",
       "path": "C:\\Vaults\\Estudos",
       "noteCount": 2,
       "notePreviews": [
-        { "name": "aula.md", "relativePath": "notas/aula.md" },
-        { "name": "projeto.md", "relativePath": "projetos/projeto.md" }
+        {
+          "name": "aula.md",
+          "relativePath": "notas/aula.md"
+        },
+        {
+          "name": "projeto.md",
+          "relativePath": "projetos/projeto.md"
+        }
       ],
       "isObsidianVault": true,
       "obsidianPreferences": null,
@@ -89,8 +110,14 @@
       "content": "# Aula\n\nConteudo"
     },
     "noteList": [
-      { "name": "aula.md", "relativePath": "notas/aula.md" },
-      { "name": "projeto.md", "relativePath": "projetos/projeto.md" }
+      {
+        "name": "aula.md",
+        "relativePath": "notas/aula.md"
+      },
+      {
+        "name": "projeto.md",
+        "relativePath": "projetos/projeto.md"
+      }
     ],
     "specialVaultInventory": {
       "files": [
@@ -104,22 +131,53 @@
     },
     "recentVaultPreference": {
       "lastVaultPath": "C:\\Vaults\\Estudos",
-      "askBeforeReopen": true
+      "askBeforeReopen": true,
+      "knownVaults": []
     },
     "nullableRecentVaultPreference": {
       "lastVaultPath": null,
-      "askBeforeReopen": true
+      "askBeforeReopen": false,
+      "knownVaults": []
     },
     "historyStatus": {
       "canUndo": true,
       "canRedo": false
     },
     "watcherEvents": [
-      { "requestId": 7, "kind": "create", "paths": ["notas/nova.md"] },
-      { "requestId": 7, "kind": "modify", "paths": ["notas/aula.md"] },
-      { "requestId": 7, "kind": "remove", "paths": ["notas/antiga.md"] },
-      { "requestId": 7, "kind": "rename", "paths": ["notas/origem.md", "notas/destino.md"] },
-      { "requestId": 7, "kind": "rescan", "paths": [] }
+      {
+        "requestId": 7,
+        "kind": "create",
+        "paths": [
+          "notas/nova.md"
+        ]
+      },
+      {
+        "requestId": 7,
+        "kind": "modify",
+        "paths": [
+          "notas/aula.md"
+        ]
+      },
+      {
+        "requestId": 7,
+        "kind": "remove",
+        "paths": [
+          "notas/antiga.md"
+        ]
+      },
+      {
+        "requestId": 7,
+        "kind": "rename",
+        "paths": [
+          "notas/origem.md",
+          "notas/destino.md"
+        ]
+      },
+      {
+        "requestId": 7,
+        "kind": "rescan",
+        "paths": []
+      }
     ]
   },
   "legacy": {
@@ -128,8 +186,14 @@
       "path": "C:\\Vaults\\Estudos",
       "noteCount": 2,
       "notePreviews": [
-        { "name": "aula.md", "relativePath": "notas/aula.md" },
-        { "name": "projeto.md", "relativePath": "projetos/projeto.md" }
+        {
+          "name": "aula.md",
+          "relativePath": "notas/aula.md"
+        },
+        {
+          "name": "projeto.md",
+          "relativePath": "projetos/projeto.md"
+        }
       ],
       "isObsidianVault": true,
       "obsidianAppearance": null,

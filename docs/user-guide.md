@@ -18,8 +18,9 @@ Este guia cobre o essencial para começar e usar no dia a dia.
      [guia de migração](obsidian-migration-guide.md)).
    - **Criar novo vault** — informe um nome e escolha a pasta pai. O app cria a
      estrutura de metadados `.mirmind/` dentro da pasta.
-2. Na próxima abertura, o app pergunta se quer reabrir o último vault (você pode
-   marcar “não perguntar novamente”).
+2. Na próxima abertura **não há pergunta**: se o app conhece um único vault, ele
+   abre direto. Com dois ou mais vaults, a tela de abertura mostra a lista e
+   você escolhe — a lista são só os vaults que você já abriu nesta máquina.
 
 Seus arquivos continuam sendo arquivos comuns: você pode abri-los em qualquer
 editor, sincronizá-los com o serviço que preferir (OneDrive, Git etc.) e levar
@@ -96,7 +97,7 @@ Os recursos de avaliação usam IA **só quando você aciona**:
 | Local | Conteúdo |
 | --- | --- |
 | Dentro do vault (`.mirmind/`) | Configuração, histórico, lixeira, dados de revisão |
-| Pasta de configuração do app | Preferência de último vault |
+| Pasta de configuração do app | Lista dos vaults já abertos (`recent-vault.json`) |
 | Perfil local do WebView2 | Preferências de interface (localStorage) |
 
 Desinstalar o app **nunca apaga** seus vaults ou notas.

@@ -12,6 +12,7 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import { getVersion } from '@tauri-apps/api/app'
 import { errorMessage, invoke, isTauriRuntime } from './lib/tauri'
 import { useCloudAutoSync } from './lib/useCloudAutoSync'
+import { decideVaultStartup, sortKnownVaults } from './lib/vaultStartup'
 import { CloudIndicator } from './features/cloud/CloudIndicator'
 import { PricingPage } from './features/pricing/PricingPage'
 import { cloudIndicatorState } from './lib/cloudSync'
@@ -403,8 +404,6 @@ function App() {
   const [draftsByPath, setDraftsByPath] = useState<Record<string, string>>({})
   const [recentVaultPreference, setRecentVaultPreference] =
     useState<RecentVaultPreference | null>(null)
-  const [showRecentVaultModal, setShowRecentVaultModal] = useState(false)
-  const [skipRecentVaultPrompt, setSkipRecentVaultPrompt] = useState(false)
   /** A pergunta de conta (entrar ou seguir sem) já foi respondida? */
   const [contaResolvida, setContaResolvida] = useState(false)
   /** O último vault é tratado uma vez por abertura do app. */
@@ -1518,16 +1517,18 @@ function App() {
 
   // A decisão sobre o último vault acontece **depois** da pergunta de conta e
   // uma única vez. Enquanto ela não está resolvida, nada abre por cima.
+  // A decisão da primeira tela, uma vez por abertura: **um** vault conhecido
+  // abre direto; zero ou vários caem na tela de escolha. Não há mais modal de
+  // "continuar de onde parou" — ele perguntava o que a lista já responde.
   useEffect(() => {
     if (!contaResolvida || recentVaultTratadoRef.current) return
-    if (!recentVaultPreference?.lastVaultPath) return
+    if (!recentVaultPreference) return
 
     recentVaultTratadoRef.current = true
-    if (recentVaultPreference.askBeforeReopen) {
-      setShowRecentVaultModal(true)
-      return
+    const decisao = decideVaultStartup(recentVaultPreference.knownVaults)
+    if (decisao.kind === 'open') {
+      void reopenRecentVault()
     }
-    void reopenRecentVault()
   }, [contaResolvida, recentVaultPreference])
 
   // Aparencia: aplica o tema no documento (atributo `data-theme` lido pelo
@@ -1873,6 +1874,24 @@ function App() {
     }
   }
 
+  /** Abre um vault da lista lembrada (sem diálogo do sistema). */
+  async function openKnownVault(path: string) {
+    setError(null)
+    setLoading(true)
+    setStatus(`Abrindo ${path}...`)
+    try {
+      const vaultPayload = await invoke<unknown>('open_known_vault', { path })
+      const parsedVault = parseVaultSummary(vaultPayload)
+      setVault(parsedVault)
+      setStatus(`Vault aberto: ${parsedVault.name}`)
+    } catch (caughtError) {
+      setError(errorMessage(caughtError, 'Não foi possível abrir esse vault.'))
+      setStatus('Escolha outra pasta ou crie um vault novo.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function reopenRecentVault() {
     setError(null)
     setLoading(true)
@@ -1898,35 +1917,7 @@ function App() {
     }
   }
 
-  async function updateRecentVaultPromptPreference(askBeforeReopen: boolean) {
-    await invoke('set_recent_vault_prompt_preference', { askBeforeReopen })
-    setRecentVaultPreference((currentPreference) =>
-      currentPreference ? { ...currentPreference, askBeforeReopen } : currentPreference,
-    )
-  }
 
-  async function confirmRecentVault() {
-    try {
-      if (skipRecentVaultPrompt) {
-        await updateRecentVaultPromptPreference(false)
-      }
-      setShowRecentVaultModal(false)
-      await reopenRecentVault()
-    } catch (caughtError) {
-      setError(errorMessage(caughtError, 'Não foi possível salvar a preferencia.'))
-    }
-  }
-
-  async function dismissRecentVault() {
-    try {
-      if (skipRecentVaultPrompt) {
-        await updateRecentVaultPromptPreference(false)
-      }
-      setShowRecentVaultModal(false)
-    } catch (caughtError) {
-      setError(errorMessage(caughtError, 'Não foi possível salvar a preferencia.'))
-    }
-  }
 
   async function chooseVaultParent() {
     setError(null)
@@ -6672,13 +6663,9 @@ function App() {
       createVault={createVault}
       createForm={createForm}
       setCreateForm={setCreateForm}
-      showRecentVaultModal={showRecentVaultModal}
       onAccountSettled={() => setContaResolvida(true)}
-      recentVaultPreference={recentVaultPreference}
-      dismissRecentVault={dismissRecentVault}
-      confirmRecentVault={confirmRecentVault}
-      skipRecentVaultPrompt={skipRecentVaultPrompt}
-      setSkipRecentVaultPrompt={setSkipRecentVaultPrompt}
+      knownVaults={sortKnownVaults(recentVaultPreference?.knownVaults ?? [])}
+      onOpenKnownVault={(path) => void openKnownVault(path)}
       appUpdater={appUpdater}
       isBuilderModeEnabled={isBuilderModeEnabled}
       setBuilderModeEnabled={setBuilderModeEnabled}
