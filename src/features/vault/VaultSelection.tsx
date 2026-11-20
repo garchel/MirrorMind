@@ -5,7 +5,7 @@ import { TitleBar } from '../../components/TitleBar'
 import { UpdateBanner } from '../../components/UpdateBanner'
 import { DevControls } from '../../components/DevControls'
 import { GuestProfileStep } from './GuestProfileStep'
-import type { ProfileSummary } from '../../lib/profiles'
+import type { IdentitySummary } from '../../lib/identities'
 import { AccountForm } from '../account/AccountForm'
 import { buildVaultPathPreview, type CreateVaultForm } from '../../lib/vault'
 import type { KnownVault } from '../../lib/vaultStartup'
@@ -42,16 +42,15 @@ export type VaultSelectionProps = {
   knownVaults: KnownVault[]
   onOpenKnownVault: (path: string) => void
   /**
-   * Perfis do vault que vai abrir, lidos antes de abrir. `null` quando a máquina
-   * ainda não sabe qual vault é (nenhum conhecido, ou mais de um para escolher):
-   * aí a escolha de perfil acontece depois, quando o vault abrir.
+   * Identidades desta máquina (convidados). Não dependem de qual vault vai
+   * abrir: o cartão mora na pasta do app e viaja uma cópia dentro de cada vault.
    */
-  guestProfiles: ProfileSummary[] | null
-  guestProfileBusy: boolean
-  guestProfileError: string | null
-  /** Devolve `true` quando o perfil foi aberto e a tela pode seguir. */
-  onGuestProfileSelect: (profile: ProfileSummary, pin?: string) => Promise<boolean>
-  onGuestProfileCreate: (name: string, pin: string | null) => Promise<boolean>
+  guestIdentities: IdentitySummary[] | null
+  guestIdentityBusy: boolean
+  guestIdentityError: string | null
+  /** Devolve `true` quando a identidade foi escolhida e a tela pode seguir. */
+  onIdentitySelect: (identity: IdentitySummary, pin?: string) => Promise<boolean>
+  onIdentityCreate: (name: string, pin: string | null) => Promise<boolean>
   appUpdater: AppUpdaterController
   isBuilderModeEnabled: boolean
   setBuilderModeEnabled: (enabled: boolean) => void
@@ -80,11 +79,11 @@ export function VaultSelection({
   onAccountSettled,
   knownVaults,
   onOpenKnownVault,
-  guestProfiles,
-  guestProfileBusy,
-  guestProfileError,
-  onGuestProfileSelect,
-  onGuestProfileCreate,
+  guestIdentities,
+  guestIdentityBusy,
+  guestIdentityError,
+  onIdentitySelect,
+  onIdentityCreate,
   appUpdater,
   isBuilderModeEnabled,
   setBuilderModeEnabled,
@@ -129,17 +128,17 @@ export function VaultSelection({
    * precisa para abrir o histórico certo.
    */
   function handleGuestSkip() {
-    // Lista vazia também conta: significa "vault conhecido, nenhum perfil" — e
-    // aí a tela certa é a de criação, não a de escolher o vault.
-    if (guestProfiles) {
+    // Lista vazia também conta: significa "nenhuma identidade criada" — e aí a
+    // tela certa é a de criação, não a de escolher o vault.
+    if (guestIdentities) {
       setStep('guest')
       return
     }
     skipAccount()
   }
 
-  async function escolherPerfil(profile: ProfileSummary, pin?: string) {
-    const aberto = await onGuestProfileSelect(profile, pin)
+  async function escolherPerfil(profile: IdentitySummary, pin?: string) {
+    const aberto = await onIdentitySelect(profile, pin)
     if (aberto) {
       markLoginSkipped()
       setStep('vault')
@@ -147,7 +146,7 @@ export function VaultSelection({
   }
 
   async function criarPerfil(nome: string, pin: string | null) {
-    const aberto = await onGuestProfileCreate(nome, pin)
+    const aberto = await onIdentityCreate(nome, pin)
     if (aberto) {
       markLoginSkipped()
       setStep('vault')
@@ -199,12 +198,12 @@ export function VaultSelection({
               onSkip={handleGuestSkip}
             />
           </div>
-        ) : step === 'guest' && guestProfiles ? (
+        ) : step === 'guest' && guestIdentities ? (
           <div className="welcome-card">
             <GuestProfileStep
-              profiles={guestProfiles}
-              busy={guestProfileBusy}
-              error={guestProfileError}
+              profiles={guestIdentities}
+              busy={guestIdentityBusy}
+              error={guestIdentityError}
               onSelect={(profile, pin) => void escolherPerfil(profile, pin)}
               onCreate={(nome, pin) => void criarPerfil(nome, pin)}
             />

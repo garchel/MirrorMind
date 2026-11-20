@@ -147,6 +147,10 @@ import {
   writeLastProfileId,
   type ProfileSummary,
 } from './lib/profiles'
+import {
+  createIdentityClient,
+  type IdentitySummary,
+} from './lib/identities'
 import { clearLoginSkipped, markLoginSkipped } from './lib/loginGate'
 import { TabStrip, WorkspaceRail, WorkspaceTopbar, type WorkspacePage } from './features/shell/WorkspaceChrome'
 import { TrashPage } from './features/trash/TrashPage'
@@ -557,16 +561,17 @@ function App() {
   /** Quando preenchido, a tela "Quem está usando este vault?" ocupa o lugar do app. */
   const [profileGate, setProfileGate] = useState<{ vaultRoot: string; profiles: ProfileSummary[] } | null>(null)
   /**
-   * Perfis lidos **antes** de abrir o vault, para o passo do convidado na tela de
-   * abertura. `null` = não dá para saber ainda (nenhum vault conhecido, ou mais
-   * de um para escolher) — aí a escolha acontece depois, com o vault aberto.
+   * Identidades desta máquina, para o passo do convidado na abertura.
+   *
+   * Elas **não dependem** de saber qual vault vai abrir — o cartão mora na pasta
+   * do app e uma cópia viaja dentro de cada vault. `null` = ainda carregando.
    */
-  const [guestProfiles, setGuestProfiles] = useState<ProfileSummary[] | null>(null)
-  const [guestProfileBusy, setGuestProfileBusy] = useState(false)
-  const [guestProfileError, setGuestProfileError] = useState<string | null>(null)
-  const guestVaultRootRef = useRef<string | null>(null)
-  /** Perfil escolhido na abertura, para o vault não voltar a perguntar. */
-  const pendingProfileRef = useRef<{ vaultRoot: string; profile: ProfileSummary } | null>(null)
+  const [guestIdentities, setGuestIdentities] = useState<IdentitySummary[] | null>(null)
+  const [guestIdentityBusy, setGuestIdentityBusy] = useState(false)
+  const [guestIdentityError, setGuestIdentityError] = useState<string | null>(null)
+  const identityClient = useMemo(() => createIdentityClient(invoke), [])
+  /** Identidade escolhida na abertura; o vault aberto cria/acha o perfil dela. */
+  const pendingIdentityRef = useRef<IdentitySummary | null>(null)
   /** Perfil local em uso (quem está estudando neste vault). */
   const [activeProfile, setActiveProfile] = useState<ProfileSummary | null>(null)
   const accountSessionClient = useMemo(() => {
@@ -1027,17 +1032,28 @@ function App() {
     '--reading-font-size': `${editorFontSize}px`,
   } as CSSProperties
   const handleVaultSelection = useEffectEvent(async (selectedVault: VaultSummary) => {
-    // Perfil escolhido na tela de abertura para **este** vault: entra com ele e
-    // não repete a pergunta. Para outro vault a escolha não vale (perfis moram
-    // no vault), então segue o caminho normal.
-    const perfilPendente = pendingProfileRef.current
-    pendingProfileRef.current = null
-    if (perfilPendente && perfilPendente.vaultRoot === selectedVault.path) {
-      setActiveProfile(perfilPendente.profile)
-      await refreshNotes(selectedVault.path)
-      void buildVaultWikilinkIndex(selectedVault.path)
-      return
+    // Identidade escolhida na abertura: o vault cria (ou acha) o perfil dela,
+    // entra com ele e não repete a pergunta. Vale para qualquer vault — o perfil
+    // é derivado da identidade, não da pasta que estava aberta antes.
+    const identidadePendente = pendingIdentityRef.current
+    pendingIdentityRef.current = null
+    if (identidadePendente) {
+      try {
+        const perfil = await identityClient.enterVault(selectedVault.path, identidadePendente.id)
+        writeLastProfileId(selectedVault.path, perfil.id)
+        setActiveProfile(perfil)
+        await refreshNotes(selectedVault.path)
+        void buildVaultWikilinkIndex(selectedVault.path)
+        return
+      } catch (causa) {
+        // Identidade ilegível não pode impedir o uso das notas: segue o caminho
+        // normal (portão de perfis do vault decide).
+        setGuestIdentityError(errorMessage(causa, 'Não foi possível entrar com esse perfil.'))
+      }
     }
+
+    // Abertura normal: funde o espelho que veio com a pasta com a lista da máquina.
+    void identityClient.adopt(selectedVault.path).catch(() => undefined)
     // Perfis: com um perfil só e sem PIN, entrar direto; havendo escolha (ou PIN),
     // a tela aparece antes de qualquer leitura — os caminhos de estado dependem do
     // perfil ativo.
@@ -1556,18 +1572,14 @@ function App() {
       void reopenRecentVault()
     }
 
-    // Com um vault só, os perfis dele podem ser lidos antes de abrir — é o que
-    // permite perguntar "quem está estudando" na própria tela de abertura.
-    // Com dois ou mais, cada vault tem os seus: perguntar aqui seria chutar.
-    if (recentVaultPreference.knownVaults.length === 1) {
-      const root = recentVaultPreference.knownVaults[0].path
-      guestVaultRootRef.current = root
-      void profileClient
-        .list(root)
-        .then((perfis) => setGuestProfiles(perfis))
-        .catch(() => setGuestProfiles(null))
-    }
-  }, [contaResolvida, profileClient, recentVaultPreference])
+    // Identidades: lista da máquina, sem precisar saber qual vault abre. É o que
+    // permite perguntar "quem está entrando" antes da pasta — e a mesma pessoa
+    // continua sendo ela em qualquer vault.
+    void identityClient
+      .list()
+      .then((lista) => setGuestIdentities(lista))
+      .catch(() => setGuestIdentities([]))
+  }, [contaResolvida, identityClient, profileClient, recentVaultPreference])
 
   // Aparencia: aplica o tema no documento (atributo `data-theme` lido pelo
   // CSS) e as variaveis de fonte/leitura. A persistência vive no hook
@@ -1930,50 +1942,42 @@ function App() {
     }
   }
 
-  /** Abre um perfil escolhido na tela de abertura (com PIN, se ele pedir). */
-  async function handleGuestProfileSelect(profile: ProfileSummary, pin?: string) {
-    const root = guestVaultRootRef.current
-    if (!root) return false
-    setGuestProfileBusy(true)
-    setGuestProfileError(null)
+  /** Escolhe uma identidade na abertura; o vault aberto em seguida entra com ela. */
+  async function handleIdentitySelect(identity: IdentitySummary, pin?: string) {
+    setGuestIdentityBusy(true)
+    setGuestIdentityError(null)
     try {
-      if (profile.hasPin) {
-        const correto = await profileClient.verifyPin(root, profile.id, pin ?? '')
+      if (identity.hasPin) {
+        const correto = await identityClient.verifyPin(identity.id, pin ?? '')
         if (!correto) {
-          setGuestProfileError('PIN incorreto.')
+          setGuestIdentityError('PIN incorreto.')
           return false
         }
       }
-      await profileClient.select(root, profile.id)
-      writeLastProfileId(root, profile.id)
-      pendingProfileRef.current = { vaultRoot: root, profile }
+      pendingIdentityRef.current = identity
       return true
     } catch (causa) {
-      setGuestProfileError(errorMessage(causa, 'Não foi possível abrir este perfil.'))
+      setGuestIdentityError(errorMessage(causa, 'Não foi possível abrir este perfil.'))
       return false
     } finally {
-      setGuestProfileBusy(false)
+      setGuestIdentityBusy(false)
     }
   }
 
-  /** Cria o perfil do convidado na abertura e já entra com ele. */
-  async function handleGuestProfileCreate(nome: string, pin: string | null) {
-    const root = guestVaultRootRef.current
-    if (!root) return false
-    setGuestProfileBusy(true)
-    setGuestProfileError(null)
+  /** Cria a identidade do convidado e já entra com ela no vault que abrir. */
+  async function handleIdentityCreate(nome: string, pin: string | null) {
+    setGuestIdentityBusy(true)
+    setGuestIdentityError(null)
     try {
-      const criado = await profileClient.create(root, { name: nome, color: 'sage', pin })
-      await profileClient.select(root, criado.id)
-      writeLastProfileId(root, criado.id)
-      pendingProfileRef.current = { vaultRoot: root, profile: criado }
-      setGuestProfiles((atuais) => (atuais ? [...atuais, criado] : [criado]))
+      const criada = await identityClient.create({ name: nome, color: 'sage', pin })
+      pendingIdentityRef.current = criada
+      setGuestIdentities((atuais) => (atuais ? [criada, ...atuais] : [criada]))
       return true
     } catch (causa) {
-      setGuestProfileError(errorMessage(causa, 'Não foi possível criar o perfil.'))
+      setGuestIdentityError(errorMessage(causa, 'Não foi possível criar o perfil.'))
       return false
     } finally {
-      setGuestProfileBusy(false)
+      setGuestIdentityBusy(false)
     }
   }
 
@@ -6751,11 +6755,11 @@ function App() {
       onAccountSettled={() => setContaResolvida(true)}
       knownVaults={sortKnownVaults(recentVaultPreference?.knownVaults ?? [])}
       onOpenKnownVault={(path) => void openKnownVault(path)}
-      guestProfiles={guestProfiles}
-      guestProfileBusy={guestProfileBusy}
-      guestProfileError={guestProfileError}
-      onGuestProfileSelect={handleGuestProfileSelect}
-      onGuestProfileCreate={handleGuestProfileCreate}
+      guestIdentities={guestIdentities}
+      guestIdentityBusy={guestIdentityBusy}
+      guestIdentityError={guestIdentityError}
+      onIdentitySelect={handleIdentitySelect}
+      onIdentityCreate={handleIdentityCreate}
       appUpdater={appUpdater}
       isBuilderModeEnabled={isBuilderModeEnabled}
       setBuilderModeEnabled={setBuilderModeEnabled}

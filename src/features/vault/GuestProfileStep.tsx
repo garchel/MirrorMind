@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
-import type { ProfileSummary } from '../../lib/profiles'
+import type { IdentitySummary } from '../../lib/identities'
 
 /**
  * Passo do convidado: quem está estudando neste vault.
@@ -22,21 +22,19 @@ export function GuestProfileStep({
   onSelect,
   onCreate,
 }: {
-  profiles: ProfileSummary[]
+  profiles: IdentitySummary[]
   busy: boolean
   error: string | null
-  /** `pin` só é usado quando o perfil pede PIN. */
-  onSelect: (profile: ProfileSummary, pin?: string) => void
+  /** `pin` só é usado quando a identidade pede PIN. */
+  onSelect: (profile: IdentitySummary, pin?: string) => void
   onCreate: (name: string, pin: string | null) => void
 }) {
-  // Perfil padrão ("Eu") nasce sozinho na primeira leitura do vault: ele não é
-  // um perfil que a pessoa criou, então com ele sozinho a tela abre pedindo o
-  // nome — mas sem esconder o "Eu", que é onde o histórico antigo está.
-  const soPadrao = profiles.length === 1 && profiles[0].isDefault
-  const [criando, setCriando] = useState(profiles.length === 0 || soPadrao)
+  // Sem nenhuma identidade criada, a tela já abre pedindo o nome: não há o que
+  // escolher, e a pessoa nunca viu esta pergunta antes.
+  const [criando, setCriando] = useState(profiles.length === 0)
   const [nome, setNome] = useState('')
   const [pinDoNovo, setPinDoNovo] = useState('')
-  const [perfilComPin, setPerfilComPin] = useState<ProfileSummary | null>(null)
+  const [perfilComPin, setPerfilComPin] = useState<IdentitySummary | null>(null)
   const [pinDigitado, setPinDigitado] = useState('')
   const [aviso, setAviso] = useState<string | null>(null)
 

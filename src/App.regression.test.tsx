@@ -155,6 +155,18 @@ function createTauriHarness(
     switch (command) {
       case 'get_recent_vault_preference':
         return startupPreference ?? { lastVaultPath: null, askBeforeReopen: true }
+      case 'identities_list':
+      case 'identities_adopt':
+        return []
+      case 'identity_enter_vault':
+        return {
+          id: 'p1',
+          name: 'Eu',
+          color: 'sage',
+          isDefault: true,
+          hasPin: false,
+          linked: false,
+        }
       case 'profiles_list':
         return profileListResponse
       case 'profiles_select':

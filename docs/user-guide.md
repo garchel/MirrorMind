@@ -18,7 +18,13 @@ Este guia cobre o essencial para começar e usar no dia a dia.
      [guia de migração](obsidian-migration-guide.md)).
    - **Criar novo vault** — informe um nome e escolha a pasta pai. O app cria a
      estrutura de metadados `.mirmind/` dentro da pasta.
-2. Na próxima abertura **não há pergunta**: se o app conhece um único vault, ele
+2. **Quem está estudando?** — ao continuar sem conta, o app pede um nome e,
+   se você quiser, um PIN (4 a 12 dígitos; ele impede outra pessoa de abrir o seu
+   perfil, não criptografa as notas). Esse perfil é seu em **todos** os vaults
+   desta máquina, e uma cópia dele viaja dentro de cada vault — abrir a pasta
+   noutro computador leva o nome junto. Quando os dois lados discordam (PIN
+   trocado em outra máquina), vence o mais recente.
+3. Na próxima abertura **não há pergunta**: se o app conhece um único vault, ele
    abre direto. Com dois ou mais vaults, a tela de abertura mostra a lista e
    você escolhe — a lista são só os vaults que você já abriu nesta máquina.
 

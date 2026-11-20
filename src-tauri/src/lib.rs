@@ -29,6 +29,7 @@ pub(crate) mod cloud_commands;
 pub(crate) mod cloud_sync;
 pub(crate) mod dictionary;
 pub(crate) mod goals;
+pub(crate) mod identities;
 pub(crate) mod profiles;
 pub mod review;
 pub(crate) mod session;
@@ -419,6 +420,135 @@ fn get_recent_vault_preference(app: AppHandle) -> Result<RecentVaultPreference, 
 ///
 /// A lista vem do próprio app, mas o caminho ainda é canonicalizado e autorizado:
 /// arquivo de preferência é dado no disco, e dado no disco pode ser editado.
+/// Pasta onde vivem as identidades desta máquina (o "cartão na gaveta").
+fn identities_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_config_dir()
+        .map_err(|error| error.to_string())
+}
+
+/// Identidades desta máquina, mais recente primeiro. Não depende de vault: é o
+/// que permite perguntar "quem está entrando" antes de saber qual pasta abrir.
+#[tauri::command]
+fn identities_list(app: AppHandle) -> Result<Vec<identities::IdentitySummary>, String> {
+    identities::guests(&identities_dir(&app)?).map_err(|error| error.to_string())
+}
+
+/// Junta o espelho que veio dentro do vault com a lista da máquina ("mais
+/// recente vence" pelo `updatedAt`). Chamado quando um vault abre.
+#[tauri::command]
+fn identities_adopt(
+    app: AppHandle,
+    vault_root: String,
+) -> Result<Vec<identities::IdentitySummary>, String> {
+    let dir = identities_dir(&app)?;
+    // Primeiro o espelho (o que veio com a pasta), depois o que só existe dentro
+    // deste vault: perfis com nome/PIN criados antes das identidades.
+    identities::adopt_from_vault(&dir, Path::new(&vault_root))
+        .map_err(|error| error.to_string())?;
+    let _ = profiles::migrate_profiles_to_identities(&dir, Path::new(&vault_root));
+    let lista = identities::load_machine(&dir).map_err(|error| error.to_string())?;
+    Ok(lista
+        .into_iter()
+        .filter(|item| item.account_id.is_none())
+        .map(|item| item.summary())
+        .collect())
+}
+
+#[tauri::command]
+fn identity_create(
+    app: AppHandle,
+    name: String,
+    color: Option<String>,
+    pin: Option<String>,
+) -> Result<identities::IdentitySummary, String> {
+    let criada = identities::create(
+        &identities_dir(&app)?,
+        None,
+        None,
+        &name,
+        color.as_deref().unwrap_or("sage"),
+        pin.as_deref(),
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(criada.summary())
+}
+
+#[tauri::command]
+fn identity_rename(
+    app: AppHandle,
+    id: String,
+    name: String,
+    color: Option<String>,
+) -> Result<identities::IdentitySummary, String> {
+    let atualizada = identities::update(
+        &identities_dir(&app)?,
+        None,
+        &id,
+        Some(&name),
+        color.as_deref(),
+        None,
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(atualizada.summary())
+}
+
+#[tauri::command]
+fn identity_set_pin(
+    app: AppHandle,
+    id: String,
+    pin: Option<String>,
+) -> Result<identities::IdentitySummary, String> {
+    let atualizada = identities::update(
+        &identities_dir(&app)?,
+        None,
+        &id,
+        None,
+        None,
+        Some(pin.as_deref()),
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(atualizada.summary())
+}
+
+#[tauri::command]
+fn identity_verify_pin(app: AppHandle, id: String, pin: String) -> Result<bool, String> {
+    identities::verify_pin(&identities_dir(&app)?, &id, &pin).map_err(|error| error.to_string())
+}
+
+/// Entra num vault como esta identidade.
+///
+/// Acha (ou cria) o perfil do vault ligado à identidade, copia o espelho para
+/// dentro da pasta — a "foto na caixa" — e marca o perfil como ativo. É o passo
+/// que faz a mesma pessoa ter o mesmo nome em vaults diferentes.
+#[tauri::command]
+fn identity_enter_vault(
+    app: AppHandle,
+    vault_root: String,
+    identity_id: String,
+) -> Result<profiles::ProfileSummary, String> {
+    let dir = identities_dir(&app)?;
+    let root = Path::new(&vault_root);
+    identities::adopt_from_vault(&dir, root).map_err(|error| error.to_string())?;
+    let lista = identities::load_machine(&dir).map_err(|error| error.to_string())?;
+    let identidade = lista
+        .iter()
+        .find(|item| item.id == identity_id)
+        .ok_or_else(|| "Identidade não encontrada nesta máquina.".to_string())?
+        .clone();
+
+    let perfil = profiles::ensure_profile_for_identity(root, &identidade)
+        .map_err(|error| error.to_string())?;
+    identities::gravar_espelho(&dir, Some(root), &identidade)
+        .map_err(|error| error.to_string())?;
+    profiles::profiles_select(
+        vault_root,
+        perfil.id.clone(),
+        Some(false),
+    )?;
+    Ok(perfil.summary())
+}
+
 #[tauri::command]
 fn open_known_vault(
     app: AppHandle,
@@ -6508,6 +6638,13 @@ pub fn run() {
             select_existing_vault,
             get_recent_vault_preference,
             reopen_recent_vault,
+            identities_adopt,
+            identities_list,
+            identity_create,
+            identity_enter_vault,
+            identity_rename,
+            identity_set_pin,
+            identity_verify_pin,
             open_known_vault,
             clear_local_app_data,
             account_save_session,

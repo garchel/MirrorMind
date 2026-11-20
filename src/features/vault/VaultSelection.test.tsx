@@ -36,11 +36,11 @@ function renderSelection(overrides: Partial<VaultSelectionProps> = {}) {
     setCreateForm: vi.fn(),
     knownVaults: [],
     onOpenKnownVault: vi.fn(),
-    guestProfiles: null,
-    guestProfileBusy: false,
-    guestProfileError: null,
-    onGuestProfileSelect: vi.fn(async () => true),
-    onGuestProfileCreate: vi.fn(async () => true),
+    guestIdentities: null,
+    guestIdentityBusy: false,
+    guestIdentityError: null,
+    onIdentitySelect: vi.fn(async () => true),
+    onIdentityCreate: vi.fn(async () => true),
     appUpdater: updater,
     isBuilderModeEnabled: false,
     setBuilderModeEnabled: vi.fn(),
@@ -146,7 +146,7 @@ describe('VaultSelection (abertura do app)', () => {
   it('convidado sem perfil criado é convidado a criar um, com nome e PIN opcional', async () => {
     localStorage.setItem('mirrormind.account.login-skipped', 'false')
     const user = userEvent.setup()
-    const { props } = renderSelection({ guestProfiles: [] })
+    const { props } = renderSelection({ guestIdentities: [] })
 
     await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
 
@@ -160,84 +160,69 @@ describe('VaultSelection (abertura do app)', () => {
     await user.click(screen.getByRole('button', { name: 'Criar perfil' }))
 
     await waitFor(() =>
-      expect(props.onGuestProfileCreate).toHaveBeenCalledWith('Paulo', '1234'),
+      expect(props.onIdentityCreate).toHaveBeenCalledWith('Paulo', '1234'),
     )
   })
 
   it('sem PIN o perfil é criado sem senha nenhuma', async () => {
     localStorage.setItem('mirrormind.account.login-skipped', 'false')
     const user = userEvent.setup()
-    const { props } = renderSelection({ guestProfiles: [] })
+    const { props } = renderSelection({ guestIdentities: [] })
 
     await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
     await user.type(await screen.findByPlaceholderText('Ex.: Paulo'), 'Ana')
     await user.click(screen.getByRole('button', { name: 'Criar perfil' }))
 
-    await waitFor(() => expect(props.onGuestProfileCreate).toHaveBeenCalledWith('Ana', null))
+    await waitFor(() => expect(props.onIdentityCreate).toHaveBeenCalledWith('Ana', null))
   })
 
   it('nome vazio não cria perfil', async () => {
     localStorage.setItem('mirrormind.account.login-skipped', 'false')
     const user = userEvent.setup()
-    const { props } = renderSelection({ guestProfiles: [] })
+    const { props } = renderSelection({ guestIdentities: [] })
 
     await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
     await user.click(await screen.findByRole('button', { name: 'Criar perfil' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Dê um nome ao perfil.')
-    expect(props.onGuestProfileCreate).not.toHaveBeenCalled()
+    expect(props.onIdentityCreate).not.toHaveBeenCalled()
   })
 
-  it('com só o perfil padrão, pede para criar o seu sem esconder o histórico antigo', async () => {
+  it('com identidades já criadas, mostra a lista e deixa abrir a sua', async () => {
     localStorage.setItem('mirrormind.account.login-skipped', 'false')
     const user = userEvent.setup()
-    const padrao = { id: 'padrao', name: 'Eu', color: 'sage', isDefault: true, hasPin: false }
-    renderSelection({ guestProfiles: [padrao] })
-
-    await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
-
-    // "Eu" é perfil automático, não escolha de ninguém: a tela pede um nome…
-    expect(await screen.findByRole('heading', { name: 'Crie seu perfil' })).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Ex.: Paulo')).toBeInTheDocument()
-    // …e o perfil antigo continua a um clique, para o histórico não se perder.
-    expect(screen.getByRole('button', { name: 'Entrar' })).toBeInTheDocument()
-  })
-
-  it('com perfis já criados, mostra a lista e deixa abrir o seu', async () => {
-    localStorage.setItem('mirrormind.account.login-skipped', 'false')
-    const user = userEvent.setup()
-    const paulo = { id: 'p1', name: 'Paulo', color: 'sage', isDefault: false, hasPin: false }
-    const ana = { id: 'p2', name: 'Ana', color: 'brick', isDefault: false, hasPin: false }
-    const { props } = renderSelection({ guestProfiles: [paulo, ana] })
+    const paulo = { id: 'p1', name: 'Paulo', color: 'sage', hasPin: false, linked: false, updatedAtUnixMs: 1 }
+    const ana = { id: 'p2', name: 'Ana', color: 'brick', hasPin: false, linked: false, updatedAtUnixMs: 1 }
+    const { props } = renderSelection({ guestIdentities: [paulo, ana] })
 
     await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
     expect(await screen.findByRole('heading', { name: 'Quem está estudando?' })).toBeInTheDocument()
 
     await user.click(screen.getAllByRole('button', { name: 'Entrar' })[1])
-    await waitFor(() => expect(props.onGuestProfileSelect).toHaveBeenCalledWith(ana, undefined))
+    await waitFor(() => expect(props.onIdentitySelect).toHaveBeenCalledWith(ana, undefined))
   })
 
   it('perfil com PIN só entra depois do número', async () => {
     localStorage.setItem('mirrormind.account.login-skipped', 'false')
     const user = userEvent.setup()
-    const comPin = { id: 'p1', name: 'Paulo', color: 'sage', isDefault: false, hasPin: true }
-    const { props } = renderSelection({ guestProfiles: [comPin] })
+    const comPin = { id: 'p1', name: 'Paulo', color: 'sage', hasPin: true, linked: false, updatedAtUnixMs: 1 }
+    const { props } = renderSelection({ guestIdentities: [comPin] })
 
     await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
     await user.click(await screen.findByRole('button', { name: 'Pedir PIN' }))
 
     // Escolher o perfil não basta: o PIN é conferido antes de abrir.
-    expect(props.onGuestProfileSelect).not.toHaveBeenCalled()
+    expect(props.onIdentitySelect).not.toHaveBeenCalled()
     await user.type(screen.getByLabelText('PIN do perfil Paulo'), '1234')
     await user.click(screen.getByRole('button', { name: 'Entrar' }))
 
-    await waitFor(() => expect(props.onGuestProfileSelect).toHaveBeenCalledWith(comPin, '1234'))
+    await waitFor(() => expect(props.onIdentitySelect).toHaveBeenCalledWith(comPin, '1234'))
   })
 
   it('sem vault conhecido o convidado segue para a escolha do vault', async () => {
     localStorage.setItem('mirrormind.account.login-skipped', 'false')
     const user = userEvent.setup()
-    renderSelection({ guestProfiles: null })
+    renderSelection({ guestIdentities: null })
 
     await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
 

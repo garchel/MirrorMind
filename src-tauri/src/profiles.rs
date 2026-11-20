@@ -57,6 +57,15 @@ pub struct Profile {
     pub pin_salt: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pin_hash: Option<String>,
+    /// Identidade da máquina a que este perfil pertence (ver `identities.rs`).
+    ///
+    /// Ausente = perfil local ao vault, criado dentro dele e sem identidade
+    /// global: continua funcionando exatamente como antes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_id: Option<String>,
+    /// Quando o perfil mudou pela última vez (mesma regra do "mais recente vence").
+    #[serde(default)]
+    pub updated_at_unix_ms: i64,
 }
 
 /// O que o frontend vê: sem sal e sem hash, só se existe PIN.
@@ -117,6 +126,8 @@ fn profile_with_default() -> Profile {
         account_id: None,
         pin_salt: None,
         pin_hash: None,
+        identity_id: None,
+        updated_at_unix_ms: 0,
     }
 }
 
@@ -156,7 +167,7 @@ fn save_profiles(vault_root: &Path, profiles: &[Profile]) -> Result<()> {
     Ok(())
 }
 
-fn validate_name(name: &str) -> Result<String> {
+pub(crate) fn validate_name(name: &str) -> Result<String> {
     let name = name.trim();
     if name.is_empty() {
         bail!("O perfil precisa de um nome.");
@@ -167,7 +178,7 @@ fn validate_name(name: &str) -> Result<String> {
     Ok(name.to_string())
 }
 
-fn validate_pin(pin: &str) -> Result<()> {
+pub(crate) fn validate_pin(pin: &str) -> Result<()> {
     let tamanho = pin.chars().count();
     if !(PIN_MIN_CHARS..=PIN_MAX_CHARS).contains(&tamanho) {
         bail!("O PIN precisa ter de {PIN_MIN_CHARS} a {PIN_MAX_CHARS} dígitos.");
@@ -178,7 +189,7 @@ fn validate_pin(pin: &str) -> Result<()> {
     Ok(())
 }
 
-fn random_salt() -> String {
+pub(crate) fn random_salt() -> String {
     let mut bytes = [0u8; 16];
     getrandom::fill(&mut bytes).expect("o sistema precisa fornecer entropia");
     base64_encode(&bytes)
@@ -253,6 +264,10 @@ pub fn create_profile(
         account_id: None,
         pin_hash: pin.map(|pin| hash_pin(pin, salt.as_deref().unwrap_or_default())),
         pin_salt: salt,
+        // Perfil criado dentro do vault (tela "Quem está usando?"): sem identidade
+        // global por enquanto — continua sendo o cartão só desta caixa.
+        identity_id: None,
+        updated_at_unix_ms: now_ms(),
     };
     let resumo = perfil.summary();
     profiles.push(perfil);
@@ -460,6 +475,106 @@ fn como_erro<T>(resultado: Result<T>) -> Result<T, String> {
     resultado.map_err(|erro| erro.to_string())
 }
 
+/// Traz para o mundo das identidades os perfis que já existiam **dentro** do vault.
+///
+/// Quem usava o app antes da identidade tem nome e PIN guardados só em
+/// `profiles.json`. Sem esta migração, a abertura mostraria "crie seu perfil"
+/// para alguém que já tem um — e o PIN sumiria da vista.
+///
+/// Fica de fora o perfil de fábrica intocado (`Eu`, sem PIN, sem identidade):
+/// ninguém o criou, e torná-lo identidade faria a tela perguntar "é você mesmo?"
+/// a quem nunca escolheu nada.
+pub fn migrate_profiles_to_identities(
+    app_config_dir: &Path,
+    vault_root: &Path,
+) -> Result<usize> {
+    let mut perfis = load_profiles(vault_root)?;
+    let mut maquina = crate::identities::load_machine(app_config_dir)?;
+    let mut migrados = 0;
+
+    for perfil in perfis.iter_mut() {
+        if perfil.identity_id.is_some() {
+            continue;
+        }
+        let fabrica_intacto = perfil.id == DEFAULT_PROFILE_ID
+            && perfil.name == "Eu"
+            && perfil.pin_hash.is_none();
+        if fabrica_intacto {
+            continue;
+        }
+
+        let identidade = crate::identities::Identity {
+            id: format!("id-{}", crate::identities::random_id_public()),
+            name: perfil.name.clone(),
+            color: perfil.color.clone(),
+            account_id: perfil.account_id.clone(),
+            pin_salt: perfil.pin_salt.clone(),
+            pin_hash: perfil.pin_hash.clone(),
+            updated_at_unix_ms: crate::identities::now_ms(),
+        };
+        perfil.identity_id = Some(identidade.id.clone());
+        perfil.updated_at_unix_ms = crate::identities::now_ms();
+        maquina.push(identidade);
+        migrados += 1;
+    }
+
+    if migrados > 0 {
+        crate::identities::ordenar(&mut maquina);
+        crate::identities::save_machine(app_config_dir, &maquina)?;
+        crate::identities::save_mirror(vault_root, &maquina)?;
+        save_profiles(vault_root, &perfis)?;
+    }
+    Ok(migrados)
+}
+
+/// Garante um perfil neste vault para a identidade da máquina.
+///
+/// Se já existe um perfil ligado a ela, o perfil é atualizado com nome/cor/PIN da
+/// identidade (a identidade manda: é o "mais recente vence" entre os dois
+/// arquivos). Se não existe, nasce um perfil novo — é o que faz a mesma pessoa
+/// entrar em *Medicina* e em *Residência* com o mesmo nome, sem virar duas.
+///
+/// PIN salgado é copiado junto de propósito: sem ele o perfil novo abriria sem
+/// proteção no vault onde ainda não existia.
+pub fn ensure_profile_for_identity(
+    vault_root: &Path,
+    identidade: &crate::identities::Identity,
+) -> Result<Profile> {
+    let mut perfis = load_profiles(vault_root)?;
+    let indice = perfis
+        .iter()
+        .position(|perfil| perfil.identity_id.as_deref() == Some(identidade.id.as_str()));
+
+    match indice {
+        Some(posicao) => {
+            perfis[posicao].name = identidade.name.clone();
+            perfis[posicao].color = identidade.color.clone();
+            perfis[posicao].pin_salt = identidade.pin_salt.clone();
+            perfis[posicao].pin_hash = identidade.pin_hash.clone();
+            perfis[posicao].updated_at_unix_ms = now_ms();
+            let atualizado = perfis[posicao].clone();
+            save_profiles(vault_root, &perfis)?;
+            Ok(atualizado)
+        }
+        None => {
+            let novo = Profile {
+                id: format!("id-{}", crate::identities::random_id_public()),
+                name: identidade.name.clone(),
+                color: identidade.color.clone(),
+                created_at_unix_ms: now_ms(),
+                account_id: identidade.account_id.clone(),
+                pin_salt: identidade.pin_salt.clone(),
+                pin_hash: identidade.pin_hash.clone(),
+                identity_id: Some(identidade.id.clone()),
+                updated_at_unix_ms: now_ms(),
+            };
+            perfis.push(novo.clone());
+            save_profiles(vault_root, &perfis)?;
+            Ok(novo)
+        }
+    }
+}
+
 #[tauri::command]
 pub fn profiles_list(vault_root: String) -> Result<Vec<ProfileSummary>, String> {
     como_erro(
@@ -637,6 +752,46 @@ mod tests {
 
     fn vault_temporario() -> tempfile::TempDir {
         tempfile::tempdir().expect("vault temporario")
+    }
+
+
+    #[test]
+    fn migracao_leva_perfil_nomeado_para_identidade_e_pula_o_de_fabrica() {
+        let vault = vault_temporario();
+        let app = tempfile::tempdir().expect("app dir");
+
+        // perfil de fábrica intocado + perfil criado por alguém, com PIN
+        let mut perfis = load_profiles(vault.path()).expect("perfis");
+        let salt = random_salt();
+        perfis.push(Profile {
+            id: "abc".into(),
+            name: "Ana".into(),
+            color: "brick".into(),
+            created_at_unix_ms: 1,
+            account_id: None,
+            pin_salt: Some(salt.clone()),
+            pin_hash: Some(hash_pin("1234", &salt)),
+            identity_id: None,
+            updated_at_unix_ms: 0,
+        });
+        save_profiles(vault.path(), &perfis).expect("gravar");
+
+        let migrados = migrate_profiles_to_identities(app.path(), vault.path()).expect("migrar");
+        assert_eq!(migrados, 1, "só o perfil criado vira identidade");
+
+        let identidades = crate::identities::load_machine(app.path()).expect("identidades");
+        assert_eq!(identidades.len(), 1);
+        assert_eq!(identidades[0].name, "Ana");
+        // o PIN viaja: a identidade protege com o mesmo número
+        assert!(crate::identities::verify_pin(app.path(), &identidades[0].id, "1234").unwrap());
+
+        // e o perfil guardou o vínculo, para não migrar de novo
+        let depois = load_profiles(vault.path()).expect("perfis");
+        let ana = depois.iter().find(|perfil| perfil.id == "abc").expect("ana");
+        assert_eq!(ana.identity_id.as_deref(), Some(identidades[0].id.as_str()));
+
+        // rodar de novo não duplica
+        assert_eq!(migrate_profiles_to_identities(app.path(), vault.path()).unwrap(), 0);
     }
 
     #[test]
