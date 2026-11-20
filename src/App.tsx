@@ -1554,6 +1554,17 @@ function App() {
     return () => window.removeEventListener('mousedown', closeDropdown)
   }, [showTagFilterDropdown])
 
+  // Identidades da máquina: carregadas na abertura, não junto da decisão do
+  // vault. Elas não dependem de saber qual pasta abre, e precisam estar prontas
+  // **antes** do clique em "Continuar sem conta" — medidas no app rodando, elas
+  // chegavam tarde ali e o passo do convidado era pulado em silêncio.
+  useEffect(() => {
+    void identityClient
+      .list()
+      .then((lista) => setGuestIdentities(lista))
+      .catch(() => setGuestIdentities([]))
+  }, [identityClient])
+
   useEffect(() => {
     void handleRecentVaultStartup()
   }, [])
@@ -1572,13 +1583,7 @@ function App() {
       void reopenRecentVault()
     }
 
-    // Identidades: lista da máquina, sem precisar saber qual vault abre. É o que
-    // permite perguntar "quem está entrando" antes da pasta — e a mesma pessoa
-    // continua sendo ela em qualquer vault.
-    void identityClient
-      .list()
-      .then((lista) => setGuestIdentities(lista))
-      .catch(() => setGuestIdentities([]))
+
   }, [contaResolvida, identityClient, profileClient, recentVaultPreference])
 
   // Aparencia: aplica o tema no documento (atributo `data-theme` lido pelo
