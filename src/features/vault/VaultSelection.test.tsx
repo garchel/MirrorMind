@@ -111,17 +111,40 @@ describe('VaultSelection (abertura do app)', () => {
     expect(await screen.findByRole('heading', { name: 'Usar o último vault?' })).toBeInTheDocument()
   })
 
-  it('quem já dispensou a conta entra direto no vault, sem modal por cima', async () => {
+  it('quem já dispensou a conta vê o "Continuar de onde parou" como todo mundo', async () => {
+    // Regressão relatada: a mesma pessoa, uma sessão depois, não recebia o
+    // modal — a flag local `escolheuConta` só existia quando ela escolhia
+    // naquela sessão. Estar no passo do vault JÁ é a resposta da pergunta de
+    // conta, então o comportamento tem de ser o mesmo.
     localStorage.setItem('mirrormind.account.login-skipped', 'true')
     renderSelection({
       showRecentVaultModal: true,
       recentVaultPreference: { lastVaultPath: 'C:/notas/vault' } as never,
     })
 
-    // O "Usar o último vault?" só aparece depois de a pessoa concluir a escolha
-    // de conta nesta sessão; para quem já dispensou, a tela é o vault e ponto.
     expect(await screen.findByRole('heading', { name: 'Onde ficam suas notas?' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Usar o último vault?' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Usar o último vault?' })).toBeInTheDocument()
+  })
+
+  it('avisa o App uma vez quando a pergunta de conta termina', async () => {
+    localStorage.setItem('mirrormind.account.login-skipped', 'true')
+    const onAccountSettled = vi.fn()
+    renderSelection({ onAccountSettled })
+
+    await screen.findByRole('heading', { name: 'Onde ficam suas notas?' })
+    await waitFor(() => expect(onAccountSettled).toHaveBeenCalledTimes(1))
+
+    // e não avisa de novo a cada render
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(onAccountSettled).toHaveBeenCalledTimes(1)
+  })
+
+  it('no passo de conta não avisa que a conta foi resolvida', async () => {
+    const onAccountSettled = vi.fn()
+    renderSelection({ onAccountSettled })
+
+    await screen.findByRole('heading', { name: 'Entrar no MirrorMind' })
+    expect(onAccountSettled).not.toHaveBeenCalled()
   })
 
   it('convidado que acabou de escolher entra e vê o modal do último vault', async () => {

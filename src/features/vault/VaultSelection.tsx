@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/Field'
 import { TitleBar } from '../../components/TitleBar'
@@ -39,6 +39,8 @@ export type VaultSelectionProps = {
   createForm: CreateVaultForm
   setCreateForm: Dispatch<SetStateAction<CreateVaultForm>>
   showRecentVaultModal: boolean
+  /** Chamado uma vez, quando a pergunta de conta (entrar ou seguir sem) termina. */
+  onAccountSettled?: () => void
   recentVaultPreference: RecentVaultPreference | null
   dismissRecentVault: () => void
   confirmRecentVault: () => void
@@ -70,6 +72,7 @@ export function VaultSelection({
   createForm,
   setCreateForm,
   showRecentVaultModal,
+  onAccountSettled,
   recentVaultPreference,
   dismissRecentVault,
   confirmRecentVault,
@@ -84,26 +87,32 @@ export function VaultSelection({
     accountClient && !readLoginSkipped() ? 'account' : 'vault',
   )
   /**
-   * O usuário concluiu a escolha de conta **nesta sessão** (entrou ou escolheu
-   * convidado). O "Usar o último vault?" só faz sentido depois disso: quem já
-   * dispensou a conta cai direto no vault, e abrir um modal por cima da tela de
-   * login era interromper a pergunta antes de ela ser respondida.
+   * Avisa o App quando a pergunta de conta está resolvida, para ele só então
+   * decidir sobre o último vault. Antes existia um `escolheuConta` local, e ele
+   * era uma **segunda** fonte de verdade: quem já tinha dispensado o login numa
+   * sessão anterior caía direto no passo do vault com a flag falsa — e o modal
+   * nunca aparecia. Agora `step === 'vault'` é a única resposta para "já
+   * respondeu?", e este efeito só traduz isso para quem está acima.
    */
-  const [escolheuConta, setEscolheuConta] = useState(false)
+  const avisouContaResolvidaRef = useRef(false)
 
   // Já logado (ou login acabou de acontecer): o passo da conta não tem o que
   // perguntar, então segue direto para o vault.
   useEffect(() => {
-    if (session.snapshot.status === 'auth') {
-      setStep('vault')
-      setEscolheuConta(true)
-    }
+    if (session.snapshot.status === 'auth') setStep('vault')
   }, [session.snapshot.status])
+
+  // Estar no passo do vault **é** a resposta: seja porque a conta já existia,
+  // porque o login acabou de acontecer, ou porque o convidado escolheu seguir.
+  useEffect(() => {
+    if (step !== 'vault' || avisouContaResolvidaRef.current) return
+    avisouContaResolvidaRef.current = true
+    onAccountSettled?.()
+  }, [onAccountSettled, step])
 
   function skipAccount() {
     markLoginSkipped()
     setStep('vault')
-    setEscolheuConta(true)
   }
 
   return (
@@ -237,7 +246,7 @@ export function VaultSelection({
       {/* Só depois da escolha de conta (entrar, Google ou convidado): antes disso
           o usuário ainda está decidindo se quer conta, e um modal por cima da
           pergunta é ruído. */}
-      {step === 'vault' && escolheuConta && showRecentVaultModal && recentVaultPreference?.lastVaultPath ? (
+      {step === 'vault' && showRecentVaultModal && recentVaultPreference?.lastVaultPath ? (
         <Modal
           open
           onClose={() => void dismissRecentVault()}

@@ -405,6 +405,10 @@ function App() {
     useState<RecentVaultPreference | null>(null)
   const [showRecentVaultModal, setShowRecentVaultModal] = useState(false)
   const [skipRecentVaultPrompt, setSkipRecentVaultPrompt] = useState(false)
+  /** A pergunta de conta (entrar ou seguir sem) já foi respondida? */
+  const [contaResolvida, setContaResolvida] = useState(false)
+  /** O último vault é tratado uma vez por abertura do app. */
+  const recentVaultTratadoRef = useRef(false)
   const [isSidebarExpanded, setSidebarExpanded] = useState(true)
   const [isBuilderModeEnabled, setBuilderModeEnabled] = useState(false)
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set())
@@ -1147,22 +1151,16 @@ function App() {
       setNoteSearchQuery('')
     }
   })
+  /**
+   * Lê a preferência do último vault. **Só lê**: decidir sobre ela antes da
+   * pergunta de conta era a origem da inconsistência — o modal abria por cima da
+   * tela de login, ou o vault reabria sozinho pulando a escolha, conforme a
+   * ordem em que o IPC e a sessão respondiam.
+   */
   const handleRecentVaultStartup = useEffectEvent(async () => {
     try {
       const preferencePayload = await invoke<unknown>('get_recent_vault_preference')
-      const preference = parseRecentVaultPreference(preferencePayload)
-      setRecentVaultPreference(preference)
-
-      if (!preference.lastVaultPath) {
-        return
-      }
-
-      if (preference.askBeforeReopen) {
-        setShowRecentVaultModal(true)
-        return
-      }
-
-      await reopenRecentVault()
+      setRecentVaultPreference(parseRecentVaultPreference(preferencePayload))
     } catch {
       setStatus('Escolha um vault existente ou crie um do zero.')
     }
@@ -1517,6 +1515,20 @@ function App() {
   useEffect(() => {
     void handleRecentVaultStartup()
   }, [])
+
+  // A decisão sobre o último vault acontece **depois** da pergunta de conta e
+  // uma única vez. Enquanto ela não está resolvida, nada abre por cima.
+  useEffect(() => {
+    if (!contaResolvida || recentVaultTratadoRef.current) return
+    if (!recentVaultPreference?.lastVaultPath) return
+
+    recentVaultTratadoRef.current = true
+    if (recentVaultPreference.askBeforeReopen) {
+      setShowRecentVaultModal(true)
+      return
+    }
+    void reopenRecentVault()
+  }, [contaResolvida, recentVaultPreference])
 
   // Aparencia: aplica o tema no documento (atributo `data-theme` lido pelo
   // CSS) e as variaveis de fonte/leitura. A persistência vive no hook
@@ -6661,6 +6673,7 @@ function App() {
       createForm={createForm}
       setCreateForm={setCreateForm}
       showRecentVaultModal={showRecentVaultModal}
+      onAccountSettled={() => setContaResolvida(true)}
       recentVaultPreference={recentVaultPreference}
       dismissRecentVault={dismissRecentVault}
       confirmRecentVault={confirmRecentVault}
