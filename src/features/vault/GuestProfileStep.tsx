@@ -29,7 +29,11 @@ export function GuestProfileStep({
   onSelect: (profile: ProfileSummary, pin?: string) => void
   onCreate: (name: string, pin: string | null) => void
 }) {
-  const [criando, setCriando] = useState(profiles.length === 0)
+  // Perfil padrão ("Eu") nasce sozinho na primeira leitura do vault: ele não é
+  // um perfil que a pessoa criou, então com ele sozinho a tela abre pedindo o
+  // nome — mas sem esconder o "Eu", que é onde o histórico antigo está.
+  const soPadrao = profiles.length === 1 && profiles[0].isDefault
+  const [criando, setCriando] = useState(profiles.length === 0 || soPadrao)
   const [nome, setNome] = useState('')
   const [pinDoNovo, setPinDoNovo] = useState('')
   const [perfilComPin, setPerfilComPin] = useState<ProfileSummary | null>(null)
@@ -60,9 +64,9 @@ export function GuestProfileStep({
 
   return (
     <div className="guest-profile" data-builder-name="guest-profile">
-      <h2>{profiles.length === 0 ? 'Crie seu perfil' : 'Quem está estudando?'}</h2>
+      <h2>{criando ? 'Crie seu perfil' : 'Quem está estudando?'}</h2>
       <p className="login-subtitle">
-        {profiles.length === 0
+        {criando
           ? 'O perfil guarda o seu histórico de revisão neste vault. Nada disso sai do computador.'
           : 'Cada perfil tem o seu histórico de revisão. Escolha o seu ou crie outro.'}
       </p>

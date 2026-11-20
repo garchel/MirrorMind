@@ -188,6 +188,21 @@ describe('VaultSelection (abertura do app)', () => {
     expect(props.onGuestProfileCreate).not.toHaveBeenCalled()
   })
 
+  it('com só o perfil padrão, pede para criar o seu sem esconder o histórico antigo', async () => {
+    localStorage.setItem('mirrormind.account.login-skipped', 'false')
+    const user = userEvent.setup()
+    const padrao = { id: 'padrao', name: 'Eu', color: 'sage', isDefault: true, hasPin: false }
+    renderSelection({ guestProfiles: [padrao] })
+
+    await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
+
+    // "Eu" é perfil automático, não escolha de ninguém: a tela pede um nome…
+    expect(await screen.findByRole('heading', { name: 'Crie seu perfil' })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Ex.: Paulo')).toBeInTheDocument()
+    // …e o perfil antigo continua a um clique, para o histórico não se perder.
+    expect(screen.getByRole('button', { name: 'Entrar' })).toBeInTheDocument()
+  })
+
   it('com perfis já criados, mostra a lista e deixa abrir o seu', async () => {
     localStorage.setItem('mirrormind.account.login-skipped', 'false')
     const user = userEvent.setup()
