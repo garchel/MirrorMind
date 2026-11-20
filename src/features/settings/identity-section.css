@@ -1,0 +1,34 @@
+.identity-section {
+  display: grid;
+  gap: 10px;
+}
+
+.identity-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--mm-gold-100);
+}
+
+.identity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.identity-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding-top: 4px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.identity-edit .field,
+.identity-edit input {
+  min-width: 160px;
+}

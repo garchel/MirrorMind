@@ -24,6 +24,8 @@ Este guia cobre o essencial para começar e usar no dia a dia.
    desta máquina, e uma cópia dele viaja dentro de cada vault — abrir a pasta
    noutro computador leva o nome junto. Quando os dois lados discordam (PIN
    trocado em outra máquina), vence o mais recente.
+   Para mudar o nome ou o PIN depois, use **Configurações › Perfil** — vale para
+   todos os vaults desta máquina.
 3. Na próxima abertura **não há pergunta**: se o app conhece um único vault, ele
    abre direto. Com dois ou mais vaults, a tela de abertura mostra a lista e
    você escolhe — a lista são só os vaults que você já abriu nesta máquina.

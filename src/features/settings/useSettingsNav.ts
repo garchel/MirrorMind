@@ -6,6 +6,7 @@ import {
   Database,
   Keyboard,
   MonitorSmartphone,
+  UserRound,
   Cloud,
   Palette,
   Type,
@@ -24,6 +25,7 @@ export const SETTINGS_SECTIONS = [
   { id: 'atalhos', label: 'Atalhos', icon: Keyboard },
   { id: 'revisao', label: 'Revisão', icon: ClipboardList },
   { id: 'ia', label: 'IA da revisão', icon: Cpu },
+  { id: 'perfil', label: 'Perfil', icon: UserRound },
   { id: 'sistema', label: 'Sistema', icon: MonitorSmartphone },
   { id: 'dados', label: 'Dados', icon: Database },
   { id: 'nuvem', label: 'Nuvem', icon: Cloud },
@@ -35,7 +37,7 @@ export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id']
 export const SETTINGS_GROUPS = [
   { id: 'interface', label: 'Interface', sections: ['aparencia', 'editor', 'leitura', 'atalhos'] },
   { id: 'revisao', label: 'Revisão', sections: ['revisao', 'ia'] },
-  { id: 'sistema', label: 'Sistema', sections: ['sistema', 'dados', 'nuvem'] },
+  { id: 'sistema', label: 'Sistema', sections: ['perfil', 'sistema', 'dados', 'nuvem'] },
 ] as const
 
 /** Navegação das Configurações: seção ativa (destaque do menu conforme o

@@ -43,6 +43,7 @@ import { SegmentationSettings } from '../review/SegmentationSettings'
 import { VaultReviewPolicySettings } from '../review/VaultReviewPolicySettings'
 import { AccountSettings } from './AccountSettings'
 import { CloudSection } from '../cloud/CloudSection'
+import { IdentitySection } from './IdentitySection'
 import type { SessionClient } from '../../lib/session'
 import { errorMessage } from '../../lib/tauri'
 
@@ -659,6 +660,15 @@ export function SettingsPage({
                   aria-label="Verificação automática de atualizações"
                 />
               </SettingRow>
+            </SettingSection>
+
+            <SettingSection
+              id="perfil"
+              title="Perfil"
+              description="Quantas pessoas usam este computador. O nome e o PIN valem em todos os vaults daqui."
+              keywords="perfil identidade convidado nome pin senha pessoa"
+            >
+              <IdentitySection />
             </SettingSection>
 
             <SettingSection
