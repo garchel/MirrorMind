@@ -404,6 +404,30 @@ pub fn ensure_account_identity(
     Ok(identidade)
 }
 
+/// Liga (ou desliga) uma identidade a uma conta.
+///
+/// Caminho **perfil → conta**: a pessoa vincula o perfil do vault a uma conta
+/// existente na tela de perfis. Sem espelhar isso na identidade, ela continuaria
+/// aparecendo na lista de convidados mesmo depois de virar conta.
+pub fn set_account_link(
+    app_config_dir: &Path,
+    vault_root: &Path,
+    identity_id: &str,
+    account_id: Option<&str>,
+) -> Result<bool> {
+    let mut lista = load_machine(app_config_dir)?;
+    let Some(indice) = lista.iter().position(|item| item.id == identity_id) else {
+        return Ok(false);
+    };
+    lista[indice].account_id = account_id.map(str::to_string);
+    lista[indice].updated_at_unix_ms = now_ms();
+    let atualizada = lista[indice].clone();
+    ordenar(&mut lista);
+    save_machine(app_config_dir, &lista)?;
+    gravar_espelho(app_config_dir, Some(vault_root), &atualizada)?;
+    Ok(true)
+}
+
 /// Registro vindo de um perfil do vault, para o caso de a edição ter sido
 /// feita lá (renomear, trocar PIN no portão de perfis).
 pub struct IdentitySnapshot<'a> {
@@ -634,6 +658,30 @@ mod tests {
         .expect("sync");
         assert!(!reverteu);
         assert_eq!(load_machine(app.path()).unwrap()[0].name, "Paulo H.");
+    }
+
+    #[test]
+    fn vincular_perfil_a_conta_tira_a_identidade_dos_convidados() {
+        let app = tempdir().expect("app dir");
+        let vault = vault();
+        let criada = create(app.path(), Some(vault.path()), None, "Paulo", "sage", None).unwrap();
+        assert_eq!(guests(app.path()).unwrap().len(), 1);
+
+        assert!(set_account_link(app.path(), vault.path(), &criada.id, Some("acc-9")).unwrap());
+        assert!(guests(app.path()).unwrap().is_empty());
+        assert_eq!(
+            load_machine(app.path()).unwrap()[0].account_id.as_deref(),
+            Some("acc-9")
+        );
+        // e o espelho dentro do vault acompanhou
+        assert_eq!(
+            load_mirror(vault.path()).unwrap()[0].account_id.as_deref(),
+            Some("acc-9")
+        );
+
+        // desvincular devolve para a lista de convidados
+        assert!(set_account_link(app.path(), vault.path(), &criada.id, None).unwrap());
+        assert_eq!(guests(app.path()).unwrap().len(), 1);
     }
 
     #[test]

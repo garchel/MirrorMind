@@ -656,18 +656,54 @@ pub fn profiles_delete(vault_root: String, id: String) -> Result<(), String> {
     como_erro(delete_profile(Path::new(&vault_root), &id))
 }
 
+/// Espelha na identidade o vínculo (ou a remoção dele) feito no perfil do vault.
+fn espelhar_vinculo(app: &tauri::AppHandle, vault_root: &Path, profile_id: &str) {
+    use tauri::Manager;
+    let Ok(app_dir) = app.path().app_config_dir() else {
+        return;
+    };
+    let Ok(perfis) = load_profiles(vault_root) else {
+        return;
+    };
+    let Some(perfil) = perfis.iter().find(|item| item.id == profile_id) else {
+        return;
+    };
+    let Some(identity_id) = perfil.identity_id.clone() else {
+        return;
+    };
+    let _ = crate::identities::set_account_link(
+        &app_dir,
+        vault_root,
+        &identity_id,
+        perfil.account_id.as_deref(),
+    );
+}
+
 #[tauri::command]
 pub fn profiles_link_account(
+    app: tauri::AppHandle,
     vault_root: String,
     id: String,
     account_id: String,
 ) -> Result<ProfileSummary, String> {
-    como_erro(link_account(Path::new(&vault_root), &id, &account_id))
+    let resultado = como_erro(link_account(Path::new(&vault_root), &id, &account_id));
+    if resultado.is_ok() {
+        espelhar_vinculo(&app, Path::new(&vault_root), &id);
+    }
+    resultado
 }
 
 #[tauri::command]
-pub fn profiles_unlink_account(vault_root: String, id: String) -> Result<ProfileSummary, String> {
-    como_erro(unlink_account(Path::new(&vault_root), &id))
+pub fn profiles_unlink_account(
+    app: tauri::AppHandle,
+    vault_root: String,
+    id: String,
+) -> Result<ProfileSummary, String> {
+    let resultado = como_erro(unlink_account(Path::new(&vault_root), &id));
+    if resultado.is_ok() {
+        espelhar_vinculo(&app, Path::new(&vault_root), &id);
+    }
+    resultado
 }
 
 #[tauri::command]
