@@ -26,6 +26,8 @@ Este guia cobre o essencial para começar e usar no dia a dia.
    trocado em outra máquina), vence o mais recente.
    Para mudar o nome ou o PIN depois, use **Configurações › Perfil** — vale para
    todos os vaults desta máquina.
+   Quem entra com conta ganha um perfil com o nome do e-mail — entrar de novo não
+   cria um segundo perfil, e renomear continua valendo.
 3. Na próxima abertura **não há pergunta**: se o app conhece um único vault, ele
    abre direto. Com dois ou mais vaults, a tela de abertura mostra a lista e
    você escolhe — a lista são só os vaults que você já abriu nesta máquina.
