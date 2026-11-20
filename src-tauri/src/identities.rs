@@ -359,6 +359,48 @@ pub fn gravar_espelho(
     Ok(())
 }
 
+/// Registro vindo de um perfil do vault, para o caso de a edição ter sido
+/// feita lá (renomear, trocar PIN no portão de perfis).
+pub struct IdentitySnapshot<'a> {
+    pub id: &'a str,
+    pub name: &'a str,
+    pub color: &'a str,
+    pub pin_salt: Option<&'a str>,
+    pub pin_hash: Option<&'a str>,
+    pub updated_at_unix_ms: i64,
+}
+
+/// Propaga para a identidade uma edição feita no perfil do vault.
+///
+/// A regra é a mesma dos dois arquivos: **o mais recente vence**. Se a identidade
+/// já é mais nova (PIN trocado noutra máquina, por exemplo), nada acontece — não
+/// vale reverter uma mudança legítima para "consertar" a foto.
+pub fn sync_from_profile(
+    app_config_dir: &Path,
+    vault_root: &Path,
+    snapshot: IdentitySnapshot<'_>,
+) -> Result<bool> {
+    let mut lista = load_machine(app_config_dir)?;
+    let Some(indice) = lista.iter().position(|item| item.id == snapshot.id) else {
+        return Ok(false);
+    };
+    if lista[indice].updated_at_unix_ms >= snapshot.updated_at_unix_ms {
+        return Ok(false);
+    }
+
+    lista[indice].name = snapshot.name.to_string();
+    lista[indice].color = snapshot.color.to_string();
+    lista[indice].pin_salt = snapshot.pin_salt.map(str::to_string);
+    lista[indice].pin_hash = snapshot.pin_hash.map(str::to_string);
+    lista[indice].updated_at_unix_ms = snapshot.updated_at_unix_ms;
+    let atualizada = lista[indice].clone();
+
+    ordenar(&mut lista);
+    save_machine(app_config_dir, &lista)?;
+    gravar_espelho(app_config_dir, Some(vault_root), &atualizada)?;
+    Ok(true)
+}
+
 /// Confere o PIN contra o registro **mais recente** que a máquina conhece.
 pub fn verify_pin(app_config_dir: &Path, id: &str, pin: &str) -> Result<bool> {
     let lista = load_machine(app_config_dir)?;
@@ -500,6 +542,53 @@ mod tests {
         assert!(create(app.path(), None, None, "   ", "sage", None).is_err());
         assert!(create(app.path(), None, None, "Ana", "sage", Some("12")).is_err());
         assert!(create(app.path(), None, None, "Ana", "sage", Some("abcd")).is_err());
+    }
+
+
+    #[test]
+    fn edicao_feita_no_perfil_do_vault_chega_na_identidade() {
+        let app = tempdir().expect("app dir");
+        let vault = vault();
+        let criada = create(app.path(), Some(vault.path()), None, "Paulo", "sage", None).unwrap();
+
+        // perfil do vault renomeado e com PIN novo, mais recente que a identidade
+        let salt = crate::profiles::random_salt();
+        let hash = crate::profiles::hash_pin("4321", &salt);
+        let atualizou = sync_from_profile(
+            app.path(),
+            vault.path(),
+            IdentitySnapshot {
+                id: &criada.id,
+                name: "Paulo H.",
+                color: "brick",
+                pin_salt: Some(&salt),
+                pin_hash: Some(&hash),
+                updated_at_unix_ms: criada.updated_at_unix_ms + 10,
+            },
+        )
+        .expect("sync");
+        assert!(atualizou);
+        assert_eq!(load_machine(app.path()).unwrap()[0].name, "Paulo H.");
+        assert!(verify_pin(app.path(), &criada.id, "4321").unwrap());
+        // e o espelho dentro do vault acompanhou
+        assert_eq!(load_mirror(vault.path()).unwrap()[0].name, "Paulo H.");
+
+        // snapshot mais velho não reescreve nada (não reverte mudança legítima)
+        let reverteu = sync_from_profile(
+            app.path(),
+            vault.path(),
+            IdentitySnapshot {
+                id: &criada.id,
+                name: "Nome antigo",
+                color: "sage",
+                pin_salt: None,
+                pin_hash: None,
+                updated_at_unix_ms: criada.updated_at_unix_ms,
+            },
+        )
+        .expect("sync");
+        assert!(!reverteu);
+        assert_eq!(load_machine(app.path()).unwrap()[0].name, "Paulo H.");
     }
 
     #[test]

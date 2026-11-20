@@ -598,19 +598,57 @@ pub fn profiles_create(
     ))
 }
 
+/// Espelha na identidade da máquina uma edição feita no perfil do vault.
+///
+/// Sem isto, renomear pelo portão de perfis mudava só a cópia de dentro da pasta
+/// e a identidade (que manda ao entrar no vault) revertia o nome na abertura
+/// seguinte — a pessoa via "meu nome voltou sozinho".
+fn espelhar_identidade(app: &tauri::AppHandle, vault_root: &Path, profile_id: &str) {
+    use tauri::Manager;
+    let Ok(app_dir) = app.path().app_config_dir() else {
+        return;
+    };
+    let Ok(perfis) = load_profiles(vault_root) else {
+        return;
+    };
+    let Some(perfil) = perfis.iter().find(|item| item.id == profile_id) else {
+        return;
+    };
+    let Some(identity_id) = perfil.identity_id.clone() else {
+        return;
+    };
+    let _ = crate::identities::sync_from_profile(
+        &app_dir,
+        vault_root,
+        crate::identities::IdentitySnapshot {
+            id: &identity_id,
+            name: &perfil.name,
+            color: &perfil.color,
+            pin_salt: perfil.pin_salt.as_deref(),
+            pin_hash: perfil.pin_hash.as_deref(),
+            updated_at_unix_ms: perfil.updated_at_unix_ms,
+        },
+    );
+}
+
 #[tauri::command]
 pub fn profiles_rename(
+    app: tauri::AppHandle,
     vault_root: String,
     id: String,
     name: String,
     color: Option<String>,
 ) -> Result<ProfileSummary, String> {
-    como_erro(rename_profile(
+    let resultado = como_erro(rename_profile(
         Path::new(&vault_root),
         &id,
         &name,
         color.as_deref(),
-    ))
+    ));
+    if resultado.is_ok() {
+        espelhar_identidade(&app, Path::new(&vault_root), &id);
+    }
+    resultado
 }
 
 #[tauri::command]
@@ -633,8 +671,19 @@ pub fn profiles_unlink_account(vault_root: String, id: String) -> Result<Profile
 }
 
 #[tauri::command]
-pub fn profiles_set_pin(vault_root: String, id: String, pin: Option<String>) -> Result<(), String> {
-    como_erro(set_pin(Path::new(&vault_root), &id, pin.as_deref()))
+pub fn profiles_set_pin(
+    app: tauri::AppHandle,
+    vault_root: String,
+    id: String,
+    pin: Option<String>,
+) -> Result<(), String> {
+    let resultado = como_erro(set_pin(Path::new(&vault_root), &id, pin.as_deref()));
+    if resultado.is_ok() {
+        // Trocar o PIN aqui também vale para todos os vaults: a identidade é a
+        // que a abertura confere.
+        espelhar_identidade(&app, Path::new(&vault_root), &id);
+    }
+    resultado
 }
 
 #[tauri::command]
