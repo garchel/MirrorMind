@@ -551,26 +551,35 @@ fn identity_enter_vault(
     vault_root: String,
     identity_id: String,
 ) -> Result<profiles::ProfileSummary, String> {
-    let dir = identities_dir(&app)?;
-    let root = Path::new(&vault_root);
-    identities::adopt_from_vault(&dir, root).map_err(|error| error.to_string())?;
-    let lista = identities::load_machine(&dir).map_err(|error| error.to_string())?;
-    let identidade = lista
-        .iter()
-        .find(|item| item.id == identity_id)
-        .ok_or_else(|| "Identidade não encontrada nesta máquina.".to_string())?
-        .clone();
+    // Cada passo tem nome no erro: "não abriu" sem dizer onde custou uma rodada
+    // de investigação (o comando engolia a etapa e o app caía no perfil padrão).
+    let executar = |app: &AppHandle| -> Result<profiles::ProfileSummary, String> {
+        let dir = identities_dir(app)?;
+        let root = Path::new(&vault_root);
+        identities::adopt_from_vault(&dir, root)
+            .map_err(|error| format!("juntar identidades: {error}"))?;
+        let lista = identities::load_machine(&dir)
+            .map_err(|error| format!("ler identidades: {error}"))?;
+        let identidade = lista
+            .iter()
+            .find(|item| item.id == identity_id)
+            .ok_or_else(|| "identidade não encontrada nesta máquina".to_string())?
+            .clone();
 
-    let perfil = profiles::ensure_profile_for_identity(root, &identidade)
-        .map_err(|error| error.to_string())?;
-    identities::gravar_espelho(&dir, Some(root), &identidade)
-        .map_err(|error| error.to_string())?;
-    profiles::profiles_select(
-        vault_root,
-        perfil.id.clone(),
-        Some(false),
-    )?;
-    Ok(perfil.summary())
+        let perfil = profiles::ensure_profile_for_identity(root, &identidade)
+            .map_err(|error| format!("criar o perfil no vault: {error}"))?;
+        identities::gravar_espelho(&dir, Some(root), &identidade)
+            .map_err(|error| format!("gravar o espelho: {error}"))?;
+        profiles::profiles_select(vault_root.clone(), perfil.id.clone(), Some(false))
+            .map_err(|error| format!("selecionar o perfil: {error}"))?;
+        Ok(perfil.summary())
+    };
+
+    let resultado = executar(&app);
+    if let Err(erro) = &resultado {
+        eprintln!("[identity_enter_vault] {erro}");
+    }
+    resultado
 }
 
 #[tauri::command]
