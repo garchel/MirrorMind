@@ -1,0 +1,259 @@
+/* Página de planos.
+ *
+ * Linguagem da casa: painel claro, borda fina, tipografia do tema, destaque por
+ * borda — não por cor berrante. Só tokens: nenhum hex, nenhuma fonte própria.
+ *
+ * O cartão em destaque cresce um pouco e ganha borda de acento; no mobile os
+ * quatro viram uma coluna só, e o destaque vem primeiro por ordem de leitura
+ * (é o que a pessoa vê ao rolar sem pensar). */
+
+.pricing-page {
+  /* A página de planos respira mais que Configurações: é vitrine, não formulário. */
+  display: grid;
+  gap: var(--space-16);
+  align-content: start;
+  padding: var(--space-16) var(--space-16) var(--space-24);
+}
+
+.pricing-header {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 62ch;
+}
+
+.pricing-header h2 {
+  margin: 0;
+  font-size: var(--font-size-title-md);
+  line-height: 1.2;
+}
+
+.pricing-lead {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-size-body-lg);
+  line-height: 1.6;
+}
+
+.pricing-current {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  width: fit-content;
+  padding: 4px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: var(--font-size-caption);
+}
+
+.pricing-current strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.pricing-grid {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
+  align-items: stretch;
+}
+
+.pricing-card {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xl);
+  background: var(--panel);
+  /* O cartão inteiro é uma coluna: cabeçalho, CTA, preço e lista. O `1fr` no fim
+   * empurra o rodapé para baixo e alinha os cartões de alturas diferentes. */
+  grid-template-rows: auto auto auto auto auto 1fr auto;
+}
+
+.pricing-card[data-highlight='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-soft) inset;
+}
+
+.pricing-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.pricing-card h3 {
+  margin: 0;
+  font-size: var(--font-size-title-sm);
+  font-weight: 600;
+}
+
+.pricing-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--accent-strong);
+  font-size: var(--font-size-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pricing-headline {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-size-body-lg);
+  font-weight: 600;
+  line-height: 1.35;
+  /* Altura minima de duas linhas: sem isto, um headline mais longo empurra o CTA
+   * do cartão para baixo e os quatro botões deixam de ficar na mesma faixa. */
+  min-height: 2.7em;
+}
+
+.pricing-description {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-size-body-sm);
+  line-height: 1.55;
+  /* Três linhas reservadas pela mesma razão do headline: o CTA é a linha
+   * seguinte da grade em todos os cartões. */
+  min-height: 4.65em;
+}
+
+.pricing-cta {
+  display: grid;
+}
+
+.pricing-cta > button {
+  width: 100%;
+}
+
+.pricing-price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.pricing-price-value {
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.pricing-price-note {
+  color: var(--muted);
+  font-size: var(--font-size-caption);
+}
+
+.pricing-features {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--line-soft);
+  list-style: none;
+}
+
+.pricing-features li {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: var(--space-2);
+  align-items: start;
+  color: var(--muted);
+  font-size: var(--font-size-body-sm);
+  line-height: 1.5;
+}
+
+.pricing-features svg {
+  margin-top: 3px;
+  color: var(--accent);
+}
+
+.pricing-footnote {
+  margin: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-soft);
+  color: var(--faint);
+  font-size: var(--font-size-caption);
+  line-height: 1.5;
+}
+
+.pricing-error {
+  margin: 0;
+  color: var(--mm-brick-650);
+  font-size: var(--font-size-body-sm);
+}
+
+.pricing-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding-top: var(--space-2);
+}
+
+.pricing-hint {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--faint);
+  font-size: var(--font-size-caption);
+  line-height: 1.55;
+}
+
+/* Janela estreita: uma coluna, e o destaque primeiro. */
+@media (max-width: 720px) {
+  .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing-card {
+    padding: var(--space-5);
+  }
+
+  .pricing-page {
+    padding: var(--space-8) var(--space-5) var(--space-16);
+  }
+}
+
+/* Tema escuro: as bordas precisam de mais contraste que no claro. */
+[data-theme='dark'] .pricing-card {
+  background: var(--mm-ink-950-7);
+  border-color: var(--mm-ink-900-20);
+}
+
+[data-theme='dark'] .pricing-card[data-highlight='true'] {
+  border-color: var(--mm-sage-600);
+}
+
+[data-theme='dark'] .pricing-current {
+  border-color: var(--mm-ink-900-20);
+}
+
+[data-theme='dark'] .pricing-price-value {
+  color: var(--mm-ink-100);
+}
+
+[data-theme='dark'] .pricing-features li,
+[data-theme='dark'] .pricing-description {
+  color: var(--mm-ink-350);
+}
+
+/* No escuro, `--muted`/`--faint` caem para cinzas ~#929188: passa, mas fica no
+ * limite para texto pequeno. Os popovers escuros do app já usam `--mm-ink-350-3`
+ * para isso; a página segue o mesmo tom em vez de inventar um. */
+[data-theme='dark'] .pricing-lead,
+[data-theme='dark'] .pricing-current,
+[data-theme='dark'] .pricing-price-note {
+  color: var(--mm-ink-350-3);
+}
+
+[data-theme='dark'] .pricing-footnote,
+[data-theme='dark'] .pricing-hint {
+  color: var(--mm-ink-600-5);
+}

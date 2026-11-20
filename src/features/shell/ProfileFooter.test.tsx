@@ -143,6 +143,55 @@ describe('ProfileFooter', () => {
     expect(onOpenSettings).toHaveBeenCalledTimes(1)
   })
 
+  it('"Fazer upgrade do plano" abre a página de planos', async () => {
+    const onOpenUpgrade = vi.fn()
+    render(
+      <EntitlementProvider store={storeWith(null)}>
+        <ProfileFooter
+          accountClient={authClient('paulo@exemplo.com')}
+          onOpenSettings={() => {}}
+          onOpenAccount={() => {}}
+          onOpenUpgrade={onOpenUpgrade}
+        />
+      </EntitlementProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Abrir menu do perfil/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Fazer upgrade do plano' }))
+    expect(onOpenUpgrade).toHaveBeenCalledTimes(1)
+  })
+
+  it('o upgrade não mora ao lado do gatilho, só dentro do menu', async () => {
+    // decisão de produto: nada de botão permanente à direita do perfil
+    renderFooter(authClient('paulo@exemplo.com'), null, {})
+    expect(screen.queryByRole('button', { name: /fazer upgrade/i })).not.toBeInTheDocument()
+  })
+
+  it('o cabeçalho do menu leva à conta', async () => {
+    const onOpenAccount = vi.fn()
+    render(
+      <EntitlementProvider store={storeWith(null)}>
+        <ProfileFooter
+          accountClient={authClient('paulo@exemplo.com')}
+          onOpenSettings={() => {}}
+          onOpenAccount={onOpenAccount}
+        />
+      </EntitlementProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Abrir menu do perfil/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Abrir conta de/i }))
+    expect(onOpenAccount).toHaveBeenCalledTimes(1)
+  })
+
+  it('quem tem conta vê "Perfil" e mantém as mesmas portas', async () => {
+    renderFooter(authClient('paulo@exemplo.com'), null)
+    fireEvent.click(screen.getByRole('button', { name: /Abrir menu do perfil/ }))
+    expect(await screen.findByRole('button', { name: 'Perfil' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Configurações' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument()
+  })
+
   it('o gatilho do perfil tem rotulo acessivel', async () => {
     renderFooter(null, null)
     await waitFor(() =>

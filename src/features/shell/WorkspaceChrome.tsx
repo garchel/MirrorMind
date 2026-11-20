@@ -28,6 +28,7 @@ export type WorkspacePage =
   | 'bases'
   | 'graph'
   | 'settings'
+  | 'pricing'
   | 'trash'
   | 'goals'
   | 'dictionary'
@@ -110,6 +111,7 @@ export function WorkspaceRail({
   localProfile,
   onSwitchProfile,
   onLeaveAccount,
+  onOpenUpgrade,
 }: {
   isSidebarExpanded: boolean
   setSidebarExpanded: Dispatch<SetStateAction<boolean>>
@@ -128,6 +130,8 @@ export function WorkspaceRail({
   onSwitchProfile?: () => void
   /** Fecha o vault e volta à tela de login inicial. */
   onLeaveAccount?: () => void
+  /** Abre a página de planos (item "Fazer upgrade" do menu de perfil). */
+  onOpenUpgrade?: () => void
 }) {
   const dueReviewLabel = dueReviewCount !== null && dueReviewCount > 0
     ? `${dueReviewCount} ${dueReviewCount === 1 ? 'nota vencida' : 'notas vencidas'}`
@@ -248,6 +252,7 @@ export function WorkspaceRail({
         localProfile={localProfile}
         onSwitchProfile={onSwitchProfile}
         onLeaveAccount={onLeaveAccount}
+        onOpenUpgrade={onOpenUpgrade}
       />
     </aside>
   )

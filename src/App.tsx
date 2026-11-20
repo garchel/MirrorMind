@@ -13,6 +13,7 @@ import { getVersion } from '@tauri-apps/api/app'
 import { errorMessage, invoke, isTauriRuntime } from './lib/tauri'
 import { useCloudAutoSync } from './lib/useCloudAutoSync'
 import { CloudIndicator } from './features/cloud/CloudIndicator'
+import { PricingPage } from './features/pricing/PricingPage'
 import { cloudIndicatorState } from './lib/cloudSync'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -788,6 +789,11 @@ function App() {
   } = useSettingsNav(workspacePage === 'settings')
 
   /** Abre as Configuracoes ja rolando ate a secao pedida (ex.: palette "atalhos"). */
+  /** A página de planos é destino de menu (perfil), não de trilho. */
+  function openPricingPage() {
+    setWorkspacePage('pricing')
+  }
+
   function openSettingsSection(sectionId: SettingsSectionId) {
     requestSettingsSection(sectionId)
     setWorkspacePage('settings')
@@ -5718,6 +5724,7 @@ function App() {
           localProfile={activeProfile}
           onSwitchProfile={openProfileSwitcher}
           onLeaveAccount={handleLeaveAccount}
+          onOpenUpgrade={openPricingPage}
         />
         <WorkspaceTopbar
           vault={vault}
@@ -6069,6 +6076,12 @@ function App() {
                   setWorkspacePage('notes')
                 }}
               />
+            ) : workspacePage === 'pricing' ? (
+              <PricingPage
+                vaultPath={vault.path}
+                onOpenAccount={() => setWorkspacePage('account')}
+                onBack={() => setWorkspacePage('notes')}
+              />
             ) : workspacePage === 'trash' ? (
               <TrashPage
                 trashItems={trashItems}
@@ -6092,6 +6105,7 @@ function App() {
                 settingsScrollRef={settingsScrollRef}
                 accountClient={accountSessionClient}
                 onOpenAccount={() => setWorkspacePage('account')}
+                onOpenPricing={openPricingPage}
               />
             )}
           </section>

@@ -1778,11 +1778,42 @@ label.settings-toggle {
 
 .rail-profile-menu-head {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 8px;
   padding: 6px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--border);
+  /* Cabeçalho é botão (leva à conta): sem borda própria, com realce no hover. */
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rail-profile-menu-head:hover:not(:disabled) {
+  background: var(--mm-gold-150);
+  transform: none;
+}
+
+.rail-profile-menu-chevron {
+  margin-left: auto;
+  color: var(--muted);
+  flex: none;
+}
+
+.rail-profile-menu-group {
+  display: grid;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.rail-profile-menu-group + .rail-profile-menu-group {
+  margin-top: 2px;
+  border-top: 1px solid var(--line-soft);
+}
+
+[data-theme='dark'] .rail-profile-menu-head:hover:not(:disabled) {
+  background: var(--workspace-raised);
 }
 
 .ui-popover-content.rail-profile-menu .rail-profile-menu-item {
@@ -2754,3 +2785,32 @@ label.settings-toggle {
   gap: 14px;
 }
 
+
+/* O menu do perfil no tema escuro.
+ *
+ * `.ui-popover-content` usa fundo de argila fixo (é o popover claro do app), e os
+ * popovers que aparecem no escuro declaram seu override em `theme.css`. O menu do
+ * perfil não declarava: no escuro ele saía como um cartão claro com texto claro —
+ * ilegível. O portal também vive fora de `.workspace-shell`, então o seletor
+ * parte de `[data-theme='dark']` direto. */
+[data-theme='dark'] .ui-popover-content.rail-profile-menu {
+  border-color: var(--mm-ink-900-20);
+  background: var(--mm-ink-950-7);
+  color: var(--mm-ink-350-3);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme='dark'] .ui-popover-content.rail-profile-menu .rail-profile-menu-item,
+[data-theme='dark'] .ui-popover-content.rail-profile-menu .rail-profile-menu-head,
+[data-theme='dark'] .ui-popover-content.rail-profile-menu .rail-profile-name {
+  color: var(--mm-ink-100);
+}
+
+[data-theme='dark'] .ui-popover-content.rail-profile-menu .rail-profile-plan,
+[data-theme='dark'] .ui-popover-content.rail-profile-menu .rail-profile-menu-chevron {
+  color: var(--mm-ink-600-5);
+}
+
+[data-theme='dark'] .ui-popover-content.rail-profile-menu .rail-profile-menu-group + .rail-profile-menu-group {
+  border-top-color: var(--mm-ink-900-20);
+}

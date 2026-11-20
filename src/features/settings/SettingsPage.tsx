@@ -82,6 +82,8 @@ export type SettingsPageProps = {
   accountClient: SessionClient | null
   /** Abre a página de conta (formulários saíram daqui). */
   onOpenAccount: () => void
+  /** Leva à página de planos (a compra mora lá, não aqui). */
+  onOpenPricing?: () => void
 }
 
 /** Amostra viva da fonte: o rótulo "Serif" não mostra como a nota fica. */
@@ -111,6 +113,7 @@ export function SettingsPage({
   settingsScrollRef,
   accountClient,
   onOpenAccount,
+  onOpenPricing,
 }: SettingsPageProps) {
   const {
     shortcuts,
@@ -664,7 +667,11 @@ export function SettingsPage({
               description="Sincronize este vault entre computadores. Complemento opcional: tudo funciona sem conta."
               keywords="sincronizacao nuvem backup add-on armazenamento conflito conta google"
             >
-              <CloudSection vaultPath={vaultPath} onOpenAccount={onOpenAccount} />
+              <CloudSection
+                vaultPath={vaultPath}
+                onOpenAccount={onOpenAccount}
+                onOpenPricing={onOpenPricing}
+              />
             </SettingSection>
 
             <SettingSection

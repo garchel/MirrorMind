@@ -248,3 +248,45 @@
 [data-theme='dark'] .cloud-subscription strong {
   color: var(--mm-ink-350);
 }
+
+/* Linha de status do add-on: diz o que a pessoa tem e leva aos planos.
+ * Antes, a compra ficava aqui — e comprar no meio de um ajuste confunde: o
+ * lugar da oferta é a página de planos. */
+.cloud-plan-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px solid var(--mm-line-soft);
+  border-radius: 10px;
+}
+
+.cloud-plan-line p {
+  margin: 0;
+  color: var(--mm-ink-700);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.cloud-plan-line strong {
+  color: var(--mm-ink-900);
+  font-weight: 600;
+}
+
+.cloud-plan-line[data-cloud-plan='ativo'] {
+  border-color: var(--mm-sage-300);
+}
+
+[data-theme='dark'] .cloud-plan-line {
+  border-color: var(--mm-ink-900-20);
+}
+
+[data-theme='dark'] .cloud-plan-line p {
+  color: var(--mm-ink-350);
+}
+
+[data-theme='dark'] .cloud-plan-line strong {
+  color: var(--mm-ink-100);
+}
