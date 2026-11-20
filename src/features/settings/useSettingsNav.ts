@@ -37,7 +37,8 @@ export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id']
 export const SETTINGS_GROUPS = [
   { id: 'interface', label: 'Interface', sections: ['aparencia', 'editor', 'leitura', 'atalhos'] },
   { id: 'revisao', label: 'Revisão', sections: ['revisao', 'ia'] },
-  { id: 'sistema', label: 'Sistema', sections: ['perfil', 'sistema', 'dados', 'nuvem'] },
+  // Ordem igual à da página (o menu rola junto): sistema → perfil → nuvem → dados.
+  { id: 'sistema', label: 'Sistema', sections: ['sistema', 'perfil', 'nuvem', 'dados'] },
 ] as const
 
 /** Navegação das Configurações: seção ativa (destaque do menu conforme o
