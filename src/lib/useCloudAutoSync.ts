@@ -7,6 +7,13 @@ import {
   type CloudTarget,
 } from './cloudSync'
 
+/** Implementações reais, num objeto estável.
+ *
+ * `deps = { readCloudStatus, syncNow }` no parâmetro seria recriado a cada render
+ * e, como o efeito de abertura depende de `run` (que depende de `deps`), a tela
+ * inteira ficava relendo o estado da nuvem em laço. */
+const DEPS_PADRAO = { readCloudStatus, syncNow }
+
 /** Sincronização automática do vault ligado à nuvem.
  *
  * Duas perguntas definem o desenho:
@@ -43,7 +50,7 @@ export function useCloudAutoSync({
   vaultPath,
   config,
   enabled = true,
-  deps = { readCloudStatus, syncNow },
+  deps = DEPS_PADRAO,
   debounceMs = 8_000,
 }: {
   vaultPath: string | null
@@ -59,6 +66,9 @@ export function useCloudAutoSync({
     lastSyncedAt: null,
     linked: false,
   })
+
+  const depsRef = useRef(deps)
+  depsRef.current = deps
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const runningRef = useRef(false)
@@ -82,7 +92,7 @@ export function useCloudAutoSync({
     runningRef.current = true
     setState((atual) => ({ ...atual, syncing: true }))
     try {
-      const report = await deps.syncNow(target)
+      const report = await depsRef.current.syncNow(target)
       if (!mountedRef.current) return
       setState((atual) => ({
         ...atual,
@@ -104,7 +114,7 @@ export function useCloudAutoSync({
     } finally {
       runningRef.current = false
     }
-  }, [deps])
+  }, [])
 
   /** Pede um ciclo — cedo ou tarde ele acontece, uma vez só. */
   const requestSync = useCallback(() => {
@@ -138,7 +148,7 @@ export function useCloudAutoSync({
     void (async () => {
       let status: CloudStatus | null = null
       try {
-        status = await deps.readCloudStatus(target)
+        status = await depsRef.current.readCloudStatus(target)
       } catch {
         status = null
       }
@@ -160,7 +170,7 @@ export function useCloudAutoSync({
     return () => {
       cancelado = true
     }
-  }, [config, deps, enabled, run, vaultPath])
+  }, [config, enabled, run, vaultPath])
 
   return { ...state, requestSync, runNow }
 }

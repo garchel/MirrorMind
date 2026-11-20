@@ -87,10 +87,28 @@ function renderSection(status: CloudStatus, over: Partial<Deps> = {}) {
 afterEach(cleanup)
 
 describe('CloudSection', () => {
-  it('sem sessão, explica que a nuvem depende de conta e que o local continua', async () => {
+  it('convidado entende o que a nuvem faria e que o local continua', async () => {
     renderSection(baseStatus({ signedIn: false, localFiles: 3 }))
-    expect(await screen.findByText(/entre na sua conta para ligar este vault/i)).toBeTruthy()
+    expect(await screen.findByText(/você está como convidado/i)).toBeTruthy()
     expect(screen.getByText(/funcionando sem conta/i)).toBeTruthy()
+  })
+
+  it('convidado recebe a ação de entrar na conta (sem virar beco sem saída)', async () => {
+    const onOpenAccount = vi.fn()
+    render(
+      <CloudSection
+        vaultPath="C:/vault"
+        config={CONFIG}
+        deps={makeDeps(baseStatus({ signedIn: false }))}
+        onOpenAccount={onOpenAccount}
+      />,
+    )
+
+    const botao = await screen.findByRole('button', { name: /entrar na minha conta/i })
+    await userEvent.click(botao)
+    expect(onOpenAccount).toHaveBeenCalledTimes(1)
+    // entrar não pode parecer que já sobe arquivos
+    expect(screen.getByText(/só sobem quando você ligar/i)).toBeTruthy()
   })
 
   it('liga direto quando não há dados dos dois lados', async () => {
@@ -286,5 +304,35 @@ describe('assinatura do add-on', () => {
       'textContent',
       'O checkout ainda não está configurado neste ambiente.',
     )
+  })
+})
+
+describe('estabilidade das dependências', () => {
+  it('não recarrega o estado a cada render, mesmo recebendo deps novas', async () => {
+    // reproduz o bug relatado: convidado via "Verificando…" alternando com o
+    // aviso de entrar na conta, porque cada render disparava outra carga
+    const primeira = makeDeps(baseStatus({ signedIn: false }))
+    const { rerender } = render(
+      <CloudSection vaultPath="C:/vault" config={CONFIG} deps={primeira} />,
+    )
+    await waitFor(() => expect(primeira.readCloudStatus).toHaveBeenCalledTimes(1))
+
+    for (let i = 0; i < 3; i += 1) {
+      const outra = makeDeps(baseStatus({ signedIn: false }))
+      rerender(<CloudSection vaultPath="C:/vault" config={CONFIG} deps={outra} />)
+      await waitFor(() =>
+        expect(screen.getByText(/você está como convidado/i)).toBeTruthy(),
+      )
+      expect(outra.readCloudStatus).not.toHaveBeenCalled()
+    }
+  })
+
+  it('convidado vê o aviso uma vez, sem voltar para "Verificando"', async () => {
+    const deps = makeDeps(baseStatus({ signedIn: false }))
+    render(<CloudSection vaultPath="C:/vault" config={CONFIG} deps={deps} />)
+
+    expect(await screen.findByText(/você está como convidado/i)).toBeTruthy()
+    expect(screen.queryByText(/verificando o estado/i)).toBeNull()
+    expect(deps.readCloudStatus).toHaveBeenCalledTimes(1)
   })
 })

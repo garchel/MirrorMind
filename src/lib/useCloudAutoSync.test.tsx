@@ -181,3 +181,23 @@ describe('sincronização automática', () => {
     expect(d.syncNow).not.toHaveBeenCalled()
   })
 })
+
+describe('estabilidade das dependências do hook', () => {
+  it('ler o estado uma vez só, mesmo com deps novas a cada render', async () => {
+    const primeira = deps()
+    const { rerender } = renderHook(
+      ({ d }) => useCloudAutoSync({ vaultPath: 'C:/vault', config: CONFIG, deps: d }),
+      { initialProps: { d: primeira } },
+    )
+    await avancar()
+    expect(primeira.readCloudStatus).toHaveBeenCalledTimes(1)
+
+    for (let i = 0; i < 3; i += 1) {
+      const outra = deps()
+      rerender({ d: outra })
+      await avancar()
+      expect(outra.readCloudStatus).not.toHaveBeenCalled()
+      expect(outra.syncNow).not.toHaveBeenCalled()
+    }
+  })
+})

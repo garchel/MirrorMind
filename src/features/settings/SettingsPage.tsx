@@ -664,7 +664,7 @@ export function SettingsPage({
               description="Sincronize este vault entre computadores. Complemento opcional: tudo funciona sem conta."
               keywords="sincronizacao nuvem backup add-on armazenamento conflito conta google"
             >
-              <CloudSection vaultPath={vaultPath} />
+              <CloudSection vaultPath={vaultPath} onOpenAccount={onOpenAccount} />
             </SettingSection>
 
             <SettingSection

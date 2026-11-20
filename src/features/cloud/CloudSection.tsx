@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { supabaseConfigFromEnv } from '../../lib/supabaseSession'
 import {
@@ -21,6 +21,22 @@ import {
 import { errorMessage } from '../../lib/tauri'
 import './cloud-section.css'
 
+/** Dependências reais, num objeto **estável**.
+ *
+ * Um literal no parâmetro (`deps = { readCloudStatus, ... }`) é recriado a cada
+ * render: como dependência de efeito, ele disparava a carga de novo a cada
+ * redesenho — a tela alternava entre "Verificando…" e o conteúdo sem parar. Era
+ * exatamente o que acontecia na tela de Nuvem para quem entrava como convidado.
+ * Os testes não pegavam porque eles injetam `deps` uma vez só. */
+const DEPS_PADRAO = {
+  readCloudStatus,
+  linkVault,
+  unlinkVault,
+  syncNow,
+  sweepOrphans,
+  startCheckout,
+}
+
 /** Preços do add-on, como aparecem para o usuário. O valor real vem do Stripe —
  *  estes textos existem para a pessoa saber o que vai encontrar na página de
  *  pagamento. */
@@ -38,9 +54,12 @@ const PRECOS: Record<CheckoutKind, string> = {
 export function CloudSection({
   vaultPath,
   config,
-  deps = { readCloudStatus, linkVault, unlinkVault, syncNow, sweepOrphans, startCheckout },
+  deps = DEPS_PADRAO,
+  onOpenAccount,
 }: {
   vaultPath: string
+  /** Leva à página de conta. Convidado sem isto fica sem ação nenhuma aqui. */
+  onOpenAccount?: () => void
   config?: { url: string; apiKey: string } | null
   deps?: {
     readCloudStatus: typeof readCloudStatus
@@ -56,6 +75,11 @@ export function CloudSection({
   const envConfig = useMemo(() => supabaseConfigFromEnv(), [])
   const resolvedConfig = config === undefined ? envConfig : config
 
+  // O valor injetado é lido por ref: assim a identidade do objeto não entra em
+  // nenhuma lista de dependência, mesmo que quem chame crie um novo por render.
+  const depsRef = useRef(deps)
+  depsRef.current = deps
+
   const [status, setStatus] = useState<CloudStatus | null>(null)
   const [report, setReport] = useState<CloudReport | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -70,13 +94,13 @@ export function CloudSection({
     setBusy('status')
     setError(null)
     try {
-      setStatus(await deps.readCloudStatus({ path: vaultPath, ...resolvedConfig }))
+      setStatus(await depsRef.current.readCloudStatus({ path: vaultPath, ...resolvedConfig }))
     } catch (problema) {
       setError(errorMessage(problema, 'Não foi possível falar com a nuvem.'))
     } finally {
       setBusy(null)
     }
-  }, [deps, resolvedConfig, vaultPath])
+  }, [resolvedConfig, vaultPath])
 
   useEffect(() => {
     void load()
@@ -88,7 +112,10 @@ export function CloudSection({
     setError(null)
     setEscolhendo(false)
     try {
-      const novo = await deps.linkVault({ path: vaultPath, ...resolvedConfig }, strategy)
+      const novo = await depsRef.current.linkVault(
+        { path: vaultPath, ...resolvedConfig },
+        strategy,
+      )
       setStatus(novo)
       setReport(null)
     } catch (problema) {
@@ -103,9 +130,9 @@ export function CloudSection({
     setBusy('sync')
     setError(null)
     try {
-      const resultado = await deps.syncNow({ path: vaultPath, ...resolvedConfig })
+      const resultado = await depsRef.current.syncNow({ path: vaultPath, ...resolvedConfig })
       setReport(resultado)
-      setStatus(await deps.readCloudStatus({ path: vaultPath, ...resolvedConfig }))
+      setStatus(await depsRef.current.readCloudStatus({ path: vaultPath, ...resolvedConfig }))
     } catch (problema) {
       setError(errorMessage(problema, 'Não foi possível falar com a nuvem.'))
     } finally {
@@ -117,7 +144,7 @@ export function CloudSection({
     setBusy('unlink')
     setError(null)
     try {
-      setStatus(await deps.unlinkVault(vaultPath))
+      setStatus(await depsRef.current.unlinkVault(vaultPath))
       setReport(null)
     } catch (problema) {
       setError(errorMessage(problema, 'Não foi possível falar com a nuvem.'))
@@ -131,7 +158,7 @@ export function CloudSection({
     setAssinando(kind)
     setError(null)
     try {
-      await deps.startCheckout(kind, { path: vaultPath, ...resolvedConfig })
+      await depsRef.current.startCheckout(kind, { path: vaultPath, ...resolvedConfig })
     } catch (problema) {
       setError(errorMessage(problema, 'Não foi possível abrir o checkout.'))
     } finally {
@@ -145,7 +172,10 @@ export function CloudSection({
     setError(null)
     try {
       setVarredura(
-        await deps.sweepOrphans({ path: vaultPath, ...resolvedConfig }, !apagar),
+        await depsRef.current.sweepOrphans(
+          { path: vaultPath, ...resolvedConfig },
+          !apagar,
+        ),
       )
     } catch (problema) {
       setError(errorMessage(problema, 'Não foi possível verificar a nuvem.'))
@@ -176,11 +206,25 @@ export function CloudSection({
   if (!status.signedIn) {
     return (
       <div className="cloud-block" data-cloud="sem-conta">
-        <p className="cloud-hint">
-          A nuvem é um complemento da conta: entre na sua conta para ligar este
-          vault e estudar em mais de um computador. Tudo o que é local continua
-          funcionando sem conta.
-        </p>
+        <div className="cloud-summary">
+          <p>
+            <strong>Você está como convidado.</strong> A nuvem é um complemento da
+            conta: é ela que identifica quais arquivos são seus em outro
+            computador. Tudo o que é local continua funcionando sem conta — só não
+            sai deste PC.
+          </p>
+        </div>
+        {onOpenAccount && (
+          <div className="cloud-actions">
+            <Button type="button" variant="primary" size="md" onClick={onOpenAccount}>
+              Entrar na minha conta
+            </Button>
+            <p className="cloud-hint">
+              Entrar não move nem envia nada. Os arquivos só sobem quando você
+              ligar este vault à nuvem.
+            </p>
+          </div>
+        )}
       </div>
     )
   }
