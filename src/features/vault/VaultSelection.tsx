@@ -4,6 +4,8 @@ import { Field } from '../../components/ui/Field'
 import { TitleBar } from '../../components/TitleBar'
 import { UpdateBanner } from '../../components/UpdateBanner'
 import { DevControls } from '../../components/DevControls'
+import { GuestProfileStep } from './GuestProfileStep'
+import type { ProfileSummary } from '../../lib/profiles'
 import { AccountForm } from '../account/AccountForm'
 import { buildVaultPathPreview, type CreateVaultForm } from '../../lib/vault'
 import type { KnownVault } from '../../lib/vaultStartup'
@@ -39,12 +41,23 @@ export type VaultSelectionProps = {
   /** Vaults que o app já abriu aqui — a lista é a tela, não um modal por cima. */
   knownVaults: KnownVault[]
   onOpenKnownVault: (path: string) => void
+  /**
+   * Perfis do vault que vai abrir, lidos antes de abrir. `null` quando a máquina
+   * ainda não sabe qual vault é (nenhum conhecido, ou mais de um para escolher):
+   * aí a escolha de perfil acontece depois, quando o vault abrir.
+   */
+  guestProfiles: ProfileSummary[] | null
+  guestProfileBusy: boolean
+  guestProfileError: string | null
+  /** Devolve `true` quando o perfil foi aberto e a tela pode seguir. */
+  onGuestProfileSelect: (profile: ProfileSummary, pin?: string) => Promise<boolean>
+  onGuestProfileCreate: (name: string, pin: string | null) => Promise<boolean>
   appUpdater: AppUpdaterController
   isBuilderModeEnabled: boolean
   setBuilderModeEnabled: (enabled: boolean) => void
 }
 
-type Step = 'account' | 'vault'
+type Step = 'account' | 'guest' | 'vault'
 
 /** Pilares do produto — texto curto, sem promessa que o app não cumpre.
  * Sem numeração: 01/02/03 sugeria uma sequência que não existe. */
@@ -67,6 +80,11 @@ export function VaultSelection({
   onAccountSettled,
   knownVaults,
   onOpenKnownVault,
+  guestProfiles,
+  guestProfileBusy,
+  guestProfileError,
+  onGuestProfileSelect,
+  onGuestProfileCreate,
   appUpdater,
   isBuilderModeEnabled,
   setBuilderModeEnabled,
@@ -102,6 +120,38 @@ export function VaultSelection({
   function skipAccount() {
     markLoginSkipped()
     setStep('vault')
+  }
+
+  /**
+   * "Continuar sem conta" com perfis já conhecidos: em vez de cair na escolha
+   * do vault e só depois perguntar quem está estudando, pergunta aqui — a pessoa
+   * já respondeu que não quer conta, e o perfil é a próxima coisa de que o app
+   * precisa para abrir o histórico certo.
+   */
+  function handleGuestSkip() {
+    // Lista vazia também conta: significa "vault conhecido, nenhum perfil" — e
+    // aí a tela certa é a de criação, não a de escolher o vault.
+    if (guestProfiles) {
+      setStep('guest')
+      return
+    }
+    skipAccount()
+  }
+
+  async function escolherPerfil(profile: ProfileSummary, pin?: string) {
+    const aberto = await onGuestProfileSelect(profile, pin)
+    if (aberto) {
+      markLoginSkipped()
+      setStep('vault')
+    }
+  }
+
+  async function criarPerfil(nome: string, pin: string | null) {
+    const aberto = await onGuestProfileCreate(nome, pin)
+    if (aberto) {
+      markLoginSkipped()
+      setStep('vault')
+    }
   }
 
   return (
@@ -146,8 +196,27 @@ export function VaultSelection({
             <AccountForm
               client={accountClient}
               onAuthenticated={() => setStep('vault')}
-              onSkip={skipAccount}
+              onSkip={handleGuestSkip}
             />
+          </div>
+        ) : step === 'guest' && guestProfiles ? (
+          <div className="welcome-card">
+            <GuestProfileStep
+              profiles={guestProfiles}
+              busy={guestProfileBusy}
+              error={guestProfileError}
+              onSelect={(profile, pin) => void escolherPerfil(profile, pin)}
+              onCreate={(nome, pin) => void criarPerfil(nome, pin)}
+            />
+            <Button
+              type="button"
+              variant="bare"
+              size="sm"
+              className="welcome-back"
+              onClick={() => setStep('account')}
+            >
+              Voltar
+            </Button>
           </div>
         ) : (
           <div className="welcome-card">

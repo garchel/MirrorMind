@@ -128,6 +128,8 @@ const vault = {
   metadata: { isInitialized: true, rootPath: 'C:\\Vault de testes\\.mirmind', missing: [] },
 }
 
+let profileListResponse: { id: string; name: string; color: string; isDefault: boolean; hasPin: boolean }[] = []
+
 type StartupPreference = {
   lastVaultPath: string | null
   askBeforeReopen: boolean
@@ -153,6 +155,21 @@ function createTauriHarness(
     switch (command) {
       case 'get_recent_vault_preference':
         return startupPreference ?? { lastVaultPath: null, askBeforeReopen: true }
+      case 'profiles_list':
+        return profileListResponse
+      case 'profiles_select':
+      case 'profiles_set_pin':
+        return null
+      case 'profiles_verify_pin':
+        return true
+      case 'profiles_create':
+        return {
+          id: 'criado',
+          name: 'Novo perfil',
+          color: 'sage',
+          isDefault: false,
+          hasPin: false,
+        }
       case 'select_existing_vault':
       case 'reopen_recent_vault':
       case 'open_known_vault':
@@ -420,6 +437,7 @@ describe('Regressao do editor no workspace', () => {
     inventorySyncConflictCopies = undefined
     vaultReviewTagRules = []
     dictionarySuggestionGate = null
+    profileListResponse = []
     invokeMock.mockReset()
     listenMock.mockReset()
     listenMock.mockResolvedValue(() => undefined)

@@ -36,6 +36,11 @@ function renderSelection(overrides: Partial<VaultSelectionProps> = {}) {
     setCreateForm: vi.fn(),
     knownVaults: [],
     onOpenKnownVault: vi.fn(),
+    guestProfiles: null,
+    guestProfileBusy: false,
+    guestProfileError: null,
+    onGuestProfileSelect: vi.fn(async () => true),
+    onGuestProfileCreate: vi.fn(async () => true),
     appUpdater: updater,
     isBuilderModeEnabled: false,
     setBuilderModeEnabled: vi.fn(),
@@ -135,6 +140,94 @@ describe('VaultSelection (abertura do app)', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
     expect(await screen.findByText('Vaults neste computador')).toBeInTheDocument()
+  })
+
+
+  it('convidado sem perfil criado é convidado a criar um, com nome e PIN opcional', async () => {
+    localStorage.setItem('mirrormind.account.login-skipped', 'false')
+    const user = userEvent.setup()
+    const { props } = renderSelection({ guestProfiles: [] })
+
+    await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
+
+    // Em vez de "Onde ficam suas notas?", o convite ao perfil — com os dois campos.
+    expect(await screen.findByRole('heading', { name: 'Crie seu perfil' })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Ex.: Paulo')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('4 a 12 dígitos')).toBeInTheDocument()
+
+    await user.type(screen.getByPlaceholderText('Ex.: Paulo'), 'Paulo')
+    await user.type(screen.getByPlaceholderText('4 a 12 dígitos'), '1234')
+    await user.click(screen.getByRole('button', { name: 'Criar perfil' }))
+
+    await waitFor(() =>
+      expect(props.onGuestProfileCreate).toHaveBeenCalledWith('Paulo', '1234'),
+    )
+  })
+
+  it('sem PIN o perfil é criado sem senha nenhuma', async () => {
+    localStorage.setItem('mirrormind.account.login-skipped', 'false')
+    const user = userEvent.setup()
+    const { props } = renderSelection({ guestProfiles: [] })
+
+    await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
+    await user.type(await screen.findByPlaceholderText('Ex.: Paulo'), 'Ana')
+    await user.click(screen.getByRole('button', { name: 'Criar perfil' }))
+
+    await waitFor(() => expect(props.onGuestProfileCreate).toHaveBeenCalledWith('Ana', null))
+  })
+
+  it('nome vazio não cria perfil', async () => {
+    localStorage.setItem('mirrormind.account.login-skipped', 'false')
+    const user = userEvent.setup()
+    const { props } = renderSelection({ guestProfiles: [] })
+
+    await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
+    await user.click(await screen.findByRole('button', { name: 'Criar perfil' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Dê um nome ao perfil.')
+    expect(props.onGuestProfileCreate).not.toHaveBeenCalled()
+  })
+
+  it('com perfis já criados, mostra a lista e deixa abrir o seu', async () => {
+    localStorage.setItem('mirrormind.account.login-skipped', 'false')
+    const user = userEvent.setup()
+    const paulo = { id: 'p1', name: 'Paulo', color: 'sage', isDefault: false, hasPin: false }
+    const ana = { id: 'p2', name: 'Ana', color: 'brick', isDefault: false, hasPin: false }
+    const { props } = renderSelection({ guestProfiles: [paulo, ana] })
+
+    await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
+    expect(await screen.findByRole('heading', { name: 'Quem está estudando?' })).toBeInTheDocument()
+
+    await user.click(screen.getAllByRole('button', { name: 'Entrar' })[1])
+    await waitFor(() => expect(props.onGuestProfileSelect).toHaveBeenCalledWith(ana, undefined))
+  })
+
+  it('perfil com PIN só entra depois do número', async () => {
+    localStorage.setItem('mirrormind.account.login-skipped', 'false')
+    const user = userEvent.setup()
+    const comPin = { id: 'p1', name: 'Paulo', color: 'sage', isDefault: false, hasPin: true }
+    const { props } = renderSelection({ guestProfiles: [comPin] })
+
+    await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
+    await user.click(await screen.findByRole('button', { name: 'Pedir PIN' }))
+
+    // Escolher o perfil não basta: o PIN é conferido antes de abrir.
+    expect(props.onGuestProfileSelect).not.toHaveBeenCalled()
+    await user.type(screen.getByLabelText('PIN do perfil Paulo'), '1234')
+    await user.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    await waitFor(() => expect(props.onGuestProfileSelect).toHaveBeenCalledWith(comPin, '1234'))
+  })
+
+  it('sem vault conhecido o convidado segue para a escolha do vault', async () => {
+    localStorage.setItem('mirrormind.account.login-skipped', 'false')
+    const user = userEvent.setup()
+    renderSelection({ guestProfiles: null })
+
+    await user.click(await screen.findByRole('button', { name: 'Continuar sem conta' }))
+
+    // Perfis moram no vault: sem saber qual é, não há o que listar aqui.
+    expect(await screen.findByRole('heading', { name: 'Onde ficam suas notas?' })).toBeInTheDocument()
   })
 
   it('avisa o App uma vez quando a pergunta de conta termina', async () => {

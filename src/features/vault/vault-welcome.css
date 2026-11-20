@@ -209,6 +209,77 @@
   width: 100%;
 }
 
+/* ---------- passo do convidado ---------- */
+
+.guest-profile {
+  display: grid;
+  gap: 12px;
+}
+
+.guest-profile-list {
+  display: grid;
+  gap: 6px;
+}
+
+.guest-profile-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: transparent;
+}
+
+.guest-profile-meta {
+  display: grid;
+  gap: 2px;
+}
+
+.guest-profile-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.guest-profile-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.guest-profile-pin {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  grid-column: 1 / -1;
+}
+
+.guest-profile-pin .field,
+.guest-profile-pin input {
+  width: 96px;
+}
+
+.guest-profile-create {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--mm-gold-100);
+}
+
+.guest-profile-note {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.guest-profile-create-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 /* ---------- passo do vault ---------- */
 
 /* Lista dos vaults que o app já abriu aqui. Só aparece quando há mais de um:

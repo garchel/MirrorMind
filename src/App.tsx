@@ -141,7 +141,12 @@ import { VaultSelection } from './features/vault/VaultSelection'
 import { createSupabaseSessionClient, supabaseConfigFromEnv } from './lib/supabaseSession'
 import { LoginPage } from './features/account/LoginPage'
 import { ProfileGate } from './features/profiles/ProfileGate'
-import { needsProfileChoice, profileClientFromInvoke, type ProfileSummary } from './lib/profiles'
+import {
+  needsProfileChoice,
+  profileClientFromInvoke,
+  writeLastProfileId,
+  type ProfileSummary,
+} from './lib/profiles'
 import { clearLoginSkipped, markLoginSkipped } from './lib/loginGate'
 import { TabStrip, WorkspaceRail, WorkspaceTopbar, type WorkspacePage } from './features/shell/WorkspaceChrome'
 import { TrashPage } from './features/trash/TrashPage'
@@ -551,6 +556,17 @@ function App() {
   const profileClient = useMemo(() => profileClientFromInvoke(invoke), [])
   /** Quando preenchido, a tela "Quem está usando este vault?" ocupa o lugar do app. */
   const [profileGate, setProfileGate] = useState<{ vaultRoot: string; profiles: ProfileSummary[] } | null>(null)
+  /**
+   * Perfis lidos **antes** de abrir o vault, para o passo do convidado na tela de
+   * abertura. `null` = não dá para saber ainda (nenhum vault conhecido, ou mais
+   * de um para escolher) — aí a escolha acontece depois, com o vault aberto.
+   */
+  const [guestProfiles, setGuestProfiles] = useState<ProfileSummary[] | null>(null)
+  const [guestProfileBusy, setGuestProfileBusy] = useState(false)
+  const [guestProfileError, setGuestProfileError] = useState<string | null>(null)
+  const guestVaultRootRef = useRef<string | null>(null)
+  /** Perfil escolhido na abertura, para o vault não voltar a perguntar. */
+  const pendingProfileRef = useRef<{ vaultRoot: string; profile: ProfileSummary } | null>(null)
   /** Perfil local em uso (quem está estudando neste vault). */
   const [activeProfile, setActiveProfile] = useState<ProfileSummary | null>(null)
   const accountSessionClient = useMemo(() => {
@@ -1011,6 +1027,17 @@ function App() {
     '--reading-font-size': `${editorFontSize}px`,
   } as CSSProperties
   const handleVaultSelection = useEffectEvent(async (selectedVault: VaultSummary) => {
+    // Perfil escolhido na tela de abertura para **este** vault: entra com ele e
+    // não repete a pergunta. Para outro vault a escolha não vale (perfis moram
+    // no vault), então segue o caminho normal.
+    const perfilPendente = pendingProfileRef.current
+    pendingProfileRef.current = null
+    if (perfilPendente && perfilPendente.vaultRoot === selectedVault.path) {
+      setActiveProfile(perfilPendente.profile)
+      await refreshNotes(selectedVault.path)
+      void buildVaultWikilinkIndex(selectedVault.path)
+      return
+    }
     // Perfis: com um perfil só e sem PIN, entrar direto; havendo escolha (ou PIN),
     // a tela aparece antes de qualquer leitura — os caminhos de estado dependem do
     // perfil ativo.
@@ -1515,11 +1542,10 @@ function App() {
     void handleRecentVaultStartup()
   }, [])
 
-  // A decisão sobre o último vault acontece **depois** da pergunta de conta e
-  // uma única vez. Enquanto ela não está resolvida, nada abre por cima.
-  // A decisão da primeira tela, uma vez por abertura: **um** vault conhecido
-  // abre direto; zero ou vários caem na tela de escolha. Não há mais modal de
-  // "continuar de onde parou" — ele perguntava o que a lista já responde.
+  // A decisão da primeira tela acontece **depois** da pergunta de conta, uma vez
+  // por abertura: **um** vault conhecido abre direto; zero ou vários caem na tela
+  // de escolha. Não há mais modal de "continuar de onde parou" — ele perguntava o
+  // que a lista já responde.
   useEffect(() => {
     if (!contaResolvida || recentVaultTratadoRef.current) return
     if (!recentVaultPreference) return
@@ -1529,7 +1555,19 @@ function App() {
     if (decisao.kind === 'open') {
       void reopenRecentVault()
     }
-  }, [contaResolvida, recentVaultPreference])
+
+    // Com um vault só, os perfis dele podem ser lidos antes de abrir — é o que
+    // permite perguntar "quem está estudando" na própria tela de abertura.
+    // Com dois ou mais, cada vault tem os seus: perguntar aqui seria chutar.
+    if (recentVaultPreference.knownVaults.length === 1) {
+      const root = recentVaultPreference.knownVaults[0].path
+      guestVaultRootRef.current = root
+      void profileClient
+        .list(root)
+        .then((perfis) => setGuestProfiles(perfis))
+        .catch(() => setGuestProfiles(null))
+    }
+  }, [contaResolvida, profileClient, recentVaultPreference])
 
   // Aparencia: aplica o tema no documento (atributo `data-theme` lido pelo
   // CSS) e as variaveis de fonte/leitura. A persistência vive no hook
@@ -1889,6 +1927,53 @@ function App() {
       setStatus('Escolha outra pasta ou crie um vault novo.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  /** Abre um perfil escolhido na tela de abertura (com PIN, se ele pedir). */
+  async function handleGuestProfileSelect(profile: ProfileSummary, pin?: string) {
+    const root = guestVaultRootRef.current
+    if (!root) return false
+    setGuestProfileBusy(true)
+    setGuestProfileError(null)
+    try {
+      if (profile.hasPin) {
+        const correto = await profileClient.verifyPin(root, profile.id, pin ?? '')
+        if (!correto) {
+          setGuestProfileError('PIN incorreto.')
+          return false
+        }
+      }
+      await profileClient.select(root, profile.id)
+      writeLastProfileId(root, profile.id)
+      pendingProfileRef.current = { vaultRoot: root, profile }
+      return true
+    } catch (causa) {
+      setGuestProfileError(errorMessage(causa, 'Não foi possível abrir este perfil.'))
+      return false
+    } finally {
+      setGuestProfileBusy(false)
+    }
+  }
+
+  /** Cria o perfil do convidado na abertura e já entra com ele. */
+  async function handleGuestProfileCreate(nome: string, pin: string | null) {
+    const root = guestVaultRootRef.current
+    if (!root) return false
+    setGuestProfileBusy(true)
+    setGuestProfileError(null)
+    try {
+      const criado = await profileClient.create(root, { name: nome, color: 'sage', pin })
+      await profileClient.select(root, criado.id)
+      writeLastProfileId(root, criado.id)
+      pendingProfileRef.current = { vaultRoot: root, profile: criado }
+      setGuestProfiles((atuais) => (atuais ? [...atuais, criado] : [criado]))
+      return true
+    } catch (causa) {
+      setGuestProfileError(errorMessage(causa, 'Não foi possível criar o perfil.'))
+      return false
+    } finally {
+      setGuestProfileBusy(false)
     }
   }
 
@@ -6666,6 +6751,11 @@ function App() {
       onAccountSettled={() => setContaResolvida(true)}
       knownVaults={sortKnownVaults(recentVaultPreference?.knownVaults ?? [])}
       onOpenKnownVault={(path) => void openKnownVault(path)}
+      guestProfiles={guestProfiles}
+      guestProfileBusy={guestProfileBusy}
+      guestProfileError={guestProfileError}
+      onGuestProfileSelect={handleGuestProfileSelect}
+      onGuestProfileCreate={handleGuestProfileCreate}
       appUpdater={appUpdater}
       isBuilderModeEnabled={isBuilderModeEnabled}
       setBuilderModeEnabled={setBuilderModeEnabled}
