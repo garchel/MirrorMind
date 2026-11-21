@@ -14,14 +14,20 @@ const SESSION_REFRESH_ACCOUNT: &str = "session-refresh-token";
 /// recusar vazio/lixo, nao para medir entropia (essa e do servidor).
 const MIN_TOKEN_LENGTH: usize = 8;
 const MAX_TOKEN_LENGTH: usize = 8_192;
-/// Uma credencial genérica do Windows aceita no máximo 5 × 512 = 2.560 bytes.
-/// O JWT de acesso emitido quando a conta entra pelo **Google** passa disso — ele
-/// carrega os claims do perfil do provedor. Medido no login real: o `set_password`
-/// falhava e a pessoa via "não foi possível salvar a sessão" depois de autorizar.
-/// Por isso o token vai em pedaços, cada um numa entrada própria; a primeira usa o
-/// nome histórico, então uma sessão antiga (token curto) continua legível.
-const CHUNK_SIZE: usize = 2_000;
-const MAX_CHUNKS: usize = 5;
+/// Tamanho do pedaço que o cofre do Windows aceita.
+///
+/// **Medido nesta classe de máquina** (sonda `cofre_tamanho`, 2026-11): 1.200
+/// caracteres gravam, 1.400 falham. O Windows guarda a credencial em UTF-16
+/// contra um teto de 5 × 512 = 2.560 bytes, ou seja ~1.280 caracteres — e o
+/// JWT de acesso emitido quando a conta entra pelo **Google** passa disso, porque
+/// carrega os claims do perfil do provedor. Foi o que fazia o login terminar em
+/// "não foi possível salvar a sessão" depois de autorizar.
+///
+/// Por isso o token vai em pedaços de 1.000 (folga de ~20%), cada um numa entrada
+/// própria; a primeira usa o nome histórico, então uma sessão antiga (token curto)
+/// continua legível.
+const CHUNK_SIZE: usize = 1_000;
+const MAX_CHUNKS: usize = 9;
 
 /// Par de tokens da sessao (Supabase Auth: JWT de acesso + refresh opaco).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -222,8 +228,9 @@ mod tests {
         assert_eq!(load_session(&store).expect("load again"), None);
     }
 
-    /// Imita o limite do Windows: uma credencial genérica recusa mais de 2.560
-    /// bytes. É o que fazia o login pelo Google falhar depois de autorizar.
+    /// Imita o limite medido do Windows: recusa acima de 1.200 caracteres (o
+    /// cofre guarda em UTF-16 e para em ~1.280). É o que fazia o login pelo
+    /// Google falhar depois de autorizar.
     struct LimitedCredentialStore {
         values: Mutex<HashMap<String, String>>,
     }
@@ -238,7 +245,7 @@ mod tests {
 
     impl CredentialStore for LimitedCredentialStore {
         fn set_secret(&self, account: &str, secret: &str) -> Result<()> {
-            if secret.len() > 2_560 {
+            if secret.len() > 1_200 {
                 anyhow::bail!("credencial grande demais");
             }
             self.values
@@ -275,7 +282,8 @@ mod tests {
         assert_eq!(sessao.access_token, grande);
         assert_eq!(sessao.refresh_token, "refresh-curto");
         // e não sobrou pedaço vazio de graça
-        assert_eq!(store.values.lock().unwrap().len(), 4);
+        // 6.000 caracteres / 1.000 por pedaço = 6 entradas (+1 do refresh)
+        assert_eq!(store.values.lock().unwrap().len(), 7);
     }
 
     #[test]
@@ -301,5 +309,43 @@ mod tests {
         clear_session(&store).expect("limpar");
         assert!(load_session(&store).expect("ler").is_none());
         assert!(store.values.lock().unwrap().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod cofre_tamanho {
+    use super::*;
+    use crate::review::credentials::NativeCredentialStore;
+
+    /// Sonda: descobre o maior segredo que o cofre DESTA máquina aceita.
+    /// `cargo test --lib cofre_tamanho -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn live_tamanho_maximo_do_cofre() {
+        let store = NativeCredentialStore::new();
+        for tamanho in [200, 400, 600, 800, 1_000, 1_200, 1_400, 1_600, 1_800, 2_000] {
+            let segredo = "a".repeat(tamanho);
+            let resultado = store.set_secret("probe-tamanho", &segredo);
+            println!("{tamanho} bytes -> {:?}", resultado.is_ok());
+            let _ = store.delete_secret("probe-tamanho");
+        }
+    }
+
+    /// Prova que um token do tamanho do Google (2.000 caracteres) cabe no cofre
+    /// desta máquina pelo caminho real de gravação/leitura.
+    #[test]
+    #[ignore]
+    fn live_token_do_tamanho_do_google_cabe_no_cofre() {
+        let store = NativeCredentialStore::new();
+        let access = format!("eyJ{}.{}.{}", "a".repeat(1_900), "b".repeat(60), "c".repeat(40));
+        assert!(access.len() > 2_000, "token menor que o limite do cofre");
+
+        save_session(&store, &access, "refresh-curto").expect("gravar sessao do tamanho do Google");
+        let lida = load_session(&store).expect("ler").expect("sessao");
+        assert_eq!(lida.access_token, access);
+        assert_eq!(lida.refresh_token, "refresh-curto");
+        clear_session(&store).expect("limpar");
+        assert!(load_session(&store).expect("ler").is_none());
+        println!("grava, le e limpa um token de {} caracteres", access.len());
     }
 }
