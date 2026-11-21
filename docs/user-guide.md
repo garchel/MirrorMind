@@ -28,7 +28,15 @@ Este guia cobre o essencial para começar e usar no dia a dia.
    todos os vaults desta máquina.
    Quem entra com conta ganha um perfil com o nome do e-mail — entrar de novo não
    cria um segundo perfil, e renomear continua valendo.
-3. Na próxima abertura **não há pergunta**: se o app conhece um único vault, ele
+3. **Esta pasta é compartilhada?** — se a pasta escolhida já foi aberta por outra
+   pessoa, o app avisa antes de abrir: *notas e anexos são de todos; histórico de
+   revisão, metas, dicionário e consumo são de cada perfil*. O PIN protege a escolha
+   de perfil nesta máquina, não os arquivos da pasta. Dá para marcar "não avisar de
+   novo" só para aquela pasta.
+4. Com conta, o app **lembra quais pastas aquela conta usa** neste computador: a
+   primeira pasta escolhida vira o vínculo e a próxima abertura vai direto nela. Sem
+   conta, vale a memória da máquina.
+5. Na próxima abertura **não há pergunta**: se o app conhece um único vault, ele
    abre direto. Com dois ou mais vaults, a tela de abertura mostra a lista e
    você escolhe — a lista são só os vaults que você já abriu nesta máquina.
 
