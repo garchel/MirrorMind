@@ -429,6 +429,16 @@ fn identities_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|error| error.to_string())
 }
 
+/// Uso da IA gerenciada nesta conta (plano, tetos e quanto já foi usado).
+///
+/// A conta é de quem conta: o número vem do servidor, onde a chamada acontece.
+#[tauri::command]
+async fn managed_ai_status() -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(review::managed::status)
+        .await
+        .map_err(|erro| erro.to_string())?
+}
+
 /// Escopo da IA nesta sessão (`conta:<id>`, `pessoa:<id>` ou nada).
 ///
 /// A Interface usa o mesmo valor para separar a preferência de provedor de cada
@@ -6754,6 +6764,7 @@ pub fn run() {
             account_vault_remember,
             vault_sharing,
             ai_scope,
+            managed_ai_status,
             account_vaults_list,
             identities_adopt,
             identities_list,

@@ -66,6 +66,33 @@ pub(crate) fn mensagem_do_erro(status: u16, codigo: &str) -> String {
     }
 }
 
+/// Estado da IA gerenciada para a tela: plano, tetos e quanto já foi usado.
+///
+/// Vem do servidor (não do app) porque é ele quem conta: mostrar número local
+/// daria uma expectativa que a chamada seguinte contradiria.
+pub fn status() -> Result<serde_json::Value, String> {
+    let sessao = crate::account::load_session()
+        .map_err(|erro| format!("Não foi possível ler a sessão: {erro}"))?
+        .ok_or_else(|| "Entre na conta para ver o uso da IA incluída.".to_string())?;
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|_| "Não foi possível preparar a conexão.".to_string())?;
+    let resposta = client
+        .post(format!("{}/functions/v1/ai-review", base_url()))
+        .header("Authorization", format!("Bearer {}", sessao.access_token))
+        .json(&json!({ "mode": "status" }))
+        .send()
+        .map_err(|_| "Não foi possível consultar o uso agora.".to_string())?;
+    let status = resposta.status();
+    let corpo: Value = resposta.json().unwrap_or_else(|_| json!({}));
+    if !status.is_success() {
+        let codigo = corpo.get("error").and_then(Value::as_str).unwrap_or_default();
+        return Err(mensagem_do_erro(status.as_u16(), codigo));
+    }
+    Ok(corpo)
+}
+
 pub struct ManagedAiProvider {
     client: reqwest::blocking::Client,
     endpoint: String,

@@ -9,6 +9,7 @@ import {
 import { reviewProvider } from './reviewProvider'
 import type { OllamaStatus, ReviewAiConfiguration, ReviewAiProvider, UsageStatus } from './ai'
 import { estimateManagedCallCostUsd } from './managedProvider'
+import { invoke } from '../../lib/tauri'
 import { useReviewAiSettings } from './ReviewAiSettingsContext'
 import { SettingsSection } from '../../components/SettingsSection'
 import './review-ai.css'
@@ -36,6 +37,33 @@ function estimatedManagedInputChars(): number {
 
 export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
   const { provider, selectProvider, geminiConsent, setGeminiConsent, openAiConsent, setOpenAiConsent, managedGate } = useReviewAiSettings()
+  /**
+   * Uso da IA incluída, vindo do servidor.
+   *
+   * Só é buscado quando a opção gerenciada está liberada: para quem usa Ollama ou
+   * chave própria, isso seria uma chamada de rede sem uso — e o número não diria
+   * nada sobre o gasto dela.
+   */
+  const [usoGerenciado, setUsoGerenciado] = useState<{ usado: number; limite: number | null } | null>(null)
+  useEffect(() => {
+    if (!managedGate.allowed) return
+    let vivo = true
+    void invoke<{ used?: { lifetime?: number; month?: number }; limits?: { lifetime?: number | null; monthly?: number | null } }>('managed_ai_status')
+      .then((estado) => {
+        if (!vivo || !estado) return
+        const limite = estado.limits?.monthly ?? estado.limits?.lifetime ?? null
+        const usado = estado.limits?.monthly != null
+          ? (estado.used?.month ?? 0)
+          : (estado.used?.lifetime ?? 0)
+        setUsoGerenciado({ usado, limite })
+      })
+      .catch(() => {
+        if (vivo) setUsoGerenciado(null)
+      })
+    return () => {
+      vivo = false
+    }
+  }, [managedGate.allowed])
   const [configuration, setConfiguration] = useState<ReviewAiConfiguration | null>(null)
   const [apiKey, setApiKey] = useState('')
   /** Endereco e modelo do Ollama local: editar e salvar, como no servidor
@@ -300,6 +328,13 @@ export function ReviewAiSettings({ vaultPath }: { vaultPath?: string }) {
       ) : provider === 'managed' ? (
         <div className="review-ai-provider-panel">
           <p>{managedGate.message}</p>
+          {usoGerenciado ? (
+            <p className="review-ai-managed-scaffold">
+              {usoGerenciado.limite === null
+                ? `${usoGerenciado.usado} chamadas neste mês.`
+                : `${usoGerenciado.usado} de ${usoGerenciado.limite} chamadas usadas.`}
+            </p>
+          ) : null}
           <p className="review-ai-managed-scaffold">
             Custo estimado por chamada gerenciada: US$ {estimateManagedCallCostUsd(estimatedManagedInputChars()).toFixed(2)}
           </p>
