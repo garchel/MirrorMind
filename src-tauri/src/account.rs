@@ -405,11 +405,17 @@ pub async fn account_sign_in_google(
     url: String,
     api_key: String,
 ) -> Result<AccountSnapshot, String> {
-    tauri::async_runtime::spawn_blocking(move || {
+    let resultado = tauri::async_runtime::spawn_blocking(move || {
         crate::account_oauth::sign_in_with_google(&url, &api_key).map_err(|error| error.to_string())
     })
     .await
-    .map_err(|error| error.to_string())?
+    .map_err(|error| error.to_string())?;
+    // O erro do fluxo do navegador só chegava ao formulário: quando a pessoa
+    // fecha a aba e volta, ela vê "nada aconteceu" e não há como diagnosticar.
+    if let Err(erro) = &resultado {
+        eprintln!("[account_sign_in_google] {erro}");
+    }
+    resultado
 }
 
 #[tauri::command]

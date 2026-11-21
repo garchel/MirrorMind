@@ -58,11 +58,6 @@ pub(crate) fn random_verifier() -> String {
     url_safe(&bytes)
 }
 
-pub(crate) fn random_state() -> String {
-    let mut bytes = [0u8; 16];
-    getrandom::fill(&mut bytes).expect("o sistema precisa fornecer entropia");
-    url_safe(&bytes)
-}
 
 /// `BASE64URL(SHA256(verifier))` — método `S256` do RFC 7636.
 pub(crate) fn code_challenge(verifier: &str) -> String {
@@ -71,19 +66,20 @@ pub(crate) fn code_challenge(verifier: &str) -> String {
 }
 
 /// URL do Supabase Auth que abre a tela do Google.
-pub(crate) fn authorize_url(
-    base_url: &str,
-    redirect_uri: &str,
-    challenge: &str,
-    state: &str,
-) -> Result<Url> {
+///
+/// Sem `state`: medido contra o servidor real, o GoTrue **gera o próprio** e é ele
+/// que devolve no retorno (o 302 para o Google sai com `state=<uuid>`, não com o
+/// enviado). Conferir o nosso nunca casaria — e era exatamente o que fazia o login
+/// terminar na página "Conta conectada" sem criar sessão. A proteção contra
+/// retorno forjado vem do PKCE: a porta é efêmera, só este processo a conhece, e
+/// um código de outra origem não troca por sessão sem o nosso `code_verifier`.
+pub(crate) fn authorize_url(base_url: &str, redirect_uri: &str, challenge: &str) -> Result<Url> {
     let mut url = Url::parse(&endpoint(base_url, "/auth/v1/authorize")?)?;
     url.query_pairs_mut()
         .append_pair("provider", "google")
         .append_pair("redirect_to", redirect_uri)
         .append_pair("code_challenge", challenge)
-        .append_pair("code_challenge_method", "s256")
-        .append_pair("state", state);
+        .append_pair("code_challenge_method", "s256");
     Ok(url)
 }
 
@@ -135,14 +131,6 @@ pub(crate) fn parse_callback(request_line: &str) -> Result<Option<Callback>> {
     }
 }
 
-/// Confere o `state` devolvido contra o enviado.
-pub(crate) fn check_state(expected: &str, received: Option<&str>) -> Result<()> {
-    match received {
-        Some(received) if received == expected => Ok(()),
-        _ => bail!("O retorno do login não confere. Tente de novo."),
-    }
-}
-
 fn page(title: &str, message: &str) -> String {
     // HTML mínimo e sem recurso externo: a página só existe para o usuário
     // saber que pode fechar a aba.
@@ -174,7 +162,7 @@ fn read_request(stream: &mut TcpStream) -> String {
 }
 
 /// Espera o retorno do navegador na porta já aberta.
-pub(crate) fn wait_for_callback(listener: &TcpListener, expected_state: &str) -> Result<String> {
+pub(crate) fn wait_for_callback(listener: &TcpListener) -> Result<String> {
     listener.set_nonblocking(true)?;
     let deadline = Instant::now() + CALLBACK_TIMEOUT;
 
@@ -199,7 +187,7 @@ pub(crate) fn wait_for_callback(listener: &TcpListener, expected_state: &str) ->
                                 "Pode fechar esta aba e voltar para o MirrorMind.",
                             ),
                         );
-                        check_state(expected_state, callback.state.as_deref())?;
+                        // O `state` não é conferido: ver `authorize_url`.
                         return Ok(callback.code);
                     }
                     // Requisição que não é o callback (favicon, pré-conexão).
@@ -412,11 +400,10 @@ pub fn sign_in_with_google(base_url: &str, api_key: &str) -> Result<AccountSnaps
     let redirect_uri = format!("http://127.0.0.1:{port}");
 
     let verifier = random_verifier();
-    let state = random_state();
-    let url = authorize_url(base_url, &redirect_uri, &code_challenge(&verifier), &state)?;
+    let url = authorize_url(base_url, &redirect_uri, &code_challenge(&verifier))?;
 
     open_browser_window(url.as_str())?;
-    let code = wait_for_callback(&listener, &state)?;
+    let code = wait_for_callback(&listener)?;
     drop(listener); // a porta fecha antes de falar com o servidor
 
     let token_url = endpoint(base_url, "/auth/v1/token?grant_type=pkce")?;
@@ -456,7 +443,7 @@ mod tests {
     }
 
     #[test]
-    fn verifier_e_state_saem_aleatorios_e_no_tamanho_certo() {
+    fn verifier_sai_aleatorio_e_no_tamanho_certo() {
         let primeiro = random_verifier();
         let segundo = random_verifier();
         assert_ne!(primeiro, segundo);
@@ -464,34 +451,6 @@ mod tests {
         assert!(primeiro
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
-        assert_ne!(random_state(), random_state());
-    }
-
-    #[test]
-    fn authorize_url_leva_pkce_e_state() {
-        let url = authorize_url(
-            "https://projeto.supabase.co",
-            "http://127.0.0.1:51234",
-            "abc",
-            "xyz",
-        )
-        .expect("url");
-        let params: std::collections::HashMap<_, _> = url.query_pairs().into_owned().collect();
-        assert_eq!(params.get("provider").map(String::as_str), Some("google"));
-        assert_eq!(
-            params.get("code_challenge_method").map(String::as_str),
-            Some("s256")
-        );
-        assert_eq!(
-            params.get("code_challenge").map(String::as_str),
-            Some("abc")
-        );
-        assert_eq!(params.get("state").map(String::as_str), Some("xyz"));
-        assert_eq!(
-            params.get("redirect_to").map(String::as_str),
-            Some("http://127.0.0.1:51234")
-        );
-        assert_eq!(url.path(), "/auth/v1/authorize");
     }
 
     #[test]
@@ -523,10 +482,18 @@ mod tests {
     }
 
     #[test]
-    fn state_diferente_e_recusado() {
-        assert!(check_state("esperado", Some("outro")).is_err());
-        assert!(check_state("esperado", None).is_err());
-        assert!(check_state("esperado", Some("esperado")).is_ok());
+    fn url_de_autorizacao_nao_leva_state() {
+        // O servidor gera o proprio state e devolve o dele; mandar o nosso nao
+        // protegia nada e a conferencia quebrava o login (ver `authorize_url`).
+        let url = authorize_url("https://exemplo.supabase.co", "http://127.0.0.1:1234", "abc")
+            .expect("url");
+        let pares: Vec<(String, String)> = url
+            .query_pairs()
+            .map(|(chave, valor)| (chave.into_owned(), valor.into_owned()))
+            .collect();
+        assert!(pares.iter().any(|(chave, _)| chave == "provider"));
+        assert!(pares.iter().any(|(chave, _)| chave == "code_challenge"));
+        assert!(!pares.iter().any(|(chave, _)| chave == "state"));
     }
 
     #[test]
@@ -611,7 +578,7 @@ mod tests {
 
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("porta");
         let porta = listener.local_addr().expect("endereco").port();
-        let espera = std::thread::spawn(move || wait_for_callback(&listener, "estado-certo"));
+        let espera = std::thread::spawn(move || wait_for_callback(&listener));
 
         let mut navegador = TcpStream::connect(("127.0.0.1", porta)).expect("conectar");
         navegador
@@ -627,19 +594,27 @@ mod tests {
     }
 
     #[test]
-    fn callback_com_state_errado_nao_entrega_codigo() {
+    fn callback_com_state_do_servidor_tambem_entrega_codigo() {
         use std::io::Write;
 
+        // O GoTrue devolve o state dele, não o nosso: isso é o caso normal e não
+        // pode impedir o login (era o bug: "Conta conectada" e nenhuma sessão).
         let listener = TcpListener::bind(("127.0.0.1", 0)).expect("porta");
         let porta = listener.local_addr().expect("endereco").port();
-        let espera = std::thread::spawn(move || wait_for_callback(&listener, "esperado"));
+        let espera = std::thread::spawn(move || wait_for_callback(&listener));
 
+        // CRLF montado por codigo: o literal com escape ja foi corrompido
+        // por heredoc neste repo (vira CR de verdade e o Rust recusa).
+        let crlf = String::from_utf8(vec![13, 10]).expect("crlf");
+        let pedido = format!(
+            "GET /?code=abc123&state=e91cb0b8-100a HTTP/1.1{crlf}Host: 127.0.0.1{crlf}{crlf}"
+        );
         let mut navegador = TcpStream::connect(("127.0.0.1", porta)).expect("conectar");
         navegador
-            .write_all(b"GET /?code=abc123&state=forjado HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+            .write_all(pedido.as_bytes())
             .expect("enviar");
 
-        assert!(espera.join().expect("thread").is_err());
+        assert_eq!(espera.join().expect("thread").expect("codigo"), "abc123");
     }
 
     /// Fluxo real até a troca: sem navegador, o código é inválido — o que
