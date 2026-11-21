@@ -1,8 +1,10 @@
 # IA por conta (e o que é fornecido pela assinatura)
 
-Estado: **chave e preferência já separadas por pessoa**; a IA gerenciada pela
-assinatura (chave nossa, atrás do plano) tem a superfície pronta no app e o
-backend ainda não existe.
+Estado: **chave e preferência separadas por pessoa** e **IA gerenciada
+implementada no servidor** (migração `0009_managed_ai.sql` + função de borda
+`ai-review`). Falta apenas o secret `GEMINI_API_KEY` na função para a chamada
+chegar ao provedor — sem ele a função responde 503 e a reserva fica `failed`
+(não consome cota).
 
 ## O problema
 
@@ -32,7 +34,22 @@ Entrar ou sair de uma conta recalcula o escopo. A tela de IA relê a preferênci
 quando a janela recebe foco — é o instante em que o fluxo de login do navegador
 devolve o controle ao app.
 
-## IA gerenciada: o que já existe e o que não
+## IA gerenciada: o que existe hoje (medido em 2026-11-21)
+
+| caso | resposta da função |
+|---|---|
+| sem token / token inválido | `401 sem_sessao` / `401 sessao_invalida` |
+| sem `Idempotency-Key` | `400 sem_chave_idempotencia` |
+| cota grátis esgotada (50) | `429 cota_vitalicia` |
+| cota mensal Essencial (1.000) | `429 cota_mensal` |
+| falta o secret do provedor | `503 nao_configurado`, reserva `failed`, sem consumir cota |
+
+O ledger fica em `ai_usage` (`reserved` → `confirmed`/`failed`). Retry com a
+mesma chave devolve a mesma reserva; se a tentativa anterior **falhou**, a linha
+volta para `reserved` e passa pela checagem de cota — senão o retry de rede
+viraria chamada grátis.
+
+## IA gerenciada: o que ainda falta
 
 `src/features/review/managedProvider.ts` já define o **gate** (`managedAiGate`):
 a opção "IA da assinatura" aparece desabilitada para plano gratuito, com mensagem
