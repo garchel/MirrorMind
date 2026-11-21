@@ -1150,10 +1150,6 @@ fn list_templates(
 
 /// Templates do **perfil ativo**: o padrão herda `.mirmind/templates.json`, os
 /// outros ficam em `.mirmind/profiles/<id>/`.
-fn templates_file_path(root: &Path) -> PathBuf {
-    templates_file_path_for(root, &crate::profiles::active_profile())
-}
-
 /// Com o perfil explícito: ler o perfil ativo aqui dentro obrigaria o teste a
 /// mexer em estado global, e os testes rodam em paralelo.
 fn templates_file_path_for(root: &Path, profile_id: &str) -> PathBuf {

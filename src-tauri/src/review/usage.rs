@@ -49,7 +49,6 @@ const VISION_OUTPUT_USD_PER_1M: f64 = 5.0;
 /// Saida estimada de uma descricao de imagem (texto curto).
 const ESTIMATED_VISION_OUTPUT_TOKENS: f64 = 500.0;
 
-const METADATA_DIRECTORY: &str = ".mirmind";
 const USAGE_FILE: &str = "review-usage.json";
 const MAX_USAGE_BYTES: u64 = 64 * 1024;
 

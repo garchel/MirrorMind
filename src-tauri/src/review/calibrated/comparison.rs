@@ -36,7 +36,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const COMPARISON_FILE: &str = "review-comparison.json";
-const METADATA_DIRECTORY: &str = ".mirmind";
 /// Quantos registros sao mantidos. Cresce a cada avaliacao em `Dual`, entao o
 /// teto e em numero, nao em bytes: e o que limita a memoria de leitura e o que
 /// decide o que "antigo" significa.

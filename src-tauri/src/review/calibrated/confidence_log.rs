@@ -22,7 +22,6 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const METADATA_DIRECTORY: &str = ".mirmind";
 const CONFIDENCE_FILE: &str = "review-confidence.jsonl";
 /// Teto do arquivo. Acima disso as linhas MAIS ANTIGAS sao descartadas: o
 /// histograma interessa para responder "com que frequencia da baixa

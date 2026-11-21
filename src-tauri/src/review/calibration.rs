@@ -17,7 +17,6 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const METADATA_DIRECTORY: &str = ".mirmind";
 const CALIBRATION_FILE: &str = "review-calibration.json";
 /// A config e pequena e deicaimebounded: um arquivo gigante aqui e sinal de
 /// que algo escreveu no lugar errado.

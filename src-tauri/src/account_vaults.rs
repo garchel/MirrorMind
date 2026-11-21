@@ -111,15 +111,6 @@ pub fn remember(
     Ok(resultado)
 }
 
-/// Esquece um vault (pasta sumiu, ou a pessoa trocou de pasta de propósito).
-pub fn forget(app_config_dir: &Path, account_id: &str, vault_path: &str) -> Result<()> {
-    let mut dados = ler(app_config_dir)?;
-    if let Some(lista) = dados.accounts.get_mut(account_id) {
-        lista.retain(|item| item.path != vault_path);
-    }
-    gravar(app_config_dir, &dados)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,18 +154,6 @@ mod tests {
             format!("C:/vaults/v{}", MAX_POR_CONTA + 2),
             "o mais recente fica na frente"
         );
-    }
-
-    #[test]
-    fn esquecer_tira_da_lista_sem_tocar_nas_outras_contas() {
-        let app = tempdir().expect("app dir");
-        remember(app.path(), "conta-1", Path::new("C:/vaults/A")).unwrap();
-        remember(app.path(), "conta-2", Path::new("C:/vaults/B")).unwrap();
-
-        forget(app.path(), "conta-1", "C:/vaults/A").expect("esquecer");
-
-        assert!(list(app.path(), "conta-1").unwrap().is_empty());
-        assert_eq!(list(app.path(), "conta-2").unwrap().len(), 1);
     }
 
     #[test]
