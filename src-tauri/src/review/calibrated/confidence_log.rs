@@ -52,8 +52,13 @@ pub struct ConfidenceSample {
     pub source_hash: String,
 }
 
+/// Log de confianca **do perfil ativo**.
+///
+/// E o insumo da calibracao (por perfil). Num vault compartilhado, manter o log
+/// comum faria a confianca medida para uma pessoa descrever as notas da outra.
+/// Sem heranca: perfil novo comeca o proprio log.
 pub fn confidence_log_path(vault_root: &Path) -> PathBuf {
-    vault_root.join(METADATA_DIRECTORY).join(CONFIDENCE_FILE)
+    crate::profiles::metadata_dir_for_active(vault_root).join(CONFIDENCE_FILE)
 }
 
 /// Acrescenta uma amostra ao log.

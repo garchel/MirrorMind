@@ -113,8 +113,13 @@ impl Default for ComparisonLog {
     }
 }
 
+/// Registro das comparacoes **do perfil ativo**.
+///
+/// Sao julgamentos desta pessoa (a nota que ela deu contra a leitura da IA) e
+/// alimentam a calibracao dela, que ja e por perfil. Sem heranca de proposito:
+/// herdar julgamento alheio atribuiria a nota de outro a quem chega agora.
 pub fn comparison_path(vault_root: &Path) -> PathBuf {
-    vault_root.join(METADATA_DIRECTORY).join(COMPARISON_FILE)
+    crate::profiles::metadata_dir_for_active(vault_root).join(COMPARISON_FILE)
 }
 
 /// Acrescenta um registro, descartando os mais antigos.
