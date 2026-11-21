@@ -1097,12 +1097,61 @@ fn list_templates(
     read_templates(&root).map_err(|error| error.to_string())
 }
 
+/// Templates do **perfil ativo**: o padrão herda `.mirmind/templates.json`, os
+/// outros ficam em `.mirmind/profiles/<id>/`.
+fn templates_file_path(root: &Path) -> PathBuf {
+    templates_file_path_for(root, &crate::profiles::active_profile())
+}
+
+/// Com o perfil explícito: ler o perfil ativo aqui dentro obrigaria o teste a
+/// mexer em estado global, e os testes rodam em paralelo.
+fn templates_file_path_for(root: &Path, profile_id: &str) -> PathBuf {
+    crate::profiles::metadata_dir_for(root, profile_id).join(TEMPLATES_FILE)
+}
+
 fn read_templates(root: &Path) -> Result<Vec<NoteTemplate>> {
+    read_templates_for(root, &crate::profiles::active_profile())
+}
+
+fn read_templates_for(root: &Path, profile_id: &str) -> Result<Vec<NoteTemplate>> {
     ensure_metadata_layout(root)?;
-    Ok(serde_json::from_str(&fs::read_to_string(
-        root.join(METADATA_DIR).join(TEMPLATES_FILE),
-    )?)
-    .unwrap_or_default())
+    let path = templates_file_path_for(root, profile_id);
+    if !path.exists() {
+        if let Some(diretorio) = path.parent() {
+            fs::create_dir_all(diretorio)?;
+        }
+        // Perfil novo começa com os templates que o vault já tinha (o layout
+        // acima garante que existem), em vez de nascer vazio.
+        let legado = root.join(METADATA_DIR).join(TEMPLATES_FILE);
+        if path != legado && legado.exists() {
+            fs::copy(&legado, &path)?;
+        } else {
+            fs::write(&path, serde_json::to_string_pretty(&templates_padrao())?)?;
+        }
+    }
+    Ok(serde_json::from_str(&fs::read_to_string(&path)?).unwrap_or_default())
+}
+
+/// Templates que um vault novo ganha.
+fn templates_padrao() -> Vec<NoteTemplate> {
+    vec![
+        NoteTemplate {
+            id: "blank".to_string(),
+            name: "Em branco".to_string(),
+            content: String::new(),
+        },
+        NoteTemplate {
+            id: "study".to_string(),
+            name: "Nota de estudo".to_string(),
+            content: "# Conceito\n\n## Explicacao\n\n## Exemplos\n\n## Duvidas\n".to_string(),
+        },
+        NoteTemplate {
+            id: "meeting".to_string(),
+            name: "Reuniao".to_string(),
+            content: "# Objetivo\n\n## Participantes\n\n## Decisoes\n\n## Proximos passos\n"
+                .to_string(),
+        },
+    ]
 }
 
 // today_day vive em vault_metadata.rs (extraido sem mudanca de comportamento).
@@ -5624,24 +5673,7 @@ fn ensure_metadata_layout(root: &Path) -> Result<()> {
 
     let templates_path = metadata_root.join(TEMPLATES_FILE);
     if !templates_path.exists() {
-        let templates = vec![
-            NoteTemplate {
-                id: "blank".to_string(),
-                name: "Em branco".to_string(),
-                content: "".to_string(),
-            },
-            NoteTemplate {
-                id: "study".to_string(),
-                name: "Nota de estudo".to_string(),
-                content: "# Conceito\n\n## Explicacao\n\n## Exemplos\n\n## Duvidas\n".to_string(),
-            },
-            NoteTemplate {
-                id: "meeting".to_string(),
-                name: "Reuniao".to_string(),
-                content: "# Objetivo\n\n## Participantes\n\n## Decisoes\n\n## Proximos passos\n"
-                    .to_string(),
-            },
-        ];
+        let templates = templates_padrao();
         fs::write(templates_path, serde_json::to_string_pretty(&templates)?)?;
     }
 
@@ -7471,6 +7503,8 @@ mod tests {
             })
         );
     }
+
+
 
     #[test]
     fn ipc_contract_fixture_matches_backend_serialization() {
@@ -11210,5 +11244,25 @@ mod vault_preference_tests {
         let antes = preferencia.known_vaults.clone();
         preferencia.migrate_legacy_entry();
         assert_eq!(preferencia.known_vaults, antes);
+    }
+}
+
+#[cfg(test)]
+mod templates_por_perfil_tests {
+    use super::*;
+
+    /// O padrão continua no caminho antigo; perfil novo ganha pasta própria.
+    /// Sem tocar no perfil ativo global: os testes rodam em paralelo.
+    #[test]
+    fn templates_seguem_o_perfil_ativo() {
+        let vault = tempfile::tempdir().expect("vault");
+        let root = vault.path();
+
+        let padrao = templates_file_path_for(root, "padrao");
+        assert_eq!(padrao, root.join(METADATA_DIR).join(TEMPLATES_FILE));
+
+        let proprio = templates_file_path_for(root, "id-templates");
+        assert!(proprio.starts_with(root.join(METADATA_DIR).join("profiles").join("id-templates")));
+        assert_ne!(proprio, padrao);
     }
 }

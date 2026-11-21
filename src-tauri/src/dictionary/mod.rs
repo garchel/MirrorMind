@@ -306,8 +306,27 @@ fn negates(shorter: &str, longer: &str) -> bool {
     })
 }
 
-/// O caminho do arquivo do dicionario.
+/// O caminho do arquivo do dicionario **do perfil ativo**.
+///
+/// O perfil padrão herda `.mirmind/dictionary.json` (nada é movido de quem já usa
+/// o app); os demais ficam em `.mirmind/profiles/<id>/dictionary.json`. Mesma
+/// regra do aprendizado: o que é da pessoa não vira comum só porque o vault é
+/// compartilhado.
 fn dictionary_file_path(vault_root: &Path) -> PathBuf {
+    dictionary_file_path_for(vault_root, &crate::profiles::active_profile())
+}
+
+/// Mesma coisa com o perfil explícito.
+///
+/// Existe para teste e para quem já sabe de quem é o dicionário: ler o perfil
+/// ativo dentro da função obriga a mexer em estado global — e aí um teste vaza
+/// perfil para os outros, que rodam em paralelo.
+fn dictionary_file_path_for(vault_root: &Path, profile_id: &str) -> PathBuf {
+    crate::profiles::metadata_dir_for(vault_root, profile_id).join(DICTIONARY_FILE)
+}
+
+/// Caminho do dicionário do vault inteiro, anterior aos perfis.
+fn legacy_dictionary_path(vault_root: &Path) -> PathBuf {
     vault_root.join(METADATA_DIRECTORY).join(DICTIONARY_FILE)
 }
 
@@ -317,8 +336,23 @@ fn dictionary_file_path(vault_root: &Path) -> PathBuf {
 /// em vez de erro: um dicionario quebrado nao pode impedir o usuario de
 /// abrir o app. O que estava la antes e responsabilidade do backup.
 pub fn load_dictionary(vault_root: &Path) -> Result<Dictionary> {
-    let path = dictionary_file_path(vault_root);
+    load_dictionary_for(vault_root, &crate::profiles::active_profile())
+}
+
+fn load_dictionary_for(vault_root: &Path, profile_id: &str) -> Result<Dictionary> {
+    let path = dictionary_file_path_for(vault_root, profile_id);
     if !path.exists() {
+        // Perfil novo herda os termos que já existiam no vault, na primeira
+        // leitura. Sem isso, criar um perfil "esvaziaria" o dicionário de quem
+        // passou a ter perfil próprio.
+        let legado = legacy_dictionary_path(vault_root);
+        if path != legado && legado.exists() {
+            if let Ok(bytes) = fs::read(&legado) {
+                let herdado: Dictionary = serde_json::from_slice(&bytes).unwrap_or_default();
+                let _ = write_atomic(&path, &herdado);
+                return Ok(herdado);
+            }
+        }
         return Ok(Dictionary::default());
     }
     let metadata = fs::symlink_metadata(&path)?;
@@ -678,5 +712,37 @@ mod tests {
         // palavras, e o espaco faz parte da chave.
         assert_eq!(normalize_term("pH ótimo"), "ph otimo");
         assert_eq!(normalize_term("---"), "");
+    }
+
+    #[test]
+    fn perfil_novo_herda_o_dicionario_do_vault() {
+        let vault = tempfile::tempdir().expect("vault");
+        let termo = DictionaryEntry {
+            term: "Glicose".to_string(),
+            concept: "Acucar simples".to_string(),
+            created_at_unix_ms: 1,
+            updated_at_unix_ms: 1,
+            contexts: Vec::new(),
+        };
+
+        // dicionário do perfil padrão (caminho legado, no vault)
+        let mut do_vault = Dictionary::default();
+        do_vault.entries.push(termo);
+        write_atomic(&dictionary_file_path_for(vault.path(), "padrao"), &do_vault).expect("gravar");
+
+        // perfil novo: arquivo próprio, herdando o que já existia
+        let herdado = load_dictionary_for(vault.path(), "id-herdeiro").expect("ler");
+        assert_eq!(herdado.entries.len(), 1);
+        assert_eq!(herdado.entries[0].term, "Glicose");
+        assert!(dictionary_file_path_for(vault.path(), "id-herdeiro").exists());
+
+        // e a partir daí os dois são independentes
+        let mut do_perfil = herdado;
+        do_perfil.entries[0].concept = "Alterado no perfil".to_string();
+        write_atomic(&dictionary_file_path_for(vault.path(), "id-herdeiro"), &do_perfil)
+            .expect("gravar do perfil");
+
+        let de_volta = load_dictionary_for(vault.path(), "padrao").expect("ler do vault");
+        assert_eq!(de_volta.entries[0].concept, "Acucar simples");
     }
 }
