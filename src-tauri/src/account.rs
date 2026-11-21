@@ -15,7 +15,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::time::Duration;
 
-use crate::review::credentials::NativeCredentialStore;
+use crate::review::credentials::{NativeCredentialStore, UnscopedCredentialStore};
 use crate::session;
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(20);
@@ -155,7 +155,8 @@ pub(crate) fn snapshot_from_session(email: Option<String>, access_token: &str) -
 }
 
 pub(crate) fn store_session(access_token: &str, refresh_token: &str) -> Result<()> {
-    let store = NativeCredentialStore::new();
+    // Cofre **sem** escopo: a sessão define a pessoa, não pertence a ela.
+    let store = UnscopedCredentialStore::new();
     session::save_session(&store, access_token, refresh_token)
         .map_err(|error| anyhow::anyhow!(error.to_string()))?;
     // Sessao nova = chave de IA de outra pessoa: o escopo do cofre e recalculado
@@ -227,12 +228,12 @@ fn refresh(base_url: &str, api_key: &str, refresh_token: &str) -> Result<Option<
 }
 
 fn clear_session() -> Result<()> {
-    let store = NativeCredentialStore::new();
+    let store = UnscopedCredentialStore::new();
     session::clear_session(&store).map_err(|error| anyhow::anyhow!(error.to_string()))
 }
 
 pub(crate) fn load_session() -> Result<Option<session::Session>> {
-    let store = NativeCredentialStore::new();
+    let store = UnscopedCredentialStore::new();
     session::load_session(&store).map_err(|error| anyhow::anyhow!(error.to_string()))
 }
 

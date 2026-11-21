@@ -80,6 +80,65 @@ fn scoped_account(account: &str, scope: Option<&str>) -> String {
     }
 }
 
+/// Cofre **sem** escopo: o token de sessão não pertence a uma pessoa, ele
+/// *define* quem é a pessoa.
+///
+/// Guardar a sessão com o sufixo do escopo dá o pior bug possível: entrar com
+/// identidade local grava o token em `session-access-token@pessoa:X`, e na
+/// abertura seguinte — escopo vazio, antes de qualquer login — o app não acha
+/// nada e pede login de novo. Por isso a sessão usa nomes globais, sempre.
+#[derive(Debug, Default)]
+pub struct UnscopedCredentialStore {
+    access: Mutex<()>,
+}
+
+impl UnscopedCredentialStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn entry(account: &str) -> Result<Entry> {
+        Entry::new(SERVICE_NAME, account)
+            .map_err(|_| anyhow!("O armazenamento seguro do sistema nao esta disponivel."))
+    }
+
+    fn lock(&self) -> Result<std::sync::MutexGuard<'_, ()>> {
+        self.access
+            .lock()
+            .map_err(|_| anyhow!("O armazenamento seguro esta temporariamente indisponivel."))
+    }
+}
+
+impl CredentialStore for UnscopedCredentialStore {
+    fn set_secret(&self, account: &str, secret: &str) -> Result<()> {
+        let _guard = self.lock()?;
+        Self::entry(account)?
+            .set_password(secret)
+            .map_err(|_| anyhow!("Nao foi possivel salvar a credencial no sistema."))
+    }
+
+    fn get_secret(&self, account: &str) -> Result<Option<String>> {
+        let _guard = self.lock()?;
+        match Self::entry(account)?.get_password() {
+            Ok(secret) => Ok(Some(secret)),
+            Err(KeyringError::NoEntry) => Ok(None),
+            Err(_) => Err(anyhow!(
+                "Nao foi possivel ler a credencial do armazenamento seguro."
+            )),
+        }
+    }
+
+    fn delete_secret(&self, account: &str) -> Result<()> {
+        let _guard = self.lock()?;
+        match Self::entry(account)?.delete_credential() {
+            Ok(()) | Err(KeyringError::NoEntry) => Ok(()),
+            Err(_) => Err(anyhow!(
+                "Nao foi possivel remover a credencial do armazenamento seguro."
+            )),
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct NativeCredentialStore {
     access: Mutex<()>,
@@ -512,7 +571,8 @@ pub fn credential_status(store: &dyn CredentialStore) -> Result<CredentialStatus
 #[cfg(test)]
 mod tests {
     use super::{
-        scoped_account, credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
+        scoped_account, set_scope, current_scope, NativeCredentialStore, UnscopedCredentialStore,
+        credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
         delete_typesafe_api_key, has_gemini_consent, has_typesafe_consent, load_gemini_api_key,
         load_openai_compatible_provider, load_typesafe_api_key, save_gemini_api_key,
         save_openai_compatible_provider, save_typesafe_api_key, set_gemini_consent,
@@ -698,6 +758,85 @@ mod tests {
             .contains_key(TYPESAFE_API_KEY_ACCOUNT));
     }
 
+
+
+    /// Mede no cofre real do Windows: duas contas na mesma máquina não dividem
+    /// chave de IA.
+    ///
+    /// Usa as duas contas de teste criadas no projeto Supabase. Não faz rede: só
+    /// forja o JWT (o app apenas decodifica o `sub`) e passa pelo mesmo caminho de
+    /// gravação de sessão do login de verdade.
+    #[test]
+    #[ignore = "usa o cofre real do Windows"]
+    fn live_duas_contas_nao_compartilham_chave_de_ia() {
+        use crate::account;
+        use crate::session;
+
+        fn jwt_para(conta: &str) -> String {
+            use base64::Engine;
+            let cabecalho = base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(r#"{"alg":"HS256","typ":"JWT"}"#);
+            let corpo = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(format!(
+                r#"{{"sub":"{conta}","exp":4102444800}}"#
+            ));
+            format!("{cabecalho}.{corpo}.assinatura-de-teste")
+        }
+
+        const CONTA_A: &str = "5b7e228f-dc07-4b94-b9aa-11a3c3741c0a";
+        const CONTA_B: &str = "f127c3c8-a88e-4267-86e6-33a255b073ea";
+        const CHAVE_A: &str = "chave-da-conta-a-0001";
+        const CHAVE_B: &str = "chave-da-conta-b-0002";
+
+        let cofre_global = UnscopedCredentialStore::new();
+        // Estado limpo: nada de sessão nem chave sobrando de rodada anterior.
+        let _ = session::clear_session(&cofre_global);
+        for conta in [CONTA_A, CONTA_B] {
+            set_scope(Some(format!("conta:{conta}")));
+            let _ = super::delete_gemini_api_key(&NativeCredentialStore::new());
+        }
+        set_scope(None);
+
+        // Conta A entra e configura a chave dela.
+        account::store_session(&jwt_para(CONTA_A), "refresh-conta-a").expect("sessao da conta A");
+        assert_eq!(current_scope(), Some(format!("conta:{CONTA_A}")));
+        super::save_gemini_api_key(&NativeCredentialStore::new(), CHAVE_A).expect("chave da A");
+        assert_eq!(
+            super::load_gemini_api_key(&NativeCredentialStore::new()).expect("ler A"),
+            Some(CHAVE_A.to_string())
+        );
+
+        // Conta B entra na mesma máquina: não enxerga a chave da A.
+        account::store_session(&jwt_para(CONTA_B), "refresh-conta-b").expect("sessao da conta B");
+        assert_eq!(current_scope(), Some(format!("conta:{CONTA_B}")));
+        assert_eq!(
+            super::load_gemini_api_key(&NativeCredentialStore::new()).expect("ler B"),
+            None,
+            "a conta B nao pode herdar a chave da conta A"
+        );
+        super::save_gemini_api_key(&NativeCredentialStore::new(), CHAVE_B).expect("chave da B");
+
+        // A volta e continua com a chave dela — a da B não sobrescreveu nada.
+        account::store_session(&jwt_para(CONTA_A), "refresh-conta-a").expect("sessao da A de novo");
+        assert_eq!(
+            super::load_gemini_api_key(&NativeCredentialStore::new()).expect("ler A de novo"),
+            Some(CHAVE_A.to_string())
+        );
+
+        // A sessão sobrevive a escopo nenhum (é o estado de uma abertura nova).
+        set_scope(None);
+        assert!(
+            session::load_session(&cofre_global).expect("ler sessao").is_some(),
+            "a sessao nao pode depender do escopo"
+        );
+
+        // Limpeza: o teste não deixa chave nem sessão na máquina.
+        for conta in [CONTA_A, CONTA_B] {
+            set_scope(Some(format!("conta:{conta}")));
+            let _ = super::delete_gemini_api_key(&NativeCredentialStore::new());
+        }
+        let _ = session::clear_session(&cofre_global);
+        set_scope(None);
+    }
 
     #[test]
     fn segredo_do_cofre_leva_o_dono_no_nome() {
