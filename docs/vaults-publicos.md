@@ -1,7 +1,9 @@
 # Vaults públicos (material de curso distribuído)
 
-> **Estado:** ideia registrada, **não implementada**. Este documento existe para
-> não se perder entre versões. Nada aqui está no app hoje.
+> **Estado:** ideia registrada, **não implementada** — e, por decisão de produto,
+> só entra **depois do lançamento**. O que existe hoje e serve de base é a
+> **fase 1 do vault compartilhado** (individualidades por perfil, vínculo
+> conta→pasta e aviso de pasta compartilhada). Nada de vault público está no app.
 
 ## O problema que isso resolve
 
@@ -36,6 +38,17 @@ aluno, ou o aluno corromperia o material — os dois jeitos de perder.
 - **Manifesto** (`curso.json` na raiz da área gerenciada): autor, versão, data,
   hashes. Sem ele não há como atualizar nem conferir o que veio.
 
+### Marca de área gerenciada (decidida agora, para o futuro reconhecer)
+
+O app de hoje **ignora** o arquivo; ele existe para que a versão futura saiba onde
+o modo somente-leitura vale. Pasta baixada de um cursinho aberta por uma versão
+antiga é tratada como vault normal — comportamento aceitável, nunca destrutivo.
+
+```
+<vault>/.mirmind/managed-area.json
+{ "version": 1, "area": "curso", "publisher": "...", "license": "...", "readOnly": true }
+```
+
 ## O que o manifesto precisa dizer (e a interface precisa mostrar)
 
 - **quem publicou** e **qual versão** está instalada;
@@ -52,8 +65,11 @@ aluno, ou o aluno corromperia o material — os dois jeitos de perder.
 - **Nada de conta obrigatória**: o canal de distribuição é o arquivo, não o login.
 - **A conta não é usada para verificar acesso.** Se um dia houver material pago,
   é outro desenho (e outro documento).
+- **Duas pessoas na mesma máquina, mesmo material**: já resolvido na fase 1 —
+  perfis separam progresso, e dicionário, templates e política de revisão são de
+  cada perfil.
 
-## Fases (por que não agora)
+## Fases (por que só depois do lançamento)
 
 1. **Importar vault pronto** — pasta/zip com área gerenciada somente-leitura.
    Sozinho já entrega valor e não depende de parceiro.
@@ -61,20 +77,22 @@ aluno, ou o aluno corromperia o material — os dois jeitos de perder.
 3. **Canal de parceiros** — catálogo, download, suporte. Só faz sentido com
    parceiro fechado; antes disso é código sem uso.
 
-## Pré-requisitos que já existem
+## O que a fase 1 já entregou e o vault público vai reusar
 
-- `cloud.rs` / `cloud_sync.rs`: identidade por conteúdo, plano de sync, cópia de
-  conflito, varredura de órfãos.
-- Perfis por pessoa no vault (`profiles.rs`): progresso separado dentro do mesmo
-  material.
-- Identidade na máquina com espelho no vault (`identities.rs`).
+| peça | onde está hoje | como o vault público usa |
+|---|---|---|
+| individualidades por perfil (FSRS, metas, calibração, consumo, dicionário, templates, política de revisão) | `.mirmind/profiles/<id>/` | dois alunos no mesmo material não compartilham progresso |
+| identidade na máquina + espelho no vault | `identities.rs` | o mesmo aluno reconhecido em vários materiais |
+| reconhecer pasta de outra pessoa | `vault_sharing` + espelho `.mirmind/identities.json` | detectar material que veio de fora antes de abrir |
+| vínculo conta→pasta, por conta | `account-vaults.json` | o aluno volta direto no curso que instalou |
+| hashes, cópia de conflito, órfãos | `cloud.rs` / `cloud_sync.rs` | atualizar o curso sem perder o trabalho do aluno |
 
-## Pré-requisitos que faltam
+## Pré-requisitos que faltam (nada disso antes do lançamento)
 
 - **Escrita bloqueada em caminho gerenciado** (hoje não há noção de "área do app
   que o usuário não edita").
-- **Manifesto + versão** e a tela de conferência.
 - **Importação de pasta/zip** com conferência de hash.
+- **Manifesto + versão** e a tela de conferência.
 - **Tela de licença** e o texto que explica o que é gerenciado.
 
 ## Perguntas em aberto
@@ -85,6 +103,7 @@ aluno, ou o aluno corromperia o material — os dois jeitos de perder.
   como nota em `meus-estudos/`? A segunda é mais organizada, a primeira é mais
   previsível.
 - Vault público pode ter **perfis** (duas pessoas na mesma máquina estudando o
-  mesmo curso)? Provavelmente sim, sem mudança: perfis separam progresso.
-- Distribuição por Git (o cursinho versiona o próprio material) ou zip? Git dá
-  atualização barata, mas exige que o público saiba usar Git — provavelmente não.
+  mesmo curso)? **Decidido: sim, sem mudança** — perfis separam progresso, e o
+  dicionário, os templates e a política de revisão já são de cada perfil.
+- Distribuição por Git ou zip? **Decidido: zip e pasta.** Git dá atualização
+  barata, mas exige que o público saiba usar Git — e o público é aluno de cursinho.
