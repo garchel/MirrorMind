@@ -428,6 +428,15 @@ fn identities_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|error| error.to_string())
 }
 
+/// Escopo da IA nesta sessão (`conta:<id>`, `pessoa:<id>` ou nada).
+///
+/// A Interface usa o mesmo valor para separar a preferência de provedor de cada
+/// pessoa; o cofre do sistema já guarda os segredos com esse sufixo.
+#[tauri::command]
+fn ai_scope() -> Option<String> {
+    review::credentials::current_scope()
+}
+
 /// Quem já usou esta pasta, pelo espelho que viaja com ela.
 ///
 /// Serve ao aviso de pasta compartilhada: a decisão de abrir junto com outra pessoa
@@ -612,6 +621,8 @@ fn identity_enter_vault(
             .map_err(|error| format!("gravar o espelho: {error}"))?;
         profiles::profiles_select(vault_root.clone(), perfil.id.clone(), Some(false))
             .map_err(|error| format!("selecionar o perfil: {error}"))?;
+        // A chave de IA passa a ser a desta pessoa (conta, se houver sessao).
+        review::credentials::set_scope_for_identity(&identidade.id);
         Ok(perfil.summary())
     };
 
@@ -6745,6 +6756,7 @@ pub fn run() {
             reopen_recent_vault,
             account_vault_remember,
             vault_sharing,
+            ai_scope,
             account_vaults_list,
             identities_adopt,
             identities_list,

@@ -157,7 +157,11 @@ pub(crate) fn snapshot_from_session(email: Option<String>, access_token: &str) -
 pub(crate) fn store_session(access_token: &str, refresh_token: &str) -> Result<()> {
     let store = NativeCredentialStore::new();
     session::save_session(&store, access_token, refresh_token)
-        .map_err(|error| anyhow::anyhow!(error.to_string()))
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    // Sessao nova = chave de IA de outra pessoa: o escopo do cofre e recalculado
+    // aqui para a credencial de quem acabou de entrar, nao a do anterior.
+    crate::review::credentials::refresh_from_session();
+    Ok(())
 }
 
 /// Extrai `(access_token, refresh_token, email)` de uma resposta de token.
@@ -351,7 +355,10 @@ pub fn sign_out(base_url: &str, api_key: &str) -> Result<()> {
             }
         }
     }
-    clear_session()
+    let resultado = clear_session();
+    // Sem sessao, a IA volta ao escopo local (identidade da maquina) ou ao antigo.
+    crate::review::credentials::refresh_from_session();
+    resultado
 }
 
 // -----------------------------------------------------------------------------

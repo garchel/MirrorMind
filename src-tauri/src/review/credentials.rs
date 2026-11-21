@@ -33,6 +33,53 @@ pub struct CredentialStatus {
     pub typesafe_configured: bool,
 }
 
+/// De quem e a chave de IA que esta no cofre agora.
+///
+/// A chave nao e da maquina: numa maquina dividida, a chave do Gemini de uma pessoa
+/// nao pode pagar a revisao da outra. Sem escopo (convidado sem identidade, ou app
+/// recem-instalado), o nome fica o antigo — nada quebra para quem ja configurou.
+static SCOPE: Mutex<Option<String>> = Mutex::new(None);
+
+pub fn set_scope(scope: Option<String>) {
+    if let Ok(mut guard) = SCOPE.lock() {
+        *guard = scope;
+    }
+}
+
+pub fn current_scope() -> Option<String> {
+    SCOPE.lock().ok().and_then(|guard| guard.clone())
+}
+
+/// Conta logada manda; sem conta, vale a identidade local que entrou no vault.
+pub fn set_scope_for_identity(identity_id: &str) {
+    if let Some(conta) = session_account_id() {
+        set_scope(Some(format!("conta:{conta}")));
+        return;
+    }
+    set_scope(Some(format!("pessoa:{identity_id}")));
+}
+
+/// Recalcula o escopo a partir da sessao (login, restauracao, saida).
+pub fn refresh_from_session() {
+    match session_account_id() {
+        Some(conta) => set_scope(Some(format!("conta:{conta}"))),
+        None => set_scope(None),
+    }
+}
+
+fn session_account_id() -> Option<String> {
+    let sessao = crate::account::load_session().ok()??;
+    crate::account::account_id_from_jwt(&sessao.access_token)
+}
+
+/// Nome do segredo no cofre, com o dono junto quando se sabe quem e.
+fn scoped_account(account: &str, scope: Option<&str>) -> String {
+    match scope {
+        Some(escopo) if !escopo.is_empty() => format!("{account}@{escopo}"),
+        _ => account.to_string(),
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct NativeCredentialStore {
     access: Mutex<()>,
@@ -44,7 +91,8 @@ impl NativeCredentialStore {
     }
 
     fn entry(account: &str) -> Result<Entry> {
-        Entry::new(SERVICE_NAME, account)
+        let nome = scoped_account(account, current_scope().as_deref());
+        Entry::new(SERVICE_NAME, &nome)
             .map_err(|_| anyhow!("O armazenamento seguro do sistema nao esta disponivel."))
     }
 
@@ -464,7 +512,7 @@ pub fn credential_status(store: &dyn CredentialStore) -> Result<CredentialStatus
 #[cfg(test)]
 mod tests {
     use super::{
-        credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
+        scoped_account, credential_status, delete_gemini_api_key, delete_openai_compatible_provider,
         delete_typesafe_api_key, has_gemini_consent, has_typesafe_consent, load_gemini_api_key,
         load_openai_compatible_provider, load_typesafe_api_key, save_gemini_api_key,
         save_openai_compatible_provider, save_typesafe_api_key, set_gemini_consent,
@@ -648,6 +696,23 @@ mod tests {
             .lock()
             .expect("values lock")
             .contains_key(TYPESAFE_API_KEY_ACCOUNT));
+    }
+
+
+    #[test]
+    fn segredo_do_cofre_leva_o_dono_no_nome() {
+        // Duas pessoas na mesma maquina: chaves diferentes, sem sobrescrever.
+        assert_eq!(
+            scoped_account("gemini-api-key", Some("conta:abc")),
+            "gemini-api-key@conta:abc"
+        );
+        assert_ne!(
+            scoped_account("gemini-api-key", Some("conta:abc")),
+            scoped_account("gemini-api-key", Some("pessoa:RZ9"))
+        );
+        // Sem escopo o nome e o antigo: quem ja configurou nao perde a chave.
+        assert_eq!(scoped_account("gemini-api-key", None), "gemini-api-key");
+        assert_eq!(scoped_account("gemini-api-key", Some("")), "gemini-api-key");
     }
 
     #[test]
