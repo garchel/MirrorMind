@@ -1019,9 +1019,8 @@ fn read_matching_policy_config(
     target_revision: u64,
     target_hash: &str,
 ) -> Result<Option<Vec<u8>>> {
-    let path = vault_root
-        .join(METADATA_DIRECTORY)
-        .join(REVIEW_POLICY_CONFIG_FILE);
+    // Mesma regra do editor da politica: o arquivo e do perfil ativo.
+    let path = super::policy_config::config_path(vault_root);
     if !path.exists() {
         return Ok(None);
     }
@@ -1043,14 +1042,16 @@ fn finalize_policy_config_commit_unlocked(
     vault_root: &Path,
     expected_config_bytes: &[u8],
 ) -> Result<()> {
-    let directory = vault_root.join(METADATA_DIRECTORY);
+    // Mesma pasta da publicacao: a politica e do perfil ativo (o padrao herda
+    // `.mirmind/`, os demais ficam em `.mirmind/profiles/<id>/`).
+    let directory = crate::profiles::metadata_dir_for_active(vault_root);
     if directory.exists() {
         let metadata = fs::symlink_metadata(&directory)?;
         if !metadata.is_dir() || metadata.file_type().is_symlink() {
             bail!("O diretorio interno de configuracao e inseguro.");
         }
     } else {
-        fs::create_dir(&directory)?;
+        fs::create_dir_all(&directory)?;
     }
     let target = directory.join(REVIEW_POLICY_CONFIG_FILE);
     ensure_regular_file_if_present(&target)?;

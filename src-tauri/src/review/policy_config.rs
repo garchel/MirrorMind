@@ -469,6 +469,7 @@ pub(crate) fn validate_tag_rules(rules: &mut Vec<TagReviewPolicyRule>) -> Result
     Ok(())
 }
 fn load_config_unlocked(vault_root: &Path) -> Result<StoredVaultReviewPolicyConfig> {
+    seed_from_vault_if_missing(vault_root)?;
     recover_learning_policy_transaction(vault_root)?;
     let path = config_path(vault_root);
     let backup = config_backup_path(vault_root);
@@ -598,9 +599,7 @@ fn restore_config_primary(vault_root: &Path, config: &StoredVaultReviewPolicyCon
 }
 
 fn config_backup_path(vault_root: &Path) -> PathBuf {
-    vault_root
-        .join(METADATA_DIRECTORY)
-        .join(format!("{CONFIG_FILE}.bak"))
+    policy_directory(vault_root).join(format!("{CONFIG_FILE}.bak"))
 }
 fn serialize_config(config: &StoredVaultReviewPolicyConfig) -> Result<Vec<u8>> {
     let bytes = serde_json::to_vec_pretty(config)?;
@@ -660,21 +659,68 @@ fn sync_directory(_directory: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Pasta dos metadados **do perfil ativo**.
+///
+/// A politica de revisao (retencao-alvo, intervalos, prazos por tag) e decisao de
+/// estudo de cada pessoa: em vault compartilhado, a regua de um nao pode agendar
+/// a nota do outro. O perfil padrao continua em `.mirmind/` — nada e movido de
+/// quem ja usa o app.
+fn policy_directory(vault_root: &Path) -> PathBuf {
+    crate::profiles::metadata_dir_for_active(vault_root)
+}
+
 fn metadata_directory(vault_root: &Path) -> Result<PathBuf> {
-    let directory = vault_root.join(METADATA_DIRECTORY);
+    let directory = policy_directory(vault_root);
     if directory.exists() {
         let metadata = fs::symlink_metadata(&directory)?;
         if !metadata.is_dir() || metadata.file_type().is_symlink() {
             bail!("O diretorio interno de configuracao e inseguro.");
         }
     } else {
-        fs::create_dir(&directory)?;
+        fs::create_dir_all(&directory)?;
     }
     Ok(directory)
 }
 
-fn config_path(vault_root: &Path) -> PathBuf {
-    vault_root.join(METADATA_DIRECTORY).join(CONFIG_FILE)
+pub(crate) fn config_path(vault_root: &Path) -> PathBuf {
+    config_path_for(vault_root, &crate::profiles::active_profile())
+}
+
+/// Com o perfil explícito: teste não mexe no perfil ativo global (os testes rodam
+/// em paralelo e um vazamento de perfil quebra teste de outro módulo).
+pub(crate) fn config_path_for(vault_root: &Path, profile_id: &str) -> PathBuf {
+    crate::profiles::metadata_dir_for(vault_root, profile_id).join(CONFIG_FILE)
+}
+
+/// Perfil novo herda a politica do vault na primeira leitura.
+///
+/// Sem isso, ganhar perfil proprio "zeraria" a politica de quem ja tinha prazos
+/// por tag configurados — o mesmo cuidado que dicionario e templates tiveram.
+fn seed_from_vault_if_missing(vault_root: &Path) -> Result<()> {
+    seed_from_vault_if_missing_for(vault_root, &crate::profiles::active_profile())
+}
+
+fn seed_from_vault_if_missing_for(vault_root: &Path, profile_id: &str) -> Result<()> {
+    let destino = config_path_for(vault_root, profile_id);
+    if destino.exists() {
+        return Ok(());
+    }
+    let legado = vault_root.join(METADATA_DIRECTORY).join(CONFIG_FILE);
+    if legado == destino || !legado.exists() {
+        return Ok(());
+    }
+    if let Some(diretorio) = destino.parent() {
+        fs::create_dir_all(diretorio)?;
+    }
+    fs::copy(&legado, &destino)?;
+    let legado_backup = vault_root
+        .join(METADATA_DIRECTORY)
+        .join(format!("{CONFIG_FILE}.bak"));
+    let destino_backup = config_backup_path(vault_root);
+    if legado_backup.exists() {
+        fs::copy(legado_backup, destino_backup)?;
+    }
+    Ok(())
 }
 
 fn ensure_regular_file_if_present(path: &Path) -> Result<()> {
@@ -979,9 +1025,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        config_path, load_segmentation_limits, load_vault_review_policy_config,
-        set_vault_review_defaults, set_vault_review_tag_rules, set_vault_segmentation,
-        SegmentationLimits, VaultReviewDefaultsInput,
+        config_path, config_path_for, load_segmentation_limits, load_vault_review_policy_config,
+        seed_from_vault_if_missing_for, serialize_config, set_vault_review_defaults,
+        set_vault_review_tag_rules, set_vault_segmentation, SegmentationLimits,
+        StoredVaultReviewPolicyConfig, VaultReviewDefaultsInput, CONFIG_FILE, METADATA_DIRECTORY,
     };
     use crate::review::contract::{
         LearningUnitKind, PolicySourceKind, ReviewMode, SchedulingStatus,
@@ -997,6 +1044,39 @@ mod tests {
     use crate::review::tag_policy::TagReviewPolicyRule;
     use std::fs;
     use tempfile::tempdir;
+
+
+    #[test]
+    fn politica_do_perfil_novo_herda_a_do_vault() {
+        let vault = tempdir().expect("vault");
+        let padrao = serialize_config(&StoredVaultReviewPolicyConfig::default())
+            .expect("serializar politica padrao");
+        fs::create_dir_all(vault.path().join(METADATA_DIRECTORY)).expect("pasta de metadados");
+        fs::write(
+            vault.path().join(METADATA_DIRECTORY).join(CONFIG_FILE),
+            &padrao,
+        )
+        .expect("gravar politica do vault");
+
+        // perfil novo: arquivo proprio, nascendo com a politica que ja existia
+        seed_from_vault_if_missing_for(vault.path(), "id-novo-perfil").expect("herdar");
+        let herdado = config_path_for(vault.path(), "id-novo-perfil");
+        assert!(herdado.exists());
+        assert_eq!(fs::read(&herdado).expect("ler"), padrao);
+
+        // o perfil padrao continua no caminho antigo
+        assert_eq!(
+            config_path_for(vault.path(), crate::profiles::DEFAULT_PROFILE_ID),
+            vault.path().join(METADATA_DIRECTORY).join(CONFIG_FILE)
+        );
+    }
+
+    #[test]
+    fn perfil_novo_sem_politica_no_vault_nao_quebra() {
+        let vault = tempdir().expect("vault");
+        seed_from_vault_if_missing_for(vault.path(), "id-vazio").expect("sem heranca");
+        assert!(!config_path_for(vault.path(), "id-vazio").exists());
+    }
 
     #[test]
     fn saving_a_custom_tag_rule_recalculates_and_auto_enrolls_existing_ready_notes() {
