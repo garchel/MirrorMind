@@ -26,6 +26,9 @@ const updater: AppUpdaterController = {
 function renderSelection(overrides: Partial<VaultSelectionProps> = {}) {
   const props: VaultSelectionProps = {
     accountClient: makeClient(),
+    cloudVaults: [],
+    cloudDownloadBusy: false,
+    onDownloadCloudVault: vi.fn(),
     loading: false,
     status: 'Pronto para abrir um vault.',
     error: null,

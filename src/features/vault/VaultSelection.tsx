@@ -9,6 +9,7 @@ import type { IdentitySummary } from '../../lib/identities'
 import { AccountForm } from '../account/AccountForm'
 import { buildVaultPathPreview, type CreateVaultForm } from '../../lib/vault'
 import type { KnownVault } from '../../lib/vaultStartup'
+import type { AccountVaultCloud } from '../../lib/cloudVaults'
 import { markLoginSkipped, readLoginSkipped } from '../../lib/loginGate'
 import { disabledSessionClient, useSession, type SessionClient } from '../../lib/session'
 import type { AppUpdaterController } from '../../lib/useAppUpdater'
@@ -48,6 +49,13 @@ export type VaultSelectionProps = {
   knownVaults: KnownVault[]
   onOpenKnownVault: (path: string) => void
   /**
+   * Vaults da conta na nuvem. `null` = ainda carregando ou sem conta; vazio = a
+   * conta não tem vault para baixar (esconde o bloco).
+   */
+  cloudVaults: AccountVaultCloud[] | null
+  cloudDownloadBusy: boolean
+  onDownloadCloudVault: (vaultId: string, vaultName: string) => void
+  /**
    * Identidades desta máquina (convidados). Não dependem de qual vault vai
    * abrir: o cartão mora na pasta do app e viaja uma cópia dentro de cada vault.
    */
@@ -86,6 +94,9 @@ export function VaultSelection({
   onAccountAuthenticated,
   knownVaults,
   onOpenKnownVault,
+  cloudVaults,
+  cloudDownloadBusy,
+  onDownloadCloudVault,
   guestIdentities,
   guestIdentityBusy,
   guestIdentityError,
@@ -249,6 +260,30 @@ export function VaultSelection({
                     <span className="welcome-vault-row-name">{vault.name}</span>
                     <span className="welcome-vault-row-path">{vault.path}</span>
                     <span className="welcome-vault-row-open">Abrir</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {cloudVaults && cloudVaults.length > 0 ? (
+              <div className="welcome-vault-list">
+                <p className="welcome-vault-list-label">Na sua conta (nuvem)</p>
+                {cloudVaults.map((vault) => (
+                  <button
+                    key={vault.id}
+                    type="button"
+                    className="welcome-vault-row"
+                    onClick={() => onDownloadCloudVault(vault.id, vault.name)}
+                    disabled={loading || cloudDownloadBusy}
+                  >
+                    <span className="welcome-vault-row-name">{vault.name}</span>
+                    <span className="welcome-vault-row-path">
+                      {vault.files === 1 ? '1 arquivo' : `${vault.files} arquivos`}
+                      {vault.lastSyncedAt ? ' · última sincronização na conta' : ''}
+                    </span>
+                    <span className="welcome-vault-row-open">
+                      {cloudDownloadBusy ? 'Baixando…' : 'Baixar'}
+                    </span>
                   </button>
                 ))}
               </div>

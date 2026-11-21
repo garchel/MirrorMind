@@ -149,6 +149,23 @@ pub(crate) fn auth(base_url: &str, api_key: &str) -> Result<CloudAuth> {
     })
 }
 
+/// Nome de pasta seguro a partir do nome do vault na nuvem.
+fn nome_de_pasta(bruto: &str) -> String {
+    let limpo: String = bruto
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '-',
+            outro => outro,
+        })
+        .collect();
+    let limpo = limpo.trim().trim_matches('.').to_string();
+    if limpo.is_empty() {
+        "Vault".to_string()
+    } else {
+        limpo
+    }
+}
+
 fn vault_name(vault_root: &Path) -> String {
     vault_root
         .file_name()
@@ -489,12 +506,26 @@ pub async fn cloud_account_vaults(
 #[tauri::command]
 pub async fn cloud_download_vault(
     vault_id: String,
-    target_dir: String,
+    parent_dir: String,
+    folder_name: String,
     url: String,
     api_key: String,
     authorized_paths: tauri::State<'_, crate::AuthorizedPaths>,
 ) -> Result<DownloadSummary, String> {
-    let destino = root_for(&target_dir, &authorized_paths).map_err(|erro| erro.to_string())?;
+    // Baixa numa subpasta com o nome do vault: despejar as notas na pasta
+    // escolhida misturaria com o que já houvesse ali.
+    let pai = crate::canonicalize_directory(Path::new(&parent_dir))
+        .map_err(|erro| erro.to_string())?;
+    let destino = pai.join(nome_de_pasta(&folder_name));
+    std::fs::create_dir_all(&destino).map_err(|erro| {
+        format!("Não foi possível criar a pasta {}: {erro}", destino.display())
+    })?;
+    let destino = crate::canonicalize_directory(&destino).map_err(|erro| erro.to_string())?;
+    // Autoria da criação é desta própria função: o seletor autoriza o pai, e a
+    // subpasta que acabamos de criar passa a ser um vault autorizado.
+    authorized_paths
+        .authorize_vault_root(&destino)
+        .map_err(|erro| erro.to_string())?;
     tauri::async_runtime::spawn_blocking(move || {
         let auth = auth(&url, &api_key).map_err(|erro| erro.to_string())?;
         // A pasta baixada e um vault: o layout de metadados precisa existir para

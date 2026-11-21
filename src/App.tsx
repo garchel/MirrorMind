@@ -14,6 +14,7 @@ import { errorMessage, invoke, isTauriRuntime } from './lib/tauri'
 import { useCloudAutoSync } from './lib/useCloudAutoSync'
 import { decideAccountStartup, sortKnownVaults } from './lib/vaultStartup'
 import { createAccountVaultsClient } from './lib/accountVaults'
+import { createCloudVaultsClient, type AccountVaultCloud } from './lib/cloudVaults'
 import { CloudIndicator } from './features/cloud/CloudIndicator'
 import { PricingPage } from './features/pricing/PricingPage'
 import { cloudIndicatorState } from './lib/cloudSync'
@@ -581,6 +582,10 @@ function App() {
   const identityClient = useMemo(() => createIdentityClient(invoke), [])
   const accountVaultsClient = useMemo(() => createAccountVaultsClient(invoke), [])
   const sharingClient = useMemo(() => createSharingClient(invoke), [])
+  const cloudVaultsClient = useMemo(() => createCloudVaultsClient(invoke), [])
+  /** Vaults da conta na nuvem: a resposta para "onde ficam minhas notas" numa máquina nova. */
+  const [cloudVaults, setCloudVaults] = useState<AccountVaultCloud[] | null>(null)
+  const [cloudDownloadBusy, setCloudDownloadBusy] = useState(false)
   /**
    * Aviso de pasta compartilhada, no momento da escolha.
    *
@@ -1642,6 +1647,18 @@ function App() {
     // Conta logada tem a própria lista de pastas nesta máquina. Sem sessão (ou com
     // conta nova) a lista vem vazia e a regra da máquina decide — é o que mantém o
     // convidado funcionando igual.
+    // Lista da nuvem: sem sessão o comando responde erro e a lista fica vazia,
+    // então o bloco "Na sua conta" simplesmente não aparece.
+    const configSupabase = supabaseConfigFromEnv()
+    if (configSupabase) {
+      void cloudVaultsClient
+        .list(configSupabase.url, configSupabase.apiKey)
+        .then((lista) => setCloudVaults(lista))
+        .catch(() => setCloudVaults([]))
+    } else {
+      setCloudVaults([])
+    }
+
     void accountVaultsClient
       .list()
       .catch(() => [])
@@ -1659,7 +1676,7 @@ function App() {
       })
 
 
-  }, [contaResolvida, accountVaultsClient, identityClient, profileClient, recentVaultPreference])
+  }, [contaResolvida, accountVaultsClient, cloudVaultsClient, identityClient, profileClient, recentVaultPreference])
 
   // Aparencia: aplica o tema no documento (atributo `data-theme` lido pelo
   // CSS) e as variaveis de fonte/leitura. A persistência vive no hook
@@ -2046,6 +2063,51 @@ function App() {
     await confirmarCompartilhamento(path, () => {
       void abrirVaultConhecido(path)
     })
+  }
+
+  /**
+   * Baixa um vault da conta para uma pasta escolhida e abre em seguida.
+   *
+   * A pasta é a pai; o vault entra numa subpasta com o nome dele (o Rust cria e
+   * autoriza), porque despejar as notas na pasta escolhida misturaria com o que
+   * já houvesse ali.
+   */
+  async function baixarVaultDaNuvem(vaultId: string, vaultName: string) {
+    const config = supabaseConfigFromEnv()
+    if (!config) {
+      setError('Este build não tem a conta configurada para baixar da nuvem.')
+      return
+    }
+    setError(null)
+    setCloudDownloadBusy(true)
+    try {
+      setStatus('Escolha a pasta onde o vault vai ficar...')
+      const pastaPai = await invoke<string | null>('select_vault_parent', {})
+      if (!pastaPai) {
+        setStatus('Download cancelado.')
+        return
+      }
+      setStatus(`Baixando ${vaultName}...`)
+      const resumo = await cloudVaultsClient.download({
+        vaultId,
+        parentDir: pastaPai,
+        folderName: vaultName,
+        url: config.url,
+        apiKey: config.apiKey,
+      })
+      const partes = [`${resumo.downloaded} arquivo(s) baixados`]
+      if (resumo.identical > 0) partes.push(`${resumo.identical} já estavam iguais`)
+      if (resumo.conflicts > 0) {
+        partes.push(`${resumo.conflicts} cópia(s) de conflito ao lado das suas`)
+      }
+      setStatus(`Vault "${resumo.name}": ${partes.join(', ')}.`)
+      await abrirVaultConhecido(resumo.path)
+    } catch (causa) {
+      setError(errorMessage(causa, 'Não foi possível baixar o vault da nuvem.'))
+      setStatus('Tente de novo ou abra uma pasta local.')
+    } finally {
+      setCloudDownloadBusy(false)
+    }
   }
 
   async function abrirVaultConhecido(path: string) {
@@ -6897,6 +6959,9 @@ function App() {
       onAccountSettled={() => setContaResolvida(true)}
       onAccountAuthenticated={handleAccountAuthenticated}
       knownVaults={sortKnownVaults(recentVaultPreference?.knownVaults ?? [])}
+      cloudVaults={cloudVaults}
+      cloudDownloadBusy={cloudDownloadBusy}
+      onDownloadCloudVault={(vaultId, vaultName) => void baixarVaultDaNuvem(vaultId, vaultName)}
       onOpenKnownVault={(path) => void openKnownVault(path)}
       guestIdentities={guestIdentities}
       guestIdentityBusy={guestIdentityBusy}
