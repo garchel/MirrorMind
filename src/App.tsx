@@ -150,8 +150,9 @@ import { createSupabaseSessionClient, supabaseConfigFromEnv } from './lib/supaba
 import { LoginPage } from './features/account/LoginPage'
 import { ProfileGate } from './features/profiles/ProfileGate'
 import {
-  needsProfileChoice,
+  decideProfileOnOpen,
   profileClientFromInvoke,
+  readLastProfileId,
   writeLastProfileId,
   type ProfileSummary,
 } from './lib/profiles'
@@ -1081,23 +1082,48 @@ function App() {
     // E, se há conta, esta pasta passa a ser uma das dela nesta máquina. Sem
     // sessão o comando responde vazio e nada é registrado.
     void accountVaultsClient.remember(selectedVault.path).catch(() => undefined)
-    // Perfis: com um perfil só e sem PIN, entrar direto; havendo escolha (ou PIN),
-    // a tela aparece antes de qualquer leitura — os caminhos de estado dependem do
-    // perfil ativo.
+    // Perfis: quem entra é decidido antes de qualquer leitura — os caminhos de
+    // estado dependem do perfil ativo. Conta logada manda (a sessão provou quem é);
+    // sem conta, vale o último perfil do vault quando ele não tem PIN.
     try {
       const perfis = await profileClient.list(selectedVault.path)
-      if (needsProfileChoice(perfis)) {
+      const daConta = await identityClient.ensureAccount().catch(() => null)
+      const decisao = decideProfileOnOpen({
+        profiles: perfis,
+        lastProfileId: readLastProfileId(selectedVault.path),
+        hasAccountIdentity: Boolean(daConta),
+      })
+
+      if (decisao.kind === 'ask') {
         setProfileGate({ vaultRoot: selectedVault.path, profiles: perfis })
         return
       }
-      if (perfis[0]) {
+
+      if (decisao.kind === 'account' && daConta) {
         try {
-          await profileClient.select(selectedVault.path, perfis[0].id)
-          setActiveProfile(perfis[0])
-        } catch {
-          // Perfil aberto em outra janela: deixa a pessoa decidir na tela.
+          const perfil = await identityClient.enterVault(selectedVault.path, daConta.id)
+          writeLastProfileId(selectedVault.path, perfil.id)
+          setActiveProfile(perfil)
+        } catch (causa) {
+          // Conta não conseguiu abrir o perfil dela (perfil em outra janela, arquivo
+          // travado): cai no portão em vez de ficar sem perfil nenhum.
+          setStatus(
+            `Não foi possível entrar no perfil da conta (${errorMessage(causa, 'motivo desconhecido')}).`,
+          )
           setProfileGate({ vaultRoot: selectedVault.path, profiles: perfis })
           return
+        }
+      } else if (decisao.kind === 'open') {
+        const alvo = perfis.find((perfil) => perfil.id === decisao.profileId)
+        if (alvo) {
+          try {
+            await profileClient.select(selectedVault.path, alvo.id)
+            setActiveProfile(alvo)
+          } catch {
+            // Perfil aberto em outra janela: deixa a pessoa decidir na tela.
+            setProfileGate({ vaultRoot: selectedVault.path, profiles: perfis })
+            return
+          }
         }
       }
     } catch {

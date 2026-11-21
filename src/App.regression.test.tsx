@@ -161,6 +161,9 @@ function createTauriHarness(
       case 'account_vault_remember':
       case 'vault_sharing':
         return []
+      // Harness roda como convidado: sem sessão, não há identidade de conta.
+      case 'identity_ensure_account':
+        return null
       case 'identity_enter_vault':
         return {
           id: 'p1',

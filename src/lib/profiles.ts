@@ -99,6 +99,48 @@ export function writeLastProfileId(vaultRoot: string, profileId: string) {
   }
 }
 
+/** O que fazer quando o vault abre e existe mais de uma pessoa possível. */
+export type ProfileOpenDecision =
+  /** A conta logada decide: o Rust acha (ou cria) o perfil ligado a ela. */
+  | { kind: 'account' }
+  /**
+   * Nenhum perfil no arquivo: segue sem portão, no perfil padrão implícito.
+   * Vault antigo (ou pasta recém-criada) não pode virar tela de criação no meio
+   * da abertura — é o comportamento que já existia.
+   */
+  | { kind: 'none' }
+  | { kind: 'open'; profileId: string }
+  /** Não dá para saber quem é: pergunta. */
+  | { kind: 'ask' }
+
+/**
+ * Quem entra quando o vault abre.
+ *
+ * Numa máquina dividida, "perguntar sempre" é o que faz a pessoa errada abrir o
+ * progresso errado; e "nunca perguntar" esconde quem está usando. A ordem resolve
+ * as duas coisas: conta logada é prova de quem é (a sessão foi verificada no
+ * servidor); sem conta, vale o último perfil daquele vault, mas só quando ele não
+ * tem PIN — PIN existe exatamente para essa hora.
+ */
+export function decideProfileOnOpen({
+  profiles,
+  lastProfileId,
+  hasAccountIdentity,
+}: {
+  profiles: ProfileSummary[]
+  lastProfileId?: string | null
+  hasAccountIdentity: boolean
+}): ProfileOpenDecision {
+  if (hasAccountIdentity) return { kind: 'account' }
+  if (profiles.length === 0) return { kind: 'none' }
+  if (profiles.length === 1 && !profiles[0].hasPin) {
+    return { kind: 'open', profileId: profiles[0].id }
+  }
+  const ultimo = lastProfileId ? profiles.find((perfil) => perfil.id === lastProfileId) : undefined
+  if (ultimo && !ultimo.hasPin) return { kind: 'open', profileId: ultimo.id }
+  return { kind: 'ask' }
+}
+
 /**
  * Decide se a tela "Quem está usando?" aparece ao abrir o vault.
  *

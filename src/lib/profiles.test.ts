@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createProfileClient,
+  decideProfileOnOpen,
   needsProfileChoice,
   readLastProfileId,
   writeLastProfileId,
@@ -108,5 +109,49 @@ describe('memória do último perfil por vault', () => {
     expect(readLastProfileId('C:/a')).toBeNull()
     writeLastProfileId('C:/a', 'maria')
     expect(readLastProfileId('C:/a')).toBe('maria')
+  })
+})
+
+describe('quem entra quando o vault abre', () => {
+  const ana = perfil({ id: 'ana', name: 'Ana', isDefault: false })
+  const joao = perfil({ id: 'joao', name: 'Joao', isDefault: false })
+
+  it('conta logada manda, mesmo com vários perfis', () => {
+    // A conta não diz qual perfil é dela aqui: o Rust resolve pelo vínculo da
+    // identidade. O que o frontend decide é "não perguntar".
+    expect(
+      decideProfileOnOpen({ profiles: [ana, joao], hasAccountIdentity: true }),
+    ).toEqual({ kind: 'account' })
+  })
+
+  it('sem conta, volta no último perfil do vault', () => {
+    expect(
+      decideProfileOnOpen({ profiles: [ana, joao], lastProfileId: 'joao', hasAccountIdentity: false }),
+    ).toEqual({ kind: 'open', profileId: 'joao' })
+  })
+
+  it('último perfil com PIN não abre sozinho', () => {
+    const comPin = perfil({ id: 'joao', name: 'Joao', isDefault: false, hasPin: true })
+    expect(
+      decideProfileOnOpen({ profiles: [ana, comPin], lastProfileId: 'joao', hasAccountIdentity: false }),
+    ).toEqual({ kind: 'ask' })
+  })
+
+  it('sem memória e com dois perfis, pergunta', () => {
+    expect(
+      decideProfileOnOpen({ profiles: [ana, joao], lastProfileId: null, hasAccountIdentity: false }),
+    ).toEqual({ kind: 'ask' })
+  })
+
+  it('memória aponta perfil que não existe mais: pergunta em vez de abrir o errado', () => {
+    expect(
+      decideProfileOnOpen({ profiles: [ana], lastProfileId: 'apagado', hasAccountIdentity: false }),
+    ).toEqual({ kind: 'open', profileId: 'ana' })
+  })
+
+  it('vault sem perfil segue sem portão — pasta nova não vira tela de criação', () => {
+    expect(decideProfileOnOpen({ profiles: [], hasAccountIdentity: false })).toEqual({
+      kind: 'none',
+    })
   })
 })
