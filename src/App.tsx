@@ -12,7 +12,8 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import { getVersion } from '@tauri-apps/api/app'
 import { errorMessage, invoke, isTauriRuntime } from './lib/tauri'
 import { useCloudAutoSync } from './lib/useCloudAutoSync'
-import { decideVaultStartup, sortKnownVaults } from './lib/vaultStartup'
+import { decideAccountStartup, sortKnownVaults } from './lib/vaultStartup'
+import { createAccountVaultsClient } from './lib/accountVaults'
 import { CloudIndicator } from './features/cloud/CloudIndicator'
 import { PricingPage } from './features/pricing/PricingPage'
 import { cloudIndicatorState } from './lib/cloudSync'
@@ -570,6 +571,7 @@ function App() {
   const [guestIdentityBusy, setGuestIdentityBusy] = useState(false)
   const [guestIdentityError, setGuestIdentityError] = useState<string | null>(null)
   const identityClient = useMemo(() => createIdentityClient(invoke), [])
+  const accountVaultsClient = useMemo(() => createAccountVaultsClient(invoke), [])
   /** Identidade escolhida na abertura; o vault aberto cria/acha o perfil dela. */
   const pendingIdentityRef = useRef<IdentitySummary | null>(null)
   /** Perfil local em uso (quem está estudando neste vault). */
@@ -1057,6 +1059,9 @@ function App() {
 
     // Abertura normal: funde o espelho que veio com a pasta com a lista da máquina.
     void identityClient.adopt(selectedVault.path).catch(() => undefined)
+    // E, se há conta, esta pasta passa a ser uma das dela nesta máquina. Sem
+    // sessão o comando responde vazio e nada é registrado.
+    void accountVaultsClient.remember(selectedVault.path).catch(() => undefined)
     // Perfis: com um perfil só e sem PIN, entrar direto; havendo escolha (ou PIN),
     // a tela aparece antes de qualquer leitura — os caminhos de estado dependem do
     // perfil ativo.
@@ -1581,13 +1586,28 @@ function App() {
     if (!recentVaultPreference) return
 
     recentVaultTratadoRef.current = true
-    const decisao = decideVaultStartup(recentVaultPreference.knownVaults)
-    if (decisao.kind === 'open') {
-      void reopenRecentVault()
-    }
+
+    // Conta logada tem a própria lista de pastas nesta máquina. Sem sessão (ou com
+    // conta nova) a lista vem vazia e a regra da máquina decide — é o que mantém o
+    // convidado funcionando igual.
+    void accountVaultsClient
+      .list()
+      .catch(() => [])
+      .then((daConta) => {
+        const decisao = decideAccountStartup(
+          daConta,
+          recentVaultPreference.knownVaults,
+        )
+        if (decisao.kind !== 'open') return
+        if (daConta.length === 1) {
+          void openKnownVault(decisao.path)
+          return
+        }
+        void reopenRecentVault()
+      })
 
 
-  }, [contaResolvida, identityClient, profileClient, recentVaultPreference])
+  }, [contaResolvida, accountVaultsClient, identityClient, profileClient, recentVaultPreference])
 
   // Aparencia: aplica o tema no documento (atributo `data-theme` lido pelo
   // CSS) e as variaveis de fonte/leitura. A persistência vive no hook

@@ -23,6 +23,7 @@ use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
 pub(crate) mod account;
 pub(crate) mod account_oauth;
+pub(crate) mod account_vaults;
 pub(crate) mod cloud;
 pub(crate) mod cloud_api;
 pub(crate) mod cloud_commands;
@@ -425,6 +426,36 @@ fn identities_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_config_dir()
         .map_err(|error| error.to_string())
+}
+
+/// Id da conta logada (`sub` do JWT). `None` quando não há sessão.
+fn current_account_id() -> Option<String> {
+    let sessao = account::load_session().ok()??;
+    account::account_id_from_jwt(&sessao.access_token)
+}
+
+/// Vaults que a conta logada usa **nesta máquina**. Vazio sem sessão — a abertura
+/// cai então no comportamento de convidado (vaults conhecidos da máquina).
+#[tauri::command]
+fn account_vaults_list(app: AppHandle) -> Result<Vec<account_vaults::AccountVault>, String> {
+    let Some(account_id) = current_account_id() else {
+        return Ok(Vec::new());
+    };
+    account_vaults::list(&identities_dir(&app)?, &account_id).map_err(|erro| erro.to_string())
+}
+
+/// Registra o vault aberto para a conta logada. Sem sessão, não faz nada: o
+/// registro é da conta, e convidado já tem a memória da máquina.
+#[tauri::command]
+fn account_vault_remember(
+    app: AppHandle,
+    vault_root: String,
+) -> Result<Vec<account_vaults::AccountVault>, String> {
+    let Some(account_id) = current_account_id() else {
+        return Ok(Vec::new());
+    };
+    account_vaults::remember(&identities_dir(&app)?, &account_id, Path::new(&vault_root))
+        .map_err(|erro| erro.to_string())
 }
 
 /// Identidades desta máquina, mais recente primeiro. Não depende de vault: é o
@@ -6703,6 +6734,8 @@ pub fn run() {
             select_existing_vault,
             get_recent_vault_preference,
             reopen_recent_vault,
+            account_vault_remember,
+            account_vaults_list,
             identities_adopt,
             identities_list,
             identity_create,

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { decideVaultStartup, sortKnownVaults, vaultNameFromPath } from './vaultStartup'
+import {
+  decideAccountStartup,
+  decideVaultStartup,
+  sortKnownVaults,
+  vaultNameFromPath,
+} from './vaultStartup'
 
 const vault = (path: string, lastOpenedAtMs: number) => ({
   path,
@@ -41,5 +46,27 @@ describe('vaultNameFromPath', () => {
   it('usa o último segmento, com barra do Windows ou do Unix', () => {
     expect(vaultNameFromPath('C:\\Users\\paulo\\Estudo')).toBe('Estudo')
     expect(vaultNameFromPath('/home/paulo/estudo/')).toBe('estudo')
+  })
+})
+
+describe('decideAccountStartup', () => {
+  const daMaquina = [vault('C:/notas/Estudo', 10)]
+
+  it('conta com um vínculo abre aquela pasta, mesmo que a máquina conheça outra', () => {
+    expect(decideAccountStartup([{ path: 'D:/trabalho' }], daMaquina)).toEqual({
+      kind: 'open',
+      path: 'D:/trabalho',
+    })
+  })
+
+  it('conta com dois vínculos mostra a escolha', () => {
+    expect(decideAccountStartup([{ path: 'D:/a' }, { path: 'D:/b' }], daMaquina)).toEqual({
+      kind: 'choose',
+    })
+  })
+
+  it('conta nova (sem vínculo) cai na regra da máquina — convidado não perde nada', () => {
+    expect(decideAccountStartup([], daMaquina)).toEqual({ kind: 'open', path: 'C:/notas/Estudo' })
+    expect(decideAccountStartup([], [])).toEqual({ kind: 'choose' })
   })
 })

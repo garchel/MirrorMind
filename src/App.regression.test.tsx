@@ -157,6 +157,8 @@ function createTauriHarness(
         return startupPreference ?? { lastVaultPath: null, askBeforeReopen: true }
       case 'identities_list':
       case 'identities_adopt':
+      case 'account_vaults_list':
+      case 'account_vault_remember':
         return []
       case 'identity_enter_vault':
         return {

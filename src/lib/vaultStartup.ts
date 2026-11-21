@@ -30,6 +30,27 @@ export function decideVaultStartup(knownVaults: KnownVault[]): VaultStartupDecis
   return { kind: 'choose' }
 }
 
+/**
+ * Decisão quando existe conta.
+ *
+ * O vínculo da conta vem primeiro porque ele é a resposta de "quais pastas são
+ * minhas aqui": um vínculo abre direto, dois ou mais viram escolha. Sem nenhum
+ * vínculo (conta nova, ou convidado), cai na regra da máquina — assim quem usa sem
+ * conta não perde nada.
+ */
+export function decideAccountStartup(
+  accountVaults: { path: string }[],
+  knownVaults: KnownVault[],
+): VaultStartupDecision {
+  if (accountVaults.length === 1) {
+    return { kind: 'open', path: accountVaults[0].path }
+  }
+  if (accountVaults.length > 1) {
+    return { kind: 'choose' }
+  }
+  return decideVaultStartup(knownVaults)
+}
+
 /** Lista para a tela de escolha: mais recente primeiro, sem caminho repetido. */
 export function sortKnownVaults(knownVaults: KnownVault[]): KnownVault[] {
   const vistos = new Set<string>()
