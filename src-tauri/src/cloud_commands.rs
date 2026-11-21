@@ -25,6 +25,28 @@ pub struct RemoteVault {
     pub files: usize,
 }
 
+/// Um vault da conta visto de fora da maquina (para baixar).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountVaultCloud {
+    pub id: String,
+    pub name: String,
+    pub files: usize,
+    pub last_synced_at: Option<String>,
+}
+
+/// O que veio no download.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadSummary {
+    pub path: String,
+    pub name: String,
+    pub downloaded: usize,
+    pub identical: usize,
+    pub conflicts: usize,
+    pub bytes: u64,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CloudStatus {
@@ -113,7 +135,7 @@ impl From<SyncReport> for CloudReport {
 /// Sessão + apikey para falar com a nuvem. O `snapshot` antes é de propósito: ele
 /// renova o token quando está perto de expirar, então o que o cofre devolve aqui
 /// está utilizável.
-fn auth(base_url: &str, api_key: &str) -> Result<CloudAuth> {
+pub(crate) fn auth(base_url: &str, api_key: &str) -> Result<CloudAuth> {
     let retrato = crate::account::snapshot(base_url, api_key)?;
     if retrato.status != "auth" {
         bail!("Entre na sua conta para usar a nuvem.");
@@ -435,6 +457,66 @@ fn root_for(path: &str, authorized: &crate::AuthorizedPaths) -> Result<std::path
         .ensure_authorized_vault_root(&raiz)
         .context("O vault não está autorizado nesta sessão.")?;
     Ok(raiz)
+}
+
+/// Vaults que a conta tem na nuvem — o que uma maquina nova oferece.
+///
+/// Sem isto, a abertura numa maquina nova so sabia dizer "escolha uma pasta
+/// vazia": o vinculo conta->pasta e local e nao existe ali ainda.
+#[tauri::command]
+pub async fn cloud_account_vaults(
+    url: String,
+    api_key: String,
+) -> Result<Vec<AccountVaultCloud>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let auth = auth(&url, &api_key).map_err(|erro| erro.to_string())?;
+        let vaults = cloud_api::list_vaults(&auth).map_err(|erro| erro.to_string())?;
+        Ok(vaults
+            .into_iter()
+            .map(|vault| AccountVaultCloud {
+                id: vault.id,
+                name: vault.name,
+                files: vault.files,
+                last_synced_at: vault.last_synced_at,
+            })
+            .collect())
+    })
+    .await
+    .map_err(|erro| erro.to_string())?
+}
+
+/// Baixa um vault da conta para `target_dir` e devolve o resumo do que veio.
+#[tauri::command]
+pub async fn cloud_download_vault(
+    vault_id: String,
+    target_dir: String,
+    url: String,
+    api_key: String,
+    authorized_paths: tauri::State<'_, crate::AuthorizedPaths>,
+) -> Result<DownloadSummary, String> {
+    let destino = root_for(&target_dir, &authorized_paths).map_err(|erro| erro.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let auth = auth(&url, &api_key).map_err(|erro| erro.to_string())?;
+        // A pasta baixada e um vault: o layout de metadados precisa existir para
+        // o app abrir depois (e para o sync saber onde gravar estado).
+        crate::ensure_metadata_layout(&destino).map_err(|erro| erro.to_string())?;
+        let relatorio = crate::cloud_restore::restore(&auth, &vault_id, &destino)
+            .map_err(|erro| erro.to_string())?;
+        Ok(DownloadSummary {
+            path: destino.display().to_string(),
+            name: destino
+                .file_name()
+                .and_then(|nome| nome.to_str())
+                .unwrap_or("Vault")
+                .to_string(),
+            downloaded: relatorio.baixados,
+            identical: relatorio.iguais,
+            conflicts: relatorio.conflitos,
+            bytes: relatorio.bytes,
+        })
+    })
+    .await
+    .map_err(|erro| erro.to_string())?
 }
 
 #[tauri::command]

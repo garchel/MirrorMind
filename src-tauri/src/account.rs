@@ -15,7 +15,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::time::Duration;
 
-use crate::review::credentials::{NativeCredentialStore, UnscopedCredentialStore};
+use crate::review::credentials::UnscopedCredentialStore;
 use crate::session;
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(20);

@@ -27,6 +27,7 @@ pub(crate) mod account_vaults;
 pub(crate) mod cloud;
 pub(crate) mod cloud_api;
 pub(crate) mod cloud_commands;
+pub(crate) mod cloud_restore;
 pub(crate) mod cloud_sync;
 pub(crate) mod dictionary;
 pub(crate) mod goals;
@@ -6780,6 +6781,8 @@ pub fn run() {
             profiles::profiles_verify_pin,
             profiles::profiles_select,
             account::account_snapshot,
+            cloud_commands::cloud_account_vaults,
+            cloud_commands::cloud_download_vault,
             cloud_commands::cloud_status,
             cloud_commands::cloud_link_vault,
             cloud_commands::cloud_unlink_vault,
