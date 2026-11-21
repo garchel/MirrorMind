@@ -28,10 +28,10 @@ describe('initialsFrom', () => {
 
 describe('deriveProfile', () => {
   it('autenticado: email como nome e plano resolvido', () => {
-    expect(deriveProfile(authSession('paulo.victor@exemplo.com'), 'ia_mensal')).toEqual({
+    expect(deriveProfile(authSession('paulo.victor@exemplo.com'), 'essencial')).toEqual({
       name: 'paulo.victor@exemplo.com',
       initials: 'PV',
-      planLabel: 'IA Mensal',
+      planLabel: 'Essencial',
       signedIn: true,
     })
   })

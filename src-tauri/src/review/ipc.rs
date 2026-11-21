@@ -225,6 +225,8 @@ pub enum AiProviderSelection {
     Gemini,
     Ollama,
     OpenAiCompatible,
+    /// IA incluida na assinatura: o servidor decide cota e usa a nossa chave.
+    Managed,
 }
 
 /// Reserva uma chamada de IA no orcamento do Vault ANTES do custo acontecer,
@@ -284,6 +286,9 @@ pub(crate) fn provider_for_selection(
         }
         AiProviderSelection::Ollama => Ok(Box::new(
             OllamaProvider::new().map_err(|error| error.to_string())?,
+        )),
+        AiProviderSelection::Managed => Ok(Box::new(
+            super::managed::ManagedAiProvider::from_session()?,
         )),
         AiProviderSelection::OpenAiCompatible => {
             let store = NativeCredentialStore::new();

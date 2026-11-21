@@ -1301,6 +1301,9 @@ pub(crate) fn start_review_session_with_coverage(
                     ProviderKind::Gemini => AiProvider::Gemini,
                     ProviderKind::Ollama => AiProvider::Ollama,
                     ProviderKind::OpenAiCompatible => AiProvider::OpenAiCompatible,
+                    // Gerenciado é o mesmo Gemini, com a chave do servidor: o
+                    // documento guarda quem gerou a avaliação, não quem pagou.
+                    ProviderKind::Managed => AiProvider::Gemini,
                 },
                 prompts,
                 minimum_answers,
@@ -4244,6 +4247,8 @@ fn provider_kind_to_contract(kind: ProviderKind) -> AiProvider {
         ProviderKind::Gemini => AiProvider::Gemini,
         ProviderKind::Ollama => AiProvider::Ollama,
         ProviderKind::OpenAiCompatible => AiProvider::OpenAiCompatible,
+        // Ver comentário acima: mesmo modelo, transporte diferente.
+        ProviderKind::Managed => AiProvider::Gemini,
     }
 }
 

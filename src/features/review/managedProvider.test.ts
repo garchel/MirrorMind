@@ -11,7 +11,7 @@ const NOW = 1_700_000_000_000
 
 function paidPlan(overrides: Partial<Entitlement> = {}): Entitlement {
   return {
-    plan: 'ia_mensal',
+    plan: 'essencial',
     status: 'active',
     periodEndUnixMs: NOW + 30 * 24 * 60 * 60 * 1000,
     checkedAtUnixMs: NOW,
@@ -54,17 +54,17 @@ describe('managedProvider', () => {
     withBilling(true)
     const gate = managedAiGate(paidPlan(), NOW)
     expect(gate.allowed).toBe(true)
-    expect(gate.label).toContain('IA Mensal')
-    expect(gate.message).toContain('200 chamadas por ciclo')
+    expect(gate.label).toContain('Essencial')
+    expect(gate.message).toContain('1000 chamadas por ciclo')
     expect(gate.message).toContain('renovação em')
   })
 
-  it('plano gratis nega com alternativa local, sem exigir assinatura paga', () => {
+  it('plano gratis libera as 50 chamadas do convite, com alternativa local', () => {
     withBilling(true)
     const gate = managedAiGate(paidPlan({ plan: 'gratis' }), NOW)
-    expect(gate.allowed).toBe(false)
+    expect(gate.allowed).toBe(true)
+    expect(gate.label).toContain('50 chamadas grátis')
     expect(gate.message).toContain('Ollama')
-    expect(gate.label).toContain('exige plano')
   })
 
   it('inadimplente nega com caminho de regularizacao', () => {

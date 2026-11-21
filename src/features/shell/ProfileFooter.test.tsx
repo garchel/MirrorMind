@@ -116,13 +116,13 @@ describe('ProfileFooter', () => {
 
   it('autenticado: mostra email, iniciais e plano resolvido', async () => {
     renderFooter(authClient('paulo.victor@exemplo.com'), {
-      plan: 'ia_mensal',
+      plan: 'essencial',
       status: 'active',
       periodEndUnixMs: null,
       checkedAtUnixMs: Date.now(),
     })
     await waitFor(() => expect(screen.getAllByText('paulo.victor@exemplo.com').length).toBeGreaterThan(0))
-    await waitFor(() => expect(screen.getByText('IA Mensal')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Essencial')).toBeInTheDocument())
     expect(screen.getByText('PV')).toBeInTheDocument()
   })
 

@@ -413,6 +413,9 @@ fn both_adapters_reject_oversized_input_before_any_network_request() {
         response_schema: json!({ "type": "object" }),
     };
     // Nenhuma conexao e tentada: o limite e validado antes do transporte.
+    // O gerenciado não entra aqui: o destino dele é o proxy do servidor, não um
+    // listener local, e a validação de tamanho acontece antes do transporte em
+    // todos os casos (o `validate_request` é anterior a qualquer envio).
     for provider_kind in [
         ProviderKind::Ollama,
         ProviderKind::Gemini,
@@ -429,6 +432,9 @@ fn both_adapters_reject_oversized_input_before_any_network_request() {
                 "test-gemini-key-123".to_string(),
             )
             .generate_structured(oversized.clone()),
+            ProviderKind::Managed => {
+                panic!("provedor gerenciado nao e testado com listener local")
+            }
             ProviderKind::OpenAiCompatible => OpenAiCompatibleProvider::new(
                 format!("http://{address}/v1"),
                 "model".to_string(),

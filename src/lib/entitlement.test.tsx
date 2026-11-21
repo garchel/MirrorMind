@@ -12,7 +12,7 @@ function Probe() {
       <span data-testid="plan">{resolved.plan}</span>
       <span data-testid="status">{resolved.status}</span>
       <span data-testid="billing">{billingEnabled ? 'ligado' : 'desligado'}</span>
-      <button type="button" onClick={() => grantPlan('ia_mensal')}>Conceder mensal</button>
+      <button type="button" onClick={() => grantPlan('essencial')}>Conceder mensal</button>
       <button type="button" onClick={() => grantPlan('gratis')}>Conceder gratis</button>
       <button type="button" onClick={clearPlan}>Revogar</button>
     </div>
@@ -61,7 +61,7 @@ describe('entitlement', () => {
     renderWith(store)
 
     await user.click(screen.getByRole('button', { name: 'Conceder mensal' }))
-    expect(screen.getByTestId('plan')).toHaveTextContent('ia_mensal')
+    expect(screen.getByTestId('plan')).toHaveTextContent('essencial')
     expect(screen.getByTestId('status')).toHaveTextContent('active')
 
     await user.click(screen.getByRole('button', { name: 'Revogar' }))
@@ -78,9 +78,9 @@ describe('entitlement', () => {
     const store = memoryStore()
     renderWith(store)
     await act(async () => {
-      await localEntitlementStore.save({ plan: 'ia_anual', status: 'active', periodEndUnixMs: null, checkedAtUnixMs: Date.now() })
+      await localEntitlementStore.save({ plan: 'pro', status: 'active', periodEndUnixMs: null, checkedAtUnixMs: Date.now() })
     })
-    expect(await localEntitlementStore.load()).toMatchObject({ plan: 'ia_anual' })
+    expect(await localEntitlementStore.load()).toMatchObject({ plan: 'pro' })
   })
 
   it('conceder um plano grava no store injetado', async () => {

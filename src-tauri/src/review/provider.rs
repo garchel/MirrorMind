@@ -53,6 +53,8 @@ pub enum ProviderKind {
     /// Qualquer servidor com API de chat completions OpenAI-compatible
     /// (base URL + modelo + chave configurados pelo usuario).
     OpenAiCompatible,
+    /// IA gerenciada pela assinatura: a chave e nossa e fica no servidor.
+    Managed,
 }
 
 pub trait StructuredAiProvider: Send + Sync {

@@ -65,16 +65,27 @@ export function managedAiGate(entitlement: Entitlement | null, nowUnixMs: number
   if (resolved.status === 'past_due') {
     return { allowed: false, label: 'MirrorMind (assinatura) — pendente', message: PAST_DUE_MESSAGE }
   }
-  if (resolved.status === 'expired' || plan.quota.managedAiCallsPerCycle === null) {
+  if (resolved.status === 'expired') {
     return { allowed: false, label: 'MirrorMind (assinatura) — exige plano', message: FREE_PLAN_MESSAGE }
   }
-  const quota = plan.quota.managedAiCallsPerCycle
+  const { lifetime, monthly } = plan.quota
+  if (lifetime === null && monthly === null) {
+    return { allowed: false, label: 'MirrorMind (assinatura) — exige plano', message: FREE_PLAN_MESSAGE }
+  }
+  if (lifetime !== null) {
+    // Conta gratuita: convite, não cota. O aviso de fim vem do servidor (429).
+    return {
+      allowed: true,
+      label: `MirrorMind — ${lifetime} chamadas grátis`,
+      message: `Sua conta gratuita inclui ${lifetime} chamadas de IA, uma vez só. Depois delas, o Ollama local e a sua própria chave continuam livres.`,
+    }
+  }
   const renewal = resolved.periodEndUnixMs === null || resolved.periodEndUnixMs <= nowUnixMs
     ? 'renovação ainda não definida'
     : `renovação em ${formatManagedRenewal(resolved.periodEndUnixMs)}`
   return {
     allowed: true,
     label: `MirrorMind (assinatura) — ${plan.name}`,
-    message: `IA gerenciada incluída: ${quota} chamadas por ciclo (${renewal}).`,
+    message: `IA gerenciada incluída: uso justo de ${monthly} chamadas por ciclo (${renewal}).`,
   }
 }

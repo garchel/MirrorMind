@@ -5,11 +5,17 @@
  * sem backend de contas, todo ponto de uso opera como gratis.
  */
 
-export type PlanId = 'gratis' | 'ia_mensal' | 'ia_anual'
+export type PlanId = 'gratis' | 'essencial' | 'pro'
 
 export type PlanQuota = {
-  /** Chamadas de IA gerenciada por ciclo; null = bloqueado, Infinity = livre. */
-  managedAiCallsPerCycle: number | null
+  /** Chamadas unicas da conta gratuita (nao renovam). null = nao se aplica. */
+  lifetime: number | null
+  /** Chamadas por ciclo mensal (uso justo). null = nao se aplica. */
+  monthly: number | null
+  daily: number
+  perMinute: number
+  /** Teto de custo mensal em USD; null = sem teto. */
+  costUsdMonthly: number | null
 }
 
 export type PlanDefinition = {
@@ -18,21 +24,24 @@ export type PlanDefinition = {
   quota: PlanQuota
 }
 
+// Mesmos numeros do banco (`ai_limits`): o servidor e a autoridade, isto aqui
+// e a leitura para a interface e a mensagem.
 export const PLANS: Record<PlanId, PlanDefinition> = {
   gratis: {
     id: 'gratis',
     name: 'Grátis',
-    quota: { managedAiCallsPerCycle: null },
+    // 50 chamadas para sentir o valor uma vez. Nao renovam: e convite, nao cota.
+    quota: { lifetime: 50, monthly: null, daily: 20, perMinute: 10, costUsdMonthly: null },
   },
-  ia_mensal: {
-    id: 'ia_mensal',
-    name: 'IA Mensal',
-    quota: { managedAiCallsPerCycle: 200 },
+  essencial: {
+    id: 'essencial',
+    name: 'Essencial',
+    quota: { lifetime: null, monthly: 1_000, daily: 300, perMinute: 20, costUsdMonthly: 4 },
   },
-  ia_anual: {
-    id: 'ia_anual',
-    name: 'IA Anual',
-    quota: { managedAiCallsPerCycle: 200 },
+  pro: {
+    id: 'pro',
+    name: 'Pro',
+    quota: { lifetime: null, monthly: 1_200, daily: 400, perMinute: 30, costUsdMonthly: 5 },
   },
 }
 
@@ -85,8 +94,19 @@ export function resolveEntitlement(
   return { plan: entitlement.plan, status: entitlement.status, periodEndUnixMs: entitlement.periodEndUnixMs }
 }
 
-/** IA gerenciada liberada? Ollama/BYOK nunca passam por aqui (sempre livres). */
+/** IA gerenciada liberada por plano? Ollama/BYOK nunca passam por aqui.
+ *
+ * `gratis` tem 50 chamadas unicas: o app libera a opcao e o servidor recusa a
+ * 51ª com mensagem propria — quem conta de verdade e o banco, nao a interface.
+ */
 export function canUseManagedAi(plan: PlanId): boolean {
-  const quota = PLANS[plan]?.quota.managedAiCallsPerCycle
-  return quota !== null && quota !== undefined && quota > 0
+  const quota = PLANS[plan]?.quota
+  if (!quota) return false
+  return quota.lifetime !== null || quota.monthly !== null
+}
+
+/** Quanto a conta gratuita ainda tem, a partir do uso que o servidor informou. */
+export function freeCallsRemaining(usedLifetime: number): number {
+  const total = PLANS.gratis.quota.lifetime ?? 0
+  return Math.max(0, total - usedLifetime)
 }

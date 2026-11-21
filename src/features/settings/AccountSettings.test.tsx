@@ -108,8 +108,8 @@ describe('AccountSettings', () => {
     try {
       renderAccount(makeFakeClient())
       const plan = await screen.findByLabelText('Plano de teste')
-      await user.selectOptions(plan, 'ia_mensal')
-      await waitFor(() => expect(screen.getByText(/ajuste manual da F2/)).toHaveTextContent('IA Mensal'))
+      await user.selectOptions(plan, 'essencial')
+      await waitFor(() => expect(screen.getByText(/ajuste manual da F2/)).toHaveTextContent('Essencial'))
 
       await user.selectOptions(plan, 'gratis')
       await waitFor(() => expect(screen.getByText(/ajuste manual da F2/)).toHaveTextContent('Grátis'))

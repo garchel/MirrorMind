@@ -15,6 +15,7 @@ pub mod evaluation;
 pub mod fact_check;
 pub mod gaps;
 pub mod gemini;
+pub mod managed;
 #[cfg(test)]
 mod integration;
 pub mod ipc;

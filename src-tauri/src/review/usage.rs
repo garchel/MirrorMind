@@ -80,6 +80,9 @@ pub fn estimate_call_cost_usd(provider: ProviderKind, input_chars: usize) -> f64
         // Preco desconhecido por servico: estimativa generica de nuvem,
         // configuravel em uma evolucao futura.
         ProviderKind::OpenAiCompatible => (GEMINI_INPUT_USD_PER_1M, GEMINI_OUTPUT_USD_PER_1M),
+        // Gerenciado roda no Gemini do servidor: mesma tabela, custo real medido
+        // no ledger do backend.
+        ProviderKind::Managed => (GEMINI_INPUT_USD_PER_1M, GEMINI_OUTPUT_USD_PER_1M),
     };
     let input_tokens = input_chars as f64 / CHARS_PER_TOKEN as f64;
     input_tokens / 1_000_000.0 * input_usd + ESTIMATED_OUTPUT_TOKENS / 1_000_000.0 * output_usd
@@ -95,6 +98,7 @@ pub fn estimate_vision_call_cost_usd(provider: ProviderKind, image_bytes: usize)
         ProviderKind::Gemini => (VISION_INPUT_USD_PER_1M, VISION_OUTPUT_USD_PER_1M),
         // Preco desconhecido por servico: estimativa generica de nuvem.
         ProviderKind::OpenAiCompatible => (VISION_INPUT_USD_PER_1M, VISION_OUTPUT_USD_PER_1M),
+        ProviderKind::Managed => (VISION_INPUT_USD_PER_1M, VISION_OUTPUT_USD_PER_1M),
     };
     let input_tokens = image_bytes as f64 * VISION_TOKENS_PER_BYTE;
     input_tokens / 1_000_000.0 * input_usd
@@ -191,6 +195,7 @@ fn provider_label(kind: ProviderKind) -> &'static str {
         ProviderKind::Ollama => "ollama",
         ProviderKind::Gemini => "gemini",
         ProviderKind::OpenAiCompatible => "openAiCompatible",
+        ProviderKind::Managed => "managed",
     }
 }
 
