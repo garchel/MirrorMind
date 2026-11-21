@@ -139,6 +139,13 @@ import { ExplorerItemMenu, ExplorerSidebar, type ExplorerContextMenu } from './f
 import { EditorHeader, HEADER_ACTION_KEYS, type HeaderActionKey } from './features/editor/EditorHeader'
 import { EditorContent } from './features/editor/EditorContent'
 import { VaultSelection } from './features/vault/VaultSelection'
+import { SharedVaultDialog } from './features/vault/SharedVaultDialog'
+import {
+  createSharingClient,
+  dismissSharingWarning,
+  isSharingWarningDismissed,
+  othersWhoUsed,
+} from './lib/sharing'
 import { createSupabaseSessionClient, supabaseConfigFromEnv } from './lib/supabaseSession'
 import { LoginPage } from './features/account/LoginPage'
 import { ProfileGate } from './features/profiles/ProfileGate'
@@ -572,6 +579,18 @@ function App() {
   const [guestIdentityError, setGuestIdentityError] = useState<string | null>(null)
   const identityClient = useMemo(() => createIdentityClient(invoke), [])
   const accountVaultsClient = useMemo(() => createAccountVaultsClient(invoke), [])
+  const sharingClient = useMemo(() => createSharingClient(invoke), [])
+  /**
+   * Aviso de pasta compartilhada, no momento da escolha.
+   *
+   * Fica aqui (e não dentro da tela de abertura) porque a decisão precisa segurar
+   * a abertura: `continuar` é a ação que a pessoa autorizou.
+   */
+  const [avisoCompartilhado, setAvisoCompartilhado] = useState<{
+    path: string
+    outros: string[]
+    continuar: (naoAvisarDeNovo: boolean) => void
+  } | null>(null)
   /** Identidade escolhida na abertura; o vault aberto cria/acha o perfil dela. */
   const pendingIdentityRef = useRef<IdentitySummary | null>(null)
   /** Perfil local em uso (quem está estudando neste vault). */
@@ -1581,6 +1600,13 @@ function App() {
   // por abertura: **um** vault conhecido abre direto; zero ou vários caem na tela
   // de escolha. Não há mais modal de "continuar de onde parou" — ele perguntava o
   // que a lista já responde.
+  /// Abre a pasta vinculada à conta **sem** passar pelo aviso de compartilhamento:
+  /// é a pasta que a pessoa já usa aqui, e avisar todo dia viraria pedágio. O aviso
+  /// existe na escolha manual, onde ela ainda pode recuar.
+  const abrirPastaVinculada = useEffectEvent(async (path: string) => {
+    await abrirVaultConhecido(path)
+  })
+
   useEffect(() => {
     if (!contaResolvida || recentVaultTratadoRef.current) return
     if (!recentVaultPreference) return
@@ -1600,7 +1626,7 @@ function App() {
         )
         if (decisao.kind !== 'open') return
         if (daConta.length === 1) {
-          void openKnownVault(decisao.path)
+          void abrirPastaVinculada(decisao.path)
           return
         }
         void reopenRecentVault()
@@ -1939,8 +1965,11 @@ function App() {
       }
 
       const parsedVault = parseVaultSummary(loadedVault)
-      setVault(parsedVault)
-      setStatus(`Vault carregado: ${parsedVault.name}`)
+      // A pasta escolhida no diálogo do sistema também pode ser compartilhada.
+      await confirmarCompartilhamento(parsedVault.path, () => {
+        setVault(parsedVault)
+        setStatus(`Vault carregado: ${parsedVault.name}`)
+      })
     } catch (caughtError) {
       const message =
         errorMessage(caughtError, 'Não foi possível abrir o vault.')
@@ -1953,7 +1982,47 @@ function App() {
   }
 
   /** Abre um vault da lista lembrada (sem diálogo do sistema). */
+  /**
+   * Pergunta antes de abrir uma pasta que outra pessoa já usou.
+   *
+   * Só na escolha manual: a pasta que a pessoa já usa (abertura automática) não
+   * pode virar pedágio todo dia — e o "não avisar de novo" existe para o resto.
+   * Falha ao ler o espelho **não bloqueia** a abertura.
+   */
+  async function confirmarCompartilhamento(path: string, continuar: () => void) {
+    if (isSharingWarningDismissed(path)) {
+      continuar()
+      return
+    }
+    try {
+      const nomes = await sharingClient.names(path)
+      const meuNome = pendingIdentityRef.current?.name ?? null
+      const outros = othersWhoUsed(nomes, meuNome)
+      if (outros.length === 0) {
+        continuar()
+        return
+      }
+      setAvisoCompartilhado({
+        path,
+        outros,
+        continuar: (naoAvisarDeNovo) => {
+          if (naoAvisarDeNovo) dismissSharingWarning(path)
+          setAvisoCompartilhado(null)
+          continuar()
+        },
+      })
+    } catch {
+      continuar()
+    }
+  }
+
   async function openKnownVault(path: string) {
+    await confirmarCompartilhamento(path, () => {
+      void abrirVaultConhecido(path)
+    })
+  }
+
+  async function abrirVaultConhecido(path: string) {
     setError(null)
     setLoading(true)
     setStatus(`Abrindo ${path}...`)
@@ -6762,6 +6831,14 @@ function App() {
     return (
       <main className="profile-gate-shell" data-builder-name="profile-gate-shell">
         <TitleBar />
+        {avisoCompartilhado ? (
+          <SharedVaultDialog
+            pasta={avisoCompartilhado.path}
+            outros={avisoCompartilhado.outros}
+            onConfirm={(naoAvisarDeNovo) => avisoCompartilhado.continuar(naoAvisarDeNovo)}
+            onCancel={() => setAvisoCompartilhado(null)}
+          />
+        ) : null}
         <ProfileGate
           vaultRoot={profileGate.vaultRoot}
           client={profileClient}

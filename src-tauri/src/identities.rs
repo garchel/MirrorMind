@@ -404,6 +404,20 @@ pub fn ensure_account_identity(
     Ok(identidade)
 }
 
+/// Nomes de quem já usou este vault, lidos do espelho.
+///
+/// É o que permite avisar "esta pasta não é só sua" **antes** de abrir. Vem do
+/// arquivo que viaja com a pasta, então funciona sem rede e sem conta.
+pub fn vault_identity_names(vault_root: &Path) -> Result<Vec<String>> {
+    let mut nomes: Vec<String> = load_mirror(vault_root)?
+        .into_iter()
+        .map(|identidade| identidade.name)
+        .collect();
+    nomes.sort();
+    nomes.dedup();
+    Ok(nomes)
+}
+
 /// Liga (ou desliga) uma identidade a uma conta.
 ///
 /// Caminho **perfil → conta**: a pessoa vincula o perfil do vault a uma conta
@@ -658,6 +672,35 @@ mod tests {
         .expect("sync");
         assert!(!reverteu);
         assert_eq!(load_machine(app.path()).unwrap()[0].name, "Paulo H.");
+    }
+
+
+    #[test]
+    fn nomes_do_espelho_dizem_quem_ja_usou_a_pasta() {
+        let vault = vault();
+        assert!(vault_identity_names(vault.path()).unwrap().is_empty());
+
+        let ana = Identity {
+            id: "a".into(),
+            name: "Ana".into(),
+            color: "sage".into(),
+            account_id: None,
+            pin_salt: None,
+            pin_hash: None,
+            updated_at_unix_ms: 1,
+        };
+        let joao = Identity {
+            id: "j".into(),
+            name: "Joao".into(),
+            ..ana.clone()
+        };
+        save_mirror(vault.path(), &[ana.clone(), joao, ana]).unwrap();
+
+        // nomes únicos e em ordem: a lista vai para um aviso na tela
+        assert_eq!(
+            vault_identity_names(vault.path()).unwrap(),
+            vec!["Ana".to_string(), "Joao".to_string()]
+        );
     }
 
     #[test]

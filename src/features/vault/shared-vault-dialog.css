@@ -1,0 +1,79 @@
+.shared-vault-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(20 24 22 / 45%);
+  z-index: 40;
+}
+
+.shared-vault-dialog {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 26px;
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  background: var(--surface, #fffdf8);
+  box-shadow: 0 24px 60px rgb(28 22 10 / 22%);
+}
+
+.shared-vault-kicker {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.shared-vault-dialog h2 {
+  font-size: 21px;
+}
+
+.shared-vault-lead {
+  font-size: 14px;
+  color: var(--foreground);
+}
+
+.shared-vault-lead code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--mm-sage-700);
+  overflow-wrap: anywhere;
+}
+
+.shared-vault-facts {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--mm-gold-100);
+}
+
+.shared-vault-facts h3 {
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.shared-vault-facts p,
+.shared-vault-note {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.shared-vault-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.shared-vault-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}

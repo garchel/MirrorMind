@@ -159,6 +159,7 @@ function createTauriHarness(
       case 'identities_adopt':
       case 'account_vaults_list':
       case 'account_vault_remember':
+      case 'vault_sharing':
         return []
       case 'identity_enter_vault':
         return {

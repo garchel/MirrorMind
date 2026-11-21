@@ -428,6 +428,15 @@ fn identities_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|error| error.to_string())
 }
 
+/// Quem já usou esta pasta, pelo espelho que viaja com ela.
+///
+/// Serve ao aviso de pasta compartilhada: a decisão de abrir junto com outra pessoa
+/// acontece antes de carregar as notas, e o espelho responde sem rede.
+#[tauri::command]
+fn vault_sharing(vault_root: String) -> Result<Vec<String>, String> {
+    identities::vault_identity_names(Path::new(&vault_root)).map_err(|erro| erro.to_string())
+}
+
 /// Id da conta logada (`sub` do JWT). `None` quando não há sessão.
 fn current_account_id() -> Option<String> {
     let sessao = account::load_session().ok()??;
@@ -6735,6 +6744,7 @@ pub fn run() {
             get_recent_vault_preference,
             reopen_recent_vault,
             account_vault_remember,
+            vault_sharing,
             account_vaults_list,
             identities_adopt,
             identities_list,
